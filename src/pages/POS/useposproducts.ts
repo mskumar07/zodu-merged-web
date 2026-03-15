@@ -32,7 +32,7 @@ import {
 } from "./db";
 
 // ── API base (change to your backend URL / env var) ───────────
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 
 // ── TanStack Query keys ───────────────────────────────────────
 export const posProductsKey = (branchId: string) =>
