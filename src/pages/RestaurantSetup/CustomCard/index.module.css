@@ -1,0 +1,41 @@
+.cardContainer {
+  margin: 24px auto;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.header {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.detailsRow {
+  display: flex;
+  flex: 0 1 80%;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.section {
+  flex: 1;
+  padding: 12px 0;
+}
+
+.label {
+  font-weight: 500;
+  color: #3769e4;
+  margin-bottom: 10px !important;
+}
+
+.value {
+  margin-bottom: 10px !important;
+}
+
+.timetable {
+  margin-top: 20px;
+}
+
+.timeSlot {
+  margin-bottom: 4px;
+}

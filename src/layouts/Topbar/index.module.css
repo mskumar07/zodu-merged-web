@@ -1,0 +1,115 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 16px;
+  padding-right: 16px;
+  min-height: 64px;
+}
+
+.greetingSection {
+  flex: 0 1 50%;
+  min-width: 0; /* allow text truncation if needed */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.searchSection {
+  flex: 0 1 30%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+}
+
+.profileSection {
+  flex: 0 1 20%;
+  min-width: 0;
+  gap: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.appBar {
+  background: transparent;
+  box-shadow: none;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.greeting {
+  font-weight: 700;
+  font-size: 1.25rem;
+  margin-bottom: 2px;
+}
+
+.subtitle {
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.searchContainer {
+  display: flex;
+  align-items: center;
+  background: #f4f4f4;
+  border-radius: 8px;
+  padding: 2px 16px;
+  min-width: 220px;
+  max-width: 300px;
+}
+
+.searchIcon {
+  color: #666;
+  margin-right: 8px;
+}
+
+.kbdHint {
+  color: #888;
+  margin-left: 16px;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  display: none;
+}
+
+@media (min-width: 600px) {
+  .kbdHint {
+    display: block;
+  }
+}
+
+.iconGroup {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.profileBox {
+  display: flex;
+  align-items: center;
+  margin-left: 8px;
+}
+
+.profileName {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.profileRole {
+  font-size: 0.82rem;
+  color: #888;
+  text-align: left;
+}
+
+.avatar {
+  width: 36px !important;
+  height: 36px !important;
+  margin-right: 8px;
+}

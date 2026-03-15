@@ -1,0 +1,61 @@
+.container {
+  display: flex;
+  height: 100vh;
+  max-height: 100vh !important;
+  font-family: Roboto, sans-serif;
+}
+
+.heroSection {
+  min-height: 100vh;
+  background: linear-gradient(
+      104deg,
+      #ac0003 100.16%,
+      #c6181b 104.58%,
+      #ac0306 112.17%,
+      #a80003 113.28%
+    ),
+    linear-gradient(135deg, #a80003, #ac0306, #c6181b, #ac0003),
+    linear-gradient(
+      90deg,
+      rgba(168, 0, 3, 0) 1%,
+      rgba(164, 0, 3, 0.09) 6%,
+      rgba(153, 0, 3, 0.34) 24%,
+      rgba(144, 0, 2, 0.54) 42%,
+      rgba(138, 0, 2, 0.69) 61%,
+      rgba(134, 0, 2, 0.77) 80%,
+      rgba(133, 0, 2, 0.8) 100%
+    );
+  color: white;
+  padding: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.left {
+  background-image: url("../../assets/BACKGROUND.svg");
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  width: "100%";
+  flex: 0 0 50%;
+}
+
+.right {
+  flex: 1;
+  padding: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.form {
+  margin-top: 20px;
+}
+
+.link {
+  color: #ca0023;
+  font-weight: bold;
+  cursor: pointer;
+}

@@ -1,0 +1,43 @@
+.container {
+  display: flex;
+  height: 100vh;
+  font-family: Roboto, sans-serif;
+}
+
+.heroSection {
+  max-width: 500px;
+}
+
+.left {
+  flex: 1;
+  background: linear-gradient(180deg, #ca0023, #eb0029);
+  color: white;
+  padding: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.right {
+  flex: 1;
+  padding: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.form {
+  margin-top: 20px;
+  /* margin-left: auto;
+  margin-right: auto; */
+}
+
+.link {
+  color: #ca0023;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.myCustomTextFieldRoot {
+  background-color: "red !important";
+}

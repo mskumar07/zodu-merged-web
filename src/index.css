@@ -1,0 +1,29 @@
+::-webkit-scrollbar {
+  display: none;
+}
+
+body {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+/* html,
+body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+} */
+
+/*Z-T77 html, body*/
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+/*#root*/
+#root {
+  height: 100%;
+  overflow: hidden;
+}

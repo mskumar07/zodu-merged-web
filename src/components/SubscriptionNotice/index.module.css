@@ -1,0 +1,48 @@
+.noticePaper {
+  width: 80%;
+  height: 200px;
+  padding: 0px 2px;
+  padding-left: 16px;
+  position: relative;
+  border-radius: 16px;
+  background-color: #eeeeee !important;
+
+  /* box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.08); */
+}
+
+.closeButton {
+  flex-shrink: 1;
+}
+
+.progressWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-bottom: 5px;
+}
+
+.progressCircle {
+  position: relative;
+  display: inline-flex;
+}
+
+.progressCenter {
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.noticeSubtitle {
+  font-weight: 600;
+}
+
+.upgradeButton {
+  padding: 0px 0px !important;
+  min-width: 0px !important;
+  /* Add additional text/link styles here if needed */
+}
