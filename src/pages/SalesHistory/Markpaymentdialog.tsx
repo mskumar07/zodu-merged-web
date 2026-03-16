@@ -94,6 +94,7 @@ export default function MarkPaymentDialog({ sale, onClose, onSuccess }: Props) {
   }
 
   toast.info("Saving payment...");
+  onClose();
 
     // mutation.mutate({
     //   zodu_id: "ZODU035",

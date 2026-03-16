@@ -1109,6 +1109,16 @@ export default function SalesHistoryPage() {
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 function SalesHistoryScreen() {
+  const headerCellSx = {
+    bgcolor: "#F8EAEA",
+    color: "#6B7280",
+    fontSize: "0.78rem",
+    fontWeight: 700,
+    letterSpacing: "0.04em",
+    textTransform: "uppercase",
+    borderBottom: "1px solid rgba(0,0,0,0.07)",
+  } as const;
+
   const [draftFilters, setDraftFilters]     = useState<Filters>({ search: "", payment_status: "", from_date: "", to_date: "" });
   const [appliedFilters, setAppliedFilters] = useState<Filters>({ search: "", payment_status: "", from_date: "", to_date: "" });
 
@@ -1124,6 +1134,7 @@ function SalesHistoryScreen() {
       initialPageParam: 1,
       getNextPageParam: (last) => last.page < last.total_pages ? last.page + 1 : undefined,
     });
+
 
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef  = useInfiniteScroll(hasNextPage, fetchNextPage, isFetchingNextPage, tableContainerRef);
@@ -1221,17 +1232,17 @@ function SalesHistoryScreen() {
       </Card>
 
       {/* Transactions table */}
-      <Card elevation={3} sx={{ boxShadow: "0 4px 16px rgba(0,0,0,0.08)" }}>
+      <Card elevation={3} sx={{ boxShadow: "0 4px 16px rgba(26, 26, 26, 0.08)" }}>
         <TableContainer ref={tableContainerRef} component={Paper} elevation={0} sx={{ maxHeight: 520, overflow: "auto" }}>
-          <Table stickyHeader>
-            <TableHead>
+          <Table stickyHeader >
+            <TableHead sx={{ "& .MuiTableCell-root": headerCellSx }}>
               <TableRow>
-                <TableCell>Invoice ID</TableCell>
-                <TableCell>Date &amp; Time</TableCell>
-                <TableCell>Customer</TableCell>
-                <TableCell align="right">Total</TableCell>
-                <TableCell>Payment</TableCell>
-                <TableCell align="right">Actions</TableCell>
+                <TableCell sx={headerCellSx}>Invoice ID</TableCell>
+                <TableCell sx={headerCellSx}>Date &amp; Time</TableCell>
+                <TableCell sx={headerCellSx}>Customer</TableCell>
+                <TableCell align="right" sx={headerCellSx}>Total</TableCell>
+                <TableCell sx={headerCellSx}>Payment</TableCell>
+                <TableCell align="right" sx={headerCellSx}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -1256,7 +1267,7 @@ function SalesHistoryScreen() {
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.8rem" }}>
-                            {sale.sale_date}{sale.sale_time ? ` • ${sale.sale_time.slice(0, 5)}` : ""}
+                            {sale.sale_date}{sale.sale_time ? ` • ${sale.sale_time}` : ""}
                           </Typography>
                         </TableCell>
                         <TableCell>
