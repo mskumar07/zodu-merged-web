@@ -4,7 +4,7 @@ import Dashboard from "@pages/Dashboard/index.tsx";
 import Auth from "@pages/auth/index.tsx";
 import POSScreen from "@pages/POS/index.tsx";
 import RestaurantSetup from "@pages/RestaurantSetup/index.tsx";
-import MenuItemsScreen from "@pages/MenuItemScreen";
+import MenuItemsScreen from "@pages/MenuItemScreen/App.tsx";
 import ExpensesScreen from "@pages/ExpensesScreen";
 import RportsScreen from "@pages/ReportsScreen/index.tsx";
 import InventoryScreen from "@pages/InventoryScreen/index.tsx";
@@ -76,6 +76,9 @@ export const routes = [
     element: <RetailPOS />,
     // children: [{ path: "pos", element: <POSScreen /> }],
   },
- 
+  {
+    path:"/menu-items",
+    element: <MenuItemsScreen />
+  },
   { path: "/login", element: <Auth /> },
 ];
