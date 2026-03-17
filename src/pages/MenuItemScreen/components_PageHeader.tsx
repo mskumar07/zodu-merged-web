@@ -14,7 +14,7 @@ const PageHeader: React.FC<{ onAddNew: () => void }> = ({ onAddNew }) => (
     }}
   >
     <Box>
-      <Typography variant="h4" fontWeight={900} letterSpacing="-0.5px" color="text.primary">
+      <Typography variant="h5" fontWeight={900} letterSpacing="-0.5px" color="text.primary">
         Items/Products
       </Typography>
       <Typography variant="body2" color="text.secondary" mt={0.5}>
@@ -26,7 +26,7 @@ const PageHeader: React.FC<{ onAddNew: () => void }> = ({ onAddNew }) => (
       startIcon={<AddCircleIcon />}
       onClick={onAddNew}
       sx={{
-        borderRadius: 3,
+        borderRadius: 1.5,
         fontWeight: 700,
         px: 3,
         py: 1.2,

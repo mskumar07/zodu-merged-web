@@ -57,7 +57,7 @@ const ProductTable: React.FC<ProductTableProps> = ({ products }) => {
       elevation={0}
       variant="outlined"
       sx={{
-        borderRadius: 3,
+        borderRadius: 1.5,
         border: `1px solid ${theme.palette.divider}`,
         overflow: "hidden",
         display: "flex",
@@ -95,8 +95,8 @@ const ProductTable: React.FC<ProductTableProps> = ({ products }) => {
                     color: "text.secondary",
                     bgcolor: "action.hover",
                     whiteSpace: "nowrap",
+                    background:"#fff",
                     borderBottom: `1px solid ${theme.palette.divider}`,
-                    ...(col.label === "Actions" ? stickyActionStyle : {}),
                   }}
                 >
                   {col.label}
@@ -268,8 +268,8 @@ const ProductTable: React.FC<ProductTableProps> = ({ products }) => {
                     align="center"
                     sx={{
                       px: 2,
-                      bgcolor: "background.paper",
-                      ...stickyActionStyle,
+                     
+                    
                     }}
                   >
                     <Box

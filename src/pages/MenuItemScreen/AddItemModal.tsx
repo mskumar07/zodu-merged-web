@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Box, Typography, TextField, Button, IconButton,
-  ToggleButtonGroup, ToggleButton, FormControl, InputLabel,
+  ToggleButtonGroup, ToggleButton, FormControl,
   Select, MenuItem, InputAdornment, Tooltip, Chip,
 } from '@mui/material';
 import { useFormik } from 'formik';
@@ -116,11 +116,11 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({ open, onClose, on
 
       <DialogActions sx={{ px: 3, py: 2.5, borderTop: '1px solid', borderColor: 'divider', gap: 1.5 }}>
         <Button onClick={handleClose} variant="outlined"
-          sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, px: 3, borderColor: 'divider', color: 'text.secondary', '&:hover': { bgcolor: 'action.hover', borderColor: 'divider' } }}>
+          sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600, px: 3, borderColor: 'divider', color: 'text.secondary', '&:hover': { bgcolor: 'action.hover', borderColor: 'divider' } }}>
           Cancel
         </Button>
         <Button onClick={() => f.submitForm()} variant="contained" startIcon={<AddCircleIcon />}
-          sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, px: 3, boxShadow: '0 4px 12px rgba(210,18,46,0.25)', '&:hover': { boxShadow: '0 6px 16px rgba(210,18,46,0.35)' } }}>
+          sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 700, px: 3, boxShadow: '0 4px 12px rgba(210,18,46,0.25)', '&:hover': { boxShadow: '0 6px 16px rgba(210,18,46,0.35)' } }}>
           Add Category
         </Button>
       </DialogActions>
@@ -174,7 +174,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
 
   // Reusable toggle group styles
   const toggleGroupSx = {
-    bgcolor: 'action.hover', borderRadius: 2, p: '4px', gap: '3px', width: '100%',
+    bgcolor: 'action.hover', borderRadius: 1.5, p: '4px', gap: '3px', width: '100%',
     '& .MuiToggleButtonGroup-grouped': { margin: 0 },
   };
 
@@ -191,12 +191,12 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
     '&:hover': { bgcolor: 'transparent' },
   });
 
-  const inputSx = { borderRadius: 2, fontSize: 14 };
+  const inputSx = { borderRadius: 1, fontSize: 14 };
 
   return (
     <>
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth
-        PaperProps={{ sx: { borderRadius: 3, boxShadow: '0 32px 80px rgba(0,0,0,0.22)', maxHeight: '92vh' } }}
+        PaperProps={{ sx: { borderRadius: 1.5, boxShadow: '0 32px 80px rgba(0,0,0,0.22)', maxHeight: '92vh' } }}
         BackdropProps={{ sx: { bgcolor: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(3px)' } }}>
 
         {/* ── Header ── */}
@@ -230,7 +230,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
                 <Label text="Item Image" />
                 <Box onClick={() => imageInputRef.current?.click()}
                   sx={{
-                    aspectRatio: '1/1', width: '100%', borderRadius: 3, border: '2px dashed',
+                    aspectRatio: '1/1', width: '100%', borderRadius: 1.5, border: '2px dashed',
                     borderColor: imagePreview ? 'primary.main' : 'divider',
                     bgcolor: imagePreview ? 'transparent' : 'action.hover',
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
@@ -290,7 +290,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
                       onClick={() => setCatDialogOpen(true)}
                       sx={{
                         textTransform: 'none', fontWeight: 700, fontSize: 12, px: 1.5, py: 0.4,
-                        borderRadius: 1.5, color: 'primary.main', bgcolor: 'rgba(210,18,46,0.07)',
+                        borderRadius: 1, color: 'primary.main', bgcolor: 'rgba(210,18,46,0.07)',
                         border: '1px solid rgba(210,18,46,0.2)', lineHeight: 1,
                         '&:hover': { bgcolor: 'rgba(210,18,46,0.13)', boxShadow: '0 2px 8px rgba(210,18,46,0.15)' },
                         transition: 'all 0.2s',
@@ -299,10 +299,17 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
                     </Button>
                   </Box>
                   <FormControl fullWidth size="small" error={touch.category && Boolean(err.category)}>
-                    <InputLabel sx={{ fontSize: 14 }}>Select Category</InputLabel>
-                    <Select value={formik.values.category} label="Select Category"
+                    <Select value={formik.values.category}
+                      displayEmpty
                       onChange={(e) => formik.setFieldValue('category', e.target.value)}
+                      renderValue={(selected) => {
+                        if (!selected) {
+                          return <Box component="span" sx={{ color: 'text.disabled' }}>Select Category</Box>;
+                        }
+                        return categories.find(c => c.value === selected)?.label ?? selected;
+                      }}
                       sx={{ ...inputSx }}>
+                      <MenuItem value="" disabled sx={{ fontSize: 14, color: 'text.disabled' }}>Select Category</MenuItem>
                       {categories.map(c => (
                         <MenuItem key={c.value} value={c.value} sx={{ fontSize: 14 }}>{c.label}</MenuItem>
                       ))}
@@ -324,8 +331,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
                 <Box>
                   <Label text="Item Unit" />
                   <FormControl fullWidth size="small">
-                    <InputLabel sx={{ fontSize: 14 }}>Unit</InputLabel>
-                    <Select value={formik.values.unit} label="Unit"
+                    <Select value={formik.values.unit}
                       onChange={(e) => formik.setFieldValue('unit', e.target.value)} sx={inputSx}>
                       {['pcs', 'kg', 'ltr', 'box'].map(u => (
                         <MenuItem key={u} value={u} sx={{ fontSize: 14 }}>{u.toUpperCase()}</MenuItem>
@@ -364,8 +370,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
                   <Box>
                     <Label text="Tax Type" required />
                     <FormControl fullWidth size="small" error={touch.taxType && Boolean(err.taxType)}>
-                      <InputLabel sx={{ fontSize: 14 }}>Tax</InputLabel>
-                      <Select value={formik.values.taxType} label="Tax"
+                      <Select value={formik.values.taxType}
                         onChange={(e) => formik.setFieldValue('taxType', e.target.value)}
                         sx={{ ...inputSx, bgcolor: 'background.paper' }}>
                         {[['gst5','GST 5%'],['gst12','GST 12%'],['gst18','GST 18%'],['gst28','GST 28%'],['exempt','Exempt']].map(([v, l]) => (
@@ -425,11 +430,11 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
         {/* ── Footer ── */}
         <DialogActions sx={{ px: 3, py: 2.5, borderTop: '1px solid', borderColor: 'divider', gap: 1.5, justifyContent: 'flex-end' }}>
           <Button onClick={handleClose} variant="outlined"
-            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, px: 3, height: 42, borderColor: 'divider', color: 'text.secondary', '&:hover': { bgcolor: 'action.hover', borderColor: 'divider' } }}>
+            sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600, px: 3, height: 42, borderColor: 'divider', color: 'text.secondary', '&:hover': { bgcolor: 'action.hover', borderColor: 'divider' } }}>
             Cancel
           </Button>
           <Button onClick={() => formik.submitForm()} variant="contained" startIcon={<SaveIcon />}
-            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, px: 4, height: 42, boxShadow: '0 4px 14px rgba(210,18,46,0.25)', '&:hover': { boxShadow: '0 6px 18px rgba(210,18,46,0.35)' }, '&:active': { transform: 'scale(0.98)' } }}>
+            sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 700, px: 4, height: 42, boxShadow: '0 4px 14px rgba(210,18,46,0.25)', '&:hover': { boxShadow: '0 6px 18px rgba(210,18,46,0.35)' }, '&:active': { transform: 'scale(0.98)' } }}>
             Save Item
           </Button>
         </DialogActions>

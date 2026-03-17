@@ -24,7 +24,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ searchQuery, onSearchChange }) =>
       elevation={0}
       variant="outlined"
       sx={{
-        borderRadius: 3,
+        borderRadius: 1.5,
         border: `1px solid ${theme.palette.divider}`,
         p: 2,
         mb: 3,
@@ -50,7 +50,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ searchQuery, onSearchChange }) =>
               </InputAdornment>
             ),
             sx: {
-              borderRadius: 3,
+              borderRadius: 1.5,
               bgcolor: 'action.hover',
               '& fieldset': { border: 'none' },
               fontSize: 14,
@@ -63,7 +63,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ searchQuery, onSearchChange }) =>
             variant="text"
             startIcon={<FilterListIcon />}
             sx={{
-              borderRadius: 2,
+              borderRadius: 1.5,
               px: 2.5,
               fontWeight: 600,
               textTransform: 'none',
@@ -80,7 +80,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ searchQuery, onSearchChange }) =>
             variant="text"
             startIcon={<FileDownloadIcon />}
             sx={{
-              borderRadius: 2,
+              borderRadius: 1.5,
               px: 2.5,
               fontWeight: 600,
               textTransform: 'none',
