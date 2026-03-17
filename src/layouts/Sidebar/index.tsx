@@ -23,6 +23,7 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import React from "react";
+import { Person } from "@mui/icons-material";
 
 export const drawerWidth = 240;
 
@@ -34,17 +35,18 @@ const navItems = [
 
   
   { label: "Inventory", icon: <ReceiptIcon />, path: "/stock" },
-  { label: "Expense", icon: <PaymentsIcon />, path: "/expense" },
+  // { label: "Expense", icon: <PaymentsIcon />, path: "/expense" },
   { label: "Purchase", icon: <CategoryIcon />, path:"/purchase"},
-  { label: "Checklist", icon: <ChecklistIcon />, path: "/checklist" },
-  {label: "Attendance", icon:<GroupsIcon/>, path:"/attendance"},
+    { label: "Customer Management", icon: <Person />, path: "/customer-details" },
+  // { label: "Checklist", icon: <ChecklistIcon />, path: "/checklist" },
+  // {label: "Attendance", icon:<GroupsIcon/>, path:"/attendance"},
   { label: "Report", icon: <BarChartIcon />, path: "/reports" },
   
-   {
-    label: "Restaurant setup",
-    icon: <RestaurantMenuIcon />,
-    path: "/restaurant-setup",
-  },
+  //  {
+  //   label: "Restaurant setup",
+  //   icon: <RestaurantMenuIcon />,
+  //   path: "/restaurant-setup",
+  // },
 ];
 
 export default function Sidebar() {

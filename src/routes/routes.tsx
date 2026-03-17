@@ -26,6 +26,7 @@ import OrderReport from "@components/Reports/OrderReport";
 import ExpenseReport from "@components/Reports/ExpenseReport";
 import RetailPOS from "@pages/POS/pos";
 import SalesHistoryScreen from "@pages/SalesHistory/SalesHistory";
+import CustomerManagement from "@pages/Customer/Customermanagement";
 
 export const routes = [
   {
@@ -38,6 +39,7 @@ export const routes = [
       { path: "expense", element: <ExpensesScreen /> },
       { path: "stock", element: <InventoryScreen /> },
       { path: "purchase", element: <PurchaseScreen /> },
+      {path: "customer-details", element: <CustomerManagement/>},
       {
         path: "checklist/*",
         element: <ChecklistScreen />,
