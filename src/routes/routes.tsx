@@ -7,7 +7,7 @@ import RestaurantSetup from "@pages/RestaurantSetup/index.tsx";
 import MenuItemsScreen from "@pages/MenuItemScreen/MenuItemScreen";
 import ExpensesScreen from "@pages/ExpensesScreen";
 import RportsScreen from "@pages/ReportsScreen/index.tsx";
-import InventoryScreen from "@pages/InventoryScreen/index.tsx";
+import InventoryScreen from "@pages/InventoryScreen/InventoryManagement";
 import PurchaseScreen from "@pages/PurchaseScreen";
 
 // ... import other page components
@@ -27,17 +27,22 @@ import ExpenseReport from "@components/Reports/ExpenseReport";
 import RetailPOS from "@pages/POS/pos";
 import SalesHistoryScreen from "@pages/SalesHistory/SalesHistory";
 import CustomerManagement from "@pages/Customer/Customermanagement";
+import InventoryManagement from "../pages/InventoryScreen/InventoryManagement";
+import ZoduLoginPage from "@pages/auth/Login";
+import ZoduSignupPage from "@pages/auth/Signup";
+import { Navigate } from "react-router-dom";
 
 export const routes = [
   {
     path: "/",
     element: <Layout />, // Layout as the shell for all (nested) routes
     children: [
-      { path: "/", index: true, element: <Dashboard /> }, // /   -> Dashboard
+      { index: true, element: <Navigate to="/login" replace /> },
+      { path: "dashboard", element: <Dashboard /> },
       { path: "restaurant-setup", element: <RestaurantSetup /> },
       { path: "menu", element: <MenuItemsScreen /> },
       { path: "expense", element: <ExpensesScreen /> },
-      { path: "stock", element: <InventoryScreen /> },
+      { path: "stock", element: <InventoryManagement /> },
       { path: "purchase", element: <PurchaseScreen /> },
       {path: "customer-details", element: <CustomerManagement/>},
       {
@@ -82,5 +87,6 @@ export const routes = [
     path:"/menu-items",
     element: <MenuItemsScreen />
   },
-  { path: "/login", element: <Auth /> },
+  { path: "/login", element: <ZoduLoginPage /> },
+  { path: "/signup", element: <ZoduSignupPage /> },
 ];

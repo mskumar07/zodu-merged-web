@@ -223,7 +223,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
 
             {/* Row 1: Image + Basic fields */}
-            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3,mt:2.5 }}>
 
               {/* Image Upload */}
               <Box sx={{ width: { xs: '100%', md: 156 }, flexShrink: 0 }}>
@@ -359,7 +359,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
             </Box>
 
             {/* Row 3: Tax */}
-            <Box sx={{ bgcolor: 'action.hover', borderRadius: 3, p: 2.5 }}>
+            <Box sx={{ bgcolor: 'action.hover', borderRadius: 1.5, p: 2.5 }}>
               <Typography variant="body2" fontWeight={700} color="text.secondary" textTransform="uppercase" letterSpacing="0.06em" fontSize={11} mb={2}>
                 Tax Information
               </Typography>

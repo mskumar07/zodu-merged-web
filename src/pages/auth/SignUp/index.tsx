@@ -1,25 +1,24 @@
 import React from "react";
-import { Formik, Form } from "formik";
+import { Formik, Form, Field, type FieldProps } from "formik";
 import * as Yup from "yup";
 
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import InputAdornment from "@mui/material/InputAdornment";
+import Link from "@mui/material/Link";
+import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 
-import Button from "@components/Button/index.tsx";
 import Logo from "@components/Common/Logo/index.tsx";
-import FormikTextInput from "@components/FormikTextInput/index.tsx";
 
-import styles from "../SignIn/index.module.css";
-
-// ✅ Yup Validation Schema
 const SignUpSchema = Yup.object().shape({
   restaurantName: Yup.string().required("Restaurant name is required"),
   email: Yup.string()
     .email("Invalid email format")
     .required("Email is required"),
   phone: Yup.string()
-    .matches(/^[0-9]{10}$/, "Phone number must be 10 digits")
-    .required("Phone number is required"),
+    .matches(/^[0-9]{10}$/, "Mobile number must be 10 digits")
+    .required("Mobile number is required"),
   password: Yup.string()
     .min(6, "Password must be at least 6 characters")
     .required("Password is required"),
@@ -28,26 +27,139 @@ const SignUpSchema = Yup.object().shape({
     .required("Please confirm your password"),
 });
 
+const fieldSx = {
+  mb: 2.25,
+  "& .MuiInputLabel-root": {
+    position: "static",
+    transform: "none",
+    color: "#111827",
+    fontSize: "0.85rem",
+    fontWeight: 600,
+    mb: 0.8,
+  },
+  "& .MuiOutlinedInput-root": {
+    height: 40,
+    borderRadius: "10px",
+    backgroundColor: "#FFFFFF",
+    fontSize: "0.95rem",
+    color: "#111827",
+    "& fieldset": {
+      borderColor: "#9AA9BF",
+    },
+    "&:hover fieldset": {
+      borderColor: "#6F829A",
+    },
+    "&.Mui-focused fieldset": {
+      borderColor: "#D6001C",
+      borderWidth: 1,
+    },
+  },
+  "& .MuiOutlinedInput-input": {
+    px: 1.8,
+    py: 1.25,
+  },
+  "& .MuiOutlinedInput-input::placeholder": {
+    color: "#A0AEC0",
+    opacity: 1,
+  },
+  "& .MuiFormHelperText-root": {
+    mx: 0,
+    mt: 0.6,
+  },
+} as const;
+
+const renderField = (
+  name: string,
+  label: string,
+  placeholder: string,
+  type = "text",
+  startAdornment?: React.ReactNode
+) => (
+  <Field name={name}>
+    {({ field, meta }: FieldProps) => (
+      <TextField
+        {...field}
+        fullWidth
+        type={type}
+        label={label}
+        placeholder={placeholder}
+        variant="outlined"
+        InputLabelProps={{ shrink: true }}
+        error={Boolean(meta.touched && meta.error)}
+        helperText={meta.touched && meta.error ? meta.error : " "}
+        sx={fieldSx}
+        InputProps={
+          startAdornment
+            ? {
+                startAdornment: (
+                  <InputAdornment
+                    position="start"
+                    sx={{
+                      color: "#1F2937",
+                      "& .MuiTypography-root": {
+                        fontSize: "0.95rem",
+                      },
+                    }}
+                  >
+                    {startAdornment}
+                  </InputAdornment>
+                ),
+              }
+            : undefined
+        }
+      />
+    )}
+  </Field>
+);
+
 const SignUp = () => {
   return (
-    <Box className={styles.heroSection}>
-      <Box sx={{ textAlign: "center" }}>
-        <Typography variant="h4" fontWeight="bold" color="primary">
-          <Logo fontSize="4rem" />
-        </Typography>
-        <Typography variant="body1" gutterBottom>
-          Sign up to get started with your restaurant!
-        </Typography>
-      </Box>
-
+    <Box
+      sx={{
+        minHeight: "100vh",
+        width: "100%",
+        bgcolor: "#FFFFFF",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        px: 2,
+        py: { xs: 4, md: 6 },
+      }}
+    >
       <Box
         sx={{
+          width: "100%",
+          maxWidth: 356,
           display: "flex",
           flexDirection: "column",
-          justifyContent: "center",
           alignItems: "center",
         }}
       >
+        <Box sx={{ width: "100%", textAlign: "center", mb: 4.5 }}>
+          <Logo fontSize="1.8rem" />
+          <Typography
+            sx={{
+              mt: 2.2,
+              color: "#14050A",
+              fontSize: "1.05rem",
+              fontWeight: 700,
+            }}
+          >
+            Create Account
+          </Typography>
+          <Typography
+            sx={{
+              mt: 1.6,
+              color: "#64748B",
+              fontSize: "0.84rem",
+              fontWeight: 500,
+              lineHeight: 1.45,
+            }}
+          >
+            Welcome to the kitchen! Let&apos;s cook up something amazing together
+          </Typography>
+        </Box>
+
         <Formik
           initialValues={{
             restaurantName: "",
@@ -62,83 +174,69 @@ const SignUp = () => {
           }}
         >
           {() => (
-            <Form>
-              <Box>
-                {/* ✅ Restaurant Name */}
-                <FormikTextInput
-                  name="restaurantName"
-                  label="Restaurant Name"
-                  placeholder="Restaurant name"
-                  sx={inputStyles}
-                />
+            <Form style={{ width: "100%" }}>
+              {renderField("restaurantName", "Restaurant Name", "Eg : Placeholder")}
+              {renderField("email", "Email Id", "Eg : Placeholder")}
+              {renderField("phone", "Mobile No", "Eg : Placeholder", "text", "+91")}
+              {renderField("password", "Create Password", "Eg : Placeholder", "password")}
+              {renderField(
+                "confirmPassword",
+                "Confirm Password",
+                "Eg : Placeholder",
+                "password"
+              )}
 
-                {/* ✅ Email */}
-                <FormikTextInput
-                  name="email"
-                  label="Email Id"
-                  placeholder="Email ID"
-                  sx={inputStyles}
-                />
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                sx={{
+                  mt: 0.25,
+                  height: 39,
+                  borderRadius: "9px",
+                  backgroundColor: "#D30020",
+                  boxShadow: "none",
+                  fontSize: "0.98rem",
+                  fontWeight: 700,
+                  textTransform: "none",
+                  "&:hover": {
+                    backgroundColor: "#B5001B",
+                    boxShadow: "none",
+                  },
+                }}
+              >
+                Create Account
+              </Button>
 
-                {/* ✅ Phone Number */}
-                <FormikTextInput
-                  name="phone"
-                  label="Phone"
-                  placeholder="Phone number"
-                  sx={inputStyles}
-                />
-
-                {/* ✅ Password */}
-                <FormikTextInput
-                  name="password"
-                  label="Password"
-                  type="password"
-                  placeholder="Create password"
-                  sx={inputStyles}
-                />
-
-                {/* ✅ Confirm Password */}
-                <FormikTextInput
-                  name="confirmPassword"
-                  label="Confirm Password"
-                  type="password"
-                  placeholder="Confirm password"
-                  sx={inputStyles}
-                />
-
-                {/* Submit Button */}
-                <Button
-                  type="submit"
-                  fullWidth={true}
+              <Typography
+                sx={{
+                  mt: 2,
+                  textAlign: "center",
+                  color: "#64748B",
+                  fontSize: "0.88rem",
+                  fontWeight: 500,
+                }}
+              >
+                Already have an account?{" "}
+                <Link
+                  href="/login"
+                  underline="always"
                   sx={{
-                    margin: "10px",
-                    width: "92%",
-                    padding: "10px 16px",
-                    ":hover": {
-                      backgroundColor: "#CA0023",
-                    },
+                    color: "#D30020",
+                    fontSize: "0.88rem",
+                    fontWeight: 700,
+                    textUnderlineOffset: "2px",
                   }}
                 >
-                  Sign Up
-                </Button>
-              </Box>
+                  Login here
+                </Link>
+              </Typography>
             </Form>
           )}
         </Formik>
       </Box>
     </Box>
   );
-};
-
-// ✅ Common input styles
-const inputStyles = {
-  backgroundColor: "#f8f8f8",
-  borderRadius: "8px",
-  marginTop: "10px",
-  "& .MuiOutlinedInput-notchedOutline": {
-    borderColor: "#c4c4c4 !important",
-    borderWidth: "1px !important",
-  },
 };
 
 export default SignUp;

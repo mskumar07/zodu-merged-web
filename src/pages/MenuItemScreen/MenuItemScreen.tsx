@@ -13,7 +13,7 @@ const MenuItemScreen: React.FC = () => {
    const [modalOpen, setModalOpen] = useState(false);
    
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column',p:4 }}>
+    <Box sx={{ minHeight: '100vh',display: 'flex', flexDirection: 'column',p:4}}>
      
         <PageHeader onAddNew={() => setModalOpen(true)} />
         <ProductTabs value={activeTab} onChange={setActiveTab} />

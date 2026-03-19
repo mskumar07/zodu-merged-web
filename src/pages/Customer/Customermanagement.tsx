@@ -23,8 +23,8 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import SearchIcon from "@mui/icons-material/Search";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
-import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
 import AddNewCustomerDialog from "./Addnewcustomerdialog";
+import CustomerLedgerDialog from "./CustomerLedgerDialog";
 
 // ─── Theme ────────────────────────────────────────────────────
 const theme = createTheme({
@@ -120,9 +120,9 @@ export default function CustomerManagement({
 }: CustomerManagementProps) {
   const [customers, setCustomers] = useState<Customer[]>(INITIAL_CUSTOMERS);
   const [search, setSearch] = useState("");
-    const [addCustomerOpen, setAddCustomerOpen] = useState(false);
-    
-  
+  const [addCustomerOpen, setAddCustomerOpen] = useState(false);
+  const [customerLedgerOpen, setCustomerLedgerOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -141,6 +141,11 @@ export default function CustomerManagement({
       setCustomers(prev => prev.filter(c => c.id !== id));
       onDeleteCustomer?.(id);
     }
+  };
+
+  const handleCustomerClick = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setCustomerLedgerOpen(true);
   };
 
   return (
@@ -245,7 +250,10 @@ export default function CustomerManagement({
               variant="contained"
               size="small"
               startIcon={<AddIcon sx={{ fontSize: 16 }} />}
-              onClick={() => setAddCustomerOpen(true)}
+              onClick={() => {
+                setAddCustomerOpen(true);
+                onAddCustomer?.();
+              }}
               disableElevation
               sx={{
                 fontSize: 13,
@@ -306,10 +314,11 @@ export default function CustomerManagement({
                     filtered.map(customer => (
                       <TableRow
                         key={customer.id}
+                        onClick={() => handleCustomerClick(customer)}
                         sx={{
                           "&:hover": { bgcolor: "#FFF1F2" },
                           transition: "background 0.12s",
-                          cursor: "default",
+                          cursor: "pointer",
                         }}
                       >
                         {/* Name */}
@@ -415,7 +424,10 @@ export default function CustomerManagement({
                             <Tooltip title="Edit" placement="top">
                               <IconButton
                                 size="small"
-                                onClick={() => onEditCustomer?.(customer)}
+                                onClick={event => {
+                                  event.stopPropagation();
+                                  onEditCustomer?.(customer);
+                                }}
                                 sx={{
                                   color: "#E11D48",
                                   p: 0.6,
@@ -430,7 +442,10 @@ export default function CustomerManagement({
                             <Tooltip title="Delete" placement="top">
                               <IconButton
                                 size="small"
-                                onClick={() => handleDelete(customer.id)}
+                                onClick={event => {
+                                  event.stopPropagation();
+                                  handleDelete(customer.id);
+                                }}
                                 sx={{
                                   color: "#D1D5DB",
                                   p: 0.6,
@@ -454,10 +469,16 @@ export default function CustomerManagement({
         </Box>
 
       <AddNewCustomerDialog
-               open={addCustomerOpen}
-               onClose={() => setAddCustomerOpen(false)}
-             />
-     
+        open={addCustomerOpen}
+        onClose={() => setAddCustomerOpen(false)}
+      />
+
+      <CustomerLedgerDialog
+        open={customerLedgerOpen}
+        onClose={() => setCustomerLedgerOpen(false)}
+        customerName={selectedCustomer?.businessName || selectedCustomer?.contactName || "Customer"}
+      />
+
       </Box>
     </ThemeProvider>
   );

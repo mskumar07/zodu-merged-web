@@ -28,7 +28,7 @@ import { Person } from "@mui/icons-material";
 export const drawerWidth = 240;
 
 const navItems = [
-  { label: "Dashboard", icon: <DashboardIcon />, path: "/" },
+  { label: "Dashboard", icon: <DashboardIcon />, path: "/dashboard" },
  { label: "POS", icon: <PointOfSaleIcon />, path: "/pos" },
   { label: "Menu Items", icon: <CategoryIcon />, path: "/menu" },
   // { label: "Category", icon: <BarChartIcon />, path: "/category" },

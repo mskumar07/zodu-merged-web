@@ -248,7 +248,7 @@ export default function AddNewCustomerDialog({
         </DialogTitle>
 
         {/* ── Scrollable Body ── */}
-        <DialogContent sx={{ px: 3, py: 3, overflowY: "auto", flex: 1 }}>
+        <DialogContent sx={{ px: 3, py: 3, overflowY: "auto", flex: 1,mt:2 }}>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3.5 }}>
 
             {/* ── Section 1: Basic Info ── */}
