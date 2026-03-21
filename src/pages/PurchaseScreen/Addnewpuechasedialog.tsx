@@ -31,7 +31,7 @@ const theme = createTheme({
     background: { default: "#f8f6f6", paper: "#ffffff" },
     text: { primary: "#0F172A", secondary: "#6B7280" },
   },
-  typography: { fontFamily: "'DM Sans', 'Public Sans', 'Segoe UI', sans-serif" },
+  typography: { fontFamily: '"Poppins", sans-serif' },
   components: {
     MuiButton: {
       styleOverrides: { root: { textTransform: "none", borderRadius: 8, fontWeight: 700 } },

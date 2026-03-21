@@ -500,7 +500,7 @@ const theme = createTheme({
     },
   },
   typography: {
-    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    fontFamily: '"Poppins", sans-serif',
   },
   shape: {
     borderRadius: 8,

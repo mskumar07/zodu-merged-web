@@ -36,7 +36,7 @@ const theme = createTheme({
     },
   },
   typography: {
-    fontFamily: '"Quicksand", "ui-sans-serif", "system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"',
+    fontFamily: '"Poppins", sans-serif',
   },
   shape: {
     borderRadius: 12,

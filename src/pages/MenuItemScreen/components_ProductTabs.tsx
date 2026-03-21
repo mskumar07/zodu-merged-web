@@ -20,7 +20,7 @@ const ProductTabs: React.FC<ProductTabsProps> = ({ value, onChange }) => {
     <Box
       sx={{
         borderBottom: `1px solid ${theme.palette.divider}`,
-        mb: 3,
+        mb: 2,
       }}
     >
       <Tabs
@@ -29,12 +29,12 @@ const ProductTabs: React.FC<ProductTabsProps> = ({ value, onChange }) => {
         textColor="primary"
         indicatorColor="primary"
         sx={{
-          minHeight: 48,
+          minHeight: 28,
           "& .MuiTab-root": {
             textTransform: "none",
             fontWeight: 600,
             fontSize: 14,
-            minHeight: 48,
+            minHeight: 30,
             px: 3,
             color: "text.secondary",
             "&.Mui-selected": {

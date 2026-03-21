@@ -39,7 +39,7 @@ const theme = createTheme({
     },
   },
   typography: {
-    fontFamily: '"Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    fontFamily: '"Poppins", sans-serif',
   },
   shape: {
     borderRadius: 12,
@@ -156,7 +156,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({ open, onClose }) =>
         <DialogContent sx={{ px: 2.75, py: 2.5 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.75 }}>
             {/* Row 1: Item Name & Current Stock */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' }, gap: 2.5 }}>
               <FormControl fullWidth>
                 <Typography
                   variant="body2"
@@ -275,11 +275,13 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({ open, onClose }) =>
                       letterSpacing: '0.05em',
                       color: '#64748b',
                       '&.Mui-selected': {
-                        bgcolor: 'white',
-                        color: 'primary.main',
+                        bgcolor: 'primary.main',
+                        color: 'white',
                         boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
                         '&:hover': {
-                          bgcolor: 'white',
+                          bgcolor: 'primary.main',
+                                                  color: 'white',
+
                         },
                       },
                       '&:hover': {
@@ -304,11 +306,13 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({ open, onClose }) =>
                       letterSpacing: '0.05em',
                       color: '#64748b',
                       '&.Mui-selected': {
-                        bgcolor: 'white',
-                        color: 'primary.main',
+                      bgcolor: 'primary.main',
+                        color: 'white',
                         boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
                         '&:hover': {
-                          bgcolor: 'white',
+                          bgcolor: 'primary.main',
+                                                  color: 'white',
+
                         },
                       },
                       '&:hover': {

@@ -1,157 +1,142 @@
 /**
  * useSaveOrder.ts
  * ─────────────────────────────────────────────────────────────
- * Thin hook that maps RetailPOS local state → API payload
- * and calls  POST /api/add/orders
+ * Maps RetailPOS state → POST /restaurant/api/add/orders
  *
- * Usage:
- *   const { saveOrder, saving, lastError } = useSaveOrder();
- *   await saveOrder({ items, customer, discount, ... });
+ * Tax-inclusive fix:
+ *  - LineItem.unitPrice is always the BASE (pre-tax) price
+ *    (toLineItem() in RetailPOS.tsx strips GST for inclusive items)
+ *  - tax_inclusive flag is forwarded to the backend so its own
+ *    calculateItemTax() uses the same formula
+ *  - price sent = unitPrice (base), backend re-derives tax from it
+ * ─────────────────────────────────────────────────────────────
  */
 
 import { useState, useCallback } from "react";
 import axios from "axios";
+import { number } from "yup";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 
-// ── POS-side types (from RetailPOS component) ─────────────────
 export interface LineItem {
-  code: string;
-  description: string;
-  qty: number;
-  unitPrice: number;
-  hsn: string;
-  mrp: number;
-  gstPct: number;
-  category?: string;
-  unit?: string;
+  code:         string;
+  description:  string;
+  qty:          number;
+  unitPrice:    number;   // always BASE price (pre-tax)
+  taxInclusive: boolean;  // ✅ needed so backend tax formula matches frontend
+  hsn:          string;
+  mrp:          number;
+  gstPct:       number;
+  category?:    string;
+  unit?:        string;
+  sellPrice:    number;
 }
 
 export interface Customer {
-  name: string;
-  mobile: string;
+  id:      string | null;  // cust_uuid — null = walk-in
+  name:    string;
+  mobile:  string;
   address: string;
-  gstin: string;
+  gstin:   string;
 }
 
 export interface SaveOrderParams {
-  zodu_id: string;
-  branch_id: string;
-  items: LineItem[];
-  customer: Customer;
-  invoiceDate: string;            // "YYYY-MM-DD"
-  discountPct: string;            // "5"  → % discount on gross
-  discountFlat: string;           // "50" → flat ₹ discount
-  receivedAmount: string;         // what cashier entered
-  paymentType: "Cash" | "Card" | "UPI" | "Credit";
-  referenceNo: string;            // transaction ref / UPI ID
+  zodu_id:        string;
+  branch_id:      string;
+  items:          LineItem[];
+  customer:       Customer;
+  invoiceDate:    string;
+  discountPct:    string;
+  discountFlat:   string;
+  receivedAmount: string;
+  paymentType:    "Cash" | "Card" | "UPI" | "Credit";
+  referenceNo:    string;
 }
 
-// ── What the API returns on success ──────────────────────────
 export interface SaveOrderResult {
-  success: boolean;
-  message: string;
-  order?: Record<string, unknown>;
-  items?: unknown[];
-  payment?: Record<string, unknown>;
-  paymentHistory?: Record<string, unknown> | null;
+  success:  boolean;
+  message:  string;
+  order?:   Record<string, unknown>;
+  items?:   unknown[];
+  payment?: Record<string, unknown> | null;
 }
 
-// ── Map POS discount state → API fields ──────────────────────
-function resolveDiscount(discountPct: string, discountFlat: string) {
-  const pct  = parseFloat(discountPct)  || 0;
-  const flat = parseFloat(discountFlat) || 0;
-
-  // If both are entered, treat percentage as primary
-  if (pct > 0) return { discount_type: "percentage" as const, discount_value: pct };
-  if (flat > 0) return { discount_type: "flat"       as const, discount_value: flat };
-  return { discount_type: null, discount_value: 0 };
+function resolveDiscount(pct: string, flat: string) {
+  const p = parseFloat(pct)  || 0;
+  const f = parseFloat(flat) || 0;
+  if (p > 0) return { discount_type: "percentage" as const, discount_value: p };
+  if (f > 0) return { discount_type: "flat"       as const, discount_value: f };
+  return       { discount_type: null,              discount_value: 0 };
 }
 
-// ── Map payment_type → sale_type ──────────────────────────────
-function toSaleType(pt: SaveOrderParams["paymentType"]) {
-  if (pt === "Credit") return "credit";
-  return "retail";
+/** Returns current time as "HH:mm" — Joi pattern /^([01]\d|2[0-3]):([0-5]\d)$/ */
+function currentHHmm(): string {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
 }
 
-// ─────────────────────────────────────────────────────────────
-// Hook
-// ─────────────────────────────────────────────────────────────
 export function useSaveOrder() {
   const [saving,    setSaving]    = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
 
-  const saveOrder = useCallback(
-    async (params: SaveOrderParams): Promise<SaveOrderResult> => {
-      setSaving(true);
-      setLastError(null);
+  const saveOrder = useCallback(async (params: SaveOrderParams): Promise<SaveOrderResult> => {
+    setSaving(true);
+    setLastError(null);
+    try {
+      const { discount_type, discount_value } = resolveDiscount(
+        params.discountPct, params.discountFlat
+      );
 
-      try {
-        const { discount_type, discount_value } = resolveDiscount(
-          params.discountPct,
-          params.discountFlat
-        );
+      const paidAmount = parseFloat(params.receivedAmount) || 0;
 
-        // ── Build the payload the API expects ──────────────────
-        const payload = {
-          zodu_id:        params.zodu_id,
-          branch_id:      params.branch_id,
+      const payload = {
+        zodu_id:   params.zodu_id,
+        branch_id: params.branch_id,
 
-          sale_type:      toSaleType(params.paymentType),
-          sale_date:      params.invoiceDate,
-          sale_time:      new Date().toLocaleTimeString("en-IN", { hour12: false }),
+        sale_type:  params.paymentType === "Credit" ? "credit" : "retail",
+        sale_date:  params.invoiceDate,
+        sale_time:  currentHHmm(),
 
-          // Customer
-          customer_name:  params.customer.name  || null,
-          customer_phone: params.customer.mobile || null,
+        customer_id: params.customer.id ?? null,
 
-          // Discount
-          discount_type,
-          discount_value,
+        discount_type,
+        discount_value,
 
-          // Payment — parse to float; send null only when field is truly empty
-            paid_amount:    (() => {
-                            const n = parseFloat(params.receivedAmount);
-                            return isNaN(n) ? 0 : n;
-                          })(),
-          payment_mode:   params.paymentType,
-          transaction_id: params.referenceNo || null,
+        paid_amount:    paidAmount,
+        payment_mode:   params.paymentType,
+        transaction_id: params.referenceNo || null,
 
-          // Line items — map LineItem → API item shape
-          items: params.items.map((li) => ({
-            product_id:     li.code,
-            product_name:   li.description,
-            unit:           li.unit   ?? "NOS",
-            quantity:       li.qty,
-            price:          li.unitPrice,
-            discount:       0,                  // item-level discount not used in POS v3
-            gst_percentage: li.gstPct,
-            tax_inclusive:  false,
-          })),
-        };
+        notes: null,
 
-        const { data } = await axios.post<SaveOrderResult>(
-          `${API_BASE}/restaurant/api/add/orders`,
-          payload
-        );
+        items: params.items.map(li => ({
+          item_id:        li.code,
+          item_name:      li.description,
+          unit:           li.unit ?? "NOS",
+          quantity:       li.qty,
+          price:          li.sellPrice,       // ✅ always BASE price
+          discount:       0,
+          gst_percentage: li.gstPct,
+          hsn_code:            li.hsn,
+          mrp:            li.mrp,
+          tax_inclusive:  li.taxInclusive,    // ✅ forwarded — was hardcoded false before
+        })),
+      };
 
-        return data;
-      } catch (err: unknown) {
-        const msg =
-          axios.isAxiosError(err)
-            ? err.response?.data?.message ?? err.message
-            : err instanceof Error
-            ? err.message
-            : "Unknown error";
-
-        setLastError(msg);
-        return { success: false, message: msg };
-      } finally {
-        setSaving(false);
-      }
-    },
-    []
-  );
+      const { data } = await axios.post<SaveOrderResult>(
+        `${API_BASE}/restaurant/api/add/orders`,
+        payload
+      );
+      return data;
+    } catch (err: unknown) {
+      const msg = axios.isAxiosError(err)
+        ? err.response?.data?.message ?? err.message
+        : err instanceof Error ? err.message : "Unknown error";
+      setLastError(msg);
+      return { success: false, message: msg };
+    } finally {
+      setSaving(false);
+    }
+  }, []);
 
   return { saveOrder, saving, lastError };
 }

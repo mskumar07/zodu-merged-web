@@ -1,353 +1,207 @@
 import { useState } from "react";
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Box,
-  Typography,
-  TextField,
-  Button,
-  IconButton,
-  Grid,
-  Select,
-  MenuItem,
-  InputLabel,
-  FormControl,
-  InputAdornment,
-  Divider,
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  Box, Typography, TextField, Button, IconButton,
+  Select, MenuItem, FormControl, InputAdornment,
+  Divider, CircularProgress, Alert,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
-import CloseIcon from "@mui/icons-material/Close";
+import CloseIcon     from "@mui/icons-material/Close";
+import SaveIcon      from "@mui/icons-material/Save";
+import { useAddCustomer, buildCustomerPayload } from "./useCustomerApi";
+import type { AddCustomerResponse } from "./useCustomerApi";
 
-// ─── Theme ────────────────────────────────────────────────────
 const theme = createTheme({
   palette: {
-    primary: { main: "#ec5b13" },
+    primary: { main: "#C8102E" },
     background: { default: "#f8f6f6", paper: "#ffffff" },
     text: { primary: "#0f172a", secondary: "#6b7280" },
   },
-  typography: {
-    fontFamily: "'DM Sans', 'Public Sans', 'Segoe UI', sans-serif",
-  },
+  typography: { fontFamily: '"Poppins", sans-serif' },
   components: {
-    MuiButton: {
-      styleOverrides: {
-        root: { textTransform: "none", borderRadius: 8, fontWeight: 700 },
-      },
-    },
-    MuiDialog: {
-      styleOverrides: {
-        paper: { borderRadius: 16, maxWidth: 680 },
-      },
-    },
-    MuiOutlinedInput: {
-      styleOverrides: {
-        root: {
-          borderRadius: 8,
-          backgroundColor: "#fff",
-          fontSize: 13,
-          "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#ec5b13" },
-          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-            borderColor: "#ec5b13",
-            borderWidth: 2,
-          },
-        },
-        notchedOutline: { borderColor: "#e2e8f0" },
-      },
-    },
-    MuiInputLabel: {
-      styleOverrides: {
-        root: {
-          fontSize: 12,
-          fontWeight: 700,
-          color: "#374151",
-          "&.Mui-focused": { color: "#ec5b13" },
-        },
-      },
-    },
+    MuiButton: { styleOverrides: { root: { textTransform: "none", borderRadius: 8, fontWeight: 700 } } },
+    MuiDialog: { styleOverrides: { paper: { borderRadius: 16, maxWidth: 880, width: "100%" } } },
   },
 });
 
-// ─── Section Header ───────────────────────────────────────────
-function SectionLabel({ children }: { children: React.ReactNode }) {
+const STATES = [
+  "Andhra Pradesh","Assam","Bihar","Chhattisgarh","Delhi","Goa","Gujarat",
+  "Haryana","Himachal Pradesh","Jammu & Kashmir","Jharkhand","Karnataka",
+  "Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram",
+  "Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana",
+  "Tripura","Uttar Pradesh","Uttarakhand","West Bengal",
+];
+
+interface CustomerForm {
+  custName: string; cpyName: string; mobile: string; email: string;
+  gstin: string; openingBalance: string;
+  addressLine1: string; addressLine2: string; city: string; pincode: string; state: string;
+}
+
+const EMPTY: CustomerForm = {
+  custName: "", cpyName: "", mobile: "", email: "", gstin: "",
+  openingBalance: "", addressLine1: "", addressLine2: "", city: "", pincode: "", state: "",
+};
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  onSaved?: (customer: AddCustomerResponse["customer"]) => void;
+}
+
+// ── Reusable field wrapper ────────────────────────────────────
+function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
-      <Typography
-        sx={{
-          fontSize: 10,
-          fontWeight: 800,
-          letterSpacing: "0.1em",
-          color: "#9CA3AF",
-          textTransform: "uppercase",
-        }}
-      >
-        {children}
+    <Box>
+      <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#374151", mb: 0.5 }}>
+        {label}{required && <Box component="span" sx={{ color: "#C8102E", ml: 0.3 }}>*</Box>}
       </Typography>
-      <Box sx={{ flex: 1, height: "1px", bgcolor: "#F3F4F6" }} />
+      {children}
     </Box>
   );
 }
 
-// ─── Field Label ──────────────────────────────────────────────
-function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
+function SectionLabel({ children }: { children: string }) {
   return (
-    <Typography
-      component="label"
-      sx={{ display: "block", fontSize: 12, fontWeight: 700, color: "#374151", mb: 0.5 }}
-    >
-      {children}
-      {required && <Box component="span" sx={{ color: "#ec5b13", ml: 0.3 }}>*</Box>}
-    </Typography>
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
+      <Typography sx={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.1em", color: "#9CA3AF", textTransform: "uppercase", whiteSpace: "nowrap" }}>
+        {children}
+      </Typography>
+      <Box sx={{ flex: 1, height: 1, bgcolor: "#F3F4F6" }} />
+    </Box>
   );
 }
 
-// ─── Indian States ────────────────────────────────────────────
-const STATES = [
-  { value: "MH", label: "Maharashtra" },
-  { value: "DL", label: "Delhi" },
-  { value: "KA", label: "Karnataka" },
-  { value: "TN", label: "Tamil Nadu" },
-  { value: "TS", label: "Telangana" },
-  { value: "GJ", label: "Gujarat" },
-  { value: "UP", label: "Uttar Pradesh" },
-  { value: "WB", label: "West Bengal" },
-  { value: "HR", label: "Haryana" },
-  { value: "PB", label: "Punjab" },
-];
-
-// ─── Form State ───────────────────────────────────────────────
-interface CustomerForm {
-  name: string;
-  mobile: string;
-  email: string;
-  gstin: string;
-  openingBalance: string;
-  addressLine1: string;
-  addressLine2: string;
-  city: string;
-  pincode: string;
-  state: string;
-  placeOfSupply: string;
-}
-
-const EMPTY_FORM: CustomerForm = {
-  name: "",
-  mobile: "",
-  email: "",
-  gstin: "",
-  openingBalance: "",
-  addressLine1: "",
-  addressLine2: "",
-  city: "",
-  pincode: "",
-  state: "",
-  placeOfSupply: "intrastate",
+const sx = {
+  "& .MuiOutlinedInput-root": {
+    bgcolor: "#F8FAFC", fontSize: 13, borderRadius: "8px",
+    "& fieldset": { borderColor: "#E2E8F0" },
+    "&:hover fieldset": { borderColor: "#C8102E" },
+    "&.Mui-focused fieldset": { borderColor: "#C8102E", borderWidth: 2 },
+  },
 };
 
-// ─── Props ────────────────────────────────────────────────────
-interface AddNewCustomerDialogProps {
-  open: boolean;
-  onClose: () => void;
-  onSave?: (form: CustomerForm) => void;
-}
+export default function AddNewCustomerDialog({ open, onClose, onSaved }: Props) {
+  const [form, setForm]       = useState<CustomerForm>(EMPTY);
+  const [error, setError]     = useState<string | null>(null);
 
-// ─── Component ───────────────────────────────────────────────
-export default function AddNewCustomerDialog({
-  open,
-  onClose,
-  onSave,
-}: AddNewCustomerDialogProps) {
-  const [form, setForm] = useState<CustomerForm>(EMPTY_FORM);
+  const { mutate, isPending } = useAddCustomer({
+    onSuccess: (customer) => { setForm(EMPTY); setError(null); onSaved?.(customer); onClose(); },
+    onError:   (msg) => setError(msg),
+  });
 
-  const set = (field: keyof CustomerForm) => (e: React.ChangeEvent<HTMLInputElement | { value: unknown }>) =>
-    setForm(prev => ({ ...prev, [field]: e.target.value as string }));
+  const set = (k: keyof CustomerForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm(p => ({ ...p, [k]: e.target.value }));
+
+  const validate = () => {
+    if (!form.custName.trim() && !form.cpyName.trim()) return "Enter at least a Customer Name or Company Name.";
+    if (!form.mobile.trim())       return "Mobile number is required.";
+    if (form.mobile.length !== 10) return "Mobile number must be 10 digits.";
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return "Enter a valid email address.";
+    if (form.pincode && form.pincode.length !== 6) return "Pincode must be 6 digits.";
+    return null;
+  };
 
   const handleSave = () => {
-    onSave?.(form);
-    onClose();
+    setError(null);
+    const err = validate();
+    if (err) { setError(err); return; }
+    mutate(buildCustomerPayload(form));
   };
 
-  const handleCancel = () => {
-    setForm(EMPTY_FORM);
-    onClose();
-  };
-
-  const inputSx = {
-    "& .MuiOutlinedInput-root": {
-      bgcolor: "#F8FAFC",
-      fontSize: 13,
-      borderRadius: "8px",
-      "& fieldset": { borderColor: "#E2E8F0" },
-      "&:hover fieldset": { borderColor: "#ec5b13" },
-      "&.Mui-focused fieldset": { borderColor: "#ec5b13", borderWidth: 2 },
-    },
-    "& input": { py: "8px", px: "12px" },
-  };
+  const handleCancel = () => { setForm(EMPTY); setError(null); onClose(); };
 
   return (
     <ThemeProvider theme={theme}>
-      <Dialog
-        open={open}
-        onClose={handleCancel}
-        fullWidth
-        maxWidth="md"
-        PaperProps={{
-          sx: {
-            borderRadius: 3,
-            maxHeight: "90vh",
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-            boxShadow: "0 25px 60px rgba(15,23,42,0.18)",
-          },
-        }}
-      >
-        {/* ── Header ── */}
-        <DialogTitle
-          sx={{
-            px: 3,
-            py: 2,
-            borderBottom: "1px solid #F1F5F9",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexShrink: 0,
-          }}
-        >
+      <Dialog open={open} onClose={isPending ? undefined : handleCancel} fullWidth maxWidth="md"
+        PaperProps={{ sx: { borderRadius: 3, maxHeight: "90vh", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 25px 60px rgba(15,23,42,0.18)" } }}>
+
+        {/* Header */}
+        <DialogTitle sx={{ px: 3, py: 2, borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Box
-              sx={{
-                p: 1,
-                bgcolor: "rgba(250, 55, 48, 0.1)",
-                borderRadius: 2,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
+            <Box sx={{ p: 1, bgcolor: "rgba(200,16,46,0.1)", borderRadius: 2, display: "flex" }}>
               <PersonAddIcon sx={{ color: "#C8102E", fontSize: 20 }} />
             </Box>
-            <Typography sx={{ fontSize: 17, fontWeight: 800, color: "#0f172a" }}>
-              Add New Customer
-            </Typography>
+            <Typography sx={{ fontSize: 17, fontWeight: 800, color: "#0f172a" }}>Add New Customer</Typography>
           </Box>
-          <IconButton
-            size="small"
-            onClick={handleCancel}
-            sx={{
-              color: "#6B7280",
-              bgcolor: "#F9FAFB",
-              "&:hover": { bgcolor: "#F3F4F6", color: "#374151" },
-              borderRadius: "50%",
-            }}
-          >
+          <IconButton size="small" onClick={handleCancel} disabled={isPending}
+            sx={{ color: "#6B7280", bgcolor: "#F9FAFB", "&:hover": { bgcolor: "#F3F4F6" }, borderRadius: "50%" }}>
             <CloseIcon sx={{ fontSize: 17 }} />
           </IconButton>
         </DialogTitle>
 
-        {/* ── Scrollable Body ── */}
-        <DialogContent sx={{ px: 3, py: 3, overflowY: "auto", flex: 1,mt:2 }}>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 3.5 }}>
+        {/* Body */}
+        <DialogContent sx={{ px: 3, py: 3, overflowY: "auto", flex: 1 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 1 }}>
 
-            {/* ── Section 1: Basic Info ── */}
+            {error && (
+              <Alert severity="error" onClose={() => setError(null)} sx={{ borderRadius: 2, fontSize: 13 }}>
+                {error}
+              </Alert>
+            )}
+
+            {/* ── Basic Information ── */}
             <Box>
               <SectionLabel>Basic Information</SectionLabel>
-              <Grid container spacing={2}>
-                {/* Full-width name */}
-                <Grid item xs={12}>
-                  <FieldLabel required>Customer / Business Name</FieldLabel>
-                  <TextField
-                    value={form.name}
-                    onChange={set("name")}
-                    placeholder="e.g. Rajesh Kumar or Acme Corp"
-                    size="small"
-                    fullWidth
-                    sx={inputSx}
-                  />
-                </Grid>
 
-                {/* Mobile */}
-                <Grid item xs={12} sm={6}>
-                  <FieldLabel required>Mobile Number</FieldLabel>
+              {/* Row 1: Customer Name | Company Name */}
+              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mb: 2 }}>
+                <Field label="Customer Name">
+                  <TextField value={form.custName} onChange={set("custName")}
+                    placeholder="e.g. Rajesh Kumar" size="small" fullWidth sx={sx} />
+                </Field>
+                <Field label="Company / Business Name">
+                  <TextField value={form.cpyName} onChange={set("cpyName")}
+                    placeholder="e.g. Acme Pvt Ltd" size="small" fullWidth sx={sx} />
+                </Field>
+              </Box>
+
+              {/* Row 2: Mobile | Email */}
+              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                <Field label="Mobile Number" required>
                   <TextField
                     value={form.mobile}
-                    onChange={e =>
-                      setForm(prev => ({
-                        ...prev,
-                        mobile: e.target.value.replace(/\D/g, "").slice(0, 10),
-                      }))
-                    }
-                    placeholder="9876543210"
-                    size="small"
-                    fullWidth
+                    onChange={e => setForm(p => ({ ...p, mobile: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
+                    placeholder="9876543210" size="small" fullWidth
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">
-                          <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#9CA3AF" }}>
-                            +91
-                          </Typography>
+                          <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#9CA3AF" }}>+91</Typography>
                           <Box sx={{ width: 1, height: 16, bgcolor: "#E5E7EB", mx: 1 }} />
                         </InputAdornment>
                       ),
                     }}
-                    sx={inputSx}
+                    sx={sx}
                   />
-                </Grid>
-
-                {/* Email */}
-                <Grid item xs={12} sm={6}>
-                  <FieldLabel>Email Address</FieldLabel>
-                  <TextField
-                    value={form.email}
-                    onChange={set("email")}
-                    placeholder="customer@email.com"
-                    type="email"
-                    size="small"
-                    fullWidth
-                    sx={inputSx}
-                  />
-                </Grid>
-              </Grid>
+                </Field>
+                <Field label="Email Address">
+                  <TextField value={form.email} onChange={set("email")}
+                    placeholder="customer@email.com" type="email" size="small" fullWidth sx={sx} />
+                </Field>
+              </Box>
             </Box>
 
             <Divider sx={{ borderColor: "#F3F4F6" }} />
 
-            {/* ── Section 2: Tax & Billing ── */}
+            {/* ── Tax & Billing ── */}
             <Box>
-              <SectionLabel>Tax &amp; Billing</SectionLabel>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <FieldLabel>GSTIN (GST Number)</FieldLabel>
+              <SectionLabel>Tax & Billing</SectionLabel>
+              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                <Field label="GSTIN (GST Number)">
                   <TextField
                     value={form.gstin}
-                    onChange={e =>
-                      setForm(prev => ({
-                        ...prev,
-                        gstin: e.target.value.toUpperCase().slice(0, 15),
-                      }))
-                    }
-                    placeholder="22AAAAA0000A1Z5"
-                    size="small"
-                    fullWidth
+                    onChange={e => setForm(p => ({ ...p, gstin: e.target.value.toUpperCase().slice(0, 15) }))}
+                    placeholder="22AAAAA0000A1Z5" size="small" fullWidth
                     inputProps={{ style: { fontFamily: "monospace", letterSpacing: "0.06em" } }}
-                    sx={inputSx}
+                    sx={sx}
                   />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <FieldLabel>Opening Balance (₹)</FieldLabel>
+                </Field>
+                <Field label="Opening Balance (₹)">
                   <TextField
                     value={form.openingBalance}
-                    onChange={e =>
-                      setForm(prev => ({
-                        ...prev,
-                        openingBalance: e.target.value.replace(/[^0-9.]/g, ""),
-                      }))
-                    }
-                    placeholder="0.00"
-                    size="small"
-                    fullWidth
+                    onChange={e => setForm(p => ({ ...p, openingBalance: e.target.value.replace(/[^0-9.]/g, "") }))}
+                    placeholder="0.00" size="small" fullWidth
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">
@@ -355,154 +209,84 @@ export default function AddNewCustomerDialog({
                         </InputAdornment>
                       ),
                     }}
-                    sx={inputSx}
+                    sx={sx}
                   />
-                </Grid>
-              </Grid>
+                </Field>
+              </Box>
             </Box>
 
             <Divider sx={{ borderColor: "#F3F4F6" }} />
 
-            {/* ── Section 3: Address ── */}
+            {/* ── Address Details ── */}
             <Box>
               <SectionLabel>Address Details</SectionLabel>
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <FieldLabel>Address Line 1</FieldLabel>
-                  <TextField
-                    value={form.addressLine1}
-                    onChange={set("addressLine1")}
-                    placeholder="Building, Street name"
-                    size="small"
-                    fullWidth
-                    sx={inputSx}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <FieldLabel>Address Line 2</FieldLabel>
-                  <TextField
-                    value={form.addressLine2}
-                    onChange={set("addressLine2")}
-                    placeholder="Locality, Landmark"
-                    size="small"
-                    fullWidth
-                    sx={inputSx}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <FieldLabel>City</FieldLabel>
-                  <TextField
-                    value={form.city}
-                    onChange={set("city")}
-                    placeholder="e.g. Mumbai"
-                    size="small"
-                    fullWidth
-                    sx={inputSx}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <FieldLabel>Pincode</FieldLabel>
+
+              {/* Row 1: Addr1 | Addr2 | City | Pincode — 4 columns */}
+              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 2, mb: 2 }}>
+                <Field label="Address Line 1">
+                  <TextField value={form.addressLine1} onChange={set("addressLine1")}
+                    placeholder="Building, Street name" size="small" fullWidth sx={sx} />
+                </Field>
+                <Field label="Address Line 2">
+                  <TextField value={form.addressLine2} onChange={set("addressLine2")}
+                    placeholder="Locality, Landmark" size="small" fullWidth sx={sx} />
+                </Field>
+                <Field label="City">
+                  <TextField value={form.city} onChange={set("city")}
+                    placeholder="e.g. Chennai" size="small" fullWidth sx={sx} />
+                </Field>
+                <Field label="Pincode">
                   <TextField
                     value={form.pincode}
-                    onChange={e =>
-                      setForm(prev => ({
-                        ...prev,
-                        pincode: e.target.value.replace(/\D/g, "").slice(0, 6),
-                      }))
-                    }
-                    placeholder="400001"
-                    size="small"
-                    fullWidth
+                    onChange={e => setForm(p => ({ ...p, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
+                    placeholder="600001" size="small" fullWidth
                     inputProps={{ style: { fontFamily: "monospace", letterSpacing: "0.1em" } }}
-                    sx={inputSx}
+                    sx={sx}
                   />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <FieldLabel>State</FieldLabel>
-                  <FormControl size="small" fullWidth sx={inputSx}>
+                </Field>
+              </Box>
+
+              {/* Row 2: State — single field below */}
+              <Box sx={{ maxWidth: "25%" }}>
+                <Field label="State">
+                  <FormControl size="small" fullWidth sx={sx}>
                     <Select
                       value={form.state}
-                      onChange={e => setForm(prev => ({ ...prev, state: e.target.value }))}
+                      onChange={e => setForm(p => ({ ...p, state: e.target.value }))}
                       displayEmpty
-                      renderValue={v => (v ? STATES.find(s => s.value === v)?.label : <Typography sx={{ color: "#9CA3AF", fontSize: 13 }}>Select State</Typography>)}
+                      renderValue={v =>
+                        v || <Typography sx={{ color: "#9CA3AF", fontSize: 13 }}>Select State</Typography>
+                      }
                       sx={{ bgcolor: "#F8FAFC", fontSize: 13, borderRadius: "8px" }}
                     >
                       {STATES.map(s => (
-                        <MenuItem key={s.value} value={s.value} sx={{ fontSize: 13 }}>
-                          {s.label}
-                        </MenuItem>
+                        <MenuItem key={s} value={s} sx={{ fontSize: 13 }}>{s}</MenuItem>
                       ))}
                     </Select>
                   </FormControl>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <FieldLabel>Place of Supply</FieldLabel>
-                  <FormControl size="small" fullWidth sx={inputSx}>
-                    <Select
-                      value={form.placeOfSupply}
-                      onChange={e => setForm(prev => ({ ...prev, placeOfSupply: e.target.value }))}
-                      sx={{ bgcolor: "#F8FAFC", fontSize: 13, borderRadius: "8px" }}
-                    >
-                      <MenuItem value="intrastate" sx={{ fontSize: 13 }}>
-                        Intrastate (Within State)
-                      </MenuItem>
-                      <MenuItem value="interstate" sx={{ fontSize: 13 }}>
-                        Interstate (Other State)
-                      </MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-              </Grid>
+                </Field>
+              </Box>
             </Box>
+
           </Box>
         </DialogContent>
 
-        {/* ── Footer ── */}
-        <DialogActions
-          sx={{
-            px: 3,
-            py: 2.5,
-            bgcolor: "#F8FAFC",
-            borderTop: "1px solid #F1F5F9",
-            gap: 1.5,
-            flexShrink: 0,
-          }}
-        >
-          <Button
-            variant="outlined"
-            onClick={handleCancel}
-            sx={{
-              borderColor: "#D1D5DB",
-              color: "#374151",
-              fontWeight: 700,
-              px: 3,
-              py: 1,
-              fontSize: 13,
-              borderRadius: 2,
-              "&:hover": { borderColor: "#9CA3AF", bgcolor: "#F9FAFB" },
-            }}
-          >
+        {/* Footer */}
+        <DialogActions sx={{ px: 3, py: 2.5, bgcolor: "#F8FAFC", borderTop: "1px solid #F1F5F9", gap: 1.5 }}>
+          <Button variant="outlined" onClick={handleCancel} disabled={isPending}
+            sx={{ borderColor: "#D1D5DB", color: "#374151", fontWeight: 700, px: 3, py: 1, fontSize: 13, borderRadius: 2, "&:hover": { borderColor: "#9CA3AF", bgcolor: "#F9FAFB" } }}>
             Cancel
           </Button>
-          <Button
-            variant="contained"
-            onClick={handleSave}
-            disableElevation
+          <Button variant="contained" onClick={handleSave} disabled={isPending} disableElevation
+            startIcon={isPending ? <CircularProgress size={16} color="inherit" /> : <SaveIcon sx={{ fontSize: 18 }} />}
             sx={{
-              bgcolor: "#C8102E",
-              color: "#fff",
-              fontWeight: 700,
-              px: 4,
-              py: 1,
-              fontSize: 13,
-              borderRadius: 2,
-              boxShadow: "0 4px 16px rgba(236, 26, 19, 0.28)",
-              "&:hover": { bgcolor: "#C8102E", boxShadow: "0 6px 20px rgba(236, 52, 19, 0.38)" },
-              "&:active": { transform: "scale(0.97)" },
+              bgcolor: "#C8102E", color: "#fff", fontWeight: 700, px: 4, py: 1, fontSize: 13, borderRadius: 2,
+              boxShadow: "0 4px 16px rgba(200,16,46,0.28)",
+              "&:hover": { bgcolor: "#A50D26" }, "&:active": { transform: "scale(0.97)" },
+              "&.Mui-disabled": { bgcolor: "#E5E7EB", color: "#9CA3AF", boxShadow: "none" },
               transition: "all 0.15s",
-            }}
-          >
-            Save Customer
+            }}>
+            {isPending ? "Saving…" : "Save Customer"}
           </Button>
         </DialogActions>
       </Dialog>

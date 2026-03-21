@@ -40,6 +40,7 @@ const INITIAL_VALUES = {
   name: '',
   category: '',
   unit: 'pcs' as 'pcs' | 'kg' | 'ltr' | 'box',
+  purchasePrice: '',
   mrp: '',
   rate: '',
   taxType: 'gst18',
@@ -77,7 +78,7 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({ open, onClose, on
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth
-      PaperProps={{ sx: { borderRadius: 3, boxShadow: '0 24px 60px rgba(0,0,0,0.2)' } }}>
+      PaperProps={{ sx: { borderRadius: 1.5, boxShadow: '0 24px 60px rgba(0,0,0,0.2)' } }}>
       <DialogTitle sx={{ p: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 3, py: 2.5, borderBottom: '1px solid', borderColor: 'divider' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -103,13 +104,13 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({ open, onClose, on
               {...f.getFieldProps('name')}
               error={f.touched.name && Boolean(f.errors.name)}
               helperText={f.touched.name && f.errors.name}
-              InputProps={{ sx: { borderRadius: 2, fontSize: 14 } }} />
+              InputProps={{ sx: { borderRadius: 1, fontSize: 14 } }} />
           </Box>
           <Box>
             <Label text="Description" />
             <TextField fullWidth size="small" multiline rows={2} placeholder="Describe this category..."
               {...f.getFieldProps('description')}
-              InputProps={{ sx: { borderRadius: 2, fontSize: 14 } }} />
+              InputProps={{ sx: { borderRadius: 1, fontSize: 14 } }} />
           </Box>
         </Box>
       </DialogContent>
@@ -258,8 +259,8 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
                     <Label text="Service Type" />
                     <ToggleButtonGroup exclusive value={formik.values.serviceType}
                       onChange={(_e, v) => v && formik.setFieldValue('serviceType', v)} sx={toggleGroupSx}>
-                      <ToggleButton value="product" sx={getToggleSx()}>Product</ToggleButton>
-                      <ToggleButton value="service" sx={getToggleSx()}>Service</ToggleButton>
+                      <ToggleButton value="product" sx={getToggleSx(true)}>Product</ToggleButton>
+                      <ToggleButton value="service" sx={getToggleSx(true)}>Service</ToggleButton>
                     </ToggleButtonGroup>
                   </Box>
                   <Box>
@@ -327,7 +328,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
               <Typography variant="body2" fontWeight={700} color="text.secondary" textTransform="uppercase" letterSpacing="0.06em" fontSize={11} mb={2}>
                 Pricing & Inventory
               </Typography>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr 1fr' }, gap: 2 }}>
                 <Box>
                   <Label text="Item Unit" />
                   <FormControl fullWidth size="small">
@@ -338,6 +339,14 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
                       ))}
                     </Select>
                   </FormControl>
+                </Box>
+                <Box>
+                  <Label text="Purchase Price" required />
+                  <TextField fullWidth size="small" type="number" placeholder="0.00"
+                    {...formik.getFieldProps('purchasePrice')}
+                    error={touch.purchasePrice && Boolean(err.purchasePrice)}
+                    helperText={touch.purchasePrice && err.purchasePrice}
+                    InputProps={{ startAdornment: <InputAdornment position="start"><Typography variant="body2" color="text.disabled" fontWeight={600}>₹</Typography></InputAdornment>, sx: inputSx }} />
                 </Box>
                 <Box>
                   <Label text="MRP" required />

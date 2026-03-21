@@ -6,6 +6,10 @@ export const addItemSchema = Yup.object({
   name: Yup.string().trim().required('Item name is required'),
   category: Yup.string().required('Please select a category'),
   unit: Yup.string().oneOf(['pcs', 'kg', 'ltr', 'box']).required(),
+  purchasePrice: Yup.number()
+    .typeError('Purchase price must be a number')
+    .min(0, 'Purchase price cannot be negative')
+    .required('Purchase price is required'),
   mrp: Yup.number()
     .typeError('MRP must be a number')
     .positive('MRP must be greater than 0')

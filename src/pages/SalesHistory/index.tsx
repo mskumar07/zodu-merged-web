@@ -13,7 +13,7 @@ const theme = createTheme({
     text: { primary: "#1A1A2E", secondary: "#6B7280" },
   },
   typography: {
-    fontFamily: "'DM Sans', 'Segoe UI', sans-serif",
+    fontFamily: '"Poppins", sans-serif',
     h5: { fontWeight: 700, letterSpacing: "-0.5px" },
     h6: { fontWeight: 600 },
     subtitle2: {

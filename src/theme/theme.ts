@@ -26,16 +26,20 @@ const muiTheme = createTheme({
     },
   },
   typography: {
-    fontFamily: "Inter, Roboto, sans-serif",
+    fontFamily: '"Poppins", sans-serif',
+    fontWeightLight: 300,
+    fontWeightRegular: 400,
+    fontWeightMedium: 500,
+    fontWeightBold: 600,
     logo: {
-      fontFamily: "'Montserrat', 'Roboto', Arial, sans-serif",
-      fontWeight: 900,
+      fontFamily: '"Poppins", sans-serif',
+      fontWeight: 700,
       letterSpacing: 2,
       fontSize: "2.5rem",
     },
     button: {
       textTransform: "none",
-      fontWeight: "bold",
+      fontWeight: 500,
     },
     label: {
       fontSize: "0.6875rem", // 11px

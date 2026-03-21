@@ -20,9 +20,13 @@ export const theme = createTheme({
     },
   },
   typography: {
-    fontFamily: '"Public Sans", sans-serif',
-    h4: { fontWeight: 900, letterSpacing: '-0.5px' },
-    h6: { fontWeight: 900 },
+    fontFamily: '"Poppins", sans-serif',
+    fontWeightLight: 300,
+    fontWeightRegular: 400,
+    fontWeightMedium: 500,
+    fontWeightBold: 600,
+    h4: { fontWeight: 700, letterSpacing: '-0.5px' },
+    h6: { fontWeight: 700 },
   },
   shape: {
     borderRadius: 4,

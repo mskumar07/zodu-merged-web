@@ -13,11 +13,11 @@ const MenuItemScreen: React.FC = () => {
    const [modalOpen, setModalOpen] = useState(false);
    
   return (
-    <Box sx={{ minHeight: '100vh',display: 'flex', flexDirection: 'column',p:4}}>
+    <Box sx={{ minHeight: '100vh',display: 'flex', flexDirection: 'column',p:1}}>
      
-        <PageHeader onAddNew={() => setModalOpen(true)} />
+        {/* <PageHeader onAddNew={() => setModalOpen(true)} /> */}
         <ProductTabs value={activeTab} onChange={setActiveTab} />
-        <FilterBar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+        <FilterBar searchQuery={searchQuery} onSearchChange={setSearchQuery} onAddNew={() => setModalOpen(true)} />
         <ProductTable products={filteredProducts} />
        <AddItemModal
         open={modalOpen}

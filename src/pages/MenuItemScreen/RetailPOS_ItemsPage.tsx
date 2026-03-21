@@ -107,7 +107,7 @@ const appTheme = createTheme({
     text: { primary: '#0f172a', secondary: '#64748b', disabled: '#94a3b8' },
   },
   typography: {
-    fontFamily: '"Public Sans", "Segoe UI", sans-serif',
+    fontFamily: '"Poppins", sans-serif',
     h4: { fontWeight: 900, letterSpacing: '-0.5px' },
     h6: { fontWeight: 900 },
   },
