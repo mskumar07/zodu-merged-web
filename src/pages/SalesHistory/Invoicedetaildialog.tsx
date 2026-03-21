@@ -190,7 +190,7 @@ export default function InvoiceDetailsModal({ open = true, saleId, onClose }: Pr
                 {[
                   { label: "Customer Name", value: customerName },
                   { label: "Mobile No.",    value: customerMobile },
-                  { label: "GSTIN",         value: customerGst,     color: customerGst !== "—" ? "#D0021B" : "#0F172A" },
+                  { label: "GSTIN",         value: customerGst},
                   { label: "Address",       value: customerAddress, small: true },
                 ].map(({ label, value, color, small }) => (
                   <Box key={label}>
