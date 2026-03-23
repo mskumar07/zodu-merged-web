@@ -141,13 +141,25 @@ function normalise(p: Record<string, unknown>): PosProduct {
 }
 
 // ── Bulk write ────────────────────────────────────────────────
+// Deduplicates by item_id before writing — API may return the same
+// item_id multiple times with different zodu_id/branch_id variants.
+// We keep only one record per item_id (last one wins).
 export async function bulkUpsertProducts(products: PosProduct[]): Promise<void> {
   if (!Array.isArray(products) || products.length === 0) {
     console.warn("[POS] bulkUpsertProducts: nothing to write");
     return;
   }
-  const normalised = (products as unknown as Record<string, unknown>[]).map(normalise);
+
+  // Deduplicate: build a Map keyed by item_id — last entry wins
+  const deduped = new Map<string, Record<string, unknown>>();
+  for (const p of products as unknown as Record<string, unknown>[]) {
+    const id = p.item_id as string;
+    if (id) deduped.set(id, p);
+  }
+
+  const normalised = Array.from(deduped.values()).map(normalise);
   await db.products.bulkPut(normalised);
+  console.log(`[POS] bulkUpsertProducts: wrote ${normalised.length} unique items (${products.length} received)`);
 }
 
 // ── Read all products for a branch ───────────────────────────

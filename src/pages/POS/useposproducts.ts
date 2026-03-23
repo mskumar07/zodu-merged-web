@@ -1,11 +1,9 @@
 /**
  * pos/usePosProducts.ts
  * ─────────────────────────────────────────────────────────────
- * UPDATED to match real API shape:
- *  - sku is null → all lookups use item_id
- *  - barcode is null → null-safe checks throughout
- *  - stock_qty available on PosProduct (can be used for out-of-stock badge)
- *  - itemCompare sorts numerically by item_id
+ * Changes:
+ *  - Empty query → returns [] (no suggestions shown until user types)
+ *  - Deduplication happens in db.bulkUpsertProducts (by item_id)
  * ─────────────────────────────────────────────────────────────
  */
 
@@ -43,16 +41,31 @@ async function fetchAndCacheProducts(branchId: string): Promise<PosProduct[]> {
     return [];
   }
 
+  // bulkUpsertProducts deduplicates by item_id before writing
   await bulkUpsertProducts(products);
   await markSynced(branchId);
 
-  return products;
+  // Return deduped list from IDB (source of truth after write)
+  return getAllProducts(branchId);
 }
 
 async function loadProducts(branchId: string): Promise<PosProduct[]> {
   const stale = await isCatalogueStale(branchId);
+
+  // Not stale → serve from IDB directly (works fully offline)
   if (!stale) return getAllProducts(branchId);
-  return fetchAndCacheProducts(branchId);
+
+  // Stale → try to refresh from API
+  try {
+    return await fetchAndCacheProducts(branchId);
+  } catch (err) {
+    // ✅ Offline fallback: API unreachable → serve whatever is in IDB
+    // Cashier can still work; catalogue will sync next time they're online
+    console.warn("[POS] API unreachable, serving cached catalogue:", err);
+    const cached = await getAllProducts(branchId);
+    if (cached.length > 0) return cached;
+    throw err; // IDB also empty (first load, never synced) → surface the error
+  }
 }
 
 // ── Core query hook ───────────────────────────────────────────
@@ -68,7 +81,7 @@ export function usePosProducts(branchId: string) {
   });
 }
 
-// ── Fuse options (item_name + category_name only) ─────────────
+// ── Fuse options ──────────────────────────────────────────────
 const FUSE_OPTIONS: Fuse.IFuseOptions<PosProduct> = {
   keys: [
     { name: "item_name",     weight: 0.8 },
@@ -80,7 +93,7 @@ const FUSE_OPTIONS: Fuse.IFuseOptions<PosProduct> = {
   includeScore:       true,
 };
 
-// ── Sort numerically by item_id ("9528" < "10001") ────────────
+// ── Sort numerically by item_id ───────────────────────────────
 function itemCompare(a: PosProduct, b: PosProduct): number {
   const na = parseInt(a.item_id ?? "", 10);
   const nb = parseInt(b.item_id ?? "", 10);
@@ -107,45 +120,24 @@ export function usePosSearch(branchId: string, query: string) {
 
     const q = query.trim();
 
-    // No query → first 50 sorted by item_id
-    if (!q) {
-      return [...products].sort(itemCompare).slice(0, 50);
-    }
+    // ✅ Empty query → no suggestions (don't show anything until user types)
+    if (!q) return [];
 
     const ql        = q.toLowerCase();
     const isNumeric = /^\d+$/.test(q);
 
     if (isNumeric) {
-      /**
-       * Three priority buckets (order matters):
-       *  1. exact item_id match  OR  exact barcode match
-       *  2. item_id starts-with  OR  barcode starts-with  (sorted within bucket)
-       *  3. item_id contains     OR  barcode contains     (sorted within bucket)
-       *
-       * barcode and sku can be null → use optional chaining throughout
-       */
-      const exact = products.filter(
-        p => p.item_id === q || (p.barcode != null && p.barcode === q)
-      );
+      // Priority 1: exact item_id match
+      const exact = products.filter(p => p.item_id === q);
 
+      // Priority 2: item_id starts with query
       const prefix = products
-        .filter(
-          p =>
-            (p.item_id?.startsWith(q) ||
-             (p.barcode != null && p.barcode.startsWith(q))) &&
-            p.item_id !== q &&
-            p.barcode !== q
-        )
+        .filter(p => p.item_id?.startsWith(q) && p.item_id !== q)
         .sort(itemCompare);
 
+      // Priority 3: item_id contains query
       const contains = products
-        .filter(
-          p =>
-            (p.item_id?.includes(q) ||
-             (p.barcode != null && p.barcode.includes(q))) &&
-            !p.item_id?.startsWith(q) &&
-            !(p.barcode != null && p.barcode.startsWith(q))
-        )
+        .filter(p => p.item_id?.includes(q) && !p.item_id?.startsWith(q))
         .sort(itemCompare);
 
       return [...exact, ...prefix, ...contains].slice(0, 20);
@@ -153,7 +145,6 @@ export function usePosSearch(branchId: string, query: string) {
 
     // Text search → Fuse fuzzy on item_name / category_name
     if (!fuseRef.current) {
-      // Fallback if Fuse not ready yet
       return products
         .filter(p => p.item_name?.toLowerCase().includes(ql))
         .sort(itemCompare)
@@ -170,7 +161,7 @@ export function usePosSearch(branchId: string, query: string) {
   return { results, isLoading, isError, total: products.length };
 }
 
-// ── Force refresh (call after admin adds/edits a product) ─────
+// ── Force refresh ─────────────────────────────────────────────
 export function useForceRefreshProducts(branchId: string) {
   const queryClient = useQueryClient();
   return async () => {
@@ -179,7 +170,7 @@ export function useForceRefreshProducts(branchId: string) {
   };
 }
 
-// ── Upsert one product locally (skip full re-sync) ────────────
+// ── Upsert one product locally ────────────────────────────────
 export async function upsertLocalProduct(product: PosProduct): Promise<void> {
   await db.products.put(product);
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -15,6 +15,7 @@ import {
   ToggleButtonGroup,
   IconButton,
   InputAdornment,
+  CircularProgress,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -27,81 +28,134 @@ import {
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import type { SelectChangeEvent } from '@mui/material/Select';
+import {
+  useInfiniteInventory,
+  useAdjustStock,
+  type InventoryItem,
+  type AdjustStockResponse,
+} from './useInventoryApi';
 
 const theme = createTheme({
   palette: {
-    primary: {
-      main: '#D2122E',
-    },
-    background: {
-      default: '#f8f6f6',
-      paper: '#ffffff',
-    },
+    primary: { main: '#D2122E' },
+    background: { default: '#f8f6f6', paper: '#ffffff' },
   },
-  typography: {
-    fontFamily: '"Poppins", sans-serif',
-  },
-  shape: {
-    borderRadius: 12,
-  },
+  typography: { fontFamily: '"Poppins", sans-serif' },
+  shape: { borderRadius: 12 },
 });
 
 interface AdjustStockModalProps {
-  open: boolean;
-  onClose: () => void;
+  open:             boolean;
+  onClose:          () => void;
+  // Optional: pre-select an item when opened from the inventory row
+  preselectedItem?: InventoryItem | null;
+  onSuccess?:       (res: AdjustStockResponse) => void;
 }
 
-const AdjustStockModal: React.FC<AdjustStockModalProps> = ({ open, onClose }) => {
-  const [selectedItem, setSelectedItem] = useState('Organic Espresso Beans - 1kg');
-  const [currentStock] = useState(42);
-  const [adjustmentType, setAdjustmentType] = useState<'add' | 'subtract'>('add');
+const REASONS = [
+  { value: 'new_stock',  label: 'Received New Stock'        },
+  { value: 'damage',     label: 'Damaged Goods'             },
+  { value: 'return',     label: 'Customer Return'           },
+  { value: 'correction', label: 'Physical Count Correction' },
+  { value: 'expiry',     label: 'Expired Stock'             },
+];
+
+const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
+  open,
+  onClose,
+  preselectedItem,
+  onSuccess,
+}) => {
+  // ── State ──────────────────────────────────────────────────
+  const [selectedUuid,       setSelectedUuid]       = useState('');
+  const [adjustmentType,     setAdjustmentType]     = useState<'add' | 'subtract'>('add');
   const [adjustmentQuantity, setAdjustmentQuantity] = useState<number>(0);
-  const [reason, setReason] = useState('');
-  const [notes, setNotes] = useState('');
+  const [reason,             setReason]             = useState('');
+  const [notes,              setNotes]              = useState('');
+  const [apiError,           setApiError]           = useState<string | null>(null);
 
+  // ── Fetch full inventory list for the dropdown ─────────────
+  const { data: inventoryPages } = useInfiniteInventory({ limit: 100 });
+  const inventoryItems: InventoryItem[] =
+    (inventoryPages?.pages ?? []).flatMap(p => p.data);
+
+  // ── Derive selected item data ─────────────────────────────
+  // Priority: preselectedItem (already loaded, instant) → dropdown selection
+  const selectedItem = preselectedItem?.inventory_uuid === selectedUuid
+    ? preselectedItem
+    : inventoryItems.find(i => i.inventory_uuid === selectedUuid);
+  const currentStock = selectedItem ? Number(selectedItem.available_qty) : 0;
+  const unitLabel    = selectedItem?.unit_short_name ?? 'units';
+
+  // ── Pre-select item when opened from a list row ───────────
+  useEffect(() => {
+    if (open && preselectedItem) {
+      setSelectedUuid(preselectedItem.inventory_uuid);
+    }
+  }, [open, preselectedItem]);
+
+  // ── Reset form on close ───────────────────────────────────
+  useEffect(() => {
+    if (!open) {
+      if (!preselectedItem) setSelectedUuid('');
+      setAdjustmentType('add');
+      setAdjustmentQuantity(0);
+      setReason('');
+      setNotes('');
+      setApiError(null);
+    }
+  }, [open, preselectedItem]);
+
+  // ── Adjust stock mutation ─────────────────────────────────
+  const { mutate, isPending } = useAdjustStock({
+    onSuccess: (res) => { onSuccess?.(res); onClose(); },
+    onError:   (msg) => setApiError(msg),
+  });
+
+  // ── Handlers ──────────────────────────────────────────────
   const handleAdjustmentTypeChange = (
-    event: React.MouseEvent<HTMLElement>,
-    newType: 'add' | 'subtract' | null
-  ) => {
-    if (newType !== null) {
-      setAdjustmentType(newType);
-    }
+    _e: React.MouseEvent<HTMLElement>,
+    val: 'add' | 'subtract' | null,
+  ) => { if (val !== null) setAdjustmentType(val); };
+
+  const handleItemChange = (e: SelectChangeEvent) => {
+    setSelectedUuid(e.target.value);
+    setAdjustmentQuantity(0);
+    setApiError(null);
   };
 
-  const handleItemChange = (event: SelectChangeEvent) => {
-    setSelectedItem(event.target.value);
-  };
+  const handleReasonChange = (e: SelectChangeEvent) => setReason(e.target.value);
 
-  const handleReasonChange = (event: SelectChangeEvent) => {
-    setReason(event.target.value);
-  };
-
-  const calculateNewStock = () => {
-    if (adjustmentType === 'add') {
-      return currentStock + adjustmentQuantity;
-    } else {
-      return currentStock - adjustmentQuantity;
-    }
-  };
+  const calculateNewStock = () =>
+    adjustmentType === 'add'
+      ? currentStock + adjustmentQuantity
+      : Math.max(0, currentStock - adjustmentQuantity);
 
   const handleSave = () => {
-    // Handle save logic here
-    console.log({
-      selectedItem,
-      adjustmentType,
-      adjustmentQuantity,
+    setApiError(null);
+    if (!selectedUuid)                                         return setApiError('Please select an item');
+    if (!reason)                                               return setApiError('Please select a reason');
+    if (!adjustmentQuantity || adjustmentQuantity <= 0)        return setApiError('Adjustment quantity must be greater than 0');
+    if (adjustmentType === 'subtract' && adjustmentQuantity > currentStock)
+      return setApiError(`Cannot subtract ${adjustmentQuantity} — only ${currentStock} ${unitLabel} available`);
+
+    mutate({
+      inventory_uuid:  selectedUuid,
+      adjustment_type: adjustmentType,
+      adjustment_qty:  adjustmentQuantity,
       reason,
-      notes,
-      newStock: calculateNewStock(),
+      notes: notes || undefined,
     });
-    onClose();
   };
 
+  // ─────────────────────────────────────────────────────────
+  //  JSX — identical to the original UI
+  // ─────────────────────────────────────────────────────────
   return (
     <ThemeProvider theme={theme}>
       <Dialog
         open={open}
-        onClose={onClose}
+        onClose={isPending ? undefined : onClose}
         maxWidth="md"
         fullWidth
         PaperProps={{
@@ -147,7 +201,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({ open, onClose }) =>
               Adjust Stock
             </Typography>
           </Box>
-          <IconButton onClick={onClose} size="small" sx={{ color: '#94a3b8', mr: -0.5 }}>
+          <IconButton onClick={onClose} size="small" sx={{ color: '#94a3b8', mr: -0.5 }} disabled={isPending}>
             <CloseIcon />
           </IconButton>
         </DialogTitle>
@@ -155,25 +209,35 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({ open, onClose }) =>
         {/* Content */}
         <DialogContent sx={{ px: 2.75, py: 2.5 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.75 }}>
+
+            {/* API error banner */}
+            {apiError && (
+              <Box sx={{ px: 2, py: 1.25, bgcolor: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '10px' }}>
+                <Typography variant="body2" color="error" fontWeight={600}>{apiError}</Typography>
+              </Box>
+            )}
+
             {/* Row 1: Item Name & Current Stock */}
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' }, gap: 2.5 }}>
               <FormControl fullWidth>
-                <Typography
-                  variant="body2"
-                  fontWeight={600}
-                  sx={{ mb: 1, fontSize: '0.92rem', color: '#475569' }}
-                >
+                <Typography variant="body2" fontWeight={600} sx={{ mb: 1, fontSize: '0.92rem', color: '#475569' }}>
                   Item Name
                 </Typography>
                 <Select
-                  value={selectedItem}
+                  value={selectedUuid}
                   onChange={handleItemChange}
+                  displayEmpty
                   startAdornment={
                     <InputAdornment position="start">
                       <SearchIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
                     </InputAdornment>
                   }
                   IconComponent={ExpandMoreIcon}
+                  renderValue={(v) =>
+                    v
+                      ? (selectedItem?.item_name ?? v)
+                      : <Box component="span" sx={{ color: '#94a3b8' }}>Select an item...</Box>
+                  }
                   sx={{
                     bgcolor: '#fbfcfe',
                     borderRadius: '12px',
@@ -187,53 +251,40 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({ open, onClose }) =>
                       color: '#334155',
                       fontWeight: 500,
                     },
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#dbe3ef',
-                    },
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#cbd5e1',
-                    },
-                    '& .MuiSvgIcon-root': {
-                      color: '#94a3b8',
-                    },
+                    '& .MuiOutlinedInput-notchedOutline': { borderColor: '#dbe3ef' },
+                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e1' },
+                    '& .MuiSvgIcon-root': { color: '#94a3b8' },
                   }}
                 >
-                  <MenuItem value="Select an item...">Select an item...</MenuItem>
-                  <MenuItem value="Organic Espresso Beans - 1kg">
-                    Organic Espresso Beans - 1kg
-                  </MenuItem>
-                  <MenuItem value="Oat Milk - Barista Edition">Oat Milk - Barista Edition</MenuItem>
-                  <MenuItem value="Paper Coffee Filters (100ct)">
-                    Paper Coffee Filters (100ct)
-                  </MenuItem>
+                  <MenuItem value="" disabled sx={{ color: '#94a3b8' }}>Select an item...</MenuItem>
+                  {inventoryItems.map(item => (
+                    <MenuItem key={item.inventory_uuid} value={item.inventory_uuid} sx={{ fontSize: 14 }}>
+                      {item.item_name}
+                      {item.unit_short_name
+                        ? <Box component="span" sx={{ color: '#94a3b8', ml: 1, fontSize: 12 }}>
+                            {Number(item.available_qty)} {item.unit_short_name}
+                          </Box>
+                        : null}
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
 
               <FormControl fullWidth>
-                <Typography
-                  variant="body2"
-                  fontWeight={600}
-                  sx={{ mb: 1, fontSize: '0.92rem', color: '#475569' }}
-                >
+                <Typography variant="body2" fontWeight={600} sx={{ mb: 1, fontSize: '0.92rem', color: '#475569' }}>
                   Current Stock
                 </Typography>
                 <TextField
-                  value={`${currentStock} units`}
+                  value={selectedUuid ? `${currentStock} ${unitLabel}` : '—'}
                   disabled
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       bgcolor: '#f1f5f9',
                       borderRadius: '12px',
                       minHeight: 40,
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#dbe3ef',
-                      },
+                      '& .MuiOutlinedInput-notchedOutline': { borderColor: '#dbe3ef' },
                     },
-                    '& .MuiInputBase-input': {
-                      py: 1.1,
-                      color: '#64748b',
-                      fontWeight: 500,
-                    },
+                    '& .MuiInputBase-input': { py: 1.1, color: '#64748b', fontWeight: 500 },
                   }}
                 />
               </FormControl>
@@ -242,11 +293,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({ open, onClose }) =>
             {/* Row 2: Adjustment Type & Quantity */}
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5 }}>
               <Box>
-                <Typography
-                  variant="body2"
-                  fontWeight={600}
-                  sx={{ mb: 1, fontSize: '0.92rem', color: '#475569' }}
-                >
+                <Typography variant="body2" fontWeight={600} sx={{ mb: 1, fontSize: '0.92rem', color: '#475569' }}>
                   Adjustment Type
                 </Typography>
                 <ToggleButtonGroup
@@ -267,72 +314,48 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({ open, onClose }) =>
                     sx={{
                       border: 'none',
                       borderRadius: '8px !important',
-                      px: 2,
-                      py: 0.9,
+                      px: 2, py: 0.9,
                       textTransform: 'uppercase',
                       fontSize: '0.75rem',
                       fontWeight: 700,
                       letterSpacing: '0.05em',
                       color: '#64748b',
                       '&.Mui-selected': {
-                        bgcolor: 'primary.main',
-                        color: 'white',
-                        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-                        '&:hover': {
-                          bgcolor: 'primary.main',
-                                                  color: 'white',
-
-                        },
+                        bgcolor: 'primary.main', color: 'white',
+                        boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)',
+                        '&:hover': { bgcolor: 'primary.main', color: 'white' },
                       },
-                      '&:hover': {
-                        bgcolor: 'transparent',
-                        color: '#334155',
-                      },
+                      '&:hover': { bgcolor: 'transparent', color: '#334155' },
                     }}
                   >
-                    <AddIcon sx={{ fontSize: 18, mr: 1 }} />
-                    Add
+                    <AddIcon sx={{ fontSize: 18, mr: 1 }} /> Add
                   </ToggleButton>
                   <ToggleButton
                     value="subtract"
                     sx={{
                       border: 'none',
                       borderRadius: '8px !important',
-                      px: 2,
-                      py: 0.9,
+                      px: 2, py: 0.9,
                       textTransform: 'uppercase',
                       fontSize: '0.75rem',
                       fontWeight: 700,
                       letterSpacing: '0.05em',
                       color: '#64748b',
                       '&.Mui-selected': {
-                      bgcolor: 'primary.main',
-                        color: 'white',
-                        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-                        '&:hover': {
-                          bgcolor: 'primary.main',
-                                                  color: 'white',
-
-                        },
+                        bgcolor: 'primary.main', color: 'white',
+                        boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)',
+                        '&:hover': { bgcolor: 'primary.main', color: 'white' },
                       },
-                      '&:hover': {
-                        bgcolor: 'transparent',
-                        color: '#334155',
-                      },
+                      '&:hover': { bgcolor: 'transparent', color: '#334155' },
                     }}
                   >
-                    <RemoveIcon sx={{ fontSize: 18, mr: 1 }} />
-                    Subtract
+                    <RemoveIcon sx={{ fontSize: 18, mr: 1 }} /> Subtract
                   </ToggleButton>
                 </ToggleButtonGroup>
               </Box>
 
               <FormControl fullWidth>
-                <Typography
-                  variant="body2"
-                  fontWeight={600}
-                  sx={{ mb: 1, fontSize: '0.92rem', color: '#475569' }}
-                >
+                <Typography variant="body2" fontWeight={600} sx={{ mb: 1, fontSize: '0.92rem', color: '#475569' }}>
                   Adjustment Quantity
                 </Typography>
                 <TextField
@@ -344,20 +367,13 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({ open, onClose }) =>
                     '& .MuiOutlinedInput-root': {
                       borderRadius: '12px',
                       minHeight: 40,
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#dbe3ef',
-                      },
-                      '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#cbd5e1',
-                      },
+                      '& .MuiOutlinedInput-notchedOutline': { borderColor: '#dbe3ef' },
+                      '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e1' },
                       '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'primary.main',
-                        borderWidth: 2,
+                        borderColor: 'primary.main', borderWidth: 2,
                       },
                     },
-                    '& .MuiInputBase-input': {
-                      py: 1.1,
-                    },
+                    '& .MuiInputBase-input': { py: 1.1 },
                   }}
                 />
               </FormControl>
@@ -367,17 +383,12 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({ open, onClose }) =>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5, mt: -0.5 }}>
               <Box />
               <Box>
-                <Typography
-                  variant="body2"
-                  fontWeight={600}
-                  sx={{ mb: 1, fontSize: '0.92rem', color: '#475569' }}
-                >
+                <Typography variant="body2" fontWeight={600} sx={{ mb: 1, fontSize: '0.92rem', color: '#475569' }}>
                   New Stock Level Preview
                 </Typography>
                 <Box
                   sx={{
-                    px: 2,
-                    py: 1.35,
+                    px: 2, py: 1.35,
                     borderRadius: '12px',
                     bgcolor: '#fff7f7',
                     border: '1px dashed rgba(210, 18, 46, 0.35)',
@@ -390,7 +401,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({ open, onClose }) =>
                     Projected:
                   </Typography>
                   <Typography variant="h6" fontWeight={700} sx={{ color: 'primary.main', fontSize: '1.1rem' }}>
-                    {calculateNewStock()} units
+                    {calculateNewStock()} {unitLabel}
                   </Typography>
                 </Box>
               </Box>
@@ -398,11 +409,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({ open, onClose }) =>
 
             {/* Row 4: Reason */}
             <FormControl fullWidth>
-              <Typography
-                variant="body2"
-                fontWeight={600}
-                sx={{ mb: 1, fontSize: '0.92rem', color: '#475569' }}
-              >
+              <Typography variant="body2" fontWeight={600} sx={{ mb: 1, fontSize: '0.92rem', color: '#475569' }}>
                 Reason for Adjustment
               </Typography>
               <Select
@@ -421,37 +428,23 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({ open, onClose }) =>
                     py: 0,
                     color: reason ? '#334155' : '#64748b',
                   },
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#dbe3ef',
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#cbd5e1',
-                  },
-                  '& .MuiSvgIcon-root': {
-                    color: '#94a3b8',
-                  },
+                  '& .MuiOutlinedInput-notchedOutline': { borderColor: '#dbe3ef' },
+                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e1' },
+                  '& .MuiSvgIcon-root': { color: '#94a3b8' },
                 }}
               >
                 <MenuItem value="">Select a reason...</MenuItem>
-                <MenuItem value="new_stock">Received New Stock</MenuItem>
-                <MenuItem value="damage">Damaged Goods</MenuItem>
-                <MenuItem value="return">Customer Return</MenuItem>
-                <MenuItem value="correction">Physical Count Correction</MenuItem>
-                <MenuItem value="expiry">Expired Stock</MenuItem>
+                {REASONS.map(r => (
+                  <MenuItem key={r.value} value={r.value} sx={{ fontSize: 14 }}>{r.label}</MenuItem>
+                ))}
               </Select>
             </FormControl>
 
             {/* Row 5: Notes */}
             <FormControl fullWidth>
-              <Typography
-                variant="body2"
-                fontWeight={600}
-                sx={{ mb: 1, fontSize: '0.92rem', color: '#475569' }}
-              >
+              <Typography variant="body2" fontWeight={600} sx={{ mb: 1, fontSize: '0.92rem', color: '#475569' }}>
                 Notes{' '}
-                <Box component="span" sx={{ fontWeight: 400, color: '#94a3b8' }}>
-                  (Optional)
-                </Box>
+                <Box component="span" sx={{ fontWeight: 400, color: '#94a3b8' }}>(Optional)</Box>
               </Typography>
               <TextField
                 multiline
@@ -462,20 +455,13 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({ open, onClose }) =>
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: '12px',
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#dbe3ef',
-                    },
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#cbd5e1',
-                    },
+                    '& .MuiOutlinedInput-notchedOutline': { borderColor: '#dbe3ef' },
+                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e1' },
                     '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'primary.main',
-                      borderWidth: 2,
+                      borderColor: 'primary.main', borderWidth: 2,
                     },
                   },
-                  '& .MuiInputBase-inputMultiline': {
-                    color: '#334155',
-                  },
+                  '& .MuiInputBase-inputMultiline': { color: '#334155' },
                 }}
               />
             </FormControl>
@@ -485,8 +471,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({ open, onClose }) =>
         {/* Footer */}
         <DialogActions
           sx={{
-            px: 2.75,
-            py: 2.25,
+            px: 2.75, py: 2.25,
             borderTop: '1px solid #f1f5f9',
             bgcolor: '#fbfcfe',
             gap: 1.5,
@@ -496,19 +481,12 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({ open, onClose }) =>
           <Button
             onClick={onClose}
             variant="outlined"
+            disabled={isPending}
             sx={{
-              borderRadius: '12px',
-              px: 3,
-              py: 1.05,
-              fontWeight: 700,
-              textTransform: 'none',
-              borderColor: '#d7dfeb',
-              color: '#475569',
-              bgcolor: '#fff',
-              '&:hover': {
-                borderColor: '#94a3b8',
-                bgcolor: '#f1f5f9',
-              },
+              borderRadius: '12px', px: 3, py: 1.05,
+              fontWeight: 700, textTransform: 'none',
+              borderColor: '#d7dfeb', color: '#475569', bgcolor: '#fff',
+              '&:hover': { borderColor: '#94a3b8', bgcolor: '#f1f5f9' },
             }}
           >
             Cancel
@@ -516,20 +494,20 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({ open, onClose }) =>
           <Button
             onClick={handleSave}
             variant="contained"
-            startIcon={<CheckCircleIcon sx={{ fontSize: 20 }} />}
+            disabled={isPending}
+            startIcon={
+              isPending
+                ? <CircularProgress size={18} color="inherit" />
+                : <CheckCircleIcon sx={{ fontSize: 20 }} />
+            }
             sx={{
-              borderRadius: '12px',
-              px: 3,
-              py: 1.05,
-              fontWeight: 700,
-              textTransform: 'none',
+              borderRadius: '12px', px: 3, py: 1.05,
+              fontWeight: 700, textTransform: 'none',
               boxShadow: '0 10px 20px rgba(210, 18, 46, 0.28)',
-              '&:hover': {
-                bgcolor: 'rgba(210, 18, 46, 0.9)',
-              },
+              '&:hover': { bgcolor: 'rgba(210, 18, 46, 0.9)' },
             }}
           >
-            Save Adjustment
+            {isPending ? 'Saving…' : 'Save Adjustment'}
           </Button>
         </DialogActions>
       </Dialog>

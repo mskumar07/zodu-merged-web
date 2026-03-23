@@ -3,78 +3,104 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Box, Typography, TextField, Button, IconButton,
   ToggleButtonGroup, ToggleButton, FormControl,
-  Select, MenuItem, InputAdornment, Tooltip, Chip,
+  Select, MenuItem, InputAdornment, Tooltip, CircularProgress,
+  Collapse,
 } from '@mui/material';
 import { useFormik } from 'formik';
-import AddCircleIcon from '@mui/icons-material/AddCircle';
-import CloseIcon from '@mui/icons-material/Close';
-import AddAPhotoIcon from '@mui/icons-material/AddAPhoto';
-import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
+import axios from 'axios';
+import AddCircleIcon        from '@mui/icons-material/AddCircle';
+import CloseIcon            from '@mui/icons-material/Close';
+import AddAPhotoIcon        from '@mui/icons-material/AddAPhoto';
+import QrCodeScannerIcon    from '@mui/icons-material/QrCodeScanner';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import SaveIcon from '@mui/icons-material/Save';
+import SaveIcon             from '@mui/icons-material/Save';
+import ExpandMoreIcon       from '@mui/icons-material/ExpandMore';
+import InventoryIcon        from '@mui/icons-material/Inventory2Outlined';
 import { addItemSchema, addCategorySchema } from './ItemValidation';
-
-
-// ── Types ─────────────────────────────────────────────────────
-interface Category { value: string; label: string }
-
-const DEFAULT_CATEGORIES: Category[] = [
-  { value: 'apparel', label: 'Apparel' },
-  { value: 'footwear', label: 'Footwear' },
-  { value: 'accessories', label: 'Accessories' },
-  { value: 'textiles', label: 'Textiles' },
-  { value: 'hardware', label: 'Hardware' },
-  { value: 'maintenance', label: 'Maintenance' },
-  { value: 'service', label: 'Service' },
-];
+import {
+  useCategories,
+  useAddCategory,
+  useAddMenuItem,
+  useEditMenuItem,
+  useGstList,
+  useUnitList,
+  type Category,
+  type MenuItem as MenuItemData,   // ← renamed to avoid clash with MUI MenuItem
+  type AddMenuItemResponse,
+  type GstOption,
+  type UnitOption,
+} from './useMenuItemApi';
 
 interface AddItemModalProps {
-  open: boolean;
-  onClose: () => void;
-  onSave: (values: typeof INITIAL_VALUES, imageFile: File | null) => void;
+  open:      boolean;
+  onClose:   () => void;
+  onSave?:   (data: AddMenuItemResponse) => void;
+  editItem?: MenuItemData | null;
 }
 
 const INITIAL_VALUES = {
-  serviceType: 'product' as 'product' | 'service',
+  serviceType:   'product' as 'product' | 'service',
   inventoryType: 'sellable' as 'sellable' | 'raw',
-  name: '',
-  category: '',
-  unit: 'pcs' as 'pcs' | 'kg' | 'ltr' | 'box',
+  name:          '',
+  category:      '',
+  unit:          '' as string,    // unit id from API (UnitOption.value as string)
   purchasePrice: '',
-  mrp: '',
-  rate: '',
-  taxType: 'gst18',
-  taxInclusion: 'Incl.' as 'Incl.' | 'Excl.',
-  hsn: '',
-  barcode: '',
+  mrp:           '',
+  rate:          '',
+  gstId:         '' as string,
+  taxInclusion:  'Incl.' as 'Incl.' | 'Excl.',
+  hsn:           '',
+  barcode:       '',
+  // ── Inventory (optional, collapsible) ──
+  openingStock:   '',
+  lowStockAlert:  '',
 };
 
-// ── Helper: field label ────────────────────────────────────────
+// ─── Helper components ────────────────────────────────────────
 const Label: React.FC<{ text: string; required?: boolean }> = ({ text, required }) => (
   <Typography variant="body2" fontWeight={600} mb={0.8} color="text.primary">
     {text}{required && <Box component="span" sx={{ color: 'primary.main', ml: 0.3 }}>*</Box>}
   </Typography>
 );
 
-// ── Add Category nested dialog ────────────────────────────────
+// ─── Add Category dialog ──────────────────────────────────────
 interface AddCategoryDialogProps {
-  open: boolean;
-  onClose: () => void;
-  onAdd: (cat: Category) => void;
+  open:        boolean;
+  serviceType: 'product' | 'service';
+  onClose:     () => void;
+  onAdded:     (cat: Category) => void;
 }
 
-const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({ open, onClose, onAdd }) => {
+const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
+  open, serviceType, onClose, onAdded,
+}) => {
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  const { mutate, isPending, reset } = useAddCategory({
+    onSuccess: (category) => {
+      onAdded(category);
+      f.resetForm();
+      setApiError(null);
+      onClose();
+    },
+    onError: (msg) => setApiError(msg),
+  });
+
   const f = useFormik({
     initialValues: { name: '', description: '' },
     validationSchema: addCategorySchema,
-    onSubmit: (values, helpers) => {
-      onAdd({ value: values.name.toLowerCase().replace(/\s+/g, '_'), label: values.name.trim() });
-      helpers.resetForm();
-      onClose();
+    onSubmit: (values) => {
+      setApiError(null);
+      mutate({ name: values.name, serviceType });
     },
   });
 
-  const handleClose = () => { f.resetForm(); onClose(); };
+  const handleClose = () => {
+    f.resetForm();
+    reset();
+    setApiError(null);
+    onClose();
+  };
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth
@@ -97,6 +123,13 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({ open, onClose, on
       </DialogTitle>
 
       <DialogContent sx={{ px: 3, py: 3 }}>
+        {/* API error */}
+        {apiError && (
+          <Box sx={{ mb: 2, p: 1.5, bgcolor: 'error.light', borderRadius: 1 }}>
+            <Typography variant="caption" color="error.contrastText">{apiError}</Typography>
+          </Box>
+        )}
+
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
           <Box>
             <Label text="Category Name" required />
@@ -116,44 +149,126 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({ open, onClose, on
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2.5, borderTop: '1px solid', borderColor: 'divider', gap: 1.5 }}>
-        <Button onClick={handleClose} variant="outlined"
-          sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600, px: 3, borderColor: 'divider', color: 'text.secondary', '&:hover': { bgcolor: 'action.hover', borderColor: 'divider' } }}>
+        <Button onClick={handleClose} variant="outlined" disabled={isPending}
+          sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600, px: 3, borderColor: 'divider', color: 'text.secondary' }}>
           Cancel
         </Button>
-        <Button onClick={() => f.submitForm()} variant="contained" startIcon={<AddCircleIcon />}
-          sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 700, px: 3, boxShadow: '0 4px 12px rgba(210,18,46,0.25)', '&:hover': { boxShadow: '0 6px 16px rgba(210,18,46,0.35)' } }}>
-          Add Category
+        <Button onClick={() => f.submitForm()} variant="contained"
+          disabled={isPending}
+          startIcon={isPending ? <CircularProgress size={15} color="inherit" /> : <AddCircleIcon />}
+          sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 700, px: 3, boxShadow: '0 4px 12px rgba(210,18,46,0.25)' }}>
+          {isPending ? 'Saving…' : 'Add Category'}
         </Button>
       </DialogActions>
     </Dialog>
   );
 };
 
-// ── Main AddItemModal ─────────────────────────────────────────
-const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) => {
-  const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
-  const [catDialogOpen, setCatDialogOpen] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
+// ─── Main AddItemModal ────────────────────────────────────────
+const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, editItem }) => {
+  const isEditMode = Boolean(editItem);
+
+  const [catDialogOpen,   setCatDialogOpen]   = useState(false);
+  const [inventoryOpen,   setInventoryOpen]   = useState(false);
+  const [imagePreview,    setImagePreview]    = useState<string | null>(null);
+  const [imageFile,       setImageFile]       = useState<File | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
+  // Build initial values — pre-fill when in edit mode
+  const getInitialValues = () => {
+    if (!editItem) return INITIAL_VALUES;
+    return {
+      serviceType:   (editItem.item_type === 'S' ? 'product' : 'service') as 'product' | 'service',
+      inventoryType: 'sellable' as 'sellable' | 'raw',
+      name:          editItem.item_name       ?? '',
+      category:      editItem.category_id     ? String(editItem.category_id) : '',
+      unit:          editItem.unit            ? String(editItem.unit)         : '',
+      purchasePrice: editItem.purchase_price  ?? '',
+      mrp:           editItem.mrp             ?? '',
+      rate:          editItem.sell_price      ?? '',
+      gstId:         editItem.gst_type        ? String(editItem.gst_type)    : '',
+      taxInclusion:  editItem.tax_incl_type   ? 'Incl.' : 'Excl.' as 'Incl.' | 'Excl.',
+      hsn:           editItem.hsn_code        ?? '',
+      barcode:       editItem.barcode         ?? '',
+      openingStock:  '',
+      lowStockAlert: '',
+    };
+  };
+
   const formik = useFormik({
-    initialValues: INITIAL_VALUES,
+    initialValues:    getInitialValues(),
+    enableReinitialize: true,   // re-fill when editItem changes
     validationSchema: addItemSchema,
-    onSubmit: (values, helpers) => {
-      onSave(values, imageFile);
-      helpers.resetForm();
-      setImagePreview(null);
-      setImageFile(null);
-      onClose();
+    onSubmit: (values) => {
+      const payload = {
+        item_type:      values.serviceType === 'product' ? 'S' as const : 'P' as const,
+        item_name:      values.name.trim(),
+        category_id:    values.category     ? Number(values.category)     : null,
+        unit:           values.unit         ? Number(values.unit)         : null,
+        purchase_price: values.purchasePrice ? Number(values.purchasePrice) : null,
+        mrp:            values.mrp           ? Number(values.mrp)           : null,
+        sell_price:     values.rate          ? Number(values.rate)          : null,
+        gst_type:       values.gstId         ? Number(values.gstId)         : null,
+        tax_incl_type:  values.taxInclusion === 'Incl.',
+        hsn_code:       values.hsn     || null,
+        barcode:        values.barcode || null,
+        item_img:       null,
+        status:         'active' as const,
+        // ── Inventory fields (only sent on create; ignored on edit) ──
+        opening_stock:  values.openingStock  ? Number(values.openingStock)  : null,
+        reorder_level:  values.lowStockAlert ? Number(values.lowStockAlert) : null,
+      };
+
+      if (isEditMode && editItem) {
+        editItem_({ item_uuid: editItem.item_uuid, ...payload });
+      } else {
+        saveItem(payload);
+      }
     },
   });
 
-  const handleClose = () => {
+  // ── Fetch categories — refetch when serviceType changes ──────
+  const { data: categories = [], isLoading: categoriesLoading } = useCategories(
+    formik.values.serviceType
+  );
+
+  // ── Fetch GST options ─────────────────────────────────────────
+  const { data: gstOptions  = [], isLoading: gstLoading  } = useGstList();
+
+  // ── Fetch unit options ────────────────────────────────────────
+  const { data: unitOptions = [], isLoading: unitsLoading } = useUnitList();
+
+  // ── Create menu item ──────────────────────────────────────────
+  const { mutate: saveItem, isPending: saving, isError: saveError, error: saveErr, reset: resetSave } = useAddMenuItem({
+    onSuccess: (data) => { onSave?.(data); handleReset(); },
+  });
+
+  // ── Edit menu item ─────────────────────────────────────────────
+  const { mutate: editItem_, isPending: editing, isError: editError, error: editErr, reset: resetEdit } = useEditMenuItem({
+    onSuccess: (data) => { onSave?.(data); handleReset(); },
+  });
+
+  const isSaving = saving || editing;
+  const hasError = saveError || editError;
+  const errObj   = saveErr   || editErr;
+
+  const handleReset = () => {
     formik.resetForm();
+    resetSave();
+    resetEdit();
+    setInventoryOpen(false);
     setImagePreview(null);
     setImageFile(null);
     onClose();
+  };
+
+  const handleClose = () => { if (isSaving) return; handleReset(); };
+
+  // When serviceType changes, reset category selection
+  const handleServiceTypeChange = (_e: unknown, val: 'product' | 'service') => {
+    if (!val) return;
+    formik.setFieldValue('serviceType', val);
+    formik.setFieldValue('category', '');   // reset — different category list
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,15 +280,14 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
     reader.readAsDataURL(file);
   };
 
-  const handleAddCategory = (cat: Category) => {
-    setCategories(prev => [...prev, cat]);
+  // Called by AddCategoryDialog after successful API save
+  const handleCategoryAdded = (cat: Category) => {
     formik.setFieldValue('category', cat.value);
   };
 
-  const err = formik.errors;
+  const err   = formik.errors;
   const touch = formik.touched;
 
-  // Reusable toggle group styles
   const toggleGroupSx = {
     bgcolor: 'action.hover', borderRadius: 1.5, p: '4px', gap: '3px', width: '100%',
     '& .MuiToggleButtonGroup-grouped': { margin: 0 },
@@ -184,9 +298,11 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
     textTransform: 'none' as const, fontSize: 13, fontWeight: 600, height: 34,
     color: 'text.secondary',
     '&.Mui-selected': {
-      color: colored ? '#fff' : 'text.primary',
+      color:   colored ? '#fff' : 'text.primary',
       bgcolor: colored ? 'primary.main' : 'background.paper',
-      boxShadow: colored ? '0 2px 8px rgba(210,18,46,0.3)' : '0 1px 4px rgba(0,0,0,0.1)',
+      boxShadow: colored
+        ? '0 2px 8px rgba(210,18,46,0.3)'
+        : '0 1px 4px rgba(0,0,0,0.1)',
       '&:hover': { bgcolor: colored ? 'primary.main' : 'background.paper' },
     },
     '&:hover': { bgcolor: 'transparent' },
@@ -208,11 +324,15 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
                 <AddCircleIcon sx={{ color: 'primary.main', fontSize: 22 }} />
               </Box>
               <Box>
-                <Typography fontWeight={800} fontSize={18} lineHeight={1.2} letterSpacing="-0.3px">Add New Item</Typography>
-                <Typography variant="caption" color="text.secondary">Create a new product or service for your catalog</Typography>
+                <Typography fontWeight={800} fontSize={18} lineHeight={1.2} letterSpacing="-0.3px">
+                  {isEditMode ? 'Edit Item' : 'Add New Item'}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {isEditMode ? 'Update product or service details' : 'Create a new product or service for your catalog'}
+                </Typography>
               </Box>
             </Box>
-            <IconButton size="small" onClick={handleClose}
+            <IconButton size="small" onClick={handleClose} disabled={isSaving}
               sx={{ color: 'text.disabled', borderRadius: 2, '&:hover': { color: 'text.secondary', bgcolor: 'action.hover' } }}>
               <CloseIcon />
             </IconButton>
@@ -221,10 +341,22 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
 
         {/* ── Body ── */}
         <DialogContent sx={{ px: 3, py: 3, overflowY: 'auto', '&::-webkit-scrollbar': { width: 5 }, '&::-webkit-scrollbar-thumb': { bgcolor: 'divider', borderRadius: 10 } }}>
+
+          {/* API save error */}
+          {hasError && (
+            <Box sx={{ mb: 2.5, p: 1.5, bgcolor: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 1.5 }}>
+              <Typography variant="body2" color="error" fontWeight={600}>
+                {axios.isAxiosError(errObj)
+                  ? errObj?.response?.data?.message ?? errObj?.message ?? "Unknown error"
+                  : 'Failed to save item. Please try again.'}
+              </Typography>
+            </Box>
+          )}
+
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
 
             {/* Row 1: Image + Basic fields */}
-            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3,mt:2.5 }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3, mt: 2.5 }}>
 
               {/* Image Upload */}
               <Box sx={{ width: { xs: '100%', md: 156 }, flexShrink: 0 }}>
@@ -236,8 +368,9 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
                     bgcolor: imagePreview ? 'transparent' : 'action.hover',
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                     cursor: 'pointer', overflow: 'hidden', transition: 'all 0.2s',
-                    backgroundImage: imagePreview ? `url(${imagePreview})` : 'none',
-                    backgroundSize: 'cover', backgroundPosition: 'center',
+                    backgroundImage:    imagePreview ? `url(${imagePreview})` : 'none',
+                    backgroundSize:     'cover',
+                    backgroundPosition: 'center',
                     '&:hover': { borderColor: 'primary.main', bgcolor: 'rgba(210,18,46,0.04)' },
                   }}>
                   {!imagePreview && (
@@ -258,7 +391,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
                   <Box>
                     <Label text="Service Type" />
                     <ToggleButtonGroup exclusive value={formik.values.serviceType}
-                      onChange={(_e, v) => v && formik.setFieldValue('serviceType', v)} sx={toggleGroupSx}>
+                      onChange={handleServiceTypeChange} sx={toggleGroupSx}>
                       <ToggleButton value="product" sx={getToggleSx(true)}>Product</ToggleButton>
                       <ToggleButton value="service" sx={getToggleSx(true)}>Service</ToggleButton>
                     </ToggleButtonGroup>
@@ -267,8 +400,8 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
                     <Label text="Inventory" />
                     <ToggleButtonGroup exclusive value={formik.values.inventoryType}
                       onChange={(_e, v) => v && formik.setFieldValue('inventoryType', v)} sx={toggleGroupSx}>
-                      <ToggleButton value="sellable" sx={getToggleSx(true)}>Sellable</ToggleButton>
-                      <ToggleButton value="raw" sx={getToggleSx(true)}>Raw Material</ToggleButton>
+                      <ToggleButton value="sellable"  sx={getToggleSx(true)}>Sellable</ToggleButton>
+                      <ToggleButton value="raw"       sx={getToggleSx(true)}>Raw Material</ToggleButton>
                     </ToggleButtonGroup>
                   </Box>
                 </Box>
@@ -283,7 +416,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
                     InputProps={{ sx: inputSx }} />
                 </Box>
 
-                {/* Category row */}
+                {/* Category */}
                 <Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.8 }}>
                     <Label text="Category" required />
@@ -294,23 +427,27 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
                         borderRadius: 1, color: 'primary.main', bgcolor: 'rgba(210,18,46,0.07)',
                         border: '1px solid rgba(210,18,46,0.2)', lineHeight: 1,
                         '&:hover': { bgcolor: 'rgba(210,18,46,0.13)', boxShadow: '0 2px 8px rgba(210,18,46,0.15)' },
-                        transition: 'all 0.2s',
                       }}>
                       Add Category
                     </Button>
                   </Box>
                   <FormControl fullWidth size="small" error={touch.category && Boolean(err.category)}>
-                    <Select value={formik.values.category}
-                      displayEmpty
+                    <Select value={formik.values.category} displayEmpty
                       onChange={(e) => formik.setFieldValue('category', e.target.value)}
                       renderValue={(selected) => {
-                        if (!selected) {
-                          return <Box component="span" sx={{ color: 'text.disabled' }}>Select Category</Box>;
-                        }
+                        if (!selected) return <Box component="span" sx={{ color: 'text.disabled' }}>
+                          {categoriesLoading ? 'Loading…' : 'Select Category'}
+                        </Box>;
                         return categories.find(c => c.value === selected)?.label ?? selected;
                       }}
-                      sx={{ ...inputSx }}>
-                      <MenuItem value="" disabled sx={{ fontSize: 14, color: 'text.disabled' }}>Select Category</MenuItem>
+                      sx={inputSx}
+                      startAdornment={categoriesLoading
+                        ? <InputAdornment position="start"><CircularProgress size={14} /></InputAdornment>
+                        : null
+                      }>
+                      <MenuItem value="" disabled sx={{ fontSize: 14, color: 'text.disabled' }}>
+                        Select Category
+                      </MenuItem>
                       {categories.map(c => (
                         <MenuItem key={c.value} value={c.value} sx={{ fontSize: 14 }}>{c.label}</MenuItem>
                       ))}
@@ -332,10 +469,28 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
                 <Box>
                   <Label text="Item Unit" />
                   <FormControl fullWidth size="small">
-                    <Select value={formik.values.unit}
-                      onChange={(e) => formik.setFieldValue('unit', e.target.value)} sx={inputSx}>
-                      {['pcs', 'kg', 'ltr', 'box'].map(u => (
-                        <MenuItem key={u} value={u} sx={{ fontSize: 14 }}>{u.toUpperCase()}</MenuItem>
+                    <Select
+                      value={formik.values.unit}
+                      onChange={(e) => formik.setFieldValue('unit', e.target.value)}
+                      displayEmpty
+                      renderValue={(v) => {
+                        if (!v) return <Box component="span" sx={{ color: 'text.disabled' }}>
+                          {unitsLoading ? 'Loading…' : 'Select Unit'}
+                        </Box>;
+                        return unitOptions.find(u => String(u.value) === v)?.label ?? v;
+                      }}
+                      startAdornment={unitsLoading
+                        ? <InputAdornment position="start"><CircularProgress size={14} /></InputAdornment>
+                        : null
+                      }
+                      sx={inputSx}>
+                      <MenuItem value="" disabled sx={{ fontSize: 14, color: 'text.disabled' }}>
+                        Select Unit
+                      </MenuItem>
+                      {unitOptions.map((u: UnitOption) => (
+                        <MenuItem key={u.value} value={String(u.value)} sx={{ fontSize: 14 }}>
+                          {u.label}
+                        </MenuItem>
                       ))}
                     </Select>
                   </FormControl>
@@ -367,7 +522,77 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
               </Box>
             </Box>
 
-            {/* Row 3: Tax */}
+            {/* Row 3: Inventory (collapsible, optional) */}
+            <Box sx={{ border: '1px solid', borderColor: inventoryOpen ? 'primary.main' : 'divider', borderRadius: 1.5, overflow: 'hidden', transition: 'border-color 0.2s' }}>
+
+              {/* Collapse header — always visible */}
+              <Box onClick={() => setInventoryOpen(p => !p)}
+                sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2.5, py: 1.5, cursor: 'pointer', bgcolor: inventoryOpen ? 'rgba(210,18,46,0.04)' : 'action.hover', transition: 'background 0.2s', '&:hover': { bgcolor: 'rgba(210,18,46,0.06)' } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
+                  <InventoryIcon sx={{ fontSize: 16, color: inventoryOpen ? 'primary.main' : 'text.secondary' }} />
+                  <Typography variant="body2" fontWeight={700} color={inventoryOpen ? 'primary.main' : 'text.secondary'} textTransform="uppercase" letterSpacing="0.06em" fontSize={11}>
+                    Inventory
+                  </Typography>
+                  <Box sx={{ ml: 1, px: 1, py: 0.2, bgcolor: 'action.selected', borderRadius: 5 }}>
+                    <Typography sx={{ fontSize: 9, fontWeight: 700, color: 'text.secondary', letterSpacing: '0.04em' }}>OPTIONAL</Typography>
+                  </Box>
+                </Box>
+                <ExpandMoreIcon sx={{ fontSize: 18, color: 'text.secondary', transform: inventoryOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.25s' }} />
+              </Box>
+
+              {/* Collapsible content */}
+              <Collapse in={inventoryOpen}>
+                <Box sx={{ px: 2.5, py: 2.5, borderTop: '1px solid', borderColor: 'divider', display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5 }}>
+
+                  {/* Opening Stock */}
+                  <Box>
+                    <Label text="Opening Stock" />
+                    <TextField
+                      fullWidth size="small" type="number" placeholder="0"
+                      {...formik.getFieldProps('openingStock')}
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <Typography variant="caption" color="text.disabled" fontWeight={600}>
+                              {unitOptions.find(u => String(u.value) === formik.values.unit)?.shortName ?? 'UNIT'}
+                            </Typography>
+                          </InputAdornment>
+                        ),
+                        sx: inputSx,
+                      }}
+                    />
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                      Current stock quantity at the time of adding this item
+                    </Typography>
+                  </Box>
+
+                  {/* Low Stock Alert */}
+                  <Box>
+                    <Label text="Low Stock Alert" />
+                    <TextField
+                      fullWidth size="small" type="number" placeholder="e.g. 10"
+                      {...formik.getFieldProps('lowStockAlert')}
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <Typography variant="caption" color="text.disabled" fontWeight={600}>
+                              {unitOptions.find(u => String(u.value) === formik.values.unit)?.shortName ?? 'UNIT'}
+                            </Typography>
+                          </InputAdornment>
+                        ),
+                        sx: inputSx,
+                      }}
+                    />
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                      Alert when stock falls below this quantity
+                    </Typography>
+                  </Box>
+
+                </Box>
+              </Collapse>
+            </Box>
+
+            {/* Row 4: Tax */}
             <Box sx={{ bgcolor: 'action.hover', borderRadius: 1.5, p: 2.5 }}>
               <Typography variant="body2" fontWeight={700} color="text.secondary" textTransform="uppercase" letterSpacing="0.06em" fontSize={11} mb={2}>
                 Tax Information
@@ -378,14 +603,33 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <Box>
                     <Label text="Tax Type" required />
-                    <FormControl fullWidth size="small" error={touch.taxType && Boolean(err.taxType)}>
-                      <Select value={formik.values.taxType}
-                        onChange={(e) => formik.setFieldValue('taxType', e.target.value)}
+                    <FormControl fullWidth size="small" error={touch.gstId && Boolean(err.gstId)}>
+                      <Select value={formik.values.gstId}
+                        onChange={(e) => formik.setFieldValue('gstId', e.target.value)}
+                        displayEmpty
+                        renderValue={(v) => {
+                          if (!v) return <Box component="span" sx={{ color: 'text.disabled' }}>
+                            {gstLoading ? 'Loading…' : 'Select Tax'}
+                          </Box>;
+                          return gstOptions.find(g => String(g.value) === v)?.label ?? v;
+                        }}
+                        startAdornment={gstLoading
+                          ? <InputAdornment position="start"><CircularProgress size={14} /></InputAdornment>
+                          : null
+                        }
                         sx={{ ...inputSx, bgcolor: 'background.paper' }}>
-                        {[['gst5','GST 5%'],['gst12','GST 12%'],['gst18','GST 18%'],['gst28','GST 28%'],['exempt','Exempt']].map(([v, l]) => (
-                          <MenuItem key={v} value={v} sx={{ fontSize: 14 }}>{l}</MenuItem>
+                        <MenuItem value="" disabled sx={{ fontSize: 14, color: 'text.disabled' }}>
+                          Select Tax
+                        </MenuItem>
+                        {gstOptions.map((g: GstOption) => (
+                          <MenuItem key={g.value} value={String(g.value)} sx={{ fontSize: 14 }}>
+                            {g.label}
+                          </MenuItem>
                         ))}
                       </Select>
+                      {touch.gstId && err.gstId && (
+                        <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>{err.gstId}</Typography>
+                      )}
                     </FormControl>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -438,13 +682,25 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
 
         {/* ── Footer ── */}
         <DialogActions sx={{ px: 3, py: 2.5, borderTop: '1px solid', borderColor: 'divider', gap: 1.5, justifyContent: 'flex-end' }}>
-          <Button onClick={handleClose} variant="outlined"
-            sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600, px: 3, height: 42, borderColor: 'divider', color: 'text.secondary', '&:hover': { bgcolor: 'action.hover', borderColor: 'divider' } }}>
+          <Button onClick={handleClose} variant="outlined" disabled={isSaving}
+            sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600, px: 3, height: 42, borderColor: 'divider', color: 'text.secondary' }}>
             Cancel
           </Button>
-          <Button onClick={() => formik.submitForm()} variant="contained" startIcon={<SaveIcon />}
-            sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 700, px: 4, height: 42, boxShadow: '0 4px 14px rgba(210,18,46,0.25)', '&:hover': { boxShadow: '0 6px 18px rgba(210,18,46,0.35)' }, '&:active': { transform: 'scale(0.98)' } }}>
-            Save Item
+          <Button onClick={async () => {
+              const errors = await formik.validateForm();
+              if (Object.keys(errors).length > 0) {
+                // Touch all fields so errors show inline
+                formik.setTouched(
+                  Object.keys(INITIAL_VALUES).reduce((acc, k) => ({ ...acc, [k]: true }), {})
+                );
+                return;
+              }
+              formik.submitForm();
+            }} variant="contained"
+            disabled={isSaving}
+            startIcon={isSaving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+            sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 700, px: 4, height: 42, boxShadow: '0 4px 14px rgba(210,18,46,0.25)', '&:active': { transform: 'scale(0.98)' } }}>
+            {saving ? 'Saving…' : 'Save Item'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -452,8 +708,9 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave }) =>
       {/* Nested: Add Category dialog */}
       <AddCategoryDialog
         open={catDialogOpen}
+        serviceType={formik.values.serviceType}
         onClose={() => setCatDialogOpen(false)}
-        onAdd={handleAddCategory}
+        onAdded={handleCategoryAdded}
       />
     </>
   );
