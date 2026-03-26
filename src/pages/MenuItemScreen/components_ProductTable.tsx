@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Box,
   Typography,
@@ -10,6 +10,7 @@ import {
 import EditIcon   from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
+import ProductDetailsDialog from "./ProductDetailsDialog";
 
 // ─── Product shape used by this table ─────────────────────────
 export interface Product {
@@ -19,17 +20,18 @@ export interface Product {
   category:  string;
   mrp:       number;
   rate:      number;
+  purchase_price: number;
   taxType:   string;
   inclusion: string;
   hsn:       string;
   imageUrl?: string;
   status?:   string;
 }
-
 interface ProductTableProps {
   products: Product[];
-  onEdit?:   (product: Product) => void;
+  onEdit?: (product: Product) => void;
   onDelete?: (product: Product) => void;
+  onEditFromDialog?: (item_uuid: string) => void; // ✅ NEW
 }
 
 const formatINR = (value: number) =>
@@ -39,17 +41,33 @@ const formatINR = (value: number) =>
     minimumFractionDigits: 2,
   }).format(value);
 
-const ProductTable: React.FC<ProductTableProps> = React.memo(({ products, onEdit, onDelete }) => {
+const ProductTable: React.FC<ProductTableProps> = React.memo(({ products, onEdit, onDelete,onEditFromDialog }) => {
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+const [openDialog, setOpenDialog] = useState(false);
   const theme = useTheme();
+
+const handleViewProduct = (product: Product) => {
+  setSelectedProduct(product);
+  setOpenDialog(true);
+};
 
   const columns: ColumnDef<Product>[] = [
     {
       key:   "id",
       label: "Item ID",
       render: (product) => (
-        <Typography variant="body2" fontWeight={500} sx={{ color: "#1976d2" }}>
-          {product.id}
-        </Typography>
+    <Typography
+  variant="body2"
+  fontWeight={600}
+  sx={{
+    color: "#2563EB",
+    cursor: "pointer",
+    "&:hover": { textDecoration: "underline" },
+  }}
+  onClick={() => handleViewProduct(product)} // ✅ FIXED
+>
+  {product.id}
+</Typography>
       ),
     },
     {
@@ -77,6 +95,14 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(({ products, onEdit
         </Box>
       ),
     },
+     {
+      key:   "purchase price",
+      label: "Purchase Price",
+      align: "right",
+      render: (product) => (
+        <Typography variant="body2" fontWeight={600} color="text.secondary">{formatINR(product.purchase_price)}</Typography>
+      ),
+    },
     {
       key:   "mrp",
       label: "MRP",
@@ -90,19 +116,21 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(({ products, onEdit
       label: "Rate",
       align: "right",
       render: (product) => (
-        <Typography variant="body2" fontWeight={600} color="primary.main">{formatINR(product.rate)}</Typography>
+        <Typography variant="body2" fontWeight={600} color="text.secondary">{formatINR(product.rate)}</Typography>
       ),
     },
     {
       key:   "gst",
       label: "GST",
+      
       render: (product) => (
         <Typography variant="body2" color="text.secondary">{product.taxType}</Typography>
       ),
     },
     {
       key:   "inclusion",
-      label: "Inclusion",
+      label:  "Inclusion",
+      
       render: (product) => (
         <Typography variant="body2" color="text.secondary">{product.inclusion}</Typography>
       ),
@@ -152,6 +180,7 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(({ products, onEdit
   ];
 
   return (
+    <>
     <DataTable<Product>
       columns={columns}
       rows={products}
@@ -159,6 +188,16 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(({ products, onEdit
       maxHeight={"78vh"}
       emptyMessage="No items found."
     />
+   <ProductDetailsDialog
+  open={openDialog}
+  itemUuid={selectedProduct?.item_uuid || null}
+  onClose={() => setOpenDialog(false)}
+  onEdit={(uuid) => {
+    setOpenDialog(false); // close dialog
+    onEditFromDialog?.(uuid); // trigger parent edit
+  }}
+/>
+    </>
   );
 });
 

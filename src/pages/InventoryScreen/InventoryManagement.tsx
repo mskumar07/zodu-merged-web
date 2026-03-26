@@ -156,7 +156,7 @@ function InventoryScreen() {
     {
       key: 'item_id', label: 'Item ID',
       render: (r) => (
-        <Typography variant="body2" fontWeight={600} sx={{ color: 'primary.main', fontSize: 13 }}>
+        <Typography variant="body2" fontWeight={600} sx={{ color: '#1976d2', fontSize: 13 }}>
           {r.item_id}
         </Typography>
       ),
@@ -233,11 +233,11 @@ function InventoryScreen() {
       key: 'actions', label: 'Actions', align: 'center',
       render: (r) => (
         <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center', alignItems: 'center' }}>
-          <Tooltip title="Edit item">
+          {/* <Tooltip title="Edit item">
             <IconButton size="small" sx={{ color: 'text.disabled', borderRadius: 1.5, '&:hover': { color: 'primary.main' } }}>
               <EditIcon fontSize="small" />
             </IconButton>
-          </Tooltip>
+          </Tooltip> */}
           <Button
             size="small" variant="outlined" color="primary"
             onClick={() => handleAdjustClick(r._raw)}

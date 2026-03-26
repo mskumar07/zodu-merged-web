@@ -4,7 +4,7 @@
  */
 
 import axios from "axios";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 const API_BASE  = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 const ZODU_ID   = import.meta.env.VITE_ZODU_ID      ?? "ZODU035";
@@ -88,6 +88,35 @@ export function useAddCustomer(options?: {
         : "Failed to save customer";
       options?.onError?.(msg);
     },
+  });
+}
+
+
+async function getCustomers(): Promise<any[]> {
+  const { data } = await axios.get(
+    `${API_BASE}/restaurant/api/customers`,
+    {
+      params: {
+        zodu_id: ZODU_ID,
+        branch_id: BRANCH_ID,
+      },
+    }
+  );
+
+  console.log("CUSTOMER API RESPONSE:", data);
+
+  // ✅ FIX: YOUR BACKEND RETURNS customers FIELD
+  if (data?.success) {
+    return data.customers || [];
+  }
+
+  return [];
+}
+
+export function useCustomers() {
+  return useQuery({
+    queryKey: customerQueryKeys.list(ZODU_ID, BRANCH_ID),
+    queryFn: getCustomers,
   });
 }
 

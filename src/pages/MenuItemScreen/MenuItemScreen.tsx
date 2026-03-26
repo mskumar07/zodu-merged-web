@@ -72,7 +72,8 @@ function toProduct(item: MenuItemData) {
     category:  item.category_name    ?? '—',
     mrp:       Number(item.mrp)      || 0,
     rate:      Number(item.sell_price) || 0,
-    taxType:   item.gst_rate ? `GST ${item.gst_rate}%` : '—',
+    purchase_price: Number(item.purchase_price) || 0,
+    taxType:   item.gst_rate ? `${item.gst_rate}%` : '—',
     inclusion: item.tax_incl_type ? 'Inclusive' : 'Exclusive',
     hsn:       item.hsn_code         ?? '—',
     unit:      item.unit_short_name  ?? '—',
@@ -198,6 +199,10 @@ function MenuItemScreen() {
     setTimeout(() => setEditItem(null), 300);
   }, [qc]);
 
+  const handleEditFromDialog = (item_uuid: string) => {
+  setEditItem({ item_uuid } as any);
+  setModalOpen(true);
+};
   // Use fresh detail data when available, fall back to list snapshot
   const activeEditItem = freshEditItem ?? editItem;
 
@@ -276,6 +281,7 @@ function MenuItemScreen() {
           products={products}
           onEdit={p => handleEditClick((p as any)._raw as MenuItemData)}
           onDelete={p => console.log('delete', p.id)}
+           onEditFromDialog={handleEditFromDialog} 
         />
       )}
 
@@ -305,6 +311,7 @@ function MenuItemScreen() {
         open={modalOpen}
         onClose={handleModalClose}
         onSave={handleSave}
+        
         editItem={modalOpen ? activeEditItem : null}
       />
     </Box>

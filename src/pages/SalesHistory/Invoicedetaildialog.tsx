@@ -25,6 +25,8 @@ import ShareIcon    from "@mui/icons-material/Share";
 import DownloadIcon from "@mui/icons-material/Download";
 import PrintIcon    from "@mui/icons-material/Print";
 import { fetchSaleDetail, salesQueryKeys, type SaleDetail } from "./useSaleshistory";
+import EditIcon from "@mui/icons-material/Edit";
+import { useNavigate } from "react-router-dom";
 
 // ── Styled helpers ────────────────────────────────────────────
 const StyledDialog = styled(Dialog)(() => ({
@@ -93,7 +95,7 @@ export default function InvoiceDetailsModal({ open = true, saleId, onClose }: Pr
   const customer = data?.customer ?? null;
   const items   = data?.items          ?? [];
   const history = data?.payment_history ?? [];
-
+ const navigate = useNavigate();
   // ── HSN-wise tax breakdown computed from real items ───────────
   const hsnMap: Record<string, {
     taxable: number; cgst: number; sgst: number; cgstPct: number; sgstPct: number;
@@ -165,10 +167,26 @@ export default function InvoiceDetailsModal({ open = true, saleId, onClose }: Pr
             </Typography>
           )}
         </Box>
-        <IconButton onClick={onClose} size="small"
-          sx={{ color: "#94A3B8", "&:hover": { bgcolor: "#F1F5F9" }, borderRadius: "999px" }}>
-          <CloseIcon sx={{ fontSize: 20 }} />
-        </IconButton>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+
+  <IconButton
+    size="small"
+    onClick={() => navigate(`/pos?saleId=${sale?.sale_id}`)}
+    sx={{
+      color: "#2563EB",
+      bgcolor: "#EFF6FF",
+      "&:hover": { bgcolor: "#DBEAFE" },
+      borderRadius: "50%",
+    }}
+  >
+    <EditIcon sx={{ fontSize: 18 }} />
+  </IconButton>
+
+  <IconButton onClick={onClose} size="small">
+    <CloseIcon sx={{ fontSize: 20 }} />
+  </IconButton>
+
+</Box>
       </Box>
 
       {/* ── Body ──────────────────────────────────────────────── */}
@@ -281,7 +299,7 @@ export default function InvoiceDetailsModal({ open = true, saleId, onClose }: Pr
 
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <Typography sx={{ fontSize: 18, fontWeight: 700, color: "#0F172A" }}>Grand Total</Typography>
-                  <Typography sx={{ fontSize: 28, fontWeight: 900, color: "#D0021B", letterSpacing: "-1px" }}>{INR(sale.total_amount)}</Typography>
+                  <Typography sx={{ fontSize: 28, fontWeight: 900, color: "#0F172A", letterSpacing: "-1px" }}>{INR(sale.total_amount)}</Typography>
                 </Box>
 
                 {Number(sale.paid_amount) > 0 && (
@@ -317,52 +335,7 @@ export default function InvoiceDetailsModal({ open = true, saleId, onClose }: Pr
               </Box>
             </SummaryCard>
 
-            {/* 4. HSN-wise Tax Breakdown */}
-            <Box>
-              <SectionTitle>HSN-wise Tax Breakdown</SectionTitle>
-              <TableContainer component={Paper} elevation={0}
-                sx={{ border: "1px solid #E2E8F0", borderRadius: "12px", overflow: "hidden" }}>
-                <Table>
-                  <TableHead sx={{ bgcolor: "#F1F5F9" }}>
-                    <TableRow>
-                      <TH>HSN Code</TH>
-                      <TH align="right">Taxable Val</TH>
-                      <TH align="center">CGST %</TH>
-                      <TH align="right">CGST Amt</TH>
-                      <TH align="center">SGST %</TH>
-                      <TH align="right">SGST Amt</TH>
-                      <TH align="right">Total Tax</TH>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {hsnRows.map(([hsn, v]) => (
-                      <TableRow key={hsn}>
-                        <TD sx={{ fontWeight: 500 }}>{hsn}</TD>
-                        <TD align="right">{INR(v.taxable)}</TD>
-                        <TD align="center">{v.cgstPct}%</TD>
-                        <TD align="right">{INR(v.cgst)}</TD>
-                        <TD align="center">{v.sgstPct}%</TD>
-                        <TD align="right">{INR(v.sgst)}</TD>
-                        <TD align="right" sx={{ fontWeight: 700 }}>{INR(v.cgst + v.sgst)}</TD>
-                      </TableRow>
-                    ))}
-                    {/* Totals row */}
-                    <TableRow sx={{ bgcolor: "#F1F5F9", "& td": { borderBottom: 0, fontWeight: 700 } }}>
-                      <TD>Total</TD>
-                      <TD align="right">{INR(hsnTotals.taxable)}</TD>
-                      <TD align="center" sx={{ color: "#94A3B8", fontWeight: 400 }}>—</TD>
-                      <TD align="right">{INR(hsnTotals.cgst)}</TD>
-                      <TD align="center" sx={{ color: "#94A3B8", fontWeight: 400 }}>—</TD>
-                      <TD align="right">{INR(hsnTotals.sgst)}</TD>
-                      <TD align="right" sx={{ color: "#D0021B" }}>{INR(hsnTotals.cgst + hsnTotals.sgst)}</TD>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Box>
-
-            {/* 5. Payment History */}
-            {history.length > 0 && (
+              {history.length > 0 && (
               <Box>
                 <SectionTitle>Payment History</SectionTitle>
                 <TableContainer component={Paper} elevation={0}
@@ -427,6 +400,53 @@ export default function InvoiceDetailsModal({ open = true, saleId, onClose }: Pr
                 </TableContainer>
               </Box>
             )}
+
+            {/* 4. HSN-wise Tax Breakdown */}
+            <Box>
+              <SectionTitle>HSN-wise Tax Breakdown</SectionTitle>
+              <TableContainer component={Paper} elevation={0}
+                sx={{ border: "1px solid #E2E8F0", borderRadius: "12px", overflow: "hidden" }}>
+                <Table>
+                  <TableHead sx={{ bgcolor: "#F1F5F9" }}>
+                    <TableRow>
+                      <TH>HSN Code</TH>
+                      <TH align="right">Taxable Val</TH>
+                      <TH align="center">CGST %</TH>
+                      <TH align="right">CGST Amt</TH>
+                      <TH align="center">SGST %</TH>
+                      <TH align="right">SGST Amt</TH>
+                      <TH align="right">Total Tax</TH>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {hsnRows.map(([hsn, v]) => (
+                      <TableRow key={hsn}>
+                        <TD sx={{ fontWeight: 500 }}>{hsn}</TD>
+                        <TD align="right">{INR(v.taxable)}</TD>
+                        <TD align="center">{v.cgstPct}%</TD>
+                        <TD align="right">{INR(v.cgst)}</TD>
+                        <TD align="center">{v.sgstPct}%</TD>
+                        <TD align="right">{INR(v.sgst)}</TD>
+                        <TD align="right" sx={{ fontWeight: 700 }}>{INR(v.cgst + v.sgst)}</TD>
+                      </TableRow>
+                    ))}
+                    {/* Totals row */}
+                    <TableRow sx={{ bgcolor: "#F1F5F9", "& td": { borderBottom: 0, fontWeight: 700 } }}>
+                      <TD>Total</TD>
+                      <TD align="right">{INR(hsnTotals.taxable)}</TD>
+                      <TD align="center" sx={{ color: "#94A3B8", fontWeight: 400 }}>—</TD>
+                      <TD align="right">{INR(hsnTotals.cgst)}</TD>
+                      <TD align="center" sx={{ color: "#94A3B8", fontWeight: 400 }}>—</TD>
+                      <TD align="right">{INR(hsnTotals.sgst)}</TD>
+                      <TD align="right" sx={{ color: "#D0021B" }}>{INR(hsnTotals.cgst + hsnTotals.sgst)}</TD>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+
+            {/* 5. Payment History */}
+          
 
           </Box>
         )}

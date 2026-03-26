@@ -202,7 +202,6 @@ export async function fetchSaleDetail(sale_id: string): Promise<SaleDetail> {
     `${API_BASE}/restaurant/api/sales/${sale_id}`,
     { params: { zodu_id: ZODU_ID, branch_id: BRANCH_ID } }
   );
-  console.log(data)
   return data.data;
 }
 

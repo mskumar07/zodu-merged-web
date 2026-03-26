@@ -28,6 +28,7 @@ import InvoiceDetailDialog from "./Invoicedetaildialog";
 import MarkPaymentDialog   from "./MarkPaymentDialog";
 import SalesReturnDialog   from "./Salesreturndialog";
 import DataTable           from "@utils/DataTable";
+import { useNavigate } from "react-router-dom";
 
 // ─── Formatter ────────────────────────────────────────────────
 const INR = (v: number) =>
@@ -119,7 +120,7 @@ export default function SalesHistoryPage() {
 function SalesHistoryScreen() {
   const [draftFilters,   setDraftFilters]   = useState<Filters>({ search: "", payment_status: "", from_date: "", to_date: "" });
   const [appliedFilters, setAppliedFilters] = useState<Filters>({ search: "", payment_status: "", from_date: "", to_date: "" });
-
+const navigate = useNavigate();
   const [invoiceDialog, setInvoiceDialog] = useState<string | null>(null);
   const [paymentDialog, setPaymentDialog] = useState<Sale   | null>(null);
   const [returnDialog,  setReturnDialog]  = useState<string | null>(null);
@@ -189,6 +190,7 @@ function SalesHistoryScreen() {
     {
       key: "total",
       label: "Total",
+   
       align: "right" as const,
       render: (sale: Sale) => {
         const balance = Number(sale.balance_amount);
@@ -206,11 +208,12 @@ function SalesHistoryScreen() {
     },
     {
       key: "payment",
-      label: "Payment",
+    label: <Box sx={{ ml: 5 }}>Payment</Box>,
+      
       render: (sale: Sale) => {
         const status = mapStatus(sale.payment_status);
         return (
-          <Stack direction="row" alignItems="center" gap={1}>
+          <Stack direction="row" alignItems="center" gap={1} marginLeft={5}>
             <StatusDot status={status} />
             {status !== "Paid" && (
               <Button
@@ -240,7 +243,7 @@ function SalesHistoryScreen() {
             </IconButton>
           </Tooltip>
           <Tooltip title="Edit Invoice">
-            <IconButton size="small"
+            <IconButton    onClick={() => navigate(`/pos?saleId=${sale?.sale_id}`)} size="small"
               sx={{ color: "text.secondary", borderRadius: 1.5, "&:hover": { color: "primary.main", bgcolor: alpha("#E53935", 0.06) } }}>
               <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />

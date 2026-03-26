@@ -19,6 +19,7 @@ import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 import AddNewCustomerDialog from "./Addnewcustomerdialog";
 import CustomerLedgerDialog from "./CustomerLedgerDialog";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
+import { useCustomers } from "./useCustomerApi";
 
 const theme = createTheme({
   palette: {
@@ -72,33 +73,7 @@ interface Customer {
   placeOfSupply: string;
 }
 
-const INITIAL_CUSTOMERS: Customer[] = [
-  { id: "CUST-001", businessName: "ABC Motors", contactName: "Rajesh Kumar", mobile: "9876543210", email: "rajesh@abcmotors.com", address: "101, Industrial Area, Phase II, Pune", gstin: "27AAAAA0000A1Z5", outstandingBalance: 4250, placeOfSupply: "Maharashtra" },
-  { id: "CUST-002", businessName: "Global Tech", contactName: "Sarah Chen", mobile: "9123456789", email: "sarah.chen@globaltech.in", address: "Suite 405, Tech Hub, Electronic City, Bengaluru", gstin: "", outstandingBalance: 0, placeOfSupply: "Karnataka" },
-  { id: "CUST-003", businessName: "Elite Fashion", contactName: "Priya Singh", mobile: "9812345678", email: "contact@elitefashion.com", address: "G-12, South Ex Mall, Ring Road, New Delhi", gstin: "07AAAEF1234B1Z2", outstandingBalance: 12850, placeOfSupply: "Delhi" },
-  { id: "CUST-004", businessName: "Oceanic Exports", contactName: "Vikram Roy", mobile: "9000123456", email: "vroy@oceanic.in", address: "88 Harbor View, Beach Rd, Chennai", gstin: "33AAAOE9988C1Z9", outstandingBalance: 450, placeOfSupply: "Tamil Nadu" },
-  { id: "CUST-005", businessName: "Zeno Logistics", contactName: "David Miller", mobile: "8888777666", email: "david@zenologistics.com", address: "Warehouse 5, Port Trust Area, Mumbai", gstin: "", outstandingBalance: 82000, placeOfSupply: "Maharashtra" },
-  { id: "CUST-006", businessName: "Vibrant Arts", contactName: "Anita Deshpande", mobile: "9765431209", email: "anita@vibrantarts.in", address: "Studio 2, Art Colony, Navi Mumbai", gstin: "27AABVA1122C1Z4", outstandingBalance: 0, placeOfSupply: "Maharashtra" },
-  { id: "CUST-007", businessName: "Phoenix Retail", contactName: "Arjun Mehra", mobile: "9911223344", email: "arjun@phoenix.com", address: "M.I. Road, Opp. City Palace, Jaipur", gstin: "08AAAPR5566D1Z1", outstandingBalance: 2150, placeOfSupply: "Rajasthan" },
-  { id: "CUST-008", businessName: "Sunshine Organics", contactName: "Meera Nair", mobile: "9234567890", email: "meera@sunshine.org", address: "Green Park, MG Road, Kochi", gstin: "", outstandingBalance: 0, placeOfSupply: "Kerala" },
-  { id: "CUST-009", businessName: "Tech Solutions", contactName: "Amit Verma", mobile: "9822334455", email: "amit@techsolutions.com", address: "Block B, Salt Lake, Sector V, Kolkata", gstin: "19AAATS4433E1Z7", outstandingBalance: 5600, placeOfSupply: "West Bengal" },
-  { id: "CUST-010", businessName: "Royal Sweets", contactName: "Sanjay Gupta", mobile: "9345678901", email: "sanjay@royalsweets.in", address: "Hazratganj Main Market, Lucknow", gstin: "", outstandingBalance: 0, placeOfSupply: "Uttar Pradesh" },
-  { id: "CUST-011", businessName: "Modern Hardware", contactName: "Kavita Shah", mobile: "9820011223", email: "kavita@modernhardware.com", address: "Plot 44, GIDC Industrial Estate, Ahmedabad", gstin: "24AAAMH3322F1Z6", outstandingBalance: 14200, placeOfSupply: "Gujarat" },
-  { id: "CUST-012", businessName: "Blue Diamond", contactName: "Rohan Jha", mobile: "9567890123", email: "rohan@bluediamond.in", address: "Frazer Road, Near Station, Patna", gstin: "", outstandingBalance: 0, placeOfSupply: "Bihar" },
-  { id: "CUST-013", businessName: "Everest Travels", contactName: "Suman Rao", mobile: "9456781234", email: "suman@everesttravels.com", address: "Cyber Towers, Hitech City, Hyderabad", gstin: "36AAAET0011G1Z8", outstandingBalance: 780, placeOfSupply: "Telangana" },
-  { id: "CUST-014", businessName: "Green Leaf", contactName: "Pooja Reddy", mobile: "9344556677", email: "pooja@greenleaf.in", address: "Opp. Beach Park, Vishakhapatnam", gstin: "", outstandingBalance: 0, placeOfSupply: "Andhra Pradesh" },
-  { id: "CUST-015", businessName: "Alpha Pharma", contactName: "Nitin Bose", mobile: "9900887766", email: "nitin@alphapharma.com", address: "Medical Plaza, Chowringhee, Kolkata", gstin: "19AAABP9988H1Z2", outstandingBalance: 3900, placeOfSupply: "West Bengal" },
-  { id: "CUST-016", businessName: "Silverline Foods", contactName: "Harish Menon", mobile: "9700012345", email: "harish@silverlinefoods.in", address: "Market Road, Thrissur", gstin: "32AABCS5522J1Z3", outstandingBalance: 12400, placeOfSupply: "Kerala" },
-  { id: "CUST-017", businessName: "Northwind Traders", contactName: "Farhan Ali", mobile: "9898981212", email: "farhan@northwind.in", address: "Sector 18, Noida", gstin: "", outstandingBalance: 0, placeOfSupply: "Uttar Pradesh" },
-  { id: "CUST-018", businessName: "Metro Furnishings", contactName: "Neha Kapoor", mobile: "9818181818", email: "neha@metrofurnish.com", address: "Banjara Hills, Hyderabad", gstin: "36AACCM1122P1Z9", outstandingBalance: 26800, placeOfSupply: "Telangana" },
-  { id: "CUST-019", businessName: "Prime Agro", contactName: "Dinesh Patel", mobile: "9724001122", email: "dinesh@primeagro.in", address: "Anand Highway, Vadodara", gstin: "24AABCP2211N1Z5", outstandingBalance: 3150, placeOfSupply: "Gujarat" },
-  { id: "CUST-020", businessName: "Urban Workspace", contactName: "Maya Thomas", mobile: "9847012345", email: "maya@urbanworkspace.com", address: "Infopark Road, Kochi", gstin: "", outstandingBalance: 0, placeOfSupply: "Kerala" },
-  { id: "CUST-021", businessName: "Golden Harvest", contactName: "Suresh Naidu", mobile: "9866007788", email: "suresh@goldenharvest.in", address: "Governorpet, Vijayawada", gstin: "37AACCG4477R1Z7", outstandingBalance: 19450, placeOfSupply: "Andhra Pradesh" },
-  { id: "CUST-022", businessName: "Nova Meditech", contactName: "Asha Balan", mobile: "9947005566", email: "asha@novameditech.com", address: "Medical College Junction, Trivandrum", gstin: "", outstandingBalance: 0, placeOfSupply: "Kerala" },
-  { id: "CUST-023", businessName: "Skyline Electricals", contactName: "Imran Sheikh", mobile: "9870012345", email: "imran@skylineelectricals.in", address: "Lamington Road, Mumbai", gstin: "27AACCS7788D1Z2", outstandingBalance: 8750, placeOfSupply: "Maharashtra" },
-  { id: "CUST-024", businessName: "Fresh Basket", contactName: "Lavanya Iyer", mobile: "9884556677", email: "lavanya@freshbasket.in", address: "T Nagar, Chennai", gstin: "", outstandingBalance: 0, placeOfSupply: "Tamil Nadu" },
-  { id: "CUST-025", businessName: "Vertex Systems", contactName: "Kiran Sethi", mobile: "9811002244", email: "kiran@vertexsystems.in", address: "Connaught Place, New Delhi", gstin: "07AACCV9900Q1Z4", outstandingBalance: 22300, placeOfSupply: "Delhi" },
-];
+
 
 const INR = (v: number) =>
   new Intl.NumberFormat("en-IN", {
@@ -118,11 +93,33 @@ export default function CustomerManagement({
   onEditCustomer,
   onDeleteCustomer,
 }: CustomerManagementProps) {
-  const [customers, setCustomers] = useState<Customer[]>(INITIAL_CUSTOMERS);
   const [search, setSearch] = useState("");
   const [addCustomerOpen, setAddCustomerOpen] = useState(false);
   const [customerLedgerOpen, setCustomerLedgerOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const { data: apiCustomers = [], isLoading } = useCustomers();
+
+const customers: Customer[] = useMemo(() => {
+  if (!apiCustomers || !Array.isArray(apiCustomers)) return [];
+
+  return apiCustomers.map((c: any) => ({
+    id: c.cust_id,
+    api_id:c.cust_uuid,
+    businessName: c.cpy_name || "—",
+    contactName: c.cust_name || "—",
+    mobile: c.mobile_no?.[0] || "",
+    email: c.email_id?.[0] || "",
+    address: [
+      c.address_line1,
+      c.city,
+      c.state,
+      c.pincode,
+    ].filter(Boolean).join(", "),
+    gstin: c.gst || "",
+    outstandingBalance: 0,
+    placeOfSupply: c.state || "",
+  }));
+}, [apiCustomers]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -368,7 +365,7 @@ export default function CustomerManagement({
               customers
             </Typography>
 
-            <Button
+            {/* <Button
               variant="outlined"
               size="small"
               startIcon={<FileDownloadOutlinedIcon sx={{ fontSize: 15 }} />}
@@ -402,7 +399,7 @@ export default function CustomerManagement({
               }}
             >
               Print List
-            </Button>
+            </Button> */}
 
             <Button
               variant="contained"

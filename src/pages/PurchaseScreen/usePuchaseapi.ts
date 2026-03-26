@@ -1,0 +1,320 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
+
+/* =========================================================
+   🔹 AXIOS INSTANCE
+========================================================= */
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
+export const ZODU_ID   = import.meta.env.VITE_ZODU_ID   ?? "ZODU035";
+export const BRANCH_ID = import.meta.env.VITE_BRANCH_ID ?? "ZODU035B1";
+
+const api = axios.create({
+  baseURL: `${API_BASE}/restaurant/api`,
+  headers: { "Content-Type": "application/json" },
+});
+
+/* =========================================================
+   🔹 TYPES
+========================================================= */
+
+export interface Vendor {
+  id?: string;
+  vendor_id: string;
+  zodu_id?: string;
+  branch_id?: string;
+  vendor_name: string;
+  company_name?: string;
+  gst?: string;
+  vendor_phone?: string;
+  vendor_email?: string;
+  city?: string;
+}
+
+/** One row inserted into tbl_purchase_items */
+export interface PurchaseItemPayload {
+  item_uuid: string;
+  item_id: string;
+  item_name: string;
+  qty: number;
+  unit?: string;
+  purchase_price: number;
+  gst_percentage?: number;
+  tax_amount?: number;
+  cgst?: number;
+  sgst?: number;
+  category_id?: number | null;
+}
+
+/** Body sent to POST /purchase */
+export interface PurchasePayload {
+  zodu_id: string;
+  branch_id: string;
+  vendor_id: string;
+  purchase_date: string;
+  total_amount: number;
+  paid_amount: number;
+  due_date: any;
+  payment_status?: "pending" | "partial" | "paid";
+  notes?: string;
+  attachment_url?: object | null;
+  transaction_type?: string;
+  transaction_id?: string | null;
+  items: PurchaseItemPayload[];
+}
+
+export interface PurchaseStatsData {
+  total_purchase_count: string;
+  total_paid_amount: string;
+  total_unpaid_amount: string;
+  this_month_spent: string;
+  last_month_spent?: string;
+}
+
+/** Body sent to POST /purchase/payment/:id */
+export interface MarkPaymentPayload {
+  zodu_id: string;
+  branch_id: string;
+  payment_date: string;
+  paid_amount: number;
+  transaction_type?: string;
+  transaction_id?: string | null;
+  status?: "completed" | "pending";
+}
+
+/** Row returned by GET /purchase (list) — includes joined vendor fields */
+export interface PurchaseRow {
+  id: string;
+  purchase_id: string;
+  purchase_date: string;
+  total_amount: string;
+  paid_amount: string;
+  balance_amount: string;
+  payment_status: "paid" | "partial" | "pending";
+  notes: string | null;
+  zodu_id: string;
+  branch_id: string;
+  created_at: string;
+  due_date_formated: string | null;
+  attachment_url: string | null;
+  // joined from tbl_vendor
+  vendor_id: string | null;
+  vendor_name: string | null;
+  company_name: string | null;
+  vendor_phone: string | null;
+}
+
+/** Item row returned by GET /purchase/:id */
+export interface PurchaseItemRow {
+  purchase_item_id: number;
+  item_id: string | null;
+  item_uuid: string | null;
+  item_name: string;
+  qty: string;
+  unit: string | null;
+  purchase_price: string;
+  gst_percentage: string | null;
+  tax_amount: string | null;
+  cgst: string | null;
+  sgst: string | null;
+  subtotal: string;
+  total_price: string | null;
+  category_id: number | null;
+}
+
+/** Payment row returned by GET /purchase/:id */
+export interface PurchasePaymentRow {
+  payment_id: string;
+  payment_date: string;
+  paid_amount: string;
+  transaction_type: string | null;
+  transaction_id: string | null;
+  status: string;
+  created_at: string;
+}
+
+/** Full detail returned by GET /purchase/:id */
+export interface PurchaseDetail extends PurchaseRow {
+  // extended vendor fields
+  vendor_email: string | null;
+  vendor_address_1: string | null;
+  vendor_address_2: string | null;
+  city: string | null;
+  state: string | null;
+  pincode: string | null;
+  vendor_gst: string | null;
+  // nested
+  items: PurchaseItemRow[];
+  payments: PurchasePaymentRow[];
+}
+
+/* =========================================================
+   🔹 VENDOR APIs
+========================================================= */
+
+export const useVendors = () =>
+  useQuery({
+    queryKey: ["vendors"],
+    queryFn: async () => {
+      const res = await api.get("/vendor", {
+        params: { zodu_id: ZODU_ID, branch_id: BRANCH_ID },
+      });
+      return (res.data?.data ?? res.data?.Data ?? res.data ?? []) as Vendor[];
+    },
+  });
+
+export const useVendorById = (vendor_id: string) =>
+  useQuery({
+    queryKey: ["vendor", vendor_id],
+    queryFn: async () => {
+      const res = await api.get(`/vendor/${vendor_id}`);
+      return res.data as Vendor;
+    },
+    enabled: !!vendor_id,
+  });
+
+export const useCreateVendor = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Partial<Vendor>) => {
+      const res = await api.post("/vendor", data);
+      return res.data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["vendors"] }),
+  });
+};
+
+export const useUpdateVendor = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Vendor> }) => {
+      const res = await api.put(`/vendor/${id}`, data);
+      return res.data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["vendors"] }),
+  });
+};
+
+export const useDeleteVendor = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.delete(`/vendor/${id}`);
+      return res.data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["vendors"] }),
+  });
+};
+
+/* =========================================================
+   🔹 PURCHASE APIs
+========================================================= */
+
+export const usePurchaseSummary = () =>
+  useQuery({
+    queryKey: ["purchase-summary", ZODU_ID, BRANCH_ID],
+    queryFn: async () => {
+      const res = await api.get("/purchase/summary", {
+        params: { zodu_id: ZODU_ID, branch_id: BRANCH_ID },
+      });
+      return (res.data?.data ?? res.data) as PurchaseStatsData;
+    },
+  });
+
+export const useCreatePurchase = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: PurchasePayload) => {
+      const res = await api.post("/purchase", data);
+      if (!res.data?.success) {
+        throw new Error(res.data?.message ?? "Failed to create purchase");
+      }
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["purchase-summary"] });
+    },
+  });
+};
+
+export const usePurchases = (params: Record<string, string> = {}) =>
+  useQuery({
+    queryKey: ["purchases", params],
+    queryFn: async () => {
+      const res = await api.get("/purchase", {
+        params: { zodu_id: ZODU_ID, branch_id: BRANCH_ID, ...params },
+      });
+      return (res.data?.data ?? res.data ?? []) as PurchaseRow[];
+    },
+  });
+
+export const usePurchaseById = (id: string) =>
+  useQuery({
+    queryKey: ["purchase", id],
+    queryFn: async () => {
+      const res = await api.get(`/purchase/${id}`, {
+        params: { zodu_id: ZODU_ID, branch_id: BRANCH_ID },
+      });
+      return (res.data?.data ?? res.data) as PurchaseDetail;
+    },
+    enabled: !!id,
+  });
+
+export const useUpdatePurchase = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: PurchasePayload }) => {
+      const res = await api.put(`/purchase/${id}`, data);
+      if (!res.data?.success) {
+        throw new Error(res.data?.message ?? "Failed to update purchase");
+      }
+      return res.data;
+    },
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ["purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["purchase", id] });
+      queryClient.invalidateQueries({ queryKey: ["purchase-summary"] });
+    },
+  });
+};
+
+export const useDeletePurchase = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.delete(`/purchase/${id}`);
+      if (!res.data?.success) {
+        throw new Error(res.data?.message ?? "Failed to delete purchase");
+      }
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["purchase-summary"] });
+    },
+  });
+};
+
+export const useMarkPayment = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      purchase_id,
+      data,
+    }: {
+      purchase_id: string;
+      data: MarkPaymentPayload;
+    }) => {
+      const res = await api.post(`/purchase/payment/${purchase_id}`, data);
+      if (!res.data?.success) {
+        throw new Error(res.data?.message ?? "Failed to mark payment");
+      }
+      return res.data;
+    },
+    onSuccess: (_, { purchase_id }) => {
+      queryClient.invalidateQueries({ queryKey: ["purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["purchase", purchase_id] });
+      queryClient.invalidateQueries({ queryKey: ["purchase-summary"] });
+    },
+  });
+};

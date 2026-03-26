@@ -13,7 +13,7 @@ const CELL_PX       = "5px 12px"; // padding: top/bottom 0 (height is controlled
 
 export interface ColumnDef<T> {
   /** Column header label */
-  label: string;
+  label: React.ReactNode;
   /** Unique key for the column */
   key: string;
   /** Optional width */

@@ -1,27 +1,3 @@
-/**
- * pos/db.ts
- * ─────────────────────────────────────────────────────────────
- * IndexedDB schema using Dexie.js
- *
- * Matches exact API shape from GET /restaurant/get/pos_data/:branch_id
- * Sample row:
- * {
- *   zodu_id, branch_id, item_id: "9528", item_name: "...",
- *   category_id: 124,           ← number from API
- *   category_name: "Spares",
- *   sku: null,                  ← nullable
- *   barcode: null,              ← nullable
- *   sell_price: "8280.00",      ← string from API → normalised to number
- *   purchase_price: "7527.00",  ← string from API → normalised to number
- *   hsn_code: "132264",
- *   gst_tax: "18",              ← string from API → normalised to number
- *   unit_id: 32, unit: "LTR",
- *   stock_qty: "0",             ← string from API → normalised to number
- *   count: 1, item_type: "S"
- * }
- * ─────────────────────────────────────────────────────────────
- */
-
 import Dexie, { type Table } from "dexie";
 
 // ── Exact shape stored in IndexedDB (post-normalisation) ──────
@@ -32,6 +8,7 @@ export interface PosProduct {
 
   // item
   item_id:   string;   // primary key — always a non-null string
+  item_uuid: string;
   item_name: string;
 
   // category  (category_id comes as number from API)
@@ -46,14 +23,9 @@ export interface PosProduct {
   sell_price:     number;
   purchase_price: number;
 
-  // tax
   hsn_code:      string;
   gst_tax:       number;   // API sends string e.g. "18" → stored as 18
-  /**
-   * true  → sell_price already INCLUDES GST
-   *         base = sell_price / (1 + gst_tax / 100)
-   * false → sell_price is the pre-tax BASE price
-   */
+ 
   tax_inclusive: boolean;
 
   // stock
@@ -73,7 +45,7 @@ export interface MetaRow {
   value: number | string;
 }
 
-// ── Dexie schema ──────────────────────────────────────────────
+
 class PosDatabase extends Dexie {
   products!: Table<PosProduct, string>;
   meta!:     Table<MetaRow,    string>;
@@ -91,10 +63,10 @@ class PosDatabase extends Dexie {
       meta: "key",
     });
     // v3 — sku removed from index (always null in API); item_id is sole lookup key
-    this.version(3).stores({
-      products: "item_id, item_name, category_id, barcode, branch_id",
-      meta: "key",
-    });
+    // this.version(3).stores({
+    //   products: "item_id, item_name, category_id, barcode, branch_id",
+    //   meta: "key",
+    // });
   }
 }
 
