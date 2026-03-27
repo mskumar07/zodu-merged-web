@@ -95,6 +95,7 @@ export interface PurchaseRow {
   branch_id: string;
   created_at: string;
   due_date_formated: string | null;
+  due_date_formatted?: string | null;
   attachment_url: string | null;
   // joined from tbl_vendor
   vendor_id: string | null;
@@ -109,6 +110,8 @@ export interface PurchaseItemRow {
   item_id: string | null;
   item_uuid: string | null;
   item_name: string;
+  hsn_code?: string | null;
+  hsn?: string | null;
   qty: string;
   unit: string | null;
   purchase_price: string;

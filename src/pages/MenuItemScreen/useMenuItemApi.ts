@@ -351,23 +351,31 @@ export function useMenuItems(
 export function useInfiniteMenuItems(
   params: Omit<MenuItemListParams, "page"> = {}
 ) {
-  return useInfiniteQuery<
-    MenuItemListResponse,
-    Error,
-    InfiniteData<MenuItemListResponse>,
-    ReturnType<typeof menuQueryKeys.menuItems>,
-    number
-  >({
-    queryKey:  menuQueryKeys.menuItems({ ...params, page: 0 }), // page:0 = "infinite" sentinel
-    queryFn:   ({ pageParam }) =>
-                 fetchMenuItems({ ...params, page: pageParam, limit: params.limit ?? 20 }),
-    initialPageParam:  1,
-    getNextPageParam:  (lastPage) =>
-      lastPage.page < lastPage.total_pages ? lastPage.page + 1 : undefined,
-    staleTime:            2 * 60 * 1000,
-    gcTime:               5 * 60 * 1000,
+  return useInfiniteQuery({
+    queryKey: ['menu', 'items', JSON.stringify(params)], // 🔥 FIXED
+
+    queryFn: ({ pageParam = 1 }) =>
+      fetchMenuItems({
+        ...params,
+        page: pageParam,
+        limit: params.limit ?? 20,
+      }),
+
+    initialPageParam: 1,
+
+    getNextPageParam: (lastPage) => {
+      return lastPage.page < lastPage.total_pages
+        ? lastPage.page + 1
+        : undefined;
+    },
+
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
-    retry:                2,
+    retry: 1,
+
+    // 🔥 IMPORTANT: prevent refetch loop
+    refetchOnMount: false,
   });
 }
 

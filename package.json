@@ -33,6 +33,7 @@
     "react-refresh": "^0.18.0",
     "react-router-dom": "^7.6.3",
     "react-toastify": "^11.0.5",
+    "react-window": "^2.2.7",
     "yup": "^1.6.1"
   },
   "devDependencies": {

@@ -3,6 +3,7 @@ import {
   Box, Typography, TextField, Button, IconButton,
   InputAdornment, Chip, Tooltip, Fab, CircularProgress, Skeleton,
   Dialog, DialogTitle, DialogContent, DialogActions,
+  FormControl, Select, MenuItem,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AddIcon           from "@mui/icons-material/Add";
@@ -65,6 +66,7 @@ function StatsSkeleton() {
 
 export default function PurchaseScreen() {
   const [search, setSearch]               = useState("");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<PurchaseStatus | "">("");
   const [addDialogOpen, setAddDialog]     = useState(false);
   const [editPurchaseId, setEditPurchaseId] = useState<string | null>(null);
   const [paymentTarget, setPayment]       = useState<PurchaseRow | null>(null);
@@ -75,7 +77,10 @@ export default function PurchaseScreen() {
     data: purchases = [],
     isLoading: listLoading,
     refetch: refetchList,
-  } = usePurchases(search ? { search } : {});
+  } = usePurchases({
+    ...(search ? { search } : {}),
+    ...(paymentStatusFilter ? { payment_status: paymentStatusFilter } : {}),
+  });
 
   const {
     data: stats,
@@ -229,10 +234,21 @@ export default function PurchaseScreen() {
         key: "payment_status",
         label: "Status",
         width: 200,
+        align:"center",
         render: (p) => {
           const st = STATUS_STYLES[p.payment_status] ?? STATUS_STYLES.pending;
+          
           return (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, whiteSpace: "nowrap" }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 1,
+                whiteSpace: "nowrap",
+                width: "100%",
+              }}
+            >
               <Chip
                 label={st.label}
                 size="small"
@@ -307,13 +323,36 @@ export default function PurchaseScreen() {
           {statsLoading || !stats ? <StatsSkeleton /> : <PurchaseStats data={stats} />}
 
           {/* Toolbar */}
-          <Box sx={{ px: 1, py: 1, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #E5E7EB", flexShrink: 0, gap: 2 }}>
+          <Box sx={{ px: 1, display: "flex", alignItems: "center", justifyContent: "space-between",  flexShrink: 0, gap: 2 }}>
             <TextField
               value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Search invoices, vendors..." size="small"
               sx={{ flex: "1 1 380px", minWidth: { xs: "100%", sm: 260 }, "& .MuiOutlinedInput-root": { bgcolor: "white", height: 38, fontSize: "0.875rem", borderRadius: 1.5 } }}
               InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 17, color: "#9CA3AF" }} /></InputAdornment> }}
             />
+            <FormControl size="small" sx={{ minWidth: 150 }}>
+              <Select
+                value={paymentStatusFilter}
+                onChange={(e) => setPaymentStatusFilter(e.target.value as PurchaseStatus | "")}
+                displayEmpty
+                sx={{
+                  bgcolor: "white",
+                  height: 38,
+                  fontSize: "0.875rem",
+                  borderRadius: 1.5,
+                }}
+                renderValue={(value) =>
+                  value
+                    ? STATUS_STYLES[value as PurchaseStatus]?.label ?? value
+                    : "All Status"
+                }
+              >
+                <MenuItem value="">All Status</MenuItem>
+                <MenuItem value="paid">Paid</MenuItem>
+                <MenuItem value="partial">Partial</MenuItem>
+                <MenuItem value="pending">Pending</MenuItem>
+              </Select>
+            </FormControl>
             <Button
               variant="contained" size="small"
               startIcon={<AddIcon sx={{ fontSize: 16 }} />}

@@ -270,8 +270,15 @@ export default function InvoiceDetailsModal({ open = true, saleId, onClose }: Pr
             </Box>
 
             {/* 3. Financial Summary */}
-            <SummaryCard>
-              <Box sx={{ maxWidth: 600, mx: "auto", display: "flex", flexDirection: "column", gap: 1.5 }}>
+               <Box
+                    sx={{
+                      border: "1px solid #E2E8F0",
+                      borderRadius: 1.5,
+                      p: 2.5,
+                      bgcolor: "#FFFFFF",
+                    }}
+                  >
+              <Box sx={{ maxWidth: 460, display: "flex", flexDirection: "column", gap: 1.2,ml:"auto" }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between" }}>
                   <Typography sx={{ fontSize: 13, color: "#64748B" }}>Subtotal</Typography>
                   <Typography sx={{ fontSize: 16, fontWeight: 600, color: "#0F172A" }}>{INR(sale.subtotal)}</Typography>
@@ -295,13 +302,14 @@ export default function InvoiceDetailsModal({ open = true, saleId, onClose }: Pr
                   <Typography sx={{ fontSize: 14, fontWeight: 600, color: "#0F172A" }}>{INR(hsnTotals.sgst)}</Typography>
                 </Box>
 
-                <Divider sx={{ borderStyle: "dashed", borderColor: "#CBD5E1", my: 1 }} />
+          <Divider sx={{ borderStyle: "dashed", borderColor: "#CBD5E1" }} />
 
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography sx={{ fontSize: 18, fontWeight: 700, color: "#0F172A" }}>Grand Total</Typography>
-                  <Typography sx={{ fontSize: 28, fontWeight: 900, color: "#0F172A", letterSpacing: "-1px" }}>{INR(sale.total_amount)}</Typography>
-                </Box>
-
+                           <Typography sx={{ fontSize: 16, fontWeight: 800, color: "#0F172A" }}>Grand Total</Typography>
+                           <Typography sx={{ fontSize: 28, fontWeight: 900, color: "#0F172A", letterSpacing: "-0.03em" }}>
+                             {INR(sale.total_amount)}
+                           </Typography>
+                         </Box>
                 {Number(sale.paid_amount) > 0 && (
                   <Box sx={{ display: "flex", justifyContent: "space-between" }}>
                     <Typography sx={{ fontSize: 13, color: "#64748B" }}>Paid Amount</Typography>
@@ -310,7 +318,7 @@ export default function InvoiceDetailsModal({ open = true, saleId, onClose }: Pr
                 )}
 
                 {Number(sale.balance_amount) > 0 && (
-                  <Box sx={{ display: "flex", justifyContent: "space-between", borderRadius: 1.5, px: 1.5, py: 1 }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between"  }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#D97706" }}>Balance Due</Typography>
                     <Typography sx={{ fontSize: 14, fontWeight: 700, color: "#D97706" }}>{INR(sale.balance_amount)}</Typography>
                   </Box>
@@ -333,7 +341,7 @@ export default function InvoiceDetailsModal({ open = true, saleId, onClose }: Pr
                   />
                 </Box> */}
               </Box>
-            </SummaryCard>
+              </Box>
 
               {history.length > 0 && (
               <Box>

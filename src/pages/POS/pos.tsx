@@ -1230,13 +1230,7 @@ interface HeldOrder {
 
 type Zone = "SEARCH" | "CUSTOMER" | "TABLE" | "FOOTER";
 
-// ✅ Sub-focus within SEARCH zone:
-//   "CODE" = item search text field
-//   "QTY"  = qty number field
-// Navigation: Tab/→ from CODE → QTY → CUSTOMER
-//             ←        from QTY  → CODE
-//             ← / Escape from CUSTOMER → QTY
-type SearchFocus = "CODE" | "QTY";
+type SearchFocus = "CODE";
 
 type FooterFocus = "DISCOUNT_PCT" | "DISCOUNT_AMT" | "PAYMENT_TYPE" | "REF_NO" | "RECEIVED" | "SAVE";
 type PaymentType = "Cash" | "Card" | "UPI" | "Credit";
@@ -1327,7 +1321,6 @@ const [items,          setItems]          = useState<LineItem[]>([]);
   const [customerLedgerOpen,      setCustomerLedgerOpen]      = useState(false);
   const [addCustomerOpen,         setAddCustomerOpen]         = useState(false);
   const [flashRow,  setFlashRow]  = useState<string | null>(null);
-  const [searchQty, setSearchQty] = useState("1");
 const [saleId, setSaleId] = useState<string | null>(null);
   const { results: customerResults, loading: customerLoading, search: searchCustomers, clear: clearCustomerResults } = useCustomerSearch(ZODU_ID, BRANCH_ID);
 
@@ -1350,7 +1343,6 @@ const [saleId, setSaleId] = useState<string | null>(null);
   } | null>(null);
 
   const codeRef           = useRef<HTMLInputElement>(null);
-  const qtySearchRef      = useRef<HTMLInputElement>(null);   // ✅ ref for QTY field
   const customerNameRef   = useRef<HTMLInputElement>(null);
   const customerMobileRef = useRef<HTMLInputElement>(null);
   const discountPctRef    = useRef<HTMLInputElement>(null);
@@ -1379,8 +1371,7 @@ const [saleId, setSaleId] = useState<string | null>(null);
   // ✅ Focus the correct sub-field when zone/searchFocus changes
   useEffect(() => {
     if (zone === "SEARCH") {
-      if (searchFocus === "CODE") setTimeout(() => codeRef.current?.focus(), 10);
-      else                        setTimeout(() => qtySearchRef.current?.focus(), 10);
+      setTimeout(() => codeRef.current?.focus(), 10);
     } else if (zone === "CUSTOMER") {
       setTimeout(() => customerNameRef.current?.focus(), 10);
     } else if (zone === "FOOTER") {
@@ -1444,18 +1435,30 @@ const [saleId, setSaleId] = useState<string | null>(null);
     console.log("muitems",items)
     // ✅ ITEMS
     setItems(
-      items.map((i) => ({
-        code: i.item_id,
-        description: i.item_name,
-        qty: Number(i.quantity),
-        unitPrice: Number(i.price),
-        sellPrice: Number(i.price),
-        gstPct: Number(i.gst_percentage),
-        uuid: i.item_uuid,
-        hsn: i.hsn_code ?? "",
-        mrp: Number(i.mrp || 0),
-        unit: i.unit || "NOS",
-      }))
+      items.map((i) => {
+        const grossPrice = Number(i.price) || 0;
+        const gstPct = Number(i.gst_percentage) || 0;
+        const taxInclusive = Boolean(i.tax_inclusive);
+        const unitPrice =
+          taxInclusive && gstPct > 0
+            ? grossPrice / (1 + gstPct / 100)
+            : grossPrice;
+
+        return {
+          code: i.item_id,
+          description: i.item_name,
+          qty: Number(i.quantity),
+          unitPrice,
+          sellPrice: grossPrice,
+          gstPct,
+          taxInclusive,
+          uuid: i.item_uuid,
+          hsn: i.hsn_code ?? "",
+          mrp: Number(i.mrp || 0),
+          unit: i.unit || "NOS",
+          discount: Number(i.discount || 0),
+        };
+      })
     );
 
     // ✅ CUSTOMER
@@ -1515,30 +1518,26 @@ const [saleId, setSaleId] = useState<string | null>(null);
 
   const handleAddItem = useCallback((overrideCode?: string) => {
     const code = (overrideCode ?? codeInput).trim();
-    const qty  = Math.max(1, parseInt(searchQty) || 1);
     const id   = doAddItem(code);
-    setCodeInput(""); setSearchQty("1"); setShowSuggestions(false);
+    setCodeInput(""); setShowSuggestions(false);
     if (id) {
-      // ✅ Apply qty but stay in SEARCH zone — don't jump to TABLE row
-      setItems(prev => prev.map(i => i.code === id ? { ...i, qty } : i));
+      setItems(prev => prev.map(i => i.code === id ? { ...i, qty: 1 } : i));
     }
     // Always return focus to CODE field so cashier can scan the next item
     setZone("SEARCH"); setSearchFocus("CODE");
     setTimeout(() => codeRef.current?.focus(), 10);
-  }, [codeInput, searchQty, doAddItem]);
+  }, [codeInput, doAddItem]);
 
   const selectSuggestion = useCallback((p: PosProduct) => {
-    const qty = Math.max(1, parseInt(searchQty) || 1);
     const id  = doAddItem(p.item_id);
-    setCodeInput(""); setSearchQty("1"); setShowSuggestions(false);
+    setCodeInput(""); setShowSuggestions(false);
     if (id) {
-      // ✅ Apply qty and ensure item_uuid is set
-      setItems(prev => prev.map(i => i.code === id ? { ...i, qty, uuid: p.item_uuid } : i));
+      setItems(prev => prev.map(i => i.code === id ? { ...i, qty: 1, uuid: p.item_uuid } : i));
     }
     // Always return focus to CODE field so cashier can scan the next item
     setZone("SEARCH"); setSearchFocus("CODE");
     setTimeout(() => codeRef.current?.focus(), 10);
-  }, [doAddItem, searchQty]);
+  }, [doAddItem]);
 
   const handleClear = useCallback(() => {
     setItems([]); setDiscount("0"); setDiscountPct("0"); setReferenceNo("");
@@ -1706,7 +1705,7 @@ const [saleId, setSaleId] = useState<string | null>(null);
               e.preventDefault();
               setShowSuggestions(false);
               setSuggestionIdx(-1);
-              setSearchFocus("QTY");
+              setZone("CUSTOMER");
               return;
             }
           } else {
@@ -1715,7 +1714,7 @@ const [saleId, setSaleId] = useState<string | null>(null);
             // ✅ Tab/→ from CODE → focus QTY first
             if (e.key === "Tab" || e.key === "ArrowRight") {
               e.preventDefault();
-              setSearchFocus("QTY");
+              setZone("CUSTOMER");
               return;
             }
           }
@@ -1723,7 +1722,7 @@ const [saleId, setSaleId] = useState<string | null>(null);
         }
 
         // ── QTY sub-field ───────────────────────────────────────
-        if (searchFocus === "QTY") {
+        if (false) {
           // ✅ ← from QTY → go back to CODE
           if (e.key === "ArrowLeft") {
             e.preventDefault();
@@ -1760,7 +1759,7 @@ const [saleId, setSaleId] = useState<string | null>(null);
           e.preventDefault();
           (document.activeElement as HTMLElement)?.blur();
           setZone("SEARCH");
-          setSearchFocus("QTY");
+          setSearchFocus("CODE");
           return;
         }
         if (e.key === "ArrowDown") { e.preventDefault(); (document.activeElement as HTMLElement)?.blur(); setZone("TABLE"); setActiveRowIdx(0); return; }
@@ -1921,25 +1920,7 @@ const [saleId, setSaleId] = useState<string | null>(null);
                   )}
                 </Box>
 
-                {/* ✅ QTY field — highlighted when QTY is active sub-field */}
-                <Box sx={{ width: 80 }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.4 }}>
-                    <Typography sx={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", color: isSearchActive("QTY") ? "#C8102E" : "#374151" }}>QTY</Typography>
-                  </Box>
-                  <TextField
-                    inputRef={qtySearchRef} value={searchQty}
-                    onChange={e => setSearchQty(e.target.value.replace(/\D/g, ""))}
-                    onFocus={() => { setZone("SEARCH"); setSearchFocus("QTY"); }}
-                    placeholder="1" size="small" fullWidth autoComplete="off"
-                    inputProps={{ style: { textAlign: "center", fontWeight: 700, fontSize: 14 } }}
-                    sx={{ "& .MuiOutlinedInput-root": {
-                      borderRadius: 1.5, bgcolor: "#FAFAFA", fontSize: 13,
-                      "& fieldset": { borderColor: isSearchActive("QTY") ? "#C8102E" : "#E5E7EB", borderWidth: isSearchActive("QTY") ? 2 : 1 },
-                      "&:hover fieldset": { borderColor: "#C8102E" },
-                      "&.Mui-focused fieldset": { borderColor: "#C8102E" },
-                    }}}
-                  />
-                </Box>
+                {/* Search qty field intentionally commented out */}
 
                 <Button variant="contained" startIcon={<AddShoppingCartIcon />} onClick={() => handleAddItem()}
                   sx={{ bgcolor: "#C8102E", color: "#fff", px: 2.5, py: 0.9, fontSize: 13, fontWeight: 700, borderRadius: 1.5, minHeight: 38, whiteSpace: "nowrap", boxShadow: "0 4px 14px rgba(200,16,46,0.35)", "&:hover": { bgcolor: "#A50D26" }, "&:active": { transform: "scale(0.97)" } }}>
@@ -2076,6 +2057,7 @@ const [saleId, setSaleId] = useState<string | null>(null);
                     const itemGst   = (item.qty * item.unitPrice * item.gstPct) / 100;
                     const itemTotal = item.qty * item.sellPrice; // gross sell price × qty = base + tax
                     const itemDiscount = item.discount ?? 0;
+
                     return (
                       <Fade in key={item.code}>
                         <TableRow data-rowcode={item.code} onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); }}
@@ -2163,10 +2145,7 @@ const [saleId, setSaleId] = useState<string | null>(null);
         <Box sx={{ bgcolor: "#F8FAFC", px: 2, py: 0.55, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
             <Button size="small" startIcon={<DeleteOutlineIcon sx={{ fontSize: 12 }} />} onClick={handleClear} sx={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, py: 0.3, px: 1, minWidth: 0, borderRadius: 1, "&:hover": { color: "#F87171", bgcolor: "rgba(239,68,68,0.1)" } }}>CLEAR <Box component="span" sx={{ fontSize: 9, opacity: 0.6 }}>[F4]</Box></Button>
-            <Button size="small" startIcon={<PauseCircleOutlineIcon sx={{ fontSize: 12 }} />} onClick={handleHold} sx={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, py: 0.3, px: 1, minWidth: 0, borderRadius: 1, "&:hover": { color: "#60A5FA", bgcolor: "rgba(96,165,250,0.1)" } }}>HOLD <Box component="span" sx={{ fontSize: 9, opacity: 0.6 }}>[F9]</Box></Button>
-            <Badge badgeContent={heldOrders.length} sx={{ "& .MuiBadge-badge": { fontSize: 8, minWidth: 13, height: 13, bgcolor: "#C8102E", color: "#fff" } }}>
-              <Button size="small" startIcon={<PlayArrowIcon sx={{ fontSize: 12 }} />} onClick={() => setHoldDialogOpen(true)} sx={{ fontSize: 10, color: heldOrders.length > 0 ? "#60A5FA" : "#9CA3AF", fontWeight: 700, py: 0.3, px: 1, minWidth: 0, borderRadius: 1, "&:hover": { bgcolor: "rgba(96,165,250,0.1)" } }}>RECALL</Button>
-            </Badge>
+         
           </Box>
           <Divider orientation="vertical" flexItem />
           <Box sx={{ display: { xs: "none", xl: "flex" }, gap: 1, alignItems: "center" }}>
@@ -2181,7 +2160,7 @@ const [saleId, setSaleId] = useState<string | null>(null);
         {/* BILLING FOOTER */}
         <Box sx={{ bgcolor: "#fff", borderTop: "1px solid #E5E7EB", px: 2.5, py: 1.5, display: "flex", gap: 2, alignItems: "stretch" }}>
           {/* COL 1 */}
-          <Box sx={{ flex: 0.5, display: "flex", flexDirection: "column", gap: 1.5, justifyContent: "flex-start", pt: 0.5 }}>
+          <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1.5, justifyContent: "flex-start", pt: 0.5 }}>
             <Box>
               <Typography sx={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.08em", mb: 0.5 }}>PAYMENT TYPE</Typography>
               <Select value={paymentType} onChange={e => setPaymentType(e.target.value as PaymentType)}
@@ -2203,7 +2182,7 @@ const [saleId, setSaleId] = useState<string | null>(null);
           </Box>
           <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
           {/* COL 2 */}
-          <Box sx={{ flex: 0.7, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
             <Box>
               {[
                 { label: "SUBTOTAL", value: INR(subtotal),           color: "#1A1A2E" },
@@ -2243,7 +2222,7 @@ const [saleId, setSaleId] = useState<string | null>(null);
           </Box>
           <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
           {/* COL 3 */}
-          <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 1 }}>
+          <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
             <Box onClick={() => receivedRef.current?.focus()}
               sx={{ flex: 1, border: `2px solid ${isFooterActive("RECEIVED") ? "#C8102E" : "#FECDD3"}`, borderRadius: 2, px: 2, py: 1, textAlign: "right", bgcolor: isFooterActive("RECEIVED") ? "#FFF1F3" : "#FFF5F6", cursor: "text", transition: "border-color 0.15s, background 0.15s", "&:hover": { borderColor: "#C8102E", bgcolor: "#FFF1F3" } }}>
               <Typography sx={{ fontSize: 9, fontWeight: 800, color: "#C8102E", letterSpacing: "0.1em", mb: 0.2 }}>RECEIVED AMOUNT</Typography>
@@ -2258,7 +2237,15 @@ const [saleId, setSaleId] = useState<string | null>(null);
               </Box>
             </Box>
             <Box sx={{ display: "flex", gap: 1, alignItems: "stretch" }}>
-              <Tooltip title={printEnabled ? "Print ON" : "Print OFF"}>
+             
+              <Button variant="contained"
+                startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon sx={{ fontSize: 18 }} />}
+                onClick={handleSave} disabled={saving || items.length === 0}
+                sx={{ ...footerOutline("SAVE"), flex: 1, bgcolor: "#C8102E", color: "#fff", fontSize: 15, fontWeight: 800, py: 1, borderRadius: 2, boxShadow: "0 4px 18px rgba(200,16,46,0.35)", "&:hover": { bgcolor: "#A50D26" }, "&:active": { transform: "scale(0.98)" }, "&.Mui-disabled": { bgcolor: "#E5E7EB", color: "#9CA3AF", boxShadow: "none" }, transition: "all 0.15s" }}>
+                {saving ? "SAVING…" : "SAVE"}{" "}
+                <Box component="span" sx={{ fontSize: 11, opacity: 0.85, ml: 0.5 }}>[F8]</Box>
+              </Button>
+               <Tooltip title={printEnabled ? "Print ON" : "Print OFF"}>
                 <Box onClick={() => setPrintEnabled(p => !p)}
                   sx={{ width: 52, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 0.3, border: "1px solid #E5E7EB", borderRadius: 2, cursor: "pointer", bgcolor: "#F9FAFB", "&:hover": { bgcolor: "#F3F4F6" }, transition: "background 0.15s" }}>
                   <Box sx={{ width: 32, height: 18, bgcolor: printEnabled ? "#C8102E" : "#D1D5DB", borderRadius: 10, position: "relative", transition: "background 0.2s" }}>
@@ -2267,17 +2254,61 @@ const [saleId, setSaleId] = useState<string | null>(null);
                   <Typography sx={{ fontSize: 8, fontWeight: 700, color: "#6B7280", letterSpacing: "0.05em" }}>PRINT</Typography>
                 </Box>
               </Tooltip>
-              <Button variant="contained"
-                startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon sx={{ fontSize: 18 }} />}
-                onClick={handleSave} disabled={saving || items.length === 0}
-                sx={{ ...footerOutline("SAVE"), flex: 1, bgcolor: "#C8102E", color: "#fff", fontSize: 15, fontWeight: 800, py: 1, borderRadius: 2, boxShadow: "0 4px 18px rgba(200,16,46,0.35)", "&:hover": { bgcolor: "#A50D26" }, "&:active": { transform: "scale(0.98)" }, "&.Mui-disabled": { bgcolor: "#E5E7EB", color: "#9CA3AF", boxShadow: "none" }, transition: "all 0.15s" }}>
-                {saving ? "SAVING…" : "SAVE"}{" "}
-                <Box component="span" sx={{ fontSize: 11, opacity: 0.85, ml: 0.5 }}>[F8]</Box>
-              </Button>
             </Box>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <Box sx={{ display: "flex", alignItems: "center",justifyContent:"space-between" }}>
+              <Box sx={{display:"flex",gap:1}}>
+              <Button
+                size="small"
+                startIcon={<PauseCircleOutlineIcon sx={{ fontSize: 12 }} />}
+                onClick={handleHold}
+                sx={{
+                  minWidth: 92,
+                  height: 28,
+                  px: 1.2,
+                  borderRadius: 1.25,
+                  bgcolor: "#4B5563",
+                  color: "#fff",
+                  fontSize: 10,
+                  fontWeight: 800,
+                  boxShadow: "0 2px 6px rgba(75,85,99,0.22)",
+                  "&:hover": { bgcolor: "#374151" },
+                }}
+              >
+                HOLD <Box component="span" sx={{ fontSize: 9, opacity: 0.8, ml: 0.4 }}>[F9]</Box>
+              </Button>
+              <Badge
+                badgeContent={heldOrders.length}
+                invisible={heldOrders.length === 0}
+                sx={{ "& .MuiBadge-badge": { fontSize: 8, minWidth: 14, height: 14, bgcolor: "#C8102E", color: "#fff", fontWeight: 800 } }}
+              >
+                <Button
+                  size="small"
+                  startIcon={<PlayArrowIcon sx={{ fontSize: 12 }} />}
+                  onClick={() => setHoldDialogOpen(true)}
+                  sx={{
+                    minWidth: 90,
+                    height: 28,
+                    px: 1.15,
+                    borderRadius: 1.25,
+                    border: "1px solid #E5E7EB",
+                    bgcolor: heldOrders.length > 0 ? "#4B5563" : "#F3F4F6",
+                    color: heldOrders.length > 0 ? "#374151" : "#9CA3AF",
+                    fontSize: 10,
+                    fontWeight: 800,
+                    "&:hover": {
+                      bgcolor: heldOrders.length > 0 ? "#4B5563" : "#F3F4F6",
+                      borderColor: heldOrders.length > 0 ? "#CBD5E1" : "#E5E7EB",
+                    },
+                  }}
+                >
+                  RECALL
+                </Button>
+              </Badge>
+              </Box>
+              <Box sx={{display:"flex",gap:1}}>
               <Typography sx={{ fontSize: 10, color: "#6B7280", fontWeight: 600 }}>PAYMENT STATUS:</Typography>
               <Typography sx={{ fontSize: 11, fontWeight: 800, color: status.color, letterSpacing: "0.06em" }}>{status.label}</Typography>
+            </Box>
             </Box>
           </Box>
         </Box>

@@ -181,7 +181,7 @@ export function useInfiniteInventory(
     // Key does NOT include page — page is managed by pageParam internally.
     // This means ['inventory', 'list', params] is the stable key,
     // and invalidateQueries(['inventory', 'list']) correctly matches it.
-    queryKey:         inventoryQueryKeys.list(params),
+    queryKey: ['inventory', 'list', JSON.stringify(params)],
     queryFn:          ({ pageParam }) =>
                         fetchInventoryList({ ...params, page: pageParam, limit: params.limit ?? 30 }),
     initialPageParam: 1,

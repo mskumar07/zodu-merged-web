@@ -153,7 +153,7 @@
  *    (toLineItem() in RetailPOS.tsx strips GST for inclusive items)
  *  - tax_inclusive flag is forwarded to the backend so its own
  *    calculateItemTax() uses the same formula
- *  - price sent = unitPrice (base), backend re-derives tax from it
+ *  - price sent = sellPrice, matching the POS selling price shown to the cashier
  * ─────────────────────────────────────────────────────────────
  */
 
@@ -262,7 +262,7 @@ export function useSaveOrder() {
           item_name:      li.description,
           unit:           li.unit ?? "NOS",
           quantity:       li.qty,
-          price:          li.unitPrice,      // ✅ BASE price
+          price:          li.sellPrice,      // ✅ selling price sent in payload
           discount:       li.discount ?? 0,  // ✅ item-level discount
           gst_percentage: li.gstPct,
           hsn_code:       li.hsn,
@@ -331,7 +331,7 @@ const updateOrder = useCallback(async (
         item_name:      li.description,
         unit:           li.unit ?? "NOS",
         quantity:       li.qty,
-        price:          li.unitPrice,
+        price:          li.sellPrice,
         discount:       li.discount ?? 0,
         gst_percentage: li.gstPct,
         hsn_code:       li.hsn,

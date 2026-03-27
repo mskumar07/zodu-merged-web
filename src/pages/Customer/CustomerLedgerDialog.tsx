@@ -447,7 +447,7 @@
 //     </Dialog>
 //   );
 // }
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -469,9 +469,6 @@ import {
   MenuItem,
   FormControl,
   Link,
-  Grid,
-  Card,
-  CardContent,
   InputAdornment,
 } from '@mui/material';
 import {
@@ -538,7 +535,9 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
   customerName = 'John Doe',
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [salesDateFilter, setSalesDateFilter] = useState('');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState('all');
+  const [paymentDateFilter, setPaymentDateFilter] = useState('');
 
   // Sample data
   const salesData: SalesTransaction[] = [
@@ -637,10 +636,46 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
     pendingBalance: 3750.0,
   };
 
+  const normalizeLedgerDate = (value: string) => {
+    const [month = '', day = '', year = ''] = value.split('/');
+    if (!month || !day || !year) return '';
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  };
+
   const formatCurrency = (amount: number) => {
     const absAmount = Math.abs(amount);
     return amount < 0 ? `(${absAmount.toFixed(2)})` : absAmount.toFixed(2);
   };
+
+  const filteredSalesData = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    return salesData.filter((row) => {
+      const matchesSearch =
+        query.length === 0 ||
+        row.id.toLowerCase().includes(query) ||
+        row.description.toLowerCase().includes(query) ||
+        row.date.toLowerCase().includes(query);
+
+      const matchesDate =
+        salesDateFilter.length === 0 || normalizeLedgerDate(row.date) === salesDateFilter;
+
+      return matchesSearch && matchesDate;
+    });
+  }, [salesData, searchQuery, salesDateFilter]);
+
+  const filteredPaymentsData = useMemo(() => {
+    return paymentsData.filter((row) => {
+      const matchesMethod =
+        paymentMethodFilter === 'all' ||
+        row.method.toLowerCase() === paymentMethodFilter.toLowerCase();
+
+      const matchesDate =
+        paymentDateFilter.length === 0 || normalizeLedgerDate(row.date) === paymentDateFilter;
+
+      return matchesMethod && matchesDate;
+    });
+  }, [paymentMethodFilter, paymentDateFilter, paymentsData]);
 
   return (
     <ThemeProvider theme={theme}>
@@ -688,77 +723,6 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
           </IconButton>
         </DialogTitle>
 
-        {/* Customer Summary Section */}
-        <Box sx={{ bgcolor: '#f8fafc', px: 3, py: 3 }}>
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={4}>
-              <Card elevation={0} sx={{ border: '1px solid #e2e8f0' }}>
-                <CardContent sx={{ p: 2 }}>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      color: '#64748b',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                    }}
-                  >
-                    Total Invoiced
-                  </Typography>
-                  <Typography variant="h5" fontWeight={700} sx={{ mt: 0.5, color: '#1e293b' }}>
-                    ₹ {summary.totalInvoiced.toFixed(2)}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <Card elevation={0} sx={{ border: '1px solid #e2e8f0' }}>
-                <CardContent sx={{ p: 2 }}>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      color: '#64748b',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                    }}
-                  >
-                    Total Paid
-                  </Typography>
-                  <Typography variant="h5" fontWeight={700} sx={{ mt: 0.5, color: '#16a34a' }}>
-                    ₹ {summary.totalPaid.toFixed(2)}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <Card elevation={0} sx={{ border: '2px solid #dc2626' }}>
-                <CardContent sx={{ p: 2 }}>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      color: '#64748b',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                    }}
-                  >
-                    Pending Balance
-                  </Typography>
-                  <Typography variant="h5" fontWeight={700} sx={{ mt: 0.5, color: '#dc2626' }}>
-                    ₹ {summary.pendingBalance.toFixed(2)}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
-        </Box>
-
         {/* Content */}
         <DialogContent sx={{ p: 3 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -772,7 +736,7 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                   mb: 1.5,
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1,mt:2 }}>
                   <Box
                     sx={{
                       width: 6,
@@ -793,26 +757,46 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                     Sales &amp; Returns
                   </Typography>
                 </Box>
-                <TextField
-                  size="small"
-                  placeholder="Search Invoices..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  sx={{
-                    width: 200,
-                    '& .MuiOutlinedInput-root': {
-                      fontSize: '0.75rem',
-                      bgcolor: 'white',
-                    },
-                  }}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchIcon sx={{ fontSize: 16, color: '#94a3b8' }} />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                  <TextField
+                    size="small"
+                    type="date"
+                    value={salesDateFilter}
+                    onChange={(e) => setSalesDateFilter(e.target.value)}
+                    sx={{
+                      width: 150,
+                                            borderRadius:0.5,
+
+                      '& .MuiOutlinedInput-root': {
+                        fontSize: '0.75rem',
+                        bgcolor: 'white',
+                      },
+                    }}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                  <TextField
+                    size="small"
+                    placeholder="Search Invoices..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    sx={{
+                      width: 200,
+                                            borderRadius:0.5,
+
+                      '& .MuiOutlinedInput-root': {
+                        fontSize: '0.75rem',
+                        bgcolor: 'white',
+                      },
+                    }}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon sx={{ fontSize: 16, color: '#94a3b8' }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Box>
               </Box>
 
               <TableContainer
@@ -820,9 +804,10 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                 elevation={0}
                 sx={{
                   border: '1px solid #e2e8f0',
-                  borderRadius: 2,
-                  maxHeight: 280,
+                  borderRadius: 0.5,
+                  maxHeight: 400,
                   overflow: 'auto',
+                  
                 }}
               >
                 <Table size="small" stickyHeader>
@@ -912,7 +897,7 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {salesData.map((row, index) => (
+                    {filteredSalesData.map((row, index) => (
                       <TableRow
                         key={index}
                         sx={{
@@ -986,6 +971,63 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                         </TableCell>
                       </TableRow>
                     ))}
+                    {filteredSalesData.length === 0 && (
+                      <TableRow>
+                        <TableCell
+                          colSpan={7}
+                          align="center"
+                          sx={{ py: 3, fontSize: '0.875rem', color: '#64748b' }}
+                        >
+                          No sales or returns found for the selected filters.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    <TableRow
+                      sx={{
+                        bgcolor: '#f8fafc',
+                        position: 'sticky',
+                        bottom: 0,
+                        zIndex: 2,
+                        '& td': {
+                          borderTop: '1px solid #cbd5e1',
+                          borderBottom: 'none',
+                          backgroundColor: '#f8fafc',
+                        },
+                      }}
+                    >
+                      <TableCell colSpan={3} sx={{ py: 1.75 }}>
+                        <Typography
+                          sx={{
+                            fontSize: '0.875rem',
+                            fontWeight: 800,
+                            color: '#0f172a',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.04em',
+                          }}
+                        >
+                          Total
+                        </Typography>
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{ fontSize: '0.875rem', fontWeight: 800, color: '#0f172a', py: 1.75 }}
+                      >
+                        {formatCurrency(summary.totalInvoiced)}
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{ fontSize: '0.875rem', fontWeight: 800, color: '#16a34a', py: 1.75 }}
+                      >
+                        {formatCurrency(summary.totalPaid)}
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{ fontSize: '0.875rem', fontWeight: 900, color: '#dc2626', py: 1.75 }}
+                      >
+                        {formatCurrency(summary.pendingBalance)}
+                      </TableCell>
+                      <TableCell align="center" />
+                    </TableRow>
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -1022,21 +1064,42 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                     Payment History
                   </Typography>
                 </Box>
-                <FormControl size="small" sx={{ minWidth: 150 }}>
-                  <Select
-                    value={paymentMethodFilter}
-                    onChange={(e) => setPaymentMethodFilter(e.target.value)}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                  <TextField
+                    size="small"
+                    type="date"
+                    value={paymentDateFilter}
+                    onChange={(e) => setPaymentDateFilter(e.target.value)}
                     sx={{
-                      fontSize: '0.75rem',
-                      bgcolor: 'white',
+                      width: 150,
+                      borderRadius:0.5,
+                      '& .MuiOutlinedInput-root': {
+                        fontSize: '0.75rem',
+                        bgcolor: 'white',
+                        
+                      },
                     }}
-                  >
-                    <MenuItem value="all">All Methods</MenuItem>
-                    <MenuItem value="upi">UPI</MenuItem>
-                    <MenuItem value="cash">Cash</MenuItem>
-                    <MenuItem value="bank">Bank Transfer</MenuItem>
-                  </Select>
-                </FormControl>
+                    InputLabelProps={{ shrink: true }}
+                  />
+                  <FormControl size="small" sx={{ minWidth: 150 }}>
+                    <Select
+                      value={paymentMethodFilter}
+                      onChange={(e) => setPaymentMethodFilter(e.target.value)}
+                      sx={{
+                        fontSize: '0.75rem',
+                        bgcolor: 'white',
+                                              borderRadius:0.5,
+
+                      }}
+                    >
+                      <MenuItem value="all">All Methods</MenuItem>
+                      <MenuItem value="upi">UPI</MenuItem>
+                      <MenuItem value="cash">Cash</MenuItem>
+                      <MenuItem value="bank transfer">Bank Transfer</MenuItem>
+                      <MenuItem value="store credit">Store Credit</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Box>
               </Box>
 
               <TableContainer
@@ -1044,7 +1107,7 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                 elevation={0}
                 sx={{
                   border: '1px solid #e2e8f0',
-                  borderRadius: 2,
+                  borderRadius: 0.5,
                   maxHeight: 280,
                   overflow: 'auto',
                 }}
@@ -1123,7 +1186,7 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {paymentsData.map((row, index) => (
+                    {filteredPaymentsData.map((row, index) => (
                       <TableRow
                         key={index}
                         sx={{
@@ -1180,6 +1243,17 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                         </TableCell>
                       </TableRow>
                     ))}
+                    {filteredPaymentsData.length === 0 && (
+                      <TableRow>
+                        <TableCell
+                          colSpan={6}
+                          align="center"
+                          sx={{ py: 3, fontSize: '0.875rem', color: '#64748b' }}
+                        >
+                          No payment history found for the selected filters.
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </TableContainer>

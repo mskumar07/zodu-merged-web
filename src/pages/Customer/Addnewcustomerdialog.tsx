@@ -222,7 +222,7 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved }: Props) 
               <SectionLabel>Address Details</SectionLabel>
 
               {/* Row 1: Addr1 | Addr2 | City | Pincode — 4 columns */}
-              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 2, mb: 2 }}>
+              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr ", gap: 2, mb: 2 }}>
                 <Field label="Address Line 1">
                   <TextField value={form.addressLine1} onChange={set("addressLine1")}
                     placeholder="Building, Street name" size="small" fullWidth sx={sx} />
@@ -231,7 +231,10 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved }: Props) 
                   <TextField value={form.addressLine2} onChange={set("addressLine2")}
                     placeholder="Locality, Landmark" size="small" fullWidth sx={sx} />
                 </Field>
-                <Field label="City">
+               
+              </Box>
+<Box  sx={{ display: "grid", gridTemplateColumns: "1fr 1fr ", gap: 2, mb: 2 }}>
+   <Field label="City">
                   <TextField value={form.city} onChange={set("city")}
                     placeholder="e.g. Chennai" size="small" fullWidth sx={sx} />
                 </Field>
@@ -244,10 +247,10 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved }: Props) 
                     sx={sx}
                   />
                 </Field>
-              </Box>
+</Box>
 
               {/* Row 2: State — single field below */}
-              <Box sx={{ maxWidth: "25%" }}>
+              <Box sx={{ maxWidth: "50%" }}>
                 <Field label="State">
                   <FormControl size="small" fullWidth sx={sx}>
                     <Select

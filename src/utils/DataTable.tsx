@@ -62,8 +62,8 @@ const headCellSx = {
   fontSize: "0.82rem",
   fontWeight: 500,
   color: "text.primary",
-  backgroundColor: "#f8fafc",
-  borderBottom: "1px solid #f1f5f9",
+  backgroundColor: "#F5F5F5",
+  borderBottom: "1px solid #CBD5E1",
 } as const;
 
 const bodyCellSx = {
@@ -98,6 +98,7 @@ function DataTable<T>({
       elevation={3}
       sx={{
         boxShadow: "0 4px 16px rgba(26,26,26,0.08)",
+        border: "1px solid #E5E7EB",
         backgroundColor: "#ffffff",
         display: "flex",
         flexDirection: "column",

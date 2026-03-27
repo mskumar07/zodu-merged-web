@@ -39,6 +39,7 @@ import {
   ZODU_ID,
   BRANCH_ID,
 } from "./usePuchaseapi";
+import AddVendorModal from "@pages/Vendor/AddVendorDialog";
 
 // ─── Theme ────────────────────────────────────────────────────
 const theme = createTheme({
@@ -507,6 +508,7 @@ export default function AddNewPurchaseDialog({
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [pickerOpen, setPickerOpen]   = useState(false);
   const [saveError, setSaveError]     = useState("");
+  const [vendoropen , setVendorOpen]=useState(false);
 
   const { data: vendorsResponse = [], isLoading: vendorsLoading } = useVendors();
   const createPurchase = useCreatePurchase();
@@ -647,9 +649,14 @@ export default function AddNewPurchaseDialog({
           <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
 
             {/* Top fields */}
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", lg: "1fr 1fr 1fr" }, gap: 2 }}>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", lg: "1fr 1fr 1fr" }, gap: 2,mt:1 }}>
               <Box>
-                <FieldLabel>Supplier *</FieldLabel>
+              <Box sx={{display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+                <FieldLabel>Supplier / Vendor *</FieldLabel>
+                  <Button size="small" startIcon={<AddIcon sx={{ fontSize: 15 }} />} onClick={() => setVendorOpen(true)} sx={{ fontSize: 12, fontWeight: 700, color: "#D21F3C", borderRadius: 1.5 }}>
+                  Add Vendor
+                </Button>
+                </Box>
                 <FormControl size="small" fullWidth sx={inputSx}>
                   <Select value={form.supplier} onChange={e => setField("supplier", e.target.value)} displayEmpty
                     renderValue={v => {
@@ -836,7 +843,13 @@ export default function AddNewPurchaseDialog({
             {isBusy ? "Saving…" : isEditMode ? "Update Purchase" : "Save Purchase"}
           </Button>
         </DialogActions>
+       
       </Dialog>
+         <AddVendorModal
+          open={vendoropen}
+          onClose={() => setVendorOpen(false)}
+          onSave={(data) => console.log("Saved vendor:", data)}
+        />
     </ThemeProvider>
   );
 }

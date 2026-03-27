@@ -3,12 +3,11 @@ import React, {
 } from 'react';
 import {
   Box, Typography, TextField, Button, InputAdornment,
-  CircularProgress, Alert, Chip, Avatar, Tooltip, IconButton,
+  CircularProgress, Alert, Chip, Avatar,
   Select, MenuItem, FormControl,
 } from '@mui/material';
 import SearchIcon        from '@mui/icons-material/Search';
-import EditIcon          from '@mui/icons-material/Edit';
-import InventoryIcon     from '@mui/icons-material/Inventory2';
+import Inventory2Icon    from '@mui/icons-material/Inventory2';
 import TrendingUpIcon    from '@mui/icons-material/TrendingUp';
 import WarningAmberIcon  from '@mui/icons-material/WarningAmber';
 import ErrorOutlineIcon  from '@mui/icons-material/ErrorOutline';
@@ -44,20 +43,74 @@ const formatINR = (v: number) =>
 interface StatCardProps {
   icon:    React.ReactNode;
   iconBg:  string;
+  iconColor?: string;
   label:   string;
   value:   string | number;
   sub?:    React.ReactNode;
 }
-const StatCard: React.FC<StatCardProps> = ({ icon, iconBg, label, value, sub }) => (
-  <Box sx={{ flex: 1, minWidth: 180, p: 2.5, borderRadius: 2, border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper' }}>
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-      <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {icon}
-      </Box>
-      <Typography variant="caption" color="text.secondary" fontWeight={600}>{label}</Typography>
+const StatCard: React.FC<StatCardProps> = ({ icon, iconBg, iconColor, label, value, sub }) => (
+  <Box
+    sx={{
+      width: "auto",
+      flex: '0 0 220px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 2,
+      px: 2,
+      py: 1.8,
+      borderRadius: 1,
+      border: '1px solid',
+      borderColor: '#E5E7EB',
+      bgcolor: '#FFFFFF',
+      boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
+    }}
+  >
+    <Box
+      sx={{
+        width: 40,
+        height: 40,
+        flexShrink: 0,
+        borderRadius: 1.2,
+        bgcolor: iconBg,
+        color: iconColor,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {icon}
     </Box>
-    <Typography fontWeight={800} fontSize={26} lineHeight={1.1}>{value}</Typography>
-    {sub && <Box sx={{ mt: 0.5 }}>{sub}</Box>}
+    <Box sx={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+      <Typography
+        sx={{
+          color: '#64748B',
+          fontSize: 13,
+          fontWeight: 500,
+          lineHeight: 1.2,
+          mb: 0.5,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {label}
+      </Typography>
+      <Typography
+      variant='h6'
+        sx={{
+
+          color: '#0F172A',
+          fontWeight: 800,
+          lineHeight: 1.2,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {value}
+      </Typography>
+      {/* {sub && <Box sx={{ mt: 0.35 }}>{sub}</Box>} */}
+    </Box>
   </Box>
 );
 
@@ -92,10 +145,11 @@ function InventoryScreen() {
   // ── Adjust stock modal ─────────────────────────────────────
   const [adjustItem,    setAdjustItem]    = useState<InventoryItem | null>(null);
   const [adjustOpen,    setAdjustOpen]    = useState(false);
+const isFetchingRef = useRef(false);
 
   // ── Sentinel ───────────────────────────────────────────────
-  const sentinelRef = useRef<HTMLDivElement>(null);
-
+  const sentinelRef = useRef<HTMLTableRowElement>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
   // ── Debounced search ───────────────────────────────────────
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleSearchChange = useCallback((val: string) => {
@@ -121,23 +175,46 @@ function InventoryScreen() {
   } = useInfiniteInventory(queryParams);
 
   // ── IntersectionObserver ───────────────────────────────────
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) fetchNextPage();
-      },
-      { threshold: 0.1 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const rows = useMemo(
-    () => (data?.pages ?? []).flatMap(p => p.data.map(toRow)),
-    [data]
+useEffect(() => {
+  const el = sentinelRef.current;
+  const root = tableContainerRef.current;
+
+  if (!el || !root) return;
+
+  const observer = new IntersectionObserver(
+    ([entry]) => {
+      if (
+        entry.isIntersecting &&
+        hasNextPage &&
+        !isFetchingNextPage &&
+        !isFetchingRef.current
+      ) {
+        isFetchingRef.current = true;
+
+        fetchNextPage().finally(() => {
+          setTimeout(() => {
+            isFetchingRef.current = false;
+          }, 300);
+        });
+      }
+    },
+    {
+      root,
+      threshold: 1,
+      rootMargin: "0px 0px 100px 0px",
+    }
   );
+
+  observer.observe(el);
+  return () => observer.disconnect();
+}, [hasNextPage, isFetchingNextPage, fetchNextPage, isLoading, data?.pages?.length]);
+
+  const rows = useMemo(() => {
+  if (!data?.pages) return [];
+  return data.pages.flatMap(p => p.data.map(toRow));
+}, [data]);
+
   const totalItems = data?.pages[0]?.total ?? 0;
 
   // ── Handlers ───────────────────────────────────────────────
@@ -251,37 +328,57 @@ function InventoryScreen() {
   ], [handleAdjustClick]);
 
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', p: 2, gap: 2.5 }}>
-
+<Box
+  sx={{
+    height: '100%',
+    minHeight: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+    p: 2,
+    gap: 2.5,
+  }}
+>
       {/* ── Stat cards ── */}
-      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 2,
+          alignItems: 'stretch',
+        }}
+      >
         <StatCard
-          icon={<TrendingUpIcon sx={{ fontSize: 15, color: '#dc2626' }} />}
-          iconBg="rgba(220,38,38,0.1)"
+          icon={<Inventory2Icon sx={{ fontSize: 20 }} />}
+          iconBg="#DBEAFE"
+          iconColor="#2563EB"
           label="Total Stock Value"
           value={summary ? formatINR(summary.total_stock_value) : '—'}
-          sub={<Typography variant="caption" sx={{ color: '#16a34a', fontWeight: 600 }}>↑ +2.4% vs last month</Typography>}
+          sub={<Typography variant="caption" sx={{ color: '#64748B', fontWeight: 500 }}>Current inventory worth</Typography>}
         />
         <StatCard
-          icon={<WarningAmberIcon sx={{ fontSize: 15, color: '#d97706' }} />}
-          iconBg="rgba(217,119,6,0.1)"
+          icon={<WarningAmberIcon sx={{ fontSize: 20 }} />}
+          iconBg="#FEF3C7"
+          iconColor="#D97706"
           label="Low Stock Items"
           value={summary?.low_stock_count ?? '—'}
-          sub={<Typography variant="caption" color="text.secondary">Items below reorder level</Typography>}
+          sub={<Typography variant="caption" sx={{ color: '#64748B', fontWeight: 500 }}>Items below reorder level</Typography>}
         />
         <StatCard
-          icon={<ErrorOutlineIcon sx={{ fontSize: 15, color: '#dc2626' }} />}
-          iconBg="rgba(220,38,38,0.08)"
+          icon={<ErrorOutlineIcon sx={{ fontSize: 20 }} />}
+          iconBg="#FEE2E2"
+          iconColor="#DC2626"
           label="Out of Stock"
           value={summary?.out_of_stock_count ?? '—'}
-          sub={<Typography variant="caption" color="text.secondary">Immediate action required</Typography>}
+          sub={<Typography variant="caption" sx={{ color: '#64748B', fontWeight: 500 }}>Immediate action required</Typography>}
         />
         <StatCard
-          icon={<QrCodeIcon sx={{ fontSize: 15, color: '#6366f1' }} />}
-          iconBg="rgba(99,102,241,0.1)"
+          icon={<QrCodeIcon sx={{ fontSize: 20 }} />}
+          iconBg="#DCFCE7"
+          iconColor="#16A34A"
           label="Total SKUs"
           value={summary?.total_skus?.toLocaleString() ?? '—'}
-          sub={<Typography variant="caption" color="text.secondary">Active items in catalog</Typography>}
+          sub={<Typography variant="caption" sx={{ color: '#64748B', fontWeight: 500 }}>Active items in catalog</Typography>}
         />
       </Box>
 
@@ -291,6 +388,7 @@ function InventoryScreen() {
           size="small"
           placeholder="Search by Item Name, ID, or Barcode…"
           value={searchInput}
+          
           onChange={e => handleSearchChange(e.target.value)}
           onKeyDown={e => {
             if (e.key === 'Enter') {
@@ -300,13 +398,13 @@ function InventoryScreen() {
           }}
           InputProps={{
             startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 18, color: 'text.disabled' }} /></InputAdornment>,
-            sx: { borderRadius: 1.5, fontSize: 13 },
+            sx: { borderRadius: 0.5, fontSize: 13 },
           }}
-          sx={{ flex: 1, minWidth: 260, maxWidth: 560 }}
+          sx={{ flex: 1, minWidth: 260,backgroundColor:"#fff" }}
         />
 
         {/* Stock status filter */}
-        <FormControl size="small" sx={{ minWidth: 150 }}>
+        <FormControl size="small" sx={{ minWidth: 250 }}>
           <Select
             value={stockFilter}
             onChange={e => setStockFilter(e.target.value as StockStatus | '')}
@@ -315,7 +413,7 @@ function InventoryScreen() {
               ? STATUS_MAP[v as StockStatus]?.label
               : <Box component="span" sx={{ color: 'text.disabled' }}>All Status</Box>
             }
-            sx={{ borderRadius: 1.5, fontSize: 13 }}
+            sx={{ borderRadius: 0.5, fontSize: 13,backgroundColor:"#fff" }}
           >
             <MenuItem value="">All Status</MenuItem>
             <MenuItem value="in_stock">In Stock</MenuItem>
@@ -324,15 +422,14 @@ function InventoryScreen() {
           </Select>
         </FormControl>
 
-        <Box sx={{ flex: 1 }} />
 
-        {!isLoading && totalItems > 0 && (
+        {/* {!isLoading && totalItems > 0 && (
           <Chip
             label={`${rows.length.toLocaleString()} / ${totalItems.toLocaleString()}`}
             size="small"
             sx={{ fontSize: 12, fontWeight: 600, bgcolor: 'action.hover' }}
           />
-        )}
+        )} */}
       </Box>
 
       {/* ── Error ── */}
@@ -347,23 +444,25 @@ function InventoryScreen() {
         </Box>
       )}
 
-      {/* ── Table ── */}
-      {!isLoading && (
-        <DataTable
-          columns={columns}
-          rows={rows}
-          rowKey={r => r.inventory_uuid}
-          emptyMessage="No inventory items found."
-        />
-      )}
-
-      {/* ── Sentinel ── */}
-      <Box ref={sentinelRef} sx={{ height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {isFetchingNextPage && <CircularProgress size={22} thickness={3} />}
-        {!hasNextPage && !isLoading && rows.length > 0 && (
-          <Typography variant="caption" color="text.disabled" fontWeight={500}>
-            ✓ All {totalItems.toLocaleString()} items loaded
-          </Typography>
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflow: 'hidden',
+        }}
+      >
+        {!isLoading && (
+          <DataTable
+            columns={columns}
+            rows={rows}
+            rowKey={r => r.inventory_uuid}
+            hasNextPage={hasNextPage}
+            isFetchingNextPage={isFetchingNextPage}
+            loadMoreRef={sentinelRef}
+            tableContainerRef={tableContainerRef}
+            maxHeight="100%"
+            emptyMessage="No inventory items found."
+          />
         )}
       </Box>
 
