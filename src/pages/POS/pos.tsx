@@ -1414,8 +1414,12 @@ const [saleId, setSaleId] = useState<string | null>(null);
     if (!p) return false;
     setItems(prev => {
       const idx = prev.findIndex(i => i.code === p.item_id);
-      if (idx >= 0) { const u = [...prev]; u[idx] = { ...u[idx], qty: u[idx].qty + 1 }; return u; }
-      return [...prev, toLineItem(p)];
+      if (idx >= 0) {
+        const existing = prev[idx];
+        const updated = { ...existing, qty: existing.qty + 1 };
+        return [updated, ...prev.filter((_, i) => i !== idx)];
+      }
+      return [toLineItem(p), ...prev];
     });
     setFlashRow(p.item_id); setTimeout(() => setFlashRow(null), 700);
     return p.item_id;
@@ -1810,24 +1814,33 @@ const [saleId, setSaleId] = useState<string | null>(null);
   // ─────────────────────────────────────────────────────────────
   return (
     <ThemeProvider theme={theme}>
-      <Box sx={{ minHeight: "100vh", bgcolor: "#F0F2F5", display: "flex", flexDirection: "column" }}>
+      <Box
+        sx={{
+          height: "100%",
+          minHeight: 0,
+          bgcolor: "#F0F2F5",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
 
         {/* TOP BAR */}
-        <Box sx={{ bgcolor: "#fff", borderBottom: "1px solid #E5E7EB", px: { xs: 2, md: 3 }, py: 0.75, display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 50 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+        <Box sx={{ bgcolor: "#fff", borderBottom: "1px solid #E5E7EB", px: { xs: 2, md: 3 }, py: 0.75, display: "flex", alignItems: "center", justifyContent: "end", minHeight: 50 }}>
+          {/* <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
             <Button onClick={() => navigate("/dashboard")} startIcon={<GridViewIcon />} sx={{ color: "#6B7280", fontWeight: 500, fontSize: 12 }}>Dashboard</Button>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          </Box> */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2,alignSelf:"end" }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, bgcolor: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 1.5, px: 1.5, py: 0.5 }}>
               <CalendarTodayIcon sx={{ fontSize: 15, color: "#6B7280" }} />
               <Typography sx={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.05em" }}>INVOICE DATE</Typography>
               <input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)}
                 style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, fontWeight: 700, color: "#1A1A2E", fontFamily: "inherit", cursor: "pointer" }} />
             </Box>
-            <Divider orientation="vertical" flexItem />
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            {/* <Divider orientation="vertical" flexItem /> */}
+            {/* <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
               <Button onClick={() => navigate("/sales-history")} startIcon={<Receipt />} sx={{ backgroundColor: "#C8102E", color: "#fff", fontWeight: 500, fontSize: 12 }}>Sales History</Button>
-            </Box>
+            </Box> */}
             <Divider orientation="vertical" flexItem />
             <Box sx={{ textAlign: "right" }}>
               <Typography sx={{ fontSize: 10, color: "#9CA3AF", lineHeight: 1 }}>STATION 04</Typography>
@@ -1840,7 +1853,17 @@ const [saleId, setSaleId] = useState<string | null>(null);
         </Box>
 
         {/* MAIN CONTENT */}
-        <Box sx={{ flex: 1, px: { xs: 1.5, md: 2 }, pt: 1.5, pb: 1 }}>
+        <Box
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            px: { xs: 1, md: 1 },
+            pt: 1,
+            pb: 1,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
           <Box sx={{ display: "flex", gap: 2, mb: 1.5, alignItems: "stretch" }}>
 
             {/* ── Search panel ── */}
@@ -2022,8 +2045,22 @@ const [saleId, setSaleId] = useState<string | null>(null);
           </Box>
 
           {/* ORDER TABLE */}
-          <Paper elevation={0} sx={{ border: zone === "TABLE" ? "2px solid #1976d2" : "1px solid #E5E7EB", borderRadius: 2, overflow: "hidden", mb: 1.5, transition: "border 0.2s", boxShadow: zone === "TABLE" ? "0 0 0 3px rgba(245,158,11,0.1)" : "none" }}>
-            <Box sx={{ maxHeight: "calc(100vh - 460px)", overflowY: "auto" }}>
+          <Paper
+            elevation={0}
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              display: "flex",
+              flexDirection: "column",
+              border: zone === "TABLE" ? "2px solid #1976d2" : "1px solid #E5E7EB",
+              borderRadius: 2,
+              overflow: "hidden",
+              mb: 1,
+              transition: "border 0.2s",
+              boxShadow: zone === "TABLE" ? "0 0 0 3px rgba(245,158,11,0.1)" : "none",
+            }}
+          >
+            <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
               <Table size="small" stickyHeader>
                 <TableHead>
                   <TableRow>
@@ -2224,15 +2261,15 @@ const [saleId, setSaleId] = useState<string | null>(null);
           {/* COL 3 */}
           <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
             <Box onClick={() => receivedRef.current?.focus()}
-              sx={{ flex: 1, border: `2px solid ${isFooterActive("RECEIVED") ? "#C8102E" : "#FECDD3"}`, borderRadius: 2, px: 2, py: 1, textAlign: "right", bgcolor: isFooterActive("RECEIVED") ? "#FFF1F3" : "#FFF5F6", cursor: "text", transition: "border-color 0.15s, background 0.15s", "&:hover": { borderColor: "#C8102E", bgcolor: "#FFF1F3" } }}>
-              <Typography sx={{ fontSize: 9, fontWeight: 800, color: "#C8102E", letterSpacing: "0.1em", mb: 0.2 }}>RECEIVED AMOUNT</Typography>
+              sx={{ flex: 1, border: `2px solid ${isFooterActive("RECEIVED") ? "#D5D5D5" : "#D3D3D3"}`, borderRadius: 2, px: 2, py: 1, textAlign: "right", bgcolor: isFooterActive("RECEIVED") ? "#fff" : "#E5E4E2", cursor: "text", transition: "border-color 0.15s, background 0.15s", "&:hover": { borderColor: "#D5D5D5", bgcolor: "#D3D3D3" } }}>
+              <Typography sx={{ fontSize: 9, fontWeight: 800, color: "#000", letterSpacing: "0.1em", mb: 0.2 }}>RECEIVED AMOUNT</Typography>
               <Box sx={{ display: "flex", alignItems: "center" }}>
-                <Typography sx={{ fontSize: 26, fontWeight: 900, color: "#C8102E", lineHeight: 1, mr: 0.3, fontFamily: "monospace" }}>₹</Typography>
+                <Typography sx={{ fontSize: 26, fontWeight: 900, color: "#000", lineHeight: 1, mr: 0.3, fontFamily: "monospace" }}>₹</Typography>
                 <TextField inputRef={receivedRef} value={receivedAmount} onChange={e => setReceivedAmount(e.target.value.replace(/[^0-9.]/g, ""))}
                   onFocus={() => { setZone("FOOTER"); setFooterFocus("RECEIVED"); }}
                   placeholder="0.00" variant="standard" InputProps={{ disableUnderline: true }}
-                  inputProps={{ style: { padding: 0, fontSize: 28, fontWeight: 900, color: "#C8102E", fontFamily: "monospace", width: "100%", textAlign: "right" } }}
-                  sx={{ flex: 1, "& input::placeholder": { color: "#FECDD3", opacity: 1 } }}
+                  inputProps={{ style: { padding: 0, fontSize: 28, fontWeight: 900, color: "#000", fontFamily: "monospace", width: "100%", textAlign: "right" } }}
+                  sx={{ flex: 1, "& input::placeholder": { color: "#343434", opacity: 1 } }}
                 />
               </Box>
             </Box>

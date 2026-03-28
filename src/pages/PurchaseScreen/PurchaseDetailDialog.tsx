@@ -331,7 +331,7 @@ function PurchaseDetailContent({ data }: { data: PurchaseDetail }) {
                       {fmtDate(pay.payment_date)}
                     </td>
                     <td style={{ ...TD, textAlign: "center" }}>{pay.transaction_type ?? "—"}</td>
-                    <td style={{ ...TD, textAlign: "center", color: "#B91C1C", fontWeight: 600 }}>
+                    <td style={{ ...TD, textAlign: "center", color: "#000", fontWeight: 600 }}>
                       {pay.transaction_id ?? "—"}
                     </td>
                     <td style={{ ...TD, textAlign: "right", fontWeight: 700, whiteSpace: "nowrap" }}>

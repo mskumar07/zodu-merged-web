@@ -2,6 +2,7 @@ import useNavigation from "@hooks/UseNavigation.tsx";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import CategoryIcon from "@mui/icons-material/Category";
 import DashboardIcon from "@mui/icons-material/Dashboard";
+import LogoutIcon from "@mui/icons-material/Logout";
 import PaymentsIcon from "@mui/icons-material/Payments";
 import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
 import ReceiptIcon from "@mui/icons-material/Receipt";
@@ -23,13 +24,15 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import React from "react";
-import { Person } from "@mui/icons-material";
+import { History, Person, Settings } from "@mui/icons-material";
 
 export const drawerWidth = 240;
 
 const navItems = [
   { label: "Dashboard", icon: <DashboardIcon />, path: "/dashboard" },
  { label: "POS", icon: <PointOfSaleIcon />, path: "/pos" },
+  { label: "Sales History", icon: <History />, path: "/sales-history" },
+
   { label: "Menu Items", icon: <CategoryIcon />, path: "/menu" },
   // { label: "Category", icon: <BarChartIcon />, path: "/category" },
 
@@ -42,17 +45,23 @@ const navItems = [
   // {label: "Attendance", icon:<GroupsIcon/>, path:"/attendance"},
   { label: "Report", icon: <BarChartIcon />, path: "/reports" },
   
-  //  {
-  //   label: "Restaurant setup",
-  //   icon: <RestaurantMenuIcon />,
-  //   path: "/restaurant-setup",
-  // },
+   {
+    label: "Settings",
+    icon: <Settings />,
+    path: "/",
+  },
 ];
 
 export default function Sidebar() {
   const theme = useTheme();
   const [activeIndex, setActiveIndex] = React.useState(0);
   const { navigate } = useNavigation();
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/login");
+  };
+
   return (
     <Drawer
       sx={{
@@ -70,6 +79,7 @@ export default function Sidebar() {
       anchor="left"
       aria-label="Sidebar navigation"
     >
+      <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
    <Toolbar
         sx={{
           bgcolor: "#ffffff",
@@ -95,7 +105,7 @@ export default function Sidebar() {
 
 <Divider />
 
-      <List sx={{ mt: 2 }}>
+      <List sx={{ mt: 2, flexGrow: 1 }}>
         {navItems.map((item, i) => (
           <ListItem
             key={item.label}
@@ -150,6 +160,43 @@ export default function Sidebar() {
           </ListItem>
         ))}
       </List>
+      <Box sx={{ px: 2, pb: 2, pt: 1 }}>
+        <Divider sx={{ mb: 1.5 }} />
+        <ListItem disablePadding disableGutters>
+          <ListItemButton
+            disableRipple
+            onClick={handleLogout}
+            sx={{
+              borderRadius: 1,
+              color: theme.palette.error.main,
+              "&:hover": {
+                bgcolor: "rgba(220, 20, 60, 0.08)",
+              },
+            }}
+          >
+            <ListItemIcon
+              sx={{
+                minWidth: 40,
+                color: theme.palette.error.main,
+              }}
+              aria-hidden="true"
+            >
+              <LogoutIcon />
+            </ListItemIcon>
+            <ListItemText
+              primary="Logout"
+              sx={{
+                "& .MuiTypography-root": {
+                  fontWeight: 600,
+                  fontSize: "14px",
+                  color: theme.palette.error.main,
+                },
+              }}
+            />
+          </ListItemButton>
+        </ListItem>
+      </Box>
+      </Box>
     </Drawer>
   );
 }

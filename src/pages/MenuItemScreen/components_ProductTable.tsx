@@ -90,9 +90,9 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
         {
           key: "name",
           label: "Item Name",
-          minWidth: 220,
+          minWidth: 180,
           render: (product) => (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Avatar
                 src={product.imageUrl}
                 variant="rounded"

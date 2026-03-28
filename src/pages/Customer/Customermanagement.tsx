@@ -337,10 +337,9 @@ const customers: Customer[] = useMemo(() => {
             size="small"
             sx={{
               flex: 1,
-              maxWidth: 420,
               "& .MuiOutlinedInput-root": {
-                borderRadius: 2,
-                bgcolor: "#F8FAFC",
+                borderRadius: 1,
+                bgcolor: "#ffff",
                 fontSize: 13,
                 "& fieldset": { borderColor: "#E5E7EB" },
                 "&:hover fieldset": { borderColor: "#E11D48" },

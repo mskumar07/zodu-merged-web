@@ -101,6 +101,7 @@ export default function InvoiceDetailsModal({ open = true, saleId, onClose }: Pr
     taxable: number; cgst: number; sgst: number; cgstPct: number; sgstPct: number;
   }> = {};
 
+  console.log(items)
   items.forEach((item: any) => {
     // hsn column — may be null when not set on the product
     const hsn   = item.hsn_code ?? "—";
@@ -245,7 +246,7 @@ export default function InvoiceDetailsModal({ open = true, saleId, onClose }: Pr
                       const price   = Number(item.price);
                       const tax     = Number(item.tax_amount);
                       const gst     = Number(item.gst_percentage);
-                      const lineTotal = qty * price + tax;
+                      const lineTotal = Number(item.total_amount);
                       const isLast  = idx === items.length - 1;
                       return (
                         <TableRow key={item.id}
@@ -258,7 +259,7 @@ export default function InvoiceDetailsModal({ open = true, saleId, onClose }: Pr
                           </TD>
                           <TD align="center"  sx={{ borderBottom: isLast ? 0 : undefined, color: "#64748B" }}>{item.hsn_code ?? "—"}</TD>
                           <TD align="right"   sx={{ borderBottom: isLast ? 0 : undefined, fontWeight: 500 }}>{INR(price)}</TD>
-                          <TD align="center"  sx={{ borderBottom: isLast ? 0 : undefined }}>{String(qty).padStart(2, "0")}</TD>
+                          <TD align="center"  sx={{ borderBottom: isLast ? 0 : undefined }}>{String(qty).padStart(2, "0")}  {item.unit}</TD>
                           <TD align="center"  sx={{ borderBottom: isLast ? 0 : undefined }}>{gst}%</TD>
                           <TD align="right"   sx={{ borderBottom: isLast ? 0 : undefined, fontWeight: 700 }}>{INR(lineTotal)}</TD>
                         </TableRow>
@@ -446,7 +447,7 @@ export default function InvoiceDetailsModal({ open = true, saleId, onClose }: Pr
                       <TD align="right">{INR(hsnTotals.cgst)}</TD>
                       <TD align="center" sx={{ color: "#94A3B8", fontWeight: 400 }}>—</TD>
                       <TD align="right">{INR(hsnTotals.sgst)}</TD>
-                      <TD align="right" sx={{ color: "#D0021B" }}>{INR(hsnTotals.cgst + hsnTotals.sgst)}</TD>
+                      <TD align="right">{INR(hsnTotals.cgst + hsnTotals.sgst)}</TD>
                     </TableRow>
                   </TableBody>
                 </Table>

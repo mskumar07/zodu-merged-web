@@ -10,7 +10,7 @@
 import React, { useRef, useCallback, useEffect, useState } from "react";
 import { useInfiniteQuery, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
-  Box, Card, CardContent, Typography, Button, Stack,
+  Box, Typography, Button, Stack, Grid,
   Avatar, TextField, InputAdornment, Select, MenuItem,
   FormControl, IconButton, Tooltip, alpha,
 } from "@mui/material";
@@ -28,6 +28,7 @@ import InvoiceDetailDialog from "./Invoicedetaildialog";
 import MarkPaymentDialog   from "./MarkPaymentDialog";
 import SalesReturnDialog   from "./Salesreturndialog";
 import DataTable           from "@utils/DataTable";
+import StatCard            from "@components/StatCard";
 import { useNavigate } from "react-router-dom";
 
 // ─── Formatter ────────────────────────────────────────────────
@@ -267,36 +268,35 @@ const navigate = useNavigate();
     <Box sx={{ minHeight: "100vh", p: { xs: 2, sm: 1 } }}>
 
       {/* Summary cards */}
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, mb: 1 }}>
-        <Box sx={{ display: "flex", gap: 2, flex: 0.4 }}>
-          {[
-            { label: "Total Transactions", value: String(totalCount),                                                              icon: <ReceiptIcon />,    iconColor: "#E53935", bg: "#FFEBEE" },
-            { label: "Net Revenue",        value: INR(allItems.reduce((s, i) => s + Number(i.total_amount), 0)), icon: <TrendingUpIcon />, iconColor: "#E53935", bg: "#E8F5E9" },
-          ].map(c => (
-            <Card key={c.label} elevation={1} sx={{ flex: 1 }}>
-              <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-                <Stack direction="row" alignItems="center" gap={1.5}>
-                  <Box sx={{ p: 1, borderRadius: 2, bgcolor: c.bg, color: c.iconColor, display: "flex", flexShrink: 0 }}>
-                    {React.cloneElement(c.icon as React.ReactElement, { sx: { fontSize: 22 } })}
-                  </Box>
-                  <Box>
-                    <Typography variant="subtitle2" color="text.secondary">{c.label}</Typography>
-                    <Typography variant="h6" fontWeight={800}>{c.value}</Typography>
-                  </Box>
-                </Stack>
-              </CardContent>
-            </Card>
-          ))}
-        </Box>
+      <Box sx={{ display: "flex", alignItems: { xs: "stretch", md: "center" }, justifyContent: "space-between", gap: 2, mb: 1, flexDirection: { xs: "column", md: "row" } }}>
+        <Grid container spacing={2} sx={{ flex: 1 }}>
+          <Grid item>
+            <StatCard
+              label="Total Transactions"
+              value={totalCount}
+              valuePrefix=""
+              icon={<ReceiptIcon color="primary" />}
+              iconBgColor="#FFEBEE"
+            />
+          </Grid>
+          <Grid item>
+            <StatCard
+              label="Net Revenue"
+              value={INR(allItems.reduce((s, i) => s + Number(i.total_amount), 0))}
+              valuePrefix=""
+              icon={<TrendingUpIcon color="success" />}
+              iconBgColor="#E8F5E9"
+            />
+          </Grid>
+        </Grid>
         <Button onClick={() => window.history.back()} startIcon={<ReceiptIcon />}
-          variant="contained" color="primary" disableElevation sx={{ borderRadius: 0.6, fontWeight: 600 }}>
+          variant="contained" color="primary" disableElevation sx={{ borderRadius: 0.6, fontWeight: 600, alignSelf: { xs: "flex-start", md: "center" } }}>
           <Typography variant="caption" color="white" fontWeight={600}>Back to POS</Typography>
         </Button>
       </Box>
 
       {/* Filter bar */}
-      <Card elevation={3} sx={{ mb: 1, boxShadow: "0 4px 16px rgba(0,0,0,0.08)" }}>
-        <CardContent sx={{ p: 1, "&:last-child": { pb: 2.5 } }}>
+      <Box sx={{ mb: 1, px: 0.5, py: 0.25 }}>
           <Stack direction={{ xs: "column", sm: "row" }} gap={2} alignItems="flex-end">
             <Box sx={{ flex: 1.2 }}>
               <Typography variant="caption" fontWeight={600} color="text.secondary" display="block" mb={0.6}>
@@ -305,6 +305,7 @@ const navigate = useNavigate();
               <TextField
                 placeholder="Customer name or mobile" size="small" fullWidth
                 value={draftFilters.search}
+                sx={{backgroundColor:"#fff"}}
                 onChange={e => setDraftFilters(f => ({ ...f, search: e.target.value }))}
                 InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 18, color: "text.secondary" }} /></InputAdornment> }}
               />
@@ -312,17 +313,31 @@ const navigate = useNavigate();
             <Box sx={{ flex: 0.5, minWidth: 150 }}>
               <Typography variant="caption" fontWeight={600} color="text.secondary" display="block" mb={0.6}>From Date</Typography>
               <TextField type="date" size="small" fullWidth value={draftFilters.from_date}
+                                sx={{borderRadius:0.5,backgroundColor:"#fff"}}
+
                 onChange={e => setDraftFilters(f => ({ ...f, from_date: e.target.value }))} />
             </Box>
             <Box sx={{ flex: 0.5, minWidth: 150 }}>
               <Typography variant="caption" fontWeight={600} color="text.secondary" display="block" mb={0.6}>To Date</Typography>
               <TextField type="date" size="small" fullWidth value={draftFilters.to_date}
+                                sx={{borderRadius:0.5,backgroundColor:"#fff"}}
+
                 onChange={e => setDraftFilters(f => ({ ...f, to_date: e.target.value }))} />
             </Box>
             <Box sx={{ flex: 0.5, minWidth: 140 }}>
               <Typography variant="caption" fontWeight={600} color="text.secondary" display="block" mb={0.6}>Status</Typography>
               <FormControl size="small" fullWidth>
-                <Select value={draftFilters.payment_status}
+                <Select
+                  value={draftFilters.payment_status}
+                  displayEmpty
+                  sx={{borderRadius:0.5,backgroundColor:"#fff"}}
+                  renderValue={(selected) => {
+                    if (!selected) return "All Status";
+                    if (selected === "fully_paid") return "Paid";
+                    if (selected === "partially_paid") return "Partial";
+                    if (selected === "unpaid") return "Unpaid";
+                    return selected;
+                  }}
                   onChange={e => setDraftFilters(f => ({ ...f, payment_status: e.target.value }))}>
                   <MenuItem value="">All Status</MenuItem>
                   <MenuItem value="fully_paid">Paid</MenuItem>
@@ -339,8 +354,7 @@ const navigate = useNavigate();
               </Button>
             </Box>
           </Stack>
-        </CardContent>
-      </Card>
+      </Box>
 
       {/* Transactions table */}
       <DataTable<Sale>

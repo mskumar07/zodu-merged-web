@@ -22,12 +22,12 @@ const StatCard = ({
       elevation={0}
       sx={{
         border: "1px solid #eee",
-        borderRadius: 2,
+        borderRadius: 0.5,
         minWidth: 220,
       }}
     >
-      <CardContent>
-        <Stack direction="row" spacing={2} alignItems="center">
+      <CardContent sx={{ px: 1.5, py: 1, "&:last-child": { pb: 1.25 } }}>
+        <Stack direction="row" spacing={1.5} alignItems="center">
           <Box
             sx={{
               width: 40,

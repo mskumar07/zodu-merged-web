@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Box, Typography, TextField, Button, IconButton,
-  Select, MenuItem, FormControl, InputAdornment,
+  Select, MenuItem, FormControl, InputAdornment, ListSubheader,
   Table, TableHead, TableBody, TableRow, TableCell,
   Paper, Tooltip, Checkbox, Chip, CircularProgress,
 } from "@mui/material";
@@ -301,8 +301,8 @@ const catalogueToItem = (cat: CatalogueItem & { qty?: number }): PurchaseItem =>
   unit: cat.unit, categoryId: cat.categoryId ?? null,
 });
 
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#374151", mb: 0.5 }}>{children}</Typography>;
+function FieldLabel({ children, sx }: { children: React.ReactNode; sx?: object }) {
+  return <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#374151", mb: 0.5, ...sx }}>{children}</Typography>;
 }
 function vendorDisplayName(v?: Vendor) {
   if (!v) return "";
@@ -509,6 +509,7 @@ export default function AddNewPurchaseDialog({
   const [pickerOpen, setPickerOpen]   = useState(false);
   const [saveError, setSaveError]     = useState("");
   const [vendoropen , setVendorOpen]=useState(false);
+  const [vendorSearch, setVendorSearch] = useState("");
 
   const { data: vendorsResponse = [], isLoading: vendorsLoading } = useVendors();
   const createPurchase = useCreatePurchase();
@@ -527,10 +528,24 @@ export default function AddNewPurchaseDialog({
       setForm(emptyForm());
       setAttachments([]);
       setSaveError("");
+      setVendorSearch("");
     }
   }, [open, isEditMode]);
 
   const vendors = useMemo<Vendor[]>(() => Array.isArray(vendorsResponse) ? vendorsResponse : [], [vendorsResponse]);
+  const filteredVendors = useMemo(() => {
+    const query = vendorSearch.trim().toLowerCase();
+    if (!query) return vendors;
+    return vendors.filter(v => {
+      const label = vendorDisplayName(v).toLowerCase();
+      return (
+        label.includes(query) ||
+        v.vendor_name?.toLowerCase().includes(query) ||
+        v.company_name?.toLowerCase().includes(query) ||
+        v.vendor_id?.toLowerCase().includes(query)
+      );
+    });
+  }, [vendorSearch, vendors]);
   const setField = <K extends keyof PurchaseForm>(key: K, val: PurchaseForm[K]) =>
     setForm(prev => ({ ...prev, [key]: val }));
 
@@ -649,11 +664,11 @@ export default function AddNewPurchaseDialog({
           <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
 
             {/* Top fields */}
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", lg: "1fr 1fr 1fr" }, gap: 2,mt:1 }}>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", lg: "1fr 1fr 1fr" }, gap: 2, mt: 1, alignItems: "start" }}>
               <Box>
-              <Box sx={{display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-                <FieldLabel>Supplier / Vendor *</FieldLabel>
-                  <Button size="small" startIcon={<AddIcon sx={{ fontSize: 15 }} />} onClick={() => setVendorOpen(true)} sx={{ fontSize: 12, fontWeight: 700, color: "#D21F3C", borderRadius: 1.5 }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, minHeight: 30, mb: 0.5 }}>
+                <FieldLabel sx={{ mb: 0, lineHeight: 1.2 }}>Supplier / Vendor *</FieldLabel>
+                  <Button size="small" startIcon={<AddIcon sx={{ fontSize: 13 }} />} onClick={() => setVendorOpen(true)} sx={{ height: 24, minWidth: 0, flexShrink: 0, px: 0.5, py: 0, fontSize: 11.5, fontWeight: 700, color: "#D21F3C", borderRadius: 1.5 }}>
                   Add Vendor
                 </Button>
                 </Box>
@@ -664,21 +679,52 @@ export default function AddNewPurchaseDialog({
                       const vendor = vendors.find(item => item.vendor_id === v);
                       return vendorDisplayName(vendor) || String(v);
                     }}
+                    onOpen={() => setVendorSearch("")}
+                    MenuProps={{ PaperProps: { sx: { mt: 0.5, maxHeight: 340, borderRadius: 2, boxShadow: "0 18px 40px rgba(15,23,42,0.12)" } } }}
                     sx={{ bgcolor: "#F8FAFC", fontSize: 13, borderRadius: "8px" }}>
+                    <ListSubheader sx={{ bgcolor: "#fff", py: 1, px: 1, borderBottom: "1px solid #F1F5F9" }} onKeyDown={e => e.stopPropagation()}>
+                      <TextField
+                        autoFocus
+                        size="small"
+                        fullWidth
+                        placeholder="Search supplier..."
+                        value={vendorSearch}
+                        onChange={e => setVendorSearch(e.target.value)}
+                        onClick={e => e.stopPropagation()}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <SearchIcon sx={{ fontSize: 16, color: "#9CA3AF" }} />
+                            </InputAdornment>
+                          ),
+                        }}
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            bgcolor: "#F8FAFC",
+                            fontSize: 12.5,
+                            borderRadius: 1.5,
+                          },
+                        }}
+                      />
+                    </ListSubheader>
                     {vendorsLoading
                       ? <MenuItem disabled sx={{ fontSize: 13 }}>Loading…</MenuItem>
-                      : vendors.length === 0
+                      : filteredVendors.length === 0
                         ? <MenuItem disabled sx={{ fontSize: 13 }}>No suppliers found</MenuItem>
-                        : vendors.map(v => <MenuItem key={v.vendor_id} value={v.vendor_id} sx={{ fontSize: 13 }}>{vendorDisplayName(v)}</MenuItem>)}
+                        : filteredVendors.map(v => <MenuItem key={v.vendor_id} value={v.vendor_id} sx={{ fontSize: 13 }}>{vendorDisplayName(v)}</MenuItem>)}
                   </Select>
                 </FormControl>
               </Box>
               <Box>
-                <FieldLabel>Purchase Date</FieldLabel>
+                <Box sx={{ minHeight: 30, display: "flex", alignItems: "center", mb: 0.5 }}>
+                  <FieldLabel sx={{ mb: 0, lineHeight: 1.2 }}>Purchase Date</FieldLabel>
+                </Box>
                 <TextField type="date" size="small" fullWidth value={form.purchaseDate} onChange={e => setField("purchaseDate", e.target.value)} sx={inputSx} inputProps={{ style: { fontSize: 13 } }} />
               </Box>
               <Box>
-                <FieldLabel>Invoice / Bill No.</FieldLabel>
+                <Box sx={{ minHeight: 30, display: "flex", alignItems: "center", mb: 0.5 }}>
+                  <FieldLabel sx={{ mb: 0, lineHeight: 1.2 }}>Invoice / Bill No.</FieldLabel>
+                </Box>
                 <TextField size="small" fullWidth value={form.invoiceNo} onChange={e => setField("invoiceNo", e.target.value)} placeholder="INV-2023-001" sx={inputSx} />
               </Box>
             </Box>

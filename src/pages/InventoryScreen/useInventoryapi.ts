@@ -134,6 +134,7 @@ async function fetchInventoryList(
       },
     }
   );
+  console.log(data)
   return data;
 }
 

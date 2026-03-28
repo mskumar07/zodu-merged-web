@@ -697,7 +697,7 @@ export default function SalesReturnDialog({ saleId, onClose }: Props) {
                         checked={allSelected}
                         indeterminate={someSelected && !allSelected}
                         onChange={toggleSelectAll}
-                        sx={{ color: "#CBD5E1", "&.Mui-checked": { color: "#D2042D" }, "&.MuiCheckbox-indeterminate": { color: "#D2042D" }, p: 0.5 }}
+                        sx={{ color: "#CBD5E1", "&.Mui-checked": { color: "#D2042D" }, "&.MuiCheckbox-indeterminate": { color: "#D2042D" }, py:0.2 }}
                       />
                     </TableCell>
                     <TH>Item Details</TH>
@@ -730,7 +730,7 @@ export default function SalesReturnDialog({ saleId, onClose }: Props) {
                         </TableCell>
 
                         {/* Item name + sub-label */}
-                        <TableCell sx={{ borderBottom: borderB, py: 2, px: 2 }}>
+                        <TableCell sx={{ borderBottom: borderB, py: 1, px: 2 }}>
                           <Typography sx={{ fontSize: "0.875rem", fontWeight: 700, color: "#0F172A" }}>
                             {item.product_name}
                           </Typography>
@@ -742,12 +742,12 @@ export default function SalesReturnDialog({ saleId, onClose }: Props) {
                         </TableCell>
 
                         {/* Qty original */}
-                        <TableCell align="center" sx={{ borderBottom: borderB, py: 2, px: 2, fontSize: "0.875rem", color: "#334155" }}>
+                        <TableCell align="center" sx={{ borderBottom: borderB, py: 1, px: 2, fontSize: "0.875rem", color: "#334155" }}>
                           {origQty}
                         </TableCell>
 
                         {/* Return qty input — w-20 h-9 text-center rounded-lg */}
-                        <TableCell align="center" sx={{ borderBottom: borderB, py: 2, px: 2 }}>
+                        <TableCell align="center" sx={{ borderBottom: borderB, py: 1, px: 2 }}>
                           <TextField
                             size="small"
                             type="number"
@@ -773,12 +773,12 @@ export default function SalesReturnDialog({ saleId, onClose }: Props) {
                         </TableCell>
 
                         {/* Unit price */}
-                        <TableCell align="right" sx={{ borderBottom: borderB, py: 2, px: 2, fontSize: "0.875rem", color: "#334155" }}>
+                        <TableCell align="right" sx={{ borderBottom: borderB, py: 1, px: 2, fontSize: "0.875rem", color: "#334155" }}>
                           {INR(price)}
                         </TableCell>
 
                         {/* Line total */}
-                        <TableCell align="right" sx={{ borderBottom: borderB, py: 2, px: 2 }}>
+                        <TableCell align="right" sx={{ borderBottom: borderB, py: 1, px: 2 }}>
                           <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: selected[item.id] ? "#0F172A" : "#94A3B8" }}>
                             {INR(lineTotal)}
                           </Typography>

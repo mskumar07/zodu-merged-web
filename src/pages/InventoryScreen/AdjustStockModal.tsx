@@ -69,7 +69,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
   // ── State ──────────────────────────────────────────────────
   const [selectedUuid,       setSelectedUuid]       = useState('');
   const [adjustmentType,     setAdjustmentType]     = useState<'add' | 'subtract'>('add');
-  const [adjustmentQuantity, setAdjustmentQuantity] = useState<number>(0);
+  const [adjustmentQuantity, setAdjustmentQuantity] = useState('');
   const [reason,             setReason]             = useState('');
   const [notes,              setNotes]              = useState('');
   const [apiError,           setApiError]           = useState<string | null>(null);
@@ -99,7 +99,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
     if (!open) {
       if (!preselectedItem) setSelectedUuid('');
       setAdjustmentType('add');
-      setAdjustmentQuantity(0);
+      setAdjustmentQuantity('');
       setReason('');
       setNotes('');
       setApiError(null);
@@ -120,29 +120,30 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
 
   const handleItemChange = (e: SelectChangeEvent) => {
     setSelectedUuid(e.target.value);
-    setAdjustmentQuantity(0);
+    setAdjustmentQuantity('');
     setApiError(null);
   };
 
   const handleReasonChange = (e: SelectChangeEvent) => setReason(e.target.value);
+  const parsedAdjustmentQuantity = Number(adjustmentQuantity || 0);
 
   const calculateNewStock = () =>
     adjustmentType === 'add'
-      ? currentStock + adjustmentQuantity
-      : Math.max(0, currentStock - adjustmentQuantity);
+      ? currentStock + parsedAdjustmentQuantity
+      : Math.max(0, currentStock - parsedAdjustmentQuantity);
 
   const handleSave = () => {
     setApiError(null);
     if (!selectedUuid)                                         return setApiError('Please select an item');
     if (!reason)                                               return setApiError('Please select a reason');
-    if (!adjustmentQuantity || adjustmentQuantity <= 0)        return setApiError('Adjustment quantity must be greater than 0');
-    if (adjustmentType === 'subtract' && adjustmentQuantity > currentStock)
+    if (!parsedAdjustmentQuantity || parsedAdjustmentQuantity <= 0) return setApiError('Adjustment quantity must be greater than 0');
+    if (adjustmentType === 'subtract' && parsedAdjustmentQuantity > currentStock)
       return setApiError(`Cannot subtract ${adjustmentQuantity} — only ${currentStock} ${unitLabel} available`);
 
     mutate({
       inventory_uuid:  selectedUuid,
       adjustment_type: adjustmentType,
-      adjustment_qty:  adjustmentQuantity,
+      adjustment_qty:  parsedAdjustmentQuantity,
       reason,
       notes: notes || undefined,
     });
@@ -240,7 +241,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
                   }
                   sx={{
                     bgcolor: '#fbfcfe',
-                    borderRadius: '12px',
+                    borderRadius: '5px',
                     minHeight: 40,
                     '& .MuiSelect-select': {
                       display: 'flex',
@@ -280,7 +281,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       bgcolor: '#f1f5f9',
-                      borderRadius: '12px',
+                      borderRadius: '5px',
                       minHeight: 40,
                       '& .MuiOutlinedInput-notchedOutline': { borderColor: '#dbe3ef' },
                     },
@@ -303,7 +304,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
                   sx={{
                     bgcolor: '#f8fafc',
                     p: 0.5,
-                    borderRadius: '12px',
+                    borderRadius: '5px',
                     border: '1px solid #dbe3ef',
                     width: 'fit-content',
                     gap: 0.5,
@@ -313,7 +314,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
                     value="add"
                     sx={{
                       border: 'none',
-                      borderRadius: '8px !important',
+                      borderRadius: '5px !important',
                       px: 2, py: 0.9,
                       textTransform: 'uppercase',
                       fontSize: '0.75rem',
@@ -334,7 +335,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
                     value="subtract"
                     sx={{
                       border: 'none',
-                      borderRadius: '8px !important',
+                      borderRadius: '5px !important',
                       px: 2, py: 0.9,
                       textTransform: 'uppercase',
                       fontSize: '0.75rem',
@@ -361,11 +362,12 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
                 <TextField
                   type="number"
                   value={adjustmentQuantity}
-                  onChange={(e) => setAdjustmentQuantity(Number(e.target.value))}
-                  placeholder="0"
+                  onChange={(e) => setAdjustmentQuantity(e.target.value)}
+                  placeholder="Enter quantity"
+                  inputProps={{ min: 0 }}
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      borderRadius: '12px',
+                      borderRadius: '5px',
                       minHeight: 40,
                       '& .MuiOutlinedInput-notchedOutline': { borderColor: '#dbe3ef' },
                       '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e1' },
@@ -374,6 +376,13 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
                       },
                     },
                     '& .MuiInputBase-input': { py: 1.1 },
+                    '& input[type=number]': {
+                      MozAppearance: 'textfield',
+                    },
+                    '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                      WebkitAppearance: 'none',
+                      margin: 0,
+                    },
                   }}
                 />
               </FormControl>
@@ -389,7 +398,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
                 <Box
                   sx={{
                     px: 2, py: 1.35,
-                    borderRadius: '12px',
+                    borderRadius: '5px',
                     bgcolor: '#fff7f7',
                     border: '1px dashed rgba(210, 18, 46, 0.35)',
                     display: 'flex',
@@ -419,7 +428,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
                 IconComponent={ExpandMoreIcon}
                 sx={{
                   bgcolor: '#fbfcfe',
-                  borderRadius: '12px',
+                  borderRadius: '5px',
                   minHeight: 40,
                   '& .MuiSelect-select': {
                     display: 'flex',
@@ -454,7 +463,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
                 placeholder="Add additional details about this adjustment..."
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: '12px',
+                    borderRadius: '5px',
                     '& .MuiOutlinedInput-notchedOutline': { borderColor: '#dbe3ef' },
                     '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e1' },
                     '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
@@ -483,7 +492,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
             variant="outlined"
             disabled={isPending}
             sx={{
-              borderRadius: '12px', px: 3, py: 1.05,
+              borderRadius: '5px', px: 3, py: 1.05,
               fontWeight: 700, textTransform: 'none',
               borderColor: '#d7dfeb', color: '#475569', bgcolor: '#fff',
               '&:hover': { borderColor: '#94a3b8', bgcolor: '#f1f5f9' },
@@ -501,7 +510,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
                 : <CheckCircleIcon sx={{ fontSize: 20 }} />
             }
             sx={{
-              borderRadius: '12px', px: 3, py: 1.05,
+              borderRadius: '5px', px: 3, py: 1.05,
               fontWeight: 700, textTransform: 'none',
               boxShadow: '0 10px 20px rgba(210, 18, 46, 0.28)',
               '&:hover': { bgcolor: 'rgba(210, 18, 46, 0.9)' },

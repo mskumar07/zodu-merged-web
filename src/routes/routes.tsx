@@ -30,14 +30,17 @@ import CustomerManagement from "@pages/Customer/Customermanagement";
 import InventoryManagement from "../pages/InventoryScreen/InventoryManagement";
 import ZoduLoginPage from "@pages/auth/Login";
 import ZoduSignupPage from "@pages/auth/Signup";
-import { Navigate } from "react-router-dom";
+import ZodulandingPage from "@pages/landingPage/ZodulandingPage";
 
 export const routes = [
   {
     path: "/",
+    element: <ZodulandingPage />,
+  },
+  {
+    path: "/",
     element: <Layout />, // Layout as the shell for all (nested) routes
     children: [
-      { index: true, element: <Navigate to="/login" replace /> },
       { path: "dashboard", element: <Dashboard /> },
       { path: "restaurant-setup", element: <RestaurantSetup /> },
       { path: "menu", element: <MenuItemsScreen /> },
@@ -75,14 +78,15 @@ export const routes = [
     path:"sales-history",
     element: <SalesHistoryScreen/>
   },
-      // add more child routes as needed ...
-    ],
-  },
-  {
+   {
     path: "/pos",
     element: <RetailPOS />,
     // children: [{ path: "pos", element: <POSScreen /> }],
   },
+      // add more child routes as needed ...
+    ],
+  },
+ 
   {
     path:"/menu-items",
     element: <MenuItemsScreen />

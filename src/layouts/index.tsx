@@ -36,7 +36,7 @@ const Layout: React.FC = () => {
             minHeight: 0,
           }}
         >
-          <Box sx={{ p: 1, height: "100%" }}>
+          <Box sx={{ height: "100%" }}>
             <Outlet />
           </Box>
         </Box>
