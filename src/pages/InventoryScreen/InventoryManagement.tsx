@@ -22,6 +22,7 @@ import {
   type InventoryListParams,
   type StockStatus,
 } from './useInventoryApi';
+import StockHistoryModal from './StockHistoryModal';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false, retry: 1 } },
@@ -146,6 +147,8 @@ function InventoryScreen() {
   const [adjustItem,    setAdjustItem]    = useState<InventoryItem | null>(null);
   const [adjustOpen,    setAdjustOpen]    = useState(false);
 const isFetchingRef = useRef(false);
+const [historyItem, setHistoryItem] = useState<InventoryItem | null>(null);
+const [historyOpen, setHistoryOpen] = useState(false);
 
   // ── Sentinel ───────────────────────────────────────────────
   const sentinelRef = useRef<HTMLTableRowElement>(null);
@@ -228,14 +231,32 @@ useEffect(() => {
     setTimeout(() => setAdjustItem(null), 300);
   }, []);
 
+  const handleOpenHistory = (item: InventoryItem) => {
+  setHistoryItem(item);
+  setHistoryOpen(true);
+};
+
+const handleCloseHistory = () => {
+  setHistoryOpen(false);
+  setHistoryItem(null);
+};
+
   // ── Table columns ──────────────────────────────────────────
   const columns = useMemo<ColumnDef<InventoryItem & { _raw: InventoryItem }>[]>(() => [
     {
       key: 'item_id', label: 'Item ID',
       render: (r) => (
-        <Typography variant="body2" fontWeight={600} sx={{ color: '#1976d2', fontSize: 13 }}>
-          {r.item_id}
-        </Typography>
+      <Typography
+  variant="body2"
+  fontWeight={600}
+  sx={{
+    color: '#1976d2',
+    cursor: 'pointer',
+  }}
+  onClick={() => handleOpenHistory(r._raw)}
+>
+  {r.item_id}
+</Typography>
       ),
     },
     {
@@ -476,6 +497,12 @@ useEffect(() => {
           refetchInventory();
         }}
       />
+
+      <StockHistoryModal
+  open={historyOpen}
+  item={historyItem}
+  onClose={handleCloseHistory}
+/>
     </Box>
   );
 }

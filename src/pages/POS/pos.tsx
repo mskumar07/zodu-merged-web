@@ -1,3 +1,4 @@
+
 // import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 // import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 // import { usePosSearch } from "./useposproducts";
@@ -7,9 +8,8 @@
 //   useCustomerSearch,
 //   type ApiCustomer,
 //   primaryMobile,
-//   customerLabel,
 //   customerAddress,
-// } from "./useCustomer";
+// } from "./usecustomer";
 // import {
 //   Box, Typography, TextField, Button, IconButton, Table, TableBody,
 //   TableCell, TableHead, TableRow, Divider, Chip, Paper, InputAdornment,
@@ -24,22 +24,26 @@
 // import PauseCircleOutlineIcon from "@mui/icons-material/PauseCircleOutline";
 // import SaveIcon               from "@mui/icons-material/Save";
 // import PrintOutlinedIcon      from "@mui/icons-material/PrintOutlined";
-// import FiberManualRecordIcon  from "@mui/icons-material/FiberManualRecord";
 // import PersonOutlineIcon      from "@mui/icons-material/PersonOutline";
 // import QrCodeScannerIcon      from "@mui/icons-material/QrCodeScanner";
 // import AddIcon                from "@mui/icons-material/Add";
 // import RemoveIcon             from "@mui/icons-material/Remove";
-// import GridViewIcon           from "@mui/icons-material/GridView";
 // import PlayArrowIcon          from "@mui/icons-material/PlayArrow";
 // import CloseIcon              from "@mui/icons-material/Close";
 // import SearchIcon             from "@mui/icons-material/Search";
 // import EditIcon               from "@mui/icons-material/Edit";
 // import CalendarTodayIcon      from "@mui/icons-material/CalendarToday";
 // import PersonSearchIcon       from "@mui/icons-material/PersonSearch";
-// import { useNavigate }        from "react-router-dom";
-// import { Receipt }            from "@mui/icons-material";
-// import CustomerLedgerDialog   from "../Customer/CustomerLedgerDialog";
-// import AddNewCustomerDialog   from "@pages/Customer/Addnewcustomerdialog";
+// import ReceiptLongIcon        from "@mui/icons-material/ReceiptLong";
+// import RequestQuoteIcon       from "@mui/icons-material/RequestQuote";
+// import NoteAltOutlinedIcon    from "@mui/icons-material/NoteAltOutlined";
+// import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
+// import { useLocation, useNavigate } from "react-router-dom";
+// import CustomerLedgerDialog  from "../Customer/CustomerLedgerDialog";
+// import AddNewCustomerDialog  from "@pages/Customer/Addnewcustomerdialog";
+// import { fetchSaleDetail }   from "../SalesHistory/useSaleshistory";
+// import DiscountModal         from "./DiscountModal";
+// import NoteModal             from "./NotesModal";
 
 // // ─── Constants ────────────────────────────────────────────────
 // const INR = (v: number) =>
@@ -62,7 +66,11 @@
 //     MuiTableCell: {
 //       styleOverrides: {
 //         root: { borderBottom: "1px solid #F0F0F0", padding: "6px 8px" },
-//         head: { fontSize: 10, fontWeight: 700, letterSpacing: "0.07em", color: "#6B7280", textTransform: "uppercase", backgroundColor: "#FAFAFA" },
+//         head: {
+//           fontSize: 10, fontWeight: 700, letterSpacing: "0.07em", color: "#6B7280",
+//           textTransform: "uppercase", backgroundColor: "#FAFAFA",
+//           whiteSpace: "normal", wordBreak: "break-word", overflowWrap: "anywhere", lineHeight: 1.35,
+//         },
 //       },
 //     },
 //     MuiDialog: { styleOverrides: { paper: { borderRadius: 16 } } },
@@ -71,66 +79,31 @@
 
 // // ─── Types ────────────────────────────────────────────────────
 // interface LineItem {
-//   code: string; description: string; qty: number; unitPrice: number; sellPrice: number;uuid: string;
+//   code: string; description: string; qty: number; unitPrice: number; sellPrice: number; uuid: string;
 //   hsn: string; mrp: number; gstPct: number; taxInclusive: boolean; category?: string; unit?: string;
+//   discount?: number;
 //   editingQty?: boolean; editingPrice?: boolean; qtyDraft?: string; priceDraft?: string;
 // }
-
-// interface Customer {
-//   id:      string | null;
-//   name:    string;
-//   mobile:  string;
-//   address: string;
-//   gstin:   string;
-// }
+// interface Customer { id: string | null; name: string; mobile: string; address: string; gstin: string; }
 // const EMPTY_CUSTOMER: Customer = { id: null, name: "", mobile: "", address: "", gstin: "" };
-
-// interface HeldOrder {
-//   id: string; label: string; items: LineItem[];
-//   discount: string; customer: Customer; time: Date;
-// }
-
-// type Zone = "SEARCH" | "CUSTOMER" | "TABLE" | "FOOTER";
-
-// // ✅ Sub-focus within SEARCH zone:
-// //   "CODE" = item search text field
-// //   "QTY"  = qty number field
-// // Navigation: Tab/→ from CODE → QTY → CUSTOMER
-// //             ←        from QTY  → CODE
-// //             ← / Escape from CUSTOMER → QTY
-// type SearchFocus = "CODE" | "QTY";
-
-// type FooterFocus = "DISCOUNT_PCT" | "DISCOUNT_AMT" | "PAYMENT_TYPE" | "REF_NO" | "RECEIVED" | "SAVE";
-// type PaymentType = "Cash" | "Card" | "UPI" | "Credit";
+// interface HeldOrder { id: string; label: string; items: LineItem[]; discount: string; customer: Customer; time: Date; }
+// type PosMode      = "SALE" | "QUOTATION";
+// type Zone         = "SEARCH" | "CUSTOMER" | "TABLE" | "FOOTER";
+// type SearchFocus  = "CODE";
+// type FooterFocus  = "DISCOUNT_PCT" | "DISCOUNT_AMT" | "PAYMENT_TYPE" | "REF_NO" | "RECEIVED" | "SAVE";
+// type PaymentType  = "Cash" | "Card" | "UPI" | "Credit";
 
 // // ─── Helpers ──────────────────────────────────────────────────
 // function toLineItem(p: PosProduct): LineItem {
-//   const grossPrice    = Number(p.sell_price) || 0;
-//   const gstPct        = Number(p.gst_tax)    || 0;
-//   const taxInclusive  = p.tax_inclusive === true || (p.tax_inclusive as unknown) === 1;
-
-//   // For tax-inclusive items the sell_price already contains GST.
-//   // Strip tax out so unitPrice always represents the BASE (pre-tax) price.
-//   // This ensures discounts are applied on the taxable base, not on gross.
-//   const unitPrice = taxInclusive && gstPct > 0
-//     ? grossPrice / (1 + gstPct / 100)   // base = gross / (1 + gst%)
-//     : grossPrice;
-
-//     console.log("pos",p)
-
+//   const grossPrice   = Number(p.sell_price) || 0;
+//   const gstPct       = Number(p.gst_tax)    || 0;
+//   const taxInclusive = p.tax_inclusive === true || (p.tax_inclusive as unknown) === 1;
+//   const unitPrice    = taxInclusive && gstPct > 0 ? grossPrice / (1 + gstPct / 100) : grossPrice;
 //   return {
-//     uuid:          p.item_uuid,
-//     code:         p.item_id,
-//     description:  p.item_name,
-//     qty:          1,
-//     unitPrice,                            // BASE price — used for all calculations
-//     sellPrice:    grossPrice,             // GROSS price (what's on the price tag) — display only
-//     taxInclusive,
-//     hsn:          p.hsn_code   ?? "",
-//     mrp:          Number(p.purchase_price) || grossPrice,
-//     gstPct,
-//     category:     p.category_name ?? "",
-//     unit:         p.unit          || "NOS",
+//     uuid: p.item_uuid, code: p.item_id, description: p.item_name,
+//     qty: 1, unitPrice, sellPrice: grossPrice, taxInclusive,
+//     hsn: p.hsn_code ?? "", mrp: Number(p.purchase_price) || grossPrice,
+//     gstPct, category: p.category_name ?? "", unit: p.unit || "NOS", discount: 0,
 //   };
 // }
 
@@ -159,20 +132,18 @@
 // const queryClient = new QueryClient();
 // const CAT_COLOR: Record<string, string> = { Beans: "#92400E", Drinks: "#1D4ED8", Equipment: "#065F46", Accessories: "#5B21B6", Milk: "#9D174D", Syrups: "#B45309" };
 
-// // ─── Root ─────────────────────────────────────────────────────
 // export default function RetailPOS() {
-//   return (
-//     <QueryClientProvider client={queryClient}>
-//       <RetailPOSInner />
-//     </QueryClientProvider>
-//   );
+//   return <QueryClientProvider client={queryClient}><RetailPOSInner /></QueryClientProvider>;
 // }
 
-// // ─── Main component ───────────────────────────────────────────
 // function RetailPOSInner() {
 //   const [codeInput, setCodeInput] = useState("");
 //   const { results: suggestions, isLoading: catalogueLoading, total: catalogueTotal } = usePosSearch(BRANCH_ID, codeInput);
 
+//   const query          = new URLSearchParams(useLocation().search);
+//   const saleIdFromUrl  = query.get("saleId");
+
+//   const [posMode,        setPosMode]        = useState<PosMode>("SALE");
 //   const [items,          setItems]          = useState<LineItem[]>([]);
 //   const [discount,       setDiscount]       = useState("0");
 //   const [discountPct,    setDiscountPct]    = useState("0");
@@ -181,35 +152,38 @@
 //   const [paymentType,    setPaymentType]    = useState<PaymentType>("Cash");
 //   const [printEnabled,   setPrintEnabled]   = useState(true);
 //   const [invoiceDate,    setInvoiceDate]    = useState(todayStr());
+//   const [orderNote,      setOrderNote]      = useState("");
 //   const [customer,       setCustomer]       = useState<Customer>(EMPTY_CUSTOMER);
 //   const [customerSuggestionsOpen, setCustomerSuggestionsOpen] = useState(false);
 //   const [customerLedgerOpen,      setCustomerLedgerOpen]      = useState(false);
 //   const [addCustomerOpen,         setAddCustomerOpen]         = useState(false);
-//   const [flashRow,  setFlashRow]  = useState<string | null>(null);
-//   const [searchQty, setSearchQty] = useState("1");
+//   const [flashRow,       setFlashRow]       = useState<string | null>(null);
+//   const [saleId,         setSaleId]         = useState<string | null>(null);
+
+//   // ── Separate modal states ─────────────────────────────────
+//   const [discountModalOpen, setDiscountModalOpen] = useState(false);
+//   const [noteModalOpen,     setNoteModalOpen]     = useState(false);
 
 //   const { results: customerResults, loading: customerLoading, search: searchCustomers, clear: clearCustomerResults } = useCustomerSearch(ZODU_ID, BRANCH_ID);
 
-//   const [zone,            setZone]            = useState<Zone>("SEARCH");
-//   // ✅ Tracks which field inside SEARCH zone is focused
-//   const [searchFocus,     setSearchFocus]     = useState<SearchFocus>("CODE");
-//   const [activeRowIdx,    setActiveRowIdx]    = useState(-1);
-//   const [footerFocus,     setFooterFocus]     = useState<FooterFocus>("DISCOUNT_PCT");
-//   const [suggestionIdx,   setSuggestionIdx]   = useState(-1);
+//   const [zone,          setZone]          = useState<Zone>("SEARCH");
+//   const [searchFocus,   setSearchFocus]   = useState<SearchFocus>("CODE");
+//   const [activeRowIdx,  setActiveRowIdx]  = useState(-1);
+//   const [footerFocus,   setFooterFocus]   = useState<FooterFocus>("DISCOUNT_PCT");
+//   const [suggestionIdx, setSuggestionIdx] = useState(-1);
 //   const [showSuggestions, setShowSuggestions] = useState(false);
 
 //   const [heldOrders,     setHeldOrders]     = useState<HeldOrder[]>([]);
 //   const [holdDialogOpen, setHoldDialogOpen] = useState(false);
 //   const [holdCounter,    setHoldCounter]    = useState(1);
 
-//   const { saveOrder, saving } = useSaveOrder();
+//   const { saveOrder, saving, updateOrder } = useSaveOrder();
 //   const [saveResult, setSaveResult] = useState<{
 //     open: boolean; success: boolean; message: string;
 //     invoiceNo?: string; grandTotal?: number; change?: number;
 //   } | null>(null);
 
 //   const codeRef           = useRef<HTMLInputElement>(null);
-//   const qtySearchRef      = useRef<HTMLInputElement>(null);   // ✅ ref for QTY field
 //   const customerNameRef   = useRef<HTMLInputElement>(null);
 //   const customerMobileRef = useRef<HTMLInputElement>(null);
 //   const discountPctRef    = useRef<HTMLInputElement>(null);
@@ -220,8 +194,11 @@
 //   const qtyRefs           = useRef<Record<string, HTMLInputElement | null>>({});
 //   const priceRefs         = useRef<Record<string, HTMLInputElement | null>>({});
 //   const editCancelledRef  = useRef(false);
+//   const inputRef = useRef<HTMLInputElement | null>(null);
+
 
 //   useEffect(() => { codeRef.current?.focus(); }, []);
+//   useEffect(() => { if (saleIdFromUrl) setSaleId(saleIdFromUrl); }, []);
 
 //   useEffect(() => {
 //     if (zone === "TABLE" && activeRowIdx >= 0) {
@@ -230,14 +207,10 @@
 //     }
 //   }, [activeRowIdx, zone]);
 
-//   // ✅ Focus the correct sub-field when zone/searchFocus changes
 //   useEffect(() => {
-//     if (zone === "SEARCH") {
-//       if (searchFocus === "CODE") setTimeout(() => codeRef.current?.focus(), 10);
-//       else                        setTimeout(() => qtySearchRef.current?.focus(), 10);
-//     } else if (zone === "CUSTOMER") {
-//       setTimeout(() => customerNameRef.current?.focus(), 10);
-//     } else if (zone === "FOOTER") {
+//     if (zone === "SEARCH")        setTimeout(() => codeRef.current?.focus(), 10);
+//     else if (zone === "CUSTOMER") setTimeout(() => customerNameRef.current?.focus(), 10);
+//     else if (zone === "FOOTER") {
 //       if      (footerFocus === "DISCOUNT_PCT") setTimeout(() => discountPctRef.current?.focus(), 10);
 //       else if (footerFocus === "DISCOUNT_AMT") setTimeout(() => discountAmtRef.current?.focus(), 10);
 //       else if (footerFocus === "REF_NO")       setTimeout(() => refNoRef.current?.focus(),       10);
@@ -247,10 +220,7 @@
 
 //   useEffect(() => {
 //     setSuggestionIdx(-1);
-//     // ✅ Re-open dropdown whenever user types — even after adding an item
-//     if (codeInput.trim() && zone === "SEARCH" && searchFocus === "CODE") {
-//       setShowSuggestions(true);
-//     }
+//     if (codeInput.trim() && zone === "SEARCH" && searchFocus === "CODE") setShowSuggestions(true);
 //   }, [codeInput]);
 
 //   useEffect(() => {
@@ -259,16 +229,12 @@
 //   }, [catalogueLoading]);
 
 //   const startEditQty = useCallback((code: string) => {
-//     setItems(prev => prev.map(i => i.code === code
-//       ? { ...i, editingQty: true, editingPrice: false, qtyDraft: String(i.qty) }
-//       : { ...i, editingQty: false }));
+//     setItems(prev => prev.map(i => i.code === code ? { ...i, editingQty: true, editingPrice: false, qtyDraft: String(i.qty) } : { ...i, editingQty: false }));
 //     setTimeout(() => { qtyRefs.current[code]?.focus(); qtyRefs.current[code]?.select(); }, 30);
 //   }, []);
 
 //   const startEditPrice = useCallback((code: string) => {
-//     setItems(prev => prev.map(i => i.code === code
-//       ? { ...i, editingPrice: true, editingQty: false, priceDraft: String(i.sellPrice) }
-//       : { ...i, editingPrice: false }));
+//     setItems(prev => prev.map(i => i.code === code ? { ...i, editingPrice: true, editingQty: false, priceDraft: String(i.sellPrice) } : { ...i, editingPrice: false }));
 //     setTimeout(() => { priceRefs.current[code]?.focus(); priceRefs.current[code]?.select(); }, 30);
 //   }, []);
 
@@ -277,54 +243,67 @@
 //     if (!p) return false;
 //     setItems(prev => {
 //       const idx = prev.findIndex(i => i.code === p.item_id);
-//       if (idx >= 0) { const u = [...prev]; u[idx] = { ...u[idx], qty: u[idx].qty + 1 }; return u; }
-//       return [...prev, toLineItem(p)];
+//       if (idx >= 0) { const e = prev[idx]; return [{ ...e, qty: e.qty + 1 }, ...prev.filter((_, i) => i !== idx)]; }
+//       return [toLineItem(p), ...prev];
 //     });
 //     setFlashRow(p.item_id); setTimeout(() => setFlashRow(null), 700);
 //     return p.item_id;
 //   }, [suggestions]);
 
+//   useEffect(() => {
+//     if (!saleId) return;
+//     const loadSale = async () => {
+//       const data = await fetchSaleDetail(saleId);
+//       const sale = data.sale;
+//       setSaleId(sale.sale_uuid);
+//       setItems(data.items.map((i: any) => {
+//         const grossPrice = Number(i.price) || 0;
+//         const gstPct = Number(i.gst_percentage) || 0;
+//         const taxInclusive = Boolean(i.tax_inclusive);
+//         const unitPrice = taxInclusive && gstPct > 0 ? grossPrice / (1 + gstPct / 100) : grossPrice;
+//         return { code: i.item_id, description: i.item_name, qty: Number(i.quantity), unitPrice, sellPrice: grossPrice, gstPct, taxInclusive, uuid: i.item_uuid, hsn: i.hsn_code ?? "", mrp: Number(i.mrp || 0), unit: i.unit || "NOS", discount: Number(i.discount || 0) };
+//       }));
+//       if (data.customer) {
+//         const c = data.customer;
+//         const displayName = c.cust_name && c.cpy_name ? `${c.cust_name} / ${c.cpy_name}` : c.cust_name || c.cpy_name || "";
+//         setCustomer({ id: c.cust_uuid, name: displayName, mobile: c.mobile || "", address: [c.address_line1, c.address_line2, c.city, c.state, c.pincode].filter(Boolean).join(", "), gstin: c.gst || "" });
+//       }
+//       if (sale.discount_type === "percentage") { setDiscountPct(String(sale.discount_value || 0)); setDiscount("0"); }
+//       else { setDiscount(String(sale.discount_amount || 0)); setDiscountPct("0"); }
+//       setReceivedAmount(String(sale.paid_amount || 0));
+//       if (data.payment_history.length > 0) { const last = data.payment_history[data.payment_history.length - 1]; setReferenceNo(last.transaction_id || ""); setPaymentType((last.transaction_type as any) || "Cash"); }
+//       setInvoiceDate(sale.sale_date_fmt ? new Date(sale.sale_date_fmt).toISOString().split("T")[0] : "");
+//     };
+//     loadSale();
+//   }, [saleId]);
+
 //   const handleAddItem = useCallback((overrideCode?: string) => {
 //     const code = (overrideCode ?? codeInput).trim();
-//     const qty  = Math.max(1, parseInt(searchQty) || 1);
 //     const id   = doAddItem(code);
-//     setCodeInput(""); setSearchQty("1"); setShowSuggestions(false);
-//     if (id) {
-//       // ✅ Apply qty but stay in SEARCH zone — don't jump to TABLE row
-//       setItems(prev => prev.map(i => i.code === id ? { ...i, qty } : i));
-//     }
-//     // Always return focus to CODE field so cashier can scan the next item
+//     setCodeInput(""); setShowSuggestions(false);
+//     if (id) setItems(prev => prev.map(i => i.code === id ? { ...i, qty: 1 } : i));
 //     setZone("SEARCH"); setSearchFocus("CODE");
 //     setTimeout(() => codeRef.current?.focus(), 10);
-//   }, [codeInput, searchQty, doAddItem]);
+//   }, [codeInput, doAddItem]);
 
 //   const selectSuggestion = useCallback((p: PosProduct) => {
-//     const qty = Math.max(1, parseInt(searchQty) || 1);
-//     const id  = doAddItem(p.item_id);
-//     setCodeInput(""); setSearchQty("1"); setShowSuggestions(false);
-//     if (id) {
-//       // ✅ Apply qty but stay in SEARCH zone — don't jump to TABLE row
-//       setItems(prev => prev.map(i => i.code === id ? { ...i, qty } : i));
-//     }
-//     // Always return focus to CODE field so cashier can scan the next item
+//     const id = doAddItem(p.item_id);
+//     setCodeInput(""); setShowSuggestions(false);
+//     if (id) setItems(prev => prev.map(i => i.code === id ? { ...i, qty: 1, uuid: p.item_uuid } : i));
 //     setZone("SEARCH"); setSearchFocus("CODE");
 //     setTimeout(() => codeRef.current?.focus(), 10);
-//   }, [doAddItem, searchQty]);
+//   }, [doAddItem]);
 
 //   const handleClear = useCallback(() => {
 //     setItems([]); setDiscount("0"); setDiscountPct("0"); setReferenceNo("");
-//     setReceivedAmount(""); setCodeInput(""); setActiveRowIdx(-1);
+//     setReceivedAmount(""); setCodeInput(""); setActiveRowIdx(-1); setOrderNote("");
 //     setZone("SEARCH"); setSearchFocus("CODE");
 //     setCustomer(EMPTY_CUSTOMER); clearCustomerResults();
 //   }, [clearCustomerResults]);
 
 //   const handleHold = useCallback(() => {
 //     if (items.length === 0) return;
-//     setHeldOrders(prev => [...prev, {
-//       id: `H-${Date.now()}`, label: `Order #${holdCounter}`,
-//       items: items.map(i => ({ ...i, editingQty: false, editingPrice: false })),
-//       discount, customer, time: new Date(),
-//     }]);
+//     setHeldOrders(prev => [...prev, { id: `H-${Date.now()}`, label: `Order #${holdCounter}`, items: items.map(i => ({ ...i, editingQty: false, editingPrice: false })), discount, customer, time: new Date() }]);
 //     setHoldCounter(c => c + 1); setItems([]); setDiscount("0"); setReceivedAmount("");
 //     setActiveRowIdx(-1); setZone("SEARCH"); setSearchFocus("CODE"); setCustomer(EMPTY_CUSTOMER);
 //   }, [items, discount, customer, holdCounter]);
@@ -336,11 +315,15 @@
 //     setHoldDialogOpen(false); setZone("TABLE"); setActiveRowIdx(0);
 //   };
 
+//   const handleOpenPicker = () => {
+//     if (inputRef.current) {
+//       inputRef.current.showPicker(); // modern browsers
+//       inputRef.current.focus();
+//     }
+//   };
+
 //   const handleDeleteHold = (id: string) => setHeldOrders(prev => prev.filter(h => h.id !== id));
-
-//   const updateQty  = (code: string, delta: number) =>
-//     setItems(prev => prev.map(i => i.code === code ? { ...i, qty: Math.max(1, i.qty + delta) } : i));
-
+//   const updateQty = (code: string, delta: number) => setItems(prev => prev.map(i => i.code === code ? { ...i, qty: Math.max(1, i.qty + delta) } : i));
 //   const removeItem = (code: string) => {
 //     setItems(prev => {
 //       const next = prev.filter(i => i.code !== code);
@@ -350,31 +333,24 @@
 //     });
 //   };
 
-//   // subtotal = sum of BASE prices (unitPrice is always pre-tax after toLineItem())
-//   const subtotal        = useMemo(() => items.reduce((s, i) => s + i.qty * i.unitPrice, 0), [items]);
-
-//   // Discount applied on the pre-tax subtotal
-//   const discountPctAmt  = subtotal * (parseFloat(discountPct) || 0) / 100;
-//   const discountFlatAmt = parseFloat(discount) || 0;
-//   const discountAmt     = discountPctAmt + discountFlatAmt;
+//   const subtotal           = useMemo(() => items.reduce((s, i) => s + i.qty * i.unitPrice, 0), [items]);
+//   const discountPctAmt     = subtotal * (parseFloat(discountPct) || 0) / 100;
+//   const discountFlatAmt    = parseFloat(discount) || 0;
+//   const discountAmt        = discountPctAmt + discountFlatAmt;
 //   const discountedSubtotal = Math.max(0, subtotal - discountAmt);
-
-//   // GST is always computed on the discounted BASE price, regardless of tax_inclusive
-//   // (unitPrice is already the base — toLineItem() stripped tax out for inclusive items)
-//   const gstAmount       = useMemo(() => {
+//   const gstAmount          = useMemo(() => {
 //     if (subtotal === 0) return 0;
 //     return items.reduce((s, i) => {
 //       const itemBase     = i.qty * i.unitPrice;
-//       const itemDiscount = discountAmt * (itemBase / subtotal);   // proportional discount
+//       const itemDiscount = discountAmt * (itemBase / subtotal);
 //       return s + Math.max(0, itemBase - itemDiscount) * i.gstPct / 100;
 //     }, 0);
-//   // eslint-disable-next-line react-hooks/exhaustive-deps
 //   }, [items, discountAmt, subtotal]);
-//   const grandTotal      = discountedSubtotal + gstAmount;
-//   const received        = parseFloat(receivedAmount) || 0;
-//   const totalUnits      = useMemo(() => items.reduce((s, i) => s + i.qty, 0), [items]);
-//   const status          = paymentStatus(grandTotal, received);
-//   const navigate        = useNavigate();
+//   const grandTotal = discountedSubtotal + gstAmount;
+//   const received   = parseFloat(receivedAmount) || 0;
+//   const totalUnits = useMemo(() => items.reduce((s, i) => s + i.qty, 0), [items]);
+//   const status     = paymentStatus(grandTotal, received);
+//   const navigate   = useNavigate();
 
 //   const handleCustomerFieldChange = useCallback((field: "name" | "mobile", value: string) => {
 //     setCustomer(prev => ({ ...prev, id: null, [field]: value }));
@@ -383,33 +359,18 @@
 //   }, [searchCustomers]);
 
 //   const handleSelectCustomer = useCallback((c: ApiCustomer) => {
-//     // Build combined display name: show both person name and company name when both exist
-//     const custName = c.cust_name?.trim() ?? "";
-//     const cpyName  = c.cpy_name?.trim()  ?? "";
-//     const displayName = custName && cpyName
-//       ? `${custName} / ${cpyName}`   // "Ravi Kumar / Hero Motors"
-//       : custName || cpyName;         // whichever exists
-
-//     setCustomer({
-//       id:      c.cust_uuid,
-//       name:    displayName,
-//       mobile:  primaryMobile(c),
-//       address: customerAddress(c),
-//       gstin:   c.gst ?? "",
-//     });
-//     setCustomerSuggestionsOpen(false);
-//     clearCustomerResults();
-//     setZone("CUSTOMER");
+//     const custName    = c.cust_name?.trim() ?? "";
+//     const cpyName     = c.cpy_name?.trim()  ?? "";
+//     const displayName = custName && cpyName ? `${custName} / ${cpyName}` : custName || cpyName;
+//     setCustomer({ id: c.cust_uuid, name: displayName, mobile: primaryMobile(c), address: customerAddress(c), gstin: c.gst ?? "" });
+//     setCustomerSuggestionsOpen(false); clearCustomerResults(); setZone("CUSTOMER");
 //   }, [clearCustomerResults]);
 
 //   const handleSave = useCallback(async () => {
 //     if (items.length === 0 || saving) return;
-//     console.log("neeee",items)
-//     const result = await saveOrder({
-//       zodu_id: ZODU_ID, branch_id: BRANCH_ID,
-//       items, customer, invoiceDate, discountPct,
-//       discountFlat: discount, receivedAmount, paymentType, referenceNo,
-//     });
+//     const result = saleId
+//       ? await updateOrder(saleId, { zodu_id: ZODU_ID, branch_id: BRANCH_ID, items, customer, invoiceDate, discountPct, discountFlat: discount, receivedAmount, paymentType, referenceNo })
+//       : await saveOrder({ zodu_id: ZODU_ID, branch_id: BRANCH_ID, items, customer, invoiceDate, discountPct, discountFlat: discount, receivedAmount, paymentType, referenceNo });
 //     if (result.success) {
 //       const order    = result.order as any;
 //       const totalAmt = parseFloat(order?.total_amount ?? "0");
@@ -421,11 +382,10 @@
 //     } else {
 //       setSaveResult({ open: true, success: false, message: result.message });
 //     }
-//   }, [items, customer, invoiceDate, discountPct, discount, receivedAmount, paymentType, referenceNo, printEnabled, saving, saveOrder, handleClear]);
+//   }, [items, customer, invoiceDate, discountPct, discount, receivedAmount, paymentType, referenceNo, printEnabled, saving, saveOrder, updateOrder, handleClear, saleId]);
 
 //   const FOOTER_ORDER: FooterFocus[] = ["DISCOUNT_PCT", "DISCOUNT_AMT", "PAYMENT_TYPE", "REF_NO", "RECEIVED", "SAVE"];
 
-//   // ── Keyboard handler ──────────────────────────────────────────
 //   useEffect(() => {
 //     const handler = (e: KeyboardEvent) => {
 //       const active  = document.activeElement as HTMLElement;
@@ -434,9 +394,11 @@
 
 //       if (e.key === "F2") { e.preventDefault(); setShowSuggestions(false); setZone("SEARCH"); setSearchFocus("CODE"); return; }
 //       if (e.key === "F4") { e.preventDefault(); handleClear(); return; }
-//       if (e.key === "F7") { e.preventDefault(); setZone("FOOTER"); setFooterFocus("DISCOUNT_PCT"); return; }
+//       // F6 = Discount modal, F7 = Note modal
+//       if (e.key === "F6") { e.preventDefault(); setDiscountModalOpen(true); return; }
+//       if (e.key === "F7") { e.preventDefault(); setNoteModalOpen(true); return; }
 //       if (e.key === "F8") { e.preventDefault(); handleSave(); return; }
-//       if (e.key === "F9") { e.preventDefault(); handleHold(); return; }
+//       if (e.key === "F9" && posMode === "SALE") { e.preventDefault(); handleHold(); return; }
 
 //       const editingItem = items.find(i => i.editingQty || i.editingPrice);
 //       if (editingItem) {
@@ -445,76 +407,23 @@
 //         return;
 //       }
 
-//       if (zone === "SEARCH") {
-//         // ── CODE sub-field ──────────────────────────────────────
-//         if (searchFocus === "CODE") {
-//           if (showSuggestions && suggestions.length > 0) {
-//             if (e.key === "ArrowDown")  { e.preventDefault(); setSuggestionIdx(i => Math.min(i + 1, suggestions.length - 1)); return; }
-//             if (e.key === "ArrowUp")    { e.preventDefault(); setSuggestionIdx(i => Math.max(i - 1, -1)); return; }
-//             if (e.key === "Escape")     { e.preventDefault(); setShowSuggestions(false); setSuggestionIdx(-1); return; }
-//             if (e.key === "Enter")      { e.preventDefault(); if (suggestionIdx >= 0 && suggestions[suggestionIdx]) selectSuggestion(suggestions[suggestionIdx]); else handleAddItem(); return; }
-//             // ✅ Tab/→ while suggestions open → close suggestions, move to QTY (not customer)
-//             if (e.key === "Tab" || e.key === "ArrowRight") {
-//               e.preventDefault();
-//               setShowSuggestions(false);
-//               setSuggestionIdx(-1);
-//               setSearchFocus("QTY");
-//               return;
-//             }
-//           } else {
-//             if (e.key === "Enter")     { e.preventDefault(); handleAddItem(); return; }
-//             if (e.key === "ArrowDown") { e.preventDefault(); if (items.length > 0) { (document.activeElement as HTMLElement)?.blur(); setZone("TABLE"); setActiveRowIdx(0); } return; }
-//             // ✅ Tab/→ from CODE → focus QTY first
-//             if (e.key === "Tab" || e.key === "ArrowRight") {
-//               e.preventDefault();
-//               setSearchFocus("QTY");
-//               return;
-//             }
-//           }
-//           return;
-//         }
-
-//         // ── QTY sub-field ───────────────────────────────────────
-//         if (searchFocus === "QTY") {
-//           // ✅ ← from QTY → go back to CODE
-//           if (e.key === "ArrowLeft") {
-//             e.preventDefault();
-//             setSearchFocus("CODE");
-//             return;
-//           }
-//           // ✅ Tab/→ from QTY → now move to CUSTOMER
-//           if (e.key === "Tab" || e.key === "ArrowRight") {
-//             e.preventDefault();
-//             (document.activeElement as HTMLElement)?.blur();
-//             setZone("CUSTOMER");
-//             return;
-//           }
-//           // Enter in QTY → add item using current codeInput
-//           if (e.key === "Enter") {
-//             e.preventDefault();
-//             handleAddItem();
-//             return;
-//           }
-//           // Escape from QTY → back to CODE
-//           if (e.key === "Escape") {
-//             e.preventDefault();
-//             setSearchFocus("CODE");
-//             return;
-//           }
-//           return;
+//       if (zone === "SEARCH" && searchFocus === "CODE") {
+//         if (showSuggestions && suggestions.length > 0) {
+//           if (e.key === "ArrowDown")  { e.preventDefault(); setSuggestionIdx(i => Math.min(i + 1, suggestions.length - 1)); return; }
+//           if (e.key === "ArrowUp")    { e.preventDefault(); setSuggestionIdx(i => Math.max(i - 1, -1)); return; }
+//           if (e.key === "Escape")     { e.preventDefault(); setShowSuggestions(false); setSuggestionIdx(-1); return; }
+//           if (e.key === "Enter")      { e.preventDefault(); if (suggestionIdx >= 0 && suggestions[suggestionIdx]) selectSuggestion(suggestions[suggestionIdx]); else handleAddItem(); return; }
+//           if (e.key === "Tab" || e.key === "ArrowRight") { e.preventDefault(); setShowSuggestions(false); setSuggestionIdx(-1); setZone("CUSTOMER"); return; }
+//         } else {
+//           if (e.key === "Enter")     { e.preventDefault(); handleAddItem(); return; }
+//           if (e.key === "ArrowDown") { e.preventDefault(); if (items.length > 0) { (document.activeElement as HTMLElement)?.blur(); setZone("TABLE"); setActiveRowIdx(0); } return; }
+//           if (e.key === "Tab" || e.key === "ArrowRight") { e.preventDefault(); setZone("CUSTOMER"); return; }
 //         }
 //         return;
 //       }
 
 //       if (zone === "CUSTOMER") {
-//         // ✅ ← / Escape from CUSTOMER → go back to QTY (not directly to CODE)
-//         if (e.key === "Escape" || e.key === "ArrowLeft") {
-//           e.preventDefault();
-//           (document.activeElement as HTMLElement)?.blur();
-//           setZone("SEARCH");
-//           setSearchFocus("QTY");
-//           return;
-//         }
+//         if (e.key === "Escape" || e.key === "ArrowLeft") { e.preventDefault(); (document.activeElement as HTMLElement)?.blur(); setZone("SEARCH"); setSearchFocus("CODE"); return; }
 //         if (e.key === "ArrowDown") { e.preventDefault(); (document.activeElement as HTMLElement)?.blur(); setZone("TABLE"); setActiveRowIdx(0); return; }
 //         return;
 //       }
@@ -552,61 +461,112 @@
 //     };
 //     window.addEventListener("keydown", handler);
 //     return () => window.removeEventListener("keydown", handler);
-//   }, [zone, searchFocus, activeRowIdx, footerFocus, showSuggestions, suggestions, suggestionIdx, items, handleAddItem, handleClear, handleHold, handleSave, selectSuggestion, startEditQty, startEditPrice]);
+//   }, [zone, searchFocus, activeRowIdx, footerFocus, showSuggestions, suggestions, suggestionIdx, items, posMode, handleAddItem, handleClear, handleHold, handleSave, selectSuggestion, startEditQty, startEditPrice]);
 
 //   const isFooterActive = (f: FooterFocus) => zone === "FOOTER" && footerFocus === f;
 //   const footerOutline  = (f: FooterFocus) => ({ outline: isFooterActive(f) ? "2.5px solid #C8102E" : "2.5px solid transparent", outlineOffset: 2, transition: "outline 0.12s" });
-
-//   // ✅ Whether a search sub-field is "active" (for border highlight)
 //   const isSearchActive = (sf: SearchFocus) => zone === "SEARCH" && searchFocus === sf;
+
+//   const isQuotation = posMode === "QUOTATION";
+//   const modeAccent  = "#C8102E";
+//   const modeBg      =  "#FFF1F3";
+//   const modeBorder  =  "#F3C4CB";
+
+//   // ── Badge labels ─────────────────────────────────────────────
+//   const hasDiscount = parseFloat(discountPct) > 0 || parseFloat(discount) > 0;
+//   const hasNote     = orderNote.trim().length > 0;
+//   const discountBadge = (() => {
+//     const parts: string[] = [];
+//     if (parseFloat(discountPct) > 0) parts.push(`${discountPct}%`);
+//     if (parseFloat(discount)    > 0) parts.push(`₹${discount}`);
+//     return parts.join(" + ") || null;
+//   })();
 
 //   // ─────────────────────────────────────────────────────────────
 //   return (
 //     <ThemeProvider theme={theme}>
-//       <Box sx={{ minHeight: "100vh", bgcolor: "#F0F2F5", display: "flex", flexDirection: "column" }}>
+//       <Box sx={{ height: "100%", minHeight: 0, bgcolor: "#F0F2F5", display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-//         {/* TOP BAR */}
+//         {/* ═══════════════════════ TOP BAR ════════════════════════ */}
 //         <Box sx={{ bgcolor: "#fff", borderBottom: "1px solid #E5E7EB", px: { xs: 2, md: 3 }, py: 0.75, display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 50 }}>
-//           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-//             <Button onClick={() => navigate("/dashboard")} startIcon={<GridViewIcon />} sx={{ color: "#6B7280", fontWeight: 500, fontSize: 12 }}>Dashboard</Button>
+//           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, bgcolor: "#F3F4F6", borderRadius: 2, p: 0.5 }}>
+//             <Box onClick={() => setPosMode("SALE")} sx={{ display: "flex", alignItems: "center", gap: 0.7, px: 1.75, py: 0.6, borderRadius: 1.5, cursor: "pointer", bgcolor: !isQuotation ? "#C8102E" : "transparent", color: !isQuotation ? "#fff" : "#6B7280", transition: "all 0.18s", "&:hover": { bgcolor: !isQuotation ? "#C8102E" : "#E5E7EB" } }}>
+//               <ReceiptLongIcon sx={{ fontSize: 15 }} />
+//               <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em" }}>Sale</Typography>
+//             </Box>
+//             <Box onClick={() => setPosMode("QUOTATION")} sx={{ display: "flex", alignItems: "center", gap: 0.7, px: 1.75, py: 0.6, borderRadius: 1.5, cursor: "pointer", bgcolor: isQuotation ? "#1D4ED8" : "transparent", color: isQuotation ? "#fff" : "#6B7280", transition: "all 0.18s", "&:hover": { bgcolor: isQuotation ? "#1D4ED8" : "#E5E7EB" } }}>
+//               <RequestQuoteIcon sx={{ fontSize: 15 }} />
+//               <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em" }}>Quotation</Typography>
+//             </Box>
 //           </Box>
-//           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-//             <Box sx={{ display: "flex", alignItems: "center", gap: 1, bgcolor: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 1.5, px: 1.5, py: 0.5 }}>
-//               <CalendarTodayIcon sx={{ fontSize: 15, color: "#6B7280" }} />
-//               <Typography sx={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.05em" }}>INVOICE DATE</Typography>
-//               <input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)}
-//                 style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, fontWeight: 700, color: "#1A1A2E", fontFamily: "inherit", cursor: "pointer" }} />
-//             </Box>
-//             <Divider orientation="vertical" flexItem />
-//             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-//               <Button onClick={() => navigate("/sales-history")} startIcon={<Receipt />} sx={{ backgroundColor: "#C8102E", color: "#fff", fontWeight: 500, fontSize: 12 }}>Sales History</Button>
-//             </Box>
-//             <Divider orientation="vertical" flexItem />
-//             <Box sx={{ textAlign: "right" }}>
-//               <Typography sx={{ fontSize: 10, color: "#9CA3AF", lineHeight: 1 }}>STATION 04</Typography>
-//               <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#1A1A2E" }}>Cashier: Alex M.</Typography>
-//             </Box>
-//             <Box sx={{ width: 32, height: 32, bgcolor: "#FEE2E2", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-//               <PersonOutlineIcon sx={{ color: "#C8102E", fontSize: 18 }} />
-//             </Box>
+//           <Box sx={{ display: "flex", alignItems: "center", gap: 2, alignSelf: "end" }}>
+//             <Box
+//       onClick={handleOpenPicker}
+//       sx={{
+//         display: "flex",
+//         alignItems: "center",
+//         gap: 1,
+//         bgcolor: isQuotation ? "#DBEAFE" : "#FEE2E2",
+//         border: isQuotation
+//           ? `1px solid #1D4ED8`
+//           : "1px solid #C8102E",
+//         borderRadius: 1.5,
+//         px: 1.5,
+//         py: 0.5,
+//         transition: "all 0.2s",
+//         cursor: "pointer",
+//       }}
+//     >
+//       <CalendarTodayIcon sx={{ fontSize: 15, color: "#6B7280" }} />
+
+//       <Typography
+//         sx={{
+//           fontSize: 10,
+//           color: "#9CA3AF",
+//           fontWeight: 600,
+//           letterSpacing: "0.05em",
+//         }}
+//       >
+//         {isQuotation ? "QUOTATION DATE" : "INVOICE DATE"}
+//       </Typography>
+
+//       <Typography
+//         sx={{
+//           fontSize: 12,
+//           fontWeight: 700,
+//           color: "#1A1A2E",
+//         }}
+//       >
+//         {invoiceDate || "Select date"}
+//       </Typography>
+
+//       {/* Hidden input */}
+//       <input
+//         ref={inputRef}
+//         type="date"
+//         value={invoiceDate}
+//         onChange={(e) => setInvoiceDate(e.target.value)}
+//         style={{
+//           position: "absolute",
+//           opacity: 0,
+//           pointerEvents: "none",
+//         }}
+//       />
+//     </Box>
+           
 //           </Box>
 //         </Box>
 
 //         {/* MAIN CONTENT */}
-//         <Box sx={{ flex: 1, px: { xs: 1.5, md: 2 }, pt: 1.5, pb: 1 }}>
+//         <Box sx={{ flex: 1, minHeight: 0, px: 1, pt: 1, pb: 1, display: "flex", flexDirection: "column" }}>
 //           <Box sx={{ display: "flex", gap: 2, mb: 1.5, alignItems: "stretch" }}>
 
-//             {/* ── Search panel ── */}
-//             <Paper elevation={0} sx={{
-//               flex: "1 1 auto", borderRadius: 2, p: 1.5, bgcolor: "#fff",
-//               position: "relative", zIndex: 100, transition: "border-color 0.2s",
-//               border: zone === "SEARCH" ? "2px solid #C8102E" : "2px solid #E5E7EB",
-//               boxShadow: zone === "SEARCH" ? "0 0 0 3px rgba(200,16,46,0.08)" : "none",
-//             }}>
+//             {/* Search panel */}
+//             <Paper elevation={0} sx={{ flex: "1 1 auto", borderRadius: 2, p: 1.5, bgcolor: "#fff", position: "relative", zIndex: 100, transition: "border-color 0.2s", border: zone === "SEARCH" ? `2px solid ${modeAccent}` : "2px solid #E5E7EB", boxShadow: zone === "SEARCH" ? `0 0 0 3px ${isQuotation ? "rgba(29,78,216,0.08)" : "rgba(200,16,46,0.08)"}` : "none" }}>
 //               <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-end" }}>
 //                 <Box sx={{ flex: 1, position: "relative" }}>
 //                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.4 }}>
-//                     <Typography sx={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", color: "#C8102E" }}>ITEM ID / NAME</Typography>
+//                     <Typography sx={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", color: modeAccent }}>ITEM ID / NAME</Typography>
 //                     <Kbd>F2</Kbd>
 //                     {catalogueLoading
 //                       ? <Typography sx={{ fontSize: 9, color: "#9CA3AF", ml: 0.5 }}>syncing…</Typography>
@@ -618,34 +578,23 @@
 //                     onChange={e => setCodeInput(e.target.value)}
 //                     onFocus={() => { setZone("SEARCH"); setSearchFocus("CODE"); if (!catalogueLoading && codeInput.trim()) setShowSuggestions(true); }}
 //                     onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
-//                     placeholder="Search by item ID, name or category…"
-//                     size="small" fullWidth autoComplete="off"
+//                     placeholder="Search by item ID, name or category…" size="small" fullWidth autoComplete="off"
 //                     InputProps={{
-//                       startAdornment: <InputAdornment position="start"><QrCodeScannerIcon sx={{ color: "#C8102E", fontSize: 18 }} /></InputAdornment>,
+//                       startAdornment: <InputAdornment position="start"><QrCodeScannerIcon sx={{ color: modeAccent, fontSize: 18 }} /></InputAdornment>,
 //                       endAdornment: codeInput
 //                         ? <InputAdornment position="end"><IconButton size="small" onMouseDown={e => { e.preventDefault(); setCodeInput(""); setShowSuggestions(false); codeRef.current?.focus(); }}><CloseIcon sx={{ fontSize: 13, color: "#9CA3AF" }} /></IconButton></InputAdornment>
 //                         : <InputAdornment position="end"><SearchIcon sx={{ fontSize: 15, color: "#D1D5DB" }} /></InputAdornment>,
 //                       sx: { borderRadius: 1.5, bgcolor: "#FAFAFA", fontSize: 13 },
 //                     }}
-//                     sx={{ "& .MuiOutlinedInput-root": {
-//                       "& fieldset": { borderColor: isSearchActive("CODE") ? "#C8102E" : "#E5E7EB", borderWidth: isSearchActive("CODE") ? 2 : 1 },
-//                       "&:hover fieldset": { borderColor: "#C8102E" },
-//                       "&.Mui-focused fieldset": { borderColor: "#C8102E" },
-//                     }}}
+//                     sx={{ "& .MuiOutlinedInput-root": { "& fieldset": { borderColor: isSearchActive("CODE") ? modeAccent : "#E5E7EB", borderWidth: isSearchActive("CODE") ? 2 : 1 }, "&:hover fieldset": { borderColor: modeAccent }, "&.Mui-focused fieldset": { borderColor: modeAccent } } }}
 //                   />
-
-//                   {/* Suggestions dropdown */}
 //                   {showSuggestions && (
 //                     <Paper elevation={8} sx={{ position: "absolute", top: "calc(100% + 2px)", left: 0, right: 0, borderRadius: "0 0 8px 8px", overflow: "hidden", zIndex: 9999, border: "1px solid #E0E0E0", borderTop: "none", boxShadow: "0 8px 32px rgba(0,0,0,0.12)" }}>
 //                       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 1.5, py: 0.6, bgcolor: "#F5F5F5", borderBottom: "1px solid #E5E7EB" }}>
 //                         <Typography sx={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>Item Name</Typography>
 //                         <IconButton size="small" onMouseDown={e => { e.preventDefault(); setShowSuggestions(false); }} sx={{ p: 0.2 }}><CloseIcon sx={{ fontSize: 13, color: "#9CA3AF" }} /></IconButton>
 //                       </Box>
-//                       {codeInput.trim() && suggestions.length === 0 && (
-//                         <Box sx={{ py: 3, textAlign: "center" }}>
-//                           <Typography sx={{ fontSize: 12, color: "#9CA3AF" }}>No items found for "{codeInput.trim()}"</Typography>
-//                         </Box>
-//                       )}
+//                       {codeInput.trim() && suggestions.length === 0 && <Box sx={{ py: 3, textAlign: "center" }}><Typography sx={{ fontSize: 12, color: "#9CA3AF" }}>No items found for "{codeInput.trim()}"</Typography></Box>}
 //                       {suggestions.length > 0 && (
 //                         <Box sx={{ maxHeight: 300, overflowY: "auto", bgcolor: "#fff" }}>
 //                           {suggestions.map((p, idx) => (
@@ -660,10 +609,8 @@
 //                                 </Typography>
 //                               </Box>
 //                               <Box sx={{ textAlign: "right", flexShrink: 0 }}>
-//                                 <Typography sx={{ fontSize: 13, fontWeight: 700, color: idx === suggestionIdx ? "#1D4ED8" : "#111827" }}>₹{Number(p.sell_price).toLocaleString("en-IN")}<Typography sx={{ fontSize: 9, color: p.tax_inclusive ? "#D97706" : "#9CA3AF", fontWeight: p.tax_inclusive ? 700 : 400, lineHeight: 1 }}>
-//                                   / per {p.unit || "NOS"}
-//                                 </Typography></Typography>
-                                
+//                                 <Typography sx={{ fontSize: 13, fontWeight: 700, color: idx === suggestionIdx ? "#1D4ED8" : "#111827" }}>₹{Number(p.sell_price).toLocaleString("en-IN")}</Typography>
+//                                 <Typography sx={{ fontSize: 9, color: p.tax_inclusive ? "#D97706" : "#9CA3AF", fontWeight: p.tax_inclusive ? 700 : 400, lineHeight: 1 }}>/ per {p.unit || "NOS"}</Typography>
 //                               </Box>
 //                             </Box>
 //                           ))}
@@ -672,110 +619,48 @@
 //                     </Paper>
 //                   )}
 //                 </Box>
-
-//                 {/* ✅ QTY field — highlighted when QTY is active sub-field */}
-//                 <Box sx={{ width: 80 }}>
-//                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.4 }}>
-//                     <Typography sx={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", color: isSearchActive("QTY") ? "#C8102E" : "#374151" }}>QTY</Typography>
-//                   </Box>
-//                   <TextField
-//                     inputRef={qtySearchRef} value={searchQty}
-//                     onChange={e => setSearchQty(e.target.value.replace(/\D/g, ""))}
-//                     onFocus={() => { setZone("SEARCH"); setSearchFocus("QTY"); }}
-//                     placeholder="1" size="small" fullWidth autoComplete="off"
-//                     inputProps={{ style: { textAlign: "center", fontWeight: 700, fontSize: 14 } }}
-//                     sx={{ "& .MuiOutlinedInput-root": {
-//                       borderRadius: 1.5, bgcolor: "#FAFAFA", fontSize: 13,
-//                       "& fieldset": { borderColor: isSearchActive("QTY") ? "#C8102E" : "#E5E7EB", borderWidth: isSearchActive("QTY") ? 2 : 1 },
-//                       "&:hover fieldset": { borderColor: "#C8102E" },
-//                       "&.Mui-focused fieldset": { borderColor: "#C8102E" },
-//                     }}}
-//                   />
-//                 </Box>
-
 //                 <Button variant="contained" startIcon={<AddShoppingCartIcon />} onClick={() => handleAddItem()}
-//                   sx={{ bgcolor: "#C8102E", color: "#fff", px: 2.5, py: 0.9, fontSize: 13, fontWeight: 700, borderRadius: 1.5, minHeight: 38, whiteSpace: "nowrap", boxShadow: "0 4px 14px rgba(200,16,46,0.35)", "&:hover": { bgcolor: "#A50D26" }, "&:active": { transform: "scale(0.97)" } }}>
+//                   sx={{ bgcolor: modeAccent, color: "#fff", px: 2.5, py: 0.9, fontSize: 13, fontWeight: 700, borderRadius: 1.5, minHeight: 38, whiteSpace: "nowrap", boxShadow: `0 4px 14px ${isQuotation ? "rgba(29,78,216,0.35)" : "rgba(200,16,46,0.35)"}`, "&:hover": { bgcolor: isQuotation ? "#1E40AF" : "#A50D26" }, "&:active": { transform: "scale(0.97)" } }}>
 //                   ADD <Box component="span" sx={{ fontSize: 10, opacity: 0.8, ml: 0.4 }}>[Enter]</Box>
 //                 </Button>
 //               </Box>
 //             </Paper>
 
-//             {/* ── Customer panel ── */}
-//             <Paper elevation={0} sx={{ minWidth: 800, border: zone === "CUSTOMER" ? "2px solid #C8102E" : "1px solid #E5E7EB", borderRadius: 2.5, p: 1.5, bgcolor: "#fff", transition: "border 0.2s, box-shadow 0.2s", position: "relative", boxShadow: zone === "CUSTOMER" ? "0 0 0 3px rgba(200,16,46,0.08)" : "none" }}>
+//             {/* Customer panel */}
+//             <Paper elevation={0} sx={{ minWidth: 800, border: zone === "CUSTOMER" ? `2px solid ${modeAccent}` : "1px solid #E5E7EB", borderRadius: 2.5, p: 1.5, bgcolor: "#fff", transition: "border 0.2s, box-shadow 0.2s", position: "relative", boxShadow: zone === "CUSTOMER" ? `0 0 0 3px ${isQuotation ? "rgba(29,78,216,0.08)" : "rgba(200,16,46,0.08)"}` : "none" }}>
 //               <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5, mb: 1.2 }}>
 //                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.7 }}>
-//                   <PersonSearchIcon sx={{ fontSize: 15, color: "#C8102E" }} />
+//                   <PersonSearchIcon sx={{ fontSize: 15, color: modeAccent }} />
 //                   <Typography sx={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", color: "#374151" }}>CUSTOMER</Typography>
-//                   {customer.id && (
-//                     <Chip label="Linked" size="small" onDelete={() => { setCustomer(EMPTY_CUSTOMER); clearCustomerResults(); }}
-//                       sx={{ fontSize: 9, height: 18, bgcolor: "#DCFCE7", color: "#16A34A", fontWeight: 700 }} />
-//                   )}
+//                   {customer.id && <Chip label="Linked" size="small" onDelete={() => { setCustomer(EMPTY_CUSTOMER); clearCustomerResults(); }} sx={{ fontSize: 9, height: 18, bgcolor: "#DCFCE7", color: "#16A34A", fontWeight: 700 }} />}
 //                 </Box>
 //                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-//                   <Button size="small" variant="outlined" onClick={() => setAddCustomerOpen(true)}
-//                     sx={{ borderColor: "#F3C4CB", color: "#C8102E", fontSize: 9, fontWeight: 800, px: 1.25, py: 0.55, borderRadius: 1.5, minWidth: 0, whiteSpace: "nowrap", "&:hover": { borderColor: "#C8102E", bgcolor: "#FFF5F6" } }}>
-//                     Add Customer
-//                   </Button>
-//                   <Button size="small" variant="outlined" onClick={() => setCustomerLedgerOpen(true)}
-//                     sx={{ borderColor: "#F3C4CB", color: "#C8102E", fontSize: 9, fontWeight: 800, px: 1.25, py: 0.55, borderRadius: 1.5, minWidth: 0, whiteSpace: "nowrap", "&:hover": { borderColor: "#C8102E", bgcolor: "#FFF5F6" } }}>
-//                     View Ledger / History
-//                   </Button>
+//                   <Button size="small" variant="outlined" onClick={() => setAddCustomerOpen(true)} sx={{ borderColor: modeBorder, color: modeAccent, fontSize: 9, fontWeight: 800, px: 1.25, py: 0.55, borderRadius: 1.5, minWidth: 0, whiteSpace: "nowrap", "&:hover": { borderColor: modeAccent, bgcolor: modeBg } }}>Add Customer</Button>
+//                   <Button size="small" variant="outlined" onClick={() => setCustomerLedgerOpen(true)} sx={{ borderColor: modeBorder, color: modeAccent, fontSize: 9, fontWeight: 800, px: 1.25, py: 0.55, borderRadius: 1.5, minWidth: 0, whiteSpace: "nowrap", "&:hover": { borderColor: modeAccent, bgcolor: modeBg } }}>View Ledger / History</Button>
 //                 </Box>
 //               </Box>
-
 //               <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1 }}>
-//                 <TextField inputRef={customerNameRef} value={customer.name}
-//                   onChange={e => handleCustomerFieldChange("name", e.target.value)}
-//                   onFocus={() => { setZone("CUSTOMER"); if (customer.name.trim()) setCustomerSuggestionsOpen(true); }}
-//                   onBlur={() => setTimeout(() => setCustomerSuggestionsOpen(false), 180)}
-//                   placeholder="Name or company" size="small" autoComplete="off"
-//                   sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.75, fontSize: 12, bgcolor: "#F8FAFC", "& fieldset": { borderColor: "#E2E8F0" }, "&:hover fieldset": { borderColor: "#C8102E" }, "&.Mui-focused fieldset": { borderColor: "#C8102E" } } }}
-//                   inputProps={{ style: { padding: "7px 12px", fontWeight: 500 } }}
-//                 />
-//                 <TextField inputRef={customerMobileRef} value={customer.mobile}
-//                   onChange={e => handleCustomerFieldChange("mobile", e.target.value.replace(/\D/g, "").slice(0, 10))}
-//                   onFocus={() => { setZone("CUSTOMER"); if (customer.mobile.trim()) setCustomerSuggestionsOpen(true); }}
-//                   onBlur={() => setTimeout(() => setCustomerSuggestionsOpen(false), 180)}
-//                   placeholder="Mobile" size="small" autoComplete="off"
-//                   sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.75, fontSize: 12, bgcolor: "#F8FAFC", "& fieldset": { borderColor: "#E2E8F0" }, "&:hover fieldset": { borderColor: "#C8102E" }, "&.Mui-focused fieldset": { borderColor: "#C8102E" } } }}
-//                   inputProps={{ style: { padding: "7px 12px", fontWeight: 500, fontFamily: "monospace", letterSpacing: "0.04em" } }}
-//                 />
+//                 <TextField inputRef={customerNameRef} value={customer.name} onChange={e => handleCustomerFieldChange("name", e.target.value)} onFocus={() => { setZone("CUSTOMER"); if (customer.name.trim()) setCustomerSuggestionsOpen(true); }} onBlur={() => setTimeout(() => setCustomerSuggestionsOpen(false), 180)} placeholder="Name or company" size="small" autoComplete="off" sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.75, fontSize: 12, bgcolor: "#F8FAFC", "& fieldset": { borderColor: "#E2E8F0" }, "&:hover fieldset": { borderColor: modeAccent }, "&.Mui-focused fieldset": { borderColor: modeAccent } } }} inputProps={{ style: { padding: "7px 12px", fontWeight: 500 } }} />
+//                 <TextField inputRef={customerMobileRef} value={customer.mobile} onChange={e => handleCustomerFieldChange("mobile", e.target.value.replace(/\D/g, "").slice(0, 10))} onFocus={() => { setZone("CUSTOMER"); if (customer.mobile.trim()) setCustomerSuggestionsOpen(true); }} onBlur={() => setTimeout(() => setCustomerSuggestionsOpen(false), 180)} placeholder="Mobile" size="small" autoComplete="off" sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.75, fontSize: 12, bgcolor: "#F8FAFC", "& fieldset": { borderColor: "#E2E8F0" }, "&:hover fieldset": { borderColor: modeAccent }, "&.Mui-focused fieldset": { borderColor: modeAccent } } }} inputProps={{ style: { padding: "7px 12px", fontWeight: 500, fontFamily: "monospace", letterSpacing: "0.04em" } }} />
 //               </Box>
-
 //               {customerSuggestionsOpen && (customer.name.trim() || customer.mobile.trim()) && (
 //                 <Paper elevation={8} sx={{ position: "absolute", top: "calc(100% - 4px)", left: 12, right: 12, zIndex: 9998, borderRadius: 2, border: "1px solid #E5E7EB", overflow: "hidden", boxShadow: "0 16px 40px rgba(15,23,42,0.16)" }}>
-//                   <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 1.5, py: 1, bgcolor: "#FFF7F8", borderBottom: "1px solid #F3D6DB" }}>
+//                   <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 1.5, py: 1, bgcolor: isQuotation ? "#EFF6FF" : "#FFF7F8", borderBottom: `1px solid ${isQuotation ? "#BFDBFE" : "#F3D6DB"}` }}>
 //                     <Box>
 //                       <Typography sx={{ fontSize: 10, fontWeight: 800, color: "#374151", letterSpacing: "0.06em" }}>CUSTOMER SEARCH</Typography>
 //                       <Typography sx={{ fontSize: 9, color: "#9CA3AF" }}>Select to auto-fill mobile, address and GSTIN.</Typography>
 //                     </Box>
-//                     {customerLoading
-//                       ? <CircularProgress size={12} sx={{ color: "#C8102E" }} />
-//                       : <Typography sx={{ fontSize: 9, fontWeight: 800, color: "#C8102E" }}>{customerResults.length} result{customerResults.length !== 1 ? "s" : ""}</Typography>
-//                     }
+//                     {customerLoading ? <CircularProgress size={12} sx={{ color: modeAccent }} /> : <Typography sx={{ fontSize: 9, fontWeight: 800, color: modeAccent }}>{customerResults.length} result{customerResults.length !== 1 ? "s" : ""}</Typography>}
 //                   </Box>
 //                   {!customerLoading && customerResults.length === 0
 //                     ? <Box sx={{ px: 2, py: 3, textAlign: "center" }}><Typography sx={{ fontSize: 12, color: "#9CA3AF" }}>No matching customers found.</Typography></Box>
 //                     : <Box sx={{ maxHeight: 280, overflowY: "auto", bgcolor: "#fff" }}>
 //                         {customerResults.map(c => (
-//                           <Box key={c.cust_uuid} onMouseDown={() => handleSelectCustomer(c)}
-//                             sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1, px: 1.5, py: 1.1, borderBottom: "1px solid #F8FAFC", cursor: "pointer", "&:hover": { bgcolor: "#FFF7F8" } }}>
+//                           <Box key={c.cust_uuid} onMouseDown={() => handleSelectCustomer(c)} sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1, px: 1.5, py: 1.1, borderBottom: "1px solid #F8FAFC", cursor: "pointer", "&:hover": { bgcolor: isQuotation ? "#EFF6FF" : "#FFF7F8" } }}>
 //                             <Box sx={{ minWidth: 0 }}>
-//                               {/* Person name */}
-//                               {c.cust_name && (
-//                                 <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#1F2937", lineHeight: 1.3 }}>
-//                                   {c.cust_name}
-//                                 </Typography>
-//                               )}
-//                               {/* Company name — shown below with a building icon style */}
-//                               {c.cpy_name && (
-//                                 <Typography sx={{ fontSize: 11, fontWeight: 600, color: c.cust_name ? "#6B7280" : "#1F2937", lineHeight: 1.3 }}>
-//                                   {c.cust_name ? `🏢 ${c.cpy_name}` : c.cpy_name}
-//                                 </Typography>
-//                               )}
-//                               <Typography sx={{ fontSize: 10, color: "#9CA3AF", mt: 0.2 }}>
-//                                 {primaryMobile(c)}{c.city ? ` • ${c.city}` : ""}
-//                               </Typography>
+//                               {c.cust_name && <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#1F2937", lineHeight: 1.3 }}>{c.cust_name}</Typography>}
+//                               {c.cpy_name && <Typography sx={{ fontSize: 11, fontWeight: 600, color: c.cust_name ? "#6B7280" : "#1F2937", lineHeight: 1.3 }}>{c.cust_name ? `🏢 ${c.cpy_name}` : c.cpy_name}</Typography>}
+//                               <Typography sx={{ fontSize: 10, color: "#9CA3AF", mt: 0.2 }}>{primaryMobile(c)}{c.city ? ` • ${c.city}` : ""}</Typography>
 //                             </Box>
 //                             {c.gst && <Typography sx={{ fontSize: 9, fontWeight: 700, color: "#6B7280", fontFamily: "monospace", whiteSpace: "nowrap" }}>{c.gst}</Typography>}
 //                           </Box>
@@ -784,8 +669,7 @@
 //                   }
 //                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 1.5, py: 0.85, bgcolor: "#FCFCFD", borderTop: "1px solid #EEF2F7" }}>
 //                     <Typography sx={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700 }}>Type to search by name or mobile</Typography>
-//                     <Button size="small" variant="contained" onClick={() => { setCustomerSuggestionsOpen(false); setAddCustomerOpen(true); }}
-//                       sx={{ bgcolor: "#C8102E", fontSize: 9, fontWeight: 800, borderRadius: 1.5, px: 1.1, py: 0.45, "&:hover": { bgcolor: "#A50D26" } }}>+ Add New</Button>
+//                     <Button size="small" variant="contained" onClick={() => { setCustomerSuggestionsOpen(false); setAddCustomerOpen(true); }} sx={{ bgcolor: modeAccent, fontSize: 9, fontWeight: 800, borderRadius: 1.5, px: 1.1, py: 0.45, "&:hover": { bgcolor: isQuotation ? "#1E40AF" : "#A50D26" } }}>+ Add New</Button>
 //                   </Box>
 //                 </Paper>
 //               )}
@@ -793,8 +677,8 @@
 //           </Box>
 
 //           {/* ORDER TABLE */}
-//           <Paper elevation={0} sx={{ border: zone === "TABLE" ? "2px solid #1976d2" : "1px solid #E5E7EB", borderRadius: 2, overflow: "hidden", mb: 1.5, transition: "border 0.2s", boxShadow: zone === "TABLE" ? "0 0 0 3px rgba(245,158,11,0.1)" : "none" }}>
-//             <Box sx={{ maxHeight: "calc(100vh - 460px)", overflowY: "auto" }}>
+//           <Paper elevation={0} sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", border: zone === "TABLE" ? "2px solid #1976d2" : "1px solid #E5E7EB", borderRadius: 2, overflow: "hidden", transition: "border 0.2s", boxShadow: zone === "TABLE" ? "0 0 0 3px rgba(245,158,11,0.1)" : "none" }}>
+//             <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
 //               <Table size="small" stickyHeader>
 //                 <TableHead>
 //                   <TableRow>
@@ -807,6 +691,7 @@
 //                     <TableCell align="right"  sx={{ width: 90 }}>MRP (₹)</TableCell>
 //                     <TableCell align="center" sx={{ width: 130 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.4 }}>QTY <Kbd>Q</Kbd></Box></TableCell>
 //                     <TableCell align="right"  sx={{ width: 130 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>RATE <Kbd>P</Kbd></Box></TableCell>
+//                     <TableCell align="right" sx={{ width: 110, whiteSpace: "nowrap" }}>UNIT PRICE (EX.TAX)</TableCell>
 //                     <TableCell align="right"  sx={{ width: 105 }}>TOTAL</TableCell>
 //                     <TableCell sx={{ width: 36 }} />
 //                   </TableRow>
@@ -814,7 +699,7 @@
 //                 <TableBody ref={tableBodyRef}>
 //                   {items.length === 0 && (
 //                     <TableRow>
-//                       <TableCell colSpan={11} align="center" sx={{ py: 6 }}>
+//                       <TableCell colSpan={12} align="center" sx={{ py: 6 }}>
 //                         <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, color: "#D1D5DB" }}>
 //                           <KeyboardReturnIcon sx={{ fontSize: 32 }} />
 //                           <Typography sx={{ fontSize: 13 }}>Search and add items above</Typography>
@@ -823,28 +708,24 @@
 //                     </TableRow>
 //                   )}
 //                   {items.map((item, rowIdx) => {
-//                     const isActive  = zone === "TABLE" && activeRowIdx === rowIdx;
-//                     const itemGst   = (item.qty * item.unitPrice * item.gstPct) / 100;
-//                     const itemTotal = item.qty * item.sellPrice; // gross sell price × qty = base + tax
+//                     const isActive     = zone === "TABLE" && activeRowIdx === rowIdx;
+//                     const itemGst      = (item.qty * item.unitPrice * item.gstPct) / 100;
+//                     const itemTotal    = item.qty * item.sellPrice;
+//                     const itemDiscount = item.discount ?? 0;
 //                     return (
 //                       <Fade in key={item.code}>
 //                         <TableRow data-rowcode={item.code} onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); }}
 //                           sx={{ bgcolor: flashRow === item.code ? "#FFF1F3" : isActive ? "#E3F2FD" : "transparent", cursor: "pointer", transition: "background 0.2s", "&:hover": { bgcolor: isActive ? "#E3F2FD" : "#F5F5F5" } }}>
-//                           <TableCell sx={{ p: 0 }}>
-//                             <Box sx={{ width: 4, minHeight: 40, bgcolor: isActive ? "#1976D2" : "transparent", borderRadius: "0 2px 2px 0", transition: "background 0.2s" }} />
-//                           </TableCell>
+//                           <TableCell sx={{ p: 0 }}><Box sx={{ width: 4, minHeight: 40, bgcolor: isActive ? "#1976D2" : "transparent", borderRadius: "0 2px 2px 0", transition: "background 0.2s" }} /></TableCell>
+//                           <TableCell><Chip label={item.code} size="small" sx={{ fontWeight: 700, fontSize: 10, bgcolor: isActive ? "#BBDEFB" : "#F3F4F6", color: isActive ? "#0D47A1" : "#374151", border: isActive ? "1px solid #90CAF9" : "1px solid transparent", height: 20 }} /></TableCell>
 //                           <TableCell>
-//                             <Chip label={item.code} size="small" sx={{ fontWeight: 700, fontSize: 10, bgcolor: isActive ? "#BBDEFB" : "#F3F4F6", color: isActive ? "#0D47A1" : "#374151", border: isActive ? "1px solid #90CAF9" : "1px solid transparent", height: 20 }} />
-//                           </TableCell>
-//                           <TableCell>
-//                             <Typography sx={{ fontSize: 12, fontWeight: isActive ? 600 : 500, color: "#1A1A2E", lineHeight: 1.3 }}>{item.description}</Typography>
+//                             <Typography sx={{ fontSize: 14, fontWeight: isActive ? 600 : 500, color: "#1A1A2E", lineHeight: 1.3 }}>{item.description}</Typography>
 //                             {item.category && <Typography sx={{ fontSize: 9, fontWeight: 700, color: CAT_COLOR[item.category] ?? "#6B7280" }}>{item.category}</Typography>}
 //                           </TableCell>
 //                           <TableCell><Typography sx={{ fontSize: 11, fontFamily: "monospace", color: "#374151", fontWeight: 600 }}>{item.hsn}</Typography></TableCell>
 //                           <TableCell align="center"><Typography sx={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>{item.gstPct}%</Typography></TableCell>
 //                           <TableCell align="right"><Typography sx={{ fontSize: 11, color: "#374151", fontWeight: 600 }}>{INR(itemGst)}</Typography></TableCell>
-//                           <TableCell align="right"><Typography sx={{ fontSize: 11, color: "#9CA3AF" }}>₹{item.mrp.toLocaleString("en-IN")}</Typography></TableCell>
-//                           {/* QTY */}
+//                           <TableCell align="right"><Typography sx={{ fontSize: 11, color: "#9CA3AF",fontFamily:"inherit" }}>₹{item.mrp.toLocaleString("en-IN")}</Typography></TableCell>
 //                           <TableCell align="center" onClick={e => e.stopPropagation()}>
 //                             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.3 }}>
 //                               <IconButton size="small" onClick={() => updateQty(item.code, -1)} sx={{ width: 24, height: 24, bgcolor: "#F3F4F6", "&:hover": { bgcolor: "#FEE2E2" } }}><RemoveIcon sx={{ fontSize: 12 }} /></IconButton>
@@ -857,14 +738,11 @@
 //                                   sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#1976D2", borderWidth: 2 } }, width: 48 }} />
 //                               ) : (
 //                                 <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditQty(item.code); }}
-//                                   sx={{ minWidth: 30, textAlign: "center", fontWeight: 800, fontSize: 14, px: 0.4, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #1976D2" : "1.5px dashed transparent", bgcolor: isActive ? "#E3F2FD" : "transparent", "&:hover": { border: "1.5px dashed #1976D2", bgcolor: "#E3F2FD" }, transition: "all 0.15s" }}>
-//                                   {item.qty}
-//                                 </Box>
+//                                   sx={{ minWidth: 30, textAlign: "center", fontWeight: 800, fontSize: 14, px: 0.4, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #1976D2" : "1.5px dashed transparent", bgcolor: isActive ? "#E3F2FD" : "transparent", "&:hover": { border: "1.5px dashed #1976D2", bgcolor: "#E3F2FD" }, transition: "all 0.15s" }}>{item.qty}</Box>
 //                               )}
 //                               <IconButton size="small" onClick={() => updateQty(item.code, 1)} sx={{ width: 24, height: 24, bgcolor: "#F3F4F6", "&:hover": { bgcolor: "#DCFCE7" } }}><AddIcon sx={{ fontSize: 12 }} /></IconButton>
 //                             </Box>
 //                           </TableCell>
-//                           {/* RATE */}
 //                           <TableCell align="right" onClick={e => e.stopPropagation()}>
 //                             {item.editingPrice ? (
 //                               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>
@@ -879,21 +757,14 @@
 //                             ) : (
 //                               <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditPrice(item.code); }}
 //                                 sx={{ display: "inline-flex", alignItems: "center", gap: 0.3, px: 0.6, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #1976D2" : "1.5px dashed transparent", bgcolor: isActive ? "#E3F2FD" : "transparent", "&:hover": { border: "1.5px dashed #1976D2", bgcolor: "#E3F2FD", "& .pedit": { opacity: 1 } }, transition: "all 0.15s" }}>
-//                                 <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-//                                   <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{INR(item.sellPrice)}</Typography>
-//                                   {/* Badge: tells cashier whether rate shown is base (ex-GST) or gross */}
-//                                   {/* <Typography sx={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.04em", color: item.taxInclusive ? "#D97706" : "#10B981", lineHeight: 1 }}>
-//                                     {item.taxInclusive ? "INCL.→EX-GST" : "EX-GST"}
-//                                   </Typography> */}
-//                                 </Box>
+//                                 <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{INR(item.sellPrice)}</Typography>
 //                                 <EditIcon className="pedit" sx={{ fontSize: 10, color: "#1976D2", opacity: isActive ? 0.6 : 0, transition: "opacity 0.15s" }} />
 //                               </Box>
 //                             )}
 //                           </TableCell>
-//                           <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 700, color: isActive ? "#0D47A1" : "#1A1A2E" }}>{INR(itemTotal)}</Typography></TableCell>
-//                           <TableCell onClick={e => e.stopPropagation()}>
-//                             <IconButton size="small" onClick={() => removeItem(item.code)} sx={{ color: "#D1D5DB", "&:hover": { color: "#C8102E", bgcolor: "#FEE2E2" } }}><DeleteOutlineIcon sx={{ fontSize: 15 }} /></IconButton>
-//                           </TableCell>
+//                           <TableCell align="right"><Typography sx={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{INR(item.unitPrice)}</Typography></TableCell>
+//                           <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 700, color: isActive ? "#0D47A1" : "#1A1A2E" }}>{INR(itemTotal - itemDiscount)}</Typography></TableCell>
+//                           <TableCell onClick={e => e.stopPropagation()}><IconButton size="small" onClick={() => removeItem(item.code)} sx={{ color: "#D1D5DB", "&:hover": { color: "#C8102E", bgcolor: "#FEE2E2" } }}><DeleteOutlineIcon sx={{ fontSize: 15 }} /></IconButton></TableCell>
 //                         </TableRow>
 //                       </Fade>
 //                     );
@@ -905,109 +776,238 @@
 //         </Box>
 
 //         {/* FOOTER TOOLBAR */}
-//         <Box sx={{ bgcolor: "#F8FAFC", px: 2, py: 0.55, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+//         <Box sx={{ bgcolor: "#F1F5F9", borderTop: "2px solid #E5E7EB", px: 2, py: 0.3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
 //           <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
-//             <Button size="small" startIcon={<DeleteOutlineIcon sx={{ fontSize: 12 }} />} onClick={handleClear} sx={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, py: 0.3, px: 1, minWidth: 0, borderRadius: 1, "&:hover": { color: "#F87171", bgcolor: "rgba(239,68,68,0.1)" } }}>CLEAR <Box component="span" sx={{ fontSize: 9, opacity: 0.6 }}>[F4]</Box></Button>
-//             <Button size="small" startIcon={<PauseCircleOutlineIcon sx={{ fontSize: 12 }} />} onClick={handleHold} sx={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, py: 0.3, px: 1, minWidth: 0, borderRadius: 1, "&:hover": { color: "#60A5FA", bgcolor: "rgba(96,165,250,0.1)" } }}>HOLD <Box component="span" sx={{ fontSize: 9, opacity: 0.6 }}>[F9]</Box></Button>
-//             <Badge badgeContent={heldOrders.length} sx={{ "& .MuiBadge-badge": { fontSize: 8, minWidth: 13, height: 13, bgcolor: "#C8102E", color: "#fff" } }}>
-//               <Button size="small" startIcon={<PlayArrowIcon sx={{ fontSize: 12 }} />} onClick={() => setHoldDialogOpen(true)} sx={{ fontSize: 10, color: heldOrders.length > 0 ? "#60A5FA" : "#9CA3AF", fontWeight: 700, py: 0.3, px: 1, minWidth: 0, borderRadius: 1, "&:hover": { bgcolor: "rgba(96,165,250,0.1)" } }}>RECALL</Button>
-//             </Badge>
+//             <Button size="small" startIcon={<DeleteOutlineIcon sx={{ fontSize: 12 }} />} onClick={handleClear} sx={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, py: 0.3, px: 1, minWidth: 0, borderRadius: 1, "&:hover": { color: "#F87171", bgcolor: "rgba(239,68,68,0.1)" } }}>
+//               CLEAR <Box component="span" sx={{ fontSize: 9, opacity: 0.6 }}>[F4]</Box>
+//             </Button>
 //           </Box>
-//           <Divider orientation="vertical" flexItem />
-//           <Box sx={{ display: { xs: "none", xl: "flex" }, gap: 1, alignItems: "center" }}>
-//             {[["F2","Search"],["→","Code→Qty→Cust"],["Q","Qty"],["P","Price"],["↑↓","Rows"],["←→","Footer"],["F9","Hold"],["F8","Save"],["+−","Quick qty"],["Del","Remove"]].map(([k, l]) => (
-//               <Box key={k+l} sx={{ display: "flex", alignItems: "center", gap: 0.3 }}><Kbd>{k}</Kbd><Typography sx={{ fontSize: 9, color: "#9CA3AF" }}>{l}</Typography></Box>
-//             ))}
-//           </Box>
-//           <Divider orientation="vertical" flexItem />
-//           <Typography sx={{ fontSize: 10, color: "#6B7280", fontWeight: 700, letterSpacing: "0.08em" }}>ITEMS: {totalUnits} UNITS</Typography>
+//           {(() => {
+//             const totalGstRow = items.reduce((s, i) => s + (i.qty * i.unitPrice * i.gstPct) / 100, 0);
+//             const totalAmtRow = items.reduce((s, i) => s + i.qty * i.sellPrice - (i.discount ?? 0), 0);
+//             const empty = items.length === 0;
+//             return (
+//               <Table size="small" sx={{ "& .MuiTableCell-root": { borderBottom: "none", py: 0.1 } }}>
+//                 <TableBody>
+//                   <TableRow>
+//                     <TableCell sx={{ width: 14, p: 0 }} /><TableCell sx={{ width: 70 }} />
+//                     <TableCell><Typography sx={{ fontSize: 11, fontWeight: 800, color: "#374151", letterSpacing: "0.08em" }}>TOTALS</Typography></TableCell>
+//                     <TableCell sx={{ width: 70 }} /><TableCell align="center" sx={{ width: 60 }} />
+//                     <TableCell align="right" sx={{ width: 90 }}><Typography sx={{ fontSize: 11, fontWeight: 800, color: "#374151", fontFamily: "monospace" }}>{empty ? "—" : INR(totalGstRow)}</Typography></TableCell>
+//                     <TableCell align="right" sx={{ width: 90 }} />
+//                     <TableCell align="center" sx={{ width: 130 }}><Typography sx={{ fontSize: 11, fontWeight: 800, color: "#374151" }}>{empty ? "—" : totalUnits}</Typography></TableCell>
+//                     <TableCell align="right" sx={{ width: 130 }} />
+//                     <TableCell align="right" sx={{ width: 110 }}><Typography sx={{ fontSize: 11, fontWeight: 800, color: "#374151", fontFamily: "monospace" }}>{empty ? "—" : INR(subtotal)}</Typography></TableCell>
+//                     <TableCell align="right" sx={{ width: 105 }}><Typography sx={{ fontSize: 13, fontWeight: 900, color: "#000", fontFamily: "monospace" }}>{empty ? "—" : INR(totalAmtRow)}</Typography></TableCell>
+//                     <TableCell sx={{ width: 36 }} />
+//                   </TableRow>
+//                 </TableBody>
+//               </Table>
+//             );
+//           })()}
 //         </Box>
 
-//         {/* BILLING FOOTER */}
-//         <Box sx={{ bgcolor: "#fff", borderTop: "1px solid #E5E7EB", px: 2.5, py: 1.5, display: "flex", gap: 2, alignItems: "stretch" }}>
-//           {/* COL 1 */}
-//           <Box sx={{ flex: 0.5, display: "flex", flexDirection: "column", gap: 1.5, justifyContent: "flex-start", pt: 0.5 }}>
-//             <Box>
-//               <Typography sx={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.08em", mb: 0.5 }}>PAYMENT TYPE</Typography>
-//               <Select value={paymentType} onChange={e => setPaymentType(e.target.value as PaymentType)}
-//                 onFocus={() => { setZone("FOOTER"); setFooterFocus("PAYMENT_TYPE"); }}
-//                 size="small" fullWidth
-//                 sx={{ fontSize: 13, fontWeight: 600, borderRadius: 1.5, "& fieldset": { borderColor: isFooterActive("PAYMENT_TYPE") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("PAYMENT_TYPE") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" } }}>
-//                 {["Cash","Card","UPI","Credit"].map(val => <MenuItem key={val} value={val} sx={{ fontSize: 13, fontWeight: 600 }}>{val}</MenuItem>)}
-//               </Select>
-//             </Box>
-//             <Box>
-//               <Typography sx={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.08em", mb: 0.5 }}>REFERENCE NO.</Typography>
-//               <TextField inputRef={refNoRef} value={referenceNo} onChange={e => setReferenceNo(e.target.value)}
-//                 onFocus={() => { setZone("FOOTER"); setFooterFocus("REF_NO"); }}
-//                 placeholder="Enter Transaction ID" size="small" fullWidth
-//                 inputProps={{ style: { padding: "6px 12px", fontSize: 13 } }}
-//                 sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.5, "& fieldset": { borderColor: isFooterActive("REF_NO") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("REF_NO") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" } } }}
-//               />
-//             </Box>
-//           </Box>
-//           <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-//           {/* COL 2 */}
-//           <Box sx={{ flex: 0.7, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-//             <Box>
-//               {[
-//                 { label: "SUBTOTAL", value: INR(subtotal),           color: "#1A1A2E" },
-//                 { label: "DISCOUNT", value: `− ${INR(discountAmt)}`, color: discountAmt > 0 ? "#16A34A" : "#9CA3AF" },
-//                 { label: "GST",      value: INR(gstAmount),          color: "#1A1A2E" },
-//               ].map(row => (
-//                 <Box key={row.label} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", py: 0.4, borderBottom: "1px solid #F3F4F6" }}>
-//                   <Typography sx={{ fontSize: 11, color: "#9CA3AF", fontWeight: 500, letterSpacing: "0.04em" }}>{row.label}</Typography>
-//                   <Typography sx={{ fontSize: 12, fontWeight: 600, color: row.color, fontFamily: "monospace" }}>{row.value}</Typography>
+//         {/* ═══════════════════ BILLING FOOTER ════════════════════ */}
+//         <Box sx={{ bgcolor: "#fff", borderTop: "1px solid #E5E7EB", px: 2, py: 0.75, display: "flex", gap: 1.5, alignItems: "stretch", justifyContent: "flex-end" }}>
+
+//           {/* ══ LEFT BLOCK ══ */}
+//           <Box sx={{ width: 420, flexShrink: 0, display: "flex", flexDirection: "column", gap: 0.75 }}>
+
+//             {/* ── ROW 1: Two separate buttons side by side ── */}
+//             <Box sx={{ display: "flex", gap: 1 }}>
+
+//               {/* Discount button */}
+//               <Button
+//                 onClick={() => setDiscountModalOpen(true)}
+//                 variant="outlined"
+//                 startIcon={<LocalOfferOutlinedIcon sx={{ fontSize: 14 }} />}
+//                 sx={{
+//                   flex: 1,
+//                   justifyContent: "flex-start",
+//                   borderRadius: 2,
+//                   py: 0.85,
+//                   px: 1.5,
+//                   fontSize: 12,
+//                   fontWeight: 700,
+//                   color:       hasDiscount ? modeAccent : "#6B7280",
+//                   borderColor: hasDiscount ? modeAccent : "#E5E7EB",
+//                   borderWidth: hasDiscount ? 1.5 : 1,
+//                   bgcolor:     hasDiscount ? `${modeAccent}06` : "#FAFAFA",
+//                   "&:hover":   { borderColor: modeAccent, bgcolor: `${modeAccent}0A`, color: modeAccent },
+//                   transition:  "all 0.18s",
+//                   textTransform: "none",
+//                   gap: 0.5,
+//                 }}
+//               >
+//                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flex: 1 }}>
+//                   <span>Discount</span>
+//                   <Box component="span" sx={{ fontSize: 9, opacity: 0.55 }}>[F6]</Box>
 //                 </Box>
-//               ))}
-//               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", py: 0.6 }}>
-//                 <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#1A1A2E", letterSpacing: "0.04em" }}>GRAND TOTAL</Typography>
-//                 <Typography sx={{ fontSize: 15, fontWeight: 900, color: "#1A1A2E", fontFamily: "monospace" }}>₹{grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
-//               </Box>
+//                 {discountBadge && (
+//                   <Chip
+//                     label={discountBadge}
+//                     size="small"
+//                     sx={{ height: 18, fontSize: 10, fontWeight: 700, bgcolor: `${modeAccent}18`, color: modeAccent, border: "none", ml: 0.5 }}
+//                   />
+//                 )}
+//               </Button>
+
+//               {/* Note button */}
+//               <Button
+//                 onClick={() => setNoteModalOpen(true)}
+//                 variant="outlined"
+//                 startIcon={<NoteAltOutlinedIcon sx={{ fontSize: 14 }} />}
+//                 sx={{
+//                   flex: 1,
+//                   justifyContent: "flex-start",
+//                   borderRadius: 2,
+//                   py: 0.85,
+//                   px: 1.5,
+//                   fontSize: 12,
+//                   fontWeight: 700,
+//                   color:       hasNote ? "#16A34A" : "#6B7280",
+//                   borderColor: hasNote ? "#86EFAC" : "#E5E7EB",
+//                   borderWidth: hasNote ? 1.5 : 1,
+//                   bgcolor:     hasNote ? "#F0FDF4" : "#FAFAFA",
+//                   "&:hover":   { borderColor: "#6EE7B7", bgcolor: "#F0FDF4", color: "#16A34A" },
+//                   transition:  "all 0.18s",
+//                   textTransform: "none",
+//                   gap: 0.5,
+//                 }}
+//               >
+//                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flex: 1 }}>
+//                   <span>Note</span>
+//                   <Box component="span" sx={{ fontSize: 9, opacity: 0.55 }}>[F7]</Box>
+//                 </Box>
+//                 {hasNote && (
+//                   <Chip
+//                     label="Added"
+//                     size="small"
+//                     sx={{ height: 18, fontSize: 10, fontWeight: 700, bgcolor: "#DCFCE7", color: "#166534", border: "none", ml: 0.5 }}
+//                   />
+//                 )}
+//               </Button>
 //             </Box>
-//             <Box>
-//               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.5 }}>
-//                 <Typography sx={{ fontSize: 10, fontWeight: 700, color: "#C8102E", letterSpacing: "0.06em" }}>DISCOUNT</Typography>
-//                 <Kbd>F7</Kbd>
-//               </Box>
+
+//             {/* ── ROW 2: Payment Type + Ref No (hidden in Quotation) ── */}
+//             {!isQuotation && (
 //               <Box sx={{ display: "flex", gap: 1 }}>
-//                 <TextField inputRef={discountPctRef} value={discountPct} onChange={e => setDiscountPct(e.target.value.replace(/[^0-9.]/g, ""))}
-//                   onFocus={() => { setZone("FOOTER"); setFooterFocus("DISCOUNT_PCT"); }} size="small"
-//                   InputProps={{ startAdornment: <InputAdornment position="start"><Typography sx={{ fontSize: 12, fontWeight: 700, color: "#9CA3AF" }}>%</Typography></InputAdornment> }}
-//                   inputProps={{ style: { padding: "5px 6px", fontSize: 13, fontWeight: 600 } }}
-//                   sx={{ flex: 1, "& .MuiOutlinedInput-root": { borderRadius: 1.5, "& fieldset": { borderColor: isFooterActive("DISCOUNT_PCT") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("DISCOUNT_PCT") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" } } }}
-//                 />
-//                 <TextField inputRef={discountAmtRef} value={discount} onChange={e => setDiscount(e.target.value.replace(/[^0-9.]/g, ""))}
-//                   onFocus={() => { setZone("FOOTER"); setFooterFocus("DISCOUNT_AMT"); }} size="small"
-//                   InputProps={{ startAdornment: <InputAdornment position="start"><Typography sx={{ fontSize: 12, fontWeight: 700, color: "#9CA3AF" }}>₹</Typography></InputAdornment> }}
-//                   inputProps={{ style: { padding: "5px 6px", fontSize: 13, fontWeight: 600 } }}
-//                   sx={{ flex: 1, "& .MuiOutlinedInput-root": { borderRadius: 1.5, "& fieldset": { borderColor: isFooterActive("DISCOUNT_AMT") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("DISCOUNT_AMT") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" } } }}
-//                 />
+//                 <Box sx={{ width: 140, flexShrink: 0 }}>
+//                   <Typography sx={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.08em", mb: 0.35 }}>PAYMENT TYPE</Typography>
+//                   <Select value={paymentType} onChange={e => setPaymentType(e.target.value as PaymentType)} onFocus={() => { setZone("FOOTER"); setFooterFocus("PAYMENT_TYPE"); }} size="small" fullWidth
+//                     sx={{ fontSize: 12, fontWeight: 700, borderRadius: 1.5, "& fieldset": { borderColor: isFooterActive("PAYMENT_TYPE") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("PAYMENT_TYPE") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" }, "& .MuiSelect-select": { py: "6px" } }}>
+//                     {["Cash","Card","UPI","Credit"].map(val => <MenuItem key={val} value={val} sx={{ fontSize: 12, fontWeight: 600 }}>{val}</MenuItem>)}
+//                   </Select>
+//                 </Box>
+//                 <Box sx={{ flex: 1 }}>
+//                   <Typography sx={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.08em", mb: 0.35 }}>REFERENCE NO.</Typography>
+//                   <TextField inputRef={refNoRef} value={referenceNo} onChange={e => setReferenceNo(e.target.value)} onFocus={() => { setZone("FOOTER"); setFooterFocus("REF_NO"); }} placeholder="Transaction ID" size="small" fullWidth
+//                     inputProps={{ style: { padding: "6px 10px", fontSize: 12 } }}
+//                     sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.5, "& fieldset": { borderColor: isFooterActive("REF_NO") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("REF_NO") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" } } }} />
+//                 </Box>
 //               </Box>
-//             </Box>
+//             )}
 //           </Box>
-//           <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-//           {/* COL 3 */}
-//           <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 1 }}>
-//             <Box onClick={() => receivedRef.current?.focus()}
-//               sx={{ flex: 1, border: `2px solid ${isFooterActive("RECEIVED") ? "#C8102E" : "#FECDD3"}`, borderRadius: 2, px: 2, py: 1, textAlign: "right", bgcolor: isFooterActive("RECEIVED") ? "#FFF1F3" : "#FFF5F6", cursor: "text", transition: "border-color 0.15s, background 0.15s", "&:hover": { borderColor: "#C8102E", bgcolor: "#FFF1F3" } }}>
-//               <Typography sx={{ fontSize: 9, fontWeight: 800, color: "#C8102E", letterSpacing: "0.1em", mb: 0.2 }}>RECEIVED AMOUNT</Typography>
-//               <Box sx={{ display: "flex", alignItems: "center" }}>
-//                 <Typography sx={{ fontSize: 26, fontWeight: 900, color: "#C8102E", lineHeight: 1, mr: 0.3, fontFamily: "monospace" }}>₹</Typography>
-//                 <TextField inputRef={receivedRef} value={receivedAmount} onChange={e => setReceivedAmount(e.target.value.replace(/[^0-9.]/g, ""))}
-//                   onFocus={() => { setZone("FOOTER"); setFooterFocus("RECEIVED"); }}
-//                   placeholder="0.00" variant="standard" InputProps={{ disableUnderline: true }}
-//                   inputProps={{ style: { padding: 0, fontSize: 28, fontWeight: 900, color: "#C8102E", fontFamily: "monospace", width: "100%", textAlign: "right" } }}
-//                   sx={{ flex: 1, "& input::placeholder": { color: "#FECDD3", opacity: 1 } }}
-//                 />
+
+//           <Divider orientation="vertical" flexItem sx={{ mx: 0.25 }} />
+
+//           {/* ══ RIGHT BLOCK ══ */}
+//           <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, alignItems: "flex-end", flexShrink: 0 }}>
+            
+//               <Box sx={{display:"flex",justifyContent:"space-between",alignItems:"center",width:"100%"}}>
+//                 <Typography sx={{ fontSize: 11, fontWeight: 800, color: "#6B7280", letterSpacing: "0.08em"}}>Discount</Typography>
+//                  <Typography
+//     sx={{
+//       fontSize: 11,
+//       fontWeight: 800,
+//       color: "#6B7280",
+//       mr: 0.5
+//     }}
+//   >
+//      ₹
+//     {discountAmt.toLocaleString("en-IN", {
+//       minimumFractionDigits: 2
+//     })}
+//   </Typography>
 //               </Box>
-//             </Box>
-//             <Box sx={{ display: "flex", gap: 1, alignItems: "stretch" }}>
+ 
+//             {isQuotation ? (
+//               <Box sx={{ border: "2px solid #D3D3D3", borderRadius: 2, px: 2.5, py: 0.6, textAlign: "right", bgcolor: "#E5E4E2",   width: "clamp(260px, 25vw, 420px)",
+//  }}>
+//                 <Typography sx={{ fontSize: 9, fontWeight: 800, color: "#000", letterSpacing: "0.1em", mb: 0.15 }}>TOTAL AMOUNT</Typography>
+//                 <Box sx={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 0.4 }}>
+//                   <Typography sx={{ fontSize: 16, fontWeight: 900, color: "#000", fontFamily: "monospace" }}>₹</Typography>
+//                   <Typography sx={{ fontSize: 24, fontWeight: 900, color: "#000", fontFamily: "monospace", lineHeight: 1.1 }}>{grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
+//                 </Box>
+//               </Box>
+//             ) : (
+//               <Box onClick={() => receivedRef.current?.focus()}
+// sx={{
+//   border: `2px solid ${isFooterActive("RECEIVED") ? "#A0A0A0" : "#D3D3D3"}`,
+//   borderRadius: 2,
+//   px: 2.5,
+//   py: 0.5,
+//   textAlign: "right",
+//   bgcolor: isFooterActive("RECEIVED") ? "#fff" : "#E5E4E2",
+//   cursor: "text",
+//   transition: "border-color 0.15s, background 0.15s",
+
+//   // ✅ responsive width
+//   width: "clamp(260px, 25vw, 420px)",
+
+//   "&:hover": {
+//     borderColor: "#A0A0A0",
+//     bgcolor: "#D8D8D6"
+//   }
+// }}>
+//                 <Typography sx={{ fontSize: 9, fontWeight: 800, color: "#444", letterSpacing: "0.1em", mb: 0.1 }}>RECEIVED AMOUNT</Typography>
+//                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+//                   <Typography sx={{ fontSize: 16, fontWeight: 900, color: "#000", lineHeight: 1, mr: 0.4, fontFamily: "monospace" }}>₹</Typography>
+//                 <TextField
+//   inputRef={receivedRef}
+//   value={receivedAmount}
+//   onChange={e =>
+//     setReceivedAmount(e.target.value.replace(/[^0-9.]/g, ""))
+//   }
+//   onFocus={() => {
+//     setZone("FOOTER");
+//     setFooterFocus("RECEIVED");
+//   }}
+//   placeholder="0.00"
+//   variant="standard"
+//   InputProps={{ disableUnderline: true }}
+//   inputProps={{
+//     style: {
+//       padding: 0,
+//       fontSize: "clamp(18px, 2vw, 26px)", // ✅ responsive font
+//       fontWeight: 900,
+//       color: "#000",
+//       fontFamily: "monospace",
+//       textAlign: "right",
+
+//       // ✅ responsive width
+//       width: "100%",
+//       minWidth: "180px"
+//     }
+//   }}
+//   sx={{
+//     width: "100%", // ✅ fill parent
+//     "& input::placeholder": {
+//       color: "#888",
+//       opacity: 1
+//     }
+//   }}
+// />
+//                 </Box>
+//               </Box>
+//             )}
+
+//             <Box sx={{ display: "flex", gap: 1, alignItems: "stretch"}}>
 //               <Tooltip title={printEnabled ? "Print ON" : "Print OFF"}>
 //                 <Box onClick={() => setPrintEnabled(p => !p)}
-//                   sx={{ width: 52, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 0.3, border: "1px solid #E5E7EB", borderRadius: 2, cursor: "pointer", bgcolor: "#F9FAFB", "&:hover": { bgcolor: "#F3F4F6" }, transition: "background 0.15s" }}>
-//                   <Box sx={{ width: 32, height: 18, bgcolor: printEnabled ? "#C8102E" : "#D1D5DB", borderRadius: 10, position: "relative", transition: "background 0.2s" }}>
-//                     <Box sx={{ position: "absolute", top: 2, left: printEnabled ? 14 : 2, width: 14, height: 14, bgcolor: "#fff", borderRadius: "50%", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+//                   sx={{ width: 48, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 0.3, border: "1px solid #E5E7EB", borderRadius: 2, cursor: "pointer", bgcolor: "#F9FAFB", "&:hover": { bgcolor: "#F3F4F6" }, transition: "background 0.15s" }}>
+//                   <Box sx={{ width: 28, height: 16, bgcolor: printEnabled ? modeAccent : "#D1D5DB", borderRadius: 10, position: "relative", transition: "background 0.2s" }}>
+//                     <Box sx={{ position: "absolute", top: 2, left: printEnabled ? 12 : 2, width: 12, height: 12, bgcolor: "#fff", borderRadius: "50%", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
 //                   </Box>
 //                   <Typography sx={{ fontSize: 8, fontWeight: 700, color: "#6B7280", letterSpacing: "0.05em" }}>PRINT</Typography>
 //                 </Box>
@@ -1015,30 +1015,50 @@
 //               <Button variant="contained"
 //                 startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon sx={{ fontSize: 18 }} />}
 //                 onClick={handleSave} disabled={saving || items.length === 0}
-//                 sx={{ ...footerOutline("SAVE"), flex: 1, bgcolor: "#C8102E", color: "#fff", fontSize: 15, fontWeight: 800, py: 1, borderRadius: 2, boxShadow: "0 4px 18px rgba(200,16,46,0.35)", "&:hover": { bgcolor: "#A50D26" }, "&:active": { transform: "scale(0.98)" }, "&.Mui-disabled": { bgcolor: "#E5E7EB", color: "#9CA3AF", boxShadow: "none" }, transition: "all 0.15s" }}>
-//                 {saving ? "SAVING…" : "SAVE"}{" "}
+//                 sx={{ ...footerOutline("SAVE"), minWidth: "clamp(360px, 28vw, 280px)", bgcolor: modeAccent, color: "#fff", fontSize: 15, fontWeight: 800, py: 0.9, px: 3, borderRadius: 2, boxShadow: `0 4px 18px ${isQuotation ? "rgba(29,78,216,0.35)" : "rgba(200,16,46,0.35)"}`, "&:hover": { bgcolor: isQuotation ? "#1E40AF" : "#A50D26" }, "&:active": { transform: "scale(0.98)" }, "&.Mui-disabled": { bgcolor: "#E5E7EB", color: "#9CA3AF", boxShadow: "none" }, transition: "all 0.15s" }}>
+//                 {saving ? "SAVING…" : isQuotation ? "SAVE QUOTE" : "SAVE"}{" "}
 //                 <Box component="span" sx={{ fontSize: 11, opacity: 0.85, ml: 0.5 }}>[F8]</Box>
 //               </Button>
 //             </Box>
-//             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-//               <Typography sx={{ fontSize: 10, color: "#6B7280", fontWeight: 600 }}>PAYMENT STATUS:</Typography>
-//               <Typography sx={{ fontSize: 11, fontWeight: 800, color: status.color, letterSpacing: "0.06em" }}>{status.label}</Typography>
-//             </Box>
+
+//             {!isQuotation && (
+//               <Box sx={{ display: "flex", alignItems: "center", gap: 1.5,justifyContent:"space-between",width:"100%" }}>
+//                 <Box sx={{ display: "flex", gap: 0.75 }}>
+//                   <Button size="small" startIcon={<PauseCircleOutlineIcon sx={{ fontSize: 12 }} />} onClick={handleHold}
+//                     sx={{ minWidth: 82, height: 26, px: 1, borderRadius: 1.25, bgcolor: "#4B5563", color: "#fff", fontSize: 10, fontWeight: 800, boxShadow: "0 2px 6px rgba(75,85,99,0.22)", "&:hover": { bgcolor: "#374151" } }}>
+//                     HOLD <Box component="span" sx={{ fontSize: 9, opacity: 0.8, ml: 0.3 }}>[F9]</Box>
+//                   </Button>
+//                   <Badge badgeContent={heldOrders.length} invisible={heldOrders.length === 0} sx={{ "& .MuiBadge-badge": { fontSize: 8, minWidth: 14, height: 14, bgcolor: "#C8102E", color: "#fff", fontWeight: 800 } }}>
+//                     <Button size="small" startIcon={<PlayArrowIcon sx={{ fontSize: 12 }} />} onClick={() => setHoldDialogOpen(true)}
+//                       sx={{ minWidth: 80, height: 26, px: 1, borderRadius: 1.25, border: "1px solid #E5E7EB", bgcolor: heldOrders.length > 0 ? "#4B5563" : "#F3F4F6", color: heldOrders.length > 0 ? "#fff" : "#9CA3AF", fontSize: 10, fontWeight: 800, "&:hover": { bgcolor: heldOrders.length > 0 ? "#374151" : "#E5E7EB" } }}>
+//                       RECALL
+//                     </Button>
+//                   </Badge>
+//                 </Box>
+//                 <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+//                   <Typography sx={{ fontSize: 9, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.06em" }}>PAYMENT STATUS</Typography>
+//                   <Typography sx={{ fontSize: 11, fontWeight: 800, color: status.color, letterSpacing: "0.04em" }}>{status.label}</Typography>
+//                 </Box>
+//               </Box>
+//             )}
 //           </Box>
 //         </Box>
 
-//         {/* STATUS BAR */}
-//         <Box sx={{ bgcolor: "#1A1A2E", px: 2.5, py: 0.35, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-//           <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-//             {[{ dot: "#22C55E", label: "SYSTEM ONLINE" }, { dot: "#EF4444", label: "PRINTER READY" }].map(s => (
-//               <Box key={s.label} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}><FiberManualRecordIcon sx={{ fontSize: 7, color: s.dot }} /><Typography sx={{ fontSize: 9, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.06em" }}>{s.label}</Typography></Box>
-//             ))}
-//           </Box>
-//           <Box sx={{ display: "flex", gap: 2 }}>
-//             <Typography sx={{ fontSize: 9, color: "#6B7280", fontWeight: 600 }}>SERVER: CLOUD-E24</Typography>
-//             <Typography sx={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700 }}>POS-ID: 4492-AX</Typography>
-//           </Box>
-//         </Box>
+//         {/* ══ SEPARATE MODALS ══ */}
+//         <DiscountModal
+//           open={discountModalOpen}
+//           onClose={() => setDiscountModalOpen(false)}
+//           discountPct={discountPct}
+//           discount={discount}
+//           modeAccent={modeAccent}
+//           onApply={(pct, amt) => { setDiscountPct(pct); setDiscount(amt); }}
+//         />
+//         <NoteModal
+//           open={noteModalOpen}
+//           onClose={() => setNoteModalOpen(false)}
+//           orderNote={orderNote}
+//           onApply={note => setOrderNote(note)}
+//         />
 
 //         {/* HOLD DIALOG */}
 //         <Dialog open={holdDialogOpen} onClose={() => setHoldDialogOpen(false)} maxWidth="sm" fullWidth>
@@ -1089,7 +1109,7 @@
 //               <Box sx={{ bgcolor: saveResult?.success ? "#DCFCE7" : "#FEE2E2", borderRadius: "50%", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center" }}>
 //                 {saveResult?.success ? <SaveIcon sx={{ color: "#16A34A", fontSize: 20 }} /> : <CloseIcon sx={{ color: "#C8102E", fontSize: 20 }} />}
 //               </Box>
-//               <Typography sx={{ fontWeight: 700, fontSize: 16 }}>{saveResult?.success ? "Order Saved" : "Save Failed"}</Typography>
+//               <Typography sx={{ fontWeight: 700, fontSize: 16 }}>{saveResult?.success ? (isQuotation ? "Quotation Saved" : "Order Saved") : "Save Failed"}</Typography>
 //             </Box>
 //             <IconButton size="small" onClick={() => setSaveResult(null)}><CloseIcon sx={{ fontSize: 16 }} /></IconButton>
 //           </DialogTitle>
@@ -1100,7 +1120,7 @@
 //                   <Typography sx={{ fontSize: 13, color: "#6B7280" }}>Grand Total</Typography>
 //                   <Typography sx={{ fontSize: 13, fontWeight: 700 }}>{INR(saveResult.grandTotal ?? 0)}</Typography>
 //                 </Box>
-//                 {(saveResult.change ?? 0) > 0 && (
+//                 {!isQuotation && (saveResult.change ?? 0) > 0 && (
 //                   <Box sx={{ display: "flex", justifyContent: "space-between", bgcolor: "#DBEAFE", borderRadius: 1.5, px: 1.5, py: 0.8, mt: 0.5 }}>
 //                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#1D4ED8" }}>💵 Return Change</Typography>
 //                     <Typography sx={{ fontSize: 14, fontWeight: 800, color: "#1D4ED8" }}>{INR(saveResult.change ?? 0)}</Typography>
@@ -1115,26 +1135,21 @@
 //           </DialogContent>
 //           <DialogActions sx={{ px: 2, pb: 2, gap: 1 }}>
 //             {saveResult?.success && printEnabled && (
-//               <Button variant="outlined" startIcon={<PrintOutlinedIcon />} onClick={() => setSaveResult(null)}
-//                 sx={{ borderRadius: 2, fontWeight: 600, flex: 1, borderColor: "#E5E7EB", color: "#374151" }}>Print</Button>
+//               <Button variant="outlined" startIcon={<PrintOutlinedIcon />} onClick={() => setSaveResult(null)} sx={{ borderRadius: 2, fontWeight: 600, flex: 1, borderColor: "#E5E7EB", color: "#374151" }}>Print</Button>
 //             )}
 //             <Button variant="contained" onClick={() => setSaveResult(null)}
-//               sx={{ bgcolor: saveResult?.success ? "#16A34A" : "#C8102E", "&:hover": { bgcolor: saveResult?.success ? "#15803D" : "#A50D26" }, borderRadius: 2, fontWeight: 700, flex: 1 }}
-//               autoFocus>
-//               {saveResult?.success ? "New Sale" : "Dismiss"}
+//               sx={{ bgcolor: saveResult?.success ? "#16A34A" : "#C8102E", "&:hover": { bgcolor: saveResult?.success ? "#15803D" : "#A50D26" }, borderRadius: 2, fontWeight: 700, flex: 1 }} autoFocus>
+//               {saveResult?.success ? (isQuotation ? "New Quote" : "New Sale") : "Dismiss"}
 //             </Button>
 //           </DialogActions>
 //         </Dialog>
 
-//         <CustomerLedgerDialog open={customerLedgerOpen} onClose={() => setCustomerLedgerOpen(false)}
-//           customerName={customer.name || "Walk-in Customer"} />
+//         <CustomerLedgerDialog open={customerLedgerOpen} onClose={() => setCustomerLedgerOpen(false)} customerName={customer.name || "Walk-in Customer"} />
 //         <AddNewCustomerDialog open={addCustomerOpen} onClose={() => setAddCustomerOpen(false)} />
-
 //       </Box>
 //     </ThemeProvider>
 //   );
 // }
-
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { usePosSearch } from "./useposproducts";
@@ -1144,12 +1159,11 @@ import {
   useCustomerSearch,
   type ApiCustomer,
   primaryMobile,
-  customerLabel,
   customerAddress,
 } from "./usecustomer";
 import {
   Box, Typography, TextField, Button, IconButton, Table, TableBody,
-  TableCell, TableHead, TableRow, Divider, Chip, Paper, InputAdornment,
+  TableCell, TableHead, TableRow, TableFooter, Divider, Chip, Paper, InputAdornment,
   Tooltip, Fade, Badge, Dialog, DialogTitle, DialogContent, DialogActions,
   List, ListItem, ListItemText, ListItemSecondaryAction,
   Select, MenuItem, CircularProgress,
@@ -1161,23 +1175,27 @@ import DeleteOutlineIcon      from "@mui/icons-material/DeleteOutline";
 import PauseCircleOutlineIcon from "@mui/icons-material/PauseCircleOutline";
 import SaveIcon               from "@mui/icons-material/Save";
 import PrintOutlinedIcon      from "@mui/icons-material/PrintOutlined";
-import FiberManualRecordIcon  from "@mui/icons-material/FiberManualRecord";
 import PersonOutlineIcon      from "@mui/icons-material/PersonOutline";
 import QrCodeScannerIcon      from "@mui/icons-material/QrCodeScanner";
 import AddIcon                from "@mui/icons-material/Add";
 import RemoveIcon             from "@mui/icons-material/Remove";
-import GridViewIcon           from "@mui/icons-material/GridView";
 import PlayArrowIcon          from "@mui/icons-material/PlayArrow";
 import CloseIcon              from "@mui/icons-material/Close";
 import SearchIcon             from "@mui/icons-material/Search";
 import EditIcon               from "@mui/icons-material/Edit";
 import CalendarTodayIcon      from "@mui/icons-material/CalendarToday";
 import PersonSearchIcon       from "@mui/icons-material/PersonSearch";
-import { useLocation, useNavigate }        from "react-router-dom";
-import { Receipt }            from "@mui/icons-material";
-import CustomerLedgerDialog   from "../Customer/CustomerLedgerDialog";
-import AddNewCustomerDialog   from "@pages/Customer/Addnewcustomerdialog";
-import { fetchSaleDetail } from "../SalesHistory/useSaleshistory";
+import ReceiptLongIcon        from "@mui/icons-material/ReceiptLong";
+import RequestQuoteIcon       from "@mui/icons-material/RequestQuote";
+import NoteAltOutlinedIcon    from "@mui/icons-material/NoteAltOutlined";
+import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
+import { useLocation, useNavigate } from "react-router-dom";
+import CustomerLedgerDialog  from "../Customer/CustomerLedgerDialog";
+import AddNewCustomerDialog  from "@pages/Customer/Addnewcustomerdialog";
+import { fetchSaleDetail }   from "../SalesHistory/useSaleshistory";
+import DiscountModal         from "./DiscountModal";
+import NoteModal             from "./NotesModal";
+
 // ─── Constants ────────────────────────────────────────────────
 const INR = (v: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(v);
@@ -1199,7 +1217,11 @@ const theme = createTheme({
     MuiTableCell: {
       styleOverrides: {
         root: { borderBottom: "1px solid #F0F0F0", padding: "6px 8px" },
-        head: { fontSize: 10, fontWeight: 700, letterSpacing: "0.07em", color: "#6B7280", textTransform: "uppercase", backgroundColor: "#FAFAFA" },
+        head: {
+          fontSize: 10, fontWeight: 700, letterSpacing: "0.07em", color: "#6B7280",
+          textTransform: "uppercase", backgroundColor: "#FAFAFA",
+          whiteSpace: "normal", wordBreak: "break-word", overflowWrap: "anywhere", lineHeight: 1.35,
+        },
       },
     },
     MuiDialog: { styleOverrides: { paper: { borderRadius: 16 } } },
@@ -1208,61 +1230,32 @@ const theme = createTheme({
 
 // ─── Types ────────────────────────────────────────────────────
 interface LineItem {
-  code: string; description: string; qty: number; unitPrice: number; sellPrice: number;uuid: string;
+  code: string; description: string; qty: number; unitPrice: number; sellPrice: number; uuid: string;
   hsn: string; mrp: number; gstPct: number; taxInclusive: boolean; category?: string; unit?: string;
-  discount?: number; // ✅ Added discount field
-  editingQty?: boolean; editingPrice?: boolean; qtyDraft?: string; priceDraft?: string;
+  discount?: number;
+  editingQty?: boolean; editingPrice?: boolean; editingDiscount?: boolean;
+  qtyDraft?: string; priceDraft?: string; discountDraft?: string;
 }
-
-interface Customer {
-  id:      string | null;
-  name:    string;
-  mobile:  string;
-  address: string;
-  gstin:   string;
-}
+interface Customer { id: string | null; name: string; mobile: string; address: string; gstin: string; }
 const EMPTY_CUSTOMER: Customer = { id: null, name: "", mobile: "", address: "", gstin: "" };
-
-interface HeldOrder {
-  id: string; label: string; items: LineItem[];
-  discount: string; customer: Customer; time: Date;
-}
-
-type Zone = "SEARCH" | "CUSTOMER" | "TABLE" | "FOOTER";
-
-type SearchFocus = "CODE";
-
-type FooterFocus = "DISCOUNT_PCT" | "DISCOUNT_AMT" | "PAYMENT_TYPE" | "REF_NO" | "RECEIVED" | "SAVE";
-type PaymentType = "Cash" | "Card" | "UPI" | "Credit";
+interface HeldOrder { id: string; label: string; items: LineItem[]; discount: string; customer: Customer; time: Date; }
+type PosMode      = "SALE" | "QUOTATION";
+type Zone         = "SEARCH" | "CUSTOMER" | "TABLE" | "FOOTER";
+type SearchFocus  = "CODE";
+type FooterFocus  = "DISCOUNT_PCT" | "DISCOUNT_AMT" | "PAYMENT_TYPE" | "REF_NO" | "RECEIVED" | "SAVE";
+type PaymentType  = "Cash" | "Card" | "UPI" | "Credit";
 
 // ─── Helpers ──────────────────────────────────────────────────
 function toLineItem(p: PosProduct): LineItem {
-  const grossPrice    = Number(p.sell_price) || 0;
-  const gstPct        = Number(p.gst_tax)    || 0;
-  const taxInclusive  = p.tax_inclusive === true || (p.tax_inclusive as unknown) === 1;
-
-  // For tax-inclusive items the sell_price already contains GST.
-  // Strip tax out so unitPrice always represents the BASE (pre-tax) price.
-  // This ensures discounts are applied on the taxable base, not on gross.
-  const unitPrice = taxInclusive && gstPct > 0
-    ? grossPrice / (1 + gstPct / 100)   // base = gross / (1 + gst%)
-    : grossPrice;
-
-
+  const grossPrice   = Number(p.sell_price) || 0;
+  const gstPct       = Number(p.gst_tax)    || 0;
+  const taxInclusive = p.tax_inclusive === true || (p.tax_inclusive as unknown) === 1;
+  const unitPrice    = taxInclusive && gstPct > 0 ? grossPrice / (1 + gstPct / 100) : grossPrice;
   return {
-    uuid:          p.item_uuid, // ✅ Set uuid from the product
-    code:         p.item_id,
-    description:  p.item_name,
-    qty:          1,
-    unitPrice,                            // BASE price — used for all calculations
-    sellPrice:    grossPrice,             // GROSS price (what's on the price tag) — display only
-    taxInclusive,
-    hsn:          p.hsn_code   ?? "",
-    mrp:          Number(p.purchase_price) || grossPrice,
-    gstPct,
-    category:     p.category_name ?? "",
-    unit:         p.unit          || "NOS",
-    discount:     0,                      // ✅ Initialize discount
+    uuid: p.item_uuid, code: p.item_id, description: p.item_name,
+    qty: 1, unitPrice, sellPrice: grossPrice, taxInclusive,
+    hsn: p.hsn_code ?? "", mrp: Number(p.purchase_price) || grossPrice,
+    gstPct, category: p.category_name ?? "", unit: p.unit || "NOS", discount: 0,
   };
 }
 
@@ -1291,52 +1284,53 @@ function Highlight({ text, query }: { text: string; query: string }) {
 const queryClient = new QueryClient();
 const CAT_COLOR: Record<string, string> = { Beans: "#92400E", Drinks: "#1D4ED8", Equipment: "#065F46", Accessories: "#5B21B6", Milk: "#9D174D", Syrups: "#B45309" };
 
-// ─── Root ─────────────────────────────────────────────────────
 export default function RetailPOS() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <RetailPOSInner />
-    </QueryClientProvider>
-  );
+  return <QueryClientProvider client={queryClient}><RetailPOSInner /></QueryClientProvider>;
 }
 
-// ─── Main component ───────────────────────────────────────────
 function RetailPOSInner() {
   const [codeInput, setCodeInput] = useState("");
   const { results: suggestions, isLoading: catalogueLoading, total: catalogueTotal } = usePosSearch(BRANCH_ID, codeInput);
 
-const query = new URLSearchParams(useLocation().search);
-const saleIdFromUrl = query.get("saleId");
+  const query          = new URLSearchParams(useLocation().search);
+  const saleIdFromUrl  = query.get("saleId");
 
-const [items,          setItems]          = useState<LineItem[]>([]);
+  const [posMode,        setPosMode]        = useState<PosMode>("SALE");
+  const [items,          setItems]          = useState<LineItem[]>([]);
   const [discount,       setDiscount]       = useState("0");
   const [discountPct,    setDiscountPct]    = useState("0");
+  const [gstMode,        setGstMode]        = useState<"after" | "before">("after");
   const [referenceNo,    setReferenceNo]    = useState("");
   const [receivedAmount, setReceivedAmount] = useState("");
   const [paymentType,    setPaymentType]    = useState<PaymentType>("Cash");
   const [printEnabled,   setPrintEnabled]   = useState(true);
   const [invoiceDate,    setInvoiceDate]    = useState(todayStr());
+  const [orderNote,      setOrderNote]      = useState("");
   const [customer,       setCustomer]       = useState<Customer>(EMPTY_CUSTOMER);
   const [customerSuggestionsOpen, setCustomerSuggestionsOpen] = useState(false);
   const [customerLedgerOpen,      setCustomerLedgerOpen]      = useState(false);
   const [addCustomerOpen,         setAddCustomerOpen]         = useState(false);
-  const [flashRow,  setFlashRow]  = useState<string | null>(null);
-const [saleId, setSaleId] = useState<string | null>(null);
+  const [flashRow,       setFlashRow]       = useState<string | null>(null);
+  const [saleId,         setSaleId]         = useState<string | null>(null);
+
+  // ── Separate modal states ─────────────────────────────────
+  const [discountModalOpen, setDiscountModalOpen] = useState(false);
+  const [noteModalOpen,     setNoteModalOpen]     = useState(false);
+
   const { results: customerResults, loading: customerLoading, search: searchCustomers, clear: clearCustomerResults } = useCustomerSearch(ZODU_ID, BRANCH_ID);
 
-  const [zone,            setZone]            = useState<Zone>("SEARCH");
-  // ✅ Tracks which field inside SEARCH zone is focused
-  const [searchFocus,     setSearchFocus]     = useState<SearchFocus>("CODE");
-  const [activeRowIdx,    setActiveRowIdx]    = useState(-1);
-  const [footerFocus,     setFooterFocus]     = useState<FooterFocus>("DISCOUNT_PCT");
-  const [suggestionIdx,   setSuggestionIdx]   = useState(-1);
+  const [zone,          setZone]          = useState<Zone>("SEARCH");
+  const [searchFocus,   setSearchFocus]   = useState<SearchFocus>("CODE");
+  const [activeRowIdx,  setActiveRowIdx]  = useState(-1);
+  const [footerFocus,   setFooterFocus]   = useState<FooterFocus>("DISCOUNT_PCT");
+  const [suggestionIdx, setSuggestionIdx] = useState(-1);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const [heldOrders,     setHeldOrders]     = useState<HeldOrder[]>([]);
   const [holdDialogOpen, setHoldDialogOpen] = useState(false);
   const [holdCounter,    setHoldCounter]    = useState(1);
 
-  const { saveOrder, saving,updateOrder } = useSaveOrder();
+  const { saveOrder, saving, updateOrder } = useSaveOrder();
   const [saveResult, setSaveResult] = useState<{
     open: boolean; success: boolean; message: string;
     invoiceNo?: string; grandTotal?: number; change?: number;
@@ -1352,14 +1346,13 @@ const [saleId, setSaleId] = useState<string | null>(null);
   const tableBodyRef      = useRef<HTMLTableSectionElement>(null);
   const qtyRefs           = useRef<Record<string, HTMLInputElement | null>>({});
   const priceRefs         = useRef<Record<string, HTMLInputElement | null>>({});
+  const discountRefs      = useRef<Record<string, HTMLInputElement | null>>({});
   const editCancelledRef  = useRef(false);
+  const inputRef          = useRef<HTMLInputElement | null>(null);
+
 
   useEffect(() => { codeRef.current?.focus(); }, []);
-  useEffect(() => {
-  if (saleIdFromUrl) {
-    setSaleId(saleIdFromUrl);
-  }
-}, []);
+  useEffect(() => { if (saleIdFromUrl) setSaleId(saleIdFromUrl); }, []);
 
   useEffect(() => {
     if (zone === "TABLE" && activeRowIdx >= 0) {
@@ -1368,13 +1361,10 @@ const [saleId, setSaleId] = useState<string | null>(null);
     }
   }, [activeRowIdx, zone]);
 
-  // ✅ Focus the correct sub-field when zone/searchFocus changes
   useEffect(() => {
-    if (zone === "SEARCH") {
-      setTimeout(() => codeRef.current?.focus(), 10);
-    } else if (zone === "CUSTOMER") {
-      setTimeout(() => customerNameRef.current?.focus(), 10);
-    } else if (zone === "FOOTER") {
+    if (zone === "SEARCH")        setTimeout(() => codeRef.current?.focus(), 10);
+    else if (zone === "CUSTOMER") setTimeout(() => customerNameRef.current?.focus(), 10);
+    else if (zone === "FOOTER") {
       if      (footerFocus === "DISCOUNT_PCT") setTimeout(() => discountPctRef.current?.focus(), 10);
       else if (footerFocus === "DISCOUNT_AMT") setTimeout(() => discountAmtRef.current?.focus(), 10);
       else if (footerFocus === "REF_NO")       setTimeout(() => refNoRef.current?.focus(),       10);
@@ -1384,10 +1374,7 @@ const [saleId, setSaleId] = useState<string | null>(null);
 
   useEffect(() => {
     setSuggestionIdx(-1);
-    // ✅ Re-open dropdown whenever user types — even after adding an item
-    if (codeInput.trim() && zone === "SEARCH" && searchFocus === "CODE") {
-      setShowSuggestions(true);
-    }
+    if (codeInput.trim() && zone === "SEARCH" && searchFocus === "CODE") setShowSuggestions(true);
   }, [codeInput]);
 
   useEffect(() => {
@@ -1396,17 +1383,18 @@ const [saleId, setSaleId] = useState<string | null>(null);
   }, [catalogueLoading]);
 
   const startEditQty = useCallback((code: string) => {
-    setItems(prev => prev.map(i => i.code === code
-      ? { ...i, editingQty: true, editingPrice: false, qtyDraft: String(i.qty) }
-      : { ...i, editingQty: false }));
+    setItems(prev => prev.map(i => i.code === code ? { ...i, editingQty: true, editingPrice: false, editingDiscount: false, qtyDraft: String(i.qty) } : { ...i, editingQty: false }));
     setTimeout(() => { qtyRefs.current[code]?.focus(); qtyRefs.current[code]?.select(); }, 30);
   }, []);
 
   const startEditPrice = useCallback((code: string) => {
-    setItems(prev => prev.map(i => i.code === code
-      ? { ...i, editingPrice: true, editingQty: false, priceDraft: String(i.sellPrice) }
-      : { ...i, editingPrice: false }));
+    setItems(prev => prev.map(i => i.code === code ? { ...i, editingPrice: true, editingQty: false, editingDiscount: false, priceDraft: String(i.sellPrice) } : { ...i, editingPrice: false }));
     setTimeout(() => { priceRefs.current[code]?.focus(); priceRefs.current[code]?.select(); }, 30);
+  }, []);
+
+  const startEditDiscount = useCallback((code: string) => {
+    setItems(prev => prev.map(i => i.code === code ? { ...i, editingDiscount: true, editingQty: false, editingPrice: false, discountDraft: String(i.discount ?? 0) } : { ...i, editingDiscount: false }));
+    setTimeout(() => { discountRefs.current[code]?.focus(); discountRefs.current[code]?.select(); }, 30);
   }, []);
 
   const doAddItem = useCallback((itemId: string) => {
@@ -1414,149 +1402,67 @@ const [saleId, setSaleId] = useState<string | null>(null);
     if (!p) return false;
     setItems(prev => {
       const idx = prev.findIndex(i => i.code === p.item_id);
-      if (idx >= 0) {
-        const existing = prev[idx];
-        const updated = { ...existing, qty: existing.qty + 1 };
-        return [updated, ...prev.filter((_, i) => i !== idx)];
-      }
+      if (idx >= 0) { const e = prev[idx]; return [{ ...e, qty: e.qty + 1 }, ...prev.filter((_, i) => i !== idx)]; }
       return [toLineItem(p), ...prev];
     });
     setFlashRow(p.item_id); setTimeout(() => setFlashRow(null), 700);
     return p.item_id;
   }, [suggestions]);
 
- useEffect(() => {
-  if (!saleId) return;
-
-  const loadSale = async () => {
-    const data = await fetchSaleDetail(saleId);
-
-    const sale = data.sale;
-    setSaleId(sale.sale_uuid)
-    const items = data.items;
-    const payments = data.payment_history;
-
-    console.log("muitems",items)
-    // ✅ ITEMS
-    setItems(
-      items.map((i) => {
+  useEffect(() => {
+    if (!saleId) return;
+    const loadSale = async () => {
+      const data = await fetchSaleDetail(saleId);
+      const sale = data.sale;
+      setSaleId(sale.sale_uuid);
+      setItems(data.items.map((i: any) => {
         const grossPrice = Number(i.price) || 0;
         const gstPct = Number(i.gst_percentage) || 0;
         const taxInclusive = Boolean(i.tax_inclusive);
-        const unitPrice =
-          taxInclusive && gstPct > 0
-            ? grossPrice / (1 + gstPct / 100)
-            : grossPrice;
-
-        return {
-          code: i.item_id,
-          description: i.item_name,
-          qty: Number(i.quantity),
-          unitPrice,
-          sellPrice: grossPrice,
-          gstPct,
-          taxInclusive,
-          uuid: i.item_uuid,
-          hsn: i.hsn_code ?? "",
-          mrp: Number(i.mrp || 0),
-          unit: i.unit || "NOS",
-          discount: Number(i.discount || 0),
-        };
-      })
-    );
-
-    // ✅ CUSTOMER
-    if (data.customer) {
-      const c = data.customer;
-
-      const displayName =
-        c.cust_name && c.cpy_name
-          ? `${c.cust_name} / ${c.cpy_name}`
-          : c.cust_name || c.cpy_name || "";
-
-      setCustomer({
-        id: c.cust_uuid,
-        name: displayName,
-        mobile: c.mobile || "",
-        address: [
-          c.address_line1,
-          c.address_line2,
-          c.city,
-          c.state,
-          c.pincode,
-        ]
-          .filter(Boolean)
-          .join(", "),
-        gstin: c.gst || "",
-      });
-    }
-
-    // ✅ DISCOUNT
-    if (sale.discount_type === "percentage") {
-      setDiscountPct(String(sale.discount_value || 0));
-      setDiscount("0");
-    } else {
-      setDiscount(String(sale.discount_amount || 0));
-      setDiscountPct("0");
-    }
-
-    // ✅ PAYMENT
-    setReceivedAmount(String(sale.paid_amount || 0));
-
-    if (payments.length > 0) {
-      const last = payments[payments.length - 1];
-      setReferenceNo(last.transaction_id || "");
-      setPaymentType((last.transaction_type as any) || "Cash");
-    }
-
-    // ✅ DATE
-    setInvoiceDate(
-      sale.sale_date_fmt
-        ? new Date(sale.sale_date_fmt).toISOString().split("T")[0]
-        : ""
-    );
-  };
-
-  loadSale();
-}, [saleId]);
+        const unitPrice = taxInclusive && gstPct > 0 ? grossPrice / (1 + gstPct / 100) : grossPrice;
+        return { code: i.item_id, description: i.item_name, qty: Number(i.quantity), unitPrice, sellPrice: grossPrice, gstPct, taxInclusive, uuid: i.item_uuid, hsn: i.hsn_code ?? "", mrp: Number(i.mrp || 0), unit: i.unit || "NOS", discount: Number(i.discount || 0) };
+      }));
+      if (data.customer) {
+        const c = data.customer;
+        const displayName = c.cust_name && c.cpy_name ? `${c.cust_name} / ${c.cpy_name}` : c.cust_name || c.cpy_name || "";
+        setCustomer({ id: c.cust_uuid, name: displayName, mobile: c.mobile || "", address: [c.address_line1, c.address_line2, c.city, c.state, c.pincode].filter(Boolean).join(", "), gstin: c.gst || "" });
+      }
+      if (sale.discount_type === "percentage") { setDiscountPct(String(sale.discount_value || 0)); setDiscount("0"); }
+      else { setDiscount(String(sale.discount_amount || 0)); setDiscountPct("0"); }
+      setReceivedAmount(String(sale.paid_amount || 0));
+      if (data.payment_history.length > 0) { const last = data.payment_history[data.payment_history.length - 1]; setReferenceNo(last.transaction_id || ""); setPaymentType((last.transaction_type as any) || "Cash"); }
+      setInvoiceDate(sale.sale_date_fmt ? new Date(sale.sale_date_fmt).toISOString().split("T")[0] : "");
+    };
+    loadSale();
+  }, [saleId]);
 
   const handleAddItem = useCallback((overrideCode?: string) => {
     const code = (overrideCode ?? codeInput).trim();
     const id   = doAddItem(code);
     setCodeInput(""); setShowSuggestions(false);
-    if (id) {
-      setItems(prev => prev.map(i => i.code === id ? { ...i, qty: 1 } : i));
-    }
-    // Always return focus to CODE field so cashier can scan the next item
+    if (id) setItems(prev => prev.map(i => i.code === id ? { ...i, qty: 1 } : i));
     setZone("SEARCH"); setSearchFocus("CODE");
     setTimeout(() => codeRef.current?.focus(), 10);
   }, [codeInput, doAddItem]);
 
   const selectSuggestion = useCallback((p: PosProduct) => {
-    const id  = doAddItem(p.item_id);
+    const id = doAddItem(p.item_id);
     setCodeInput(""); setShowSuggestions(false);
-    if (id) {
-      setItems(prev => prev.map(i => i.code === id ? { ...i, qty: 1, uuid: p.item_uuid } : i));
-    }
-    // Always return focus to CODE field so cashier can scan the next item
+    if (id) setItems(prev => prev.map(i => i.code === id ? { ...i, qty: 1, uuid: p.item_uuid } : i));
     setZone("SEARCH"); setSearchFocus("CODE");
     setTimeout(() => codeRef.current?.focus(), 10);
   }, [doAddItem]);
 
   const handleClear = useCallback(() => {
     setItems([]); setDiscount("0"); setDiscountPct("0"); setReferenceNo("");
-    setReceivedAmount(""); setCodeInput(""); setActiveRowIdx(-1);
+    setReceivedAmount(""); setCodeInput(""); setActiveRowIdx(-1); setOrderNote("");
     setZone("SEARCH"); setSearchFocus("CODE");
-    setCustomer(EMPTY_CUSTOMER); clearCustomerResults();
+    setCustomer(EMPTY_CUSTOMER); clearCustomerResults(); setGstMode("after");
   }, [clearCustomerResults]);
 
   const handleHold = useCallback(() => {
     if (items.length === 0) return;
-    setHeldOrders(prev => [...prev, {
-      id: `H-${Date.now()}`, label: `Order #${holdCounter}`,
-      items: items.map(i => ({ ...i, editingQty: false, editingPrice: false })),
-      discount, customer, time: new Date(),
-    }]);
+    setHeldOrders(prev => [...prev, { id: `H-${Date.now()}`, label: `Order #${holdCounter}`, items: items.map(i => ({ ...i, editingQty: false, editingPrice: false, editingDiscount: false })), discount, customer, time: new Date() }]);
     setHoldCounter(c => c + 1); setItems([]); setDiscount("0"); setReceivedAmount("");
     setActiveRowIdx(-1); setZone("SEARCH"); setSearchFocus("CODE"); setCustomer(EMPTY_CUSTOMER);
   }, [items, discount, customer, holdCounter]);
@@ -1568,11 +1474,15 @@ const [saleId, setSaleId] = useState<string | null>(null);
     setHoldDialogOpen(false); setZone("TABLE"); setActiveRowIdx(0);
   };
 
+  const handleOpenPicker = () => {
+    if (inputRef.current) {
+      inputRef.current.showPicker();
+      inputRef.current.focus();
+    }
+  };
+
   const handleDeleteHold = (id: string) => setHeldOrders(prev => prev.filter(h => h.id !== id));
-
-  const updateQty  = (code: string, delta: number) =>
-    setItems(prev => prev.map(i => i.code === code ? { ...i, qty: Math.max(1, i.qty + delta) } : i));
-
+  const updateQty = (code: string, delta: number) => setItems(prev => prev.map(i => i.code === code ? { ...i, qty: Math.max(1, i.qty + delta) } : i));
   const removeItem = (code: string) => {
     setItems(prev => {
       const next = prev.filter(i => i.code !== code);
@@ -1582,31 +1492,49 @@ const [saleId, setSaleId] = useState<string | null>(null);
     });
   };
 
-  // subtotal = sum of BASE prices (unitPrice is always pre-tax after toLineItem())
-  const subtotal        = useMemo(() => items.reduce((s, i) => s + i.qty * i.unitPrice, 0), [items]);
-
-  // Discount applied on the pre-tax subtotal
-  const discountPctAmt  = subtotal * (parseFloat(discountPct) || 0) / 100;
-  const discountFlatAmt = parseFloat(discount) || 0;
-  const discountAmt     = discountPctAmt + discountFlatAmt;
-  const discountedSubtotal = Math.max(0, subtotal - discountAmt);
-
-  // GST is always computed on the discounted BASE price, regardless of tax_inclusive
-  // (unitPrice is already the base — toLineItem() stripped tax out for inclusive items)
-  const gstAmount       = useMemo(() => {
+  const subtotal           = useMemo(() => items.reduce((s, i) => s + i.qty * i.unitPrice, 0), [items]);
+  const itemDiscountTotal  = useMemo(() => items.reduce((s, i) => s + (i.discount ?? 0), 0), [items]);
+  const discountPctAmt     = subtotal * (parseFloat(discountPct) || 0) / 100;
+  const discountFlatAmt    = parseFloat(discount) || 0;
+  const orderDiscountAmt   = discountPctAmt + discountFlatAmt;
+  
+  const gstAmount          = useMemo(() => {
     if (subtotal === 0) return 0;
-    return items.reduce((s, i) => {
-      const itemBase     = i.qty * i.unitPrice;
-      const itemDiscount = discountAmt * (itemBase / subtotal);   // proportional discount
-      return s + Math.max(0, itemBase - itemDiscount) * i.gstPct / 100;
-    }, 0);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, discountAmt, subtotal]);
-  const grandTotal      = discountedSubtotal + gstAmount;
-  const received        = parseFloat(receivedAmount) || 0;
-  const totalUnits      = useMemo(() => items.reduce((s, i) => s + i.qty, 0), [items]);
-  const status          = paymentStatus(grandTotal, received);
-  const navigate        = useNavigate();
+    
+    if (gstMode === "before") {
+      // Discount applied before GST: discount reduces the base, then GST is applied
+      return items.reduce((s, i) => {
+        const itemBase     = i.qty * i.unitPrice;
+        const itemDiscount = orderDiscountAmt * (itemBase / subtotal);
+        return s + Math.max(0, itemBase - itemDiscount) * i.gstPct / 100;
+      }, 0);
+    } else {
+      // Discount applied after GST: GST is calculated on full amount, then discount is applied
+      return items.reduce((s, i) => {
+        const itemBase = i.qty * i.unitPrice;
+        return s + itemBase * i.gstPct / 100;
+      }, 0);
+    }
+  }, [items, orderDiscountAmt, gstMode, subtotal]);
+
+  // Grand total calculation based on GST mode
+  const grandTotalRaw = useMemo(() => {
+    if (gstMode === "before") {
+      // Discount applied before GST: (Subtotal - Discount) + GST - Item-level discounts
+      return Math.max(0, (subtotal - orderDiscountAmt) + gstAmount - itemDiscountTotal);
+    } else {
+      // Discount applied after GST: Subtotal + GST - Discount - Item-level discounts
+      return Math.max(0, subtotal + gstAmount - orderDiscountAmt - itemDiscountTotal);
+    }
+  }, [subtotal, gstAmount, orderDiscountAmt, itemDiscountTotal, gstMode]);
+  
+  // Round to nearest rupee (Indian standard roundoff)
+  const roundoffValue     = Math.round(grandTotalRaw) - grandTotalRaw;
+  const grandTotal        = Math.round(grandTotalRaw); // rounded to nearest rupee
+  const received          = parseFloat(receivedAmount) || 0;
+  const totalUnits        = useMemo(() => items.reduce((s, i) => s + i.qty, 0), [items]);
+  const status            = paymentStatus(grandTotal, received);
+  const navigate          = useNavigate();
 
   const handleCustomerFieldChange = useCallback((field: "name" | "mobile", value: string) => {
     setCustomer(prev => ({ ...prev, id: null, [field]: value }));
@@ -1615,52 +1543,18 @@ const [saleId, setSaleId] = useState<string | null>(null);
   }, [searchCustomers]);
 
   const handleSelectCustomer = useCallback((c: ApiCustomer) => {
-    // Build combined display name: show both person name and company name when both exist
-    const custName = c.cust_name?.trim() ?? "";
-    const cpyName  = c.cpy_name?.trim()  ?? "";
-    const displayName = custName && cpyName
-      ? `${custName} / ${cpyName}`   // "Ravi Kumar / Hero Motors"
-      : custName || cpyName;         // whichever exists
-
-    setCustomer({
-      id:      c.cust_uuid,
-      name:    displayName,
-      mobile:  primaryMobile(c),
-      address: customerAddress(c),
-      gstin:   c.gst ?? "",
-    });
-    setCustomerSuggestionsOpen(false);
-    clearCustomerResults();
-    setZone("CUSTOMER");
+    const custName    = c.cust_name?.trim() ?? "";
+    const cpyName     = c.cpy_name?.trim()  ?? "";
+    const displayName = custName && cpyName ? `${custName} / ${cpyName}` : custName || cpyName;
+    setCustomer({ id: c.cust_uuid, name: displayName, mobile: primaryMobile(c), address: customerAddress(c), gstin: c.gst ?? "" });
+    setCustomerSuggestionsOpen(false); clearCustomerResults(); setZone("CUSTOMER");
   }, [clearCustomerResults]);
 
   const handleSave = useCallback(async () => {
     if (items.length === 0 || saving) return;
- const result = saleId
-  ? await updateOrder(saleId, {
-      zodu_id: ZODU_ID,
-      branch_id: BRANCH_ID,
-      items,
-      customer,
-      invoiceDate,
-      discountPct,
-      discountFlat: discount,
-      receivedAmount,
-      paymentType,
-      referenceNo,
-    })
-  : await saveOrder({
-      zodu_id: ZODU_ID,
-      branch_id: BRANCH_ID,
-      items,
-      customer,
-      invoiceDate,
-      discountPct,
-      discountFlat: discount,
-      receivedAmount,
-      paymentType,
-      referenceNo,
-    });
+    const result = saleId
+      ? await updateOrder(saleId, { zodu_id: ZODU_ID, branch_id: BRANCH_ID, items, customer, invoiceDate, discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo })
+      : await saveOrder({ zodu_id: ZODU_ID, branch_id: BRANCH_ID, items, customer, invoiceDate, discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo });
     if (result.success) {
       const order    = result.order as any;
       const totalAmt = parseFloat(order?.total_amount ?? "0");
@@ -1672,11 +1566,10 @@ const [saleId, setSaleId] = useState<string | null>(null);
     } else {
       setSaveResult({ open: true, success: false, message: result.message });
     }
-  }, [items, customer, invoiceDate, discountPct, discount, receivedAmount, paymentType, referenceNo, printEnabled, saving, saveOrder, handleClear]);
+  }, [items, customer, invoiceDate, discountPct, discount, gstMode, roundoffValue, posMode, receivedAmount, paymentType, referenceNo, printEnabled, saving, saveOrder, updateOrder, handleClear, saleId]);
 
   const FOOTER_ORDER: FooterFocus[] = ["DISCOUNT_PCT", "DISCOUNT_AMT", "PAYMENT_TYPE", "REF_NO", "RECEIVED", "SAVE"];
 
-  // ── Keyboard handler ──────────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const active  = document.activeElement as HTMLElement;
@@ -1685,87 +1578,35 @@ const [saleId, setSaleId] = useState<string | null>(null);
 
       if (e.key === "F2") { e.preventDefault(); setShowSuggestions(false); setZone("SEARCH"); setSearchFocus("CODE"); return; }
       if (e.key === "F4") { e.preventDefault(); handleClear(); return; }
-      if (e.key === "F7") { e.preventDefault(); setZone("FOOTER"); setFooterFocus("DISCOUNT_PCT"); return; }
+      if (e.key === "F6") { e.preventDefault(); setDiscountModalOpen(true); return; }
+      if (e.key === "F7") { e.preventDefault(); setNoteModalOpen(true); return; }
       if (e.key === "F8") { e.preventDefault(); handleSave(); return; }
-      if (e.key === "F9") { e.preventDefault(); handleHold(); return; }
+      if (e.key === "F9" && posMode === "SALE") { e.preventDefault(); handleHold(); return; }
 
-      const editingItem = items.find(i => i.editingQty || i.editingPrice);
+      const editingItem = items.find(i => i.editingQty || i.editingPrice || i.editingDiscount);
       if (editingItem) {
         if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; (document.activeElement as HTMLElement)?.blur(); return; }
         if (e.key === "Enter" || e.key === "Tab") return;
         return;
       }
 
-      if (zone === "SEARCH") {
-        // ── CODE sub-field ──────────────────────────────────────
-        if (searchFocus === "CODE") {
-          if (showSuggestions && suggestions.length > 0) {
-            if (e.key === "ArrowDown")  { e.preventDefault(); setSuggestionIdx(i => Math.min(i + 1, suggestions.length - 1)); return; }
-            if (e.key === "ArrowUp")    { e.preventDefault(); setSuggestionIdx(i => Math.max(i - 1, -1)); return; }
-            if (e.key === "Escape")     { e.preventDefault(); setShowSuggestions(false); setSuggestionIdx(-1); return; }
-            if (e.key === "Enter")      { e.preventDefault(); if (suggestionIdx >= 0 && suggestions[suggestionIdx]) selectSuggestion(suggestions[suggestionIdx]); else handleAddItem(); return; }
-            // ✅ Tab/→ while suggestions open → close suggestions, move to QTY (not customer)
-            if (e.key === "Tab" || e.key === "ArrowRight") {
-              e.preventDefault();
-              setShowSuggestions(false);
-              setSuggestionIdx(-1);
-              setZone("CUSTOMER");
-              return;
-            }
-          } else {
-            if (e.key === "Enter")     { e.preventDefault(); handleAddItem(); return; }
-            if (e.key === "ArrowDown") { e.preventDefault(); if (items.length > 0) { (document.activeElement as HTMLElement)?.blur(); setZone("TABLE"); setActiveRowIdx(0); } return; }
-            // ✅ Tab/→ from CODE → focus QTY first
-            if (e.key === "Tab" || e.key === "ArrowRight") {
-              e.preventDefault();
-              setZone("CUSTOMER");
-              return;
-            }
-          }
-          return;
-        }
-
-        // ── QTY sub-field ───────────────────────────────────────
-        if (false) {
-          // ✅ ← from QTY → go back to CODE
-          if (e.key === "ArrowLeft") {
-            e.preventDefault();
-            setSearchFocus("CODE");
-            return;
-          }
-          // ✅ Tab/→ from QTY → now move to CUSTOMER
-          if (e.key === "Tab" || e.key === "ArrowRight") {
-            e.preventDefault();
-            (document.activeElement as HTMLElement)?.blur();
-            setZone("CUSTOMER");
-            return;
-          }
-          // Enter in QTY → add item using current codeInput
-          if (e.key === "Enter") {
-            e.preventDefault();
-            handleAddItem();
-            return;
-          }
-          // Escape from QTY → back to CODE
-          if (e.key === "Escape") {
-            e.preventDefault();
-            setSearchFocus("CODE");
-            return;
-          }
-          return;
+      if (zone === "SEARCH" && searchFocus === "CODE") {
+        if (showSuggestions && suggestions.length > 0) {
+          if (e.key === "ArrowDown")  { e.preventDefault(); setSuggestionIdx(i => Math.min(i + 1, suggestions.length - 1)); return; }
+          if (e.key === "ArrowUp")    { e.preventDefault(); setSuggestionIdx(i => Math.max(i - 1, -1)); return; }
+          if (e.key === "Escape")     { e.preventDefault(); setShowSuggestions(false); setSuggestionIdx(-1); return; }
+          if (e.key === "Enter")      { e.preventDefault(); if (suggestionIdx >= 0 && suggestions[suggestionIdx]) selectSuggestion(suggestions[suggestionIdx]); else handleAddItem(); return; }
+          if (e.key === "Tab" || e.key === "ArrowRight") { e.preventDefault(); setShowSuggestions(false); setSuggestionIdx(-1); setZone("CUSTOMER"); return; }
+        } else {
+          if (e.key === "Enter")     { e.preventDefault(); handleAddItem(); return; }
+          if (e.key === "ArrowDown") { e.preventDefault(); if (items.length > 0) { (document.activeElement as HTMLElement)?.blur(); setZone("TABLE"); setActiveRowIdx(0); } return; }
+          if (e.key === "Tab" || e.key === "ArrowRight") { e.preventDefault(); setZone("CUSTOMER"); return; }
         }
         return;
       }
 
       if (zone === "CUSTOMER") {
-        // ✅ ← / Escape from CUSTOMER → go back to QTY (not directly to CODE)
-        if (e.key === "Escape" || e.key === "ArrowLeft") {
-          e.preventDefault();
-          (document.activeElement as HTMLElement)?.blur();
-          setZone("SEARCH");
-          setSearchFocus("CODE");
-          return;
-        }
+        if (e.key === "Escape" || e.key === "ArrowLeft") { e.preventDefault(); (document.activeElement as HTMLElement)?.blur(); setZone("SEARCH"); setSearchFocus("CODE"); return; }
         if (e.key === "ArrowDown") { e.preventDefault(); (document.activeElement as HTMLElement)?.blur(); setZone("TABLE"); setActiveRowIdx(0); return; }
         return;
       }
@@ -1779,6 +1620,7 @@ const [saleId, setSaleId] = useState<string | null>(null);
         if (e.key === "Enter")      { e.preventDefault(); startEditQty(item.code); return; }
         if (e.key === "q" || e.key === "Q") { e.preventDefault(); startEditQty(item.code); return; }
         if (e.key === "p" || e.key === "P") { e.preventDefault(); startEditPrice(item.code); return; }
+        if (e.key === "d" || e.key === "D") { e.preventDefault(); startEditDiscount(item.code); return; }
         if (e.key === "+" || e.key === "=") { e.preventDefault(); updateQty(item.code, 1); return; }
         if (e.key === "-")          { e.preventDefault(); updateQty(item.code, -1); return; }
         if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); removeItem(item.code); return; }
@@ -1803,80 +1645,91 @@ const [saleId, setSaleId] = useState<string | null>(null);
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [zone, searchFocus, activeRowIdx, footerFocus, showSuggestions, suggestions, suggestionIdx, items, handleAddItem, handleClear, handleHold, handleSave, selectSuggestion, startEditQty, startEditPrice]);
+  }, [zone, searchFocus, activeRowIdx, footerFocus, showSuggestions, suggestions, suggestionIdx, items, posMode, handleAddItem, handleClear, handleHold, handleSave, selectSuggestion, startEditQty, startEditPrice, startEditDiscount]);
 
   const isFooterActive = (f: FooterFocus) => zone === "FOOTER" && footerFocus === f;
   const footerOutline  = (f: FooterFocus) => ({ outline: isFooterActive(f) ? "2.5px solid #C8102E" : "2.5px solid transparent", outlineOffset: 2, transition: "outline 0.12s" });
-
-  // ✅ Whether a search sub-field is "active" (for border highlight)
   const isSearchActive = (sf: SearchFocus) => zone === "SEARCH" && searchFocus === sf;
+
+  const isQuotation = posMode === "QUOTATION";
+
+  // ── Dynamic mode colors ──────────────────────────────────────
+  // const modeAccent = isQuotation ? "#1D4ED8" : "#C8102E";
+  // const modeBg     = isQuotation ? "#EFF6FF" : "#FFF1F3";
+  // const modeBorder = isQuotation ? "#BFDBFE" : "#F3C4CB";
+
+   const modeAccent =  "#C8102E";
+  const modeBg     = "#FFF1F3";
+  const modeBorder ="#F3C4CB";
+
+  // ── Badge labels ─────────────────────────────────────────────
+  const hasDiscount = parseFloat(discountPct) > 0 || parseFloat(discount) > 0;
+  const hasNote     = orderNote.trim().length > 0;
+  const discountBadge = (() => {
+    const parts: string[] = [];
+    if (parseFloat(discountPct) > 0) parts.push(`${discountPct}%`);
+    if (parseFloat(discount)    > 0) parts.push(`₹${discount}`);
+    return parts.join(" + ") || null;
+  })();
+
+  // ── Table column totals ──────────────────────────────────────
+  const totalGstRow = items.reduce((s, i) => s + (i.qty * i.unitPrice * i.gstPct) / 100, 0);
+  const totalAmtRow = items.reduce((s, i) => s + i.qty * i.sellPrice - (i.discount ?? 0), 0);
+  const empty = items.length === 0;
 
   // ─────────────────────────────────────────────────────────────
   return (
     <ThemeProvider theme={theme}>
-      <Box
-        sx={{
-          height: "100%",
-          minHeight: 0,
-          bgcolor: "#F0F2F5",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-      >
+      <Box sx={{ height: "100%", minHeight: 0, bgcolor: "#F0F2F5", display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-        {/* TOP BAR */}
-        <Box sx={{ bgcolor: "#fff", borderBottom: "1px solid #E5E7EB", px: { xs: 2, md: 3 }, py: 0.75, display: "flex", alignItems: "center", justifyContent: "end", minHeight: 50 }}>
-          {/* <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Button onClick={() => navigate("/dashboard")} startIcon={<GridViewIcon />} sx={{ color: "#6B7280", fontWeight: 500, fontSize: 12 }}>Dashboard</Button>
-          </Box> */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2,alignSelf:"end" }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, bgcolor: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 1.5, px: 1.5, py: 0.5 }}>
-              <CalendarTodayIcon sx={{ fontSize: 15, color: "#6B7280" }} />
-              <Typography sx={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.05em" }}>INVOICE DATE</Typography>
-              <input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)}
-                style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, fontWeight: 700, color: "#1A1A2E", fontFamily: "inherit", cursor: "pointer" }} />
+        {/* ═══════════════════════ TOP BAR ════════════════════════ */}
+        <Box sx={{ bgcolor: "#fff", borderBottom: "1px solid #E5E7EB", px: { xs: 2, md: 3 }, py: 0.75, display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 50 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, bgcolor: "#F3F4F6", borderRadius: 2, p: 0.5 }}>
+            <Box onClick={() => setPosMode("SALE")} sx={{ display: "flex", alignItems: "center", gap: 0.7, px: 1.75, py: 0.6, borderRadius: 1.5, cursor: "pointer", bgcolor: !isQuotation ? "#C8102E" : "transparent", color: !isQuotation ? "#fff" : "#6B7280", transition: "all 0.18s", "&:hover": { bgcolor: !isQuotation ? "#C8102E" : "#E5E7EB" } }}>
+              <ReceiptLongIcon sx={{ fontSize: 15 }} />
+              <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em" }}>Sale</Typography>
             </Box>
-            {/* <Divider orientation="vertical" flexItem /> */}
-            {/* <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-              <Button onClick={() => navigate("/sales-history")} startIcon={<Receipt />} sx={{ backgroundColor: "#C8102E", color: "#fff", fontWeight: 500, fontSize: 12 }}>Sales History</Button>
-            </Box> */}
-            <Divider orientation="vertical" flexItem />
-            <Box sx={{ textAlign: "right" }}>
-              <Typography sx={{ fontSize: 10, color: "#9CA3AF", lineHeight: 1 }}>STATION 04</Typography>
-              <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#1A1A2E" }}>Cashier: Alex M.</Typography>
+            <Box onClick={() => setPosMode("QUOTATION")} sx={{ display: "flex", alignItems: "center", gap: 0.7, px: 1.75, py: 0.6, borderRadius: 1.5, cursor: "pointer", bgcolor: isQuotation ? "#1D4ED8" : "transparent", color: isQuotation ? "#fff" : "#6B7280", transition: "all 0.18s", "&:hover": { bgcolor: isQuotation ? "#1D4ED8" : "#E5E7EB" } }}>
+              <RequestQuoteIcon sx={{ fontSize: 15 }} />
+              <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em" }}>Quotation</Typography>
             </Box>
-            <Box sx={{ width: 32, height: 32, bgcolor: "#FEE2E2", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <PersonOutlineIcon sx={{ color: "#C8102E", fontSize: 18 }} />
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, alignSelf: "end" }}>
+            <Box
+              onClick={handleOpenPicker}
+              sx={{
+                display: "flex", alignItems: "center", gap: 1,
+                bgcolor: isQuotation ? "#DBEAFE" : "#FEE2E2",
+                border: `1px solid ${isQuotation ? "#1D4ED8" : "#C8102E"}`,
+                borderRadius: 1.5, px: 1.5, py: 0.5, transition: "all 0.2s", cursor: "pointer",
+              }}
+            >
+              <CalendarTodayIcon sx={{ fontSize: 15, color: isQuotation ? "#1D4ED8" : "#C8102E" }} />
+              <Typography sx={{ fontSize: 10, color: isQuotation ? "#1D4ED8" : "#C8102E", fontWeight: 700, letterSpacing: "0.05em" }}>
+                {isQuotation ? "QUOTATION DATE" : "INVOICE DATE"}
+              </Typography>
+              <Typography sx={{ fontSize: 12, fontWeight: 700, color:isQuotation ? "#1D4ED8" : "#C8102E" }}>
+                {invoiceDate || "Select date"}
+              </Typography>
+              <input
+                ref={inputRef} type="date" value={invoiceDate}
+                onChange={(e) => setInvoiceDate(e.target.value)}
+                style={{ position: "absolute", opacity: 0, pointerEvents: "none" }}
+              />
             </Box>
           </Box>
         </Box>
 
         {/* MAIN CONTENT */}
-        <Box
-          sx={{
-            flex: 1,
-            minHeight: 0,
-            px: { xs: 1, md: 1 },
-            pt: 1,
-            pb: 1,
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
+        <Box sx={{ flex: 1, minHeight: 0, px: 1, pt: 1, pb: 1, display: "flex", flexDirection: "column" }}>
           <Box sx={{ display: "flex", gap: 2, mb: 1.5, alignItems: "stretch" }}>
 
-            {/* ── Search panel ── */}
-            <Paper elevation={0} sx={{
-              flex: "1 1 auto", borderRadius: 2, p: 1.5, bgcolor: "#fff",
-              position: "relative", zIndex: 100, transition: "border-color 0.2s",
-              border: zone === "SEARCH" ? "2px solid #C8102E" : "2px solid #E5E7EB",
-              boxShadow: zone === "SEARCH" ? "0 0 0 3px rgba(200,16,46,0.08)" : "none",
-            }}>
+            {/* Search panel */}
+            <Paper elevation={0} sx={{ flex: "1 1 auto", borderRadius: 2, p: 1.5, bgcolor: "#fff", position: "relative", zIndex: 100, transition: "border-color 0.2s", border: zone === "SEARCH" ? `2px solid ${modeAccent}` : "2px solid #E5E7EB", boxShadow: zone === "SEARCH" ? `0 0 0 3px ${isQuotation ? "rgba(29,78,216,0.08)" : "rgba(200,16,46,0.08)"}` : "none" }}>
               <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-end" }}>
                 <Box sx={{ flex: 1, position: "relative" }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.4 }}>
-                    <Typography sx={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", color: "#C8102E" }}>ITEM ID / NAME</Typography>
+                    <Typography sx={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", color: modeAccent }}>ITEM ID / NAME</Typography>
                     <Kbd>F2</Kbd>
                     {catalogueLoading
                       ? <Typography sx={{ fontSize: 9, color: "#9CA3AF", ml: 0.5 }}>syncing…</Typography>
@@ -1888,34 +1741,23 @@ const [saleId, setSaleId] = useState<string | null>(null);
                     onChange={e => setCodeInput(e.target.value)}
                     onFocus={() => { setZone("SEARCH"); setSearchFocus("CODE"); if (!catalogueLoading && codeInput.trim()) setShowSuggestions(true); }}
                     onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
-                    placeholder="Search by item ID, name or category…"
-                    size="small" fullWidth autoComplete="off"
+                    placeholder="Search by item ID, name or category…" size="small" fullWidth autoComplete="off"
                     InputProps={{
-                      startAdornment: <InputAdornment position="start"><QrCodeScannerIcon sx={{ color: "#C8102E", fontSize: 18 }} /></InputAdornment>,
+                      startAdornment: <InputAdornment position="start"><QrCodeScannerIcon sx={{ color: modeAccent, fontSize: 18 }} /></InputAdornment>,
                       endAdornment: codeInput
                         ? <InputAdornment position="end"><IconButton size="small" onMouseDown={e => { e.preventDefault(); setCodeInput(""); setShowSuggestions(false); codeRef.current?.focus(); }}><CloseIcon sx={{ fontSize: 13, color: "#9CA3AF" }} /></IconButton></InputAdornment>
                         : <InputAdornment position="end"><SearchIcon sx={{ fontSize: 15, color: "#D1D5DB" }} /></InputAdornment>,
                       sx: { borderRadius: 1.5, bgcolor: "#FAFAFA", fontSize: 13 },
                     }}
-                    sx={{ "& .MuiOutlinedInput-root": {
-                      "& fieldset": { borderColor: isSearchActive("CODE") ? "#C8102E" : "#E5E7EB", borderWidth: isSearchActive("CODE") ? 2 : 1 },
-                      "&:hover fieldset": { borderColor: "#C8102E" },
-                      "&.Mui-focused fieldset": { borderColor: "#C8102E" },
-                    }}}
+                    sx={{ "& .MuiOutlinedInput-root": { "& fieldset": { borderColor: isSearchActive("CODE") ? modeAccent : "#E5E7EB", borderWidth: isSearchActive("CODE") ? 2 : 1 }, "&:hover fieldset": { borderColor: modeAccent }, "&.Mui-focused fieldset": { borderColor: modeAccent } } }}
                   />
-
-                  {/* Suggestions dropdown */}
                   {showSuggestions && (
                     <Paper elevation={8} sx={{ position: "absolute", top: "calc(100% + 2px)", left: 0, right: 0, borderRadius: "0 0 8px 8px", overflow: "hidden", zIndex: 9999, border: "1px solid #E0E0E0", borderTop: "none", boxShadow: "0 8px 32px rgba(0,0,0,0.12)" }}>
                       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 1.5, py: 0.6, bgcolor: "#F5F5F5", borderBottom: "1px solid #E5E7EB" }}>
                         <Typography sx={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>Item Name</Typography>
                         <IconButton size="small" onMouseDown={e => { e.preventDefault(); setShowSuggestions(false); }} sx={{ p: 0.2 }}><CloseIcon sx={{ fontSize: 13, color: "#9CA3AF" }} /></IconButton>
                       </Box>
-                      {codeInput.trim() && suggestions.length === 0 && (
-                        <Box sx={{ py: 3, textAlign: "center" }}>
-                          <Typography sx={{ fontSize: 12, color: "#9CA3AF" }}>No items found for "{codeInput.trim()}"</Typography>
-                        </Box>
-                      )}
+                      {codeInput.trim() && suggestions.length === 0 && <Box sx={{ py: 3, textAlign: "center" }}><Typography sx={{ fontSize: 12, color: "#9CA3AF" }}>No items found for "{codeInput.trim()}"</Typography></Box>}
                       {suggestions.length > 0 && (
                         <Box sx={{ maxHeight: 300, overflowY: "auto", bgcolor: "#fff" }}>
                           {suggestions.map((p, idx) => (
@@ -1930,10 +1772,8 @@ const [saleId, setSaleId] = useState<string | null>(null);
                                 </Typography>
                               </Box>
                               <Box sx={{ textAlign: "right", flexShrink: 0 }}>
-                                <Typography sx={{ fontSize: 13, fontWeight: 700, color: idx === suggestionIdx ? "#1D4ED8" : "#111827" }}>₹{Number(p.sell_price).toLocaleString("en-IN")}<Typography sx={{ fontSize: 9, color: p.tax_inclusive ? "#D97706" : "#9CA3AF", fontWeight: p.tax_inclusive ? 700 : 400, lineHeight: 1 }}>
-                                  / per {p.unit || "NOS"}
-                                </Typography></Typography>
-                                
+                                <Typography sx={{ fontSize: 13, fontWeight: 700, color: idx === suggestionIdx ? "#1D4ED8" : "#111827" }}>₹{Number(p.sell_price).toLocaleString("en-IN")}</Typography>
+                                <Typography sx={{ fontSize: 9, color: p.tax_inclusive ? "#D97706" : "#9CA3AF", fontWeight: p.tax_inclusive ? 700 : 400, lineHeight: 1 }}>/ per {p.unit || "NOS"}</Typography>
                               </Box>
                             </Box>
                           ))}
@@ -1942,92 +1782,48 @@ const [saleId, setSaleId] = useState<string | null>(null);
                     </Paper>
                   )}
                 </Box>
-
-                {/* Search qty field intentionally commented out */}
-
                 <Button variant="contained" startIcon={<AddShoppingCartIcon />} onClick={() => handleAddItem()}
-                  sx={{ bgcolor: "#C8102E", color: "#fff", px: 2.5, py: 0.9, fontSize: 13, fontWeight: 700, borderRadius: 1.5, minHeight: 38, whiteSpace: "nowrap", boxShadow: "0 4px 14px rgba(200,16,46,0.35)", "&:hover": { bgcolor: "#A50D26" }, "&:active": { transform: "scale(0.97)" } }}>
+                  sx={{ bgcolor: modeAccent, color: "#fff", px: 2.5, py: 0.9, fontSize: 13, fontWeight: 700, borderRadius: 1.5, minHeight: 38, whiteSpace: "nowrap", boxShadow: `0 4px 14px ${isQuotation ? "rgba(29,78,216,0.35)" : "rgba(200,16,46,0.35)"}`, "&:hover": { bgcolor: isQuotation ? "#1E40AF" : "#A50D26" }, "&:active": { transform: "scale(0.97)" } }}>
                   ADD <Box component="span" sx={{ fontSize: 10, opacity: 0.8, ml: 0.4 }}>[Enter]</Box>
                 </Button>
               </Box>
             </Paper>
 
-            {/* ── Customer panel ── */}
-            <Paper elevation={0} sx={{ minWidth: 800, border: zone === "CUSTOMER" ? "2px solid #C8102E" : "1px solid #E5E7EB", borderRadius: 2.5, p: 1.5, bgcolor: "#fff", transition: "border 0.2s, box-shadow 0.2s", position: "relative", boxShadow: zone === "CUSTOMER" ? "0 0 0 3px rgba(200,16,46,0.08)" : "none" }}>
+            {/* Customer panel */}
+            <Paper elevation={0} sx={{ minWidth: 800, border: zone === "CUSTOMER" ? `2px solid ${modeAccent}` : "1px solid #E5E7EB", borderRadius: 2.5, p: 1.5, bgcolor: "#fff", transition: "border 0.2s, box-shadow 0.2s", position: "relative", boxShadow: zone === "CUSTOMER" ? `0 0 0 3px ${isQuotation ? "rgba(29,78,216,0.08)" : "rgba(200,16,46,0.08)"}` : "none" }}>
               <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5, mb: 1.2 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.7 }}>
-                  <PersonSearchIcon sx={{ fontSize: 15, color: "#C8102E" }} />
+                  <PersonSearchIcon sx={{ fontSize: 15, color: modeAccent }} />
                   <Typography sx={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", color: "#374151" }}>CUSTOMER</Typography>
-                  {customer.id && (
-                    <Chip label="Linked" size="small" onDelete={() => { setCustomer(EMPTY_CUSTOMER); clearCustomerResults(); }}
-                      sx={{ fontSize: 9, height: 18, bgcolor: "#DCFCE7", color: "#16A34A", fontWeight: 700 }} />
-                  )}
+                  {customer.id && <Chip label="Linked" size="small" onDelete={() => { setCustomer(EMPTY_CUSTOMER); clearCustomerResults(); }} sx={{ fontSize: 9, height: 18, bgcolor: "#DCFCE7", color: "#16A34A", fontWeight: 700 }} />}
                 </Box>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Button size="small" variant="outlined" onClick={() => setAddCustomerOpen(true)}
-                    sx={{ borderColor: "#F3C4CB", color: "#C8102E", fontSize: 9, fontWeight: 800, px: 1.25, py: 0.55, borderRadius: 1.5, minWidth: 0, whiteSpace: "nowrap", "&:hover": { borderColor: "#C8102E", bgcolor: "#FFF5F6" } }}>
-                    Add Customer
-                  </Button>
-                  <Button size="small" variant="outlined" onClick={() => setCustomerLedgerOpen(true)}
-                    sx={{ borderColor: "#F3C4CB", color: "#C8102E", fontSize: 9, fontWeight: 800, px: 1.25, py: 0.55, borderRadius: 1.5, minWidth: 0, whiteSpace: "nowrap", "&:hover": { borderColor: "#C8102E", bgcolor: "#FFF5F6" } }}>
-                    View Ledger / History
-                  </Button>
+                  {/* <Button size="small" variant="outlined" onClick={() => setAddCustomerOpen(true)} sx={{ borderColor: modeBorder, color: modeAccent, fontSize: 9, fontWeight: 800, px: 1.25, py: 0.55, borderRadius: 1.5, minWidth: 0, whiteSpace: "nowrap", "&:hover": { borderColor: modeAccent, bgcolor: modeBg } }}>Add Customer</Button> */}
+                  <Button size="small" variant="outlined" onClick={() => setCustomerLedgerOpen(true)} sx={{ borderColor: modeBorder, color: modeAccent, fontSize: 9, fontWeight: 800, px: 1.25, py: 0.55, borderRadius: 1.5, minWidth: 0, whiteSpace: "nowrap", "&:hover": { borderColor: modeAccent, bgcolor: modeBg } }}>View Ledger / History</Button>
                 </Box>
               </Box>
-
               <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1 }}>
-                <TextField inputRef={customerNameRef} value={customer.name}
-                  onChange={e => handleCustomerFieldChange("name", e.target.value)}
-                  onFocus={() => { setZone("CUSTOMER"); if (customer.name.trim()) setCustomerSuggestionsOpen(true); }}
-                  onBlur={() => setTimeout(() => setCustomerSuggestionsOpen(false), 180)}
-                  placeholder="Name or company" size="small" autoComplete="off"
-                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.75, fontSize: 12, bgcolor: "#F8FAFC", "& fieldset": { borderColor: "#E2E8F0" }, "&:hover fieldset": { borderColor: "#C8102E" }, "&.Mui-focused fieldset": { borderColor: "#C8102E" } } }}
-                  inputProps={{ style: { padding: "7px 12px", fontWeight: 500 } }}
-                />
-                <TextField inputRef={customerMobileRef} value={customer.mobile}
-                  onChange={e => handleCustomerFieldChange("mobile", e.target.value.replace(/\D/g, "").slice(0, 10))}
-                  onFocus={() => { setZone("CUSTOMER"); if (customer.mobile.trim()) setCustomerSuggestionsOpen(true); }}
-                  onBlur={() => setTimeout(() => setCustomerSuggestionsOpen(false), 180)}
-                  placeholder="Mobile" size="small" autoComplete="off"
-                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.75, fontSize: 12, bgcolor: "#F8FAFC", "& fieldset": { borderColor: "#E2E8F0" }, "&:hover fieldset": { borderColor: "#C8102E" }, "&.Mui-focused fieldset": { borderColor: "#C8102E" } } }}
-                  inputProps={{ style: { padding: "7px 12px", fontWeight: 500, fontFamily: "monospace", letterSpacing: "0.04em" } }}
-                />
+                <TextField inputRef={customerNameRef} value={customer.name} onChange={e => handleCustomerFieldChange("name", e.target.value)} onFocus={() => { setZone("CUSTOMER"); if (customer.name.trim()) setCustomerSuggestionsOpen(true); }} onBlur={() => setTimeout(() => setCustomerSuggestionsOpen(false), 180)} placeholder="Name or company" size="small" autoComplete="off" sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.75, fontSize: 12, bgcolor: "#F8FAFC", "& fieldset": { borderColor: "#E2E8F0" }, "&:hover fieldset": { borderColor: modeAccent }, "&.Mui-focused fieldset": { borderColor: modeAccent } } }} inputProps={{ style: { padding: "7px 12px", fontWeight: 500 } }} />
+                <TextField inputRef={customerMobileRef} value={customer.mobile} onChange={e => handleCustomerFieldChange("mobile", e.target.value.replace(/\D/g, "").slice(0, 10))} onFocus={() => { setZone("CUSTOMER"); if (customer.mobile.trim()) setCustomerSuggestionsOpen(true); }} onBlur={() => setTimeout(() => setCustomerSuggestionsOpen(false), 180)} placeholder="Mobile" size="small" autoComplete="off" sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.75, fontSize: 12, bgcolor: "#F8FAFC", "& fieldset": { borderColor: "#E2E8F0" }, "&:hover fieldset": { borderColor: modeAccent }, "&.Mui-focused fieldset": { borderColor: modeAccent } } }} inputProps={{ style: { padding: "7px 12px", fontWeight: 500, fontFamily: "monospace", letterSpacing: "0.04em" } }} />
               </Box>
-
               {customerSuggestionsOpen && (customer.name.trim() || customer.mobile.trim()) && (
                 <Paper elevation={8} sx={{ position: "absolute", top: "calc(100% - 4px)", left: 12, right: 12, zIndex: 9998, borderRadius: 2, border: "1px solid #E5E7EB", overflow: "hidden", boxShadow: "0 16px 40px rgba(15,23,42,0.16)" }}>
-                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 1.5, py: 1, bgcolor: "#FFF7F8", borderBottom: "1px solid #F3D6DB" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 1.5, py: 1, bgcolor: isQuotation ? "#EFF6FF" : "#FFF7F8", borderBottom: `1px solid ${isQuotation ? "#BFDBFE" : "#F3D6DB"}` }}>
                     <Box>
                       <Typography sx={{ fontSize: 10, fontWeight: 800, color: "#374151", letterSpacing: "0.06em" }}>CUSTOMER SEARCH</Typography>
                       <Typography sx={{ fontSize: 9, color: "#9CA3AF" }}>Select to auto-fill mobile, address and GSTIN.</Typography>
                     </Box>
-                    {customerLoading
-                      ? <CircularProgress size={12} sx={{ color: "#C8102E" }} />
-                      : <Typography sx={{ fontSize: 9, fontWeight: 800, color: "#C8102E" }}>{customerResults.length} result{customerResults.length !== 1 ? "s" : ""}</Typography>
-                    }
+                    {customerLoading ? <CircularProgress size={12} sx={{ color: modeAccent }} /> : <Typography sx={{ fontSize: 9, fontWeight: 800, color: modeAccent }}>{customerResults.length} result{customerResults.length !== 1 ? "s" : ""}</Typography>}
                   </Box>
                   {!customerLoading && customerResults.length === 0
                     ? <Box sx={{ px: 2, py: 3, textAlign: "center" }}><Typography sx={{ fontSize: 12, color: "#9CA3AF" }}>No matching customers found.</Typography></Box>
                     : <Box sx={{ maxHeight: 280, overflowY: "auto", bgcolor: "#fff" }}>
                         {customerResults.map(c => (
-                          <Box key={c.cust_uuid} onMouseDown={() => handleSelectCustomer(c)}
-                            sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1, px: 1.5, py: 1.1, borderBottom: "1px solid #F8FAFC", cursor: "pointer", "&:hover": { bgcolor: "#FFF7F8" } }}>
+                          <Box key={c.cust_uuid} onMouseDown={() => handleSelectCustomer(c)} sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1, px: 1.5, py: 1.1, borderBottom: "1px solid #F8FAFC", cursor: "pointer", "&:hover": { bgcolor: isQuotation ? "#EFF6FF" : "#FFF7F8" } }}>
                             <Box sx={{ minWidth: 0 }}>
-                              {/* Person name */}
-                              {c.cust_name && (
-                                <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#1F2937", lineHeight: 1.3 }}>
-                                  {c.cust_name}
-                                </Typography>
-                              )}
-                              {/* Company name — shown below with a building icon style */}
-                              {c.cpy_name && (
-                                <Typography sx={{ fontSize: 11, fontWeight: 600, color: c.cust_name ? "#6B7280" : "#1F2937", lineHeight: 1.3 }}>
-                                  {c.cust_name ? `🏢 ${c.cpy_name}` : c.cpy_name}
-                                </Typography>
-                              )}
-                              <Typography sx={{ fontSize: 10, color: "#9CA3AF", mt: 0.2 }}>
-                                {primaryMobile(c)}{c.city ? ` • ${c.city}` : ""}
-                              </Typography>
+                              {c.cust_name && <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#1F2937", lineHeight: 1.3 }}>{c.cust_name}</Typography>}
+                              {c.cpy_name && <Typography sx={{ fontSize: 11, fontWeight: 600, color: c.cust_name ? "#6B7280" : "#1F2937", lineHeight: 1.3 }}>{c.cust_name ? `🏢 ${c.cpy_name}` : c.cpy_name}</Typography>}
+                              <Typography sx={{ fontSize: 10, color: "#9CA3AF", mt: 0.2 }}>{primaryMobile(c)}{c.city ? ` • ${c.city}` : ""}</Typography>
                             </Box>
                             {c.gst && <Typography sx={{ fontSize: 9, fontWeight: 700, color: "#6B7280", fontFamily: "monospace", whiteSpace: "nowrap" }}>{c.gst}</Typography>}
                           </Box>
@@ -2036,8 +1832,7 @@ const [saleId, setSaleId] = useState<string | null>(null);
                   }
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 1.5, py: 0.85, bgcolor: "#FCFCFD", borderTop: "1px solid #EEF2F7" }}>
                     <Typography sx={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700 }}>Type to search by name or mobile</Typography>
-                    <Button size="small" variant="contained" onClick={() => { setCustomerSuggestionsOpen(false); setAddCustomerOpen(true); }}
-                      sx={{ bgcolor: "#C8102E", fontSize: 9, fontWeight: 800, borderRadius: 1.5, px: 1.1, py: 0.45, "&:hover": { bgcolor: "#A50D26" } }}>+ Add New</Button>
+                    <Button size="small" variant="contained" onClick={() => { setCustomerSuggestionsOpen(false); setAddCustomerOpen(true); }} sx={{ bgcolor: modeAccent, fontSize: 9, fontWeight: 800, borderRadius: 1.5, px: 1.1, py: 0.45, "&:hover": { bgcolor: isQuotation ? "#1E40AF" : "#A50D26" } }}>+ Add New</Button>
                   </Box>
                 </Paper>
               )}
@@ -2045,22 +1840,28 @@ const [saleId, setSaleId] = useState<string | null>(null);
           </Box>
 
           {/* ORDER TABLE */}
-          <Paper
-            elevation={0}
-            sx={{
-              flex: 1,
-              minHeight: 0,
-              display: "flex",
-              flexDirection: "column",
-              border: zone === "TABLE" ? "2px solid #1976d2" : "1px solid #E5E7EB",
-              borderRadius: 2,
-              overflow: "hidden",
-              mb: 1,
-              transition: "border 0.2s",
-              boxShadow: zone === "TABLE" ? "0 0 0 3px rgba(245,158,11,0.1)" : "none",
-            }}
-          >
-            <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+          <Paper elevation={0} sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", border: zone === "TABLE" ? "2px solid #1976d2" : "1px solid #E5E7EB", borderRadius: 2, overflow: "hidden", transition: "border 0.2s", boxShadow: zone === "TABLE" ? "0 0 0 3px rgba(245,158,11,0.1)" : "none" }}>
+            <Box sx={{ 
+              flex: 1, 
+              minHeight: 0, 
+              overflowY: "auto",
+              scrollbarWidth: "thin",
+              scrollbarColor: "#C8102E #F3F4F6",
+              "&::-webkit-scrollbar": {
+                width: "8px",
+              },
+              "&::-webkit-scrollbar-track": {
+                backgroundColor: "#F3F4F6",
+                borderRadius: "4px",
+              },
+              "&::-webkit-scrollbar-thumb": {
+                backgroundColor: "#C8102E",
+                borderRadius: "4px",
+                "&:hover": {
+                  backgroundColor: "#A50D26",
+                },
+              },
+            }}>
               <Table size="small" stickyHeader>
                 <TableHead>
                   <TableRow>
@@ -2073,7 +1874,8 @@ const [saleId, setSaleId] = useState<string | null>(null);
                     <TableCell align="right"  sx={{ width: 90 }}>MRP (₹)</TableCell>
                     <TableCell align="center" sx={{ width: 130 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.4 }}>QTY <Kbd>Q</Kbd></Box></TableCell>
                     <TableCell align="right"  sx={{ width: 130 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>RATE <Kbd>P</Kbd></Box></TableCell>
-                    <TableCell align="right"  sx={{ width: 105 }}>DISCOUNT</TableCell>
+                    <TableCell align="right"  sx={{ width: 110, whiteSpace: "nowrap" }}>UNIT PRICE (EX.TAX)</TableCell>
+                    <TableCell align="right"  sx={{ width: 115 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>DISC (₹) <Kbd>D</Kbd></Box></TableCell>
                     <TableCell align="right"  sx={{ width: 105 }}>TOTAL</TableCell>
                     <TableCell sx={{ width: 36 }} />
                   </TableRow>
@@ -2081,7 +1883,7 @@ const [saleId, setSaleId] = useState<string | null>(null);
                 <TableBody ref={tableBodyRef}>
                   {items.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={12} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={13} align="center" sx={{ py: 6 }}>
                         <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, color: "#D1D5DB" }}>
                           <KeyboardReturnIcon sx={{ fontSize: 32 }} />
                           <Typography sx={{ fontSize: 13 }}>Search and add items above</Typography>
@@ -2090,29 +1892,24 @@ const [saleId, setSaleId] = useState<string | null>(null);
                     </TableRow>
                   )}
                   {items.map((item, rowIdx) => {
-                    const isActive  = zone === "TABLE" && activeRowIdx === rowIdx;
-                    const itemGst   = (item.qty * item.unitPrice * item.gstPct) / 100;
-                    const itemTotal = item.qty * item.sellPrice; // gross sell price × qty = base + tax
-                    const itemDiscount = item.discount ?? 0;
-
+                    const isActive     = zone === "TABLE" && activeRowIdx === rowIdx;
+                    const itemGst      = (item.qty * item.unitPrice * item.gstPct) / 100;
+                    const itemTotal    = item.qty * item.sellPrice - (item.discount ?? 0);
                     return (
                       <Fade in key={item.code}>
                         <TableRow data-rowcode={item.code} onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); }}
                           sx={{ bgcolor: flashRow === item.code ? "#FFF1F3" : isActive ? "#E3F2FD" : "transparent", cursor: "pointer", transition: "background 0.2s", "&:hover": { bgcolor: isActive ? "#E3F2FD" : "#F5F5F5" } }}>
-                          <TableCell sx={{ p: 0 }}>
-                            <Box sx={{ width: 4, minHeight: 40, bgcolor: isActive ? "#1976D2" : "transparent", borderRadius: "0 2px 2px 0", transition: "background 0.2s" }} />
-                          </TableCell>
+                          <TableCell sx={{ p: 0 }}><Box sx={{ width: 4, minHeight: 40, bgcolor: isActive ? "#1976D2" : "transparent", borderRadius: "0 2px 2px 0", transition: "background 0.2s" }} /></TableCell>
+                          <TableCell><Chip label={item.code} size="small" sx={{ fontWeight: 700, fontSize: 10, bgcolor: isActive ? "#BBDEFB" : "#F3F4F6", color: isActive ? "#0D47A1" : "#374151", border: isActive ? "1px solid #90CAF9" : "1px solid transparent", height: 20 }} /></TableCell>
                           <TableCell>
-                            <Chip label={item.code} size="small" sx={{ fontWeight: 700, fontSize: 10, bgcolor: isActive ? "#BBDEFB" : "#F3F4F6", color: isActive ? "#0D47A1" : "#374151", border: isActive ? "1px solid #90CAF9" : "1px solid transparent", height: 20 }} />
-                          </TableCell>
-                          <TableCell>
-                            <Typography sx={{ fontSize: 12, fontWeight: isActive ? 600 : 500, color: "#1A1A2E", lineHeight: 1.3 }}>{item.description}</Typography>
+                            <Typography sx={{ fontSize: 14, fontWeight: isActive ? 800 : 700, color: "#1A1A2E", lineHeight: 1.3 }}>{item.description}</Typography>
                             {item.category && <Typography sx={{ fontSize: 9, fontWeight: 700, color: CAT_COLOR[item.category] ?? "#6B7280" }}>{item.category}</Typography>}
                           </TableCell>
                           <TableCell><Typography sx={{ fontSize: 11, fontFamily: "monospace", color: "#374151", fontWeight: 600 }}>{item.hsn}</Typography></TableCell>
                           <TableCell align="center"><Typography sx={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>{item.gstPct}%</Typography></TableCell>
                           <TableCell align="right"><Typography sx={{ fontSize: 11, color: "#374151", fontWeight: 600 }}>{INR(itemGst)}</Typography></TableCell>
-                          <TableCell align="right"><Typography sx={{ fontSize: 11, color: "#9CA3AF" }}>₹{item.mrp.toLocaleString("en-IN")}</Typography></TableCell>
+                          <TableCell align="right"><Typography sx={{ fontSize: 11, color: "#9CA3AF", fontFamily: "inherit" }}>₹{item.mrp.toLocaleString("en-IN")}</Typography></TableCell>
+
                           {/* QTY */}
                           <TableCell align="center" onClick={e => e.stopPropagation()}>
                             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.3 }}>
@@ -2126,13 +1923,12 @@ const [saleId, setSaleId] = useState<string | null>(null);
                                   sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#1976D2", borderWidth: 2 } }, width: 48 }} />
                               ) : (
                                 <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditQty(item.code); }}
-                                  sx={{ minWidth: 30, textAlign: "center", fontWeight: 800, fontSize: 14, px: 0.4, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #1976D2" : "1.5px dashed transparent", bgcolor: isActive ? "#E3F2FD" : "transparent", "&:hover": { border: "1.5px dashed #1976D2", bgcolor: "#E3F2FD" }, transition: "all 0.15s" }}>
-                                  {item.qty}
-                                </Box>
+                                  sx={{ minWidth: 30, textAlign: "center", fontWeight: 800, fontSize: 14, px: 0.4, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #1976D2" : "1.5px dashed transparent", bgcolor: isActive ? "#E3F2FD" : "transparent", "&:hover": { border: "1.5px dashed #1976D2", bgcolor: "#E3F2FD" }, transition: "all 0.15s" }}>{item.qty}</Box>
                               )}
                               <IconButton size="small" onClick={() => updateQty(item.code, 1)} sx={{ width: 24, height: 24, bgcolor: "#F3F4F6", "&:hover": { bgcolor: "#DCFCE7" } }}><AddIcon sx={{ fontSize: 12 }} /></IconButton>
                             </Box>
                           </TableCell>
+
                           {/* RATE */}
                           <TableCell align="right" onClick={e => e.stopPropagation()}>
                             {item.editingPrice ? (
@@ -2148,220 +1944,375 @@ const [saleId, setSaleId] = useState<string | null>(null);
                             ) : (
                               <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditPrice(item.code); }}
                                 sx={{ display: "inline-flex", alignItems: "center", gap: 0.3, px: 0.6, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #1976D2" : "1.5px dashed transparent", bgcolor: isActive ? "#E3F2FD" : "transparent", "&:hover": { border: "1.5px dashed #1976D2", bgcolor: "#E3F2FD", "& .pedit": { opacity: 1 } }, transition: "all 0.15s" }}>
-                                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-                                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{INR(item.sellPrice)}</Typography>
-                                </Box>
+                                <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{INR(item.sellPrice)}</Typography>
                                 <EditIcon className="pedit" sx={{ fontSize: 10, color: "#1976D2", opacity: isActive ? 0.6 : 0, transition: "opacity 0.15s" }} />
                               </Box>
                             )}
                           </TableCell>
-                          {/* DISCOUNT */}
-                          <TableCell align="right">
-                            <Typography sx={{ fontSize: 12, fontWeight: 600, color: itemDiscount > 0 ? "#16A34A" : "#9CA3AF" }}>
-                              {itemDiscount > 0 ? `−${INR(itemDiscount)}` : "−"}
-                            </Typography>
+
+                          {/* UNIT PRICE EX.TAX */}
+                          <TableCell align="right"><Typography sx={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{INR(item.unitPrice)}</Typography></TableCell>
+
+                          {/* DISCOUNT (editable) */}
+                          <TableCell align="right" onClick={e => e.stopPropagation()}>
+                            {item.editingDiscount ? (
+                              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>
+                                <Typography sx={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700 }}>₹</Typography>
+                                <TextField
+                                  inputRef={el => { discountRefs.current[item.code] = el; }}
+                                  value={item.discountDraft ?? ""}
+                                  onChange={e => setItems(prev => prev.map(i => i.code === item.code ? { ...i, discountDraft: e.target.value.replace(/[^0-9.]/g, "") } : i))}
+                                  onBlur={() => {
+                                    if (editCancelledRef.current) { editCancelledRef.current = false; return; }
+                                    const el = discountRefs.current[item.code];
+                                    const newDiscount = Math.max(0, parseFloat(el?.value ?? "") || 0);
+                                    setItems(prev => prev.map(i => i.code === item.code ? { ...i, discount: newDiscount, editingDiscount: false, discountDraft: undefined } : i));
+                                    setZone("TABLE"); setActiveRowIdx(rowIdx);
+                                  }}
+                                  onKeyDown={e => {
+                                    if (e.key === "Enter" || e.key === "Tab") {
+                                      e.preventDefault(); e.stopPropagation();
+                                      const newDiscount = Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0);
+                                      editCancelledRef.current = true;
+                                      setItems(prev => prev.map(i => i.code === item.code ? { ...i, discount: newDiscount, editingDiscount: false, discountDraft: undefined } : i));
+                                      (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx);
+                                    }
+                                    if (e.key === "Escape") {
+                                      e.preventDefault(); e.stopPropagation();
+                                      editCancelledRef.current = true;
+                                      setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingDiscount: false, discountDraft: undefined } : i));
+                                      (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx);
+                                    }
+                                  }}
+                                  size="small"
+                                  inputProps={{ style: { textAlign: "right", fontWeight: 700, fontSize: 12, padding: "2px 4px", width: 55 } }}
+                                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#C8102E", borderWidth: 2 } }, width: 78 }}
+                                />
+                              </Box>
+                            ) : (
+                              <Box
+                                onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditDiscount(item.code); }}
+                                sx={{ display: "inline-flex", alignItems: "center", gap: 0.3, px: 0.6, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #C8102E" : "1.5px dashed transparent", bgcolor: isActive ? "#FFF1F3" : "transparent", "&:hover": { border: "1.5px dashed #C8102E", bgcolor: "#FFF1F3", "& .dedit": { opacity: 1 } }, transition: "all 0.15s" }}
+                              >
+                                <Typography sx={{ fontSize: 12, fontWeight: 600, color: (item.discount ?? 0) > 0 ? "#C8102E" : "#D1D5DB" }}>
+                                  {(item.discount ?? 0) > 0 ? `- ${INR(item.discount ?? 0)}` : "—"}
+                                </Typography>
+                                <EditIcon className="dedit" sx={{ fontSize: 10, color: "#C8102E", opacity: isActive ? 0.5 : 0, transition: "opacity 0.15s" }} />
+                              </Box>
+                            )}
                           </TableCell>
+
                           {/* TOTAL */}
-                          <TableCell align="right">
-                            <Typography sx={{ fontSize: 13, fontWeight: 700, color: isActive ? "#0D47A1" : "#1A1A2E" }}>{INR(itemTotal - itemDiscount)}</Typography>
-                          </TableCell>
-                          <TableCell onClick={e => e.stopPropagation()}>
-                            <IconButton size="small" onClick={() => removeItem(item.code)} sx={{ color: "#D1D5DB", "&:hover": { color: "#C8102E", bgcolor: "#FEE2E2" } }}><DeleteOutlineIcon sx={{ fontSize: 15 }} /></IconButton>
-                          </TableCell>
+                          <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 700, color: isActive ? "#0D47A1" : "#1A1A2E" }}>{INR(itemTotal)}</Typography></TableCell>
+                          <TableCell onClick={e => e.stopPropagation()}><IconButton size="small" onClick={() => removeItem(item.code)} sx={{ color: "#D1D5DB", "&:hover": { color: "#C8102E", bgcolor: "#FEE2E2" } }}><DeleteOutlineIcon sx={{ fontSize: 15 }} /></IconButton></TableCell>
                         </TableRow>
                       </Fade>
                     );
                   })}
                 </TableBody>
+
+                {/* ── Table Total Row (sticky footer) ── */}
+                {items.length > 0 && (
+                  <TableFooter>
+                    <TableRow sx={{
+                      position: "sticky", bottom: 0, zIndex: 2,
+                      bgcolor: "#F8FAFC",
+                      "& .MuiTableCell-root": {
+                        borderTop: "2px solid #E5E7EB",
+                        borderBottom: "none",
+                        py: 1,
+                        height: 30,
+                        bgcolor: "#F8FAFC",
+                      },
+                    }}>
+                      <TableCell sx={{ width: 10, p: 0 }} />
+                      <TableCell />
+                      <TableCell>
+                        <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#374151" }}>
+                          Total</Typography>
+                      </TableCell>
+                      <TableCell />
+                      <TableCell align="center" />
+                      <TableCell align="right">
+                        <Typography sx={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>{INR(totalGstRow)}</Typography>
+                      </TableCell>
+                      <TableCell align="right" />
+                      <TableCell align="center">
+                        <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{totalUnits}</Typography>
+                      </TableCell>
+                      <TableCell align="right" />
+                      <TableCell align="right">
+                        <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{INR(subtotal)}</Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        {itemDiscountTotal > 0
+                          ? <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#C8102E" }}>- {INR(itemDiscountTotal)}</Typography>
+                          : <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#D1D5DB" }}>—</Typography>
+                        }
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#000" }}>{INR(totalAmtRow)}</Typography>
+                      </TableCell>
+                      <TableCell />
+                    </TableRow>
+                  </TableFooter>
+                )}
               </Table>
             </Box>
           </Paper>
         </Box>
 
         {/* FOOTER TOOLBAR */}
-        <Box sx={{ bgcolor: "#F8FAFC", px: 2, py: 0.55, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
-            <Button size="small" startIcon={<DeleteOutlineIcon sx={{ fontSize: 12 }} />} onClick={handleClear} sx={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, py: 0.3, px: 1, minWidth: 0, borderRadius: 1, "&:hover": { color: "#F87171", bgcolor: "rgba(239,68,68,0.1)" } }}>CLEAR <Box component="span" sx={{ fontSize: 9, opacity: 0.6 }}>[F4]</Box></Button>
-         
+        {/* <Box sx={{ bgcolor: "#F1F5F9", borderTop: "2px solid #E5E7EB", px: 2, py: 0.3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Button size="small" startIcon={<DeleteOutlineIcon sx={{ fontSize: 12 }} />} onClick={handleClear} sx={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, py: 0.3, px: 1, minWidth: 0, borderRadius: 1, "&:hover": { color: "#F87171", bgcolor: "rgba(239,68,68,0.1)" } }}>
+            CLEAR <Box component="span" sx={{ fontSize: 9, opacity: 0.6 }}>[F4]</Box>
+          </Button>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <Typography sx={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF" }}>Units:</Typography>
+              <Typography sx={{ fontSize: 11, fontWeight: 800, color: "#374151" }}>{empty ? "—" : totalUnits}</Typography>
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <Typography sx={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF" }}>Subtotal (ex-tax):</Typography>
+              <Typography sx={{ fontSize: 11, fontWeight: 800, color: "#374151", fontFamily: "monospace" }}>{empty ? "—" : INR(subtotal)}</Typography>
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <Typography sx={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF" }}>GST:</Typography>
+              <Typography sx={{ fontSize: 11, fontWeight: 800, color: "#374151", fontFamily: "monospace" }}>{empty ? "—" : INR(totalGstRow)}</Typography>
+            </Box>
           </Box>
-          <Divider orientation="vertical" flexItem />
-          <Box sx={{ display: { xs: "none", xl: "flex" }, gap: 1, alignItems: "center" }}>
-            {[["F2","Search"],["→","Code→Qty→Cust"],["Q","Qty"],["P","Price"],["↑↓","Rows"],["←→","Footer"],["F9","Hold"],["F8","Save"],["+−","Quick qty"],["Del","Remove"]].map(([k, l]) => (
-              <Box key={k+l} sx={{ display: "flex", alignItems: "center", gap: 0.3 }}><Kbd>{k}</Kbd><Typography sx={{ fontSize: 9, color: "#9CA3AF" }}>{l}</Typography></Box>
-            ))}
-          </Box>
-          <Divider orientation="vertical" flexItem />
-          <Typography sx={{ fontSize: 10, color: "#6B7280", fontWeight: 700, letterSpacing: "0.08em" }}>ITEMS: {totalUnits} UNITS</Typography>
-        </Box>
+        </Box> */}
 
-        {/* BILLING FOOTER */}
-        <Box sx={{ bgcolor: "#fff", borderTop: "1px solid #E5E7EB", px: 2.5, py: 1.5, display: "flex", gap: 2, alignItems: "stretch" }}>
-          {/* COL 1 */}
-          <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1.5, justifyContent: "flex-start", pt: 0.5 }}>
-            <Box>
-              <Typography sx={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.08em", mb: 0.5 }}>PAYMENT TYPE</Typography>
-              <Select value={paymentType} onChange={e => setPaymentType(e.target.value as PaymentType)}
-                onFocus={() => { setZone("FOOTER"); setFooterFocus("PAYMENT_TYPE"); }}
-                size="small" fullWidth
-                sx={{ fontSize: 13, fontWeight: 600, borderRadius: 1.5, "& fieldset": { borderColor: isFooterActive("PAYMENT_TYPE") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("PAYMENT_TYPE") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" } }}>
-                {["Cash","Card","UPI","Credit"].map(val => <MenuItem key={val} value={val} sx={{ fontSize: 13, fontWeight: 600 }}>{val}</MenuItem>)}
-              </Select>
-            </Box>
-            <Box>
-              <Typography sx={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.08em", mb: 0.5 }}>REFERENCE NO.</Typography>
-              <TextField inputRef={refNoRef} value={referenceNo} onChange={e => setReferenceNo(e.target.value)}
-                onFocus={() => { setZone("FOOTER"); setFooterFocus("REF_NO"); }}
-                placeholder="Enter Transaction ID" size="small" fullWidth
-                inputProps={{ style: { padding: "6px 12px", fontSize: 13 } }}
-                sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.5, "& fieldset": { borderColor: isFooterActive("REF_NO") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("REF_NO") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" } } }}
-              />
-            </Box>
-          </Box>
-          <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-          {/* COL 2 */}
-          <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-            <Box>
-              {[
-                { label: "SUBTOTAL", value: INR(subtotal),           color: "#1A1A2E" },
-                { label: "DISCOUNT", value: `− ${INR(discountAmt)}`, color: discountAmt > 0 ? "#16A34A" : "#9CA3AF" },
-                { label: "GST",      value: INR(gstAmount),          color: "#1A1A2E" },
-              ].map(row => (
-                <Box key={row.label} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", py: 0.4, borderBottom: "1px solid #F3F4F6" }}>
-                  <Typography sx={{ fontSize: 11, color: "#9CA3AF", fontWeight: 500, letterSpacing: "0.04em" }}>{row.label}</Typography>
-                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: row.color, fontFamily: "monospace" }}>{row.value}</Typography>
+        {/* ═══════════════════ BILLING FOOTER ════════════════════ */}
+        <Box sx={{ bgcolor: "#fff", borderTop: "1px solid #E5E7EB", px: 2, py: 0.75, display: "flex", gap: 1.5, alignItems: "stretch", justifyContent: "flex-end" }}>
+
+          {/* ══ LEFT BLOCK ══ */}
+          <Box sx={{ width: 420, flexShrink: 0, display: "flex", flexDirection: "column", gap: 0.75 }}>
+
+            {/* ── ROW 1: Note button (full width) ── */}
+           <Box sx={{ display: "flex", gap: 1 }}>
+
+               {/* Discount button */}
+              <Button
+                onClick={() => setDiscountModalOpen(true)}
+                variant="outlined"
+                startIcon={<LocalOfferOutlinedIcon sx={{ fontSize: 14 }} />}
+                sx={{
+                  flex: 1,
+                  justifyContent: "flex-start",
+                  borderRadius: 2,
+                  py: 0.85,
+                  px: 1.5,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color:       hasDiscount ? modeAccent : "#6B7280",
+                  borderColor: hasDiscount ? modeAccent : "#E5E7EB",
+                  borderWidth: hasDiscount ? 1.5 : 1,
+                  bgcolor:     hasDiscount ? `${modeAccent}06` : "#FAFAFA",
+                  "&:hover":   { borderColor: modeAccent, bgcolor: `${modeAccent}0A`, color: modeAccent },
+                  transition:  "all 0.18s",
+                  textTransform: "none",
+                  gap: 0.5,
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flex: 1 }}>
+                  <span>Discount</span>
+                  <Box component="span" sx={{ fontSize: 9, opacity: 0.55 }}>[F6]</Box>
                 </Box>
-              ))}
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", py: 0.6 }}>
-                <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#1A1A2E", letterSpacing: "0.04em" }}>GRAND TOTAL</Typography>
-                <Typography sx={{ fontSize: 15, fontWeight: 900, color: "#1A1A2E", fontFamily: "monospace" }}>₹{grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
-              </Box>
-            </Box>
-            <Box>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.5 }}>
-                <Typography sx={{ fontSize: 10, fontWeight: 700, color: "#C8102E", letterSpacing: "0.06em" }}>DISCOUNT</Typography>
-                <Kbd>F7</Kbd>
-              </Box>
-              <Box sx={{ display: "flex", gap: 1 }}>
-                <TextField inputRef={discountPctRef} value={discountPct} onChange={e => setDiscountPct(e.target.value.replace(/[^0-9.]/g, ""))}
-                  onFocus={() => { setZone("FOOTER"); setFooterFocus("DISCOUNT_PCT"); }} size="small"
-                  InputProps={{ startAdornment: <InputAdornment position="start"><Typography sx={{ fontSize: 12, fontWeight: 700, color: "#9CA3AF" }}>%</Typography></InputAdornment> }}
-                  inputProps={{ style: { padding: "5px 6px", fontSize: 13, fontWeight: 600 } }}
-                  sx={{ flex: 1, "& .MuiOutlinedInput-root": { borderRadius: 1.5, "& fieldset": { borderColor: isFooterActive("DISCOUNT_PCT") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("DISCOUNT_PCT") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" } } }}
-                />
-                <TextField inputRef={discountAmtRef} value={discount} onChange={e => setDiscount(e.target.value.replace(/[^0-9.]/g, ""))}
-                  onFocus={() => { setZone("FOOTER"); setFooterFocus("DISCOUNT_AMT"); }} size="small"
-                  InputProps={{ startAdornment: <InputAdornment position="start"><Typography sx={{ fontSize: 12, fontWeight: 700, color: "#9CA3AF" }}>₹</Typography></InputAdornment> }}
-                  inputProps={{ style: { padding: "5px 6px", fontSize: 13, fontWeight: 600 } }}
-                  sx={{ flex: 1, "& .MuiOutlinedInput-root": { borderRadius: 1.5, "& fieldset": { borderColor: isFooterActive("DISCOUNT_AMT") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("DISCOUNT_AMT") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" } } }}
-                />
-              </Box>
-            </Box>
-          </Box>
-          <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-          {/* COL 3 */}
-          <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
-            <Box onClick={() => receivedRef.current?.focus()}
-              sx={{ flex: 1, border: `2px solid ${isFooterActive("RECEIVED") ? "#D5D5D5" : "#D3D3D3"}`, borderRadius: 2, px: 2, py: 1, textAlign: "right", bgcolor: isFooterActive("RECEIVED") ? "#fff" : "#E5E4E2", cursor: "text", transition: "border-color 0.15s, background 0.15s", "&:hover": { borderColor: "#D5D5D5", bgcolor: "#D3D3D3" } }}>
-              <Typography sx={{ fontSize: 9, fontWeight: 800, color: "#000", letterSpacing: "0.1em", mb: 0.2 }}>RECEIVED AMOUNT</Typography>
-              <Box sx={{ display: "flex", alignItems: "center" }}>
-                <Typography sx={{ fontSize: 26, fontWeight: 900, color: "#000", lineHeight: 1, mr: 0.3, fontFamily: "monospace" }}>₹</Typography>
-                <TextField inputRef={receivedRef} value={receivedAmount} onChange={e => setReceivedAmount(e.target.value.replace(/[^0-9.]/g, ""))}
-                  onFocus={() => { setZone("FOOTER"); setFooterFocus("RECEIVED"); }}
-                  placeholder="0.00" variant="standard" InputProps={{ disableUnderline: true }}
-                  inputProps={{ style: { padding: 0, fontSize: 28, fontWeight: 900, color: "#000", fontFamily: "monospace", width: "100%", textAlign: "right" } }}
-                  sx={{ flex: 1, "& input::placeholder": { color: "#343434", opacity: 1 } }}
-                />
-              </Box>
-            </Box>
-            <Box sx={{ display: "flex", gap: 1, alignItems: "stretch" }}>
-             
-              <Button variant="contained"
-                startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon sx={{ fontSize: 18 }} />}
-                onClick={handleSave} disabled={saving || items.length === 0}
-                sx={{ ...footerOutline("SAVE"), flex: 1, bgcolor: "#C8102E", color: "#fff", fontSize: 15, fontWeight: 800, py: 1, borderRadius: 2, boxShadow: "0 4px 18px rgba(200,16,46,0.35)", "&:hover": { bgcolor: "#A50D26" }, "&:active": { transform: "scale(0.98)" }, "&.Mui-disabled": { bgcolor: "#E5E7EB", color: "#9CA3AF", boxShadow: "none" }, transition: "all 0.15s" }}>
-                {saving ? "SAVING…" : "SAVE"}{" "}
-                <Box component="span" sx={{ fontSize: 11, opacity: 0.85, ml: 0.5 }}>[F8]</Box>
+                {discountBadge && (
+                  <Chip
+                    label={discountBadge}
+                    size="small"
+                    sx={{ height: 18, fontSize: 10, fontWeight: 700, bgcolor: `${modeAccent}18`, color: modeAccent, border: "none", ml: 0.5 }}
+                  />
+                )}
               </Button>
-               <Tooltip title={printEnabled ? "Print ON" : "Print OFF"}>
+
+              {/* Note button */}
+              <Button
+                onClick={() => setNoteModalOpen(true)}
+                variant="outlined"
+                startIcon={<NoteAltOutlinedIcon sx={{ fontSize: 14 }} />}
+                sx={{
+                  flex: 1,
+                  justifyContent: "flex-start",
+                  borderRadius: 2,
+                  py: 0.85,
+                  px: 1.5,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color:       hasNote ? "#16A34A" : "#6B7280",
+                  borderColor: hasNote ? "#86EFAC" : "#E5E7EB",
+                  borderWidth: hasNote ? 1.5 : 1,
+                  bgcolor:     hasNote ? "#F0FDF4" : "#FAFAFA",
+                  "&:hover":   { borderColor: "#6EE7B7", bgcolor: "#F0FDF4", color: "#16A34A" },
+                  transition:  "all 0.18s",
+                  textTransform: "none",
+                  gap: 0.5,
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flex: 1 }}>
+                  <span>Note</span>
+                  <Box component="span" sx={{ fontSize: 9, opacity: 0.55 }}>[F7]</Box>
+                </Box>
+                {hasNote && (
+                  <Chip
+                    label="Added"
+                    size="small"
+                    sx={{ height: 18, fontSize: 10, fontWeight: 700, bgcolor: "#DCFCE7", color: "#166534", border: "none", ml: 0.5 }}
+                  />
+                )}
+              </Button>
+            </Box>
+
+            {/* ── ROW 2: Payment Type + Ref No (hidden in Quotation) ── */}
+            {!isQuotation && (
+              <Box sx={{ display: "flex", gap: 1 }}>
+                <Box sx={{ width: 140, flexShrink: 0 }}>
+                  <Typography sx={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.08em", mb: 0.35 }}>PAYMENT TYPE</Typography>
+                  <Select value={paymentType} onChange={e => setPaymentType(e.target.value as PaymentType)} onFocus={() => { setZone("FOOTER"); setFooterFocus("PAYMENT_TYPE"); }} size="small" fullWidth
+                    sx={{ fontSize: 12, fontWeight: 700, borderRadius: 1.5, "& fieldset": { borderColor: isFooterActive("PAYMENT_TYPE") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("PAYMENT_TYPE") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" }, "& .MuiSelect-select": { py: "6px" } }}>
+                    {["Cash","Card","UPI","Credit"].map(val => <MenuItem key={val} value={val} sx={{ fontSize: 12, fontWeight: 600 }}>{val}</MenuItem>)}
+                  </Select>
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.08em", mb: 0.35 }}>REFERENCE NO.</Typography>
+                  <TextField inputRef={refNoRef} value={referenceNo} onChange={e => setReferenceNo(e.target.value)} onFocus={() => { setZone("FOOTER"); setFooterFocus("REF_NO"); }} placeholder="Transaction ID" size="small" fullWidth
+                    inputProps={{ style: { padding: "6px 10px", fontSize: 12 } }}
+                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.5, "& fieldset": { borderColor: isFooterActive("REF_NO") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("REF_NO") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" } } }} />
+                </Box>
+              </Box>
+            )}
+
+            {/* ── ROW 3: Discount button (moved here) ── */}
+          
+          </Box>
+
+          <Divider orientation="vertical" flexItem sx={{ mx: 0.25 }} />
+
+          {/* ══ RIGHT BLOCK ══ */}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.6, alignItems: "flex-end", flexShrink: 0 }}>
+
+            {/* Discount summary row */}
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+              <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.05em" }}>Discount {gstMode === "before" && "(Before GST)"}</Typography>
+              <Typography sx={{ fontSize: 11, fontWeight: 800, color: (orderDiscountAmt + itemDiscountTotal) > 0 ? "#C8102E" : "#9CA3AF", mr: 0.5 }}>
+                {(orderDiscountAmt + itemDiscountTotal) > 0
+                  ? `- ₹${(orderDiscountAmt + itemDiscountTotal).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+                  : "—"
+                }
+              </Typography>
+            </Box>
+
+            {/* Round-off row */}
+            {roundoffValue !== 0 && (
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.05em" }}>Round Off</Typography>
+                <Typography sx={{ fontSize: 11, fontWeight: 800, color: roundoffValue > 0 ? "#16A34A" : "#C8102E", mr: 0.5 }}>
+                  {roundoffValue > 0 ? "+" : ""}{roundoffValue.toFixed(2)}
+                </Typography>
+              </Box>
+            )}
+
+            {/* Grand total / Received amount */}
+            {isQuotation ? (
+              <Box sx={{ border: "2px solid #D3D3D3", borderRadius: 2, px: 2.5, py: 0.6, textAlign: "right", bgcolor: "#E5E4E2", width: "clamp(260px, 25vw, 420px)" }}>
+                <Typography sx={{ fontSize: 9, fontWeight: 800, color: "#000", letterSpacing: "0.1em", mb: 0.15 }}>TOTAL AMOUNT</Typography>
+                <Box sx={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 0.4 }}>
+                  <Typography sx={{ fontSize: 16, fontWeight: 900, color: "#000" }}>₹</Typography>
+                  <Typography sx={{ fontSize: 24, fontWeight: 900, color: "#000", lineHeight: 1.1 }}>{grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
+                </Box>
+              </Box>
+            ) : (
+              <Box onClick={() => receivedRef.current?.focus()}
+                sx={{
+                  border: `2px solid ${isFooterActive("RECEIVED") ? "#A0A0A0" : "#D3D3D3"}`,
+                  borderRadius: 2, px: 2.5, py: 0.5, textAlign: "right",
+                  bgcolor: isFooterActive("RECEIVED") ? "#fff" : "#E5E4E2",
+                  cursor: "text", transition: "border-color 0.15s, background 0.15s",
+                  width: "clamp(260px, 25vw, 420px)",
+                  "&:hover": { borderColor: "#A0A0A0", bgcolor: "#D8D8D6" }
+                }}>
+                <Typography sx={{ fontSize: 9, fontWeight: 800, color: "#444", letterSpacing: "0.1em", mb: 0.1 }}>
+                  RECEIVED  ·  TOTAL {INR(grandTotal)}
+                </Typography>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+                  <Typography sx={{ fontSize: 16, fontWeight: 900, color: "#000", lineHeight: 1, mr: 0.4 }}>₹</Typography>
+                  <TextField
+                    inputRef={receivedRef} value={receivedAmount}
+                    onChange={e => setReceivedAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+                    onFocus={() => { setZone("FOOTER"); setFooterFocus("RECEIVED"); }}
+                    placeholder="0.00" variant="standard"
+                    InputProps={{ disableUnderline: true }}
+                    inputProps={{
+                      style: { padding: 0, fontSize: "clamp(18px, 2vw, 26px)", fontWeight: 900, color: "#000", textAlign: "right", width: "100%", minWidth: "180px" }
+                    }}
+                    sx={{ width: "100%", "& input::placeholder": { color: "#888", opacity: 1 } }}
+                  />
+                </Box>
+              </Box>
+            )}
+
+            {/* Save + Print */}
+            <Box sx={{ display: "flex", gap: 1, alignItems: "stretch" }}>
+              <Tooltip title={printEnabled ? "Print ON" : "Print OFF"}>
                 <Box onClick={() => setPrintEnabled(p => !p)}
-                  sx={{ width: 52, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 0.3, border: "1px solid #E5E7EB", borderRadius: 2, cursor: "pointer", bgcolor: "#F9FAFB", "&:hover": { bgcolor: "#F3F4F6" }, transition: "background 0.15s" }}>
-                  <Box sx={{ width: 32, height: 18, bgcolor: printEnabled ? "#C8102E" : "#D1D5DB", borderRadius: 10, position: "relative", transition: "background 0.2s" }}>
-                    <Box sx={{ position: "absolute", top: 2, left: printEnabled ? 14 : 2, width: 14, height: 14, bgcolor: "#fff", borderRadius: "50%", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+                  sx={{ width: 48, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 0.3, border: "1px solid #E5E7EB", borderRadius: 2, cursor: "pointer", bgcolor: "#F9FAFB", "&:hover": { bgcolor: "#F3F4F6" }, transition: "background 0.15s" }}>
+                  <Box sx={{ width: 28, height: 16, bgcolor: printEnabled ? modeAccent : "#D1D5DB", borderRadius: 10, position: "relative", transition: "background 0.2s" }}>
+                    <Box sx={{ position: "absolute", top: 2, left: printEnabled ? 12 : 2, width: 12, height: 12, bgcolor: "#fff", borderRadius: "50%", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
                   </Box>
                   <Typography sx={{ fontSize: 8, fontWeight: 700, color: "#6B7280", letterSpacing: "0.05em" }}>PRINT</Typography>
                 </Box>
               </Tooltip>
-            </Box>
-            <Box sx={{ display: "flex", alignItems: "center",justifyContent:"space-between" }}>
-              <Box sx={{display:"flex",gap:1}}>
-              <Button
-                size="small"
-                startIcon={<PauseCircleOutlineIcon sx={{ fontSize: 12 }} />}
-                onClick={handleHold}
-                sx={{
-                  minWidth: 92,
-                  height: 28,
-                  px: 1.2,
-                  borderRadius: 1.25,
-                  bgcolor: "#4B5563",
-                  color: "#fff",
-                  fontSize: 10,
-                  fontWeight: 800,
-                  boxShadow: "0 2px 6px rgba(75,85,99,0.22)",
-                  "&:hover": { bgcolor: "#374151" },
-                }}
-              >
-                HOLD <Box component="span" sx={{ fontSize: 9, opacity: 0.8, ml: 0.4 }}>[F9]</Box>
+              <Button variant="contained"
+                startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon sx={{ fontSize: 18 }} />}
+                onClick={handleSave} disabled={saving || items.length === 0}
+                sx={{ ...footerOutline("SAVE"), minWidth: "clamp(360px, 28vw, 280px)", bgcolor: modeAccent, color: "#fff", fontSize: 15, fontWeight: 800, py: 0.9, px: 3, borderRadius: 2, boxShadow: `0 4px 18px rgba(200,16,46,0.35)`, "&:hover": { bgcolor:  "#A50D26" }, "&:active": { transform: "scale(0.98)" }, "&.Mui-disabled": { bgcolor: "#E5E7EB", color: "#9CA3AF", boxShadow: "none" }, transition: "all 0.15s" }}>
+                {saving ? "SAVING…" : isQuotation ? "SAVE QUOTE" : "SAVE"}{" "}
+                <Box component="span" sx={{ fontSize: 11, opacity: 0.85, ml: 0.5 }}>[F8]</Box>
               </Button>
-              <Badge
-                badgeContent={heldOrders.length}
-                invisible={heldOrders.length === 0}
-                sx={{ "& .MuiBadge-badge": { fontSize: 8, minWidth: 14, height: 14, bgcolor: "#C8102E", color: "#fff", fontWeight: 800 } }}
-              >
-                <Button
-                  size="small"
-                  startIcon={<PlayArrowIcon sx={{ fontSize: 12 }} />}
-                  onClick={() => setHoldDialogOpen(true)}
-                  sx={{
-                    minWidth: 90,
-                    height: 28,
-                    px: 1.15,
-                    borderRadius: 1.25,
-                    border: "1px solid #E5E7EB",
-                    bgcolor: heldOrders.length > 0 ? "#4B5563" : "#F3F4F6",
-                    color: heldOrders.length > 0 ? "#374151" : "#9CA3AF",
-                    fontSize: 10,
-                    fontWeight: 800,
-                    "&:hover": {
-                      bgcolor: heldOrders.length > 0 ? "#4B5563" : "#F3F4F6",
-                      borderColor: heldOrders.length > 0 ? "#CBD5E1" : "#E5E7EB",
-                    },
-                  }}
-                >
-                  RECALL
-                </Button>
-              </Badge>
+            </Box>
+
+            {/* Hold / Recall + Payment Status */}
+            {!isQuotation && (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, justifyContent: "space-between", width: "100%" }}>
+                <Box sx={{ display: "flex", gap: 0.75 }}>
+                  <Button size="small" startIcon={<PauseCircleOutlineIcon sx={{ fontSize: 12 }} />} onClick={handleHold}
+                    sx={{ minWidth: 82, height: 26, px: 1, borderRadius: 1.25, bgcolor: "#4B5563", color: "#fff", fontSize: 10, fontWeight: 800, boxShadow: "0 2px 6px rgba(75,85,99,0.22)", "&:hover": { bgcolor: "#374151" } }}>
+                    HOLD <Box component="span" sx={{ fontSize: 9, opacity: 0.8, ml: 0.3 }}>[F9]</Box>
+                  </Button>
+                  <Badge badgeContent={heldOrders.length} invisible={heldOrders.length === 0} sx={{ "& .MuiBadge-badge": { fontSize: 8, minWidth: 14, height: 14, bgcolor: "#C8102E", color: "#fff", fontWeight: 800 } }}>
+                    <Button size="small" startIcon={<PlayArrowIcon sx={{ fontSize: 12 }} />} onClick={() => setHoldDialogOpen(true)}
+                      sx={{ minWidth: 80, height: 26, px: 1, borderRadius: 1.25, border: "1px solid #E5E7EB", bgcolor: heldOrders.length > 0 ? "#4B5563" : "#F3F4F6", color: heldOrders.length > 0 ? "#fff" : "#9CA3AF", fontSize: 10, fontWeight: 800, "&:hover": { bgcolor: heldOrders.length > 0 ? "#374151" : "#E5E7EB" } }}>
+                      RECALL
+                    </Button>
+                  </Badge>
+                </Box>
+                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                  <Typography sx={{ fontSize: 9, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.06em" }}>PAYMENT STATUS</Typography>
+                  <Typography sx={{ fontSize: 11, fontWeight: 800, color: status.color, letterSpacing: "0.04em" }}>{status.label}</Typography>
+                </Box>
               </Box>
-              <Box sx={{display:"flex",gap:1}}>
-              <Typography sx={{ fontSize: 10, color: "#6B7280", fontWeight: 600 }}>PAYMENT STATUS:</Typography>
-              <Typography sx={{ fontSize: 11, fontWeight: 800, color: status.color, letterSpacing: "0.06em" }}>{status.label}</Typography>
-            </Box>
-            </Box>
+            )}
           </Box>
         </Box>
 
-        {/* STATUS BAR */}
-        <Box sx={{ bgcolor: "#1A1A2E", px: 2.5, py: 0.35, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-            {[{ dot: "#22C55E", label: "SYSTEM ONLINE" }, { dot: "#EF4444", label: "PRINTER READY" }].map(s => (
-              <Box key={s.label} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}><FiberManualRecordIcon sx={{ fontSize: 7, color: s.dot }} /><Typography sx={{ fontSize: 9, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.06em" }}>{s.label}</Typography></Box>
-            ))}
-          </Box>
-          <Box sx={{ display: "flex", gap: 2 }}>
-            <Typography sx={{ fontSize: 9, color: "#6B7280", fontWeight: 600 }}>SERVER: CLOUD-E24</Typography>
-            <Typography sx={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700 }}>POS-ID: 4492-AX</Typography>
-          </Box>
-        </Box>
+        {/* ══ SEPARATE MODALS ══ */}
+        <DiscountModal
+          open={discountModalOpen}
+          onClose={() => setDiscountModalOpen(false)}
+          discountPct={discountPct}
+          discount={discount}
+          modeAccent={modeAccent}
+          gstMode={gstMode}
+          onApply={(pct, amt, mode) => { setDiscountPct(pct); setDiscount(amt); setGstMode(mode); }}
+        />
+        <NoteModal
+          open={noteModalOpen}
+          onClose={() => setNoteModalOpen(false)}
+          orderNote={orderNote}
+          onApply={note => setOrderNote(note)}
+        />
 
         {/* HOLD DIALOG */}
         <Dialog open={holdDialogOpen} onClose={() => setHoldDialogOpen(false)} maxWidth="sm" fullWidth>
@@ -2412,7 +2363,7 @@ const [saleId, setSaleId] = useState<string | null>(null);
               <Box sx={{ bgcolor: saveResult?.success ? "#DCFCE7" : "#FEE2E2", borderRadius: "50%", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {saveResult?.success ? <SaveIcon sx={{ color: "#16A34A", fontSize: 20 }} /> : <CloseIcon sx={{ color: "#C8102E", fontSize: 20 }} />}
               </Box>
-              <Typography sx={{ fontWeight: 700, fontSize: 16 }}>{saveResult?.success ? "Order Saved" : "Save Failed"}</Typography>
+              <Typography sx={{ fontWeight: 700, fontSize: 16 }}>{saveResult?.success ? (isQuotation ? "Quotation Saved" : "Order Saved") : "Save Failed"}</Typography>
             </Box>
             <IconButton size="small" onClick={() => setSaveResult(null)}><CloseIcon sx={{ fontSize: 16 }} /></IconButton>
           </DialogTitle>
@@ -2423,7 +2374,7 @@ const [saleId, setSaleId] = useState<string | null>(null);
                   <Typography sx={{ fontSize: 13, color: "#6B7280" }}>Grand Total</Typography>
                   <Typography sx={{ fontSize: 13, fontWeight: 700 }}>{INR(saveResult.grandTotal ?? 0)}</Typography>
                 </Box>
-                {(saveResult.change ?? 0) > 0 && (
+                {!isQuotation && (saveResult.change ?? 0) > 0 && (
                   <Box sx={{ display: "flex", justifyContent: "space-between", bgcolor: "#DBEAFE", borderRadius: 1.5, px: 1.5, py: 0.8, mt: 0.5 }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#1D4ED8" }}>💵 Return Change</Typography>
                     <Typography sx={{ fontSize: 14, fontWeight: 800, color: "#1D4ED8" }}>{INR(saveResult.change ?? 0)}</Typography>
@@ -2438,21 +2389,17 @@ const [saleId, setSaleId] = useState<string | null>(null);
           </DialogContent>
           <DialogActions sx={{ px: 2, pb: 2, gap: 1 }}>
             {saveResult?.success && printEnabled && (
-              <Button variant="outlined" startIcon={<PrintOutlinedIcon />} onClick={() => setSaveResult(null)}
-                sx={{ borderRadius: 2, fontWeight: 600, flex: 1, borderColor: "#E5E7EB", color: "#374151" }}>Print</Button>
+              <Button variant="outlined" startIcon={<PrintOutlinedIcon />} onClick={() => setSaveResult(null)} sx={{ borderRadius: 2, fontWeight: 600, flex: 1, borderColor: "#E5E7EB", color: "#374151" }}>Print</Button>
             )}
             <Button variant="contained" onClick={() => setSaveResult(null)}
-              sx={{ bgcolor: saveResult?.success ? "#16A34A" : "#C8102E", "&:hover": { bgcolor: saveResult?.success ? "#15803D" : "#A50D26" }, borderRadius: 2, fontWeight: 700, flex: 1 }}
-              autoFocus>
-              {saveResult?.success ? "New Sale" : "Dismiss"}
+              sx={{ bgcolor: saveResult?.success ? "#16A34A" : "#C8102E", "&:hover": { bgcolor: saveResult?.success ? "#15803D" : "#A50D26" }, borderRadius: 2, fontWeight: 700, flex: 1 }} autoFocus>
+              {saveResult?.success ? (isQuotation ? "New Quote" : "New Sale") : "Dismiss"}
             </Button>
           </DialogActions>
         </Dialog>
 
-        <CustomerLedgerDialog open={customerLedgerOpen} onClose={() => setCustomerLedgerOpen(false)}
-          customerName={customer.name || "Walk-in Customer"} />
+        <CustomerLedgerDialog open={customerLedgerOpen} onClose={() => setCustomerLedgerOpen(false)} customerName={customer.name || "Walk-in Customer"} />
         <AddNewCustomerDialog open={addCustomerOpen} onClose={() => setAddCustomerOpen(false)} />
-
       </Box>
     </ThemeProvider>
   );

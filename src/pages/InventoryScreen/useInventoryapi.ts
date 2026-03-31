@@ -100,6 +100,25 @@ export interface AdjustStockResponse {
   };
 }
 
+export interface StockHistoryItem {
+  ledger_id: string;
+  transaction_type: string;
+  qty_change: string;
+  stock_before: string;
+  stock_after: string;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface StockHistoryResponse {
+  success: boolean;
+  data: StockHistoryItem[];
+  summary: {
+    current_stock: number;
+    low_stock_alert: number;
+    is_low: boolean;
+  };
+}
 // ─── Query keys ───────────────────────────────────────────────
 export const inventoryQueryKeys = {
   summary:  () => ['inventory', 'summary']                     as const,
@@ -242,5 +261,28 @@ export function useAdjustStock(options?: {
         : 'Failed to adjust stock';
       options?.onError?.(msg);
     },
+  });
+}
+
+async function fetchStockHistory(item_uuid: string): Promise<StockHistoryResponse> {
+  const { data } = await axios.get<StockHistoryResponse>(
+    `${API_BASE}/restaurant/api/menu/stock/history/${item_uuid}`,
+    {
+      params: {
+        zodu_id: ZODU_ID,
+        branch_id: BRANCH_ID,
+      },
+    }
+  );
+  return data;
+}
+
+// ─── Hook ─────────────────────────────────────────
+export function useStockHistory(item_uuid: string | null) {
+  return useQuery({
+    queryKey: ['stock-history', item_uuid],
+    queryFn: () => fetchStockHistory(item_uuid!),
+    enabled: !!item_uuid,
+    staleTime: 60 * 1000,
   });
 }

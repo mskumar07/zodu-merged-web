@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import {
   Box,
   Typography,
@@ -6,7 +6,6 @@ import {
   Button,
   IconButton,
   InputAdornment,
-  Paper,
   Tooltip,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
@@ -14,12 +13,10 @@ import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import SearchIcon from "@mui/icons-material/Search";
-import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
-import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 import AddNewCustomerDialog from "./Addnewcustomerdialog";
 import CustomerLedgerDialog from "./CustomerLedgerDialog";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
-import { useCustomers } from "./useCustomerApi";
+import { useCustomers } from "./useCustomerapi";
 
 const theme = createTheme({
   palette: {
@@ -73,6 +70,21 @@ interface Customer {
   placeOfSupply: string;
 }
 
+interface ApiCustomer {
+  cust_id: string;
+  cust_uuid: string;
+  cust_name: string | null;
+  cpy_name: string | null;
+  mobile_no: string[] | null;
+  email_id: string[] | null;
+  gst: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  city: string | null;
+  state: string | null;
+  pincode: string | null;
+}
+
 
 
 const INR = (v: number) =>
@@ -95,31 +107,38 @@ export default function CustomerManagement({
 }: CustomerManagementProps) {
   const [search, setSearch] = useState("");
   const [addCustomerOpen, setAddCustomerOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<ApiCustomer | null>(null);
   const [customerLedgerOpen, setCustomerLedgerOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const { data: apiCustomers = [], isLoading } = useCustomers();
+  const { data: apiCustomers = [] } = useCustomers();
 
-const customers: Customer[] = useMemo(() => {
-  if (!apiCustomers || !Array.isArray(apiCustomers)) return [];
+  const handleDelete = useCallback((id: string) => {
+    if (window.confirm("Delete this customer?")) {
+      onDeleteCustomer?.(id);
+    }
+  }, [onDeleteCustomer]);
 
-  return apiCustomers.map((c: any) => ({
-    id: c.cust_id,
-    api_id:c.cust_uuid,
-    businessName: c.cpy_name || "—",
-    contactName: c.cust_name || "—",
-    mobile: c.mobile_no?.[0] || "",
-    email: c.email_id?.[0] || "",
-    address: [
-      c.address_line1,
-      c.city,
-      c.state,
-      c.pincode,
-    ].filter(Boolean).join(", "),
-    gstin: c.gst || "",
-    outstandingBalance: 0,
-    placeOfSupply: c.state || "",
-  }));
-}, [apiCustomers]);
+  const customers: Customer[] = useMemo(() => {
+    if (!apiCustomers || !Array.isArray(apiCustomers)) return [];
+
+    return (apiCustomers as unknown as ApiCustomer[]).map((c: ApiCustomer) => ({
+      id: c.cust_id,
+      api_id: c.cust_uuid,
+      businessName: c.cpy_name || "—",
+      contactName: c.cust_name || "—",
+      mobile: c.mobile_no?.[0] || "",
+      email: c.email_id?.[0] || "",
+      address: [
+        c.address_line1,
+        c.city,
+        c.state,
+        c.pincode,
+      ].filter(Boolean).join(", "),
+      gstin: c.gst || "",
+      outstandingBalance: 0,
+      placeOfSupply: c.state || "",
+    }));
+  }, [apiCustomers]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -132,13 +151,6 @@ const customers: Customer[] = useMemo(() => {
         c.email.toLowerCase().includes(q)
     );
   }, [customers, search]);
-
-  const handleDelete = (id: string) => {
-    if (window.confirm("Delete this customer?")) {
-      setCustomers((prev) => prev.filter((c) => c.id !== id));
-      onDeleteCustomer?.(id);
-    }
-  };
 
   const handleCustomerClick = (customer: Customer) => {
     setSelectedCustomer(customer);
@@ -268,6 +280,12 @@ const customers: Customer[] = useMemo(() => {
                 size="small"
                 onClick={(event) => {
                   event.stopPropagation();
+                  // Find the full customer data from apiCustomers
+                  const fullCustomer = (apiCustomers as unknown as ApiCustomer[]).find((c: ApiCustomer) => c.cust_id === customer.id);
+                  if (fullCustomer) {
+                    setEditingCustomer(fullCustomer);
+                    setAddCustomerOpen(true);
+                  }
                   onEditCustomer?.(customer);
                 }}
                 sx={{
@@ -303,7 +321,7 @@ const customers: Customer[] = useMemo(() => {
         ),
       },
     ],
-    [onEditCustomer]
+    [onEditCustomer, apiCustomers, handleDelete]
   );
 
   return (
@@ -405,6 +423,7 @@ const customers: Customer[] = useMemo(() => {
               size="small"
               startIcon={<AddIcon sx={{ fontSize: 16 }} />}
               onClick={() => {
+                setEditingCustomer(null);
                 setAddCustomerOpen(true);
                 onAddCustomer?.();
               }}
@@ -443,7 +462,11 @@ const customers: Customer[] = useMemo(() => {
 
         <AddNewCustomerDialog
           open={addCustomerOpen}
-          onClose={() => setAddCustomerOpen(false)}
+          onClose={() => {
+            setAddCustomerOpen(false);
+            setEditingCustomer(null);
+          }}
+          editingCustomer={editingCustomer}
         />
 
         <CustomerLedgerDialog

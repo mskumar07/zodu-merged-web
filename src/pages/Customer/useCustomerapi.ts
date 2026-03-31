@@ -67,6 +67,20 @@ async function postAddCustomer(payload: AddCustomerPayload): Promise<AddCustomer
   return data;
 }
 
+// ─── Update Customer API call ─────────────────────────────────
+interface UpdateCustomerPayload extends AddCustomerPayload {
+  cust_uuid: string;
+}
+
+async function putUpdateCustomer(payload: UpdateCustomerPayload): Promise<AddCustomerResponse> {
+  const { cust_uuid, ...updatePayload } = payload;
+  const { data } = await axios.put<AddCustomerResponse>(
+    `${API_BASE}/restaurant/api/customers/${cust_uuid}`,
+    updatePayload
+  );
+  return data;
+}
+
 // ─── Hook ─────────────────────────────────────────────────────
 export function useAddCustomer(options?: {
   onSuccess?: (customer: AddCustomerResponse["customer"]) => void;
@@ -91,8 +105,35 @@ export function useAddCustomer(options?: {
   });
 }
 
+// ─── Update Customer Hook ────────────────────────────────────
+export function useUpdateCustomer(options?: {
+  onSuccess?: (customer: AddCustomerResponse["customer"]) => void;
+  onError?:   (message: string) => void;
+}) {
+  const queryClient = useQueryClient();
 
-async function getCustomers(): Promise<any[]> {
+  return useMutation({
+    mutationFn: putUpdateCustomer,
+
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: customerQueryKeys.all });
+      if (response.customer?.cust_uuid) {
+        queryClient.invalidateQueries({ queryKey: customerQueryKeys.detail(response.customer.cust_uuid) });
+      }
+      options?.onSuccess?.(response.customer);
+    },
+
+    onError: (err: unknown) => {
+      const msg = axios.isAxiosError(err)
+        ? err.response?.data?.message ?? err.message
+        : "Failed to update customer";
+      options?.onError?.(msg);
+    },
+  });
+}
+
+
+async function getCustomers(): Promise<Record<string, unknown>[]> {
   const { data } = await axios.get(
     `${API_BASE}/restaurant/api/customers`,
     {
@@ -149,5 +190,27 @@ export function buildCustomerPayload(form: {
     city:          form.city.trim()         || null,
     state:         form.state               || null,
     pincode:       form.pincode.trim()      || null,
+  };
+}
+
+// ─── Build update customer payload with cust_uuid ─
+export function buildUpdateCustomerPayload(
+  form: {
+    custName:     string;
+    cpyName:      string;
+    mobile:       string;
+    email:        string;
+    gstin:        string;
+    addressLine1: string;
+    addressLine2: string;
+    city:         string;
+    pincode:      string;
+    state:        string;
+  },
+  cust_uuid: string
+): UpdateCustomerPayload {
+  return {
+    ...buildCustomerPayload(form),
+    cust_uuid,
   };
 }

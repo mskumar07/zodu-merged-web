@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Box, Typography, TextField, Button, IconButton,
@@ -9,8 +9,9 @@ import { createTheme, ThemeProvider } from "@mui/material/styles";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import CloseIcon     from "@mui/icons-material/Close";
 import SaveIcon      from "@mui/icons-material/Save";
-import { useAddCustomer, buildCustomerPayload } from "./useCustomerApi";
-import type { AddCustomerResponse } from "./useCustomerApi";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import { useAddCustomer, useUpdateCustomer, buildCustomerPayload, buildUpdateCustomerPayload } from "./useCustomerapi";
+import type { AddCustomerResponse } from "./useCustomerapi";
 
 const theme = createTheme({
   palette: {
@@ -48,6 +49,19 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onSaved?: (customer: AddCustomerResponse["customer"]) => void;
+  editingCustomer?: {
+    cust_uuid: string;
+    cust_name: string | null;
+    cpy_name: string | null;
+    mobile_no: string[] | null;
+    email_id: string[] | null;
+    gst: string | null;
+    address_line1: string | null;
+    address_line2: string | null;
+    city: string | null;
+    state: string | null;
+    pincode: string | null;
+  } | null;
 }
 
 // ── Reusable field wrapper ────────────────────────────────────
@@ -82,14 +96,45 @@ const sx = {
   },
 };
 
-export default function AddNewCustomerDialog({ open, onClose, onSaved }: Props) {
+export default function AddNewCustomerDialog({ open, onClose, onSaved, editingCustomer }: Props) {
+  const isEditing = editingCustomer !== null && editingCustomer !== undefined;
+  
   const [form, setForm]       = useState<CustomerForm>(EMPTY);
   const [error, setError]     = useState<string | null>(null);
 
-  const { mutate, isPending } = useAddCustomer({
+  // Update form when editingCustomer changes
+  useEffect(() => {
+    if (isEditing && editingCustomer) {
+      setForm({
+        custName: editingCustomer.cust_name || "",
+        cpyName: editingCustomer.cpy_name || "",
+        mobile: editingCustomer.mobile_no?.[0] || "",
+        email: editingCustomer.email_id?.[0] || "",
+        gstin: editingCustomer.gst || "",
+        addressLine1: editingCustomer.address_line1 || "",
+        addressLine2: editingCustomer.address_line2 || "",
+        city: editingCustomer.city || "",
+        pincode: editingCustomer.pincode || "",
+        state: editingCustomer.state || "",
+        openingBalance: "",
+      });
+    } else {
+      setForm(EMPTY);
+    }
+    setError(null);
+  }, [isEditing, editingCustomer, open]);
+
+  const { mutate: mutateAdd, isPending: isPendingAdd } = useAddCustomer({
     onSuccess: (customer) => { setForm(EMPTY); setError(null); onSaved?.(customer); onClose(); },
     onError:   (msg) => setError(msg),
   });
+
+  const { mutate: mutateUpdate, isPending: isPendingUpdate } = useUpdateCustomer({
+    onSuccess: (customer) => { setForm(EMPTY); setError(null); onSaved?.(customer); onClose(); },
+    onError:   (msg) => setError(msg),
+  });
+
+  const isPending = isPendingAdd || isPendingUpdate;
 
   const set = (k: keyof CustomerForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(p => ({ ...p, [k]: e.target.value }));
@@ -107,7 +152,12 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved }: Props) 
     setError(null);
     const err = validate();
     if (err) { setError(err); return; }
-    mutate(buildCustomerPayload(form));
+    
+    if (isEditing && editingCustomer) {
+      mutateUpdate(buildUpdateCustomerPayload(form, editingCustomer.cust_uuid));
+    } else {
+      mutateAdd(buildCustomerPayload(form));
+    }
   };
 
   const handleCancel = () => { setForm(EMPTY); setError(null); onClose(); };
@@ -121,9 +171,15 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved }: Props) 
         <DialogTitle sx={{ px: 3, py: 2, borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
             <Box sx={{ p: 1, bgcolor: "rgba(200,16,46,0.1)", borderRadius: 2, display: "flex" }}>
-              <PersonAddIcon sx={{ color: "#C8102E", fontSize: 20 }} />
+              {isEditing ? (
+                <EditOutlinedIcon sx={{ color: "#C8102E", fontSize: 20 }} />
+              ) : (
+                <PersonAddIcon sx={{ color: "#C8102E", fontSize: 20 }} />
+              )}
             </Box>
-            <Typography sx={{ fontSize: 17, fontWeight: 800, color: "#0f172a" }}>Add New Customer</Typography>
+            <Typography sx={{ fontSize: 17, fontWeight: 800, color: "#0f172a" }}>
+              {isEditing ? "Edit Customer" : "Add New Customer"}
+            </Typography>
           </Box>
           <IconButton size="small" onClick={handleCancel} disabled={isPending}
             sx={{ color: "#6B7280", bgcolor: "#F9FAFB", "&:hover": { bgcolor: "#F3F4F6" }, borderRadius: "50%" }}>
@@ -289,7 +345,7 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved }: Props) 
               "&.Mui-disabled": { bgcolor: "#E5E7EB", color: "#9CA3AF", boxShadow: "none" },
               transition: "all 0.15s",
             }}>
-            {isPending ? "Saving…" : "Save Customer"}
+            {isPending ? (isEditing ? "Updating…" : "Saving…") : (isEditing ? "Update Customer" : "Save Customer")}
           </Button>
         </DialogActions>
       </Dialog>

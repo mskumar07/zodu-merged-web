@@ -188,16 +188,19 @@ export interface Customer {
 }
 
 export interface SaveOrderParams {
-  zodu_id:        string;
-  branch_id:      string;
-  items:          LineItem[];
-  customer:       Customer;
-  invoiceDate:    string;
-  discountPct:    string;
-  discountFlat:   string;
-  receivedAmount: string;
-  paymentType:    "Cash" | "Card" | "UPI" | "Credit";
-  referenceNo:    string;
+  zodu_id:           string;
+  branch_id:         string;
+  items:             LineItem[];
+  customer:          Customer;
+  invoiceDate:       string;
+  discountPct:       string;
+  discountFlat:      string;
+  discountGstMode:   "after" | "before";
+  roundoff:          number;
+  posMode:           "SALE" | "QUOTATION";
+  receivedAmount:    string;
+  paymentType:       "Cash" | "Card" | "UPI" | "Credit";
+  referenceNo:       string;
 }
 
 export interface SaveOrderResult {
@@ -241,7 +244,7 @@ export function useSaveOrder() {
         zodu_id:   params.zodu_id,
         branch_id: params.branch_id,
 
-        sale_type:  params.paymentType === "Credit" ? "credit" : "retail",
+        sale_type:  params.posMode === "QUOTATION" ? "quotation" : params.paymentType === "Credit" ? "credit" : "retail",
         sale_date:  params.invoiceDate,
         sale_time:  currentHHmm(),
 
@@ -249,6 +252,8 @@ export function useSaveOrder() {
 
         discount_type,
         discount_value,
+        discount_gst_mode: params.discountGstMode,
+        roundoff:          params.roundoff,
 
         paid_amount:    paidAmount,
         payment_mode:   params.paymentType,
@@ -310,7 +315,7 @@ const updateOrder = useCallback(async (
       zodu_id:   params.zodu_id,
       branch_id: params.branch_id,
 
-      sale_type:  params.paymentType === "Credit" ? "credit" : "retail",
+      sale_type:  params.posMode === "QUOTATION" ? "quotation" : params.paymentType === "Credit" ? "credit" : "retail",
       sale_date:  params.invoiceDate,
       sale_time:  currentHHmm(),
 
@@ -318,6 +323,8 @@ const updateOrder = useCallback(async (
 
       discount_type,
       discount_value,
+      discount_gst_mode: params.discountGstMode,
+      roundoff:          params.roundoff,
 
       paid_amount:    paidAmount,
       payment_mode:   params.paymentType,
