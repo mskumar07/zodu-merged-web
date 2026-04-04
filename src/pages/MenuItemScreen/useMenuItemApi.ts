@@ -17,10 +17,9 @@ import {
   type UseMutationResult,
   type InfiniteData,
 } from "@tanstack/react-query";
+import { getTenantContext } from "@store/tenantContext";
 
 const API_BASE  = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
-const ZODU_ID   = import.meta.env.VITE_ZODU_ID      ?? "ZODU035";
-const BRANCH_ID = import.meta.env.VITE_BRANCH_ID    ?? "ZODU035B1";
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -146,13 +145,13 @@ export interface UnitOption {
 // ─── Query keys ───────────────────────────────────────────────
 export const menuQueryKeys = {
   categories:     (serviceType: "product" | "service") =>
-                    ["menu", "categories", serviceType] as const,
-  gstList:        () => ["menu", "gst"]          as const,
-  unitList:       () => ["menu", "units"]         as const,
+                    ["menu", "categories", serviceType, getTenantContext().branchId] as const,
+  gstList:        () => ["menu", "gst", getTenantContext().branchId]          as const,
+  unitList:       () => ["menu", "units", getTenantContext().branchId]         as const,
   menuItems:      (params: MenuItemListParams) =>
-                    ["menu", "items", params]      as const,
+                    ["menu", "items", getTenantContext().zoduId, getTenantContext().branchId, params]      as const,
   menuItemDetail: (item_uuid: string) =>
-                    ["menu", "item", item_uuid]    as const,
+                    ["menu", "item", getTenantContext().branchId, item_uuid]    as const,
 };
 
 // ─── API functions ────────────────────────────────────────────
@@ -165,9 +164,10 @@ export const menuQueryKeys = {
 async function fetchCategories(
   serviceType: "product" | "service"
 ): Promise<Category[]> {
+  const { branchId, zoduId } = getTenantContext();
   const type = serviceType === "product" ? "S" : "M";
   const { data } = await axios.get<{ Data?: ApiCategory[]; data?: ApiCategory[] }>(
-    `${API_BASE}/restaurant/get/category/${type}/${BRANCH_ID}`
+    `${API_BASE}/restaurant/get/category/${type}/${branchId}/${zoduId}`
   );
   // Handle both capital "Data" and lowercase "data" for safety
   const rows = data.Data ?? data.data ?? [];
@@ -181,8 +181,9 @@ async function fetchCategories(
  * GET /restaurant/get/gst/:branch_id
  */
 async function fetchGstList(): Promise<GstOption[]> {
+  const { branchId, zoduId } = getTenantContext();
   const { data } = await axios.get<{ data: ApiGst[] }>(
-    `${API_BASE}/restaurant/get/gst/${BRANCH_ID}`
+    `${API_BASE}/restaurant/get/gst/${branchId}/${zoduId}`
   );
   return (data.data ?? []).map((g) => ({
     value:      g.id,                        // id → value (sent as gst_type to API)
@@ -196,8 +197,9 @@ async function fetchGstList(): Promise<GstOption[]> {
  * NOTE: API returns capital "Data" key (same pattern as categories)
  */
 async function fetchUnitList(): Promise<UnitOption[]> {
+  const { branchId,zoduId } = getTenantContext();
   const { data } = await axios.get<{ Data?: ApiUnit[]; data?: ApiUnit[] }>(
-    `${API_BASE}/restaurant/get/units/${BRANCH_ID}`
+    `${API_BASE}/restaurant/get/units/${branchId}/${zoduId}`
   );
   const rows = data.Data ?? data.data ?? [];
   return rows.map((u) => ({
@@ -214,12 +216,13 @@ async function fetchUnitList(): Promise<UnitOption[]> {
 async function fetchMenuItems(
   params: MenuItemListParams
 ): Promise<MenuItemListResponse> {
+  const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.get<MenuItemListResponse>(
     `${API_BASE}/restaurant/api/menu/menu_items`,
     {
       params: {
-        zodu_id:     ZODU_ID,
-        branch_id:   BRANCH_ID,
+        zodu_id:     zoduId,
+        branch_id:   branchId,
         search:      params.search      || undefined,
         category_id: params.category_id || undefined,
         item_type:   params.item_type   || undefined,
@@ -247,11 +250,12 @@ async function fetchMenuItemDetail(item_uuid: string): Promise<MenuItem> {
  * POST /restaurant/add/category
  */
 async function postAddCategory(payload: AddCategoryPayload): Promise<Category> {
+  const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.post<{ data: ApiCategory }>(
     `${API_BASE}/restaurant/add/category`,
     {
-      zodu_id:   ZODU_ID,
-      branch_id: BRANCH_ID,
+      zodu_id:   zoduId,
+      branch_id: branchId,
       name:      payload.name.trim(),
       type:      payload.serviceType === "product" ? "S" : "M",
     }
@@ -269,9 +273,10 @@ async function postAddCategory(payload: AddCategoryPayload): Promise<Category> {
 async function postAddMenuItem(
   payload: AddMenuItemPayload
 ): Promise<AddMenuItemResponse> {
+  const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.post<AddMenuItemResponse>(
     `${API_BASE}/restaurant/api/menu/add/menu_item`,
-    { zodu_id: ZODU_ID, branch_id: BRANCH_ID, ...payload }
+    { zodu_id: zoduId, branch_id: branchId, ...payload }
   );
   return data;
 }
@@ -352,7 +357,7 @@ export function useInfiniteMenuItems(
   params: Omit<MenuItemListParams, "page"> = {}
 ) {
   return useInfiniteQuery({
-    queryKey: ['menu', 'items', JSON.stringify(params)], // 🔥 FIXED
+    queryKey: ['menu', 'items', getTenantContext().zoduId, getTenantContext().branchId, JSON.stringify(params)],
 
     queryFn: ({ pageParam = 1 }) =>
       fetchMenuItems({

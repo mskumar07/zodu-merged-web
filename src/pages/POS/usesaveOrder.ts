@@ -160,6 +160,7 @@
 import { useState, useCallback } from "react";
 import axios from "axios";
 import { number } from "yup";
+import { getTenantContext } from "@store/tenantContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 
@@ -233,6 +234,7 @@ export function useSaveOrder() {
     setSaving(true);
     setLastError(null);
     try {
+      const { zoduId, branchId } = getTenantContext();
       const { discount_type, discount_value } = resolveDiscount(
         params.discountPct, params.discountFlat
       );
@@ -241,10 +243,10 @@ export function useSaveOrder() {
 
       console.log("me002",params)
       const payload = {
-        zodu_id:   params.zodu_id,
-        branch_id: params.branch_id,
+        zodu_id:   zoduId,
+        branch_id: branchId,
 
-        sale_type:  params.posMode === "QUOTATION" ? "quotation" : params.paymentType === "Credit" ? "credit" : "retail",
+        sale_type:  params.posMode === "QUOTATION" ? "quotation" : "retail",
         sale_date:  params.invoiceDate,
         sale_time:  currentHHmm(),
 
@@ -302,6 +304,7 @@ const updateOrder = useCallback(async (
   setLastError(null);
 
   try {
+    const { zoduId, branchId } = getTenantContext();
     const { discount_type, discount_value } = resolveDiscount(
       params.discountPct,
       params.discountFlat
@@ -312,10 +315,10 @@ const updateOrder = useCallback(async (
     // ✅ SAME PAYLOAD AS saveOrder
     const payload = {
       sale_uuid:sale_uuid,
-      zodu_id:   params.zodu_id,
-      branch_id: params.branch_id,
+      zodu_id:   zoduId,
+      branch_id: branchId,
 
-      sale_type:  params.posMode === "QUOTATION" ? "quotation" : params.paymentType === "Credit" ? "credit" : "retail",
+      sale_type:  params.posMode === "QUOTATION" ? "quotation"  : "retail",
       sale_date:  params.invoiceDate,
       sale_time:  currentHHmm(),
 

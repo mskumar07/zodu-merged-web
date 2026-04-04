@@ -3,8 +3,7 @@ import axios from "axios";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 
-export const ZODU_ID = import.meta.env.VITE_ZODU_ID ?? "ZODU035";
-export const BRANCH_ID = import.meta.env.VITE_BRANCH_ID ?? "ZODU035B1";
+
 
 const api = axios.create({
   baseURL: `${API_BASE}/restaurant/api/vendor`,

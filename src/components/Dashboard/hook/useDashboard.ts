@@ -4,7 +4,7 @@ import { useDashboardDataQuery } from "@hooks/queryHooks/dashboard";
 import { getDateRange } from "@Services/ReportServices";
 import { dashboardApi } from "@Services/DashBoardServices";
 
-const ZODUID = "ZODU035";
+// const ZODUID = "ZODU035";
 const STORAGE_KEY = "dashboard_selected_branch";
 
 export const useDashboard = () => {
@@ -12,7 +12,7 @@ export const useDashboard = () => {
 
   const [selectedBranch, setSelectedBranch] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
-    return saved || "ZODU035B1";
+    return saved ;
   });
 
   const [dateFilter, setDateFilter] = useState({

@@ -3,8 +3,9 @@ import {
   Box, Typography, TextField, Button, IconButton,
   InputAdornment, Chip, Tooltip, Fab, CircularProgress, Skeleton,
   Dialog, DialogTitle, DialogContent, DialogActions,
-  FormControl, Select, MenuItem,
+  FormControl, Select, MenuItem, Stack,
 } from "@mui/material";
+import { Circle } from "@mui/icons-material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AddIcon           from "@mui/icons-material/Add";
 import EditOutlinedIcon  from "@mui/icons-material/EditOutlined";
@@ -29,7 +30,6 @@ const theme = createTheme({
     background: { default: "#fdfaf9", paper: "#ffffff" },
     text: { primary: "#0F172A", secondary: "#6B7280" },
   },
-  typography: { fontFamily: '"Poppins", sans-serif' },
   components: {
     MuiButton: {
       styleOverrides: {
@@ -43,16 +43,34 @@ const INR = (v: number | string) =>
   new Intl.NumberFormat("en-IN", {
     style: "currency", currency: "INR", maximumFractionDigits: 0,
   }).format(Number(v));
+const TABLE_TEXT_COLOR = "#374151";
 
 type PurchaseStatus = "paid" | "partial" | "pending";
 
 const STATUS_STYLES: Record<PurchaseStatus, {
-  label: string; color: string; bgcolor: string; borderColor: string;
+  label: string; color: string;
 }> = {
-  paid:    { label: "Paid",    color: "#166534", bgcolor: "#DCFCE7", borderColor: "#BBF7D0" },
-  partial: { label: "Partial", color: "#92400E", bgcolor: "#FEF3C7", borderColor: "#FDE68A" },
-  pending: { label: "Pending", color: "#991B1B", bgcolor: "#FEE2E2", borderColor: "#FECACA" },
+  paid:    { label: "Paid",    color: "#2E7D32" },
+  partial: { label: "Partial", color: "#F57C00" },
+  pending: { label: "Pending", color: "#C62828" },
 };
+
+// Status Badge Component (like SalesHistory)
+function StatusBadge({ status }: { status: PurchaseStatus }) {
+  const st = STATUS_STYLES[status] ?? STATUS_STYLES.pending;
+  return (
+        <Typography
+          variant="body2"
+          sx={{
+            display: "inline-flex", alignItems: "center", gap: 0.5,
+            color: st.color, fontWeight: 600, fontSize: 13,
+      }}
+    >
+      <Circle sx={{ fontSize: 8 }} />
+      {st.label}
+    </Typography>
+  );
+}
 
 function StatsSkeleton() {
   return (
@@ -142,7 +160,7 @@ export default function PurchaseScreen() {
         label: "Date",
         width: 110,
         render: (p) => (
-          <Typography sx={{ fontSize: 12, color: "#6B7280", whiteSpace: "nowrap" }}>
+          <Typography sx={{ fontSize: 13, color: TABLE_TEXT_COLOR, whiteSpace: "nowrap" }}>
             {new Date(p.purchase_date).toLocaleDateString("en-IN", {
               day: "2-digit", month: "short", year: "numeric",
             })}
@@ -155,11 +173,11 @@ export default function PurchaseScreen() {
         width: 200,
         render: (p) => (
           <Box sx={{ maxWidth: 200 }}>
-            <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A", lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            <Typography sx={{ fontSize: 13, fontWeight: 600, color: TABLE_TEXT_COLOR, lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {p.vendor_name ?? "—"}
             </Typography>
             {p.company_name && (
-              <Typography sx={{ fontSize: 11, color: "#6B7280", lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <Typography sx={{ fontSize: 13, color: TABLE_TEXT_COLOR, lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {p.company_name}
               </Typography>
             )}
@@ -172,7 +190,7 @@ export default function PurchaseScreen() {
         align: "right",
         width: 120,
         render: (p) => (
-          <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A", whiteSpace: "nowrap" }}>
+          <Typography sx={{ fontSize: 13, fontWeight: 600, color: TABLE_TEXT_COLOR, whiteSpace: "nowrap" }}>
             {INR(p.total_amount)}
           </Typography>
         ),
@@ -185,7 +203,7 @@ export default function PurchaseScreen() {
         render: (p) => (
           <Typography sx={{
             fontSize: 13, fontWeight: 600, whiteSpace: "nowrap",
-            color: Number(p.paid_amount) > 0 ? "#16A34A" : "#D1D5DB",
+            color: Number(p.paid_amount) > 0 ? "#16A34A" : TABLE_TEXT_COLOR,
           }}>
             {INR(p.paid_amount)}
           </Typography>
@@ -207,7 +225,7 @@ export default function PurchaseScreen() {
             fontSize: 13,
             fontWeight: 700,
             whiteSpace: "nowrap",
-            color: hasBalance ? "#D32F2F" : "#0F172A",
+            color: hasBalance ? "#D32F2F" : TABLE_TEXT_COLOR,
           }}
         >
           {INR(p.balance_amount)}
@@ -218,7 +236,7 @@ export default function PurchaseScreen() {
             sx={{
               fontSize: 11,
               fontWeight: 600,
-              color: "#EF4444",
+              color: TABLE_TEXT_COLOR,
               mt: 0.3,
               whiteSpace: "nowrap",
             }}
@@ -234,44 +252,21 @@ export default function PurchaseScreen() {
         key: "payment_status",
         label: "Status",
         width: 200,
-        align:"center",
-        render: (p) => {
-          const st = STATUS_STYLES[p.payment_status] ?? STATUS_STYLES.pending;
-          
-          return (
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 1,
-                whiteSpace: "nowrap",
-                width: "100%",
-              }}
-            >
-              <Chip
-                label={st.label}
-                size="small"
-                sx={{
-                  width: 68, fontSize: 10, fontWeight: 700, height: 22,
-                  color: st.color, bgcolor: st.bgcolor,
-                  border: `1px solid ${st.borderColor}`, borderRadius: "999px",
-                  "& .MuiChip-label": { width: "100%", textAlign: "center", px: 0.75 },
-                  flexShrink: 0,
-                }}
-              />
-              {Number(p.balance_amount) > 0 && (
-                <Button
-                  size="small" variant="contained" color="primary" disableElevation
-                  onClick={() => setPayment(p)}
-                  sx={{ fontSize: "0.65rem", py: 0.5, px: 1.5, height: 22, minWidth: 0, borderRadius: 1, whiteSpace: "nowrap", flexShrink: 0 }}
-                >
-                  Mark as Paid
-                </Button>
-              )}
-            </Box>
-          );
-        },
+        align:"left",
+        render: (p) => (
+          <Stack direction="row" alignItems="center" gap={1}>
+            <StatusBadge status={p.payment_status} />
+            {Number(p.balance_amount) > 0 && (
+              <Button
+                size="small" variant="contained" color="primary" disableElevation
+                onClick={() => setPayment(p)}
+                sx={{ fontSize: "0.65rem", py: 0.4, px: 1.5, height: 24, minWidth: 0, whiteSpace: "nowrap" }}
+              >
+                Mark as Paid
+              </Button>
+            )}
+          </Stack>
+        ),
       },
       {
         key: "actions",

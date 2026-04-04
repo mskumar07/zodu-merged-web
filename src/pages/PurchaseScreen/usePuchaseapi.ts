@@ -1,12 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
+import { getTenantContext } from "@store/tenantContext";
 
 /* =========================================================
    🔹 AXIOS INSTANCE
 ========================================================= */
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
-export const ZODU_ID   = import.meta.env.VITE_ZODU_ID   ?? "ZODU035";
-export const BRANCH_ID = import.meta.env.VITE_BRANCH_ID ?? "ZODU035B1";
+export const getZoduId = () => getTenantContext().zoduId;
+export const getBranchId = () => getTenantContext().branchId;
 
 const api = axios.create({
   baseURL: `${API_BASE}/restaurant/api`,
@@ -156,10 +157,11 @@ export interface PurchaseDetail extends PurchaseRow {
 
 export const useVendors = () =>
   useQuery({
-    queryKey: ["vendors"],
+    queryKey: ["vendors", getZoduId(), getBranchId()],
     queryFn: async () => {
+      const { zoduId, branchId } = getTenantContext();
       const res = await api.get("/vendor", {
-        params: { zodu_id: ZODU_ID, branch_id: BRANCH_ID },
+        params: { zodu_id: zoduId, branch_id: branchId },
       });
       return (res.data?.data ?? res.data?.Data ?? res.data ?? []) as Vendor[];
     },
@@ -214,10 +216,11 @@ export const useDeleteVendor = () => {
 
 export const usePurchaseSummary = () =>
   useQuery({
-    queryKey: ["purchase-summary", ZODU_ID, BRANCH_ID],
+    queryKey: ["purchase-summary", getZoduId(), getBranchId()],
     queryFn: async () => {
+      const { zoduId, branchId } = getTenantContext();
       const res = await api.get("/purchase/summary", {
-        params: { zodu_id: ZODU_ID, branch_id: BRANCH_ID },
+        params: { zodu_id: zoduId, branch_id: branchId },
       });
       return (res.data?.data ?? res.data) as PurchaseStatsData;
     },
@@ -242,10 +245,11 @@ export const useCreatePurchase = () => {
 
 export const usePurchases = (params: Record<string, string> = {}) =>
   useQuery({
-    queryKey: ["purchases", params],
+    queryKey: ["purchases", getZoduId(), getBranchId(), params],
     queryFn: async () => {
+      const { zoduId, branchId } = getTenantContext();
       const res = await api.get("/purchase", {
-        params: { zodu_id: ZODU_ID, branch_id: BRANCH_ID, ...params },
+        params: { zodu_id: zoduId, branch_id: branchId, ...params },
       });
       return (res.data?.data ?? res.data ?? []) as PurchaseRow[];
     },
@@ -253,10 +257,11 @@ export const usePurchases = (params: Record<string, string> = {}) =>
 
 export const usePurchaseById = (id: string) =>
   useQuery({
-    queryKey: ["purchase", id],
+    queryKey: ["purchase", id, getZoduId(), getBranchId()],
     queryFn: async () => {
+      const { zoduId, branchId } = getTenantContext();
       const res = await api.get(`/purchase/${id}`, {
-        params: { zodu_id: ZODU_ID, branch_id: BRANCH_ID },
+        params: { zodu_id: zoduId, branch_id: branchId },
       });
       return (res.data?.data ?? res.data) as PurchaseDetail;
     },

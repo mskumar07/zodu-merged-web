@@ -23,16 +23,16 @@ import {
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 
-export const posProductsKey = (branchId: string) =>
-  ["pos", "products", branchId] as const;
+export const posProductsKey = (branchId: string, zoduId: string) =>
+  ["pos", "products", branchId, zoduId] as const;
 
 // ── API fetch + cache ─────────────────────────────────────────
-async function fetchAndCacheProducts(branchId: string): Promise<PosProduct[]> {
+async function fetchAndCacheProducts(branchId: string, zoduId: string): Promise<PosProduct[]> {
   const { data } = await axios.get<{
     message: string;
     Data?: PosProduct[];
     data?: PosProduct[];
-  }>(`${API_BASE}/restaurant/get/pos_data/${branchId}`);
+  }>(`${API_BASE}/restaurant/get/pos_data/${branchId}/${zoduId}`);
 
   const products = data.Data ?? data.data ?? [];
 
@@ -49,7 +49,7 @@ async function fetchAndCacheProducts(branchId: string): Promise<PosProduct[]> {
   return getAllProducts(branchId);
 }
 
-async function loadProducts(branchId: string): Promise<PosProduct[]> {
+async function loadProducts(branchId: string, zoduId: string): Promise<PosProduct[]> {
   const stale = await isCatalogueStale(branchId);
 
   // Not stale → serve from IDB directly (works fully offline)
@@ -57,7 +57,7 @@ async function loadProducts(branchId: string): Promise<PosProduct[]> {
 
   // Stale → try to refresh from API
   try {
-    return await fetchAndCacheProducts(branchId);
+    return await fetchAndCacheProducts(branchId, zoduId);
   } catch (err) {
     // ✅ Offline fallback: API unreachable → serve whatever is in IDB
     // Cashier can still work; catalogue will sync next time they're online
@@ -69,10 +69,10 @@ async function loadProducts(branchId: string): Promise<PosProduct[]> {
 }
 
 // ── Core query hook ───────────────────────────────────────────
-export function usePosProducts(branchId: string) {
+export function usePosProducts(branchId: string, zoduId: string) {
   return useQuery({
-    queryKey:             posProductsKey(branchId),
-    queryFn:              () => loadProducts(branchId),
+    queryKey:             posProductsKey(branchId, zoduId),
+    queryFn:              () => loadProducts(branchId, zoduId),
     staleTime:            8 * 60 * 60 * 1000,
     gcTime:               12 * 60 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -104,8 +104,8 @@ function itemCompare(a: PosProduct, b: PosProduct): number {
 }
 
 // ── Search hook ───────────────────────────────────────────────
-export function usePosSearch(branchId: string, query: string) {
-  const { data: products = [], isLoading, isError } = usePosProducts(branchId);
+export function usePosSearch(branchId: string, query: string, zoduId: string) {
+  const { data: products = [], isLoading, isError } = usePosProducts(branchId, zoduId);
 
   // Build Fuse index once when catalogue loads
   const fuseRef = useRef<Fuse<PosProduct> | null>(null);

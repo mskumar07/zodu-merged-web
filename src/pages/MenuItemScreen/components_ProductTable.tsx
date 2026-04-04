@@ -45,6 +45,7 @@ const formatINR = (value: number) =>
     currency: "INR",
     minimumFractionDigits: 2,
   }).format(value);
+const TABLE_TEXT_COLOR = "#374151";
 
 const ProductTable: React.FC<ProductTableProps> = React.memo(
   ({
@@ -78,6 +79,7 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
               fontWeight={600}
               sx={{
                 color: "#1976d2",
+                fontSize: 13,
                 cursor: "pointer",
                 "&:hover": { textDecoration: "underline" },
               }}
@@ -93,6 +95,7 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
           minWidth: 180,
           render: (product) => (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              
               <Avatar
                 src={product.imageUrl}
                 variant="rounded"
@@ -102,20 +105,16 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
               </Avatar>
               <Box>
                 <Typography
-                  variant="body2"
-                  fontWeight={500}
-                  color="text.primary"
-                  sx={{ lineHeight: 1.3 }}
+                  fontWeight={600}
+                  sx={{ lineHeight: 1.3, fontSize: 13, color: TABLE_TEXT_COLOR }}
                 >
                   {product.name}
                 </Typography>
                 <Typography
-                  variant="caption"
-                  fontWeight={400}
                   sx={{
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                    color: "text.disabled",
+                    fontSize: 13,
+                    fontWeight: 400,
+                    color: TABLE_TEXT_COLOR,
                   }}
                 >
                   {product.category}
@@ -129,7 +128,7 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
           label: "Purchase Price",
           align: "right",
           render: (product) => (
-            <Typography variant="body2" fontWeight={600} color="text.secondary">
+            <Typography variant="body2" fontWeight={600} sx={{ fontSize: 13, color: TABLE_TEXT_COLOR }}>
               {formatINR(product.purchase_price)}
             </Typography>
           ),
@@ -139,7 +138,7 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
           label: "MRP",
           align: "right",
           render: (product) => (
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{ fontSize: 13, color: TABLE_TEXT_COLOR }}>
               {formatINR(product.mrp)}
             </Typography>
           ),
@@ -149,7 +148,7 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
           label: "Rate",
           align: "right",
           render: (product) => (
-            <Typography variant="body2" fontWeight={600} color="text.secondary">
+            <Typography variant="body2" fontWeight={600} sx={{ fontSize: 13, color: TABLE_TEXT_COLOR }}>
               {formatINR(product.rate)}
             </Typography>
           ),
@@ -158,7 +157,7 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
           key: "gst",
           label: "GST",
           render: (product) => (
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{ fontSize: 13, color: TABLE_TEXT_COLOR }}>
               {product.taxType}
             </Typography>
           ),
@@ -167,7 +166,7 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
           key: "inclusion",
           label: "Inclusion",
           render: (product) => (
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{ fontSize: 13, color: TABLE_TEXT_COLOR }}>
               {product.inclusion}
             </Typography>
           ),
@@ -176,7 +175,7 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
           key: "hsn",
           label: "HSN",
           render: (product) => (
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{ fontSize: 13, color: TABLE_TEXT_COLOR }}>
               {product.hsn}
             </Typography>
           ),

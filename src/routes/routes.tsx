@@ -30,16 +30,21 @@ import CustomerManagement from "@pages/Customer/Customermanagement";
 import InventoryManagement from "../pages/InventoryScreen/InventoryManagement";
 import ZoduLoginPage from "@pages/auth/Login";
 import ZoduSignupPage from "@pages/auth/Signup";
-import ZodulandingPage from "@pages/landingPage/ZodulandingPage";
+import ProtectedRoute from "./ProtectedRoute";
+import ZoduLandingPage from "@pages/landingPage/ZodulandingPage";
 
 export const routes = [
   {
     path: "/",
-    element: <ZodulandingPage />,
+    element: <ZoduLandingPage />,
   },
   {
     path: "/",
-    element: <Layout />, // Layout as the shell for all (nested) routes
+    element: (
+      <ProtectedRoute>
+        <Layout />
+      </ProtectedRoute>
+    ), // Layout as the shell for all (nested) routes
     children: [
       { path: "dashboard", element: <Dashboard /> },
       { path: "restaurant-setup", element: <RestaurantSetup /> },

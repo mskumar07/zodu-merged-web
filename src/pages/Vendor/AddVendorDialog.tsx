@@ -28,6 +28,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import SearchIcon from "@mui/icons-material/Search";
 import CircularProgress from "@mui/material/CircularProgress";
 import { BRANCH_ID, useCreateVendor, ZODU_ID } from "./useVendorApi";
+import { getTenantContext } from "@store/tenantContext";
 
 const theme = createTheme({
   palette: {
@@ -35,7 +36,6 @@ const theme = createTheme({
     background: { default: "#f8f6f6", paper: "#ffffff" },
     text: { primary: "#0F172A", secondary: "#6B7280" },
   },
-  typography: { fontFamily: '"Poppins", sans-serif' },
   components: {
     MuiButton: {
       styleOverrides: {
@@ -139,6 +139,7 @@ const AddVendorModal: React.FC<AddVendorModalProps> = ({ open, onClose, onSave }
   const [stateSearch, setStateSearch] = useState("");
   const [saveError, setSaveError] = useState("");
   const createVendor = useCreateVendor();
+  const {zoduId, branchId} = getTenantContext();
 
   const handleChange =
     (field: keyof VendorFormState) =>
@@ -165,8 +166,8 @@ const AddVendorModal: React.FC<AddVendorModalProps> = ({ open, onClose, onSave }
     try {
       setSaveError("");
       const payload = {
-        zodu_id: "ZODU035",
-        branch_id: "ZODU035B1",
+        zodu_id: zoduId,
+        branch_id: branchId,
         vendor_name: form.contactPerson,
         company_name: form.vendorName || null,
         gst: form.gstin || null,

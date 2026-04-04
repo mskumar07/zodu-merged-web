@@ -26,13 +26,13 @@ const muiTheme = createTheme({
     },
   },
   typography: {
-    fontFamily: '"Poppins", sans-serif',
+    fontFamily: '"Inter", sans-serif',
     fontWeightLight: 300,
     fontWeightRegular: 400,
     fontWeightMedium: 500,
     fontWeightBold: 600,
     logo: {
-      fontFamily: '"Poppins", sans-serif',
+      fontFamily: '"Inter", sans-serif',
       fontWeight: 700,
       letterSpacing: 2,
       fontSize: "2.5rem",

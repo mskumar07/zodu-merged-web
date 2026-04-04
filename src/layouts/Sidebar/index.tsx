@@ -25,6 +25,9 @@ import {
 import { useTheme } from "@mui/material/styles";
 import React from "react";
 import { History, Person, Settings } from "@mui/icons-material";
+import { useAppDispatch } from "@store/store";
+import { clearAuthData } from "@store/slices/userSlice";
+import { tokenStore } from "@pages/auth/Authapi";
 
 export const drawerWidth = 240;
 
@@ -54,11 +57,13 @@ const navItems = [
 
 export default function Sidebar() {
   const theme = useTheme();
+  const dispatch = useAppDispatch();
   const [activeIndex, setActiveIndex] = React.useState(0);
   const { navigate } = useNavigation();
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
+    tokenStore.clear();
+    dispatch(clearAuthData());
     navigate("/login");
   };
 
@@ -105,12 +110,20 @@ export default function Sidebar() {
 
 <Divider />
 
-      <List sx={{ mt: 2, flexGrow: 1 }}>
+      <List
+        sx={{
+          mt: 1,
+          px: 1.25,
+          py: 0.5,
+          flexGrow: 1,
+        }}
+      >
         {navItems.map((item, i) => (
           <ListItem
             key={item.label}
             disablePadding
             disableGutters={true}
+            sx={{ mb: 0.35 }}
             onClick={() => {
               navigate(item.path);
               setActiveIndex(i);
@@ -120,8 +133,11 @@ export default function Sidebar() {
               disableRipple={true}
               sx={{
                 borderRadius: 1,
-                my: 0.5,
-                mx: 2,
+                minHeight: 36,
+                py: 0.5,
+                px: 1.25,
+                my: 0,
+                mx: 0,
                 bgcolor:
                   i === activeIndex
                     ? theme.palette.primary.main
@@ -138,7 +154,7 @@ export default function Sidebar() {
             >
               <ListItemIcon
                 sx={{
-                  minWidth: 40,
+                  minWidth: 28,
                   color:
                     i === activeIndex ? "#fff" : theme.palette.text.secondary,
                 }}
@@ -149,9 +165,11 @@ export default function Sidebar() {
               <ListItemText
                 primary={item.label}
                 sx={{
+                  ml: 0.5,
                   "& .MuiTypography-root": {
                     fontWeight: i === activeIndex ? 500 : 400,
-                    fontSize: "14px",
+                    fontSize: "13px",
+                    lineHeight: 1.25,
                     color: i === activeIndex ? "#fff" : "#888",
                   },
                 }}
@@ -160,8 +178,8 @@ export default function Sidebar() {
           </ListItem>
         ))}
       </List>
-      <Box sx={{ px: 2, pb: 2, pt: 1 }}>
-        <Divider sx={{ mb: 1.5 }} />
+      <Box sx={{ px: 2, pb: 1, pt: 1 }}>
+        <Divider sx={{ mb: 1 }} />
         <ListItem disablePadding disableGutters>
           <ListItemButton
             disableRipple
@@ -176,7 +194,7 @@ export default function Sidebar() {
           >
             <ListItemIcon
               sx={{
-                minWidth: 40,
+                minWidth: 30,
                 color: theme.palette.error.main,
               }}
               aria-hidden="true"

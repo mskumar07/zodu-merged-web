@@ -26,9 +26,7 @@ const theme = createTheme({
       default: "#f5f5f5",
     },
   },
-  typography: {
-    fontFamily: '"Poppins", sans-serif',
-  },
+ 
   components: {
     MuiCard: {
       styleOverrides: {

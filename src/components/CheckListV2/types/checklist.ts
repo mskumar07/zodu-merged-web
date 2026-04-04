@@ -1,6 +1,6 @@
 export const DEFAULT_PARAMS = {
-  zoduId: "ZODU035",
-  branchId: "ZODU035B1",
+  // zoduId: "ZODU035",
+  // branchId: "ZODU035B1",
   userId: "8f0d9c7e-6a8b-4f6d-b7e1-4b9bdfc11234",
   limit: 50,
   offset: 0,

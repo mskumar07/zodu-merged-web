@@ -28,16 +28,16 @@ const INR = (v: any) =>
   }).format(Number(v || 0));
 
 // ✅ Convert GST Type → % (adjust if your backend differs)
-const getGstRate = (gstType: number) => {
-  switch (gstType) {
-    case 1: return "0%";
-    case 2: return "5%";
-    case 3: return "12%";
-    case 4: return "18%";
-    case 5: return "28%";
-    default: return "-";
-  }
-};
+// const getGstRate = (gstType: number) => {
+//   switch (gstType) {
+//     case 1: return "0%";
+//     case 2: return "5%";
+//     case 3: return "12%";
+//     case 4: return "18%";
+//     case 5: return "28%";
+//     default: return "-";
+//   }
+// };
 
 export default function ProductDetailsDialog({
   open,
@@ -48,7 +48,7 @@ onEdit
   const { data, isLoading } = useMenuItemDetail(itemUuid);
 
   const item = data;
-
+console.log(item)
   if (isLoading || !item) {
     return (
 
@@ -140,7 +140,7 @@ onEdit
                 { label: "ITEM ID", value: item.item_id },
                 { label: "HSN CODE", value: item.hsn_code },
                 { label: "UNIT", value: item.unit_name },
-                { label: "GST RATE", value: getGstRate(item.gst_type) },
+                { label: "GST RATE", value: item.gst_rate ? item.gst_rate + "%" : "-" },
               ].map((i) => (
                 <Box key={i.label}>
                   <Typography fontSize={11} color="#9CA3AF">

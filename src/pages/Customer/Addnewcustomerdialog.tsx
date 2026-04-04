@@ -19,7 +19,6 @@ const theme = createTheme({
     background: { default: "#f8f6f6", paper: "#ffffff" },
     text: { primary: "#0f172a", secondary: "#6b7280" },
   },
-  typography: { fontFamily: '"Poppins", sans-serif' },
   components: {
     MuiButton: { styleOverrides: { root: { textTransform: "none", borderRadius: 8, fontWeight: 700 } } },
     MuiDialog: { styleOverrides: { paper: { borderRadius: 16, maxWidth: 880, width: "100%" } } },

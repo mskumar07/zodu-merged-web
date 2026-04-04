@@ -16,7 +16,7 @@ import {
   Payments as PaymentsIcon,
   CheckCircle as CheckCircleIcon,
 } from "@mui/icons-material";
-import { useMarkPayment, ZODU_ID, BRANCH_ID } from "./usePuchaseapi";
+import { useMarkPayment, getZoduId, getBranchId } from "./usePuchaseapi";
 import { toast } from "react-toastify";
 
 interface Props {
@@ -79,8 +79,8 @@ const handleSubmit = () => {
     {
       purchase_id: purchase.purchase_id, // ✅ FIXED
       data: {
-        zodu_id: ZODU_ID,
-        branch_id: BRANCH_ID,
+        zodu_id: getZoduId(),
+        branch_id: getBranchId(),
         payment_date: new Date().toISOString().split("T")[0], // ✅ correct date
         paid_amount: amount,
         transaction_type: form.transaction_type,

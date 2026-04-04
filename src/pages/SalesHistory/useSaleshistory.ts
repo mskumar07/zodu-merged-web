@@ -15,11 +15,12 @@
  */
 
 import axios from "axios";
+import { getTenantContext } from "@store/tenantContext";
 
 // ─── Config ───────────────────────────────────────────────────
 export const API_BASE  = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000";
-export const ZODU_ID   = import.meta.env.VITE_ZODU_ID   ?? "ZODU035";
-export const BRANCH_ID = import.meta.env.VITE_BRANCH_ID ?? "ZODU035B1";
+export const getZoduId = () => getTenantContext().zoduId;
+export const getBranchId = () => getTenantContext().branchId;
 
 // ─── Types — matching real API response ───────────────────────
 
@@ -77,11 +78,13 @@ export interface SaleItem {
   sale_uuid:      string;
   sale_id:        string;
   item_id:        string;        // was product_id
+  item_uuid:      string;        // UUID for return API
   item_name:      string;        // was product_name
   variant_id:     string | null;
   variant_name:   string | null;
   unit:           string;
   quantity:       string;
+  returned_qty:   string | number | null;  // Track previously returned quantity
   price:          string;
   mrp:            string | null;
   discount:       string;
@@ -110,6 +113,42 @@ export interface PaymentHistoryRow {
   created_at_fmt:  string;
 }
 
+export interface SaleReturnHistoryItem {
+  return_item_uuid?: string;
+  sale_item_id?: number;
+  item_id?: string;
+  item_uuid?: string;
+  item_name?: string;
+  variant_name?: string | null;
+  unit?: string | null;
+  return_qty?: string | number | null;
+  qty_returned?: string | number | null;
+  returned_qty?: string | number | null;
+  price?: string | number | null;
+  rate?: string | number | null;
+  refund_amount?: string | number | null;
+  amount?: string | number | null;
+  return_reason?: string | null;
+  reason?: string | null;
+}
+
+export interface SaleReturnHistoryRow {
+  return_uuid:       string;
+  return_id:         string;
+  return_reason:     string | null;
+  refund_type:       string | null;
+  return_amount:     string;
+  subtotal:          string | null;
+  total_tax:         string | null;
+  total_items:       number;
+  return_date_fmt:   string | null;
+  return_time_fmt:   string | null;
+  created_at_fmt:    string | null;
+  notes:             string | null;
+  items?:            SaleReturnHistoryItem[];
+  return_items?:     SaleReturnHistoryItem[];
+}
+
 /** Customer object nested in getSaleById response */
 export interface SaleCustomer {
   cust_uuid:      string;
@@ -132,6 +171,7 @@ export interface SaleDetail {
   customer:        SaleCustomer | null;   // null = walk-in
   items:           SaleItem[];
   payment_history: PaymentHistoryRow[];
+  return_history:  SaleReturnHistoryRow[];
 }
 
 export interface HistoryPage {
@@ -169,23 +209,54 @@ export interface MarkPaymentResponse {
   new_payment_status:  "fully_paid" | "partially_paid" | "unpaid";
 }
 
+/** Item in a sales return */
+export interface ReturnItem {
+  original_item_id: number;
+  item_id:          string;
+  item_uuid:        string;
+  return_qty:       number;
+}
+
+/** Payload for POST /api/restaurant/sale-returns */
+export interface CreateSaleReturnPayload {
+  original_sale_uuid: string;
+  zodu_id:            string;
+  branch_id:          string;
+  return_reason:      string | null;
+  refund_type:        string | null;   // "full" | "partial" — determines if refund_amount is full or prorated
+  notes:              string | null;
+  created_by?:        string | null;
+  items:              ReturnItem[];
+}
+
+/** Response from creating a sales return */
+export interface CreateSaleReturnResponse {
+  success:           boolean;
+  message:           string;
+  return_id:         string;
+  refund_amount:     number;
+  refund_type:       string;
+  created_at:        string;
+}
+
 // ─── API functions ────────────────────────────────────────────
 
 /**
  * GET /api/sales/history — paginated + filtered sales list.
  */
 export async function fetchHistory(page: number, filters: Filters): Promise<HistoryPage> {
+  const { zoduId, branchId } = getTenantContext();
   const params: Record<string, string> = {
-    zodu_id:   ZODU_ID,
-    branch_id: BRANCH_ID,
+    zodu_id:   zoduId,
+    branch_id: branchId,
     page:      String(page),
     limit:     "20",
   };
   if (filters.payment_status) params.payment_status   = filters.payment_status;
   if (filters.from_date)      params.from_date         = filters.from_date;
   if (filters.to_date)        params.to_date           = filters.to_date;
-  // ✅ customer_search — backend searches cust_name, cpy_name, mobile_no
-  if (filters.search)         params.customer_search   = filters.search;
+  // ✅ search — backend searches sale_id, cust_name, cpy_name, mobile_no
+  if (filters.search)         params.search   = filters.search;
 
   const { data } = await axios.get<HistoryPage>(
     `${API_BASE}/restaurant/api/sales/history`,
@@ -198,10 +269,12 @@ export async function fetchHistory(page: number, filters: Filters): Promise<Hist
  * GET /api/sales/:sale_id — full sale detail.
  */
 export async function fetchSaleDetail(sale_id: string): Promise<SaleDetail> {
+  const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.get<{ success: boolean; data: SaleDetail }>(
     `${API_BASE}/restaurant/api/sales/${sale_id}`,
-    { params: { zodu_id: ZODU_ID, branch_id: BRANCH_ID } }
+    { params: { zodu_id: zoduId, branch_id: branchId } }
   );
+  console.log(data)
   return data.data;
 }
 
@@ -220,9 +293,23 @@ export async function postMarkPayment(
   return data;
 }
 
+/**
+ * POST /api/restaurant/sale-returns — create a sales return
+ */
+export async function createSaleReturn(
+  payload: CreateSaleReturnPayload
+): Promise<CreateSaleReturnResponse> {
+  const { data } = await axios.post<CreateSaleReturnResponse>(
+    `${API_BASE}/restaurant/api/sale-returns`,
+    payload
+  );
+  return data;
+}
+
 // ─── TanStack Query keys ──────────────────────────────────────
 export const salesQueryKeys = {
   // ✅ filters included in key so each filter combo has its own cache
   history: (filters: Filters) => ["sales-history", filters] as const,
   detail:  (sale_id: string)  => ["sale", sale_id]          as const,
+  returns: () => ["sales-returns"] as const,
 };

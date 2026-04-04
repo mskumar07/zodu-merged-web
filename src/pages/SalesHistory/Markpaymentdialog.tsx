@@ -19,8 +19,8 @@ import {
 import {
   postMarkPayment,
   salesQueryKeys,
-  ZODU_ID,
-  BRANCH_ID,
+  getZoduId,
+  getBranchId,
   type Sale,
 } from "./useSaleshistory";
 import { toast } from "react-toastify";
@@ -108,8 +108,8 @@ export default function MarkPaymentDialog({ sale, onClose, onSuccess }: Props) {
 
     // ✅ Correct payload shape matching MarkPaymentPayload / tbl_sale_payment columns
     mutation.mutate({
-      zodu_id:          ZODU_ID,
-      branch_id:        BRANCH_ID,
+      zodu_id:          getZoduId(),
+      branch_id:        getBranchId(),
       sale_id:          sale.sale_id,
       paid_amount:      amount,
       transaction_type: form.transaction_type,

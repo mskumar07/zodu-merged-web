@@ -2,7 +2,7 @@
 import axios from "axios";
 
 // const baseURL = import.meta.env.VITE_API_BASE_URL;
-   const baseURL = "https://api.zodusolutions.cloud";
+   const baseURL = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
       // const baseURL = " http://localhost:5000";
 // const baseURL = "http://192.168.0.117:5000/"; // For local testing
 const axiosInstance = axios.create({

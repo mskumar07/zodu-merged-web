@@ -40,7 +40,6 @@ const theme = createTheme({
     primary: { main: '#D2122E' },
     background: { default: '#f8f6f6', paper: '#ffffff' },
   },
-  typography: { fontFamily: '"Poppins", sans-serif' },
   shape: { borderRadius: 12 },
 });
 

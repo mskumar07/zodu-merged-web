@@ -36,8 +36,8 @@ import {
   type PurchaseItemPayload,
   type PurchaseDetail,
   type Vendor,
-  ZODU_ID,
-  BRANCH_ID,
+  getZoduId,
+  getBranchId,
 } from "./usePuchaseapi";
 import AddVendorModal from "@pages/Vendor/AddVendorDialog";
 
@@ -48,7 +48,6 @@ const theme = createTheme({
     background: { default: "#f8f6f6", paper: "#ffffff" },
     text: { primary: "#0F172A", secondary: "#6B7280" },
   },
-  typography: { fontFamily: '"Poppins", sans-serif' },
   components: {
     MuiButton: {
       styleOverrides: { root: { textTransform: "none", borderRadius: 8, fontWeight: 700 } },
@@ -585,7 +584,7 @@ export default function AddNewPurchaseDialog({
     if (paid > grandTotal)  { setSaveError("Paid amount cannot exceed grand total."); return; }
 
     const payload: PurchasePayload = {
-      zodu_id: ZODU_ID, branch_id: BRANCH_ID,
+      zodu_id: getZoduId(), branch_id: getBranchId(),
       vendor_id: form.supplier, purchase_date: form.purchaseDate,
       total_amount: grandTotal, paid_amount: paid,
       payment_status: paymentStatus(),

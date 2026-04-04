@@ -418,7 +418,7 @@ export default function PurchaseDetailDialog({ purchaseId, onClose }: Props) {
         sx: {
           borderRadius: 2.5,
           maxHeight: "92vh",
-          fontFamily: '"Inter", "Poppins", sans-serif',
+          fontFamily: '"Inter", sans-serif',
         },
       }}
     >

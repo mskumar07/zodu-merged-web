@@ -82,7 +82,7 @@ interface ApiConstants {
   mainDashboard: DashboardEndpoints;
 }
 
-const RESTAURANT_BASE = "restaurant";
+const RESTAURANT_BASE = "/restaurant";
 
 export const apiConfig: ApiConstants = {
   menu: {

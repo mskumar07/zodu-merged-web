@@ -9,6 +9,7 @@
  */
 
 import axios from 'axios';
+import { getTenantContext } from '@store/tenantContext';
 import {
   useQuery,
   useInfiniteQuery,
@@ -20,8 +21,6 @@ import {
 } from '@tanstack/react-query';
 
 const API_BASE  = import.meta.env.VITE_API_BASE_URL ?? 'https://api.myzodu.com';
-const ZODU_ID   = import.meta.env.VITE_ZODU_ID      ?? 'ZODU035';
-const BRANCH_ID = import.meta.env.VITE_BRANCH_ID    ?? 'ZODU035B1';
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -112,7 +111,15 @@ export interface StockHistoryItem {
 
 export interface StockHistoryResponse {
   success: boolean;
+
+  item: {
+    item_uuid: string;
+    item_id: string;
+    item_name: string;
+  };
+
   data: StockHistoryItem[];
+
   summary: {
     current_stock: number;
     low_stock_alert: number;
@@ -129,9 +136,10 @@ export const inventoryQueryKeys = {
 // ─── API functions ────────────────────────────────────────────
 
 async function fetchSummary(): Promise<InventorySummary> {
+  const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.get<{ success: boolean; data: InventorySummary }>(
     `${API_BASE}/restaurant/api/menu/inventory/summary`,
-    { params: { zodu_id: ZODU_ID, branch_id: BRANCH_ID } }
+    { params: { zodu_id: zoduId, branch_id: branchId } }
   );
   return data.data;
 }
@@ -139,12 +147,13 @@ async function fetchSummary(): Promise<InventorySummary> {
 async function fetchInventoryList(
   params: InventoryListParams
 ): Promise<InventoryListResponse> {
+  const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.get<InventoryListResponse>(
     `${API_BASE}/restaurant/api/menu/inventory/list`,
     {
       params: {
-        zodu_id:      ZODU_ID,
-        branch_id:    BRANCH_ID,
+        zodu_id:      zoduId,
+        branch_id:    branchId,
         search:       params.search       || undefined,
         category_id:  params.category_id  || undefined,
         stock_status: params.stock_status || undefined,
@@ -265,16 +274,17 @@ export function useAdjustStock(options?: {
 }
 
 async function fetchStockHistory(item_uuid: string): Promise<StockHistoryResponse> {
+  const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.get<StockHistoryResponse>(
     `${API_BASE}/restaurant/api/menu/stock/history/${item_uuid}`,
     {
       params: {
-        zodu_id: ZODU_ID,
-        branch_id: BRANCH_ID,
+        zodu_id: zoduId,
+        branch_id: branchId,
       },
     }
   );
-  return data;
+  return data.data;
 }
 
 // ─── Hook ─────────────────────────────────────────

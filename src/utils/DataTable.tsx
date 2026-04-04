@@ -59,9 +59,9 @@ const headCellSx = {
   padding: CELL_PX,
   lineHeight: `${ROW_HEIGHT}px`,
   whiteSpace: "nowrap" as const,
-  fontSize: "0.82rem",
+  fontSize: "13px",
   fontWeight: 500,
-  color: "text.primary",
+  color: "#374151",
   backgroundColor: "#F5F5F5",
   borderBottom: "1px solid #CBD5E1",
 } as const;
@@ -69,6 +69,8 @@ const headCellSx = {
 const bodyCellSx = {
   height: ROW_HEIGHT,
   padding: CELL_PX,
+  fontSize: "13px",
+  color: "#374151",
   // Keep cell content vertically centered when it wraps (e.g. balance sub-line)
   verticalAlign: "middle",
   backgroundColor: "#ffffff",

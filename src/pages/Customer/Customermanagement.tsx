@@ -24,9 +24,7 @@ const theme = createTheme({
     background: { default: "#F9FAFB", paper: "#FFFFFF" },
     text: { primary: "#0F172A", secondary: "#6B7280" },
   },
-  typography: {
-    fontFamily: '"Poppins", sans-serif',
-  },
+ 
   components: {
     MuiButton: {
       styleOverrides: {
@@ -60,6 +58,7 @@ const theme = createTheme({
 
 interface Customer {
   id: string;
+  custUuid: string;
   businessName: string;
   contactName: string;
   mobile: string;
@@ -93,6 +92,7 @@ const INR = (v: number) =>
     currency: "INR",
     maximumFractionDigits: 2,
   }).format(v);
+const TABLE_TEXT_COLOR = "#374151";
 
 interface CustomerManagementProps {
   onAddCustomer?: () => void;
@@ -123,7 +123,7 @@ export default function CustomerManagement({
 
     return (apiCustomers as unknown as ApiCustomer[]).map((c: ApiCustomer) => ({
       id: c.cust_id,
-      api_id: c.cust_uuid,
+      custUuid: c.cust_uuid,
       businessName: c.cpy_name || "—",
       contactName: c.cust_name || "—",
       mobile: c.mobile_no?.[0] || "",
@@ -152,10 +152,10 @@ export default function CustomerManagement({
     );
   }, [customers, search]);
 
-  const handleCustomerClick = (customer: Customer) => {
+  const handleCustomerClick = useCallback((customer: Customer) => {
     setSelectedCustomer(customer);
     setCustomerLedgerOpen(true);
-  };
+  }, []);
 
   const columns = useMemo<ColumnDef<Customer>[]>(
     () => [
@@ -164,7 +164,20 @@ export default function CustomerManagement({
         label: "Customer ID",
         width: 110,
         render: (customer) => (
-          <Typography sx={{ fontSize: 13, fontWeight: 500, color: "#1976d2", whiteSpace: "nowrap" }}>
+          <Typography
+            onClick={(event) => {
+              event.stopPropagation();
+              handleCustomerClick(customer);
+            }}
+            sx={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#1976d2",
+              whiteSpace: "nowrap",
+              cursor: "pointer",
+              "&:hover": { textDecoration: "underline" },
+            }}
+          >
             {customer.id}
           </Typography>
         ),
@@ -175,10 +188,10 @@ export default function CustomerManagement({
         minWidth: 220,
         render: (customer) => (
           <Box>
-            <Typography sx={{ fontSize: 13, fontWeight: 500, color: "#0F172A", whiteSpace: "nowrap" }}>
+            <Typography sx={{ fontSize: 13, fontWeight: 600, color: TABLE_TEXT_COLOR, whiteSpace: "nowrap" }}>
               {customer.businessName}
             </Typography>
-            <Typography sx={{ fontSize: 11, color: "#9CA3AF" }}>
+            <Typography sx={{ fontSize: 13, fontWeight: 500, color: TABLE_TEXT_COLOR }}>
               {customer.contactName}
             </Typography>
           </Box>
@@ -189,7 +202,7 @@ export default function CustomerManagement({
         label: "Mobile Number",
         width: 140,
         render: (customer) => (
-          <Typography sx={{ fontSize: 13, color: "#374151", whiteSpace: "nowrap" }}>
+          <Typography sx={{ fontSize: 13, color: TABLE_TEXT_COLOR, whiteSpace: "nowrap" }}>
             {customer.mobile}
           </Typography>
         ),
@@ -199,7 +212,7 @@ export default function CustomerManagement({
         label: "Email Address",
         minWidth: 220,
         render: (customer) => (
-          <Typography sx={{ fontSize: 12, color: "#4B5563", whiteSpace: "nowrap" }}>
+          <Typography sx={{ fontSize: 13, color: TABLE_TEXT_COLOR, whiteSpace: "nowrap" }}>
             {customer.email}
           </Typography>
         ),
@@ -211,8 +224,8 @@ export default function CustomerManagement({
         render: (customer) => (
           <Typography
             sx={{
-              fontSize: 12,
-              color: "#6B7280",
+              fontSize: 13,
+              color: TABLE_TEXT_COLOR,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -232,10 +245,9 @@ export default function CustomerManagement({
           customer.gstin ? (
             <Typography
               sx={{
-                fontSize: 11,
-                color: "#374151",
-                bgcolor: "#F3F4F6",
-                border: "1px solid #E5E7EB",
+                fontSize: 13,
+                color: TABLE_TEXT_COLOR,
+             
                 borderRadius: 1,
                 px: 0.7,
                 py: 0.2,
@@ -247,7 +259,7 @@ export default function CustomerManagement({
               {customer.gstin}
             </Typography>
           ) : (
-            <Typography sx={{ fontSize: 12, color: "#D1D5DB" }}>--</Typography>
+            <Typography sx={{ fontSize: 13, color: "#D1D5DB" }}>--</Typography>
           ),
       },
       {
@@ -260,7 +272,7 @@ export default function CustomerManagement({
             sx={{
               fontSize: 13,
               fontWeight: 600,
-              color: customer.outstandingBalance > 0 ? "#E11D48" : "#374151",
+              color: customer.outstandingBalance > 0 ? "#E11D48" : TABLE_TEXT_COLOR,
               whiteSpace: "nowrap",
             }}
           >
@@ -321,7 +333,7 @@ export default function CustomerManagement({
         ),
       },
     ],
-    [onEditCustomer, apiCustomers, handleDelete]
+    [onEditCustomer, apiCustomers, handleDelete, handleCustomerClick]
   );
 
   return (
@@ -472,6 +484,7 @@ export default function CustomerManagement({
         <CustomerLedgerDialog
           open={customerLedgerOpen}
           onClose={() => setCustomerLedgerOpen(false)}
+          custUuid={selectedCustomer?.custUuid}
           customerName={selectedCustomer?.businessName || selectedCustomer?.contactName || "Customer"}
         />
       </Box>
