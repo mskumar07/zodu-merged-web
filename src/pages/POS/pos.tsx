@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { usePosSearch } from "./useposproducts";
+import { useForceRefreshProducts, usePosSearch } from "./useposproducts";
 import type { PosProduct } from "./db";
 import { useSaveOrder } from "./usesaveOrder";
 import {
@@ -10,6 +10,13 @@ import {
   primaryMobile,
   customerAddress,
 } from "./usecustomer";
+import {
+  useHoldOrders,
+  useSaveHold,
+  useDeleteHold,
+  type ApiHold,
+  type SaveHoldPayload,
+} from "./useholdorders";
 import {
   Box, Typography, TextField, Button, IconButton, Table, TableBody,
   TableCell, TableHead, TableRow, TableFooter, Divider, Chip, Paper, InputAdornment,
@@ -45,6 +52,7 @@ import DiscountModal         from "./DiscountModal";
 import NoteModal             from "./NotesModal";
 import { useAppSelector } from "@store/store";
 import { BranchId, ZoduId } from "@store/slices/userSlice";
+import { ref } from "yup";
 
 // ─── Constants ────────────────────────────────────────────────
 const INR = (v: number) =>
@@ -84,12 +92,21 @@ interface LineItem {
 }
 interface Customer { id: string | null; name: string; mobile: string; address: string; gstin: string; }
 const EMPTY_CUSTOMER: Customer = { id: null, name: "", mobile: "", address: "", gstin: "" };
-interface HeldOrder { id: string; label: string; items: LineItem[]; discount: string; customer: Customer; time: Date; }
+interface HeldOrder {
+  id:          string;
+  label:       string;
+  items:       LineItem[];
+  discount:    string;
+  discountPct: string;
+  customer:    Customer;
+  time:        Date;
+  totalAmount: number;
+}
 type PosMode      = "SALE" | "QUOTATION";
 type Zone         = "SEARCH" | "CUSTOMER" | "TABLE" | "FOOTER";
 type SearchFocus  = "CODE";
 type FooterFocus  = "DISCOUNT_PCT" | "DISCOUNT_AMT" | "PAYMENT_TYPE" | "REF_NO" | "RECEIVED" | "SAVE";
-type PaymentType  = "Cash" | "Card" | "UPI" | "Credit";
+type PaymentType  = "Cash" | "Card" | "UPI" | "Others";
 
 // ─── Helpers ──────────────────────────────────────────────────
 function toLineItem(p: PosProduct): LineItem {
@@ -135,15 +152,16 @@ export default function RetailPOS() {
 }
 
 function RetailPOSInner() {
-  const zoduId = useAppSelector(ZoduId);
+  const zoduId   = useAppSelector(ZoduId);
   const branchId = useAppSelector(BranchId);
-  console.log(branchId,zoduId)
-  const [codeInput, setCodeInput] = useState("");
-  const { results: suggestions, isLoading: catalogueLoading, total: catalogueTotal } = usePosSearch(branchId, codeInput,zoduId);
 
-  const location       = useLocation();
-  const query          = new URLSearchParams(location.search);
-  const saleIdFromUrl  = query.get("saleId");
+  const [codeInput, setCodeInput] = useState("");
+  const { results: suggestions, isLoading: catalogueLoading, total: catalogueTotal } = usePosSearch(branchId, codeInput, zoduId);
+  const forceRefresh = useForceRefreshProducts(branchId, zoduId);
+
+  const location        = useLocation();
+  const query           = new URLSearchParams(location.search);
+  const saleIdFromUrl   = query.get("saleId");
   const saleTypeFromUrl = query.get("saleType");
 
   const [posMode,        setPosMode]        = useState<PosMode>("SALE");
@@ -164,25 +182,69 @@ function RetailPOSInner() {
   const [flashRow,       setFlashRow]       = useState<string | null>(null);
   const [saleId,         setSaleId]         = useState<string | null>(null);
 
-  // ── Separate modal states ─────────────────────────────────
   const [discountModalOpen, setDiscountModalOpen] = useState(false);
   const [noteModalOpen,     setNoteModalOpen]     = useState(false);
 
   const { results: customerResults, loading: customerLoading, search: searchCustomers, clear: clearCustomerResults } = useCustomerSearch(zoduId, branchId);
 
-  const [zone,          setZone]          = useState<Zone>("SEARCH");
-  const [searchFocus,   setSearchFocus]   = useState<SearchFocus>("CODE");
-  const [activeRowIdx,  setActiveRowIdx]  = useState(-1);
-  const [footerFocus,   setFooterFocus]   = useState<FooterFocus>("DISCOUNT_PCT");
-  const [suggestionIdx, setSuggestionIdx] = useState(-1);
-  const [customerSuggestionIdx, setCustomerSuggestionIdx] = useState(-1);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [zone,                 setZone]                 = useState<Zone>("SEARCH");
+  const [searchFocus,          setSearchFocus]          = useState<SearchFocus>("CODE");
+  const [activeRowIdx,         setActiveRowIdx]         = useState(-1);
+  const [footerFocus,          setFooterFocus]          = useState<FooterFocus>("DISCOUNT_PCT");
+  const [suggestionIdx,        setSuggestionIdx]        = useState(-1);
+  const [customerSuggestionIdx,setCustomerSuggestionIdx]= useState(-1);
+  const [showSuggestions,      setShowSuggestions]      = useState(false);
+  const [holdDialogOpen,       setHoldDialogOpen]       = useState(false);
+  const [receivedDirty, setReceivedDirty] = useState(false);
 
-  const [heldOrders,     setHeldOrders]     = useState<HeldOrder[]>([]);
-  const [holdDialogOpen, setHoldDialogOpen] = useState(false);
-  const [holdCounter,    setHoldCounter]    = useState(1);
+const {
+  data: serverHolds = [],
+  isLoading: holdsLoading,
+  refetch: refetchHolds,
+} = useHoldOrders(zoduId, branchId); 
 
-  const { saveOrder, saving, updateOrder } = useSaveOrder();
+  const { mutateAsync: saveHoldApi, isPending: holdSaving } = useSaveHold(zoduId, branchId);
+  const { mutateAsync: deleteHoldApi }                       = useDeleteHold(zoduId, branchId);
+  const { saveOrder, saving, updateOrder }                   = useSaveOrder();
+
+  // ─── ALL computed totals — declared BEFORE any useCallback that uses them ───
+  const subtotal          = useMemo(() => items.reduce((s, i) => s + i.qty * i.unitPrice, 0), [items]);
+  const itemDiscountTotal = useMemo(() => items.reduce((s, i) => s + (i.discount ?? 0), 0), [items]);
+  const discountPctAmt    = subtotal * (parseFloat(discountPct) || 0) / 100;
+  const discountFlatAmt   = parseFloat(discount) || 0;
+  const orderDiscountAmt  = discountPctAmt + discountFlatAmt;
+
+  const gstAmount = useMemo(() => {
+    if (subtotal === 0) return 0;
+    if (gstMode === "before") {
+      return items.reduce((s, i) => {
+        const itemBase     = i.qty * i.unitPrice;
+        const itemDiscount = orderDiscountAmt * (itemBase / subtotal);
+        return s + Math.max(0, itemBase - itemDiscount) * i.gstPct / 100;
+      }, 0);
+    } else {
+      return items.reduce((s, i) => {
+        const itemBase = i.qty * i.unitPrice;
+        return s + itemBase * i.gstPct / 100;
+      }, 0);
+    }
+  }, [items, orderDiscountAmt, gstMode, subtotal]);
+
+  const grandTotalRaw = useMemo(() => {
+    if (gstMode === "before") {
+      return Math.max(0, (subtotal - orderDiscountAmt) + gstAmount - itemDiscountTotal);
+    } else {
+      return Math.max(0, subtotal + gstAmount - orderDiscountAmt - itemDiscountTotal);
+    }
+  }, [subtotal, gstAmount, orderDiscountAmt, itemDiscountTotal, gstMode]);
+
+  const roundoffValue = Math.round(grandTotalRaw) - grandTotalRaw;
+  const grandTotal    = Math.round(grandTotalRaw);
+  const received      = parseFloat(receivedAmount) || 0;
+  const totalUnits    = useMemo(() => items.reduce((s, i) => s + i.qty, 0), [items]);
+  const status        = paymentStatus(grandTotal, received);
+  // ────────────────────────────────────────────────────────────────────────────
+
   const [saveResult, setSaveResult] = useState<{
     open: boolean; success: boolean; message: string;
     invoiceNo?: string; grandTotal?: number; change?: number;
@@ -202,13 +264,11 @@ function RetailPOSInner() {
   const editCancelledRef  = useRef(false);
   const inputRef          = useRef<HTMLInputElement | null>(null);
 
-
+  useEffect(() => { forceRefresh(); }, []);
   useEffect(() => { codeRef.current?.focus(); }, []);
   useEffect(() => {
     setSaleId(saleIdFromUrl);
-    if (saleTypeFromUrl) {
-      setPosMode(saleTypeFromUrl.toLowerCase() === "q" ? "QUOTATION" : "SALE");
-    }
+    if (saleTypeFromUrl) setPosMode(saleTypeFromUrl.toLowerCase() === "q" ? "QUOTATION" : "SALE");
   }, [saleIdFromUrl, saleTypeFromUrl]);
 
   useEffect(() => {
@@ -238,6 +298,16 @@ function RetailPOSInner() {
     if (!catalogueLoading && codeInput.trim() && zone === "SEARCH" && searchFocus === "CODE" && document.activeElement === codeRef.current)
       setShowSuggestions(true);
   }, [catalogueLoading]);
+
+useEffect(() => {
+  if (!receivedDirty && grandTotal > 0) {
+    setReceivedAmount(String(grandTotal));
+  }
+  if (grandTotal === 0) {
+    setReceivedAmount("");
+    setReceivedDirty(false);
+  }
+}, [grandTotal, receivedDirty]);
 
   const startEditQty = useCallback((code: string) => {
     setItems(prev => prev.map(i => i.code === code ? { ...i, editingQty: true, editingPrice: false, editingDiscount: false, qtyDraft: String(i.qty) } : { ...i, editingQty: false }));
@@ -271,14 +341,13 @@ function RetailPOSInner() {
     const loadSale = async () => {
       const data = await fetchSaleDetail(saleIdFromUrl!);
       const sale = data.sale;
-
       setPosMode(sale.sale_type?.toLowerCase() === "q" ? "QUOTATION" : "SALE");
       setSaleId(sale.sale_uuid);
       setItems(data.items.map((i: any) => {
-        const grossPrice = Number(i.price) || 0;
-        const gstPct = Number(i.gst_percentage) || 0;
+        const grossPrice   = Number(i.price) || 0;
+        const gstPct       = Number(i.gst_percentage) || 0;
         const taxInclusive = Boolean(i.tax_inclusive);
-        const unitPrice = taxInclusive && gstPct > 0 ? grossPrice / (1 + gstPct / 100) : grossPrice;
+        const unitPrice    = taxInclusive && gstPct > 0 ? grossPrice / (1 + gstPct / 100) : grossPrice;
         return { code: i.item_id, description: i.item_name, qty: Number(i.quantity), unitPrice, sellPrice: grossPrice, gstPct, taxInclusive, uuid: i.item_uuid, hsn: i.hsn_code ?? "", mrp: Number(i.mrp || 0), unit: i.unit || "NOS", discount: Number(i.discount || 0) };
       }));
       if (data.customer) {
@@ -289,7 +358,11 @@ function RetailPOSInner() {
       if (sale.discount_type === "percentage") { setDiscountPct(String(sale.discount_value || 0)); setDiscount("0"); }
       else { setDiscount(String(sale.discount_amount || 0)); setDiscountPct("0"); }
       setReceivedAmount(String(sale.paid_amount || 0));
-      if (data.payment_history.length > 0) { const last = data.payment_history[data.payment_history.length - 1]; setReferenceNo(last.transaction_id || ""); setPaymentType((last.transaction_type as any) || "Cash"); }
+      if (data.payment_history.length > 0) {
+        const last = data.payment_history[data.payment_history.length - 1];
+        setReferenceNo(last.transaction_id || "");
+        setPaymentType((last.transaction_type as any) || "Cash");
+      }
       setInvoiceDate(sale.sale_date_fmt ? new Date(sale.sale_date_fmt).toISOString().split("T")[0] : "");
     };
     loadSale();
@@ -317,31 +390,151 @@ function RetailPOSInner() {
     setReceivedAmount(""); setCodeInput(""); setActiveRowIdx(-1); setOrderNote("");
     setZone("SEARCH"); setSearchFocus("CODE");
     setCustomer(EMPTY_CUSTOMER); clearCustomerResults(); setGstMode("after");
+    setReceivedDirty(false);
+
   }, [clearCustomerResults]);
 
-  const handleHold = useCallback(() => {
-    if (items.length === 0) return;
-    setHeldOrders(prev => [...prev, { id: `H-${Date.now()}`, label: `Order #${holdCounter}`, items: items.map(i => ({ ...i, editingQty: false, editingPrice: false, editingDiscount: false })), discount, customer, time: new Date() }]);
-    setHoldCounter(c => c + 1); setItems([]); setDiscount("0"); setReceivedAmount("");
-    setActiveRowIdx(-1); setZone("SEARCH"); setSearchFocus("CODE"); setCustomer(EMPTY_CUSTOMER);
-  }, [items, discount, customer, holdCounter]);
+console.log("test",serverHolds)
 
-  const handleRecall = (hold: HeldOrder) => {
-    if (items.length > 0 && !window.confirm("Current order will be cleared. Recall held order?")) return;
-    setItems(hold.items); setDiscount(hold.discount); setCustomer(hold.customer);
-    setHeldOrders(prev => prev.filter(h => h.id !== hold.id));
-    setHoldDialogOpen(false); setZone("TABLE"); setActiveRowIdx(0);
+  const heldOrders: HeldOrder[] = serverHolds?.map((h: ApiHold) => ({
+    id:    h.hold_uuid,
+    label: h.hold_id,
+    items: h.items.map((i) => ({
+      code:        i.item_id,
+      description: i.item_name,
+      qty:         Number(i.quantity),
+      unitPrice:   i.tax_inclusive && i.gst_percentage > 0
+        ? Number(i.price) / (1 + i.gst_percentage / 100)
+        : Number(i.price),
+      sellPrice:   Number(i.price),
+      uuid:        i.item_uuid ?? i.item_id,
+      hsn:         i.hsn_code ?? "",
+      mrp:         Number(i.mrp ?? i.price),
+      gstPct:      Number(i.gst_percentage),
+      taxInclusive:Boolean(i.tax_inclusive),
+      unit:        i.unit ?? "NOS",
+      discount:    Number(i.discount ?? 0),
+    })),
+    discount:    String(h.discount_type === "flat"       ? h.discount_value : 0),
+    discountPct: String(h.discount_type === "percentage" ? h.discount_value : 0),
+    customer: {
+      id:      h.customer_uuid,
+      name:    h.customer_name  ?? "",
+      mobile:  h.customer_phone ?? "",
+      address: "",
+      gstin:   "",
+    },
+    time:        new Date(h.created_at),
+    totalAmount: Number(h.total_amount),
+  }));
+
+  // ── handleHold now safely references all computed values above ──
+  const handleHold = useCallback(async () => {
+    if (items.length === 0 || holdSaving) return;
+    console.log(items)
+
+    const payload: SaveHoldPayload = {
+      zodu_id:        zoduId,
+      branch_id:      branchId,
+      order_type:     posMode,
+      notes:          orderNote || null,
+      customer_uuid:  customer.id || null,
+      customer_name:  customer.name || null,
+      customer_phone: customer.mobile || null,
+      total_items:    items.length,
+      subtotal,
+      total_tax:      gstAmount,
+      discount_type:
+        parseFloat(discountPct) > 0 ? "percentage"
+        : parseFloat(discount)  > 0 ? "flat"
+        : null,
+      discount_value:
+        parseFloat(discountPct) > 0 ? parseFloat(discountPct)
+        : parseFloat(discount)  || 0,
+      discount_amount: orderDiscountAmt,
+      round_off:       roundoffValue,
+      total_amount:    grandTotal,
+      
+      items: items.map((i) => ({
+        item_uuid:      i.uuid || null,
+        item_id:        i.code,
+        item_name:      i.description,
+        unit:           i.unit || null,
+        quantity:       i.qty,
+        price:          i.sellPrice,
+        mrp:            i.mrp || null,
+        discount:       i.discount ?? 0,
+        hsn_code:       i.hsn || null,
+        gst_percentage: i.gstPct,
+        tax_amount:     (i.qty * i.unitPrice * i.gstPct) / 100,
+        cgst:           (i.qty * i.unitPrice * i.gstPct) / 200,
+        sgst:           (i.qty * i.unitPrice * i.gstPct) / 200,
+        tax_inclusive:  i.taxInclusive,
+      })),
+    };
+
+    try {
+      await saveHoldApi(payload);
+      setItems([]);
+      setDiscount("0");
+      setDiscountPct("0");
+      setReceivedAmount("");
+      setActiveRowIdx(-1);
+      setZone("SEARCH");
+      setSearchFocus("CODE");
+      setCustomer(EMPTY_CUSTOMER);
+      setOrderNote("");
+      refetchHolds();
+    } catch (err) {
+      console.error("Hold save failed:", err);
+    }
+  }, [
+    items, zoduId, branchId, posMode, orderNote, customer,
+    subtotal, gstAmount, discountPct, discount, orderDiscountAmt,
+    roundoffValue, grandTotal, holdSaving, saveHoldApi,refetchHolds
+  ]);
+
+  const handleDeleteHold = async (id: string) => {
+    try { await deleteHoldApi(id);
+      await refetchHolds();
+     }
+    catch (err) { console.error("Delete failed", err); }
   };
+
+  const handleRecall = async (hold: HeldOrder) => {
+  if (
+    items.length > 0 &&
+    !window.confirm("Current order will be cleared. Recall held order?")
+  ) return;
+
+  // 1. Load hold into POS
+  setItems(hold.items);
+  setDiscount(hold.discount);
+  setCustomer(hold.customer);
+
+  setHoldDialogOpen(false);
+  setZone("TABLE");
+  setActiveRowIdx(0);
+
+  try {
+    // 2. DELETE from DB (wait for it)
+    await deleteHoldApi(hold.id);
+
+    // 3. REFETCH after delete completes
+    await refetchHolds();
+
+  } catch (err) {
+    console.error("Delete failed", err);
+  }
+};
 
   const handleOpenPicker = () => {
-    if (inputRef.current) {
-      inputRef.current.showPicker();
-      inputRef.current.focus();
-    }
+    if (inputRef.current) { inputRef.current.showPicker(); inputRef.current.focus(); }
   };
 
-  const handleDeleteHold = (id: string) => setHeldOrders(prev => prev.filter(h => h.id !== id));
-  const updateQty = (code: string, delta: number) => setItems(prev => prev.map(i => i.code === code ? { ...i, qty: Math.max(1, i.qty + delta) } : i));
+  const updateQty  = (code: string, delta: number) =>
+    setItems(prev => prev.map(i => i.code === code ? { ...i, qty: Math.max(1, i.qty + delta) } : i));
+
   const removeItem = (code: string) => {
     setItems(prev => {
       const next = prev.filter(i => i.code !== code);
@@ -351,49 +544,7 @@ function RetailPOSInner() {
     });
   };
 
-  const subtotal           = useMemo(() => items.reduce((s, i) => s + i.qty * i.unitPrice, 0), [items]);
-  const itemDiscountTotal  = useMemo(() => items.reduce((s, i) => s + (i.discount ?? 0), 0), [items]);
-  const discountPctAmt     = subtotal * (parseFloat(discountPct) || 0) / 100;
-  const discountFlatAmt    = parseFloat(discount) || 0;
-  const orderDiscountAmt   = discountPctAmt + discountFlatAmt;
-  
-  const gstAmount          = useMemo(() => {
-    if (subtotal === 0) return 0;
-    
-    if (gstMode === "before") {
-      // Discount applied before GST: discount reduces the base, then GST is applied
-      return items.reduce((s, i) => {
-        const itemBase     = i.qty * i.unitPrice;
-        const itemDiscount = orderDiscountAmt * (itemBase / subtotal);
-        return s + Math.max(0, itemBase - itemDiscount) * i.gstPct / 100;
-      }, 0);
-    } else {
-      // Discount applied after GST: GST is calculated on full amount, then discount is applied
-      return items.reduce((s, i) => {
-        const itemBase = i.qty * i.unitPrice;
-        return s + itemBase * i.gstPct / 100;
-      }, 0);
-    }
-  }, [items, orderDiscountAmt, gstMode, subtotal]);
-
-  // Grand total calculation based on GST mode
-  const grandTotalRaw = useMemo(() => {
-    if (gstMode === "before") {
-      // Discount applied before GST: (Subtotal - Discount) + GST - Item-level discounts
-      return Math.max(0, (subtotal - orderDiscountAmt) + gstAmount - itemDiscountTotal);
-    } else {
-      // Discount applied after GST: Subtotal + GST - Discount - Item-level discounts
-      return Math.max(0, subtotal + gstAmount - orderDiscountAmt - itemDiscountTotal);
-    }
-  }, [subtotal, gstAmount, orderDiscountAmt, itemDiscountTotal, gstMode]);
-  
-  // Round to nearest rupee (Indian standard roundoff)
-  const roundoffValue     = Math.round(grandTotalRaw) - grandTotalRaw;
-  const grandTotal        = Math.round(grandTotalRaw); // rounded to nearest rupee
-  const received          = parseFloat(receivedAmount) || 0;
-  const totalUnits        = useMemo(() => items.reduce((s, i) => s + i.qty, 0), [items]);
-  const status            = paymentStatus(grandTotal, received);
-  const navigate          = useNavigate();
+  const navigate = useNavigate();
 
   const handleCustomerFieldChange = useCallback((field: "name" | "mobile", value: string) => {
     setCustomer(prev => ({ ...prev, id: null, [field]: value }));
@@ -416,6 +567,7 @@ function RetailPOSInner() {
       ? await updateOrder(saleId, { zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo })
       : await saveOrder({ zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo });
     if (result.success) {
+      
       const order    = result.order as any;
       const totalAmt = parseFloat(order?.total_amount ?? "0");
       const paidAmt  = parseFloat(order?.paid_amount  ?? "0");
@@ -467,29 +619,14 @@ function RetailPOSInner() {
 
       if (zone === "CUSTOMER") {
         if (customerSuggestionsOpen && customerResults.length > 0) {
-          if (e.key === "ArrowDown") {
-            e.preventDefault();
-            setCustomerSuggestionIdx(i => Math.min(i + 1, customerResults.length - 1));
-            return;
-          }
-          if (e.key === "ArrowUp") {
-            e.preventDefault();
-            setCustomerSuggestionIdx(i => Math.max(i - 1, 0));
-            return;
-          }
+          if (e.key === "ArrowDown") { e.preventDefault(); setCustomerSuggestionIdx(i => Math.min(i + 1, customerResults.length - 1)); return; }
+          if (e.key === "ArrowUp")   { e.preventDefault(); setCustomerSuggestionIdx(i => Math.max(i - 1, 0)); return; }
           if (e.key === "Enter") {
             e.preventDefault();
-            if (customerSuggestionIdx >= 0 && customerResults[customerSuggestionIdx]) {
-              handleSelectCustomer(customerResults[customerSuggestionIdx]);
-            }
+            if (customerSuggestionIdx >= 0 && customerResults[customerSuggestionIdx]) handleSelectCustomer(customerResults[customerSuggestionIdx]);
             return;
           }
-          if (e.key === "Escape") {
-            e.preventDefault();
-            setCustomerSuggestionsOpen(false);
-            setCustomerSuggestionIdx(-1);
-            return;
-          }
+          if (e.key === "Escape") { e.preventDefault(); setCustomerSuggestionsOpen(false); setCustomerSuggestionIdx(-1); return; }
         }
         if (e.key === "Escape" || e.key === "ArrowLeft") { e.preventDefault(); (document.activeElement as HTMLElement)?.blur(); setZone("SEARCH"); setSearchFocus("CODE"); return; }
         if (e.key === "ArrowDown") { e.preventDefault(); (document.activeElement as HTMLElement)?.blur(); setZone("TABLE"); setActiveRowIdx(0); return; }
@@ -537,19 +674,12 @@ function RetailPOSInner() {
   const isSearchActive = (sf: SearchFocus) => zone === "SEARCH" && searchFocus === sf;
 
   const isQuotation = posMode === "QUOTATION";
+  const modeAccent  = "#C8102E";
+  const modeBg      = "#FFF1F3";
+  const modeBorder  = "#F3C4CB";
 
-  // ── Dynamic mode colors ──────────────────────────────────────
-  // const modeAccent = isQuotation ? "#1D4ED8" : "#C8102E";
-  // const modeBg     = isQuotation ? "#EFF6FF" : "#FFF1F3";
-  // const modeBorder = isQuotation ? "#BFDBFE" : "#F3C4CB";
-
-   const modeAccent =  "#C8102E";
-  const modeBg     = "#FFF1F3";
-  const modeBorder ="#F3C4CB";
-
-  // ── Badge labels ─────────────────────────────────────────────
-  const hasDiscount = parseFloat(discountPct) > 0 || parseFloat(discount) > 0;
-  const hasNote     = orderNote.trim().length > 0;
+  const hasDiscount   = parseFloat(discountPct) > 0 || parseFloat(discount) > 0;
+  const hasNote       = orderNote.trim().length > 0;
   const discountBadge = (() => {
     const parts: string[] = [];
     if (parseFloat(discountPct) > 0) parts.push(`${discountPct}%`);
@@ -557,10 +687,9 @@ function RetailPOSInner() {
     return parts.join(" + ") || null;
   })();
 
-  // ── Table column totals ──────────────────────────────────────
   const totalGstRow = items.reduce((s, i) => s + (i.qty * i.unitPrice * i.gstPct) / 100, 0);
   const totalAmtRow = items.reduce((s, i) => s + i.qty * i.sellPrice - (i.discount ?? 0), 0);
-  const empty = items.length === 0;
+  const empty       = items.length === 0;
 
   // ─────────────────────────────────────────────────────────────
   return (
@@ -579,47 +708,37 @@ function RetailPOSInner() {
               <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em" }}>Quotation</Typography>
             </Box>
           </Box>
-         
+
           <Box sx={{ display: "flex", alignItems: "center", gap: 2, alignSelf: "end" }}>
-              {!isQuotation && (
+            {!isQuotation && (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, justifyContent: "space-between", width: "100%" }}>
                 <Box sx={{ display: "flex", gap: 0.75 }}>
-                  <Button size="small" startIcon={<PauseCircleOutlineIcon sx={{ fontSize: 12 }} />} onClick={handleHold}
+                  <Button size="small" disabled={holdSaving || items.length === 0}
+                    startIcon={holdSaving ? <CircularProgress size={10} /> : <PauseCircleOutlineIcon />}
+                    onClick={handleHold}
+                    
                     sx={{ minWidth: 82, height: 26, px: 1, borderRadius: 1.25, bgcolor: "#4B5563", color: "#fff", fontSize: 10, fontWeight: 800, boxShadow: "0 2px 6px rgba(75,85,99,0.22)", "&:hover": { bgcolor: "#374151" } }}>
                     HOLD <Box component="span" sx={{ fontSize: 9, opacity: 0.8, ml: 0.3 }}>[F9]</Box>
                   </Button>
                   <Badge badgeContent={heldOrders.length} invisible={heldOrders.length === 0} sx={{ "& .MuiBadge-badge": { fontSize: 8, minWidth: 14, height: 14, bgcolor: "#C8102E", color: "#fff", fontWeight: 800 } }}>
-                    <Button size="small" startIcon={<PlayArrowIcon sx={{ fontSize: 12 }} />} onClick={() => setHoldDialogOpen(true)}
+                    <Button size="small" startIcon={<PlayArrowIcon sx={{ fontSize: 12 }} />} onClick={() => { setHoldDialogOpen(true); refetchHolds(); }}
                       sx={{ minWidth: 80, height: 26, px: 1, borderRadius: 1.25, border: "1px solid #E5E7EB", bgcolor: heldOrders.length > 0 ? "#4B5563" : "#F3F4F6", color: heldOrders.length > 0 ? "#fff" : "#9CA3AF", fontSize: 10, fontWeight: 800, "&:hover": { bgcolor: heldOrders.length > 0 ? "#374151" : "#E5E7EB" } }}>
                       RECALL
                     </Button>
                   </Badge>
                 </Box>
-                
               </Box>
             )}
-            <Box
-              onClick={handleOpenPicker}
-              sx={{
-                display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 1 },
-                bgcolor: isQuotation ? "#DBEAFE" : "#FEE2E2",
-                border: `1px solid ${isQuotation ? "#1D4ED8" : "#C8102E"}`,
-                borderRadius: 1.5, px: { xs: 1, sm: 1.5 }, py: 0.5, transition: "all 0.2s", cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
-            >
+            <Box onClick={handleOpenPicker}
+              sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 1 }, bgcolor: isQuotation ? "#DBEAFE" : "#FEE2E2", border: `1px solid ${isQuotation ? "#1D4ED8" : "#C8102E"}`, borderRadius: 1.5, px: { xs: 1, sm: 1.5 }, py: 0.5, transition: "all 0.2s", cursor: "pointer", whiteSpace: "nowrap" }}>
               <CalendarTodayIcon sx={{ fontSize: 15, color: isQuotation ? "#1D4ED8" : "#C8102E", flexShrink: 0 }} />
               <Typography sx={{ fontSize: { xs: 9, sm: 10 }, color: isQuotation ? "#1D4ED8" : "#C8102E", fontWeight: 700, letterSpacing: "0.05em", display: { xs: "none", sm: "block" } }}>
                 {isQuotation ? "QUOTATION DATE" : "INVOICE DATE"}
               </Typography>
-              <Typography sx={{ fontSize: { xs: 11, sm: 12 }, fontWeight: 700, color:isQuotation ? "#1D4ED8" : "#C8102E", whiteSpace: "nowrap" }}>
+              <Typography sx={{ fontSize: { xs: 11, sm: 12 }, fontWeight: 700, color: isQuotation ? "#1D4ED8" : "#C8102E", whiteSpace: "nowrap" }}>
                 {invoiceDate || "Select date"}
               </Typography>
-              <input
-                ref={inputRef} type="date" value={invoiceDate}
-                onChange={(e) => setInvoiceDate(e.target.value)}
-                style={{ position: "absolute", opacity: 0, pointerEvents: "none" }}
-              />
+              <input ref={inputRef} type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} style={{ position: "absolute", opacity: 0, pointerEvents: "none" }} />
             </Box>
           </Box>
         </Box>
@@ -702,8 +821,7 @@ function RetailPOSInner() {
                   {customer.id && <Chip label="Linked" size="small" onDelete={() => { setCustomer(EMPTY_CUSTOMER); clearCustomerResults(); }} sx={{ fontSize: 9, height: 18, bgcolor: "#DCFCE7", color: "#16A34A", fontWeight: 700 }} />}
                 </Box>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  {/* <Button size="small" variant="outlined" onClick={() => setAddCustomerOpen(true)} sx={{ borderColor: modeBorder, color: modeAccent, fontSize: 9, fontWeight: 800, px: 1.25, py: 0.55, borderRadius: 1.5, minWidth: 0, whiteSpace: "nowrap", "&:hover": { borderColor: modeAccent, bgcolor: modeBg } }}>Add Customer</Button> */}
-                  <Button size="small" variant="outlined" onClick={() => setCustomerLedgerOpen(true)} sx={{ borderColor: modeBorder, color: modeAccent, fontSize: 9, fontWeight: 800, px: 1.25, py: 0.55, borderRadius: 1.5, minWidth: 0, whiteSpace: "nowrap", "&:hover": { borderColor: modeAccent, bgcolor: modeBg } }}>View Ledger / History</Button>
+                  <Button disabled={!customer.id} size="small" variant="outlined" onClick={() => setCustomerLedgerOpen(true)} sx={{ borderColor: modeBorder, color: modeAccent, fontSize: 9, fontWeight: 800, px: 1.25, py: 0.55, borderRadius: 1.5, minWidth: 0, whiteSpace: "nowrap", "&:hover": { borderColor: modeAccent, bgcolor: modeBg } }}>View Ledger / History</Button>
                 </Box>
               </Box>
               <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1 }}>
@@ -744,315 +862,217 @@ function RetailPOSInner() {
           </Box>
 
           {/* ORDER TABLE */}
-<Paper elevation={0} sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", border: zone === "TABLE" ? "2px solid #1976d2" : "1px solid #E5E7EB", borderRadius: 2, overflow: "hidden", transition: "border 0.2s", boxShadow: zone === "TABLE" ? "0 0 0 3px rgba(245,158,11,0.1)" : "none" }}>
-  
-  {/* Scrollable area: header + body */}
-  <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", scrollbarWidth: "thin", scrollbarColor: "#C8102E #F3F4F6", "&::-webkit-scrollbar": { width: "8px" }, "&::-webkit-scrollbar-track": { backgroundColor: "#F3F4F6", borderRadius: "4px" }, "&::-webkit-scrollbar-thumb": { backgroundColor: "#C8102E", borderRadius: "4px", "&:hover": { backgroundColor: "#A50D26" } } }}>
-    <Table size="small" stickyHeader sx={{ borderCollapse: "separate", tableLayout: "fixed" }}>
-      <colgroup>
-        <col style={{ width: 10 }} />
-        <col style={{ width: 70 }} />
-        <col />
-        <col style={{ width: 70 }} />
-        <col style={{ width: 60 }} />
-        <col style={{ width: 90 }} />
-        <col style={{ width: 90 }} />
-        <col style={{ width: 130 }} />
-        <col style={{ width: 130 }} />
-        <col style={{ width: 110 }} />
-        <col style={{ width: 115 }} />
-        <col style={{ width: 105 }} />
-        <col style={{ width: 36 }} />
-      </colgroup>
-      <TableHead>
-        <TableRow>
-          <TableCell sx={{ width: 10, p: 0 }} />
-          <TableCell sx={{ width: 70, fontSize: 12 }}>ITEM ID</TableCell>
-          <TableCell sx={{ fontSize: 12 }}>DESCRIPTION</TableCell>
-          <TableCell sx={{ width: 70, fontSize: 12 }}>HSN</TableCell>
-          <TableCell align="center" sx={{ width: 60, fontSize: 12 }}>GST%</TableCell>
-          <TableCell align="right" sx={{ width: 90, fontSize: 12 }}>GST AMT</TableCell>
-          <TableCell align="right" sx={{ width: 90, fontSize: 12 }}>MRP (₹)</TableCell>
-          <TableCell align="center" sx={{ width: 130, fontSize: 12 }}>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.4 }}>QTY <Kbd>Q</Kbd></Box>
-          </TableCell>
-          <TableCell align="right" sx={{ width: 130, fontSize: 12 }}>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>RATE <Kbd>P</Kbd></Box>
-          </TableCell>
-          <TableCell align="right" sx={{ width: 110, fontSize: 12, whiteSpace: "nowrap" }}>UNIT PRICE</TableCell>
-          <TableCell align="right" sx={{ width: 115, fontSize: 12 }}>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>DISC (₹) <Kbd>D</Kbd></Box>
-          </TableCell>
-          <TableCell align="right" sx={{ width: 105, fontSize: 12 }}>TOTAL</TableCell>
-          <TableCell sx={{ width: 36 }} />
-        </TableRow>
-      </TableHead>
-      <TableBody ref={tableBodyRef}>
-        {items.length === 0 && (
-          <TableRow>
-            <TableCell colSpan={13} align="center" sx={{ py: 6 }}>
-              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, color: "#D1D5DB" }}>
-                <KeyboardReturnIcon sx={{ fontSize: 32 }} />
-                <Typography sx={{ fontSize: 13 }}>Search and add items above</Typography>
-              </Box>
-            </TableCell>
-          </TableRow>
-        )}
-        {items.map((item, rowIdx) => {
-          const isActive  = zone === "TABLE" && activeRowIdx === rowIdx;
-          const itemGst   = (item.qty * item.unitPrice * item.gstPct) / 100;
-          const itemTotal = item.qty * item.sellPrice - (item.discount ?? 0);
-          return (
-            <Fade in key={item.code}>
-              <TableRow data-rowcode={item.code} onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); }}
-                sx={{ bgcolor: flashRow === item.code ? "#FFF1F3" : isActive ? "#E3F2FD" : "transparent", cursor: "pointer", transition: "background 0.2s", "&:hover": { bgcolor: isActive ? "#E3F2FD" : "#F5F5F5" } }}>
-                <TableCell sx={{ p: 0 }}><Box sx={{ width: 4, minHeight: 40, bgcolor: isActive ? "#1976D2" : "transparent", borderRadius: "0 2px 2px 0", transition: "background 0.2s" }} /></TableCell>
-                <TableCell><Chip label={item.code} size="small" sx={{ fontWeight: 700, fontSize: 11, bgcolor: isActive ? "#BBDEFB" : "#F3F4F6", color: isActive ? "#0D47A1" : "#374151", border: isActive ? "1px solid #90CAF9" : "1px solid transparent", height: 20 }} /></TableCell>
-                <TableCell>
-                  <Typography sx={{ fontSize: 13, fontWeight: isActive ? 800 : 700, color: "#1A1A2E", lineHeight: 1.3 }}>{item.description}</Typography>
-                  {item.category && <Typography sx={{ fontSize: 10, fontWeight: 700, color: CAT_COLOR[item.category] ?? "#6B7280" }}>{item.category}</Typography>}
-                </TableCell>
-                <TableCell><Typography sx={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>{item.hsn}</Typography></TableCell>
-                <TableCell align="center"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{item.gstPct}%</Typography></TableCell>
-                <TableCell align="right"><Typography sx={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>{INR(itemGst)}</Typography></TableCell>
-                <TableCell align="right"><Typography sx={{ fontSize: 13, color: "#9CA3AF" }}>₹{item.mrp.toLocaleString("en-IN")}</Typography></TableCell>
-
-                {/* QTY */}
-                <TableCell align="center" onClick={e => e.stopPropagation()}>
-                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.3 }}>
-                    <IconButton size="small" onClick={() => updateQty(item.code, -1)} sx={{ width: 24, height: 24, bgcolor: "#F3F4F6", "&:hover": { bgcolor: "#FEE2E2" } }}><RemoveIcon sx={{ fontSize: 12 }} /></IconButton>
-                    {item.editingQty ? (
-                      <TextField inputRef={el => { qtyRefs.current[item.code] = el; }} value={item.qtyDraft ?? ""}
-                        onChange={e => setItems(prev => prev.map(i => i.code === item.code ? { ...i, qtyDraft: e.target.value.replace(/\D/, "") } : i))}
-                        onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = qtyRefs.current[item.code]; const newQty = Math.max(1, parseInt(el?.value ?? "") || 1); setItems(prev => prev.map(i => i.code === item.code ? { ...i, qty: newQty, editingQty: false, qtyDraft: undefined } : i)); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
-                        onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); const newQty = Math.max(1, parseInt((e.target as HTMLInputElement).value) || 1); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, qty: newQty, editingQty: false, qtyDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingQty: false, qtyDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
-                        size="small" inputProps={{ style: { textAlign: "center", fontWeight: 800, fontSize: 14, padding: "2px 2px", width: 32 } }}
-                        sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#1976D2", borderWidth: 2 } }, width: 48 }} />
-                    ) : (
-                      <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditQty(item.code); }}
-                        sx={{ minWidth: 30, textAlign: "center", fontWeight: 800, fontSize: 14, px: 0.4, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #1976D2" : "1.5px dashed transparent", bgcolor: isActive ? "#E3F2FD" : "transparent", "&:hover": { border: "1.5px dashed #1976D2", bgcolor: "#E3F2FD" }, transition: "all 0.15s" }}>{item.qty}</Box>
-                    )}
-                    <IconButton size="small" onClick={() => updateQty(item.code, 1)} sx={{ width: 24, height: 24, bgcolor: "#F3F4F6", "&:hover": { bgcolor: "#DCFCE7" } }}><AddIcon sx={{ fontSize: 12 }} /></IconButton>
-                  </Box>
-                </TableCell>
-
-                {/* RATE */}
-                <TableCell align="right" onClick={e => e.stopPropagation()}>
-                  {item.editingPrice ? (
-                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>
-                      <Typography sx={{ fontSize: 13, color: "#9CA3AF", fontWeight: 700 }}>₹</Typography>
-                      <TextField inputRef={el => { priceRefs.current[item.code] = el; }} value={item.priceDraft ?? ""}
-                        onChange={e => setItems(prev => prev.map(i => i.code === item.code ? { ...i, priceDraft: e.target.value.replace(/[^0-9.]/g, "") } : i))}
-                        onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = priceRefs.current[item.code]; const newSell = Math.max(0, parseFloat(el?.value ?? "") || item.sellPrice); const newBase = item.taxInclusive && item.gstPct > 0 ? newSell / (1 + item.gstPct / 100) : newSell; setItems(prev => prev.map(i => i.code === item.code ? { ...i, sellPrice: newSell, unitPrice: newBase, editingPrice: false, priceDraft: undefined } : i)); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
-                        onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); const newSell = Math.max(0, parseFloat((e.target as HTMLInputElement).value) || item.sellPrice); const newBase = item.taxInclusive && item.gstPct > 0 ? newSell / (1 + item.gstPct / 100) : newSell; editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, sellPrice: newSell, unitPrice: newBase, editingPrice: false, priceDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingPrice: false, priceDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
-                        size="small" inputProps={{ style: { textAlign: "right", fontWeight: 700, fontSize: 13, padding: "2px 4px", width: 60 } }}
-                        sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#1976D2", borderWidth: 2 } }, width: 80 }} />
-                    </Box>
-                  ) : (
-                    <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditPrice(item.code); }}
-                      sx={{ display: "inline-flex", alignItems: "center", gap: 0.3, px: 0.6, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #1976D2" : "1.5px dashed transparent", bgcolor: isActive ? "#E3F2FD" : "transparent", "&:hover": { border: "1.5px dashed #1976D2", bgcolor: "#E3F2FD", "& .pedit": { opacity: 1 } }, transition: "all 0.15s" }}>
-                      <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{INR(item.sellPrice)}</Typography>
-                      <EditIcon className="pedit" sx={{ fontSize: 10, color: "#1976D2", opacity: isActive ? 0.6 : 0, transition: "opacity 0.15s" }} />
-                    </Box>
+          <Paper elevation={0} sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", border: zone === "TABLE" ? "2px solid #1976d2" : "1px solid #E5E7EB", borderRadius: 2, overflow: "hidden", transition: "border 0.2s", boxShadow: zone === "TABLE" ? "0 0 0 3px rgba(245,158,11,0.1)" : "none" }}>
+            <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", scrollbarWidth: "thin", scrollbarColor: "#C8102E #F3F4F6", "&::-webkit-scrollbar": { width: "8px" }, "&::-webkit-scrollbar-track": { backgroundColor: "#F3F4F6", borderRadius: "4px" }, "&::-webkit-scrollbar-thumb": { backgroundColor: "#C8102E", borderRadius: "4px", "&:hover": { backgroundColor: "#A50D26" } } }}>
+              <Table size="small" stickyHeader sx={{ borderCollapse: "separate", tableLayout: "fixed" }}>
+                <colgroup>
+                  <col style={{ width: 10 }} /><col style={{ width: 120 }} /><col /><col style={{ width: 70 }} />
+                  <col style={{ width: 60 }} /><col style={{ width: 90 }} /><col style={{ width: 90 }} />
+                  <col style={{ width: 130 }} /><col style={{ width: 130 }} /><col style={{ width: 110 }} />
+                  <col style={{ width: 115 }} /><col style={{ width: 105 }} /><col style={{ width: 36 }} />
+                </colgroup>
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ width: 10, p: 0 }} />
+                    <TableCell sx={{ width: 120, fontSize: 12 }}>ITEM ID</TableCell>
+                    <TableCell sx={{ fontSize: 12 }}>DESCRIPTION</TableCell>
+                    <TableCell sx={{ width: 70, fontSize: 12 }}>HSN</TableCell>
+                    <TableCell align="center" sx={{ width: 60, fontSize: 12 }}>GST%</TableCell>
+                    <TableCell align="right" sx={{ width: 90, fontSize: 12 }}>GST AMT</TableCell>
+                    <TableCell align="right" sx={{ width: 90, fontSize: 12 }}>MRP (₹)</TableCell>
+                    <TableCell align="center" sx={{ width: 130, fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.4 }}>QTY <Kbd>Q</Kbd></Box></TableCell>
+                    <TableCell align="right" sx={{ width: 130, fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>RATE <Kbd>P</Kbd></Box></TableCell>
+                    <TableCell align="right" sx={{ width: 110, fontSize: 12, whiteSpace: "nowrap" }}>UNIT PRICE</TableCell>
+                    <TableCell align="right" sx={{ width: 115, fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>DISC (₹) <Kbd>D</Kbd></Box></TableCell>
+                    <TableCell align="right" sx={{ width: 105, fontSize: 12 }}>TOTAL</TableCell>
+                    <TableCell sx={{ width: 36 }} />
+                  </TableRow>
+                </TableHead>
+                <TableBody ref={tableBodyRef}>
+                  {items.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={13} align="center" sx={{ py: 6 }}>
+                        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, color: "#D1D5DB" }}>
+                          <KeyboardReturnIcon sx={{ fontSize: 32 }} />
+                          <Typography sx={{ fontSize: 13 }}>Search and add items above</Typography>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
                   )}
-                </TableCell>
+                  {items.map((item, rowIdx) => {
+                    const isActive  = zone === "TABLE" && activeRowIdx === rowIdx;
+                    const itemGst   = (item.qty * item.unitPrice * item.gstPct) / 100;
+                    const itemTotal = item.qty * item.sellPrice - (item.discount ?? 0);
+                    return (
+                      <Fade in key={item.code}>
+                        <TableRow data-rowcode={item.code} onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); }}
+                          sx={{ bgcolor: flashRow === item.code ? "#FFF1F3" : isActive ? "#E3F2FD" : "transparent", cursor: "pointer", transition: "background 0.2s", "&:hover": { bgcolor: isActive ? "#E3F2FD" : "#F5F5F5" } }}>
+                          <TableCell sx={{ p: 0 }}><Box sx={{ width: 4, minHeight: 40, bgcolor: isActive ? "#1976D2" : "transparent", borderRadius: "0 2px 2px 0", transition: "background 0.2s" }} /></TableCell>
+<TableCell>
+  <Typography
+    sx={{
+      fontSize: 12,
+      fontWeight: 700,
+      color: "#374151",
+      whiteSpace: "nowrap",
+      overflow: "visible",
+    }}
+  >
+    {item.code}
+  </Typography>
+</TableCell>                          <TableCell>
+                            <Typography sx={{ fontSize: 13, fontWeight: isActive ? 800 : 700, color: "#1A1A2E", lineHeight: 1.3 }}>{item.description}</Typography>
+                            {item.category && <Typography sx={{ fontSize: 10, fontWeight: 700, color: CAT_COLOR[item.category] ?? "#6B7280" }}>{item.category}</Typography>}
+                          </TableCell>
+                          <TableCell><Typography sx={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>{item.hsn}</Typography></TableCell>
+                          <TableCell align="center"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{item.gstPct}%</Typography></TableCell>
+                          <TableCell align="right"><Typography sx={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>{INR(itemGst)}</Typography></TableCell>
+                          <TableCell align="right"><Typography sx={{ fontSize: 13, color: "#9CA3AF" }}>₹{item.mrp.toLocaleString("en-IN")}</Typography></TableCell>
 
-                {/* UNIT PRICE EX.TAX */}
-                <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{INR(item.unitPrice)}</Typography></TableCell>
+                          {/* QTY */}
+                          <TableCell align="center" onClick={e => e.stopPropagation()}>
+                            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.3 }}>
+                              <IconButton size="small" onClick={() => updateQty(item.code, -1)} sx={{ width: 24, height: 24, bgcolor: "#F3F4F6", "&:hover": { bgcolor: "#FEE2E2" } }}><RemoveIcon sx={{ fontSize: 12 }} /></IconButton>
+                              {item.editingQty ? (
+                                <TextField inputRef={el => { qtyRefs.current[item.code] = el; }} value={item.qtyDraft ?? ""}
+                                  onChange={e => setItems(prev => prev.map(i => i.code === item.code ? { ...i, qtyDraft: e.target.value.replace(/\D/, "") } : i))}
+                                  onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = qtyRefs.current[item.code]; const newQty = Math.max(1, parseInt(el?.value ?? "") || 1); setItems(prev => prev.map(i => i.code === item.code ? { ...i, qty: newQty, editingQty: false, qtyDraft: undefined } : i)); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
+                                  onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); const newQty = Math.max(1, parseInt((e.target as HTMLInputElement).value) || 1); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, qty: newQty, editingQty: false, qtyDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingQty: false, qtyDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
+                                  size="small" inputProps={{ style: { textAlign: "center", fontWeight: 800, fontSize: 14, padding: "2px 2px", width: 32 } }}
+                                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#1976D2", borderWidth: 2 } }, width: 48 }} />
+                              ) : (
+                                <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditQty(item.code); }}
+                                  sx={{ minWidth: 30, textAlign: "center", fontWeight: 800, fontSize: 14, px: 0.4, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #1976D2" : "1.5px dashed transparent", bgcolor: isActive ? "#E3F2FD" : "transparent", "&:hover": { border: "1.5px dashed #1976D2", bgcolor: "#E3F2FD" }, transition: "all 0.15s" }}>{item.qty}</Box>
+                              )}
+                              <IconButton size="small" onClick={() => updateQty(item.code, 1)} sx={{ width: 24, height: 24, bgcolor: "#F3F4F6", "&:hover": { bgcolor: "#DCFCE7" } }}><AddIcon sx={{ fontSize: 12 }} /></IconButton>
+                            </Box>
+                          </TableCell>
 
-                {/* DISCOUNT */}
-                <TableCell align="right" onClick={e => e.stopPropagation()}>
-                  {item.editingDiscount ? (
-                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>
-                      <Typography sx={{ fontSize: 13, color: "#9CA3AF", fontWeight: 700 }}>₹</Typography>
-                      <TextField
-                        inputRef={el => { discountRefs.current[item.code] = el; }}
-                        value={item.discountDraft ?? ""}
-                        onChange={e => setItems(prev => prev.map(i => i.code === item.code ? { ...i, discountDraft: e.target.value.replace(/[^0-9.]/g, "") } : i))}
-                        onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = discountRefs.current[item.code]; const newDiscount = Math.max(0, parseFloat(el?.value ?? "") || 0); setItems(prev => prev.map(i => i.code === item.code ? { ...i, discount: newDiscount, editingDiscount: false, discountDraft: undefined } : i)); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
-                        onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); const newDiscount = Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, discount: newDiscount, editingDiscount: false, discountDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingDiscount: false, discountDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
-                        size="small"
-                        inputProps={{ style: { textAlign: "right", fontWeight: 700, fontSize: 13, padding: "2px 4px", width: 55 } }}
-                        sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#C8102E", borderWidth: 2 } }, width: 78 }}
-                      />
-                    </Box>
-                  ) : (
-                    <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditDiscount(item.code); }}
-                      sx={{ display: "inline-flex", alignItems: "center", gap: 0.3, px: 0.6, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #C8102E" : "1.5px dashed transparent", bgcolor: isActive ? "#FFF1F3" : "transparent", "&:hover": { border: "1.5px dashed #C8102E", bgcolor: "#FFF1F3", "& .dedit": { opacity: 1 } }, transition: "all 0.15s" }}>
-                      <Typography sx={{ fontSize: 13, fontWeight: 600, color: (item.discount ?? 0) > 0 ? "#C8102E" : "#D1D5DB" }}>
-                        {(item.discount ?? 0) > 0 ? `- ${INR(item.discount ?? 0)}` : "—"}
-                      </Typography>
-                      <EditIcon className="dedit" sx={{ fontSize: 10, color: "#C8102E", opacity: isActive ? 0.5 : 0, transition: "opacity 0.15s" }} />
-                    </Box>
-                  )}
-                </TableCell>
+                          {/* RATE */}
+                          <TableCell align="right" onClick={e => e.stopPropagation()}>
+                            {item.editingPrice ? (
+                              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>
+                                <Typography sx={{ fontSize: 13, color: "#9CA3AF", fontWeight: 700 }}>₹</Typography>
+                                <TextField inputRef={el => { priceRefs.current[item.code] = el; }} value={item.priceDraft ?? ""}
+                                  onChange={e => setItems(prev => prev.map(i => i.code === item.code ? { ...i, priceDraft: e.target.value.replace(/[^0-9.]/g, "") } : i))}
+                                  onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = priceRefs.current[item.code]; const newSell = Math.max(0, parseFloat(el?.value ?? "") || item.sellPrice); const newBase = item.taxInclusive && item.gstPct > 0 ? newSell / (1 + item.gstPct / 100) : newSell; setItems(prev => prev.map(i => i.code === item.code ? { ...i, sellPrice: newSell, unitPrice: newBase, editingPrice: false, priceDraft: undefined } : i)); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
+                                  onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); const newSell = Math.max(0, parseFloat((e.target as HTMLInputElement).value) || item.sellPrice); const newBase = item.taxInclusive && item.gstPct > 0 ? newSell / (1 + item.gstPct / 100) : newSell; editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, sellPrice: newSell, unitPrice: newBase, editingPrice: false, priceDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingPrice: false, priceDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
+                                  size="small" inputProps={{ style: { textAlign: "right", fontWeight: 700, fontSize: 13, padding: "2px 4px", width: 60 } }}
+                                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#1976D2", borderWidth: 2 } }, width: 80 }} />
+                              </Box>
+                            ) : (
+                              <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditPrice(item.code); }}
+                                sx={{ display: "inline-flex", alignItems: "center", gap: 0.3, px: 0.6, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #1976D2" : "1.5px dashed transparent", bgcolor: isActive ? "#E3F2FD" : "transparent", "&:hover": { border: "1.5px dashed #1976D2", bgcolor: "#E3F2FD", "& .pedit": { opacity: 1 } }, transition: "all 0.15s" }}>
+                                <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{INR(item.sellPrice)}</Typography>
+                                <EditIcon className="pedit" sx={{ fontSize: 10, color: "#1976D2", opacity: isActive ? 0.6 : 0, transition: "opacity 0.15s" }} />
+                              </Box>
+                            )}
+                          </TableCell>
 
-                {/* TOTAL */}
-                <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 700, color: isActive ? "#0D47A1" : "#1A1A2E" }}>{INR(itemTotal)}</Typography></TableCell>
-                <TableCell onClick={e => e.stopPropagation()}><IconButton size="small" onClick={() => removeItem(item.code)} sx={{ color: "#D1D5DB", "&:hover": { color: "#C8102E", bgcolor: "#FEE2E2" } }}><DeleteOutlineIcon sx={{ fontSize: 15 }} /></IconButton></TableCell>
-              </TableRow>
-            </Fade>
-          );
-        })}
-      </TableBody>
-    </Table>
-  </Box>
+                          {/* UNIT PRICE EX.TAX */}
+                          <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{INR(item.unitPrice)}</Typography></TableCell>
 
-  {/* ── Total row pinned to bottom, outside scroll area ── */}
-  <Table size="small" sx={{ borderCollapse: "separate", flexShrink: 0, tableLayout: "fixed" }}>
-    <colgroup>
-      <col style={{ width: 10 }} />
-      <col style={{ width: 70 }} />
-      <col />
-      <col style={{ width: 70 }} />
-      <col style={{ width: 60 }} />
-      <col style={{ width: 90 }} />
-      <col style={{ width: 90 }} />
-      <col style={{ width: 130 }} />
-      <col style={{ width: 130 }} />
-      <col style={{ width: 110 }} />
-      <col style={{ width: 115 }} />
-      <col style={{ width: 105 }} />
-      <col style={{ width: 36 }} />
-    </colgroup>
-    <TableBody>
-      <TableRow sx={{ bgcolor: "#F8FAFC", "& .MuiTableCell-root": { borderTop: "2px solid #E5E7EB", borderBottom: "none", py: 1, height: 34, bgcolor: "#F8FAFC" } }}>
-        <TableCell sx={{ p: 0 }} />
-        <TableCell />
-        <TableCell><Typography sx={{ fontSize: 13, fontWeight: 800, color: "#374151" }}>Total</Typography></TableCell>
-        <TableCell />
-        <TableCell align="center" />
-        <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{INR(items.length > 0 ? totalGstRow : 0)}</Typography></TableCell>
-        <TableCell align="right" />
-        <TableCell align="center"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{items.length > 0 ? totalUnits : 0}</Typography></TableCell>
-        <TableCell align="right" />
-        <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{INR(items.length > 0 ? subtotal : 0)}</Typography></TableCell>
-        <TableCell align="right">
-          {items.length > 0 && itemDiscountTotal > 0
-            ? <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#C8102E" }}>- {INR(itemDiscountTotal)}</Typography>
-            : <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#D1D5DB" }}>—</Typography>
-          }
-        </TableCell>
-        <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 700, color: "#000" }}>{INR(items.length > 0 ? totalAmtRow : 0)}</Typography></TableCell>
-        <TableCell />
-      </TableRow>
-    </TableBody>
-  </Table>
+                          {/* DISCOUNT */}
+                          <TableCell align="right" onClick={e => e.stopPropagation()}>
+                            {item.editingDiscount ? (
+                              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>
+                                <Typography sx={{ fontSize: 13, color: "#9CA3AF", fontWeight: 700 }}>₹</Typography>
+                                <TextField
+                                  inputRef={el => { discountRefs.current[item.code] = el; }}
+                                  value={item.discountDraft ?? ""}
+                                  onChange={e => setItems(prev => prev.map(i => i.code === item.code ? { ...i, discountDraft: e.target.value.replace(/[^0-9.]/g, "") } : i))}
+                                  onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = discountRefs.current[item.code]; const newDiscount = Math.max(0, parseFloat(el?.value ?? "") || 0); setItems(prev => prev.map(i => i.code === item.code ? { ...i, discount: newDiscount, editingDiscount: false, discountDraft: undefined } : i)); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
+                                  onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); const newDiscount = Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, discount: newDiscount, editingDiscount: false, discountDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingDiscount: false, discountDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
+                                  size="small"
+                                  inputProps={{ style: { textAlign: "right", fontWeight: 700, fontSize: 13, padding: "2px 4px", width: 55 } }}
+                                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#C8102E", borderWidth: 2 } }, width: 78 }}
+                                />
+                              </Box>
+                            ) : (
+                              <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditDiscount(item.code); }}
+                                sx={{ display: "inline-flex", alignItems: "center", gap: 0.3, px: 0.6, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #C8102E" : "1.5px dashed transparent", bgcolor: isActive ? "#FFF1F3" : "transparent", "&:hover": { border: "1.5px dashed #C8102E", bgcolor: "#FFF1F3", "& .dedit": { opacity: 1 } }, transition: "all 0.15s" }}>
+                                <Typography sx={{ fontSize: 13, fontWeight: 600, color: (item.discount ?? 0) > 0 ? "#C8102E" : "#D1D5DB" }}>
+                                  {(item.discount ?? 0) > 0 ? `- ${INR(item.discount ?? 0)}` : "—"}
+                                </Typography>
+                                <EditIcon className="dedit" sx={{ fontSize: 10, color: "#C8102E", opacity: isActive ? 0.5 : 0, transition: "opacity 0.15s" }} />
+                              </Box>
+                            )}
+                          </TableCell>
 
-</Paper>
+                          {/* TOTAL */}
+                          <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 700, color: isActive ? "#0D47A1" : "#1A1A2E" }}>{INR(itemTotal)}</Typography></TableCell>
+                          <TableCell onClick={e => e.stopPropagation()}><IconButton size="small" onClick={() => removeItem(item.code)} sx={{ color: "#D1D5DB", "&:hover": { color: "#C8102E", bgcolor: "#FEE2E2" } }}><DeleteOutlineIcon sx={{ fontSize: 15 }} /></IconButton></TableCell>
+                        </TableRow>
+                      </Fade>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </Box>
+
+            {/* Total row pinned to bottom */}
+            <Table size="small" sx={{ borderCollapse: "separate", flexShrink: 0, tableLayout: "fixed" }}>
+              <colgroup>
+                <col style={{ width: 10 }} /><col style={{ width: 70 }} /><col /><col style={{ width: 70 }} />
+                <col style={{ width: 60 }} /><col style={{ width: 90 }} /><col style={{ width: 90 }} />
+                <col style={{ width: 130 }} /><col style={{ width: 130 }} /><col style={{ width: 110 }} />
+                <col style={{ width: 115 }} /><col style={{ width: 105 }} /><col style={{ width: 36 }} />
+              </colgroup>
+              <TableBody>
+                <TableRow sx={{ bgcolor: "#F8FAFC", "& .MuiTableCell-root": { borderTop: "2px solid #E5E7EB", borderBottom: "none", py: 1, height: 34, bgcolor: "#F8FAFC" } }}>
+                  <TableCell sx={{ p: 0 }} /><TableCell />
+                  <TableCell><Typography sx={{ fontSize: 13, fontWeight: 800, color: "#374151" }}>Total</Typography></TableCell>
+                  <TableCell /><TableCell align="center" />
+                  <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{INR(items.length > 0 ? totalGstRow : 0)}</Typography></TableCell>
+                  <TableCell align="right" />
+                  <TableCell align="center"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{items.length > 0 ? totalUnits : 0}</Typography></TableCell>
+                  <TableCell align="right" />
+                  <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{INR(items.length > 0 ? subtotal : 0)}</Typography></TableCell>
+                  <TableCell align="right">
+                    {items.length > 0 && itemDiscountTotal > 0
+                      ? <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#C8102E" }}>- {INR(itemDiscountTotal)}</Typography>
+                      : <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#D1D5DB" }}>—</Typography>
+                    }
+                  </TableCell>
+                  <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 700, color: "#000" }}>{INR(items.length > 0 ? totalAmtRow : 0)}</Typography></TableCell>
+                  <TableCell />
+                </TableRow>
+              </TableBody>
+            </Table>
+          </Paper>
         </Box>
-
-        {/* FOOTER TOOLBAR */}
-        {/* <Box sx={{ bgcolor: "#F1F5F9", borderTop: "2px solid #E5E7EB", px: 2, py: 0.3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Button size="small" startIcon={<DeleteOutlineIcon sx={{ fontSize: 12 }} />} onClick={handleClear} sx={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, py: 0.3, px: 1, minWidth: 0, borderRadius: 1, "&:hover": { color: "#F87171", bgcolor: "rgba(239,68,68,0.1)" } }}>
-            CLEAR <Box component="span" sx={{ fontSize: 9, opacity: 0.6 }}>[F4]</Box>
-          </Button>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <Typography sx={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF" }}>Units:</Typography>
-              <Typography sx={{ fontSize: 11, fontWeight: 800, color: "#374151" }}>{empty ? "—" : totalUnits}</Typography>
-            </Box>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <Typography sx={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF" }}>Subtotal (ex-tax):</Typography>
-              <Typography sx={{ fontSize: 11, fontWeight: 800, color: "#374151", fontFamily: "monospace" }}>{empty ? "—" : INR(subtotal)}</Typography>
-            </Box>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <Typography sx={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF" }}>GST:</Typography>
-              <Typography sx={{ fontSize: 11, fontWeight: 800, color: "#374151", fontFamily: "monospace" }}>{empty ? "—" : INR(totalGstRow)}</Typography>
-            </Box>
-          </Box>
-        </Box> */}
 
         {/* ═══════════════════ BILLING FOOTER ════════════════════ */}
         <Box sx={{ bgcolor: "#fff", borderTop: "1px solid #E5E7EB", px: { xs: 1, sm: 1.5, md: 2 }, py: { xs: 0.5, sm: 0.75 }, display: "flex", gap: { xs: 1, sm: 1.5 }, alignItems: "stretch", justifyContent: "flex-end", flexDirection: { xs: "column", lg: "row" } }}>
 
-          {/* ══ LEFT BLOCK ══ */}
+          {/* LEFT BLOCK */}
           <Box sx={{ width: { xs: "100%", lg: "auto" }, minWidth: { lg: 360 }, flexShrink: 0, display: "flex", flexDirection: "column", gap: { xs: 0.5, sm: 0.65 } }}>
-
-            {/* ── ROW 1: Note button (full width) ── */}
-           <Box sx={{ display: "flex", gap: { xs: 0.75, sm: 1 }, flexDirection: { xs: "column", sm: "row" } }}>
-
-               {/* Discount button */}
-              <Button
-                onClick={() => setDiscountModalOpen(true)}
-                variant="outlined"
-                startIcon={<LocalOfferOutlinedIcon sx={{ fontSize: 14 }} />}
-                sx={{
-                  flex: 1,
-                  justifyContent: "flex-start",
-                  borderRadius: { xs: 1.5, sm: 2 },
-                  py: { xs: 0.65, sm: 0.85 },
-                  px: { xs: 1, sm: 1.5 },
-                  fontSize: { xs: 11, sm: 12 },
-                  fontWeight: 700,
-                  color:       hasDiscount ? modeAccent : "#6B7280",
-                  borderColor: hasDiscount ? modeAccent : "#E5E7EB",
-                  borderWidth: hasDiscount ? 1.5 : 1,
-                  bgcolor:     hasDiscount ? `${modeAccent}06` : "#FAFAFA",
-                  "&:hover":   { borderColor: modeAccent, bgcolor: `${modeAccent}0A`, color: modeAccent },
-                  transition:  "all 0.18s",
-                  textTransform: "none",
-                  gap: 0.5,
-                }}
-              >
+            <Box sx={{ display: "flex", gap: { xs: 0.75, sm: 1 }, flexDirection: { xs: "column", sm: "row" } }}>
+              <Button onClick={() => setDiscountModalOpen(true)} variant="outlined" startIcon={<LocalOfferOutlinedIcon sx={{ fontSize: 14 }} />}
+                sx={{ flex: 1, justifyContent: "flex-start", borderRadius: { xs: 1.5, sm: 2 }, py: { xs: 0.65, sm: 0.85 }, px: { xs: 1, sm: 1.5 }, fontSize: { xs: 11, sm: 12 }, fontWeight: 700, color: hasDiscount ? modeAccent : "#6B7280", borderColor: hasDiscount ? modeAccent : "#E5E7EB", borderWidth: hasDiscount ? 1.5 : 1, bgcolor: hasDiscount ? `${modeAccent}06` : "#FAFAFA", "&:hover": { borderColor: modeAccent, bgcolor: `${modeAccent}0A`, color: modeAccent }, transition: "all 0.18s", textTransform: "none", gap: 0.5 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flex: 1 }}>
                   <span>Discount</span>
                   <Box component="span" sx={{ fontSize: { xs: 8, sm: 9 }, opacity: 0.55 }}>[F6]</Box>
                 </Box>
-                {discountBadge && (
-                  <Chip
-                    label={discountBadge}
-                    size="small"
-                    sx={{ height: 18, fontSize: { xs: 9, sm: 10 }, fontWeight: 700, bgcolor: `${modeAccent}18`, color: modeAccent, border: "none", ml: 0.5, display: { xs: "none", sm: "inline-flex" } }}
-                  />
-                )}
+                {discountBadge && <Chip label={discountBadge} size="small" sx={{ height: 18, fontSize: { xs: 9, sm: 10 }, fontWeight: 700, bgcolor: `${modeAccent}18`, color: modeAccent, border: "none", ml: 0.5, display: { xs: "none", sm: "inline-flex" } }} />}
               </Button>
-
-              {/* Note button */}
-              <Button
-                onClick={() => setNoteModalOpen(true)}
-                variant="outlined"
-                startIcon={<NoteAltOutlinedIcon sx={{ fontSize: 14 }} />}
-                sx={{
-                  flex: 1,
-                  justifyContent: "flex-start",
-                  borderRadius: { xs: 1.5, sm: 2 },
-                  py: { xs: 0.65, sm: 0.85 },
-                  px: { xs: 1, sm: 1.5 },
-                  fontSize: { xs: 11, sm: 12 },
-                  fontWeight: 700,
-                  color:       hasNote ? "#16A34A" : "#6B7280",
-                  borderColor: hasNote ? "#86EFAC" : "#E5E7EB",
-                  borderWidth: hasNote ? 1.5 : 1,
-                  bgcolor:     hasNote ? "#F0FDF4" : "#FAFAFA",
-                  "&:hover":   { borderColor: "#6EE7B7", bgcolor: "#F0FDF4", color: "#16A34A" },
-                  transition:  "all 0.18s",
-                  textTransform: "none",
-                  gap: 0.5,
-                }}
-              >
+              <Button onClick={() => setNoteModalOpen(true)} variant="outlined" startIcon={<NoteAltOutlinedIcon sx={{ fontSize: 14 }} />}
+                sx={{ flex: 1, justifyContent: "flex-start", borderRadius: { xs: 1.5, sm: 2 }, py: { xs: 0.65, sm: 0.85 }, px: { xs: 1, sm: 1.5 }, fontSize: { xs: 11, sm: 12 }, fontWeight: 700, color: hasNote ? "#16A34A" : "#6B7280", borderColor: hasNote ? "#86EFAC" : "#E5E7EB", borderWidth: hasNote ? 1.5 : 1, bgcolor: hasNote ? "#F0FDF4" : "#FAFAFA", "&:hover": { borderColor: "#6EE7B7", bgcolor: "#F0FDF4", color: "#16A34A" }, transition: "all 0.18s", textTransform: "none", gap: 0.5 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flex: 1 }}>
                   <span>Note</span>
                   <Box component="span" sx={{ fontSize: { xs: 8, sm: 9 }, opacity: 0.55 }}>[F7]</Box>
                 </Box>
-                {hasNote && (
-                  <Chip
-                    label="Added"
-                    size="small"
-                    sx={{ height: 18, fontSize: { xs: 9, sm: 10 }, fontWeight: 700, bgcolor: "#DCFCE7", color: "#166534", border: "none", ml: 0.5, display: { xs: "none", sm: "inline-flex" } }}
-                  />
-                )}
+                {hasNote && <Chip label="Added" size="small" sx={{ height: 18, fontSize: { xs: 9, sm: 10 }, fontWeight: 700, bgcolor: "#DCFCE7", color: "#166534", border: "none", ml: 0.5, display: { xs: "none", sm: "inline-flex" } }} />}
               </Button>
             </Box>
 
-            {/* ── ROW 2: Payment Type + Ref No (hidden in Quotation) ── */}
             {!isQuotation && (
               <Box sx={{ display: "flex", gap: { xs: 0.75, sm: 1 }, flexDirection: { xs: "column", sm: "row" } }}>
                 <Box sx={{ width: { xs: "100%", sm: 130 }, flexShrink: 0 }}>
                   <Typography sx={{ fontSize: { xs: 8, sm: 9 }, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.08em", mb: 0.3 }}>PAYMENT TYPE</Typography>
                   <Select value={paymentType} onChange={e => setPaymentType(e.target.value as PaymentType)} onFocus={() => { setZone("FOOTER"); setFooterFocus("PAYMENT_TYPE"); }} size="small" fullWidth
                     sx={{ fontSize: { xs: 11, sm: 12 }, fontWeight: 700, borderRadius: 1.5, "& fieldset": { borderColor: isFooterActive("PAYMENT_TYPE") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("PAYMENT_TYPE") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" }, "& .MuiSelect-select": { py: { xs: "4px", sm: "6px" } } }}>
-                    {["Cash","Card","UPI","Credit"].map(val => <MenuItem key={val} value={val} sx={{ fontSize: { xs: 11, sm: 12 }, fontWeight: 600 }}>{val}</MenuItem>)}
+                    {["Cash","Card","UPI","Others"].map(val => <MenuItem key={val} value={val} sx={{ fontSize: { xs: 11, sm: 12 }, fontWeight: 600 }}>{val}</MenuItem>)}
                   </Select>
                 </Box>
                 <Box sx={{ flex: 1 }}>
@@ -1063,35 +1083,25 @@ function RetailPOSInner() {
                 </Box>
               </Box>
             )}
-             {!isQuotation && (
+            {!isQuotation && (
               <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-                  <Typography sx={{ fontSize: { xs: 8, sm: 9 }, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.06em" }}>PAYMENT STATUS</Typography>
-                  <Typography sx={{ fontSize: { xs: 10, sm: 11 }, fontWeight: 800, color: status.color, letterSpacing: "0.04em" }}>{status.label}</Typography>
-                </Box>
-             )}
-              
-
-            {/* ── ROW 3: Discount button (moved here) ── */}
-          
+                <Typography sx={{ fontSize: { xs: 8, sm: 9 }, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.06em" }}>PAYMENT STATUS</Typography>
+                <Typography sx={{ fontSize: { xs: 10, sm: 11 }, fontWeight: 800, color: status.color, letterSpacing: "0.04em" }}>{status.label}</Typography>
+              </Box>
+            )}
           </Box>
 
           <Divider orientation="vertical" flexItem sx={{ mx: { xs: 0.5, sm: 0.75 }, display: { xs: "none", lg: "block" } }} />
 
-          {/* ══ RIGHT BLOCK ══ */}
+          {/* RIGHT BLOCK */}
           <Box sx={{ display: "flex", flexDirection: "column", gap: { xs: 0.5, sm: 0.6 }, alignItems: { xs: "stretch", lg: "flex-end" }, flex: { xs: 1, lg: "0 0 auto" } }}>
-
-            {/* Discount summary row */}
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", gap: 1 }}>
               <Typography sx={{ fontSize: { xs: 10, sm: 11 }, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>Discount {gstMode === "before" && "(Before GST)"}</Typography>
               <Typography sx={{ fontSize: { xs: 10, sm: 11 }, fontWeight: 800, color: (orderDiscountAmt + itemDiscountTotal) > 0 ? "#C8102E" : "#9CA3AF" }}>
-                {(orderDiscountAmt + itemDiscountTotal) > 0
-                  ? `- ₹${(orderDiscountAmt + itemDiscountTotal).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
-                  : "0.00"
-                }
+                {(orderDiscountAmt + itemDiscountTotal) > 0 ? `- ₹${(orderDiscountAmt + itemDiscountTotal).toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : "0.00"}
               </Typography>
             </Box>
 
-            {/* Round-off row */}
             {!isQuotation && (
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", gap: 1 }}>
                 <Typography sx={{ fontSize: { xs: 10, sm: 11 }, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>Round Off</Typography>
@@ -1101,7 +1111,6 @@ function RetailPOSInner() {
               </Box>
             )}
 
-            {/* Grand total / Received amount */}
             {isQuotation ? (
               <Box sx={{ border: "2px solid #D3D3D3", borderRadius: { xs: 1.5, sm: 2 }, px: { xs: 1.5, sm: 2 }, py: { xs: 0.45, sm: 0.6 }, textAlign: "right", bgcolor: "#E5E4E2", width: "100%", maxWidth: { xs: "100%", sm: "280px", lg: "clamp(240px, 22vw, 320px)" } }}>
                 <Typography sx={{ fontSize: { xs: 8, sm: 9 }, fontWeight: 800, color: "#000", letterSpacing: "0.1em", mb: 0.1 }}>TOTAL AMOUNT</Typography>
@@ -1112,38 +1121,24 @@ function RetailPOSInner() {
               </Box>
             ) : (
               <Box onClick={() => receivedRef.current?.focus()}
-                sx={{
-                  border: `2px solid ${isFooterActive("RECEIVED") ? "#A0A0A0" : "#D3D3D3"}`,
-                  borderRadius: { xs: 1.5, sm: 2 }, px: { xs: 1.5, sm: 2 }, py: { xs: 0.35, sm: 0.45 }, textAlign: "right",
-                  bgcolor: isFooterActive("RECEIVED") ? "#fff" : "#E5E4E2",
-                  cursor: "text", transition: "border-color 0.15s, background 0.15s",
-                  width: "100%",
-                  maxWidth: { xs: "100%", sm: "280px", lg: "clamp(220px, 20vw, 300px)" },
-                  "&:hover": { borderColor: "#A0A0A0", bgcolor: "#D8D8D6" }
-                }}>
-                <Typography sx={{ fontSize: { xs: 8, sm: 9 }, fontWeight: 800, color: "#444", letterSpacing: "0.1em", mb: 0.05 }}>
-                  RECEIVED · TOT {INR(grandTotal)}
-                </Typography>
+                sx={{ border: `2px solid ${isFooterActive("RECEIVED") ? "#A0A0A0" : "#D3D3D3"}`, borderRadius: { xs: 1.5, sm: 2 }, px: { xs: 1.5, sm: 2 }, py: { xs: 0.35, sm: 0.45 }, textAlign: "right", bgcolor: isFooterActive("RECEIVED") ? "#fff" : "#E5E4E2", cursor: "text", transition: "border-color 0.15s, background 0.15s", width: "100%", maxWidth: { xs: "100%", sm: "280px", lg: "clamp(220px, 20vw, 300px)" }, "&:hover": { borderColor: "#A0A0A0", bgcolor: "#D8D8D6" } }}>
+                <Typography sx={{ fontSize: { xs: 8, sm: 9 }, fontWeight: 800, color: "#444", letterSpacing: "0.1em", mb: 0.05 }}>RECEIVED · TOTAL {INR(grandTotal)}</Typography>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.15 }}>
                   <Typography sx={{ fontSize: { xs: 13, sm: 14 }, fontWeight: 900, color: "#000", lineHeight: 1 }}>₹</Typography>
-                  <TextField
-                    inputRef={receivedRef} value={receivedAmount}
-                    onChange={e => setReceivedAmount(e.target.value.replace(/[^0-9.]/g, ""))}
-                    onFocus={() => { setZone("FOOTER"); setFooterFocus("RECEIVED"); }}
-                    placeholder="0.00" variant="standard"
-                    InputProps={{ disableUnderline: true }}
-                    inputProps={{
-                      style: { padding: 0, fontSize: "clamp(12px, 1.3vw, 18px)", fontWeight: 900, color: "#000", textAlign: "right", width: "100%", minWidth: "60px" }
-                    }}
-                    sx={{ width: "100%", "& input::placeholder": { color: "#888", opacity: 1 } }}
-                  />
+                  <TextField inputRef={receivedRef} value={receivedAmount}
+onChange={e => {
+  setReceivedDirty(true);
+  setReceivedAmount(e.target.value.replace(/[^0-9.]/g, ""));
+}}                    onFocus={() => { setZone("FOOTER"); setFooterFocus("RECEIVED"); }}
+                    placeholder="0.00" variant="standard" InputProps={{ disableUnderline: true }}
+                    inputProps={{ style: { padding: 0, fontSize: "clamp(12px, 1.3vw, 18px)", fontWeight: 900, color: "#000", textAlign: "right", width: "100%", minWidth: "60px" } }}
+                    sx={{ width: "100%", "& input::placeholder": { color: "#888", opacity: 1 } }} />
                 </Box>
               </Box>
             )}
 
-            {/* Save + Print */}
-            <Box sx={{ display: "flex", gap: { xs: 0.75, sm: 1 }, alignItems: "stretch", width: "100%" }}>
-              <Tooltip title={printEnabled ? "Print ON" : "Print OFF"}>
+<Box sx={{ display: "flex", gap: { xs: 0.75, sm: 1 }, alignItems: "stretch", width: "100%", overflow: "hidden" }}>
+                <Tooltip title={printEnabled ? "Print ON" : "Print OFF"}>
                 <Box onClick={() => setPrintEnabled(p => !p)}
                   sx={{ width: { xs: 44, sm: 48 }, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 0.3, border: "1px solid #E5E7EB", borderRadius: { xs: 1.5, sm: 2 }, cursor: "pointer", bgcolor: "#F9FAFB", "&:hover": { bgcolor: "#F3F4F6" }, transition: "background 0.15s", flexShrink: 0 }}>
                   <Box sx={{ width: 24, height: 14, bgcolor: printEnabled ? modeAccent : "#D1D5DB", borderRadius: 10, position: "relative", transition: "background 0.2s" }}>
@@ -1155,268 +1150,56 @@ function RetailPOSInner() {
               <Button variant="contained"
                 startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <SaveIcon sx={{ fontSize: { xs: 16, sm: 18 } }} />}
                 onClick={handleSave} disabled={saving || items.length === 0}
-                sx={{ ...footerOutline("SAVE"), flex: 1, minWidth: "clamp(140px, 100%, 220px)", bgcolor: modeAccent, color: "#fff", fontSize: { xs: 13, sm: 15 }, fontWeight: 800, py: { xs: 0.7, sm: 0.9 }, px: { xs: 1.5, sm: 3 }, borderRadius: { xs: 1.5, sm: 2 }, boxShadow: `0 4px 18px rgba(200,16,46,0.35)`, "&:hover": { bgcolor:  "#A50D26" }, "&:active": { transform: "scale(0.98)" }, "&.Mui-disabled": { bgcolor: "#E5E7EB", color: "#9CA3AF", boxShadow: "none" }, transition: "all 0.15s" }}>
+                sx={{ ...footerOutline("SAVE"), flex: 1, minWidth: 0, width: "100%", bgcolor: modeAccent, color: "#fff", fontSize: { xs: 12, sm: 14 }, fontWeight: 800, py: { xs: 0.7, sm: 0.9 }, px: { xs: 1, sm: 2 }, borderRadius: { xs: 1.5, sm: 2 }, boxShadow: `0 4px 18px rgba(200,16,46,0.35)`, "&:hover": { bgcolor: "#A50D26" }, "&:active": { transform: "scale(0.98)" }, "&.Mui-disabled": { bgcolor: "#E5E7EB", color: "#9CA3AF", boxShadow: "none" }, transition: "all 0.15s" }}>
                 {saving ? "SAVING…" : isQuotation ? "SAVE QUOTE" : "SAVE"}{" "}
                 <Box component="span" sx={{ fontSize: { xs: 10, sm: 11 }, opacity: 0.85, ml: 0.5 }}>[F8]</Box>
               </Button>
             </Box>
-
-            {/* Hold / Recall + Payment Status */}
-         
           </Box>
         </Box>
 
-        {/* ══ SEPARATE MODALS ══ */}
-        <DiscountModal
-          open={discountModalOpen}
-          onClose={() => setDiscountModalOpen(false)}
-          discountPct={discountPct}
-          discount={discount}
-          modeAccent={modeAccent}
-          gstMode={gstMode}
-          onApply={(pct, amt, mode) => { setDiscountPct(pct); setDiscount(amt); setGstMode(mode); }}
-        />
-        <NoteModal
-          open={noteModalOpen}
-          onClose={() => setNoteModalOpen(false)}
-          orderNote={orderNote}
-          onApply={note => setOrderNote(note)}
-        />
+        {/* MODALS */}
+        <DiscountModal open={discountModalOpen} onClose={() => setDiscountModalOpen(false)} discountPct={discountPct} discount={discount} modeAccent={modeAccent} gstMode={gstMode} onApply={(pct, amt, mode) => { setDiscountPct(pct); setDiscount(amt); setGstMode(mode); }} />
+        <NoteModal open={noteModalOpen} onClose={() => setNoteModalOpen(false)} orderNote={orderNote} onApply={note => setOrderNote(note)} />
 
         {/* HOLD DIALOG */}
-        {/* <Dialog open={holdDialogOpen} onClose={() => setHoldDialogOpen(false)} maxWidth="sm" fullWidth>
-          <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", py: 1.5 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Box sx={{ bgcolor: "#FEE2E2", borderRadius: 1.5, p: 0.5, display: "flex" }}><PauseCircleOutlineIcon sx={{ color: "#C8102E", fontSize: 18 }} /></Box>
-              <Typography sx={{ fontWeight: 700, fontSize: 15 }}>Held Orders</Typography>
-              <Chip label={`${heldOrders.length}`} size="small" sx={{ bgcolor: "#FEE2E2", color: "#C8102E", fontWeight: 700, fontSize: 10 }} />
-            </Box>
-            <IconButton size="small" onClick={() => setHoldDialogOpen(false)}><CloseIcon sx={{ fontSize: 16 }} /></IconButton>
-          </DialogTitle>
-          <Divider />
-          <DialogContent sx={{ p: 0, minHeight: 180 }}>
-            {heldOrders.length === 0
-              ? <Box sx={{ py: 6, textAlign: "center", color: "#D1D5DB" }}><PauseCircleOutlineIcon sx={{ fontSize: 44 }} /><Typography sx={{ fontSize: 13, mt: 1 }}>No orders on hold</Typography></Box>
-              : <List disablePadding>
-                  {heldOrders.map((hold, i) => (
-                    <Box key={hold.id}>
-                      {i > 0 && <Divider />}
-                      <ListItem sx={{ px: 2, py: 1.5, "&:hover": { bgcolor: "#FFF5F6" }, alignItems: "flex-start" }}>
-                        <ListItemText
-                          primary={<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}><Typography sx={{ fontWeight: 700, fontSize: 14 }}>{hold.label}</Typography>{hold.customer.name && <Chip label={hold.customer.name} size="small" sx={{ fontSize: 10, height: 18, bgcolor: "#F3F4F6" }} />}</Box>}
-                          secondary={<Box><Typography sx={{ fontSize: 11, color: "#374151", fontWeight: 600 }}>{hold.items.length} items · {INR(hold.items.reduce((s, i) => s + i.qty * i.unitPrice, 0))}</Typography><Typography sx={{ fontSize: 10, color: "#9CA3AF" }}>{hold.time.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}</Typography><Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>{hold.items.slice(0, 3).map(item => <Chip key={item.code} label={`${item.qty}× ${item.description.split(" ").slice(0, 3).join(" ")}…`} size="small" sx={{ fontSize: 9, height: 18, bgcolor: "#F3F4F6" }} />)}{hold.items.length > 3 && <Chip label={`+${hold.items.length - 3} more`} size="small" sx={{ fontSize: 9, height: 18, bgcolor: "#F3F4F6", color: "#9CA3AF" }} />}</Box></Box>}
-                        />
-                        <ListItemSecondaryAction sx={{ top: "50%", transform: "translateY(-50%)" }}>
-                          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-                            <Button size="small" variant="contained" startIcon={<PlayArrowIcon sx={{ fontSize: 13 }} />} onClick={() => handleRecall(hold)} sx={{ fontSize: 10, fontWeight: 700, bgcolor: "#C8102E", "&:hover": { bgcolor: "#A50D26" }, borderRadius: 1.5, py: 0.4, minWidth: 80 }}>Recall</Button>
-                            <Button size="small" startIcon={<DeleteOutlineIcon sx={{ fontSize: 13 }} />} onClick={() => handleDeleteHold(hold.id)} sx={{ fontSize: 10, fontWeight: 600, color: "#EF4444", "&:hover": { bgcolor: "#FEF2F2" }, borderRadius: 1.5, py: 0.4, minWidth: 80 }}>Delete</Button>
-                          </Box>
-                        </ListItemSecondaryAction>
-                      </ListItem>
-                    </Box>
-                  ))}
-                </List>
-            }
-          </DialogContent>
-          <Divider />
-          <DialogActions sx={{ px: 2, py: 1, justifyContent: "space-between" }}>
-            <Typography sx={{ fontSize: 10, color: "#9CA3AF" }}>F9 to hold · Recall to restore</Typography>
-            <Button onClick={() => setHoldDialogOpen(false)} sx={{ fontWeight: 600, color: "#374151", fontSize: 12 }}>Close</Button>
-          </DialogActions>
-        </Dialog> */}
-
-     <Dialog
-  open={holdDialogOpen}
-  onClose={() => setHoldDialogOpen(false)}
-  maxWidth="md"
-  fullWidth
-  PaperProps={{
-    sx: {
-      borderRadius: "16px",
-      boxShadow: "0 20px 60px rgba(0,0,0,0.15)"
-    }
-  }}
->
-  {/* HEADER */}
-  <Box
-    sx={{
-      px: 3,
-      py: 0.5,
-      borderBottom: "1px solid #F1F5F9",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between"
-    }}
-  >
-    <Typography sx={{ fontSize: 18, fontWeight: 800 }}>
-      Hold Orders
-    </Typography>
-    <IconButton
-      onClick={() => setHoldDialogOpen(false)}
-      sx={{
-        color: "#6B7280",
-        "&:hover": { bgcolor: "#F3F4F6", color: "#111827" }
-      }}
-    >
-      <CloseIcon />
-    </IconButton>
-  </Box>
-
-  {/* SEARCH */}
-  <Box sx={{ px: 3, py: 1.5 }}>
-    <TextField
-      fullWidth
-      size="small"
-      placeholder="Search by Hold ID, Customer Name or Amount... (Alt + S)"
-      InputProps={{
-        startAdornment: (
-          <SearchIcon sx={{ fontSize: 18, color: "#9CA3AF", mr: 1 }} />
-        )
-      }}
-      sx={{
-        "& .MuiOutlinedInput-root": {
-          borderRadius: "10px",
-          bgcolor: "#F9FAFB",
-          fontSize: 13
-        }
-      }}
-    />
-  </Box>
-
-  {/* HEADER ROW */}
-  <Box
-    sx={{
-      display: "grid",
-      gridTemplateColumns: "1.2fr 1.2fr 1.5fr 1fr 1fr 1fr",
-      px: 3,
-      py: 0.75,                          // ✅ tighter header
-      fontSize: 11,
-      fontWeight: 700,
-      color: "#6B7280",
-      bgcolor: "#FAFAFA",
-      borderTop: "1px solid #F1F5F9",
-      borderBottom: "2px solid #E5E7EB", // ✅ stronger divider under header
-      letterSpacing: "0.05em"
-    }}
-  >
-    <span>HOLD ID</span>
-    <span>DATE & TIME</span>
-    <span>CUSTOMER</span>
-    <span>ITEMS</span>
-    <span>TOTAL</span>
-    <span style={{ textAlign: "center" }}>ACTION</span>
-  </Box>
-
-  {/* BODY */}
-  <Box sx={{ maxHeight: 360, overflowY: "auto" }}> {/* ✅ reduced from 420 */}
-    {heldOrders.map((order, index) => {
-      const totalAmount = order.items.reduce(
-        (sum, i) => sum + i.qty * i.sellPrice,
-        0
-      );
-
-      return (
-        <React.Fragment key={order.id}>
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: "1.2fr 1.2fr 1.5fr 1fr 1fr 1fr",
-              px: 3,
-              py: 1,                       // ✅ reduced from 1.8 → 1
-              alignItems: "center",
-              transition: "background 0.15s",
-              "&:hover": { bgcolor: "#FAFAFA" }
-            }}
-          >
-            {/* HOLD ID */}
-            <Typography sx={{ fontWeight: 800, color: "#C8102E", fontSize: 12 }}>
-              #{order.label}
-            </Typography>
-
-            {/* DATE */}
-            <Typography sx={{ fontSize: 12, color: "#374151" }}>
-              {order.time.toLocaleDateString("en-GB", {
-                day: "2-digit",
-                month: "short"
-              })}{" "}
-              •{" "}
-              {order.time.toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit"
-              })}
-            </Typography>
-
-            {/* CUSTOMER */}
-            <Typography sx={{ fontSize: 12, fontWeight: 500 }}>
-              {order.customer?.name || "Walk-in Guest"}
-            </Typography>
-
-            {/* ITEMS */}
-            <Typography sx={{ fontSize: 12, color: "#6B7280" }}>
-              {order.items.length} items
-            </Typography>
-
-            {/* TOTAL */}
-            <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>
-              ₹{totalAmount.toLocaleString("en-IN")}
-            </Typography>
-
-            {/* ACTION */}
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: 1
-              }}
-            >
-              <IconButton
-                size="small"
-                onClick={() => handleDeleteHold(order.id)}
-                sx={{
-                  color: "#EF4444",
-                  p: 0.5,                  // ✅ tighter icon button padding
-                  "&:hover": { bgcolor: "#FEE2E2" }
-                }}
-              >
-                <DeleteOutlineIcon sx={{ fontSize: 16 }} />
-              </IconButton>
-
-              <Button
-                size="small"
-                onClick={() => handleRecall(order)}
-                sx={{
-                  bgcolor: "#C8102E",
-                  color: "#fff",
-                  fontWeight: 700,
-                  fontSize: 10,
-                  px: 2,
-                  py: 0.4,               // ✅ reduced button height
-                  minWidth: 0,
-                  borderRadius: "6px",
-                  boxShadow: "0 2px 8px rgba(200,16,46,0.3)",
-                  transition: "all 0.2s",
-                  "&:hover": {
-                    bgcolor: "#A50D26",
-                    transform: "translateY(-1px)"
-                  },
-                  "&:active": { transform: "scale(0.96)" }
-                }}
-              >
-                RECALL
-              </Button>
-            </Box>
+        <Dialog open={holdDialogOpen} onClose={() => setHoldDialogOpen(false)} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: "16px", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" } }}>
+          <Box sx={{ px: 3, py: 0.5, borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <Typography sx={{ fontSize: 18, fontWeight: 800 }}>Hold Orders</Typography>
+            <IconButton onClick={() => setHoldDialogOpen(false)} sx={{ color: "#6B7280", "&:hover": { bgcolor: "#F3F4F6", color: "#111827" } }}><CloseIcon /></IconButton>
           </Box>
-
-          {/* ✅ Divider between rows — skips after last row */}
-          {index < heldOrders.length - 1 && (
-            <Divider sx={{ mx: 3, borderColor: "#F1F5F9" }} />
-          )}
-        </React.Fragment>
-      );
-    })}
-  </Box>
-</Dialog>
+          <Box sx={{ px: 3, py: 1.5 }}>
+            <TextField fullWidth size="small" placeholder="Search by Hold ID, Customer Name or Amount... (Alt + S)"
+              InputProps={{ startAdornment: <SearchIcon sx={{ fontSize: 18, color: "#9CA3AF", mr: 1 }} /> }}
+              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px", bgcolor: "#F9FAFB", fontSize: 13 } }} />
+          </Box>
+          <Box sx={{ display: "grid", gridTemplateColumns: "1.2fr 1.2fr 1.5fr 1fr 1fr 1fr", px: 3, py: 0.75, fontSize: 11, fontWeight: 700, color: "#6B7280", bgcolor: "#FAFAFA", borderTop: "1px solid #F1F5F9", borderBottom: "2px solid #E5E7EB", letterSpacing: "0.05em" }}>
+            <span>HOLD ID</span><span>DATE & TIME</span><span>CUSTOMER</span><span>ITEMS</span><span>TOTAL</span><span style={{ textAlign: "center" }}>ACTION</span>
+          </Box>
+          <Box sx={{ maxHeight: 360, overflowY: "auto" }}>
+            {heldOrders.map((order, index) => {
+              const totalAmount = order.items.reduce((sum, i) => sum + i.qty * i.sellPrice, 0);
+              return (
+                <React.Fragment key={order.id}>
+                  <Box sx={{ display: "grid", gridTemplateColumns: "1.2fr 1.2fr 1.5fr 1fr 1fr 1fr", px: 3, py: 1, alignItems: "center", transition: "background 0.15s", "&:hover": { bgcolor: "#FAFAFA" } }}>
+                    <Typography sx={{ fontWeight: 800, color: "#C8102E", fontSize: 12 }}>#{order.label}</Typography>
+                    <Typography sx={{ fontSize: 12, color: "#374151" }}>
+                      {order.time.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })} • {order.time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </Typography>
+                    <Typography sx={{ fontSize: 12, fontWeight: 500 }}>{order.customer?.name || "Walk-in Guest"}</Typography>
+                    <Typography sx={{ fontSize: 12, color: "#6B7280" }}>{order.items.length} items</Typography>
+                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>₹{totalAmount.toLocaleString("en-IN")}</Typography>
+                    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 1 }}>
+                      <IconButton size="small" onClick={() => handleDeleteHold(order.id)} sx={{ color: "#EF4444", p: 0.5, "&:hover": { bgcolor: "#FEE2E2" } }}><DeleteOutlineIcon sx={{ fontSize: 16 }} /></IconButton>
+                      <Button size="small" onClick={() => handleRecall(order)} sx={{ bgcolor: "#C8102E", color: "#fff", fontWeight: 700, fontSize: 10, px: 2, py: 0.4, minWidth: 0, borderRadius: "6px", boxShadow: "0 2px 8px rgba(200,16,46,0.3)", "&:hover": { bgcolor: "#A50D26", transform: "translateY(-1px)" }, "&:active": { transform: "scale(0.96)" } }}>RECALL</Button>
+                    </Box>
+                  </Box>
+                  {index < heldOrders.length - 1 && <Divider sx={{ mx: 3, borderColor: "#F1F5F9" }} />}
+                </React.Fragment>
+              );
+            })}
+          </Box>
+        </Dialog>
 
         {/* SAVE RESULT DIALOG */}
         <Dialog open={!!saveResult?.open} onClose={() => setSaveResult(null)} maxWidth="xs" fullWidth TransitionComponent={Fade}>
@@ -1460,12 +1243,7 @@ function RetailPOSInner() {
           </DialogActions>
         </Dialog>
 
-        <CustomerLedgerDialog
-          open={customerLedgerOpen}
-          onClose={() => setCustomerLedgerOpen(false)}
-          custUuid={customer.id}
-          customerName={customer.name || "Walk-in Customer"}
-        />
+        <CustomerLedgerDialog open={customerLedgerOpen} onClose={() => setCustomerLedgerOpen(false)} custUuid={customer.id} customerName={customer.name || "Walk-in Customer"} />
         <AddNewCustomerDialog open={addCustomerOpen} onClose={() => setAddCustomerOpen(false)} />
       </Box>
     </ThemeProvider>

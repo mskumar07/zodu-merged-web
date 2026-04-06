@@ -42,7 +42,7 @@ const theme = createTheme({
 const INR = (v: number | string) =>
   new Intl.NumberFormat("en-IN", {
     style: "currency", currency: "INR", maximumFractionDigits: 0,
-  }).format(Number(v));
+  }).format(Math.round(Number(v)));
 const TABLE_TEXT_COLOR = "#374151";
 
 type PurchaseStatus = "paid" | "partial" | "pending";

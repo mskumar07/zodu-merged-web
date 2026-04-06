@@ -4,6 +4,9 @@
  * Changes:
  *  - Empty query → returns [] (no suggestions shown until user types)
  *  - Deduplication happens in db.bulkUpsertProducts (by item_id)
+ *  - refetchOnWindowFocus / refetchOnReconnect enabled so new items
+ *    added on other screens appear when user returns to POS
+ *  - useForceRefreshProducts now accepts zoduId (was missing from key)
  * ─────────────────────────────────────────────────────────────
  */
 
@@ -18,6 +21,7 @@ import {
   bulkUpsertProducts,
   markSynced,
   getAllProducts,
+  clearSyncMeta,
   type PosProduct,
 } from "./db";
 
@@ -59,7 +63,7 @@ async function loadProducts(branchId: string, zoduId: string): Promise<PosProduc
   try {
     return await fetchAndCacheProducts(branchId, zoduId);
   } catch (err) {
-    // ✅ Offline fallback: API unreachable → serve whatever is in IDB
+    // Offline fallback: API unreachable → serve whatever is in IDB
     // Cashier can still work; catalogue will sync next time they're online
     console.warn("[POS] API unreachable, serving cached catalogue:", err);
     const cached = await getAllProducts(branchId);
@@ -75,8 +79,8 @@ export function usePosProducts(branchId: string, zoduId: string) {
     queryFn:              () => loadProducts(branchId, zoduId),
     staleTime:            8 * 60 * 60 * 1000,
     gcTime:               12 * 60 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect:   false,
+    refetchOnWindowFocus: true,  // ✅ re-checks when tab regains focus
+    refetchOnReconnect:   true,  // ✅ re-checks when network reconnects
     retry: 2,
   });
 }
@@ -120,7 +124,7 @@ export function usePosSearch(branchId: string, query: string, zoduId: string) {
 
     const q = query.trim();
 
-    // ✅ Empty query → no suggestions (don't show anything until user types)
+    // Empty query → no suggestions (don't show anything until user types)
     if (!q) return [];
 
     const ql        = q.toLowerCase();
@@ -162,11 +166,11 @@ export function usePosSearch(branchId: string, query: string, zoduId: string) {
 }
 
 // ── Force refresh ─────────────────────────────────────────────
-export function useForceRefreshProducts(branchId: string) {
+export function useForceRefreshProducts(branchId: string, zoduId: string) {
   const queryClient = useQueryClient();
   return async () => {
-    await db.meta.delete(`lastSync_${branchId}`);
-    await queryClient.invalidateQueries({ queryKey: posProductsKey(branchId) });
+    await clearSyncMeta(branchId);
+    await queryClient.invalidateQueries({ queryKey: posProductsKey(branchId, zoduId) });
   };
 }
 

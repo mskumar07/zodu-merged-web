@@ -28,7 +28,7 @@ import {
   useGstList,
   useUnitList,
   type Category,
-  type MenuItem as MenuItemData,   // ← renamed to avoid clash with MUI MenuItem
+  type MenuItem as MenuItemData,
   type AddMenuItemResponse,
   type GstOption,
   type UnitOption,
@@ -41,12 +41,14 @@ interface AddItemModalProps {
   editItem?: MenuItemData | null;
 }
 
+// ── 1. INITIAL_VALUES — itemId added ─────────────────────────
 const INITIAL_VALUES = {
   serviceType:   'product' as 'product' | 'service',
   inventoryType: 'sellable' as 'sellable' | 'raw',
+  itemId:        '',          // ← item_id in payload
   name:          '',
   category:      '',
-  unit:          '' as string,    // unit id from API (UnitOption.value as string)
+  unit:          '' as string,
   purchasePrice: '',
   mrp:           '',
   rate:          '',
@@ -54,9 +56,8 @@ const INITIAL_VALUES = {
   taxInclusion:  'Incl.' as 'Incl.' | 'Excl.',
   hsn:           '',
   barcode:       '',
-  // ── Inventory (optional, collapsible) ──
-  openingStock:   '',
-  lowStockAlert:  '',
+  openingStock:  '',
+  lowStockAlert: '',
 };
 
 // ─── Helper components ────────────────────────────────────────
@@ -126,13 +127,11 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
       </DialogTitle>
 
       <DialogContent sx={{ px: 3, py: 3 }}>
-        {/* API error */}
         {apiError && (
           <Box sx={{ mb: 2, p: 1.5, bgcolor: 'error.light', borderRadius: 1 }}>
             <Typography variant="caption" color="error.contrastText">{apiError}</Typography>
           </Box>
         )}
-
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
           <Box>
             <Label text="Category Name" required />
@@ -171,15 +170,15 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
 const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, editItem }) => {
   const isEditMode = Boolean(editItem);
 
-  const [catDialogOpen,   setCatDialogOpen]   = useState(false);
-  const [inventoryOpen,   setInventoryOpen]   = useState(false);
-  const [imagePreview,    setImagePreview]    = useState<string | null>(null);
-  const [imageFile,       setImageFile]       = useState<File | null>(null);
+  const [catDialogOpen,    setCatDialogOpen]    = useState(false);
+  const [inventoryOpen,    setInventoryOpen]    = useState(false);
+  const [imagePreview,     setImagePreview]     = useState<string | null>(null);
+  const [imageFile,        setImageFile]        = useState<File | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(editItem?.item_img ?? null);
-  const [imageUploading,  setImageUploading]  = useState(false);
-  const [categorySearch,  setCategorySearch]  = useState('');
-  const [unitSearch,      setUnitSearch]      = useState('');
-  const [gstSearch,       setGstSearch]       = useState('');
+  const [imageUploading,   setImageUploading]   = useState(false);
+  const [categorySearch,   setCategorySearch]   = useState('');
+  const [unitSearch,       setUnitSearch]       = useState('');
+  const [gstSearch,        setGstSearch]        = useState('');
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -188,12 +187,13 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
     setImageFile(null);
   }, [editItem]);
 
-  // Build initial values — pre-fill when in edit mode
+  // ── 2. getInitialValues — itemId pre-filled in edit mode ────
   const getInitialValues = () => {
     if (!editItem) return INITIAL_VALUES;
     return {
       serviceType:   (editItem.item_type === 'S' ? 'product' : 'service') as 'product' | 'service',
       inventoryType: 'sellable' as 'sellable' | 'raw',
+      itemId:        editItem.item_id         ?? '',      // ← pre-fill in edit mode
       name:          editItem.item_name       ?? '',
       category:      editItem.category_id     ? String(editItem.category_id) : '',
       unit:          editItem.unit            ? String(editItem.unit)         : '',
@@ -210,11 +210,13 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
   };
 
   const formik = useFormik({
-    initialValues:    getInitialValues(),
-    enableReinitialize: true,   // re-fill when editItem changes
-    validationSchema: addItemSchema,
+    initialValues:      getInitialValues(),
+    enableReinitialize: true,
+    validationSchema:   addItemSchema,
     onSubmit: (values) => {
+      // ── 3. payload — item_id included ───────────────────────
       const payload = {
+        item_id:        values.itemId.trim() || undefined,   // optional on create, present on edit
         item_type:      values.serviceType === 'product' ? 'S' as const : 'P' as const,
         item_name:      values.name.trim(),
         category_id:    values.category     ? Number(values.category)     : null,
@@ -228,7 +230,6 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
         barcode:        values.barcode || null,
         item_img:       uploadedImageUrl,
         status:         'active' as const,
-        // ── Inventory fields (only sent on create; ignored on edit) ──
         opening_stock:  values.openingStock  ? Number(values.openingStock)  : null,
         reorder_level:  values.lowStockAlert ? Number(values.lowStockAlert) : null,
       };
@@ -241,23 +242,13 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
     },
   });
 
-  // ── Fetch categories — refetch when serviceType changes ──────
-  const { data: categories = [], isLoading: categoriesLoading } = useCategories(
-    formik.values.serviceType
-  );
+  const { data: categories = [], isLoading: categoriesLoading } = useCategories(formik.values.serviceType);
+  const { data: gstOptions  = [], isLoading: gstLoading  }      = useGstList();
+  const { data: unitOptions = [], isLoading: unitsLoading }      = useUnitList();
 
-  // ── Fetch GST options ─────────────────────────────────────────
-  const { data: gstOptions  = [], isLoading: gstLoading  } = useGstList();
-
-  // ── Fetch unit options ────────────────────────────────────────
-  const { data: unitOptions = [], isLoading: unitsLoading } = useUnitList();
-
-  // ── Create menu item ──────────────────────────────────────────
-  const { mutate: saveItem, isPending: saving, isError: saveError, error: saveErr, reset: resetSave } = useAddMenuItem({
+  const { mutate: saveItem,  isPending: saving,  isError: saveError, error: saveErr, reset: resetSave } = useAddMenuItem({
     onSuccess: (data) => { onSave?.(data); handleReset(); },
   });
-
-  // ── Edit menu item ─────────────────────────────────────────────
   const { mutate: editItem_, isPending: editing, isError: editError, error: editErr, reset: resetEdit } = useEditMenuItem({
     onSuccess: (data) => { onSave?.(data); handleReset(); },
   });
@@ -282,11 +273,10 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
 
   const handleClose = () => { if (isSaving) return; handleReset(); };
 
-  // When serviceType changes, reset category selection
   const handleServiceTypeChange = (_e: unknown, val: 'product' | 'service') => {
     if (!val) return;
     formik.setFieldValue('serviceType', val);
-    formik.setFieldValue('category', '');   // reset — different category list
+    formik.setFieldValue('category', '');
   };
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -299,40 +289,32 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
 
     const formData = new FormData();
     formData.append('file', file);
-
     try {
       setImageUploading(true);
       const response = await axiosInstance.post(apiConfig.uploadImage(), formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
-
       const fileUrl =
-        response.data?.fileUrl ||
+        response.data?.fileUrl     ||
         response.data?.data?.fileUrl ||
-        response.data?.url ||
-        response.data?.path ||
-        response.data?.location ||
+        response.data?.url          ||
+        response.data?.path         ||
+        response.data?.location     ||
         (typeof response.data === 'string' ? response.data : null);
-
-      if (!fileUrl) {
-        throw new Error('Failed to upload image');
-      }
-
+      if (!fileUrl) throw new Error('Failed to upload image');
       setUploadedImageUrl(fileUrl);
     } finally {
       setImageUploading(false);
     }
   };
 
-  // Called by AddCategoryDialog after successful API save
   const handleCategoryAdded = (cat: Category) => {
     formik.setFieldValue('category', cat.value);
   };
 
   const err   = formik.errors;
   const touch = formik.touched;
+
   const filteredCategories = categories.filter(c =>
     c.label.toLowerCase().includes(categorySearch.trim().toLowerCase())
   );
@@ -357,9 +339,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
     '&.Mui-selected': {
       color:   colored ? '#fff' : 'text.primary',
       bgcolor: colored ? 'primary.main' : 'background.paper',
-      boxShadow: colored
-        ? '0 2px 8px rgba(210,18,46,0.3)'
-        : '0 1px 4px rgba(0,0,0,0.1)',
+      boxShadow: colored ? '0 2px 8px rgba(210,18,46,0.3)' : '0 1px 4px rgba(0,0,0,0.1)',
       '&:hover': { bgcolor: colored ? 'primary.main' : 'background.paper' },
     },
     '&:hover': { bgcolor: 'transparent' },
@@ -399,12 +379,11 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
         {/* ── Body ── */}
         <DialogContent sx={{ px: 3, py: 3, overflowY: 'auto', '&::-webkit-scrollbar': { width: 5 }, '&::-webkit-scrollbar-thumb': { bgcolor: 'divider', borderRadius: 10 } }}>
 
-          {/* API save error */}
           {hasError && (
             <Box sx={{ mb: 2.5, p: 1.5, bgcolor: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 1.5 }}>
               <Typography variant="body2" color="error" fontWeight={600}>
                 {axios.isAxiosError(errObj)
-                  ? errObj?.response?.data?.message ?? errObj?.message ?? "Unknown error"
+                  ? errObj?.response?.data?.message ?? errObj?.message ?? 'Unknown error'
                   : 'Failed to save item. Please try again.'}
               </Typography>
             </Box>
@@ -447,7 +426,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
               {/* Basic fields */}
               <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
 
-                {/* Type Toggles */}
+                {/* Service Type + Inventory toggles */}
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
                   <Box>
                     <Label text="Service Type" />
@@ -467,21 +446,39 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                   </Box>
                 </Box>
 
-                {/* Item Name */}
-                <Box>
-                  <Label text="Item Name" required />
-                  <TextField fullWidth size="small" placeholder="e.g. Premium Cotton Polo"
-                    {...formik.getFieldProps('name')}
-                    error={touch.name && Boolean(err.name)}
-                    helperText={touch.name && err.name}
-                    InputProps={{ sx: inputSx }} />
+                {/* ── 4. Item ID + Item Name in a 2-col grid ── */}
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 2 }}>
+                  <Box>
+                    <Label text="Item ID" required />
+                    <TextField
+                      fullWidth size="small"
+                      placeholder="e.g. ITM-001"
+                      {...formik.getFieldProps('itemId')}
+                      error={touch.itemId && Boolean(err.itemId)}
+                      helperText={touch.itemId && err.itemId}
+                      InputProps={{ sx: inputSx }}
+                    />
+                  </Box>
+                  <Box>
+                    <Label text="Item Name" required />
+                    <TextField
+                      fullWidth size="small"
+                      placeholder="e.g. Premium Cotton Polo"
+                      {...formik.getFieldProps('name')}
+                      error={touch.name && Boolean(err.name)}
+                      helperText={touch.name && err.name}
+                      InputProps={{ sx: inputSx }}
+                    />
+                  </Box>
                 </Box>
 
-                {/* Category */}
+                {/* ── 5. Category — clean layout ── */}
                 <Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.8 }}>
                     <Label text="Category" required />
-                    <Button size="small" startIcon={<AddCircleOutlineIcon sx={{ fontSize: '15px !important' }} />}
+                    <Button
+                      size="small"
+                      startIcon={<AddCircleOutlineIcon sx={{ fontSize: '15px !important' }} />}
                       onClick={() => setCatDialogOpen(true)}
                       sx={{
                         textTransform: 'none', fontWeight: 700, fontSize: 12, px: 1.5, py: 0.4,
@@ -493,13 +490,17 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                     </Button>
                   </Box>
                   <FormControl fullWidth size="small" error={touch.category && Boolean(err.category)}>
-                    <Select value={formik.values.category} displayEmpty
+                    <Select
+                      value={formik.values.category}
+                      displayEmpty
                       onChange={(e) => formik.setFieldValue('category', e.target.value)}
                       onOpen={() => setCategorySearch('')}
                       renderValue={(selected) => {
-                        if (!selected) return <Box component="span" sx={{ color: 'text.disabled' }}>
-                          {categoriesLoading ? 'Loading…' : 'Select Category'}
-                        </Box>;
+                        if (!selected) return (
+                          <Box component="span" sx={{ color: 'text.disabled' }}>
+                            {categoriesLoading ? 'Loading…' : 'Select Category'}
+                          </Box>
+                        );
                         return categories.find(c => c.value === selected)?.label ?? selected;
                       }}
                       MenuProps={{ PaperProps: { sx: { maxHeight: 340 } } }}
@@ -510,18 +511,14 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                       }>
                       <ListSubheader sx={{ bgcolor: '#fff', py: 1, px: 1, borderBottom: '1px solid', borderColor: 'divider' }} onKeyDown={(e) => e.stopPropagation()}>
                         <TextField
-                          size="small"
-                          fullWidth
-                          placeholder="Search category..."
+                          size="small" fullWidth placeholder="Search category..."
                           value={categorySearch}
                           onChange={(e) => setCategorySearch(e.target.value)}
                           onClick={(e) => e.stopPropagation()}
                           InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: 'text.disabled' }} /></InputAdornment> }}
                         />
                       </ListSubheader>
-                      <MenuItem value="" disabled sx={{ fontSize: 14, color: 'text.disabled' }}>
-                        Select Category
-                      </MenuItem>
+                      <MenuItem value="" disabled sx={{ fontSize: 14, color: 'text.disabled' }}>Select Category</MenuItem>
                       {filteredCategories.map(c => (
                         <MenuItem key={c.value} value={c.value} sx={{ fontSize: 14 }}>{c.label}</MenuItem>
                       ))}
@@ -531,6 +528,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                     )}
                   </FormControl>
                 </Box>
+
               </Box>
             </Box>
 
@@ -549,35 +547,23 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                       onOpen={() => setUnitSearch('')}
                       displayEmpty
                       renderValue={(v) => {
-                        if (!v) return <Box component="span" sx={{ color: 'text.disabled' }}>
-                          {unitsLoading ? 'Loading…' : 'Select Unit'}
-                        </Box>;
+                        if (!v) return <Box component="span" sx={{ color: 'text.disabled' }}>{unitsLoading ? 'Loading…' : 'Select Unit'}</Box>;
                         return unitOptions.find(u => String(u.value) === v)?.label ?? v;
                       }}
-                      startAdornment={unitsLoading
-                        ? <InputAdornment position="start"><CircularProgress size={14} /></InputAdornment>
-                        : null
-                      }
+                      startAdornment={unitsLoading ? <InputAdornment position="start"><CircularProgress size={14} /></InputAdornment> : null}
                       MenuProps={{ PaperProps: { sx: { maxHeight: 340 } } }}
                       sx={inputSx}>
                       <ListSubheader sx={{ bgcolor: '#fff', py: 1, px: 1, borderBottom: '1px solid', borderColor: 'divider' }} onKeyDown={(e) => e.stopPropagation()}>
-                        <TextField
-                          size="small"
-                          fullWidth
-                          placeholder="Search unit..."
+                        <TextField size="small" fullWidth placeholder="Search unit..."
                           value={unitSearch}
                           onChange={(e) => setUnitSearch(e.target.value)}
                           onClick={(e) => e.stopPropagation()}
                           InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: 'text.disabled' }} /></InputAdornment> }}
                         />
                       </ListSubheader>
-                      <MenuItem value="" disabled sx={{ fontSize: 14, color: 'text.disabled' }}>
-                        Select Unit
-                      </MenuItem>
+                      <MenuItem value="" disabled sx={{ fontSize: 14, color: 'text.disabled' }}>Select Unit</MenuItem>
                       {filteredUnits.map((u: UnitOption) => (
-                        <MenuItem key={u.value} value={String(u.value)} sx={{ fontSize: 14 }}>
-                          {u.label}
-                        </MenuItem>
+                        <MenuItem key={u.value} value={String(u.value)} sx={{ fontSize: 14 }}>{u.label}</MenuItem>
                       ))}
                     </Select>
                   </FormControl>
@@ -609,10 +595,8 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
               </Box>
             </Box>
 
-            {/* Row 3: Inventory (collapsible, optional) */}
+            {/* Row 3: Inventory (collapsible) */}
             <Box sx={{ border: '1px solid', borderColor: inventoryOpen ? 'primary.main' : 'divider', borderRadius: 1.5, overflow: 'hidden', transition: 'border-color 0.2s' }}>
-
-              {/* Collapse header — always visible */}
               <Box onClick={() => setInventoryOpen(p => !p)}
                 sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2.5, py: 1.5, cursor: 'pointer', bgcolor: inventoryOpen ? 'rgba(210,18,46,0.04)' : 'action.hover', transition: 'background 0.2s', '&:hover': { bgcolor: 'rgba(210,18,46,0.06)' } }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
@@ -626,55 +610,26 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                 </Box>
                 <ExpandMoreIcon sx={{ fontSize: 18, color: 'text.secondary', transform: inventoryOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.25s' }} />
               </Box>
-
-              {/* Collapsible content */}
               <Collapse in={inventoryOpen}>
                 <Box sx={{ px: 2.5, py: 2.5, borderTop: '1px solid', borderColor: 'divider', display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5 }}>
-
-                  {/* Opening Stock */}
                   <Box>
                     <Label text="Opening Stock" />
-                    <TextField
-                      fullWidth size="small" type="number" placeholder="0"
+                    <TextField fullWidth size="small" type="number" placeholder="0"
                       {...formik.getFieldProps('openingStock')}
-                      InputProps={{
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <Typography variant="caption" color="text.disabled" fontWeight={600}>
-                              {unitOptions.find(u => String(u.value) === formik.values.unit)?.shortName ?? 'UNIT'}
-                            </Typography>
-                          </InputAdornment>
-                        ),
-                        sx: inputSx,
-                      }}
-                    />
+                      InputProps={{ endAdornment: <InputAdornment position="end"><Typography variant="caption" color="text.disabled" fontWeight={600}>{unitOptions.find(u => String(u.value) === formik.values.unit)?.shortName ?? 'UNIT'}</Typography></InputAdornment>, sx: inputSx }} />
                     <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
                       Current stock quantity at the time of adding this item
                     </Typography>
                   </Box>
-
-                  {/* Low Stock Alert */}
                   <Box>
                     <Label text="Low Stock Alert" />
-                    <TextField
-                      fullWidth size="small" type="number" placeholder="e.g. 10"
+                    <TextField fullWidth size="small" type="number" placeholder="e.g. 10"
                       {...formik.getFieldProps('lowStockAlert')}
-                      InputProps={{
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <Typography variant="caption" color="text.disabled" fontWeight={600}>
-                              {unitOptions.find(u => String(u.value) === formik.values.unit)?.shortName ?? 'UNIT'}
-                            </Typography>
-                          </InputAdornment>
-                        ),
-                        sx: inputSx,
-                      }}
-                    />
+                      InputProps={{ endAdornment: <InputAdornment position="end"><Typography variant="caption" color="text.disabled" fontWeight={600}>{unitOptions.find(u => String(u.value) === formik.values.unit)?.shortName ?? 'UNIT'}</Typography></InputAdornment>, sx: inputSx }} />
                     <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
                       Alert when stock falls below this quantity
                     </Typography>
                   </Box>
-
                 </Box>
               </Collapse>
             </Box>
@@ -685,8 +640,6 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                 Tax Information
               </Typography>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5 }}>
-
-                {/* Left */}
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <Box>
                     <Label text="Tax Type" required />
@@ -696,35 +649,23 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                         onOpen={() => setGstSearch('')}
                         displayEmpty
                         renderValue={(v) => {
-                          if (!v) return <Box component="span" sx={{ color: 'text.disabled' }}>
-                            {gstLoading ? 'Loading…' : 'Select Tax'}
-                          </Box>;
+                          if (!v) return <Box component="span" sx={{ color: 'text.disabled' }}>{gstLoading ? 'Loading…' : 'Select Tax'}</Box>;
                           return gstOptions.find(g => String(g.value) === v)?.label ?? v;
                         }}
-                        startAdornment={gstLoading
-                          ? <InputAdornment position="start"><CircularProgress size={14} /></InputAdornment>
-                          : null
-                        }
+                        startAdornment={gstLoading ? <InputAdornment position="start"><CircularProgress size={14} /></InputAdornment> : null}
                         MenuProps={{ PaperProps: { sx: { maxHeight: 340 } } }}
                         sx={{ ...inputSx, bgcolor: 'background.paper' }}>
                         <ListSubheader sx={{ bgcolor: '#fff', py: 1, px: 1, borderBottom: '1px solid', borderColor: 'divider' }} onKeyDown={(e) => e.stopPropagation()}>
-                          <TextField
-                            size="small"
-                            fullWidth
-                            placeholder="Search tax..."
+                          <TextField size="small" fullWidth placeholder="Search tax..."
                             value={gstSearch}
                             onChange={(e) => setGstSearch(e.target.value)}
                             onClick={(e) => e.stopPropagation()}
                             InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: 'text.disabled' }} /></InputAdornment> }}
                           />
                         </ListSubheader>
-                        <MenuItem value="" disabled sx={{ fontSize: 14, color: 'text.disabled' }}>
-                          Select Tax
-                        </MenuItem>
+                        <MenuItem value="" disabled sx={{ fontSize: 14, color: 'text.disabled' }}>Select Tax</MenuItem>
                         {filteredGstOptions.map((g: GstOption) => (
-                          <MenuItem key={g.value} value={String(g.value)} sx={{ fontSize: 14 }}>
-                            {g.label}
-                          </MenuItem>
+                          <MenuItem key={g.value} value={String(g.value)} sx={{ fontSize: 14 }}>{g.label}</MenuItem>
                         ))}
                       </Select>
                       {touch.gstId && err.gstId && (
@@ -746,8 +687,6 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                     </ToggleButtonGroup>
                   </Box>
                 </Box>
-
-                {/* Right */}
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <Box>
                     <Label text="HSN Code" required />
@@ -777,6 +716,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                 </Box>
               </Box>
             </Box>
+
           </Box>
         </DialogContent>
 
@@ -786,17 +726,18 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
             sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600, px: 3, height: 42, borderColor: 'divider', color: 'text.secondary' }}>
             Cancel
           </Button>
-          <Button onClick={async () => {
+          <Button
+            onClick={async () => {
               const errors = await formik.validateForm();
               if (Object.keys(errors).length > 0) {
-                // Touch all fields so errors show inline
                 formik.setTouched(
                   Object.keys(INITIAL_VALUES).reduce((acc, k) => ({ ...acc, [k]: true }), {})
                 );
                 return;
               }
               formik.submitForm();
-            }} variant="contained"
+            }}
+            variant="contained"
             disabled={isSaving}
             startIcon={isSaving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
             sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 700, px: 4, height: 42, boxShadow: '0 4px 14px rgba(210,18,46,0.25)', '&:active': { transform: 'scale(0.98)' } }}>
@@ -805,7 +746,6 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
         </DialogActions>
       </Dialog>
 
-      {/* Nested: Add Category dialog */}
       <AddCategoryDialog
         open={catDialogOpen}
         serviceType={formik.values.serviceType}

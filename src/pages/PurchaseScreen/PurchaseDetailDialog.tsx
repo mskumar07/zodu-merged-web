@@ -133,6 +133,7 @@ function PurchaseDetailContent({ data }: { data: PurchaseDetail }) {
       }
     >
   >((acc, item) => {
+    console.log("hsn",item)
     const hsnCode = item.hsn_code ?? item.hsn ?? "—";
     const gstPct = Number(item.gst_percentage ?? 0);
     const cgstPct = gstPct / 2;
@@ -407,6 +408,8 @@ export default function PurchaseDetailDialog({ purchaseId, onClose }: Props) {
     setAddDialogOpen(false);
     setEditPurchaseId(null);
   };
+
+  console.log("myPurchase",data)
 
   return (
     <Dialog

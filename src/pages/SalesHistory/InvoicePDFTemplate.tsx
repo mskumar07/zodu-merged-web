@@ -1,3 +1,5 @@
+import { useAppSelector } from "@store/store";
+import { getTenantContext } from "@store/tenantContext";
 import React from "react";
 
 // ── Inline style constants ────────────────────────────────────
@@ -301,16 +303,18 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
     gst_breakdown = [],
     company,
   } = data;
+    const { profile } = useAppSelector(getTenantContext);
+
 
   const showDiscount = discount && Number(discount) > 0;
   const showRoundOff = round_off !== undefined && round_off !== null && Number(round_off) !== 0;
 
   const co = company ?? {
-    name:   "Zodu Retail Co.",
+    name:   profile?.restaurant_name || "Your Company Name",
     gstin:  "29AAAAA0000A1Z5",
     line1:  "123 Business Park, MG Road",
     line2:  "Bangalore, Karnataka - 560001",
-    phone:  "+91 80 4567 8900",
+    phone:  profile?.phone_number || "9876543210",
     bankName: "Union Bank of India",
     accountNumber: "510101000817928",
     branchIfsc: "Vellore Branch & UBIN090011",

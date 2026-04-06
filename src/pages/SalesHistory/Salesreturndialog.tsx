@@ -281,6 +281,7 @@ const canConfirm = someSelected && !!reason && !!refundType;
                     const lineTotal     = selected[item.id] ? rQty * price : 0;
                     const rowBg         = selected[item.id] ? alpha("#D2042D", 0.03) : "transparent";
                     const borderB       = isLast ? 0 : "1px solid #F1F5F9";
+                    console.log(items)
 
                     return (
                       <TableRow key={item.id} sx={{ bgcolor: rowBg, transition: "background 0.15s" }}>

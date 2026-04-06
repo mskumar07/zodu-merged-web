@@ -38,7 +38,7 @@ export default function InventoryScreenRoot() {
 
 // ── Formatters ─────────────────────────────────────────────────
 const formatINR = (v: number) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2 }).format(v);
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(Math.round(Number(v)));
 const TABLE_TEXT_COLOR = '#374151';
 
 // ── Stat card ──────────────────────────────────────────────────
@@ -257,7 +257,7 @@ const handleCloseHistory = () => {
   }}
   onClick={() => handleOpenHistory(r._raw)}
 >
-  {r.item_id}
+  {r?.item_id}
 </Typography>
       ),
     },
@@ -266,12 +266,12 @@ const handleCloseHistory = () => {
       render: (r) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Avatar src={r.item_img ?? ''} variant="rounded" sx={{ width: 38, height: 38, border: '1px solid', borderColor: 'divider' }}>
-            {r.item_name[0]}
+            {r?.item_name[0]}
           </Avatar>
           <Box>
-            <Typography variant="body2" fontWeight={600} sx={{ lineHeight: 1.3, fontSize: 13, color: TABLE_TEXT_COLOR }}>{r.item_name}</Typography>
+            <Typography variant="body2" fontWeight={600} sx={{ lineHeight: 1.3, fontSize: 13, color: TABLE_TEXT_COLOR }}>{r?.item_name}</Typography>
             <Typography sx={{ fontSize: 13, color: TABLE_TEXT_COLOR, lineHeight: 1.3 }}>
-              {r.category_name ?? '—'}
+              {r?.category_name ?? '—'}
             </Typography>
           </Box>
         </Box>
@@ -286,7 +286,7 @@ const handleCloseHistory = () => {
         return (
           <Typography variant="body2" fontWeight={700}
             sx={{ fontSize: 13, color: isOut ? 'error.main' : isLow ? '#d97706' : TABLE_TEXT_COLOR }}>
-            {qty} {r.unit_short_name ?? ''}
+            {qty} {r?.unit_short_name ?? ''}
           </Typography>
         );
       },
@@ -295,7 +295,7 @@ const handleCloseHistory = () => {
       key: 'reorder_level', label: 'Low Level', align: 'center',
       render: (r) => (
         <Typography variant="body2" sx={{ fontSize: 13, color: TABLE_TEXT_COLOR }}>
-          {Number(r.reorder_level)} {r.unit_short_name ?? ''}
+          {Number(r?.reorder_level)} {r?.unit_short_name ?? ''}
         </Typography>
       ),
     },
@@ -307,7 +307,7 @@ const handleCloseHistory = () => {
       key: 'sell_price', label: 'Price', align: 'right',
       render: (r) => (
         <Typography variant="body2" sx={{ fontSize: 13, color: TABLE_TEXT_COLOR }}>
-          {r.purchase_price ? formatINR(Number(r.purchase_price)) : '—'}
+          {r?.purchase_price ? formatINR(Number(r?.purchase_price)) : '—'}
         </Typography>
       ),
     },
@@ -315,7 +315,7 @@ const handleCloseHistory = () => {
       key: 'stock_value', label: 'Value', align: 'right',
       render: (r) => (
         <Typography variant="body2" fontWeight={600} sx={{ fontSize: 13, color: TABLE_TEXT_COLOR }}>
-          {formatINR(Number(r.stock_value))}
+          {formatINR(Number(r?.stock_value))}
         </Typography>
       ),
     },
@@ -323,8 +323,8 @@ const handleCloseHistory = () => {
       key: 'last_stock_update', label: 'Last Restock',
       render: (r) => (
         <Typography variant="body2" sx={{ fontSize: 13, color: TABLE_TEXT_COLOR, whiteSpace: 'nowrap' }}>
-          {r.last_stock_update
-            ? new Date(r.last_stock_update).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+          {r?.last_stock_update
+            ? new Date(r?.last_stock_update).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
             : '—'}
         </Typography>
       ),

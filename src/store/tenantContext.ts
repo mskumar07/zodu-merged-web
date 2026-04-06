@@ -16,6 +16,7 @@ function readPersistedUserState(): PersistedUserState | null {
   }
 }
 
+
 export function getTenantContext() {
   const state = store.getState().user;
   const persistedState = readPersistedUserState();
@@ -29,8 +30,11 @@ export function getTenantContext() {
     branchId:
       state.branchId ||
       persistedState?.branchId ,
+    profile: state.profile,
   };
 }
+
+
 
 export function getAccessToken() {
   const state = store.getState().user;

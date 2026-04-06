@@ -11,10 +11,13 @@ import styles from "./index.module.css";
 import { useTheme } from "@mui/material/styles";
 import { drawerWidth } from "../Sidebar/index";
 import { MenuItem, Select } from "@mui/material";
+import { useAppSelector } from "@store/store";
+import { getTenantContext } from "@store/tenantContext";
 
 const TopBar: React.FC = () => {
   const theme = useTheme();
-  const [selectedBranch, setSelectedBranch] = React.useState("ZODU035B1");
+  const [selectedBranch, setSelectedBranch] = React.useState("B1");
+  const { profile } = useAppSelector(getTenantContext);
   return (
     <AppBar
       position="fixed"
@@ -34,39 +37,43 @@ const TopBar: React.FC = () => {
         </Box> */}
         {/* 30% Search and Icons */}
         {/* 10% Profile */}
-         <Select
+        <Typography
+               
+                sx={{ color: "black", fontWeight: 600, fontSize: 20,textTransform:"capitalize" }}
+              >
+                {profile?.restaurant_name || "Jane Doe"}
+              </Typography>
+     
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+             <Select
                 size="small"
                 value={selectedBranch}
                 onChange={(e) => setSelectedBranch(e.target.value)}
                 sx={{ minWidth: 160 }}>
-                <MenuItem value="ZODU035B1">Main Branch</MenuItem>
-                <MenuItem value="ZODU035B2">Branch 2</MenuItem>
-                <MenuItem value="ZODU035B3">Branch 3</MenuItem>
+                <MenuItem value="B1">Main Branch</MenuItem>
+              
               </Select>
-        <Box className={styles.profileSection}>
-         
           <IconButton>
             <Badge color="error" variant="dot">
               <NotificationsIcon />
             </Badge>
           </IconButton>
-          <Box className={styles.profileBox}>
+          <Box sx={{display:"flex",justifyContent:"center",alignItems:"center",gap:1}}>
             <Avatar
-              className={styles.avatar}
+              
               src="https://randomuser.me/api/portraits/women/65.jpg"
             />
             <Box
-              sx={{ display: { xs: "none", sm: "block" }, textAlign: "right" }}
+              sx={{ display: { xs: "none", sm: "block" } }}
             >
-              <Typography
-                className={styles.profileName}
-                sx={{ color: "black" }}
-                variant="subtitle1"
+              {/* <Typography
+               
+                sx={{ color: "black", fontWeight: 600, fontSize: 14,textTransform:"capitalize" }}
               >
-                Tynisha Obey
-              </Typography>
-              <Typography className={styles.profileRole} sx={{ color: "black" }} variant="subtitle2">
-                KATRING
+                {profile?.restaurant_name || "Jane Doe"}
+              </Typography> */}
+              <Typography  sx={{ color: "black", fontWeight: 600, fontSize: 14 }} >
+                {profile?.user_type === "super_admin" ? "Super Admin" : "Manager"}
               </Typography>
             </Box>
           </Box>

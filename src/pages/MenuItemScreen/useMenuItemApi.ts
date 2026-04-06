@@ -281,7 +281,49 @@ async function postAddMenuItem(
   return data;
 }
 
+/**
+ * DELETE /restaurant/api/delete/menu_item/:item_uuid
+ */
+async function deleteMenuItem(item_uuid: string): Promise<{ success: boolean; message: string }> {
+  const { data } = await axios.delete<{ success: boolean; message: string }>(
+    `${API_BASE}/restaurant/api/delete/menu_item/${item_uuid}`
+  );
+  return data;
+}
+
 // ─── Hooks ────────────────────────────────────────────────────
+
+
+/**
+ * Delete a menu item.
+ * On success:
+ *  - Invalidates menu list
+ */
+export function useDeleteMenuItem(options?: {
+  onSuccess?: (data: { success: boolean; message: string }) => void;
+  onError?: (message: string) => void;
+}): UseMutationResult<{ success: boolean; message: string }, unknown, string> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteMenuItem,
+
+    onSuccess: (data) => {
+      // 🔥 refresh list after delete
+      queryClient.invalidateQueries({ queryKey: ["menu", "items"] });
+
+      options?.onSuccess?.(data);
+    },
+
+    onError: (err: unknown) => {
+      const msg = axios.isAxiosError(err)
+        ? err.response?.data?.message ?? err.message
+        : "Failed to delete item";
+
+      options?.onError?.(msg);
+    },
+  });
+}
 
 /**
  * Fetch categories for a given service type.

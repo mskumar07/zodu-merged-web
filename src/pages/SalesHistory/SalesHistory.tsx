@@ -28,8 +28,8 @@ import { useNavigate }     from "react-router-dom";
 // ─── Formatter ────────────────────────────────────────────────
 const INR = (v: number) =>
   new Intl.NumberFormat("en-IN", {
-    style: "currency", currency: "INR", maximumFractionDigits: 2,
-  }).format(v);
+    style: "currency", currency: "INR", maximumFractionDigits: 0,
+  }).format(Math.round(Number(v)));
 
 // ─── Theme ────────────────────────────────────────────────────
 const theme = createTheme({

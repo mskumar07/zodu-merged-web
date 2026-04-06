@@ -89,6 +89,10 @@ export async function markSynced(branchId: string): Promise<void> {
   await db.meta.put({ key: `lastSync_${branchId}`, value: Date.now() });
 }
 
+export async function clearSyncMeta(branchId: string): Promise<void> {
+  await db.meta.delete(`lastSync_${branchId}`);
+}
+
 // ── Normalise raw API row → correct types before IDB write ────
 function normalise(p: Record<string, unknown>): PosProduct {
   return {

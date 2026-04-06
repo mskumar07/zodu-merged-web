@@ -27,7 +27,7 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import SaveIcon from "@mui/icons-material/Save";
 import SearchIcon from "@mui/icons-material/Search";
 import CircularProgress from "@mui/material/CircularProgress";
-import { BRANCH_ID, useCreateVendor, ZODU_ID } from "./useVendorApi";
+import {  useCreateVendor } from "./useVendorApi";
 import { getTenantContext } from "@store/tenantContext";
 
 const theme = createTheme({

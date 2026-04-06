@@ -28,12 +28,13 @@ import { History, Person, Settings } from "@mui/icons-material";
 import { useAppDispatch } from "@store/store";
 import { clearAuthData } from "@store/slices/userSlice";
 import { tokenStore } from "@pages/auth/Authapi";
+import { db } from "@pages/POS/db";
 
 export const drawerWidth = 240;
 
 const navItems = [
   { label: "Dashboard", icon: <DashboardIcon />, path: "/dashboard" },
- { label: "POS", icon: <PointOfSaleIcon />, path: "/pos" },
+ { label: "Billing", icon: <PointOfSaleIcon />, path: "/pos" },
   { label: "Sales History", icon: <History />, path: "/sales-history" },
 
   { label: "Menu Items", icon: <CategoryIcon />, path: "/menu" },
@@ -51,7 +52,7 @@ const navItems = [
    {
     label: "Settings",
     icon: <Settings />,
-    path: "/",
+    path: "/settings",
   },
 ];
 
@@ -61,7 +62,9 @@ export default function Sidebar() {
   const [activeIndex, setActiveIndex] = React.useState(0);
   const { navigate } = useNavigation();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+      await db.products.clear();
+  await db.meta.clear();
     tokenStore.clear();
     dispatch(clearAuthData());
     navigate("/login");

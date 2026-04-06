@@ -32,6 +32,7 @@ import ZoduLoginPage from "@pages/auth/Login";
 import ZoduSignupPage from "@pages/auth/Signup";
 import ProtectedRoute from "./ProtectedRoute";
 import ZoduLandingPage from "@pages/landingPage/ZodulandingPage";
+import Setting from "@pages/Settings/Setting";
 
 export const routes = [
   {
@@ -88,6 +89,10 @@ export const routes = [
     element: <RetailPOS />,
     // children: [{ path: "pos", element: <POSScreen /> }],
   },
+  {
+    path:"/settings",
+    element: <Setting />
+  }
       // add more child routes as needed ...
     ],
   },
