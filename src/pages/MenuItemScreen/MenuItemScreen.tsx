@@ -8,7 +8,7 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
 import {
-  QueryClient, QueryClientProvider, useQueryClient,
+  QueryClient, QueryClientProvider, useQueryClient, type InfiniteData,
 } from '@tanstack/react-query';
 
 import ProductTabs from './components_ProductTabs';
@@ -20,8 +20,10 @@ import {
   useMenuItemDetail,
   type MenuItem as MenuItemData,
   type MenuItemListParams,
+  type MenuItemListResponse,
   type AddMenuItemResponse,
-  useDeleteMenuItem,
+  useHardDeleteMenuItem,
+  useUpdateMenuItemStatus,
 } from './useMenuItemApi';
 
 const queryClient = new QueryClient();
@@ -97,8 +99,7 @@ function MenuItemScreen() {
 
   const { data: freshEditItem } = useMenuItemDetail(editItem?.item_uuid ?? null);
 
-  // ✅ DELETE HOOK FIXED
-  const { mutate: deleteItem } = useDeleteMenuItem({
+  const { mutate: hardDeleteItem } = useHardDeleteMenuItem({
     onSuccess: async () => {
       // 🔥 CLEAR CACHE + REFETCH
       qc.removeQueries({ queryKey: ['menu', 'items'] });
@@ -113,9 +114,31 @@ function MenuItemScreen() {
 
   const confirmDelete = () => {
     if (!deleteTarget) return;
-    deleteItem(deleteTarget);
+    hardDeleteItem(deleteTarget);
     setDeleteTarget(null);
   };
+
+  const { mutate: updateStatus } = useUpdateMenuItemStatus({
+    onSuccess: (_data, variables) => {
+      qc.setQueriesData<InfiniteData<MenuItemListResponse>>(
+        { queryKey: ['menu', 'items'] },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              data: page.data.map((item) =>
+                item.item_uuid === variables.item_uuid
+                  ? { ...item, status: variables.status }
+                  : item
+              ),
+            })),
+          };
+        }
+      );
+    },
+  });
 
   // 🔥 INFINITE SCROLL
   useEffect(() => {
@@ -195,7 +218,8 @@ function MenuItemScreen() {
         <ProductTable
           products={products}
           onEdit={(p) => handleEditClick((p as any)._raw)}
-          onDelete={(p) => openDeleteDialog((p as any).item_uuid)} // ✅ FIXED
+          onDelete={(p) => openDeleteDialog((p as any).item_uuid)}
+          onToggleStatus={(p, newStatus) => updateStatus({ item_uuid: p.item_uuid, status: newStatus })}
           loadMoreRef={sentinelRef}
           tableContainerRef={tableContainerRef}
         />

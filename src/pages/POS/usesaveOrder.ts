@@ -194,6 +194,7 @@ export interface SaveOrderParams {
   items:             LineItem[];
   customer:          Customer;
   invoiceDate:       string;
+  dueDate:           string;
   discountPct:       string;
   discountFlat:      string;
   discountGstMode:   "after" | "before";
@@ -248,6 +249,7 @@ export function useSaveOrder() {
 
         sale_type:  params.posMode === "QUOTATION" ? "quotation" : "retail",
         sale_date:  params.invoiceDate,
+        due_date:   params.dueDate || null,
         sale_time:  currentHHmm(),
 
         customer_id: params.customer.id ?? null,
@@ -320,6 +322,7 @@ const updateOrder = useCallback(async (
 
       sale_type:  params.posMode === "QUOTATION" ? "quotation"  : "retail",
       sale_date:  params.invoiceDate,
+      due_date:   params.dueDate || null,
       sale_time:  currentHHmm(),
 
       customer_id: params.customer.id ?? null,

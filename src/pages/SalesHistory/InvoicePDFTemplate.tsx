@@ -309,7 +309,7 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
   const showDiscount = discount && Number(discount) > 0;
   const showRoundOff = round_off !== undefined && round_off !== null && Number(round_off) !== 0;
 
-  const co = company ?? {
+  const co =  {
     name:   profile?.restaurant_name || "Your Company Name",
     gstin:  "29AAAAA0000A1Z5",
     line1:  "123 Business Park, MG Road",
@@ -392,9 +392,10 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
         <thead style={styles.thead}>
           <tr>
             <th style={{ ...styles.theadTh, width: "36px" }}>SL</th>
-            <th style={styles.theadTh}>Item Name &amp; Category</th>
+            <th style={styles.theadTh}>Item ID</th>
+            <th style={styles.theadTh}>Item Name </th>
             <th style={{ ...styles.theadThCenter, width: "72px" }}>HSN</th>
-            <th style={{ ...styles.theadThCenter, width: "56px" }}>Tax %</th>
+            <th style={{ ...styles.theadThCenter, width: "60px" }}>Tax %</th>
             <th style={{ ...styles.theadThCenter, width: "48px" }}>QTY</th>
             <th style={{ ...styles.theadThRight, width: "80px" }}>MRP</th>
             <th style={{ ...styles.theadThRight, width: "80px" }}>Rate</th>
@@ -405,11 +406,13 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
           {items.map((item: any, i: number) => (
             <tr key={i} style={{ background: i % 2 === 0 ? "#fff" : "#FAFBFC" }}>
               <td style={styles.tdBase}>{String(i + 1).padStart(2, "0")}</td>
+              <td style={styles.tdBase}>{item.item_id}</td>
               <td style={styles.tdBase}>
+                
                 <div style={styles.itemName}>{item.name}</div>
-                {item.category && (
+                {/* {item.category && (
                   <div style={styles.itemSub}>{item.category}</div>
-                )}
+                )} */}
               </td>
               <td style={styles.tdCenter}>{item.hsn || "—"}</td>
                             <td style={styles.tdCenter}>{item.tax}%</td>

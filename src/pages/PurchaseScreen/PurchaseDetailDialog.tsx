@@ -200,7 +200,7 @@ function PurchaseDetailContent({ data }: { data: PurchaseDetail }) {
           }}
         >
           {[
-            { label: "Supplier Name", value: data.vendor_name || "Walk-in Supplier" },
+            { label: "Supplier Name", value: data.vendor_name || "Walk-in" },
             { label: "Mobile No.", value: data.vendor_phone },
             { label: "GSTIN", value: data.vendor_gst },
             { label: "Address", value: vendorAddress },
@@ -232,8 +232,9 @@ function PurchaseDetailContent({ data }: { data: PurchaseDetail }) {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
-                <th style={TH}>Item Name</th>
-                <th style={TH}>HSN</th>
+                                <th style={{...TH, textAlign:"center"}}>Item ID</th>
+                <th style={{...TH, textAlign:"center"}}>Item Name</th>
+                <th style={{...TH, textAlign:"center"}}>HSN</th>
                 <th style={{ ...TH, textAlign: "right" }}>MRP</th>
                 <th style={{ ...TH, textAlign: "center" }}>Qty</th>
                 <th style={{ ...TH, textAlign: "center" }}>GST%</th>
@@ -245,8 +246,9 @@ function PurchaseDetailContent({ data }: { data: PurchaseDetail }) {
                 const hsnCode = item.hsn_code ?? item.hsn ?? "—";
                 return (
                   <tr key={item.purchase_item_id}>
-                    <td style={{ ...TD, fontWeight: 600, color: "#0F172A" }}>{item.item_name}</td>
-                    <td style={{ ...TD, color: "#64748B", whiteSpace: "nowrap" }}>{hsnCode}</td>
+                    <td style={{ ...TD, fontWeight: 600, color: "#0F172A",textAlign:"center" }}>{item.item_id}</td>
+                    <td style={{ ...TD, color: "#64748B", whiteSpace: "nowrap",textAlign:"center" }}>{item.item_name}</td>
+                    <td style={{ ...TD, color: "#64748B", whiteSpace: "nowrap",textAlign:"center" }}>{hsnCode}</td>
                     <td style={{ ...TD, textAlign: "right", whiteSpace: "nowrap" }}>
                       {INR(item.purchase_price)}
                     </td>
@@ -254,7 +256,7 @@ function PurchaseDetailContent({ data }: { data: PurchaseDetail }) {
                       {Number(item.qty).toFixed(0)} {item.unit ?? ""}
                     </td>
                     <td style={{ ...TD, textAlign: "center", whiteSpace: "nowrap" }}>
-                      {item.gst_percentage ?? 0}%
+                      {Number(item.gst_percentage).toFixed(0) ?? 0}%
                     </td>
                     <td style={{ ...TD, textAlign: "right", fontWeight: 700, whiteSpace: "nowrap" }}>
                       {INR(item.total_price ?? item.subtotal)}
@@ -290,8 +292,8 @@ function PurchaseDetailContent({ data }: { data: PurchaseDetail }) {
           </Box>
           <Divider sx={{ borderStyle: "dashed", borderColor: "#CBD5E1", my: 0.6 }} />
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography sx={{ fontSize: 16, fontWeight: 800, color: "#0F172A" }}>Grand Total</Typography>
-            <Typography sx={{ fontSize: 28, fontWeight: 900, color: "#0F172A", letterSpacing: "-0.03em" }}>
+            <Typography sx={{ fontSize: 15, fontWeight: 800, color: "#0F172A" }}>Grand Total</Typography>
+            <Typography sx={{ fontSize: 18, fontWeight: 900, color: "#0F172A", letterSpacing: "-0.03em" }}>
               {INR(data.total_amount)}
             </Typography>
           </Box>

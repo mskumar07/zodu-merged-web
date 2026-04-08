@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useForceRefreshProducts, usePosSearch } from "./useposproducts";
 import type { PosProduct } from "./db";
-import { useSaveOrder } from "./usesaveOrder";
+import { useSaveOrder, type SaveOrderResult } from "./usesaveOrder";
 import {
   useCustomerSearch,
   type ApiCustomer,
@@ -44,30 +43,35 @@ import ReceiptLongIcon        from "@mui/icons-material/ReceiptLong";
 import RequestQuoteIcon       from "@mui/icons-material/RequestQuote";
 import NoteAltOutlinedIcon    from "@mui/icons-material/NoteAltOutlined";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
-import { useLocation, useNavigate } from "react-router-dom";
-import CustomerLedgerDialog  from "../Customer/CustomerLedgerDialog";
-import AddNewCustomerDialog  from "@pages/Customer/Addnewcustomerdialog";
-import { fetchSaleDetail }   from "../SalesHistory/useSaleshistory";
-import DiscountModal         from "./DiscountModal";
-import NoteModal             from "./NotesModal";
-import { useAppSelector } from "@store/store";
-import { BranchId, ZoduId } from "@store/slices/userSlice";
-import { ref } from "yup";
+import ShareIcon              from "@mui/icons-material/Share";
+import html2canvas            from "html2canvas";
+import jsPDF                  from "jspdf";
+import { useLocation }        from "react-router-dom";
+import CustomerLedgerDialog   from "../Customer/CustomerLedgerDialog";
+import AddNewCustomerDialog   from "@pages/Customer/Addnewcustomerdialog";
+import AddItemModal           from "../MenuItemScreen/AddItemModal";
+import {
+  fetchSaleDetail,
+} from "../SalesHistory/useSaleshistory";
+import { InvoicePDFTemplate } from "../SalesHistory/InvoicePDFTemplate";
+import DiscountModal          from "./DiscountModal";
+import NoteModal              from "./NotesModal";
+import { useAppSelector }     from "@store/store";
+import { BranchId, ZoduId }   from "@store/slices/userSlice";
+import { Download } from "@mui/icons-material";
 
-// ─── Constants ────────────────────────────────────────────────
 const INR = (v: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(v);
 const todayStr = () => new Date().toISOString().split("T")[0];
 
-// ─── Theme ────────────────────────────────────────────────────
 const theme = createTheme({
   palette: {
-    primary:    { main: "#C8102E" },
+    primary: { main: "#C8102E" },
     background: { default: "#F0F2F5", paper: "#FFFFFF" },
-    text:       { primary: "#1A1A2E", secondary: "#6B7280" },
+    text: { primary: "#1A1A2E", secondary: "#6B7280" },
   },
   components: {
-    MuiButton:    { styleOverrides: { root: { textTransform: "none", borderRadius: 8, fontWeight: 600 } } },
+    MuiButton: { styleOverrides: { root: { textTransform: "none", borderRadius: 8, fontWeight: 600 } } },
     MuiTableCell: {
       styleOverrides: {
         root: { borderBottom: "1px solid #F0F0F0", padding: "6px 8px" },
@@ -82,7 +86,6 @@ const theme = createTheme({
   },
 });
 
-// ─── Types ────────────────────────────────────────────────────
 interface LineItem {
   code: string; description: string; qty: number; unitPrice: number; sellPrice: number; uuid: string;
   hsn: string; mrp: number; gstPct: number; taxInclusive: boolean; category?: string; unit?: string;
@@ -92,28 +95,31 @@ interface LineItem {
 }
 interface Customer { id: string | null; name: string; mobile: string; address: string; gstin: string; }
 const EMPTY_CUSTOMER: Customer = { id: null, name: "", mobile: "", address: "", gstin: "" };
+interface SavedOrderSnapshot {
+  result: SaveOrderResult;
+  customer: Customer;
+}
 interface HeldOrder {
-  id:          string;
-  label:       string;
-  items:       LineItem[];
-  discount:    string;
+  id: string;
+  label: string;
+  items: LineItem[];
+  discount: string;
   discountPct: string;
-  customer:    Customer;
-  time:        Date;
+  customer: Customer;
+  time: Date;
   totalAmount: number;
 }
-type PosMode      = "SALE" | "QUOTATION";
-type Zone         = "SEARCH" | "CUSTOMER" | "TABLE" | "FOOTER";
-type SearchFocus  = "CODE";
-type FooterFocus  = "DISCOUNT_PCT" | "DISCOUNT_AMT" | "PAYMENT_TYPE" | "REF_NO" | "RECEIVED" | "SAVE";
-type PaymentType  = "Cash" | "Card" | "UPI" | "Others";
+type PosMode = "SALE" | "QUOTATION";
+type Zone = "SEARCH" | "CUSTOMER" | "TABLE" | "FOOTER";
+type SearchFocus = "CODE";
+type FooterFocus = "DISCOUNT_PCT" | "DISCOUNT_AMT" | "PAYMENT_TYPE" | "REF_NO" | "RECEIVED" | "SAVE";
+type PaymentType = "Cash" | "Card" | "UPI" | "Others";
 
-// ─── Helpers ──────────────────────────────────────────────────
 function toLineItem(p: PosProduct): LineItem {
-  const grossPrice   = Number(p.sell_price) || 0;
-  const gstPct       = Number(p.gst_tax)    || 0;
+  const grossPrice = Number(p.sell_price) || 0;
+  const gstPct = Number(p.gst_tax) || 0;
   const taxInclusive = p.tax_inclusive === true || (p.tax_inclusive as unknown) === 1;
-  const unitPrice    = taxInclusive && gstPct > 0 ? grossPrice / (1 + gstPct / 100) : grossPrice;
+  const unitPrice = taxInclusive && gstPct > 0 ? grossPrice / (1 + gstPct / 100) : grossPrice;
   return {
     uuid: p.item_uuid, code: p.item_id, description: p.item_name,
     qty: 1, unitPrice, sellPrice: grossPrice, taxInclusive,
@@ -123,10 +129,10 @@ function toLineItem(p: PosProduct): LineItem {
 }
 
 function paymentStatus(grand: number, received: number) {
-  if (received <= 0)           return { label: "UNPAID",                                  color: "#DC2626" };
-  if (received < grand - 0.01) return { label: `PARTIAL · Due ${INR(grand - received)}`,   color: "#D97706" };
+  if (received <= 0) return { label: "UNPAID", color: "#DC2626" };
+  if (received < grand - 0.01) return { label: `PARTIAL · Due ${INR(grand - received)}`, color: "#D97706" };
   if (received > grand + 0.01) return { label: `EXCESS · Return ${INR(received - grand)}`, color: "#2563EB" };
-  return                               { label: "FULL PAYMENT",                             color: "#16A34A" };
+  return { label: "FULL PAYMENT", color: "#16A34A" };
 }
 
 function Kbd({ children }: { children: React.ReactNode }) {
@@ -139,9 +145,21 @@ function Kbd({ children }: { children: React.ReactNode }) {
 
 function Highlight({ text, query }: { text: string; query: string }) {
   if (!query.trim()) return <>{text}</>;
-  const i = text.toLowerCase().indexOf(query.toLowerCase());
-  if (i === -1) return <>{text}</>;
-  return <>{text.slice(0, i)}<Box component="span" sx={{ bgcolor: "#FEF08A", borderRadius: 0.4, px: 0.2, fontWeight: 800 }}>{text.slice(i, i + query.length)}</Box>{text.slice(i + query.length)}</>;
+  const index = text.toLowerCase().indexOf(query.toLowerCase());
+  if (index === -1) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, index)}
+      <Box component="span" sx={{ bgcolor: "#FEF08A", borderRadius: 0.4, px: 0.2, fontWeight: 800 }}>
+        {text.slice(index, index + query.length)}
+      </Box>
+      {text.slice(index + query.length)}
+    </>
+  );
+}
+
+function toWords(n: number): string {
+  return n.toLocaleString("en-IN");
 }
 
 const queryClient = new QueryClient();
@@ -174,11 +192,15 @@ function RetailPOSInner() {
   const [paymentType,    setPaymentType]    = useState<PaymentType>("Cash");
   const [printEnabled,   setPrintEnabled]   = useState(true);
   const [invoiceDate,    setInvoiceDate]    = useState(todayStr());
+  const [dueDate,        setDueDate]        = useState("");
   const [orderNote,      setOrderNote]      = useState("");
   const [customer,       setCustomer]       = useState<Customer>(EMPTY_CUSTOMER);
   const [customerSuggestionsOpen, setCustomerSuggestionsOpen] = useState(false);
   const [customerLedgerOpen,      setCustomerLedgerOpen]      = useState(false);
   const [addCustomerOpen,         setAddCustomerOpen]         = useState(false);
+  const [addItemOpen,             setAddItemOpen]             = useState(false);
+  const [shareLoading,            setShareLoading]            = useState(false);
+  const [savedOrderSnapshot,      setSavedOrderSnapshot]      = useState<SavedOrderSnapshot | null>(null);
   const [flashRow,       setFlashRow]       = useState<string | null>(null);
   const [saleId,         setSaleId]         = useState<string | null>(null);
 
@@ -242,12 +264,14 @@ const {
   const grandTotal    = Math.round(grandTotalRaw);
   const received      = parseFloat(receivedAmount) || 0;
   const totalUnits    = useMemo(() => items.reduce((s, i) => s + i.qty, 0), [items]);
+  const isQuotation   = posMode === "QUOTATION";
   const status        = paymentStatus(grandTotal, received);
+  const dueDateEnabled = !isQuotation && received < grandTotal - 0.01;
   // ────────────────────────────────────────────────────────────────────────────
 
   const [saveResult, setSaveResult] = useState<{
     open: boolean; success: boolean; message: string;
-    invoiceNo?: string; grandTotal?: number; change?: number;
+    invoiceNo?: string; grandTotal?: number; change?: number; saleId?: string;
   } | null>(null);
 
   const codeRef           = useRef<HTMLInputElement>(null);
@@ -263,6 +287,7 @@ const {
   const discountRefs      = useRef<Record<string, HTMLInputElement | null>>({});
   const editCancelledRef  = useRef(false);
   const inputRef          = useRef<HTMLInputElement | null>(null);
+  const pdfRef            = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => { forceRefresh(); }, []);
   useEffect(() => { codeRef.current?.focus(); }, []);
@@ -364,6 +389,7 @@ useEffect(() => {
         setPaymentType((last.transaction_type as any) || "Cash");
       }
       setInvoiceDate(sale.sale_date_fmt ? new Date(sale.sale_date_fmt).toISOString().split("T")[0] : "");
+      setDueDate((sale as any).due_date ? new Date((sale as any).due_date).toISOString().split("T")[0] : ((sale as any).due_date_fmt ? new Date((sale as any).due_date_fmt).toISOString().split("T")[0] : ""));
     };
     loadSale();
   }, [saleId]);
@@ -388,6 +414,7 @@ useEffect(() => {
   const handleClear = useCallback(() => {
     setItems([]); setDiscount("0"); setDiscountPct("0"); setReferenceNo("");
     setReceivedAmount(""); setCodeInput(""); setActiveRowIdx(-1); setOrderNote("");
+    setDueDate("");
     setZone("SEARCH"); setSearchFocus("CODE");
     setCustomer(EMPTY_CUSTOMER); clearCustomerResults(); setGstMode("after");
     setReceivedDirty(false);
@@ -544,14 +571,18 @@ console.log("test",serverHolds)
     });
   };
 
-  const navigate = useNavigate();
-
   const handleCustomerFieldChange = useCallback((field: "name" | "mobile", value: string) => {
     setCustomer(prev => ({ ...prev, id: null, [field]: value }));
     setCustomerSuggestionsOpen(true);
     setCustomerSuggestionIdx(-1);
     searchCustomers(value);
   }, [searchCustomers]);
+
+  const handleAddItemSaved = useCallback(() => {
+    setAddItemOpen(false);
+    void forceRefresh();
+    setTimeout(() => codeRef.current?.focus(), 10);
+  }, [forceRefresh]);
 
   const handleSelectCustomer = useCallback((c: ApiCustomer) => {
     const custName    = c.cust_name?.trim() ?? "";
@@ -561,24 +592,32 @@ console.log("test",serverHolds)
     setCustomerSuggestionsOpen(false); setCustomerSuggestionIdx(-1); clearCustomerResults(); setZone("CUSTOMER");
   }, [clearCustomerResults]);
 
+  const handleCloseSaveResult = useCallback(() => {
+    setSaveResult(null);
+    setSavedOrderSnapshot(null);
+  }, []);
+
   const handleSave = useCallback(async () => {
     if (items.length === 0 || saving) return;
     const result = saleId
-      ? await updateOrder(saleId, { zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo })
-      : await saveOrder({ zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo });
+      ? await updateOrder(saleId, { zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, dueDate: dueDateEnabled ? dueDate : "", discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo })
+      : await saveOrder({ zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, dueDate: dueDateEnabled ? dueDate : "", discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo });
     if (result.success) {
-      
+      console.log("save Result",result)
       const order    = result.order as any;
       const totalAmt = parseFloat(order?.total_amount ?? "0");
       const paidAmt  = parseFloat(order?.paid_amount  ?? "0");
       const change   = paidAmt > totalAmt ? paidAmt - totalAmt : 0;
-      setSaveResult({ open: true, success: true, message: result.message, grandTotal: totalAmt, change });
+      const savedSaleId = String(order?.sale_id ?? saleIdFromUrl ?? "").trim() || undefined;
+      setSavedOrderSnapshot({ result: result as SaveOrderResult, customer: { ...customer } });
+      setSaveResult({ open: true, success: true, message: result.message, grandTotal: totalAmt, change, saleId: savedSaleId });
       if (printEnabled) console.log("🖨 Printing invoice");
       handleClear();
     } else {
+      setSavedOrderSnapshot(null);
       setSaveResult({ open: true, success: false, message: result.message });
     }
-  }, [items, customer, invoiceDate, discountPct, discount, gstMode, roundoffValue, posMode, receivedAmount, paymentType, referenceNo, printEnabled, saving, saveOrder, updateOrder, handleClear, saleId]);
+  }, [items, customer, invoiceDate, dueDate, dueDateEnabled, discountPct, discount, gstMode, roundoffValue, posMode, receivedAmount, paymentType, referenceNo, printEnabled, saving, saveOrder, updateOrder, handleClear, saleId, saleIdFromUrl]);
 
   const FOOTER_ORDER: FooterFocus[] = ["DISCOUNT_PCT", "DISCOUNT_AMT", "PAYMENT_TYPE", "REF_NO", "RECEIVED", "SAVE"];
 
@@ -673,7 +712,6 @@ console.log("test",serverHolds)
   const footerOutline  = (f: FooterFocus) => ({ outline: isFooterActive(f) ? "2.5px solid #C8102E" : "2.5px solid transparent", outlineOffset: 2, transition: "outline 0.12s" });
   const isSearchActive = (sf: SearchFocus) => zone === "SEARCH" && searchFocus === sf;
 
-  const isQuotation = posMode === "QUOTATION";
   const modeAccent  = "#C8102E";
   const modeBg      = "#FFF1F3";
   const modeBorder  = "#F3C4CB";
@@ -690,6 +728,187 @@ console.log("test",serverHolds)
   const totalGstRow = items.reduce((s, i) => s + (i.qty * i.unitPrice * i.gstPct) / 100, 0);
   const totalAmtRow = items.reduce((s, i) => s + i.qty * i.sellPrice - (i.discount ?? 0), 0);
   const empty       = items.length === 0;
+
+  const savedHsnBreakdown = useMemo(() => {
+    const saleItems = (savedOrderSnapshot?.result.items as any[]) ?? [];
+    const hsnMap = saleItems.reduce((acc, item) => {
+      const hsn = item.hsn_code ?? "-";
+      const gstPct = Number(item.gst_percentage ?? 0);
+      const quantity = Number(item.quantity ?? 0);
+      const price = Number(item.price ?? 0);
+      const discountAmount = Number(item.discount ?? 0);
+      const taxable = quantity * price - discountAmount;
+      const cgst = Number(item.cgst ?? 0);
+      const sgst = Number(item.sgst ?? 0);
+
+      if (!acc[hsn]) {
+        acc[hsn] = {
+          hsn,
+          taxable: 0,
+          cgstRate: gstPct / 2,
+          cgstAmount: 0,
+          sgstRate: gstPct / 2,
+          sgstAmount: 0,
+          totalTaxAmount: 0,
+        };
+      }
+
+      acc[hsn].taxable += taxable;
+      acc[hsn].cgstAmount += cgst;
+      acc[hsn].sgstAmount += sgst;
+      acc[hsn].totalTaxAmount += cgst + sgst;
+      return acc;
+    }, {} as Record<string, {
+      hsn: string;
+      taxable: number;
+      cgstRate: number;
+      cgstAmount: number;
+      sgstRate: number;
+      sgstAmount: number;
+      totalTaxAmount: number;
+    }>);
+
+    return Object.values(hsnMap);
+  }, [savedOrderSnapshot]);
+
+  const savedPdfData = useMemo(() => {
+    const order = savedOrderSnapshot?.result.order as any;
+    const saleItems = (savedOrderSnapshot?.result.items as any[]) ?? [];
+    const payment = savedOrderSnapshot?.result.payment as any;
+    const saleCustomer = savedOrderSnapshot?.customer;
+    if (!order) return null;
+
+    const customerName = saleCustomer?.name?.trim() || "Walk-In";
+    const customerAddress = saleCustomer?.address?.trim() || "-";
+    const customerMobile = saleCustomer?.mobile?.trim() ? `+91 ${saleCustomer.mobile}` : "-";
+    const customerGstin = saleCustomer?.gstin?.trim() || "-";
+    const hasDiscount = Number(order.discount_amount ?? 0) > 0;
+    const discountLabel = order.discount_type === "percentage"
+      ? `Discount (${Number(order.discount_value ?? 0)}%)`
+      : "Discount";
+
+    const totalCgst = savedHsnBreakdown.reduce((sum, row) => sum + row.cgstAmount, 0);
+    const totalSgst = savedHsnBreakdown.reduce((sum, row) => sum + row.sgstAmount, 0);
+    const totalAmount = Number(order.total_amount ?? 0);
+
+    return {
+      sale_id: order.sale_id,
+      date: order.sale_date,
+      due_date: order.due_date ?? null,
+      customer_name: customerName,
+      customer_address: customerAddress,
+      customer_mobile: customerMobile,
+      customer_gstin: customerGstin,
+      payment_mode: payment?.transaction_type ?? paymentType,
+      payment_status: order.payment_status,
+      items: saleItems.map((item) => ({
+        item_id: item.item_id,
+        name: item.item_name,
+        category: item.variant_name ?? "",
+        hsn: item.hsn_code ?? "-",
+        qty: Number(item.quantity ?? 0),
+        mrp: Number(item.mrp ?? item.price ?? 0),
+        rate: Number(item.price ?? 0),
+        tax: Number(item.gst_percentage ?? 0),
+        total: Number(item.total_amount ?? 0),
+      })),
+      subtotal: Number(order.subtotal ?? 0),
+      discount: hasDiscount ? Number(order.discount_amount ?? 0) : null,
+      discount_label: discountLabel,
+      cgst: totalCgst,
+      sgst: totalSgst,
+      cgst_pct: savedHsnBreakdown[0]?.cgstRate ?? 0,
+      sgst_pct: savedHsnBreakdown[0]?.sgstRate ?? 0,
+      round_off: order.round_off,
+      total: totalAmount,
+      amount_in_words: `${toWords(Math.round(totalAmount))} Rupees Only`,
+      gst_breakdown: savedHsnBreakdown,
+      company: undefined,
+    };
+  }, [savedHsnBreakdown, savedOrderSnapshot, paymentType]);
+
+  const generateInvoicePdf = useCallback(async (): Promise<jsPDF | null> => {
+    if (!pdfRef.current) return null;
+
+    const canvas = await html2canvas(pdfRef.current, {
+      scale: 1.6,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      logging: false,
+    });
+
+    const imgData = canvas.toDataURL("image/jpeg", 0.72);
+    const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4", compress: true });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imageWidth = pageWidth;
+    const imageHeight = (canvas.height * imageWidth) / canvas.width;
+
+    let heightLeft = imageHeight;
+    let position = 0;
+
+    pdf.addImage(imgData, "JPEG", 0, position, imageWidth, imageHeight, undefined, "MEDIUM");
+    heightLeft -= pageHeight;
+
+    while (heightLeft > 0) {
+      position = heightLeft - imageHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, "JPEG", 0, position, imageWidth, imageHeight, undefined, "MEDIUM");
+      heightLeft -= pageHeight;
+    }
+
+    return pdf;
+  }, []);
+
+  const handleDownloadInvoice = useCallback(async () => {
+    if (!savedPdfData) return;
+    setShareLoading(true);
+    try {
+      const pdf = await generateInvoicePdf();
+      if (!pdf) return;
+      const fileName = `Invoice_${savedPdfData.sale_id ?? saveResult?.saleId ?? "invoice"}.pdf`;
+      pdf.save(fileName);
+    } finally {
+      setShareLoading(false);
+    }
+  }, [generateInvoicePdf, saveResult?.saleId, savedPdfData]);
+
+  const handleShareInvoice = useCallback(async () => {
+    if (!savedPdfData) return;
+
+    setShareLoading(true);
+    try {
+      const pdf = await generateInvoicePdf();
+      if (!pdf) return;
+
+      const fileName = `Invoice_${savedPdfData.sale_id ?? saveResult?.saleId ?? "invoice"}.pdf`;
+      const blob = pdf.output("blob");
+      const file = new File([blob], fileName, { type: "application/pdf" });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: `Invoice ${savedPdfData.sale_id ?? ""}`.trim(),
+            text: `Invoice from ${savedPdfData.sale_id ?? "POS"}`,
+          });
+          return;
+        } catch (error: any) {
+          if (error?.name === "AbortError") return;
+        }
+      }
+
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.target = "_blank";
+      anchor.rel = "noopener noreferrer";
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } finally {
+      setShareLoading(false);
+    }
+  }, [generateInvoicePdf, saveResult?.saleId, savedPdfData]);
 
   // ─────────────────────────────────────────────────────────────
   return (
@@ -802,6 +1021,10 @@ console.log("test",serverHolds)
                           ))}
                         </Box>
                       )}
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 1.5, py: 0.85, bgcolor: "#FCFCFD", borderTop: "1px solid #EEF2F7" }}>
+                        <Typography sx={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700 }}>Type to search by item id, name or category</Typography>
+                        <Button size="small" variant="contained" onMouseDown={(e) => { e.preventDefault(); setShowSuggestions(false); setAddItemOpen(true); }} sx={{ bgcolor: modeAccent, fontSize: 9, fontWeight: 800, borderRadius: 1.5, px: 1.1, py: 0.45, "&:hover": { bgcolor: isQuotation ? "#1E40AF" : "#A50D26" } }}>+ Add Menu Item</Button>
+                      </Box>
                     </Paper>
                   )}
                 </Box>
@@ -935,11 +1158,11 @@ console.log("test",serverHolds)
                               <IconButton size="small" onClick={() => updateQty(item.code, -1)} sx={{ width: 24, height: 24, bgcolor: "#F3F4F6", "&:hover": { bgcolor: "#FEE2E2" } }}><RemoveIcon sx={{ fontSize: 12 }} /></IconButton>
                               {item.editingQty ? (
                                 <TextField inputRef={el => { qtyRefs.current[item.code] = el; }} value={item.qtyDraft ?? ""}
-                                  onChange={e => setItems(prev => prev.map(i => i.code === item.code ? { ...i, qtyDraft: e.target.value.replace(/\D/, "") } : i))}
-                                  onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = qtyRefs.current[item.code]; const newQty = Math.max(1, parseInt(el?.value ?? "") || 1); setItems(prev => prev.map(i => i.code === item.code ? { ...i, qty: newQty, editingQty: false, qtyDraft: undefined } : i)); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
-                                  onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); const newQty = Math.max(1, parseInt((e.target as HTMLInputElement).value) || 1); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, qty: newQty, editingQty: false, qtyDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingQty: false, qtyDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
-                                  size="small" inputProps={{ style: { textAlign: "center", fontWeight: 800, fontSize: 14, padding: "2px 2px", width: 32 } }}
-                                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#1976D2", borderWidth: 2 } }, width: 48 }} />
+                                  onChange={e => setItems(prev => prev.map(i => i.code === item.code ? { ...i, qtyDraft: e.target.value.replace(/[^0-9.]/g, "") } : i))}
+                                  onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = qtyRefs.current[item.code]; const newQty = Math.max(1, parseFloat(el?.value ?? "") || 1); setItems(prev => prev.map(i => i.code === item.code ? { ...i, qty: newQty, editingQty: false, qtyDraft: undefined } : i)); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
+                                  onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); const newQty = Math.max(1, parseFloat((e.target as HTMLInputElement).value) || 1); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, qty: newQty, editingQty: false, qtyDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingQty: false, qtyDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
+                                  size="small" inputProps={{ step: "any", style: { textAlign: "center", fontWeight: 800, fontSize: 14, padding: "2px 2px", width: 48 } }}
+                                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#1976D2", borderWidth: 2 } }, width: 64 }} />
                               ) : (
                                 <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditQty(item.code); }}
                                   sx={{ minWidth: 30, textAlign: "center", fontWeight: 800, fontSize: 14, px: 0.4, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #1976D2" : "1.5px dashed transparent", bgcolor: isActive ? "#E3F2FD" : "transparent", "&:hover": { border: "1.5px dashed #1976D2", bgcolor: "#E3F2FD" }, transition: "all 0.15s" }}>{item.qty}</Box>
@@ -1043,7 +1266,7 @@ console.log("test",serverHolds)
         </Box>
 
         {/* ═══════════════════ BILLING FOOTER ════════════════════ */}
-        <Box sx={{ bgcolor: "#fff", borderTop: "1px solid #E5E7EB", px: { xs: 1, sm: 1.5, md: 2 }, py: { xs: 0.5, sm: 0.75 }, display: "flex", gap: { xs: 1, sm: 1.5 }, alignItems: "stretch", justifyContent: "flex-end", flexDirection: { xs: "column", lg: "row" } }}>
+        <Box sx={{ bgcolor: "#fff", borderTop: "1px solid #E5E7EB", px: { xs: 1, sm: 1.5, md: 2 }, py: { xs: 0.5, sm: 1 }, display: "flex", gap: { xs: 1, sm: 1.5 }, alignItems: "stretch", justifyContent: "flex-end", flexDirection: { xs: "column", lg: "row" } }}>
 
           {/* LEFT BLOCK */}
           <Box sx={{ width: { xs: "100%", lg: "auto" }, minWidth: { lg: 360 }, flexShrink: 0, display: "flex", flexDirection: "column", gap: { xs: 0.5, sm: 0.65 } }}>
@@ -1084,11 +1307,45 @@ console.log("test",serverHolds)
               </Box>
             )}
             {!isQuotation && (
-              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-                <Typography sx={{ fontSize: { xs: 8, sm: 9 }, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.06em" }}>PAYMENT STATUS</Typography>
-                <Typography sx={{ fontSize: { xs: 10, sm: 11 }, fontWeight: 800, color: status.color, letterSpacing: "0.04em" }}>{status.label}</Typography>
+              <Box sx={{ display: "flex", gap: { xs: 0.75, sm: 1.5 }, flexDirection: { xs: "column", sm: "row" }, alignItems: { sm: "flex-end" },justifyContent: "space-between" }}>
+                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+                  <Typography sx={{ fontSize: { xs: 8, sm: 9 }, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.06em", mb: 0.35 }}>PAYMENT STATUS</Typography>
+                  <Box sx={{ display: "flex", alignItems: "center", height: 32 }}>
+                    <Typography sx={{ fontSize: { xs: 11, sm: 12 }, fontWeight: 800, color: status.color, letterSpacing: "0.04em" }}>{status.label}</Typography>
+                  </Box>
+                </Box>
+                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                  <Typography sx={{ fontSize: { xs: 8, sm: 9 }, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.06em", mb: 0.35 }}>DUE DATE</Typography>
+                  <TextField
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    onFocus={() => setZone("FOOTER")}
+                    disabled={!dueDateEnabled}
+                    size="small"
+                    inputProps={{ min: invoiceDate }}
+                    sx={{
+                      minWidth: { xs: "100%", sm: 160 },
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: 1.5,
+                        bgcolor: dueDateEnabled ? "#fff" : "#F8FAFC",
+                        "& fieldset": { borderColor: dueDateEnabled ? "#E5E7EB" : "#E2E8F0" },
+                        "&:hover fieldset": { borderColor: dueDateEnabled ? "#C8102E" : "#E2E8F0" },
+                        "&.Mui-focused fieldset": { borderColor: "#C8102E", borderWidth: 2 },
+                      },
+                      "& .MuiInputBase-input": {
+                        py: "6px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        color: dueDateEnabled ? "#111827" : "#94A3B8",
+                      },
+                    }}
+                  />
+                </Box>
               </Box>
             )}
+           
+          
           </Box>
 
           <Divider orientation="vertical" flexItem sx={{ mx: { xs: 0.5, sm: 0.75 }, display: { xs: "none", lg: "block" } }} />
@@ -1202,7 +1459,7 @@ onChange={e => {
         </Dialog>
 
         {/* SAVE RESULT DIALOG */}
-        <Dialog open={!!saveResult?.open} onClose={() => setSaveResult(null)} maxWidth="xs" fullWidth TransitionComponent={Fade}>
+        <Dialog open={!!saveResult?.open} onClose={handleCloseSaveResult} maxWidth="xs" fullWidth TransitionComponent={Fade}>
           <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pb: 0 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Box sx={{ bgcolor: saveResult?.success ? "#DCFCE7" : "#FEE2E2", borderRadius: "50%", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1210,21 +1467,28 @@ onChange={e => {
               </Box>
               <Typography sx={{ fontWeight: 700, fontSize: 16 }}>{saveResult?.success ? (isQuotation ? "Quotation Saved" : "Order Saved") : "Save Failed"}</Typography>
             </Box>
-            <IconButton size="small" onClick={() => setSaveResult(null)}><CloseIcon sx={{ fontSize: 16 }} /></IconButton>
+            <IconButton size="small" onClick={handleCloseSaveResult}><CloseIcon sx={{ fontSize: 16 }} /></IconButton>
           </DialogTitle>
           <DialogContent sx={{ pt: 2 }}>
             {saveResult?.success ? (
-              <Box>
+              <Box sx={{my:2}}>
+                 <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+                  <Typography sx={{ fontSize: 13, color: "#6B7280" }}>Invoice Id</Typography>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700 }}>{saveResult.saleId}</Typography>
+                </Box>
+                
                 <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
                   <Typography sx={{ fontSize: 13, color: "#6B7280" }}>Grand Total</Typography>
                   <Typography sx={{ fontSize: 13, fontWeight: 700 }}>{INR(saveResult.grandTotal ?? 0)}</Typography>
                 </Box>
+                <Typography sx={{ fontSize: 15, color: "#16A34A", mb: 0.5,textAlign:"center" }}>Invoice generated successfully.</Typography>
                 {!isQuotation && (saveResult.change ?? 0) > 0 && (
                   <Box sx={{ display: "flex", justifyContent: "space-between", bgcolor: "#DBEAFE", borderRadius: 1.5, px: 1.5, py: 0.8, mt: 0.5 }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#1D4ED8" }}>💵 Return Change</Typography>
                     <Typography sx={{ fontSize: 14, fontWeight: 800, color: "#1D4ED8" }}>{INR(saveResult.change ?? 0)}</Typography>
                   </Box>
                 )}
+               
               </Box>
             ) : (
               <Box sx={{ bgcolor: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 2, p: 1.5 }}>
@@ -1233,19 +1497,47 @@ onChange={e => {
             )}
           </DialogContent>
           <DialogActions sx={{ px: 2, pb: 2, gap: 1 }}>
-            {saveResult?.success && printEnabled && (
-              <Button variant="outlined" startIcon={<PrintOutlinedIcon />} onClick={() => setSaveResult(null)} sx={{ borderRadius: 2, fontWeight: 600, flex: 1, borderColor: "#E5E7EB", color: "#374151" }}>Print</Button>
+            {saveResult?.success && (
+              <Tooltip title={savedPdfData ? "Download invoice" : "Preparing invoice..."}>
+                <span>
+                  <IconButton onClick={handleDownloadInvoice} disabled={!savedPdfData || shareLoading}
+                    sx={{ border: "1px solid #E5E7EB", borderRadius: 2, color: "#475569", bgcolor: "#fff", "&:hover": { bgcolor: "#F8FAFC", borderColor: "#CBD5E1" }, "&.Mui-disabled": { bgcolor: "#F8FAFC", color: "#CBD5E1" } }}>
+                    {shareLoading ? <CircularProgress size={18} /> : <Download sx={{ fontSize: 18 }} />}
+                  </IconButton>
+                </span>
+              </Tooltip>
             )}
-            <Button variant="contained" onClick={() => setSaveResult(null)}
+            {saveResult?.success && (
+              <Tooltip title={savedPdfData ? "Share invoice" : "Preparing invoice..."}>
+                <span>
+                  <IconButton onClick={handleShareInvoice} disabled={!savedPdfData || shareLoading}
+                    sx={{ border: "1px solid #E5E7EB", borderRadius: 2, color: "#475569", bgcolor: "#fff", "&:hover": { bgcolor: "#F8FAFC", borderColor: "#CBD5E1" }, "&.Mui-disabled": { bgcolor: "#F8FAFC", color: "#CBD5E1" } }}>
+                    {shareLoading ? <CircularProgress size={18} /> : <ShareIcon sx={{ fontSize: 18 }} />}
+                  </IconButton>
+                </span>
+              </Tooltip>
+            )}
+            {saveResult?.success && printEnabled && (
+              <Button variant="outlined" startIcon={<PrintOutlinedIcon />} onClick={handleCloseSaveResult} sx={{ borderRadius: 2, fontWeight: 600, flex: 1, borderColor: "#E5E7EB", color: "#374151" }}>Print</Button>
+            )}
+            <Button variant="contained" onClick={handleCloseSaveResult}
               sx={{ bgcolor: saveResult?.success ? "#16A34A" : "#C8102E", "&:hover": { bgcolor: saveResult?.success ? "#15803D" : "#A50D26" }, borderRadius: 2, fontWeight: 700, flex: 1 }} autoFocus>
               {saveResult?.success ? (isQuotation ? "New Quote" : "New Sale") : "Dismiss"}
             </Button>
           </DialogActions>
         </Dialog>
 
+        {savedPdfData && (
+          <Box sx={{ position: "fixed", left: -10000, top: 0, width: 794, pointerEvents: "none", opacity: 0 }}>
+            <InvoicePDFTemplate ref={pdfRef} data={savedPdfData} />
+          </Box>
+        )}
+
         <CustomerLedgerDialog open={customerLedgerOpen} onClose={() => setCustomerLedgerOpen(false)} custUuid={customer.id} customerName={customer.name || "Walk-in Customer"} />
         <AddNewCustomerDialog open={addCustomerOpen} onClose={() => setAddCustomerOpen(false)} />
+        <AddItemModal open={addItemOpen} onClose={() => setAddItemOpen(false)} onSave={handleAddItemSaved} />
       </Box>
     </ThemeProvider>
   );
 }
+

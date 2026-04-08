@@ -408,7 +408,7 @@ export default function SalesHistoryPage() {
         justifyContent: "space-between", gap: 2, mb: 1,
         flexDirection: { xs: "column", md: "row" },
       }}>
-        <Grid container spacing={2} sx={{ flex: 1 }}>
+        <Grid container spacing={2} >
           <Grid item>
             <StatCard
               label="Total Transactions" value={totalCount} valuePrefix=""

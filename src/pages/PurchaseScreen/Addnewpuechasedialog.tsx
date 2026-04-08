@@ -142,7 +142,7 @@ interface QtyCounterProps {
 function QtyCounter({ value, onChange, disabled = false, min = 0, size = "compact" }: QtyCounterProps) {
   const h = size === "compact" ? 28 : 32;
   const btnW = size === "compact" ? 26 : 28;
-  const numW = size === "compact" ? 36 : 42;
+  const numW = size === "compact" ? 52 : 68;
   const fs = size === "compact" ? 12 : 13;
   const active = value > 0;
   const dec = (e: React.MouseEvent) => { e.stopPropagation(); if (value > min) onChange(value - 1); };
@@ -157,7 +157,7 @@ function QtyCounter({ value, onChange, disabled = false, min = 0, size = "compac
       <Box component="button" onClick={dec} disabled={disabled || value <= min} sx={{ width: btnW, height: "100%", border: "none", borderRight: `1px solid ${divider}`, bgcolor: "transparent", cursor: disabled || value <= min ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: disabled || value <= min ? "#CBD5E1" : btnColor, transition: "background 0.1s", "&:hover:not(:disabled)": { bgcolor: "rgba(210,31,60,0.07)" }, "&:active:not(:disabled)": { bgcolor: "rgba(210,31,60,0.13)" }, p: 0, m: 0, flexShrink: 0 }}>
         <RemoveIcon sx={{ fontSize: fs + 1 }} />
       </Box>
-      <Box component="input" type="number" value={value} disabled={disabled} onClick={e => e.stopPropagation()} onChange={e => { const v = parseInt(e.target.value, 10); if (!isNaN(v)) onChange(Math.max(min, v)); }} sx={{ width: numW, height: "100%", border: "none", outline: "none", textAlign: "center", fontSize: fs, fontWeight: 700, color: numColor, bgcolor: "transparent", fontFamily: "inherit", "&::-webkit-outer-spin-button, &::-webkit-inner-spin-button": { WebkitAppearance: "none" }, MozAppearance: "textfield", p: 0 }} />
+      <Box component="input" type="number" step="any" value={value} disabled={disabled} onClick={e => e.stopPropagation()} onChange={e => { const raw = e.target.value; if (raw === "") return; const v = parseFloat(raw); if (!isNaN(v)) onChange(Math.max(min, v)); }} sx={{ width: numW, height: "100%", border: "none", outline: "none", textAlign: "center", fontSize: fs, fontWeight: 700, color: numColor, bgcolor: "transparent", fontFamily: "inherit", "&::-webkit-outer-spin-button, &::-webkit-inner-spin-button": { WebkitAppearance: "none" }, MozAppearance: "textfield", p: 0 }} />
       <Box component="button" onClick={inc} disabled={disabled} sx={{ width: btnW, height: "100%", border: "none", borderLeft: `1px solid ${divider}`, bgcolor: "transparent", cursor: disabled ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: disabled ? "#CBD5E1" : btnColor, transition: "background 0.1s", "&:hover:not(:disabled)": { bgcolor: "rgba(210,31,60,0.07)" }, "&:active:not(:disabled)": { bgcolor: "rgba(210,31,60,0.13)" }, p: 0, m: 0, flexShrink: 0 }}>
         <AddIcon sx={{ fontSize: fs + 1 }} />
       </Box>
@@ -380,7 +380,7 @@ function ItemPickerDialog({ open, onClose, alreadyAdded, onConfirm }: ItemPicker
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md" PaperProps={{ sx: { borderRadius: 3, maxHeight: "82vh", display: "flex", flexDirection: "column", boxShadow: "0 25px 60px rgba(15,23,42,0.28)" } }}>
+    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md" PaperProps={{ sx: { borderRadius: 3, maxHeight: "82vh", height:"82vh" ,display: "flex", flexDirection: "column", boxShadow: "0 25px 60px rgba(15,23,42,0.28)" } }}>
       <DialogTitle sx={{ px: 3, py: 2, borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
           <Box sx={{ p: 0.8, bgcolor: "rgba(210,31,60,0.08)", borderRadius: 2, display: "flex" }}><InventoryOutlinedIcon sx={{ color: "#D21F3C", fontSize: 20 }} /></Box>

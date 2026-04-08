@@ -6,6 +6,7 @@ import {
   CardActionArea,
   Typography,
   Box,
+  Divider,
 } from "@mui/material";
 import {
   Receipt,
@@ -17,11 +18,12 @@ import { useNavigate } from "react-router-dom";
 
 const reportCards = [
   {
-    title: "Orders Report",
+    title: "Sales Report",
     description:
       "View sales trends, peak hours, and popular menu items performance over time.",
     icon: Receipt,
-    path: "/reports/orders",
+    path: "/reports/sales",
+    category: "/reports/sales/category-item",
     color: "#f44336",
   },
   {
@@ -84,28 +86,25 @@ const ReportDashboard: React.FC = () => {
               elevation={0}
               sx={{
                 border: "1px solid #eee",
-                borderRadius: 2,
+                borderRadius: 1,
                 height: "100%",
-                minHeight: 190,
+                minHeight: "auto",
                 transition: "0.2s",
-                "&:hover": {
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                  transform: "translateY(-2px)",
-                },
+                // "&:hover": {
+                //   boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                //   transform: "translateY(-2px)",
+                // },
               }}
             >
-              <CardActionArea
-                onClick={() => navigate(card.path)}
-                sx={{ height: "100%" }}
-              >
+           
                 <CardContent >
-                  <Box display="flex" alignItems="center" mb={1.5}>
+                  <Box display="flex" alignItems="center" >
                     <Box
                       sx={{
                         width: 34,
                         height: 34,
                         borderRadius: 1.5,
-                        backgroundColor: `${card.color}20`,
+                         backgroundColor: `${card.color}20`,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -119,8 +118,20 @@ const ReportDashboard: React.FC = () => {
                     <Typography fontSize={18} fontWeight={600} noWrap>
                       {card.title}
                     </Typography>
+                  
                   </Box>
-
+                    <Divider sx={{my:1.5}} />
+                    <Box sx={{ml:2}}>
+                    <Typography onClick={() => navigate(card.path)} fontSize={14} fontWeight={400} sx={{cursor:"pointer", "&:hover": { color:"#1976d2" }}} color="#000" mt={1}>
+                     • MonthWise Report
+                    </Typography>
+                    {card.category && (
+                      <Typography onClick={() => navigate(card.category)} fontSize={14} fontWeight={400} sx={{cursor:"pointer", "&:hover": { color:"#1976d2" }}} color="#000" mt={1}>
+                        • Category/Item-wise Report
+                      </Typography>
+                    )}
+                    </Box>
+{/* 
                   <Typography
                     fontSize={12}
                     color="text.secondary"
@@ -133,9 +144,8 @@ const ReportDashboard: React.FC = () => {
                     }}
                   >
                     {card.description}
-                  </Typography>
+                  </Typography> */}
                 </CardContent>
-              </CardActionArea>
             </Card>
           );
         })}

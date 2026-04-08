@@ -232,6 +232,7 @@ async function fetchMenuItems(
       },
     }
   );
+  console.log("from hook",data)
   return data;
 }
 
@@ -284,9 +285,11 @@ async function postAddMenuItem(
 /**
  * DELETE /restaurant/api/delete/menu_item/:item_uuid
  */
-async function deleteMenuItem(item_uuid: string): Promise<{ success: boolean; message: string }> {
+
+
+async function hardDeleteMenuItem(item_uuid: string): Promise<{ success: boolean; message: string }> {
   const { data } = await axios.delete<{ success: boolean; message: string }>(
-    `${API_BASE}/restaurant/api/delete/menu_item/${item_uuid}`
+    `${API_BASE}/restaurant/api/menu/remove/menu_item/${item_uuid}`
   );
   return data;
 }
@@ -299,14 +302,16 @@ async function deleteMenuItem(item_uuid: string): Promise<{ success: boolean; me
  * On success:
  *  - Invalidates menu list
  */
-export function useDeleteMenuItem(options?: {
+
+
+export function useHardDeleteMenuItem(options?: {
   onSuccess?: (data: { success: boolean; message: string }) => void;
   onError?: (message: string) => void;
 }): UseMutationResult<{ success: boolean; message: string }, unknown, string> {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: deleteMenuItem,
+    mutationFn: hardDeleteMenuItem,
 
     onSuccess: (data) => {
       // 🔥 refresh list after delete
@@ -320,6 +325,50 @@ export function useDeleteMenuItem(options?: {
         ? err.response?.data?.message ?? err.message
         : "Failed to delete item";
 
+      options?.onError?.(msg);
+    },
+  });
+}
+
+/**
+ * PATCH status of a menu item via the edit endpoint.
+ * Only sends { status } so no other fields are overwritten.
+ */
+async function updateMenuItemStatus(params: {
+  item_uuid: string;
+  status: "active" | "inactive";
+}): Promise<{ success: boolean; message: string }> {
+  console.log(params)
+  const { data } = await axios.put<{ success: boolean; message: string }>(
+    `${API_BASE}/restaurant/api/menu/status/${params.item_uuid}`,
+    { status: params.status }
+  );
+  console.log(data)
+  return data;
+}
+
+export function useUpdateMenuItemStatus(options?: {
+  onSuccess?: (
+    data: { success: boolean; message: string },
+    variables: { item_uuid: string; status: "active" | "inactive" }
+  ) => void;
+  onError?: (message: string) => void;
+}): UseMutationResult<
+  { success: boolean; message: string },
+  unknown,
+  { item_uuid: string; status: "active" | "inactive" }
+> {
+  return useMutation({
+    mutationFn: updateMenuItemStatus,
+
+    onSuccess: (data, variables) => {
+      options?.onSuccess?.(data, variables);
+    },
+
+    onError: (err: unknown) => {
+      const msg = axios.isAxiosError(err)
+        ? err.response?.data?.message ?? err.message
+        : "Failed to update status";
       options?.onError?.(msg);
     },
   });

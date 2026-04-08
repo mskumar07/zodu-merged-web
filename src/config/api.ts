@@ -43,6 +43,9 @@ interface InventoryEndPoints {
 
 interface ReportEndpoints {
   getReport: string; //Z-T87
+  salesSummary: string;
+  salesMonthlyBreakdown: string;
+  salesHistorical: string;
 }
 
 interface DashboardEndpoints {
@@ -170,6 +173,9 @@ export const apiConfig: ApiConstants = {
 
   report: {
     getReport: `${RESTAURANT_BASE}/api/report`,
+    salesSummary: `${RESTAURANT_BASE}/api/report/sales/summary`,
+    salesMonthlyBreakdown: `${RESTAURANT_BASE}/api/report/sales/monthly-breakdown`,
+    salesHistorical: `${RESTAURANT_BASE}/api/report/sales/historical`,
   },
 
   mainDashboard: {

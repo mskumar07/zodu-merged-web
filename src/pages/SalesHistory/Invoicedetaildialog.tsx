@@ -433,7 +433,7 @@ export default function InvoiceDetailsModal({
   const paidAmount     = Number(sale?.paid_amount ?? 0);
   const adjustedBalance = Math.max(0, adjustedTotal - paidAmount);
 
-  const customerName    = customer?.cust_name ?? customer?.cpy_name ?? "Walk-In Customer";
+  const customerName    = customer?.cust_name ?? customer?.cpy_name ?? "Walk-In";
   const customerMobile  = customer?.mobile ? `+91 ${customer.mobile}` : "—";
   const customerGstin   = customer?.gst ?? "—";
   const customerAddress = [
@@ -648,6 +648,7 @@ export default function InvoiceDetailsModal({
     payment_mode:      history?.[0]?.transaction_type ?? "Cash",
     payment_status:    sale?.payment_status,
     items: items.map((i: any) => ({
+      item_id:   i.item_id,
       name:     i.item_name,
       category: i.variant_name ?? "",
       hsn:      i.hsn_code ?? "—",
@@ -784,6 +785,7 @@ export default function InvoiceDetailsModal({
                 <Table size="small">
                   <TableHead>
                     <TableRow>
+                      <TH >Item Id</TH>
                       <TH>Item Name</TH>
                       <TH align="center">HSN</TH>
                       <TH align="right">Price</TH>
@@ -799,6 +801,9 @@ export default function InvoiceDetailsModal({
                       const returned  = Number(item.returned_qty ?? 0);
                       return (
                         <TableRow key={item.id} sx={{ "&:hover": { bgcolor: "#FAFBFC" } }}>
+                          <TD sx={{ borderBottom: isLast ? "none" : undefined, color: "#64748B" }}>
+                            {item.item_id}
+                          </TD>
                           <TD sx={{ borderBottom: isLast ? "none" : undefined }}>
                             <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>
                               {item.item_name}
@@ -816,7 +821,7 @@ export default function InvoiceDetailsModal({
                             {INR(item.price)}
                           </TD>
                           <TD align="center" sx={{ borderBottom: isLast ? "none" : undefined }}>
-                            {String(Number(item.quantity)).padStart(2, "0")} {item.unit}
+                            {String(Number(item.quantity))} {item.unit}
                           </TD>
                           {/* <TD align="center" sx={{ borderBottom: isLast ? "none" : undefined }}>
                             {returned > 0 ? (
@@ -891,7 +896,7 @@ export default function InvoiceDetailsModal({
                 <SRow
                   label="Grand Total"
                   value={INR(totalReturned > 0 ? adjustedTotal : originalTotal)}
-                  color={totalReturned > 0 ? "#7C3AED" : "#D0021B"}
+                  color={"#000000"}
                   borderTop
                   large
                 />

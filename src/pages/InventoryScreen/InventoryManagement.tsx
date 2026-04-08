@@ -12,6 +12,7 @@ import TrendingUpIcon    from '@mui/icons-material/TrendingUp';
 import WarningAmberIcon  from '@mui/icons-material/WarningAmber';
 import ErrorOutlineIcon  from '@mui/icons-material/ErrorOutline';
 import QrCodeIcon        from '@mui/icons-material/QrCode2';
+import StatCard          from '@components/StatCard';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import DataTable, { type ColumnDef } from '@utils/DataTable';
 import AdjustStockModal from './AdjustStockModal';
@@ -41,80 +42,6 @@ const formatINR = (v: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(Math.round(Number(v)));
 const TABLE_TEXT_COLOR = '#374151';
 
-// ── Stat card ──────────────────────────────────────────────────
-interface StatCardProps {
-  icon:    React.ReactNode;
-  iconBg:  string;
-  iconColor?: string;
-  label:   string;
-  value:   string | number;
-  sub?:    React.ReactNode;
-}
-const StatCard: React.FC<StatCardProps> = ({ icon, iconBg, iconColor, label, value, sub }) => (
-  <Box
-    sx={{
-      width: "auto",
-      flex: '0 0 220px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 2,
-      px: 2,
-      py: 1.8,
-      borderRadius: 1,
-      border: '1px solid',
-      borderColor: '#E5E7EB',
-      bgcolor: '#FFFFFF',
-      boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
-    }}
-  >
-    <Box
-      sx={{
-        width: 40,
-        height: 40,
-        flexShrink: 0,
-        borderRadius: 1.2,
-        bgcolor: iconBg,
-        color: iconColor,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      {icon}
-    </Box>
-    <Box sx={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
-      <Typography
-        sx={{
-          color: '#64748B',
-          fontSize: 13,
-          fontWeight: 500,
-          lineHeight: 1.2,
-          mb: 0.5,
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
-      >
-        {label}
-      </Typography>
-      <Typography
-      variant='h6'
-        sx={{
-
-          color: '#0F172A',
-          fontWeight: 800,
-          lineHeight: 1.2,
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
-      >
-        {value}
-      </Typography>
-      {/* {sub && <Box sx={{ mt: 0.35 }}>{sub}</Box>} */}
-    </Box>
-  </Box>
-);
 
 // ── Stock status badge ─────────────────────────────────────────
 const STATUS_MAP: Record<StockStatus, { label: string; color: string; dot: string }> = {
@@ -373,35 +300,35 @@ const handleCloseHistory = () => {
       >
         <StatCard
           icon={<Inventory2Icon sx={{ fontSize: 20 }} />}
-          iconBg="#DBEAFE"
+          iconBgColor="#DBEAFE"
           iconColor="#2563EB"
           label="Total Stock Value"
           value={summary ? formatINR(summary.total_stock_value) : '—'}
-          sub={<Typography variant="caption" sx={{ color: '#64748B', fontWeight: 500 }}>Current inventory worth</Typography>}
+          valuePrefix=""
         />
         <StatCard
           icon={<WarningAmberIcon sx={{ fontSize: 20 }} />}
-          iconBg="#FEF3C7"
+          iconBgColor="#FEF3C7"
           iconColor="#D97706"
           label="Low Stock Items"
           value={summary?.low_stock_count ?? '—'}
-          sub={<Typography variant="caption" sx={{ color: '#64748B', fontWeight: 500 }}>Items below reorder level</Typography>}
+          valuePrefix=""
         />
         <StatCard
           icon={<ErrorOutlineIcon sx={{ fontSize: 20 }} />}
-          iconBg="#FEE2E2"
+          iconBgColor="#FEE2E2"
           iconColor="#DC2626"
           label="Out of Stock"
           value={summary?.out_of_stock_count ?? '—'}
-          sub={<Typography variant="caption" sx={{ color: '#64748B', fontWeight: 500 }}>Immediate action required</Typography>}
+          valuePrefix=""
         />
         <StatCard
           icon={<QrCodeIcon sx={{ fontSize: 20 }} />}
-          iconBg="#DCFCE7"
+          iconBgColor="#DCFCE7"
           iconColor="#16A34A"
           label="Total SKUs"
           value={summary?.total_skus?.toLocaleString() ?? '—'}
-          sub={<Typography variant="caption" sx={{ color: '#64748B', fontWeight: 500 }}>Active items in catalog</Typography>}
+          valuePrefix=""
         />
       </Box>
 

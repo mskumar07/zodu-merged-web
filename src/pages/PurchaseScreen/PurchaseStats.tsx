@@ -24,6 +24,7 @@ const PurchaseStats = ({ data }: PurchaseStatsProps) => {
     <Grid container spacing={2}>
       <Grid item>
         <StatCard
+        radius={2}
           label="Total Purchases"
           value={data.total_purchase_count}
           valuePrefix=""
@@ -33,6 +34,7 @@ const PurchaseStats = ({ data }: PurchaseStatsProps) => {
 
       <Grid item>
         <StatCard
+          radius={2}
           label="Total Paid"
           value={data.total_paid_amount}
           icon={<PaidIcon color="success" />}
@@ -42,6 +44,7 @@ const PurchaseStats = ({ data }: PurchaseStatsProps) => {
 
       <Grid item>
         <StatCard
+          radius={2}
           label="Total Unpaid"
           value={data.total_unpaid_amount}
           icon={<MoneyOffIcon color="error" />}
@@ -51,6 +54,7 @@ const PurchaseStats = ({ data }: PurchaseStatsProps) => {
 
       <Grid item>
         <StatCard
+          radius={2}
           label="This Month Spent"
           value={data.this_month_spent}
           icon={<CalendarMonthIcon color="primary" />}

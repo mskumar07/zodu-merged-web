@@ -5,6 +5,7 @@ import {
   IconButton,
   Avatar,
   Tooltip,
+  Switch,
   useTheme,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
@@ -31,6 +32,7 @@ interface ProductTableProps {
   products: Product[];
   onEdit?: (product: Product) => void;
   onDelete?: (product: Product) => void;
+  onToggleStatus?: (product: Product, newStatus: "active" | "inactive") => void;
   onEditFromDialog?: (item_uuid: string) => void;
   hasNextPage?: boolean;
   isFetchingNextPage?: boolean;
@@ -52,6 +54,7 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
     products,
     onEdit,
     onDelete,
+    onToggleStatus,
     onEditFromDialog,
     hasNextPage,
     isFetchingNextPage,
@@ -181,6 +184,20 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
           ),
         },
         {
+          key: "status",
+          label: "Status",
+          render: (product) => (
+            <Switch
+              checked={product.status === "active"}
+              onChange={(e) =>
+                onToggleStatus?.(product, e.target.checked ? "active" : "inactive")
+              }
+              size="small"
+              color="primary"
+            />
+          ),
+        },
+        {
           key: "actions",
           label: "Actions",
           align: "center",
@@ -216,7 +233,7 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
           ),
         },
       ],
-      [onDelete, onEdit, theme]
+      [onDelete, onEdit, onToggleStatus, theme]
     );
 
     return (
