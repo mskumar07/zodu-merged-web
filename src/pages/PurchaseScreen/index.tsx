@@ -88,7 +88,7 @@ export default function PurchaseScreen() {
   const [addDialogOpen, setAddDialog]     = useState(false);
   const [editPurchaseId, setEditPurchaseId] = useState<string | null>(null);
   const [paymentTarget, setPayment]       = useState<PurchaseRow | null>(null);
-  const [deleteTarget, setDeleteTarget]   = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget]   = useState<PurchaseRow | null>(null);
   const [detailId, setDetailId]           = useState<string | null>(null); // ← NEW: UUID for detail dialog
 
   const {
@@ -123,7 +123,7 @@ export default function PurchaseScreen() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      await deletePurchase(deleteTarget);
+      await deletePurchase(deleteTarget.purchase_id);
       setDeleteTarget(null);
       refetchStats();
     } catch (err: any) {
@@ -291,7 +291,7 @@ export default function PurchaseScreen() {
             <Tooltip title="Delete" placement="top">
               <IconButton
                 size="small"
-                onClick={() => setDeleteTarget(p.purchase_id)}
+                onClick={() => setDeleteTarget(p)}
                 disabled={isDeleting}
                 sx={{
                   color: "#9CA3AF", p: 0.6, borderRadius: 1,
@@ -411,7 +411,7 @@ export default function PurchaseScreen() {
           <DialogTitle sx={{ fontWeight: 700 }}>Delete Purchase</DialogTitle>
           <DialogContent>
             <Typography sx={{ fontSize: 14, color: "#475569" }}>
-              Are you sure you want to delete this purchase?
+              Are you sure you want to delete purchase {deleteTarget?.purchase_id ? `#${deleteTarget.purchase_id}` : "this purchase"}?
               <br />This will:
               <br />• Reverse stock
               <br />• Delete all payment records

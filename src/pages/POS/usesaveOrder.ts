@@ -201,7 +201,7 @@ export interface SaveOrderParams {
   roundoff:          number;
   posMode:           "SALE" | "QUOTATION";
   receivedAmount:    string;
-  paymentType:       "Cash" | "Card" | "UPI" | "Credit";
+  paymentType:       "Cash" | "UPI" | "Bank Transfer" | "Others";
   referenceNo:       string;
 }
 

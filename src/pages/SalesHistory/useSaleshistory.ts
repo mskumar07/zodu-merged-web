@@ -313,3 +313,22 @@ export const salesQueryKeys = {
   detail:  (sale_id: string)  => ["sale", sale_id]          as const,
   returns: () => ["sales-returns"] as const,
 };
+
+
+
+
+export async function deleteSale(sale_id: string): Promise<{ success: boolean; message: string }> {
+  const { zoduId, branchId } = getTenantContext();
+
+  const { data } = await axios.delete(
+    `${API_BASE}/restaurant/api/sales/${sale_id}`,
+    {
+      params: {
+        zodu_id: zoduId,
+        branch_id: branchId,
+      },
+    }
+  );
+
+  return data;
+}

@@ -113,7 +113,7 @@ type PosMode = "SALE" | "QUOTATION";
 type Zone = "SEARCH" | "CUSTOMER" | "TABLE" | "FOOTER";
 type SearchFocus = "CODE";
 type FooterFocus = "DISCOUNT_PCT" | "DISCOUNT_AMT" | "PAYMENT_TYPE" | "REF_NO" | "RECEIVED" | "SAVE";
-type PaymentType = "Cash" | "Card" | "UPI" | "Others";
+type PaymentType = "Cash" | "UPI" | "Bank Transfer" | "Others";
 
 function toLineItem(p: PosProduct): LineItem {
   const grossPrice = Number(p.sell_price) || 0;
@@ -791,6 +791,8 @@ console.log("test",serverHolds)
     const totalSgst = savedHsnBreakdown.reduce((sum, row) => sum + row.sgstAmount, 0);
     const totalAmount = Number(order.total_amount ?? 0);
 
+    console.log("myorder",order,saleItems)
+
     return {
       sale_id: order.sale_id,
       date: order.sale_date,
@@ -963,8 +965,8 @@ console.log("test",serverHolds)
         </Box>
 
         {/* MAIN CONTENT */}
-        <Box sx={{ flex: 1, minHeight: 0, px: { xs: 0.75, sm: 1, md: 1.5 }, pt: { xs: 0.75, sm: 1 }, pb: { xs: 0.75, sm: 1 }, display: "flex", flexDirection: "column" }}>
-          <Box sx={{ display: "flex", gap: { xs: 1, sm: 1.5, md: 2 }, mb: { xs: 1, sm: 1.5 }, alignItems: "stretch", flexDirection: { xs: "column", lg: "row" } }}>
+        <Box sx={{ flex: 1, minHeight: 0, px: { xs: 0.5, sm: 1, md: 1.5 }, pt: { xs: 0.5, sm: 0.75 }, pb: { xs: 0.5, sm: 0.75 }, display: "flex", flexDirection: "column" }}>
+          <Box sx={{ display: "flex", gap: { xs: 0.75, sm: 1, md: 1.5 }, mb: { xs: 0.75, sm: 1 }, alignItems: "stretch", flexDirection: { xs: "column", md: "row" } }}>
 
             {/* Search panel */}
             <Paper elevation={0} sx={{ flex: "1 1 auto", borderRadius: 2, p: 1.5, bgcolor: "#fff", position: "relative", zIndex: 100, transition: "border-color 0.2s", border: zone === "SEARCH" ? `2px solid ${modeAccent}` : "2px solid #E5E7EB", boxShadow: zone === "SEARCH" ? `0 0 0 3px ${isQuotation ? "rgba(29,78,216,0.08)" : "rgba(200,16,46,0.08)"}` : "none" }}>
@@ -1036,7 +1038,7 @@ console.log("test",serverHolds)
             </Paper>
 
             {/* Customer panel */}
-            <Paper elevation={0} sx={{ flex: { xs: 1, lg: "0 0 auto" }, minWidth: { lg: 700 }, border: zone === "CUSTOMER" ? `2px solid ${modeAccent}` : "1px solid #E5E7EB", borderRadius: 2.5, p: { xs: 1, sm: 1.5 }, bgcolor: "#fff", transition: "border 0.2s, box-shadow 0.2s", position: "relative", boxShadow: zone === "CUSTOMER" ? `0 0 0 3px ${isQuotation ? "rgba(29,78,216,0.08)" : "rgba(200,16,46,0.08)"}` : "none" }}>
+            <Paper elevation={0} sx={{ flex: { xs: 1, md: "0 0 auto" }, width: { md: "40%", lg: "38%", xl: "34%" }, maxWidth: { md: 560 }, border: zone === "CUSTOMER" ? `2px solid ${modeAccent}` : "1px solid #E5E7EB", borderRadius: 2.5, p: { xs: 1, sm: 1.25 }, bgcolor: "#fff", transition: "border 0.2s, box-shadow 0.2s", position: "relative", boxShadow: zone === "CUSTOMER" ? `0 0 0 3px ${isQuotation ? "rgba(29,78,216,0.08)" : "rgba(200,16,46,0.08)"}` : "none" }}>
               <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5, mb: 1.2 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.7 }}>
                   <PersonSearchIcon sx={{ fontSize: 15, color: modeAccent }} />
@@ -1266,11 +1268,11 @@ console.log("test",serverHolds)
         </Box>
 
         {/* ═══════════════════ BILLING FOOTER ════════════════════ */}
-        <Box sx={{ bgcolor: "#fff", borderTop: "1px solid #E5E7EB", px: { xs: 1, sm: 1.5, md: 2 }, py: { xs: 0.5, sm: 1 }, display: "flex", gap: { xs: 1, sm: 1.5 }, alignItems: "stretch", justifyContent: "flex-end", flexDirection: { xs: "column", lg: "row" } }}>
+        <Box sx={{ bgcolor: "#fff", borderTop: "1px solid #E5E7EB", flexShrink: 0, px: { xs: 0.75, sm: 1.25, md: 1.75 }, py: { xs: 0.5, sm: 0.75 }, display: "flex", gap: { xs: 0.75, sm: 1, md: 1.5 }, alignItems: "stretch", justifyContent: "flex-end", flexDirection: { xs: "column", md: "row" }, overflowY: { xs: "auto", md: "visible" }, maxHeight: { xs: "45vh", md: "none" } }}>
 
           {/* LEFT BLOCK */}
-          <Box sx={{ width: { xs: "100%", lg: "auto" }, minWidth: { lg: 360 }, flexShrink: 0, display: "flex", flexDirection: "column", gap: { xs: 0.5, sm: 0.65 } }}>
-            <Box sx={{ display: "flex", gap: { xs: 0.75, sm: 1 }, flexDirection: { xs: "column", sm: "row" } }}>
+          <Box sx={{ width: { xs: "100%", md: "auto" }, minWidth: { md: 320, lg: 360 }, flexShrink: 0, display: "flex", flexDirection: "column", gap: { xs: 0.4, sm: 0.55 } }}>
+            <Box sx={{ display: "flex", gap: { xs: 0.5, sm: 0.75 }, flexDirection: "row" }}>
               <Button onClick={() => setDiscountModalOpen(true)} variant="outlined" startIcon={<LocalOfferOutlinedIcon sx={{ fontSize: 14 }} />}
                 sx={{ flex: 1, justifyContent: "flex-start", borderRadius: { xs: 1.5, sm: 2 }, py: { xs: 0.65, sm: 0.85 }, px: { xs: 1, sm: 1.5 }, fontSize: { xs: 11, sm: 12 }, fontWeight: 700, color: hasDiscount ? modeAccent : "#6B7280", borderColor: hasDiscount ? modeAccent : "#E5E7EB", borderWidth: hasDiscount ? 1.5 : 1, bgcolor: hasDiscount ? `${modeAccent}06` : "#FAFAFA", "&:hover": { borderColor: modeAccent, bgcolor: `${modeAccent}0A`, color: modeAccent }, transition: "all 0.18s", textTransform: "none", gap: 0.5 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flex: 1 }}>
@@ -1290,12 +1292,12 @@ console.log("test",serverHolds)
             </Box>
 
             {!isQuotation && (
-              <Box sx={{ display: "flex", gap: { xs: 0.75, sm: 1 }, flexDirection: { xs: "column", sm: "row" } }}>
-                <Box sx={{ width: { xs: "100%", sm: 130 }, flexShrink: 0 }}>
+              <Box sx={{ display: "flex", gap: { xs: 0.5, sm: 0.75 }, flexDirection: "row" }}>
+                <Box sx={{ width: { xs: 110, sm: 130 }, flexShrink: 0 }}>
                   <Typography sx={{ fontSize: { xs: 8, sm: 9 }, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.08em", mb: 0.3 }}>PAYMENT TYPE</Typography>
                   <Select value={paymentType} onChange={e => setPaymentType(e.target.value as PaymentType)} onFocus={() => { setZone("FOOTER"); setFooterFocus("PAYMENT_TYPE"); }} size="small" fullWidth
                     sx={{ fontSize: { xs: 11, sm: 12 }, fontWeight: 700, borderRadius: 1.5, "& fieldset": { borderColor: isFooterActive("PAYMENT_TYPE") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("PAYMENT_TYPE") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" }, "& .MuiSelect-select": { py: { xs: "4px", sm: "6px" } } }}>
-                    {["Cash","Card","UPI","Others"].map(val => <MenuItem key={val} value={val} sx={{ fontSize: { xs: 11, sm: 12 }, fontWeight: 600 }}>{val}</MenuItem>)}
+                    {["Cash","UPI","Bank Transfer","Others"].map(val => <MenuItem key={val} value={val} sx={{ fontSize: { xs: 11, sm: 12 }, fontWeight: 600 }}>{val}</MenuItem>)}
                   </Select>
                 </Box>
                 <Box sx={{ flex: 1 }}>
@@ -1307,7 +1309,7 @@ console.log("test",serverHolds)
               </Box>
             )}
             {!isQuotation && (
-              <Box sx={{ display: "flex", gap: { xs: 0.75, sm: 1.5 }, flexDirection: { xs: "column", sm: "row" }, alignItems: { sm: "flex-end" },justifyContent: "space-between" }}>
+              <Box sx={{ display: "flex", gap: { xs: 0.5, sm: 1 }, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" }}>
                 <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
                   <Typography sx={{ fontSize: { xs: 8, sm: 9 }, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.06em", mb: 0.35 }}>PAYMENT STATUS</Typography>
                   <Box sx={{ display: "flex", alignItems: "center", height: 32 }}>
@@ -1325,7 +1327,7 @@ console.log("test",serverHolds)
                     size="small"
                     inputProps={{ min: invoiceDate }}
                     sx={{
-                      minWidth: { xs: "100%", sm: 160 },
+                      minWidth: { xs: 120, sm: 140 },
                       "& .MuiOutlinedInput-root": {
                         borderRadius: 1.5,
                         bgcolor: dueDateEnabled ? "#fff" : "#F8FAFC",
@@ -1348,10 +1350,10 @@ console.log("test",serverHolds)
           
           </Box>
 
-          <Divider orientation="vertical" flexItem sx={{ mx: { xs: 0.5, sm: 0.75 }, display: { xs: "none", lg: "block" } }} />
+          <Divider orientation="vertical" flexItem sx={{ mx: { xs: 0.25, sm: 0.5 }, display: { xs: "none", md: "block" } }} />
 
           {/* RIGHT BLOCK */}
-          <Box sx={{ display: "flex", flexDirection: "column", gap: { xs: 0.5, sm: 0.6 }, alignItems: { xs: "stretch", lg: "flex-end" }, flex: { xs: 1, lg: "0 0 auto" } }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: { xs: 0.4, sm: 0.5 }, alignItems: { xs: "stretch", md: "flex-end" }, flex: { xs: 1, md: "0 0 auto" } }}>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", gap: 1 }}>
               <Typography sx={{ fontSize: { xs: 10, sm: 11 }, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>Discount {gstMode === "before" && "(Before GST)"}</Typography>
               <Typography sx={{ fontSize: { xs: 10, sm: 11 }, fontWeight: 800, color: (orderDiscountAmt + itemDiscountTotal) > 0 ? "#C8102E" : "#9CA3AF" }}>
@@ -1369,7 +1371,7 @@ console.log("test",serverHolds)
             )}
 
             {isQuotation ? (
-              <Box sx={{ border: "2px solid #D3D3D3", borderRadius: { xs: 1.5, sm: 2 }, px: { xs: 1.5, sm: 2 }, py: { xs: 0.45, sm: 0.6 }, textAlign: "right", bgcolor: "#E5E4E2", width: "100%", maxWidth: { xs: "100%", sm: "280px", lg: "clamp(240px, 22vw, 320px)" } }}>
+              <Box sx={{ border: "2px solid #D3D3D3", borderRadius: { xs: 1.5, sm: 2 }, px: { xs: 1.25, sm: 1.75 }, py: { xs: 0.35, sm: 0.5 }, textAlign: "right", bgcolor: "#E5E4E2", width: "100%", maxWidth: { xs: "100%", md: "clamp(200px, 20vw, 280px)" } }}>
                 <Typography sx={{ fontSize: { xs: 8, sm: 9 }, fontWeight: 800, color: "#000", letterSpacing: "0.1em", mb: 0.1 }}>TOTAL AMOUNT</Typography>
                 <Box sx={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 0.3 }}>
                   <Typography sx={{ fontSize: { xs: 13, sm: 14 }, fontWeight: 900, color: "#000" }}>₹</Typography>
@@ -1378,7 +1380,7 @@ console.log("test",serverHolds)
               </Box>
             ) : (
               <Box onClick={() => receivedRef.current?.focus()}
-                sx={{ border: `2px solid ${isFooterActive("RECEIVED") ? "#A0A0A0" : "#D3D3D3"}`, borderRadius: { xs: 1.5, sm: 2 }, px: { xs: 1.5, sm: 2 }, py: { xs: 0.35, sm: 0.45 }, textAlign: "right", bgcolor: isFooterActive("RECEIVED") ? "#fff" : "#E5E4E2", cursor: "text", transition: "border-color 0.15s, background 0.15s", width: "100%", maxWidth: { xs: "100%", sm: "280px", lg: "clamp(220px, 20vw, 300px)" }, "&:hover": { borderColor: "#A0A0A0", bgcolor: "#D8D8D6" } }}>
+                sx={{ border: `2px solid ${isFooterActive("RECEIVED") ? "#A0A0A0" : "#D3D3D3"}`, borderRadius: { xs: 1.5, sm: 2 }, px: { xs: 1.25, sm: 1.75 }, py: { xs: 0.25, sm: 0.35 }, textAlign: "right", bgcolor: isFooterActive("RECEIVED") ? "#fff" : "#E5E4E2", cursor: "text", transition: "border-color 0.15s, background 0.15s", width: "100%", maxWidth: { xs: "100%", md: "clamp(200px, 20vw, 280px)" }, "&:hover": { borderColor: "#A0A0A0", bgcolor: "#D8D8D6" } }}>
                 <Typography sx={{ fontSize: { xs: 8, sm: 9 }, fontWeight: 800, color: "#444", letterSpacing: "0.1em", mb: 0.05 }}>RECEIVED · TOTAL {INR(grandTotal)}</Typography>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.15 }}>
                   <Typography sx={{ fontSize: { xs: 13, sm: 14 }, fontWeight: 900, color: "#000", lineHeight: 1 }}>₹</Typography>

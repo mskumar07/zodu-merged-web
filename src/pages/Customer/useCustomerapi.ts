@@ -4,7 +4,7 @@
  */
 
 import axios from "axios";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { getTenantContext, getAccessToken } from "@store/tenantContext";
 
 const API_BASE  = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
@@ -220,7 +220,6 @@ async function getCustomers(): Promise<Record<string, unknown>[]> {
 
   console.log("CUSTOMER API RESPONSE:", data);
 
-  // ✅ FIX: YOUR BACKEND RETURNS customers FIELD
   if (data?.success) {
     return data.customers || [];
   }
@@ -233,6 +232,45 @@ export function useCustomers() {
   return useQuery({
     queryKey: customerQueryKeys.list(zoduId, branchId),
     queryFn: getCustomers,
+  });
+}
+
+export interface CustomerPage {
+  customers: Record<string, unknown>[];
+  page:        number;
+  total_pages: number;
+  total:       number;
+}
+
+async function getCustomersPage(page: number, search: string): Promise<CustomerPage> {
+  const { zoduId, branchId } = getTenantContext();
+  const params: Record<string, string> = {
+    zodu_id:   zoduId,
+    branch_id: branchId,
+    page:      String(page),
+    limit:     "50",
+  };
+  if (search) params.search = search;
+
+  const { data } = await axios.get(`${API_BASE}/restaurant/api/customers`, { params });
+
+  if (data?.success) {
+    return {
+      customers:   data.customers   ?? [],
+      page:        data.page        ?? page,
+      total_pages: data.total_pages ?? 1,
+      total:       data.total       ?? (data.customers?.length ?? 0),
+    };
+  }
+  return { customers: [], page, total_pages: 1, total: 0 };
+}
+
+export function useInfiniteCustomers(search: string) {
+  return useInfiniteQuery({
+    queryKey:         ["customers-infinite", search],
+    queryFn:          ({ pageParam = 1 }) => getCustomersPage(pageParam as number, search),
+    initialPageParam: 1,
+    getNextPageParam: (last) => last.page < last.total_pages ? last.page + 1 : undefined,
   });
 }
 

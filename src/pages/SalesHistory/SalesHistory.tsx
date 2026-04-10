@@ -7,6 +7,7 @@ import {
   Box, Typography, Button, Stack, Grid,
   Avatar, TextField, InputAdornment, Select, MenuItem,
   FormControl, IconButton, Tooltip, alpha, Chip,
+  Dialog, DialogTitle, DialogContent, DialogActions, CircularProgress,
 } from "@mui/material";
 import {
   Search as SearchIcon, Receipt as ReceiptIcon,
@@ -14,7 +15,7 @@ import {
 } from "@mui/icons-material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import {
-  fetchHistory, salesQueryKeys,
+  fetchHistory, salesQueryKeys, deleteSale,
   type Sale, type Filters, type PaymentStatus,
 } from "./useSaleshistory";
 
@@ -185,7 +186,9 @@ export default function SalesHistoryPage() {
 
   const [invoiceDialog, setInvoiceDialog] = useState<string | null>(null);
   const [paymentDialog, setPaymentDialog] = useState<Sale   | null>(null);
-  const [returnDialog,  setReturnDialog]  = useState<Sale   | null>(null); // ✅ full Sale (need sale_uuid + sale_id)
+  const [returnDialog,  setReturnDialog]  = useState<Sale   | null>(null);
+  const [deleteDialog,  setDeleteDialog]  = useState<Sale   | null>(null);
+  const [isDeleting,    setIsDeleting]    = useState(false);
 
   const {
     data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, refetch,
@@ -376,6 +379,7 @@ export default function SalesHistoryPage() {
             <Tooltip title="Delete Invoice">
               <IconButton
                 size="small"
+                onClick={() => setDeleteDialog(sale)}
                 sx={{ color: "text.secondary", borderRadius: 1.5, "&:hover": { color: "#C62828", bgcolor: alpha("#C62828", 0.06) } }}
               >
                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -546,6 +550,43 @@ export default function SalesHistoryPage() {
           onSuccess={() => refetch()}
         />
       )}
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={!!deleteDialog} onClose={() => !isDeleting && setDeleteDialog(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Delete Invoice</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete invoice <strong>{deleteDialog?.sale_id}</strong>? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button
+            variant="outlined" color="inherit"
+            disabled={isDeleting}
+            onClick={() => setDeleteDialog(null)}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained" color="error" disableElevation
+            disabled={isDeleting}
+            startIcon={isDeleting ? <CircularProgress size={14} color="inherit" /> : undefined}
+            onClick={async () => {
+              if (!deleteDialog) return;
+              setIsDeleting(true);
+              try {
+                await deleteSale(deleteDialog.sale_id);
+                setDeleteDialog(null);
+                refetch();
+              } finally {
+                setIsDeleting(false);
+              }
+            }}
+          >
+            {isDeleting ? "Deleting…" : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

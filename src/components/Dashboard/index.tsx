@@ -5,6 +5,7 @@ import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
 import Skeleton from "@mui/material/Skeleton";
+import { Circle } from "@mui/icons-material";
 
 import PaymentsIcon              from "@mui/icons-material/Payments";
 import DescriptionIcon           from "@mui/icons-material/Description";
@@ -238,7 +239,7 @@ function StatusBadge({ label, color, bg }: { label: string; color: string; bg: s
     <Box sx={{
       display: "inline-flex", alignItems: "center", gap: 0.5,
       px: 1, py: 0.3, borderRadius: "5px", fontSize: "11px", fontWeight: 700,
-      color, bgcolor: bg,
+      color,
     }}>
       <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: color, flexShrink: 0 }} />
       {label}
@@ -286,26 +287,74 @@ function flatPages(query: { data?: { pages: Array<{ data: any[] }> } }) {
   return query.data?.pages.flatMap(p => p.data) ?? [];
 }
 
+type PurchaseLikePaymentStatus = "paid" | "partial" | "pending";
+
+const PURCHASE_PAYMENT_STATUS_STYLES: Record<
+  PurchaseLikePaymentStatus,
+  { label: string; color: string }
+> = {
+  paid: { label: "Paid", color: "#2E7D32" },
+  partial: { label: "Partial", color: "#F57C00" },
+  pending: { label: "Pending", color: "#C62828" },
+};
+
+function normalizePaymentStatus(status: string): PurchaseLikePaymentStatus {
+  switch (status?.toLowerCase()) {
+    case "fully_paid":
+    case "paid":
+      return "paid";
+    case "partially_paid":
+    case "partial":
+      return "partial";
+    case "unpaid":
+    case "not_paid":
+    case "pending":
+    default:
+      return "pending";
+  }
+}
+
 function paymentStatusBadge(status: string) {
-  const map: Record<string, { color: string; bg: string }> = {
-    fully_paid: { color: "#059669", bg: "#ECFDF5" },
-    paid:       { color: "#059669", bg: "#ECFDF5" },
-    partial:    { color: "#D97706", bg: "#FFFBEB" },
-    pending:    { color: "#D97706", bg: "#FFFBEB" },
-    not_paid:   { color: "#DC2626", bg: "#FEF2F2" },
-  };
-  const cfg = map[status?.toLowerCase()] ?? { color: "#64748B", bg: "#F1F5F9" };
-  return <StatusBadge label={status?.toUpperCase()} {...cfg} />;
+  const normalizedStatus = normalizePaymentStatus(status);
+  const cfg = PURCHASE_PAYMENT_STATUS_STYLES[normalizedStatus];
+
+  return (
+    <Typography
+      variant="body2"
+      sx={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 0.5,
+        color: cfg.color,
+        fontWeight: 600,
+        fontSize: 13,
+      }}
+    >
+      <Circle sx={{ fontSize: 8 }} />
+      {cfg.label}
+    </Typography>
+  );
 }
 
 function stockStatusBadge(status: string) {
-  const map: Record<string, { color: string; bg: string }> = {
-    out:      { color: "#7C3AED", bg: "#EDE9FE" },
-    critical: { color: "#D32F2F", bg: "#FEE2E2" },
-    low:      { color: "#D97706", bg: "#FEF3C7" },
+  const map: Record<string, { label: string; color: string; dot: string }> = {
+    in_stock: { label: "In Stock", color: "#16A34A", dot: "#22C55E" },
+    low_stock: { label: "Low Stock", color: "#D97706", dot: "#F59E0B" },
+    out_of_stock: { label: "Out Stock", color: "#DC2626", dot: "#EF4444" },
+    low: { label: "Low Stock", color: "#D97706", dot: "#F59E0B" },
+    critical: { label: "Out Stock", color: "#DC2626", dot: "#EF4444" },
+    out: { label: "Out Stock", color: "#DC2626", dot: "#EF4444" },
   };
-  const cfg = map[status?.toLowerCase()] ?? { color: "#64748B", bg: "#F1F5F9" };
-  return <StatusBadge label={status?.charAt(0).toUpperCase() + status?.slice(1)} {...cfg} />;
+  const cfg = map[status?.toLowerCase()] ?? map.in_stock;
+
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.6, justifyContent: "center" }}>
+      <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: cfg.dot }} />
+      <Typography variant="body2" fontWeight={600} sx={{ color: cfg.color }}>
+        {cfg.label}
+      </Typography>
+    </Box>
+  );
 }
 
 // ── Column definitions ────────────────────────────────────────

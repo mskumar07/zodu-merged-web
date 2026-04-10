@@ -27,7 +27,7 @@ export interface PosProduct {
   gst_tax:       number;   // API sends string e.g. "18" → stored as 18
  
   tax_inclusive: boolean;
-
+  mrp:           number;
   // stock
   stock_qty: number;  // API sends string "0" → stored as 0
 
@@ -105,6 +105,7 @@ function normalise(p: Record<string, unknown>): PosProduct {
     count:          Number(p.count)          || 1,
     category_id:    Number(p.category_id)    || 0,
     unit_id:        Number(p.unit_id)        || 0,
+    mrp:            Number(p.mrp)            || 0,
     // boolean — API may send true/false or 1/0 or missing → default false
     tax_inclusive:  Boolean(p.tax_inclusive) ?? false,
     // null-safe — keep null as null, don't coerce to empty string

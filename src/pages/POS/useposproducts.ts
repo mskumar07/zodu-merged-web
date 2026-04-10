@@ -40,6 +40,8 @@ async function fetchAndCacheProducts(branchId: string, zoduId: string): Promise<
 
   const products = data.Data ?? data.data ?? [];
 
+  console.log(products);
+
   if (!Array.isArray(products) || products.length === 0) {
     console.warn("[POS] API returned empty or unexpected product list", data);
     return [];

@@ -51,7 +51,7 @@ const inputSx = {
 };
 
 // ✅ Payment types that match tbl_sale_payment.transaction_type
-const PAYMENT_TYPES = ["Cash", "Card", "UPI", "Credit","Others"] as const;
+const PAYMENT_TYPES = ["Cash", "UPI", "Bank Transfer","Others"] as const;
 
 export default function MarkPaymentDialog({ sale, onClose, onSuccess }: Props) {
   const queryClient = useQueryClient();

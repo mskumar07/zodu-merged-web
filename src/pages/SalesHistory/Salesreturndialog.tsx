@@ -537,9 +537,9 @@ const canConfirm = someSelected && !!reason && !!refundType;
     </MenuItem>
 
     <MenuItem value="cash">Cash</MenuItem>
-    <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
     <MenuItem value="upi">UPI</MenuItem>
-    <MenuItem value="open_balance">Add to Open Balance</MenuItem>
+        <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
+    <MenuItem value="others">Others</MenuItem>
   </Select>
 </Box>
                 <Box>

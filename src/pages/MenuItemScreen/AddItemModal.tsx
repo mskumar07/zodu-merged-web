@@ -4,7 +4,6 @@ import {
   Box, Typography, TextField, Button, IconButton,
   ToggleButtonGroup, ToggleButton, FormControl,
   Select, MenuItem, InputAdornment, Tooltip, CircularProgress, ListSubheader,
-  Collapse,
 } from '@mui/material';
 import { useFormik } from 'formik';
 import axios from 'axios';
@@ -14,7 +13,6 @@ import AddAPhotoIcon        from '@mui/icons-material/AddAPhoto';
 import QrCodeScannerIcon    from '@mui/icons-material/QrCodeScanner';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import SaveIcon             from '@mui/icons-material/Save';
-import ExpandMoreIcon       from '@mui/icons-material/ExpandMore';
 import InventoryIcon        from '@mui/icons-material/Inventory2Outlined';
 import SearchIcon           from '@mui/icons-material/Search';
 import axiosInstance from '@store/services/axiosInstance';
@@ -171,7 +169,6 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
   const isEditMode = Boolean(editItem);
 
   const [catDialogOpen,    setCatDialogOpen]    = useState(false);
-  const [inventoryOpen,    setInventoryOpen]    = useState(false);
   const [imagePreview,     setImagePreview]     = useState<string | null>(null);
   const [imageFile,        setImageFile]        = useState<File | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(editItem?.item_img ?? null);
@@ -261,7 +258,6 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
     formik.resetForm();
     resetSave();
     resetEdit();
-    setInventoryOpen(false);
     setImagePreview(null);
     setImageFile(null);
     setUploadedImageUrl(editItem?.item_img ?? null);
@@ -596,43 +592,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
             </Box>
 
             {/* Row 3: Inventory (collapsible) */}
-            <Box sx={{ border: '1px solid', borderColor: inventoryOpen ? 'primary.main' : 'divider', borderRadius: 1.5, overflow: 'hidden', transition: 'border-color 0.2s' }}>
-              <Box onClick={() => setInventoryOpen(p => !p)}
-                sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2.5, py: 1.5, cursor: 'pointer', bgcolor: inventoryOpen ? 'rgba(210,18,46,0.04)' : 'action.hover', transition: 'background 0.2s', '&:hover': { bgcolor: 'rgba(210,18,46,0.06)' } }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
-                  <InventoryIcon sx={{ fontSize: 16, color: inventoryOpen ? 'primary.main' : 'text.secondary' }} />
-                  <Typography variant="body2" fontWeight={700} color={inventoryOpen ? 'primary.main' : 'text.secondary'} textTransform="uppercase" letterSpacing="0.06em" fontSize={11}>
-                    Inventory
-                  </Typography>
-                  <Box sx={{ ml: 1, px: 1, py: 0.2, bgcolor: 'action.selected', borderRadius: 5 }}>
-                    <Typography sx={{ fontSize: 9, fontWeight: 700, color: 'text.secondary', letterSpacing: '0.04em' }}>OPTIONAL</Typography>
-                  </Box>
-                </Box>
-                <ExpandMoreIcon sx={{ fontSize: 18, color: 'text.secondary', transform: inventoryOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.25s' }} />
-              </Box>
-              <Collapse in={inventoryOpen}>
-                <Box sx={{ px: 2.5, py: 2.5, borderTop: '1px solid', borderColor: 'divider', display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5 }}>
-                  <Box>
-                    <Label text="Opening Stock" />
-                    <TextField fullWidth size="small" type="number" placeholder="0"
-                      {...formik.getFieldProps('openingStock')}
-                      InputProps={{ endAdornment: <InputAdornment position="end"><Typography variant="caption" color="text.disabled" fontWeight={600}>{unitOptions.find(u => String(u.value) === formik.values.unit)?.shortName ?? 'UNIT'}</Typography></InputAdornment>, sx: inputSx }} />
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                      Current stock quantity at the time of adding this item
-                    </Typography>
-                  </Box>
-                  <Box>
-                    <Label text="Low Stock Alert" />
-                    <TextField fullWidth size="small" type="number" placeholder="e.g. 10"
-                      {...formik.getFieldProps('lowStockAlert')}
-                      InputProps={{ endAdornment: <InputAdornment position="end"><Typography variant="caption" color="text.disabled" fontWeight={600}>{unitOptions.find(u => String(u.value) === formik.values.unit)?.shortName ?? 'UNIT'}</Typography></InputAdornment>, sx: inputSx }} />
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                      Alert when stock falls below this quantity
-                    </Typography>
-                  </Box>
-                </Box>
-              </Collapse>
-            </Box>
+           
 
             {/* Row 4: Tax */}
             <Box sx={{ bgcolor: 'action.hover', borderRadius: 1.5, p: 2.5 }}>
@@ -713,6 +673,38 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                         sx: { ...inputSx, bgcolor: 'background.paper' },
                       }} />
                   </Box>
+                </Box>
+              </Box>
+            </Box>
+
+            <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, px: 2.5, py: 1.5, bgcolor: 'action.hover' }}>
+                <InventoryIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                <Typography variant="body2" fontWeight={700} color="text.secondary" textTransform="uppercase" letterSpacing="0.06em" fontSize={11}>
+                  Inventory
+                </Typography>
+                <Box sx={{ ml: 1, px: 1, py: 0.2, bgcolor: 'action.selected', borderRadius: 5 }}>
+                  <Typography sx={{ fontSize: 9, fontWeight: 700, color: 'text.secondary', letterSpacing: '0.04em' }}>OPTIONAL</Typography>
+                </Box>
+              </Box>
+              <Box sx={{ px: 2.5, py: 2.5, borderTop: '1px solid', borderColor: 'divider', display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5 }}>
+                <Box>
+                  <Label text="Opening Stock" />
+                  <TextField fullWidth size="small" type="number" placeholder="0"
+                    {...formik.getFieldProps('openingStock')}
+                    InputProps={{ endAdornment: <InputAdornment position="end"><Typography variant="caption" color="text.disabled" fontWeight={600}>{unitOptions.find(u => String(u.value) === formik.values.unit)?.shortName ?? 'UNIT'}</Typography></InputAdornment>, sx: inputSx }} />
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                    Current stock quantity at the time of adding this item
+                  </Typography>
+                </Box>
+                <Box>
+                  <Label text="Low Stock Alert" />
+                  <TextField fullWidth size="small" type="number" placeholder="e.g. 10"
+                    {...formik.getFieldProps('lowStockAlert')}
+                    InputProps={{ endAdornment: <InputAdornment position="end"><Typography variant="caption" color="text.disabled" fontWeight={600}>{unitOptions.find(u => String(u.value) === formik.values.unit)?.shortName ?? 'UNIT'}</Typography></InputAdornment>, sx: inputSx }} />
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                    Alert when stock falls below this quantity
+                  </Typography>
                 </Box>
               </Box>
             </Box>

@@ -273,7 +273,7 @@ function AttachmentsSection({ attachments, onAdd, onRemove }: AttachmentsSection
 }
 
 // ─── Types ────────────────────────────────────────────────────
-type PaymentMethod = "Bank Transfer" | "Cash" | "UPI/Digital" | "Cheque" | "Others";
+type PaymentMethod =  "Cash" | "UPI" | "Bank Transfer" | "Others";
 
 interface PurchaseItem {
   id: string; itemUuid: string; itemId: string; itemName: string; sku: string;
@@ -817,7 +817,7 @@ export default function AddNewPurchaseDialog({
                   <FieldLabel>Payment Method</FieldLabel>
                   <FormControl size="small" fullWidth sx={inputSx}>
                     <Select value={form.paymentMethod} onChange={e => setField("paymentMethod", e.target.value as PaymentMethod)} sx={{ bgcolor: "#fff", fontSize: 13, borderRadius: "8px" }}>
-                      {(["Bank Transfer", "Cash", "UPI/Digital", "Cheque","Others"] as PaymentMethod[]).map(v => (
+                      {(["Bank Transfer", "Cash", "UPI","Others"] as PaymentMethod[]).map(v => (
                         <MenuItem key={v} value={v} sx={{ fontSize: 13 }}>{v}</MenuItem>
                       ))}
                     </Select>

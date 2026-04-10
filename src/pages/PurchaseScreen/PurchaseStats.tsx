@@ -36,7 +36,7 @@ const PurchaseStats = ({ data }: PurchaseStatsProps) => {
         <StatCard
           radius={2}
           label="Total Paid"
-          value={data.total_paid_amount}
+          value={Number(Math.round(parseFloat(data.total_paid_amount))).toLocaleString()}
           icon={<PaidIcon color="success" />}
           iconBgColor="#E8F5E9"
         />
@@ -46,7 +46,7 @@ const PurchaseStats = ({ data }: PurchaseStatsProps) => {
         <StatCard
           radius={2}
           label="Total Unpaid"
-          value={data.total_unpaid_amount}
+          value={Number(Math.round(parseFloat(data.total_unpaid_amount))).toLocaleString()}
           icon={<MoneyOffIcon color="error" />}
           iconBgColor="#FDECEA"
         />
@@ -56,7 +56,7 @@ const PurchaseStats = ({ data }: PurchaseStatsProps) => {
         <StatCard
           radius={2}
           label="This Month Spent"
-          value={data.this_month_spent}
+          value={Number(Math.round(parseFloat(data.this_month_spent))).toLocaleString()}
           icon={<CalendarMonthIcon color="primary" />}
         />
       </Grid>

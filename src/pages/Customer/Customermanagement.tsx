@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -16,7 +16,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import AddNewCustomerDialog from "./Addnewcustomerdialog";
 import CustomerLedgerDialog from "./CustomerLedgerDialog";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
-import { useCustomers } from "./useCustomerapi";
+import { useInfiniteCustomers } from "./useCustomerapi";
 
 const theme = createTheme({
   palette: {
@@ -110,7 +110,35 @@ export default function CustomerManagement({
   const [editingCustomer, setEditingCustomer] = useState<ApiCustomer | null>(null);
   const [customerLedgerOpen, setCustomerLedgerOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const { data: apiCustomers = [] } = useCustomers();
+
+  const sentinelRef       = useRef<HTMLTableRowElement>(null) as React.RefObject<HTMLTableRowElement>;
+  const tableContainerRef = useRef<HTMLDivElement>(null)      as React.RefObject<HTMLDivElement>;
+
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+  } = useInfiniteCustomers(search);
+
+  const apiCustomers = useMemo(
+    () => data?.pages.flatMap((p) => p.customers) ?? [],
+    [data],
+  );
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) fetchNextPage();
+      },
+      { root: tableContainerRef.current },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   const handleDelete = useCallback((id: string) => {
     if (window.confirm("Delete this customer?")) {
@@ -118,9 +146,8 @@ export default function CustomerManagement({
     }
   }, [onDeleteCustomer]);
 
-  const customers: Customer[] = useMemo(() => {
+  const filtered: Customer[] = useMemo(() => {
     if (!apiCustomers || !Array.isArray(apiCustomers)) return [];
-
     return (apiCustomers as unknown as ApiCustomer[]).map((c: ApiCustomer) => ({
       id: c.cust_id,
       custUuid: c.cust_uuid,
@@ -128,29 +155,12 @@ export default function CustomerManagement({
       contactName: c.cust_name || "—",
       mobile: c.mobile_no?.[0] || "",
       email: c.email_id?.[0] || "",
-      address: [
-        c.address_line1,
-        c.city,
-        c.state,
-        c.pincode,
-      ].filter(Boolean).join(", "),
+      address: [c.address_line1, c.city, c.state, c.pincode].filter(Boolean).join(", "),
       gstin: c.gst || "",
       outstandingBalance: 0,
       placeOfSupply: c.state || "",
     }));
   }, [apiCustomers]);
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return customers;
-    return customers.filter(
-      (c) =>
-        `${c.businessName} ${c.contactName}`.toLowerCase().includes(q) ||
-        c.mobile.includes(q) ||
-        c.gstin.toLowerCase().includes(q) ||
-        c.email.toLowerCase().includes(q)
-    );
-  }, [customers, search]);
 
   const handleCustomerClick = useCallback((customer: Customer) => {
     setSelectedCustomer(customer);
@@ -466,6 +476,11 @@ export default function CustomerManagement({
               rows={filtered}
               rowKey={(customer) => customer.id}
               onRowClick={handleCustomerClick}
+              isLoading={isLoading}
+              hasNextPage={hasNextPage}
+              isFetchingNextPage={isFetchingNextPage}
+              loadMoreRef={sentinelRef}
+              tableContainerRef={tableContainerRef}
               maxHeight="100%"
               emptyMessage={search ? `No customers found for "${search}"` : "No customers found."}
             />

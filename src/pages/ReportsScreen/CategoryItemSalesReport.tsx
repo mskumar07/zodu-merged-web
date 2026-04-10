@@ -339,19 +339,22 @@ const CategoryItemSalesReport = () => {
       render: (row) => (
         <Typography sx={{ fontSize: "0.8rem", color: "#111827", fontWeight: 600, whiteSpace: "nowrap" }}>
           {row.itemName}
+           <Typography sx={{ fontSize: "0.75rem", color: "#3B82F6", fontWeight: 600, whiteSpace: "nowrap" }}>
+           {row.categoryName}
+         </Typography>
         </Typography>
       ),
     },
-    {
-      key: "categoryName",
-      label: "CATEGORY",
-      minWidth: 100,
-      render: (row) => (
-        <Typography sx={{ fontSize: "0.75rem", color: "#3B82F6", fontWeight: 600, whiteSpace: "nowrap" }}>
-          {row.categoryName}
-        </Typography>
-      ),
-    },
+    // {
+    //   key: "categoryName",
+    //   label: "CATEGORY",
+    //   minWidth: 100,
+    //   render: (row) => (
+    //     <Typography sx={{ fontSize: "0.75rem", color: "#3B82F6", fontWeight: 600, whiteSpace: "nowrap" }}>
+    //       {row.categoryName}
+    //     </Typography>
+    //   ),
+    // },
     {
       key: "quantity",
       label: "QTY",

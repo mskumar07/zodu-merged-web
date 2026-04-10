@@ -220,6 +220,8 @@ function MenuItemScreen() {
           onEdit={(p) => handleEditClick((p as any)._raw)}
           onDelete={(p) => openDeleteDialog((p as any).item_uuid)}
           onToggleStatus={(p, newStatus) => updateStatus({ item_uuid: p.item_uuid, status: newStatus })}
+          hasNextPage={hasNextPage}
+          isFetchingNextPage={isFetchingNextPage}
           loadMoreRef={sentinelRef}
           tableContainerRef={tableContainerRef}
         />
