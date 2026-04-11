@@ -40,11 +40,26 @@ export interface AuthUser {
   branch_id: string;
 }
 
+export interface CompanyDetails {
+  account_number: string;
+  account_type: string;
+  area_street_name: string;
+  building_no: string;
+  city: string;
+  district: string;
+  gst_no: string;
+  ifsc_code: string;
+  owner_admin_name: string;
+  pincode: string;
+  state: string;
+}
+
 export interface LoginResponse {
   message: string;
   access_token: string;
   refresh_token: string;
   user: AuthUser;
+  company?: CompanyDetails;
 }
 
 export interface SignupResponse {

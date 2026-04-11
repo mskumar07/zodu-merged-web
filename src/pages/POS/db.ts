@@ -95,6 +95,8 @@ export async function clearSyncMeta(branchId: string): Promise<void> {
 
 // ── Normalise raw API row → correct types before IDB write ────
 function normalise(p: Record<string, unknown>): PosProduct {
+
+  console.log("db",p)
   return {
     ...(p as PosProduct),
     // numbers that API sends as strings

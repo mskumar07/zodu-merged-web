@@ -18,6 +18,8 @@ import {
   type InfiniteData,
 } from "@tanstack/react-query";
 import { getTenantContext } from "@store/tenantContext";
+import { clearSyncMeta } from "@pages/POS/db";
+import { posProductsKey } from "@pages/POS/useposproducts";
 
 const API_BASE  = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 
@@ -313,10 +315,13 @@ export function useHardDeleteMenuItem(options?: {
   return useMutation({
     mutationFn: hardDeleteMenuItem,
 
-    onSuccess: (data) => {
-      // 🔥 refresh list after delete
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ["menu", "items"] });
-
+      const { branchId, zoduId } = getTenantContext();
+      if (branchId && zoduId) {
+        await clearSyncMeta(branchId);
+        queryClient.invalidateQueries({ queryKey: posProductsKey(branchId, zoduId) });
+      }
       options?.onSuccess?.(data);
     },
 
@@ -531,9 +536,15 @@ export function useAddMenuItem(options?: {
   onSuccess?: (data: AddMenuItemResponse) => void;
   onError?:   (message: string) => void;
 }): UseMutationResult<AddMenuItemResponse, unknown, AddMenuItemPayload> {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: postAddMenuItem,
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      const { branchId, zoduId } = getTenantContext();
+      if (branchId && zoduId) {
+        await clearSyncMeta(branchId);
+        queryClient.invalidateQueries({ queryKey: posProductsKey(branchId, zoduId) });
+      }
       options?.onSuccess?.(data);
     },
     onError: (err: unknown) => {
@@ -573,13 +584,16 @@ export function useEditMenuItem(options?: {
 
   return useMutation({
     mutationFn: postEditMenuItem,
-    onSuccess: (data, variables) => {
-      // Invalidate detail cache for this specific item
+    onSuccess: async (data, variables) => {
       queryClient.invalidateQueries({
         queryKey: menuQueryKeys.menuItemDetail(variables.item_uuid),
       });
-      // Invalidate list cache (sell price / name may have changed)
       queryClient.invalidateQueries({ queryKey: ["menu", "items"] });
+      const { branchId, zoduId } = getTenantContext();
+      if (branchId && zoduId) {
+        await clearSyncMeta(branchId);
+        queryClient.invalidateQueries({ queryKey: posProductsKey(branchId, zoduId) });
+      }
       options?.onSuccess?.(data);
     },
     onError: (err: unknown) => {

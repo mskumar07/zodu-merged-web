@@ -90,6 +90,7 @@ interface LineItem {
   code: string; description: string; qty: number; unitPrice: number; sellPrice: number; uuid: string;
   hsn: string; mrp: number; gstPct: number; taxInclusive: boolean; category?: string; unit?: string;
   discount?: number;
+  discountPct?: number;
   editingQty?: boolean; editingPrice?: boolean; editingDiscount?: boolean;
   qtyDraft?: string; priceDraft?: string; discountDraft?: string;
 }
@@ -123,7 +124,7 @@ function toLineItem(p: PosProduct): LineItem {
   return {
     uuid: p.item_uuid, code: p.item_id, description: p.item_name,
     qty: 1, unitPrice, sellPrice: grossPrice, taxInclusive,
-    hsn: p.hsn_code ?? "", mrp: Number(p.purchase_price) || grossPrice,
+    hsn: p.hsn_code ?? "", mrp: Number(p.mrp) || grossPrice,
     gstPct, category: p.category_name ?? "", unit: p.unit || "NOS", discount: 0,
   };
 }
@@ -199,6 +200,7 @@ function RetailPOSInner() {
   const [customerLedgerOpen,      setCustomerLedgerOpen]      = useState(false);
   const [addCustomerOpen,         setAddCustomerOpen]         = useState(false);
   const [addItemOpen,             setAddItemOpen]             = useState(false);
+  const [downloadLoading,         setDownloadLoading]         = useState(false);
   const [shareLoading,            setShareLoading]            = useState(false);
   const [savedOrderSnapshot,      setSavedOrderSnapshot]      = useState<SavedOrderSnapshot | null>(null);
   const [flashRow,       setFlashRow]       = useState<string | null>(null);
@@ -345,7 +347,7 @@ useEffect(() => {
   }, []);
 
   const startEditDiscount = useCallback((code: string) => {
-    setItems(prev => prev.map(i => i.code === code ? { ...i, editingDiscount: true, editingQty: false, editingPrice: false, discountDraft: String(i.discount ?? 0) } : { ...i, editingDiscount: false }));
+    setItems(prev => prev.map(i => i.code === code ? { ...i, editingDiscount: true, editingQty: false, editingPrice: false, discountDraft: String(i.discountPct ?? 0) } : { ...i, editingDiscount: false }));
     setTimeout(() => { discountRefs.current[code]?.focus(); discountRefs.current[code]?.select(); }, 30);
   }, []);
 
@@ -368,6 +370,7 @@ useEffect(() => {
       const sale = data.sale;
       setPosMode(sale.sale_type?.toLowerCase() === "q" ? "QUOTATION" : "SALE");
       setSaleId(sale.sale_uuid);
+      console.log("new",data)
       setItems(data.items.map((i: any) => {
         const grossPrice   = Number(i.price) || 0;
         const gstPct       = Number(i.gst_percentage) || 0;
@@ -436,7 +439,7 @@ console.log("test",serverHolds)
       sellPrice:   Number(i.price),
       uuid:        i.item_uuid ?? i.item_id,
       hsn:         i.hsn_code ?? "",
-      mrp:         Number(i.mrp ?? i.price),
+      mrp:         Number(i.mrp),
       gstPct:      Number(i.gst_percentage),
       taxInclusive:Boolean(i.tax_inclusive),
       unit:        i.unit ?? "NOS",
@@ -791,7 +794,6 @@ console.log("test",serverHolds)
     const totalSgst = savedHsnBreakdown.reduce((sum, row) => sum + row.sgstAmount, 0);
     const totalAmount = Number(order.total_amount ?? 0);
 
-    console.log("myorder",order,saleItems)
 
     return {
       sale_id: order.sale_id,
@@ -809,7 +811,7 @@ console.log("test",serverHolds)
         category: item.variant_name ?? "",
         hsn: item.hsn_code ?? "-",
         qty: Number(item.quantity ?? 0),
-        mrp: Number(item.mrp ?? item.price ?? 0),
+        mrp: Number(item.mrp ?? 0),
         rate: Number(item.price ?? 0),
         tax: Number(item.gst_percentage ?? 0),
         total: Number(item.total_amount ?? 0),
@@ -864,14 +866,14 @@ console.log("test",serverHolds)
 
   const handleDownloadInvoice = useCallback(async () => {
     if (!savedPdfData) return;
-    setShareLoading(true);
+    setDownloadLoading(true);
     try {
       const pdf = await generateInvoicePdf();
       if (!pdf) return;
       const fileName = `Invoice_${savedPdfData.sale_id ?? saveResult?.saleId ?? "invoice"}.pdf`;
       pdf.save(fileName);
     } finally {
-      setShareLoading(false);
+      setDownloadLoading(false);
     }
   }, [generateInvoicePdf, saveResult?.saleId, savedPdfData]);
 
@@ -1108,7 +1110,7 @@ console.log("test",serverHolds)
                     <TableCell align="center" sx={{ width: 130, fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.4 }}>QTY <Kbd>Q</Kbd></Box></TableCell>
                     <TableCell align="right" sx={{ width: 130, fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>RATE <Kbd>P</Kbd></Box></TableCell>
                     <TableCell align="right" sx={{ width: 110, fontSize: 12, whiteSpace: "nowrap" }}>UNIT PRICE</TableCell>
-                    <TableCell align="right" sx={{ width: 115, fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>DISC (₹) <Kbd>D</Kbd></Box></TableCell>
+                    <TableCell align="right" sx={{ width: 115, fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>DISC % <Kbd>D</Kbd></Box></TableCell>
                     <TableCell align="right" sx={{ width: 105, fontSize: 12 }}>TOTAL</TableCell>
                     <TableCell sx={{ width: 36 }} />
                   </TableRow>
@@ -1197,29 +1199,61 @@ console.log("test",serverHolds)
                           {/* UNIT PRICE EX.TAX */}
                           <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{INR(item.unitPrice)}</Typography></TableCell>
 
-                          {/* DISCOUNT */}
+                          {/* DISCOUNT % */}
                           <TableCell align="right" onClick={e => e.stopPropagation()}>
                             {item.editingDiscount ? (
                               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>
-                                <Typography sx={{ fontSize: 13, color: "#9CA3AF", fontWeight: 700 }}>₹</Typography>
                                 <TextField
                                   inputRef={el => { discountRefs.current[item.code] = el; }}
                                   value={item.discountDraft ?? ""}
                                   onChange={e => setItems(prev => prev.map(i => i.code === item.code ? { ...i, discountDraft: e.target.value.replace(/[^0-9.]/g, "") } : i))}
-                                  onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = discountRefs.current[item.code]; const newDiscount = Math.max(0, parseFloat(el?.value ?? "") || 0); setItems(prev => prev.map(i => i.code === item.code ? { ...i, discount: newDiscount, editingDiscount: false, discountDraft: undefined } : i)); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
-                                  onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); const newDiscount = Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, discount: newDiscount, editingDiscount: false, discountDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingDiscount: false, discountDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
+                                  onBlur={() => {
+                                    if (editCancelledRef.current) { editCancelledRef.current = false; return; }
+                                    const el = discountRefs.current[item.code];
+                                    const pct = Math.min(100, Math.max(0, parseFloat(el?.value ?? "") || 0));
+                                    const flat = parseFloat(((pct * item.qty * item.sellPrice) / 100).toFixed(2));
+                                    setItems(prev => prev.map(i => i.code === item.code ? { ...i, discountPct: pct, discount: flat, editingDiscount: false, discountDraft: undefined } : i));
+                                    setZone("TABLE"); setActiveRowIdx(rowIdx);
+                                  }}
+                                  onKeyDown={e => {
+                                    if (e.key === "Enter" || e.key === "Tab") {
+                                      e.preventDefault(); e.stopPropagation();
+                                      const pct = Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0));
+                                      const flat = parseFloat(((pct * item.qty * item.sellPrice) / 100).toFixed(2));
+                                      editCancelledRef.current = true;
+                                      setItems(prev => prev.map(i => i.code === item.code ? { ...i, discountPct: pct, discount: flat, editingDiscount: false, discountDraft: undefined } : i));
+                                      (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx);
+                                    }
+                                    if (e.key === "Escape") {
+                                      e.preventDefault(); e.stopPropagation();
+                                      editCancelledRef.current = true;
+                                      setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingDiscount: false, discountDraft: undefined } : i));
+                                      (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx);
+                                    }
+                                  }}
                                   size="small"
-                                  inputProps={{ style: { textAlign: "right", fontWeight: 700, fontSize: 13, padding: "2px 4px", width: 55 } }}
-                                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#C8102E", borderWidth: 2 } }, width: 78 }}
+                                  inputProps={{ style: { textAlign: "right", fontWeight: 700, fontSize: 13, padding: "2px 4px", width: 40 } }}
+                                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#C8102E", borderWidth: 2 } }, width: 70 }}
+                                  InputProps={{ endAdornment: <Typography sx={{ fontSize: 12, color: "#9CA3AF", fontWeight: 700 }}>%</Typography> }}
                                 />
                               </Box>
                             ) : (
                               <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditDiscount(item.code); }}
-                                sx={{ display: "inline-flex", alignItems: "center", gap: 0.3, px: 0.6, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #C8102E" : "1.5px dashed transparent", bgcolor: isActive ? "#FFF1F3" : "transparent", "&:hover": { border: "1.5px dashed #C8102E", bgcolor: "#FFF1F3", "& .dedit": { opacity: 1 } }, transition: "all 0.15s" }}>
-                                <Typography sx={{ fontSize: 13, fontWeight: 600, color: (item.discount ?? 0) > 0 ? "#C8102E" : "#D1D5DB" }}>
-                                  {(item.discount ?? 0) > 0 ? `- ${INR(item.discount ?? 0)}` : "—"}
-                                </Typography>
-                                <EditIcon className="dedit" sx={{ fontSize: 10, color: "#C8102E", opacity: isActive ? 0.5 : 0, transition: "opacity 0.15s" }} />
+                                sx={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-end", px: 0.6, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #C8102E" : "1.5px dashed transparent", bgcolor: isActive ? "#FFF1F3" : "transparent", "&:hover": { border: "1.5px dashed #C8102E", bgcolor: "#FFF1F3", "& .dedit": { opacity: 1 } }, transition: "all 0.15s" }}>
+                                {(item.discountPct ?? 0) > 0 ? (
+                                  <>
+                                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.3 }}>
+                                      <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#C8102E" }}>{item.discountPct}%</Typography>
+                                      <EditIcon className="dedit" sx={{ fontSize: 10, color: "#C8102E", opacity: isActive ? 0.5 : 0, transition: "opacity 0.15s" }} />
+                                    </Box>
+                                    <Typography sx={{ fontSize: 10, color: "#C8102E", fontWeight: 500 }}>- {INR(item.discount ?? 0)}</Typography>
+                                  </>
+                                ) : (
+                                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.3 }}>
+                                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#D1D5DB" }}>—</Typography>
+                                    <EditIcon className="dedit" sx={{ fontSize: 10, color: "#C8102E", opacity: isActive ? 0.5 : 0, transition: "opacity 0.15s" }} />
+                                  </Box>
+                                )}
                               </Box>
                             )}
                           </TableCell>
@@ -1445,7 +1479,7 @@ onChange={e => {
                     <Typography sx={{ fontSize: 12, color: "#374151" }}>
                       {order.time.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })} • {order.time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </Typography>
-                    <Typography sx={{ fontSize: 12, fontWeight: 500 }}>{order.customer?.name || "Walk-in Guest"}</Typography>
+                    <Typography sx={{ fontSize: 12, fontWeight: 500 }}>{order.customer?.name || "Walk-in"}</Typography>
                     <Typography sx={{ fontSize: 12, color: "#6B7280" }}>{order.items.length} items</Typography>
                     <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>₹{totalAmount.toLocaleString("en-IN")}</Typography>
                     <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 1 }}>
@@ -1502,9 +1536,9 @@ onChange={e => {
             {saveResult?.success && (
               <Tooltip title={savedPdfData ? "Download invoice" : "Preparing invoice..."}>
                 <span>
-                  <IconButton onClick={handleDownloadInvoice} disabled={!savedPdfData || shareLoading}
+                  <IconButton onClick={handleDownloadInvoice} disabled={!savedPdfData || downloadLoading}
                     sx={{ border: "1px solid #E5E7EB", borderRadius: 2, color: "#475569", bgcolor: "#fff", "&:hover": { bgcolor: "#F8FAFC", borderColor: "#CBD5E1" }, "&.Mui-disabled": { bgcolor: "#F8FAFC", color: "#CBD5E1" } }}>
-                    {shareLoading ? <CircularProgress size={18} /> : <Download sx={{ fontSize: 18 }} />}
+                    {downloadLoading ? <CircularProgress size={18} /> : <Download sx={{ fontSize: 18 }} />}
                   </IconButton>
                 </span>
               </Tooltip>
@@ -1535,7 +1569,7 @@ onChange={e => {
           </Box>
         )}
 
-        <CustomerLedgerDialog open={customerLedgerOpen} onClose={() => setCustomerLedgerOpen(false)} custUuid={customer.id} customerName={customer.name || "Walk-in Customer"} />
+        <CustomerLedgerDialog open={customerLedgerOpen} onClose={() => setCustomerLedgerOpen(false)} custUuid={customer.id} customerName={customer.name || "Walk-in"} />
         <AddNewCustomerDialog open={addCustomerOpen} onClose={() => setAddCustomerOpen(false)} />
         <AddItemModal open={addItemOpen} onClose={() => setAddItemOpen(false)} onSave={handleAddItemSaved} />
       </Box>

@@ -406,15 +406,15 @@ export default function InvoiceDetailsModal({
     gstRateMap[rateKey].totalTaxAmount += cgstAmount + sgstAmount;
   });
 
-  const gstBreakdown = Object.entries(gstRateMap)
-    .sort(([a], [b]) => Number(a) - Number(b))
-    .map(([, value]) => ({
+  const gstBreakdown = Object.entries(hsnMap)
+    .map(([hsn, value]) => ({
+      hsn,
       taxable: value.taxable.toFixed(2),
-      cgstRate: value.cgstRate.toFixed(2),
-      cgstAmount: value.cgstAmount.toFixed(2),
-      sgstRate: value.sgstRate.toFixed(2),
-      sgstAmount: value.sgstAmount.toFixed(2),
-      totalTaxAmount: value.totalTaxAmount.toFixed(2),
+      cgstRate: value.cgstPct.toFixed(2),
+      cgstAmount: value.cgst.toFixed(2),
+      sgstRate: value.sgstPct.toFixed(2),
+      sgstAmount: value.sgst.toFixed(2),
+      totalTaxAmount: (value.cgst + value.sgst).toFixed(2),
     }));
 
   // ── Derived values ────────────────────────────────────────
@@ -447,6 +447,15 @@ export default function InvoiceDetailsModal({
 
     const headerEl = pdfRef.current.querySelector("[data-pdf-header]") as HTMLElement | null;
     const headerDividerEl = pdfRef.current.querySelector("[data-pdf-header-divider]") as HTMLElement | null;
+    const keepTogetherEl = pdfRef.current.querySelector("[data-pdf-keep-together]") as HTMLElement | null;
+
+    // Measure positions BEFORE html2canvas — DOM layout must still be intact
+    const containerRect = pdfRef.current.getBoundingClientRect();
+    let keepTogetherStartPx = -1;
+    if (keepTogetherEl) {
+      const elRect = keepTogetherEl.getBoundingClientRect();
+      keepTogetherStartPx = Math.round((elRect.top - containerRect.top) * PDF_CAPTURE_SCALE);
+    }
 
     const capturedCanvas = await html2canvas(pdfRef.current, {
       scale: PDF_CAPTURE_SCALE,
@@ -464,7 +473,10 @@ export default function InvoiceDetailsModal({
       const headerRect = headerEl.getBoundingClientRect();
       const dividerRect = headerDividerEl?.getBoundingClientRect();
       const dividerBottom = dividerRect ? dividerRect.bottom : headerRect.bottom;
-      headerHeightPx = Math.max(1, Math.round((dividerBottom - headerRect.top) * PDF_CAPTURE_SCALE));
+      // Measure from the container's top (not the header element's top) so the
+      // copy from canvas y=0 correctly includes the page's top padding and the
+      // red divider line is fully captured in the repeating header.
+      headerHeightPx = Math.max(1, Math.round((dividerBottom - containerRect.top) * PDF_CAPTURE_SCALE));
 
       headerCanvas = document.createElement("canvas");
       headerCanvas.width = canvas.width;
@@ -514,12 +526,26 @@ export default function InvoiceDetailsModal({
     for (let sourceY = 0, pageIndex = 0; sourceY < canvas.height; pageIndex += 1) {
       const isFirstPage = pageIndex === 0;
       const targetSliceHeight = isFirstPage ? renderedPageHeightPx : laterPageContentHeightPx;
-      const sliceHeight = findSafeSliceHeight(
+      let sliceHeight = findSafeSliceHeight(
         canvas,
         sourceY,
         targetSliceHeight,
         Math.min(PDF_MIN_SLICE_HEIGHT_PX, targetSliceHeight),
       );
+
+      // If the keep-together section (declaration + bank + footer) would be
+      // split across pages, end the current page just before it starts so the
+      // whole block lands on the next page together.
+      // Only trigger when the section does NOT fully fit in the space remaining
+      // after its start point — if it fits, let it stay on this page as-is.
+      if (keepTogetherStartPx > sourceY + PDF_MIN_SLICE_HEIGHT_PX &&
+          keepTogetherStartPx < sourceY + sliceHeight) {
+        const sectionHeight = canvas.height - keepTogetherStartPx;
+        const spaceAfterStart = sourceY + sliceHeight - keepTogetherStartPx;
+        if (sectionHeight > spaceAfterStart) {
+          sliceHeight = keepTogetherStartPx - sourceY;
+        }
+      }
 
       if (sliceHeight <= 0) {
         break;
@@ -1259,7 +1285,7 @@ export default function InvoiceDetailsModal({
       </DialogContent>
 
       {/* Hidden PDF render target */}
-      <div style={{ position: "absolute", left: "-9999px", top: 0, zIndex: -1 }}>
+      <div style={{ position: "fixed", left: "-9999px", top: "-9999px", overflow: "hidden", pointerEvents: "none" }}>
         <InvoicePDFTemplate ref={pdfRef} data={pdfData} />
       </div>
 

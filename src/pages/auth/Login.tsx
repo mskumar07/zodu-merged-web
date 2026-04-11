@@ -702,9 +702,10 @@ const ZoduLoginPage: React.FC = () => {
         response && typeof response === 'object' && 'data' in response
           ? (response.data as LoginResponse)
           : response;
+          console.log("login detail",data)
       if (!data?.user || !data?.access_token || !data?.refresh_token)
         throw new Error('Invalid login response');
-      dispatch(setAuthData({ accessToken: data.access_token, refreshToken: data.refresh_token, profile: data.user }));
+      dispatch(setAuthData({ accessToken: data.access_token, refreshToken: data.refresh_token, profile: data.user, company: data.company ?? null }));
       navigate(redirectTo, { replace: true });
     } catch {
       setError('Login failed. Please check your credentials and try again.');

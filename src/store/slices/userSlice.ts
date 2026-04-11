@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { RootState } from "@store/store";
-import type { AuthUser } from "@pages/auth/Authapi";
+import type { AuthUser, CompanyDetails } from "@pages/auth/Authapi";
 
 interface Userstate {
   branchId: string;
@@ -8,6 +8,7 @@ interface Userstate {
   accessToken: string | null;
   refreshToken: string | null;
   profile: AuthUser | null;
+  company: CompanyDetails | null;
   isAuthenticated: boolean;
 }
 
@@ -17,6 +18,7 @@ const initialState: Userstate = {
   accessToken: null,
   refreshToken: null,
   profile: null,
+  company: null,
   isAuthenticated: false,
 };
 
@@ -34,12 +36,14 @@ const userSlice = createSlice({
         accessToken: string;
         refreshToken: string;
         profile: AuthUser;
+        company?: CompanyDetails | null;
         branchId?: string;
       }>
     ) => {
       state.accessToken = action.payload.accessToken;
       state.refreshToken = action.payload.refreshToken;
       state.profile = action.payload.profile;
+      state.company = action.payload.company ?? state.company;
       state.zoduId = action.payload.profile?.zodu_id ?? state.zoduId;
       state.branchId = action.payload.profile?.branch_id ?? state.branchId;
       state.isAuthenticated = Boolean(
@@ -52,6 +56,7 @@ const userSlice = createSlice({
       state.accessToken = null;
       state.refreshToken = null;
       state.profile = null;
+      state.company = null;
       state.isAuthenticated = false;
       state.branchId = "";
       state.zoduId = "";
@@ -66,6 +71,7 @@ export const ZoduId = (state: RootState) => state.user.zoduId;
 export const AuthToken = (state: RootState) => state.user.accessToken;
 export const RefreshToken = (state: RootState) => state.user.refreshToken;
 export const UserProfile = (state: RootState) => state.user.profile;
+export const UserCompany = (state: RootState) => state.user.company;
 export const IsAuthenticated = (state: RootState) => state.user.isAuthenticated;
 
 export default userSlice.reducer;

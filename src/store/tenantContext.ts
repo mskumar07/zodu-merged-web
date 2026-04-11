@@ -31,6 +31,7 @@ export function getTenantContext() {
       state.branchId ||
       persistedState?.branchId ,
     profile: state.profile,
+    company: state.company,
   };
 }
 

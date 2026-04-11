@@ -6,7 +6,7 @@ import React from "react";
 const styles = {
   page: {
     width: "794px",
-    padding: "40px 48px",
+    padding: "24px 20px",
     background: "#fff",
     fontFamily: "'Inter', 'Arial', sans-serif",
     color: "#0F172A",
@@ -83,7 +83,7 @@ const styles = {
   table: { width: "100%", borderCollapse: "collapse" as const, marginBottom: "20px" },
   thead: { background: "#111827" },
   theadTh: {
-    padding: "10px 12px",
+    padding: "10px 8px",
     fontSize: "10px",
     fontWeight: 700,
     color: "#fff",
@@ -92,7 +92,7 @@ const styles = {
     textTransform: "uppercase" as const,
   },
   theadThRight: {
-    padding: "10px 12px",
+    padding: "10px 8px",
     fontSize: "10px",
     fontWeight: 700,
     color: "#fff",
@@ -101,7 +101,7 @@ const styles = {
     textTransform: "uppercase" as const,
   },
   theadThCenter: {
-    padding: "10px 12px",
+    padding: "10px 8px",
     fontSize: "10px",
     fontWeight: 700,
     color: "#fff",
@@ -110,29 +110,29 @@ const styles = {
     textTransform: "uppercase" as const,
   },
   tdBase: {
-    padding: "10px 12px",
-    fontSize: "12px",
+    padding: "5px 8px",
+    fontSize: "10px",
     color: "#0F172A",
     borderBottom: "1px solid #E5E7EB",
     verticalAlign: "middle" as const,
   },
   tdRight: {
-    padding: "10px 12px",
-    fontSize: "12px",
+    padding: "5px 8px",
+    fontSize: "10px",
     color: "#0F172A",
     borderBottom: "1px solid #E5E7EB",
     textAlign: "right" as const,
     verticalAlign: "middle" as const,
   },
   tdCenter: {
-    padding: "10px 12px",
-    fontSize: "12px",
+    padding: "5px 8px",
+    fontSize: "10px",
     color: "#0F172A",
     borderBottom: "1px solid #E5E7EB",
     textAlign: "center" as const,
     verticalAlign: "middle" as const,
   },
-  itemName: { fontWeight: 600, fontSize: "12px", color: "#0F172A" },
+  itemName: { fontWeight: 600, fontSize: "10px", color: "#0F172A" },
   itemSub: { fontSize: "10px", color: "#6B7280", marginTop: "2px" },
 
   // Summary
@@ -146,9 +146,9 @@ const styles = {
   },
   summaryLabel: { fontSize: "12px", color: "#475569" },
   summaryValue: { fontSize: "12px", color: "#0F172A", fontWeight: 500 },
-  summaryValueRed: { fontSize: "12px", color: "#DC2626", fontWeight: 600 },
+  summaryValueRed: { fontSize: "12px", color: "#000000", fontWeight: 600 },
   grandLabel: { fontSize: "14px", fontWeight: 800, color: "#0F172A" },
-  grandValue: { fontSize: "18px", fontWeight: 900, color: "#D0021B" },
+  grandValue: { fontSize: "18px", fontWeight: 900, color: "#000000" },
   amountWords: { fontSize: "10px", color: "#64748B", marginTop: "8px", textAlign: "right" as const, fontStyle: "italic" },
 
   // GST breakdown
@@ -301,24 +301,34 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
     total,
     amount_in_words,
     gst_breakdown = [],
-    company,
   } = data;
-    const { profile } = useAppSelector(getTenantContext);
+  const { profile, company } = useAppSelector(getTenantContext);
 
 
   const showDiscount = discount && Number(discount) > 0;
   const showRoundOff = round_off !== undefined && round_off !== null && Number(round_off) !== 0;
 
-  const co =  {
-    name:   profile?.restaurant_name || "Your Company Name",
-    gstin:  "29AAAAA0000A1Z5",
-    line1:  "123 Business Park, MG Road",
-    line2:  "Bangalore, Karnataka - 560001",
-    phone:  profile?.phone_number || "9876543210",
-    bankName: "Union Bank of India",
-    accountNumber: "510101000817928",
-    branchIfsc: "Vellore Branch & UBIN090011",
-    declaration: "We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.",
+  const addressParts = [
+    company?.building_no,
+    company?.area_street_name,
+    company?.city,
+    company?.district,
+    company?.state,
+    company?.pincode,
+  ].filter(Boolean);
+  const addressLine1 = addressParts.slice(0, 3).join(", ");
+  const addressLine2 = addressParts.slice(3).join(", ");
+
+  const co = {
+    name:          profile?.restaurant_name || "Your Company Name",
+    gstin:         company?.gst_no || "",
+    line1:         addressLine1,
+    line2:         addressLine2,
+    phone:         profile?.phone_number || "",
+    bankName:      "Bank Details N/A",
+    accountNumber: company?.account_number || "",
+    branchIfsc:    company?.ifsc_code || "",
+    declaration:   "We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.",
   };
 
   return (
@@ -391,11 +401,11 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
       <table style={styles.table}>
         <thead style={styles.thead}>
           <tr>
-            <th style={{ ...styles.theadTh, width: "36px" }}>SL</th>
+            <th style={{ ...styles.theadTh, width: "18px" }}>SL</th>
             <th style={styles.theadTh}>Item ID</th>
             <th style={styles.theadTh}>Item Name </th>
-            <th style={{ ...styles.theadThCenter, width: "72px" }}>HSN</th>
-            <th style={{ ...styles.theadThCenter, width: "60px" }}>Tax %</th>
+            <th style={{ ...styles.theadThCenter, width: "60px" }}>HSN</th>
+            <th style={{ ...styles.theadThCenter, width: "30px" }}>Tax</th>
             <th style={{ ...styles.theadThCenter, width: "48px" }}>QTY</th>
             <th style={{ ...styles.theadThRight, width: "80px" }}>MRP</th>
             <th style={{ ...styles.theadThRight, width: "80px" }}>Rate</th>
@@ -415,7 +425,7 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
                 )} */}
               </td>
               <td style={styles.tdCenter}>{item.hsn || "—"}</td>
-                            <td style={styles.tdCenter}>{item.tax}%</td>
+                            <td style={styles.tdCenter}>{Number(item.tax).toFixed(0)}%</td>
 
               <td style={styles.tdCenter}>{item.qty}</td>
               <td style={styles.tdRight}>{fmt(item.mrp ?? item.rate)}</td>
@@ -439,8 +449,8 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
             />
           )}
 
-          <SummaryRow label={`CGST (${data.cgst_pct ?? ""}%):`} value={fmt(cgst)} />
-          <SummaryRow label={`SGST (${data.sgst_pct ?? ""}%):`} value={fmt(sgst)} />
+          <SummaryRow label="CGST:" value={fmt(cgst)} />
+          <SummaryRow label="SGST:" value={fmt(sgst)} />
 
           {showRoundOff && (
             <SummaryRow
@@ -459,13 +469,14 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
         </div>
       </div>
 
-      {/* ── HSN TABLE ────────────────────────────────────────── */}
+      {/* ── HSN-WISE TAX BREAKDOWN ───────────────────────────── */}
       {gst_breakdown.length > 0 && (
         <div style={styles.gstSection}>
-          <p style={styles.gstLabel}>GST Breakdown</p>
+          <p style={styles.gstLabel}>HSN-wise Tax Breakdown</p>
           <table style={{ ...styles.table, marginBottom: 0 }}>
             <thead style={styles.gstThead}>
               <tr>
+                <th style={styles.gstTh}>HSN Code</th>
                 <th style={styles.gstThRight}>Taxable Value</th>
                 <th style={styles.gstThRight}>CGST Rate</th>
                 <th style={styles.gstThRight}>CGST Amount</th>
@@ -477,6 +488,7 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
             <tbody>
               {gst_breakdown.map((row: any, i: number) => (
                 <tr key={i}>
+                  <td style={{ ...styles.gstTd, fontWeight: 600 }}>{row.hsn || "—"}</td>
                   <td style={styles.gstTdRight}>{fmt(row.taxable)}</td>
                   <td style={styles.gstTdRight}>{row.cgstRate}%</td>
                   <td style={styles.gstTdRight}>{fmt(row.cgstAmount)}</td>
@@ -493,10 +505,11 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
 
                 return (
                   <tr style={styles.gstTotalRow}>
+                    <td style={{ ...styles.gstTotalTd }}>Total</td>
                     <td style={styles.gstTotalTdRight}>{fmt(totalTaxable)}</td>
-                    <td style={styles.gstTotalTdRight}>-</td>
+                    <td style={styles.gstTotalTdRight}>—</td>
                     <td style={styles.gstTotalTdRight}>{fmt(totalCgst)}</td>
-                    <td style={styles.gstTotalTdRight}>-</td>
+                    <td style={styles.gstTotalTdRight}>—</td>
                     <td style={styles.gstTotalTdRight}>{fmt(totalSgst)}</td>
                     <td style={styles.gstTotalTdRight}>{fmt(totalTax)}</td>
                   </tr>
@@ -507,42 +520,45 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
         </div>
       )}
 
-      <div style={styles.noteGrid}>
-        <div>
-          <p style={styles.noteLabel}>Declaration</p>
-          <p style={styles.noteText}>{co.declaration}</p>
+      {/* ── DECLARATION + BANK + FOOTER (kept together across pages) ── */}
+      <div data-pdf-keep-together>
+        <div style={styles.noteGrid}>
+          <div>
+            <p style={styles.noteLabel}>Declaration</p>
+            <p style={styles.noteText}>{co.declaration}</p>
+          </div>
+
+          <div style={styles.bankBox}>
+            <p style={styles.noteLabel}>Company&apos;s Bank Details</p>
+            <div style={styles.bankRow}>
+              <span style={styles.bankKey}>Bank Name</span>
+              <span style={styles.bankValue}>{co.bankName}</span>
+            </div>
+            <div style={styles.bankRow}>
+              <span style={styles.bankKey}>A/c No.</span>
+              <span style={styles.bankValue}>{co.accountNumber}</span>
+            </div>
+            <div style={{ ...styles.bankRow, marginBottom: 0 }}>
+              <span style={styles.bankKey}>Branch &amp; IFSC</span>
+              <span style={styles.bankValue}>{co.branchIfsc}</span>
+            </div>
+          </div>
         </div>
 
-        <div style={styles.bankBox}>
-          <p style={styles.noteLabel}>Company&apos;s Bank Details</p>
-          <div style={styles.bankRow}>
-            <span style={styles.bankKey}>Bank Name</span>
-            <span style={styles.bankValue}>{co.bankName}</span>
-          </div>
-          <div style={styles.bankRow}>
-            <span style={styles.bankKey}>A/c No.</span>
-            <span style={styles.bankValue}>{co.accountNumber}</span>
-          </div>
-          <div style={{ ...styles.bankRow, marginBottom: 0 }}>
-            <span style={styles.bankKey}>Branch &amp; IFSC</span>
-            <span style={styles.bankValue}>{co.branchIfsc}</span>
-          </div>
-        </div>
-      </div>
+        {/* ── FOOTER ─────────────────────────────────────────── */}
+        <div style={styles.footer}>
+          <p style={styles.footerThanks}>Thank you for your business!</p>
+          <p style={styles.footerTerms}>
+            Terms: Goods once sold will not be taken back.
+          </p>
+          <p style={styles.footerCopy}>
+            © 2024 {co.name}. Authorised Signatory Required.
+          </p>
 
-      {/* ── FOOTER ───────────────────────────────────────────── */}
-      <div style={styles.footer}>
-        <p style={styles.footerThanks}>Thank you for your business!</p>
-        <p style={styles.footerTerms}>
-          Terms: Goods once sold will not be taken back.
-        </p>
-        <p style={styles.footerCopy}>
-          © 2024 {co.name}. Authorised Signatory Required.
-        </p>
-
-        <div style={styles.signBox}>
-          <div style={styles.signLine} />
-          <p style={styles.signLabel}>Authorized Signatory</p>
+          <div style={styles.signBox}>
+            <div style={styles.signLine} />
+            <p style={styles.signLabel}>Authorized Signatory</p>
+          </div>
         </div>
       </div>
     </div>
