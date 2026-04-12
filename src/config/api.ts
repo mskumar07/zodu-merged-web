@@ -46,6 +46,8 @@ interface ReportEndpoints {
   salesSummary: string;
   salesMonthlyBreakdown: string;
   salesHistorical: string;
+  salesDatewiseSummary: string;
+  salesDatewiseBreakdown: string;
 }
 
 interface DashboardEndpoints {
@@ -176,6 +178,8 @@ export const apiConfig: ApiConstants = {
     salesSummary: `${RESTAURANT_BASE}/api/report/sales/summary`,
     salesMonthlyBreakdown: `${RESTAURANT_BASE}/api/report/sales/monthly-breakdown`,
     salesHistorical: `${RESTAURANT_BASE}/api/report/sales/historical`,
+    salesDatewiseSummary: `${RESTAURANT_BASE}/api/report/sales/datewise/summary`,
+    salesDatewiseBreakdown: `${RESTAURANT_BASE}/api/report/sales/datewise`,
   },
 
   mainDashboard: {

@@ -24,6 +24,7 @@ const reportCards = [
     icon: Receipt,
     path: "/reports/sales",
     category: "/reports/sales/category-item",
+    datewise: "/reports/sales/datewise",
     color: "#f44336",
   },
   {
@@ -122,6 +123,11 @@ const ReportDashboard: React.FC = () => {
                   </Box>
                     <Divider sx={{my:1.5}} />
                     <Box sx={{ml:2}}>
+                          {card.datewise && (
+                      <Typography onClick={() => navigate(card.datewise!)} fontSize={14} fontWeight={400} sx={{cursor:"pointer", "&:hover": { color:"#1976d2" }}} color="#000" mt={1}>
+                        • Date-wise Report
+                      </Typography>
+                    )}
                     <Typography onClick={() => navigate(card.path)} fontSize={14} fontWeight={400} sx={{cursor:"pointer", "&:hover": { color:"#1976d2" }}} color="#000" mt={1}>
                      • MonthWise Report
                     </Typography>
@@ -130,6 +136,7 @@ const ReportDashboard: React.FC = () => {
                         • Category/Item-wise Report
                       </Typography>
                     )}
+                
                     </Box>
 {/* 
                   <Typography

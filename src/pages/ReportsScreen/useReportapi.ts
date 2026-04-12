@@ -446,6 +446,120 @@ export const useInfiniteItemWiseSales = (params: CategoryItemSalesPageParams) =>
   });
 };
 
+// ── Datewise sale report ───────────────────────────────────────────────────
+
+export interface DatewiseSummary {
+  totalOrders: number;
+  totalSales: number;
+  totalTax: number;
+  netSales: number;
+}
+
+export interface DatewiseBreakdownRow {
+  saleDate: string;
+  billCount: number;
+  totalAmount: number;
+  taxAmount: number;
+  netSales: number;
+}
+
+export interface DatewiseBreakdownPage {
+  success: boolean;
+  data: DatewiseBreakdownRow[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+interface DatewiseParams {
+  zodu_id: string;
+  branch_id: string;
+  from_date?: string;
+  to_date?: string;
+}
+
+interface DatewiseBreakdownParams extends DatewiseParams {
+  limit?: number;
+}
+
+const toDatewiseSummary = (payload: unknown): DatewiseSummary => {
+  const source = asRecord(asRecord(payload)?.data ?? payload);
+  console.log("datewise summary",source)
+  return {
+    totalOrders: toNumber(source?.totalOrders ?? source?.total_orders),
+    totalSales: toNumber(source?.totalSales ?? source?.total_sales),
+    totalTax: toNumber(source?.totalTax ?? source?.total_tax ?? source?.tax_amount),
+    netSales: toNumber(source?.netSales ?? source?.net_sales ?? source?.total_profit),
+  };
+};
+
+const toDatewiseBreakdownRow = (row: unknown): DatewiseBreakdownRow => {
+  const source = asRecord(row);
+  return {
+    saleDate: String(source?.sale_date ?? source?.saleDate ?? source?.date ?? ""),
+    billCount: toNumber(source?.total_orders ?? source?.bill_count ?? source?.billCount),
+    totalAmount: toNumber(source?.total_sales ?? source?.total_amount ?? source?.totalAmount),
+    taxAmount: toNumber(source?.total_tax ?? source?.tax_amount ?? source?.taxAmount),
+    netSales: toNumber(source?.net_sales ?? source?.netSales ?? source?.total_profit),
+  };
+};
+
+const toDatewiseBreakdownPage = (payload: unknown): DatewiseBreakdownPage => {
+  const source = asRecord(payload) ?? {};
+  const pagination = asRecord(source.pagination);
+  const data = Array.isArray(source.data) ? source.data.map(toDatewiseBreakdownRow) : [];
+  return {
+    success: source.success !== false,
+    data,
+    total: toNumber(source.total ?? pagination?.total),
+    page: toNumber(source.page ?? pagination?.page) || 1,
+    limit: toNumber(source.limit ?? pagination?.limit) || data.length || 1,
+  };
+};
+
+export const useDatewiseSaleSummary = (params: DatewiseParams) => {
+  return useQuery<DatewiseSummary>({
+    queryKey: ["datewise-sale-summary", params.zodu_id, params.branch_id, params.from_date, params.to_date],
+    queryFn: async () => {
+      const p = new URLSearchParams({ zodu_id: params.zodu_id, branch_id: params.branch_id });
+      if (params.from_date) p.append("from_date", params.from_date);
+      if (params.to_date) p.append("to_date", params.to_date);
+      const res = await axiosInstance.get(`${apiConfig.report.salesDatewiseSummary}?${p}`);
+      return toDatewiseSummary(res.data);
+    },
+    enabled: !!params.zodu_id && !!params.branch_id,
+    staleTime: 1000 * 60 * 2,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useDatewiseSaleBreakdown = (params: DatewiseBreakdownParams) => {
+  const limit = params.limit ?? 15;
+  return useInfiniteQuery<DatewiseBreakdownPage>({
+    queryKey: ["datewise-sale-breakdown", params.zodu_id, params.branch_id, params.from_date, params.to_date, limit],
+    queryFn: async ({ pageParam = 1 }) => {
+      const p = new URLSearchParams({
+        zodu_id: params.zodu_id,
+        branch_id: params.branch_id,
+        page: String(pageParam),
+        limit: String(limit),
+      });
+      if (params.from_date) p.append("from_date", params.from_date);
+      if (params.to_date) p.append("to_date", params.to_date);
+      const res = await axiosInstance.get(`${apiConfig.report.salesDatewiseBreakdown}?${p}`);
+      return toDatewiseBreakdownPage(res.data);
+    },
+    getNextPageParam: (lastPage) => {
+      const { page, limit: currentLimit, total } = lastPage;
+      return page * currentLimit < total ? page + 1 : undefined;
+    },
+    initialPageParam: 1,
+    enabled: !!params.zodu_id && !!params.branch_id,
+    staleTime: 1000 * 60 * 2,
+    refetchOnWindowFocus: false,
+  });
+};
+
 export const useSalesVelocity = (params: CategoryItemSalesBaseParams) => {
   return useQuery<SalesVelocityPoint[]>({
     queryKey: ["sales-velocity", params],

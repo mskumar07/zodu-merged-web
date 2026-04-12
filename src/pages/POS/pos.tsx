@@ -54,6 +54,7 @@ import {
   fetchSaleDetail,
 } from "../SalesHistory/useSaleshistory";
 import { InvoicePDFTemplate } from "../SalesHistory/InvoicePDFTemplate";
+import { ThermalInvoiceTemplate, type ThermalPaperSize } from "../SalesHistory/ThermalInvoiceTemplate";
 import DiscountModal          from "./DiscountModal";
 import NoteModal              from "./NotesModal";
 import { useAppSelector }     from "@store/store";
@@ -192,6 +193,7 @@ function RetailPOSInner() {
   const [receivedAmount, setReceivedAmount] = useState("");
   const [paymentType,    setPaymentType]    = useState<PaymentType>("Cash");
   const [printEnabled,   setPrintEnabled]   = useState(true);
+  const [thermalPaperSize, setThermalPaperSize] = useState<ThermalPaperSize>("3");
   const [invoiceDate,    setInvoiceDate]    = useState(todayStr());
   const [dueDate,        setDueDate]        = useState("");
   const [orderNote,      setOrderNote]      = useState("");
@@ -290,6 +292,7 @@ const {
   const editCancelledRef  = useRef(false);
   const inputRef          = useRef<HTMLInputElement | null>(null);
   const pdfRef            = useRef<HTMLDivElement | null>(null);
+  const thermalRef        = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => { forceRefresh(); }, []);
   useEffect(() => { codeRef.current?.focus(); }, []);
@@ -621,6 +624,32 @@ console.log("test",serverHolds)
       setSaveResult({ open: true, success: false, message: result.message });
     }
   }, [items, customer, invoiceDate, dueDate, dueDateEnabled, discountPct, discount, gstMode, roundoffValue, posMode, receivedAmount, paymentType, referenceNo, printEnabled, saving, saveOrder, updateOrder, handleClear, saleId, saleIdFromUrl]);
+
+  const handleThermalPrint = useCallback(() => {
+    if (!thermalRef.current) return;
+    const paperMmMap: Record<ThermalPaperSize, number> = { "3": 80, "4": 104, "5": 130 };
+    const mm = paperMmMap[thermalPaperSize];
+    const content = thermalRef.current.innerHTML;
+    const printWindow = window.open("", "_blank", "width=500,height=700");
+    if (!printWindow) return;
+    printWindow.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Receipt</title>
+  <style>
+    @page { size: ${mm}mm auto; margin: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { width: ${mm}mm; background: #fff; }
+    @media print { html, body { width: ${mm}mm; } }
+  </style>
+</head>
+<body>${content}</body>
+</html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 300);
+  }, [thermalRef, thermalPaperSize]);
 
   const FOOTER_ORDER: FooterFocus[] = ["DISCOUNT_PCT", "DISCOUNT_AMT", "PAYMENT_TYPE", "REF_NO", "RECEIVED", "SAVE"];
 
@@ -1524,7 +1553,36 @@ onChange={e => {
                     <Typography sx={{ fontSize: 14, fontWeight: 800, color: "#1D4ED8" }}>{INR(saveResult.change ?? 0)}</Typography>
                   </Box>
                 )}
-               
+
+                {/* Paper size selector — only visible when print is enabled */}
+                {printEnabled && (
+                  <Box sx={{ mt: 1.5, pt: 1.5, borderTop: "1px solid #F1F5F9" }}>
+                    <Typography sx={{ fontSize: 11, color: "#6B7280", mb: 0.8, fontWeight: 600, letterSpacing: "0.04em" }}>
+                      THERMAL PAPER SIZE
+                    </Typography>
+                    <Box sx={{ display: "flex", gap: 1 }}>
+                      {(["3", "4", "5"] as ThermalPaperSize[]).map((size) => (
+                        <Box
+                          key={size}
+                          onClick={() => setThermalPaperSize(size)}
+                          sx={{
+                            px: 1.5, py: 0.5, borderRadius: 1.5, cursor: "pointer",
+                            fontSize: 12, fontWeight: 700,
+                            border: "1.5px solid",
+                            borderColor: thermalPaperSize === size ? "#C8102E" : "#E5E7EB",
+                            bgcolor: thermalPaperSize === size ? "#FFF1F3" : "#fff",
+                            color: thermalPaperSize === size ? "#C8102E" : "#6B7280",
+                            transition: "all 0.15s",
+                            userSelect: "none",
+                          }}
+                        >
+                          {size}&quot;
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+
               </Box>
             ) : (
               <Box sx={{ bgcolor: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 2, p: 1.5 }}>
@@ -1554,7 +1612,7 @@ onChange={e => {
               </Tooltip>
             )}
             {saveResult?.success && printEnabled && (
-              <Button variant="outlined" startIcon={<PrintOutlinedIcon />} onClick={handleCloseSaveResult} sx={{ borderRadius: 2, fontWeight: 600, flex: 1, borderColor: "#E5E7EB", color: "#374151" }}>Print</Button>
+              <Button variant="outlined" startIcon={<PrintOutlinedIcon />} onClick={handleThermalPrint} sx={{ borderRadius: 2, fontWeight: 600, flex: 1, borderColor: "#E5E7EB", color: "#374151" }}>Print</Button>
             )}
             <Button variant="contained" onClick={handleCloseSaveResult}
               sx={{ bgcolor: saveResult?.success ? "#16A34A" : "#C8102E", "&:hover": { bgcolor: saveResult?.success ? "#15803D" : "#A50D26" }, borderRadius: 2, fontWeight: 700, flex: 1 }} autoFocus>
@@ -1566,6 +1624,11 @@ onChange={e => {
         {savedPdfData && (
           <Box sx={{ position: "fixed", left: -10000, top: 0, width: 794, pointerEvents: "none", opacity: 0 }}>
             <InvoicePDFTemplate ref={pdfRef} data={savedPdfData} />
+          </Box>
+        )}
+        {savedPdfData && (
+          <Box sx={{ position: "fixed", left: -10000, top: 0, pointerEvents: "none", opacity: 0 }}>
+            <ThermalInvoiceTemplate ref={thermalRef} data={savedPdfData} paperSize={thermalPaperSize} />
           </Box>
         )}
 
