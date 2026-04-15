@@ -18,6 +18,7 @@ import {
   fetchHistory, salesQueryKeys, deleteSale,
   type Sale, type Filters, type PaymentStatus,
 } from "./useSaleshistory";
+import { useTenantContext } from "@store/tenantContext";
 
 import InvoiceDetailDialog from "./Invoicedetaildialog";
 import MarkPaymentDialog   from "./MarkPaymentDialog";
@@ -181,6 +182,7 @@ const queryClient = new QueryClient();
 export default function SalesHistoryPage() {
   const navigate = useNavigate();
 
+  const { branchId } = useTenantContext();
   const [draftFilters,   setDraftFilters]   = useState<Filters>({ search: "", payment_status: "", from_date: "", to_date: "" });
   const [appliedFilters, setAppliedFilters] = useState<Filters>({ search: "", payment_status: "", from_date: "", to_date: "" });
 
@@ -193,7 +195,7 @@ export default function SalesHistoryPage() {
   const {
     data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, refetch,
   } = useInfiniteQuery({
-    queryKey:         salesQueryKeys.history(appliedFilters),
+    queryKey:         salesQueryKeys.history(branchId ?? '', appliedFilters),
     queryFn:          ({ pageParam = 1 }) => fetchHistory(pageParam as number, appliedFilters),
     initialPageParam: 1,
     getNextPageParam: (last) => last.page < last.total_pages ? last.page + 1 : undefined,
@@ -222,11 +224,11 @@ export default function SalesHistoryPage() {
     },
     {
       key: "date",
-      label: "Date & Time",
+      label: "Date",
       width: 170,
       render: (sale: Sale) => (
         <Typography variant="body2" sx={{ fontSize: BODY_FONT_SIZE, color: TABLE_TEXT_COLOR }}>
-          {sale.created_at_fmt}
+          {sale.sale_date_fmt}
         </Typography>
       ),
     },
@@ -332,6 +334,17 @@ export default function SalesHistoryPage() {
           </Stack>
         );
       },
+    },
+    {
+      key:"created at",
+      label:"Created At",
+      width:170,
+      render:(sale:Sale)=>(
+        <Typography variant="body2" sx={{ fontSize: "12px", color: TABLE_TEXT_COLOR }}>
+          {sale.created_at_fmt}
+        </Typography>
+      )
+
     },
     {
       key: "actions",

@@ -157,6 +157,20 @@ const SimpleInfiniteScrollTable: React.FC<SimpleInfiniteScrollTableProps> = ({
         maxHeight: 600,
         overflow: "auto",
         position: "relative",
+        "&::-webkit-scrollbar": {
+          width: 8,
+          height: 8,
+        },
+        "&::-webkit-scrollbar-track": {
+          background: "transparent",
+        },
+        "&::-webkit-scrollbar-thumb": {
+          background: "#cbd5e1",
+          borderRadius: "4px",
+          "&:hover": {
+            background: "#94a3b8",
+          },
+        },
       }}>
       <Table stickyHeader>
         <TableHead>

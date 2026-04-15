@@ -17,7 +17,7 @@ import {
   type UseMutationResult,
   type InfiniteData,
 } from "@tanstack/react-query";
-import { getTenantContext } from "@store/tenantContext";
+import { getTenantContext, useTenantContext } from "@store/tenantContext";
 import { clearSyncMeta } from "@pages/POS/db";
 import { posProductsKey } from "@pages/POS/useposproducts";
 
@@ -387,6 +387,7 @@ export function useUpdateMenuItemStatus(options?: {
 export function useCategories(
   serviceType: "product" | "service"
 ): UseQueryResult<Category[]> {
+  useTenantContext();
   return useQuery({
     queryKey:             menuQueryKeys.categories(serviceType),
     queryFn:              () => fetchCategories(serviceType),
@@ -402,6 +403,7 @@ export function useCategories(
  * Always fetches on mount — no enabled flag.
  */
 export function useGstList(): UseQueryResult<GstOption[]> {
+  useTenantContext();
   return useQuery({
     queryKey:             menuQueryKeys.gstList(),
     queryFn:              fetchGstList,
@@ -417,6 +419,7 @@ export function useGstList(): UseQueryResult<GstOption[]> {
  * Cached for 30 min — units rarely change.
  */
 export function useUnitList(): UseQueryResult<UnitOption[]> {
+  useTenantContext();
   return useQuery({
     queryKey:             menuQueryKeys.unitList(),
     queryFn:              fetchUnitList,
@@ -434,6 +437,7 @@ export function useUnitList(): UseQueryResult<UnitOption[]> {
 export function useMenuItems(
   params: MenuItemListParams = {}
 ): UseQueryResult<MenuItemListResponse> {
+  useTenantContext();
   return useQuery({
     queryKey:             menuQueryKeys.menuItems(params),
     queryFn:              () => fetchMenuItems(params),
@@ -452,8 +456,9 @@ export function useMenuItems(
 export function useInfiniteMenuItems(
   params: Omit<MenuItemListParams, "page"> = {}
 ) {
+  const { zoduId, branchId } = useTenantContext();
   return useInfiniteQuery({
-    queryKey: ['menu', 'items', getTenantContext().zoduId, getTenantContext().branchId, JSON.stringify(params)],
+    queryKey: ['menu', 'items', zoduId, branchId, JSON.stringify(params)],
 
     queryFn: ({ pageParam = 1 }) =>
       fetchMenuItems({
@@ -487,6 +492,7 @@ export function useInfiniteMenuItems(
 export function useMenuItemDetail(
   item_uuid: string | null | undefined
 ): UseQueryResult<MenuItem> {
+  useTenantContext();
   return useQuery({
     queryKey:             menuQueryKeys.menuItemDetail(item_uuid ?? ""),
     queryFn:              () => fetchMenuItemDetail(item_uuid!),

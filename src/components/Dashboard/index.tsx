@@ -23,7 +23,7 @@ import {
   useReminders,
   useInventoryAlerts,
 } from "./useDashboard";
-import { getTenantContext } from "@store/tenantContext";
+import { useTenantContext } from "@store/tenantContext";
 import InvoiceDetailsModal from "@pages/SalesHistory/Invoicedetaildialog";
 
 // ── Config — swap these out per session ───────────────────────
@@ -390,7 +390,7 @@ const reminderCols: ColDef<ReminderRow>[] = [
     render: r => (
       <Box sx={{ textAlign: "right" }}>
         <Typography sx={{ fontSize: 13, fontWeight: 700, color: RED }}>{fmt(+r.balance_amount)}</Typography>
-        <Typography sx={{ fontSize: 10, fontWeight: 700, color: "#94A3B8" }}>{r.payment_status?.toUpperCase()}</Typography>
+        {paymentStatusBadge(r.payment_status)}
       </Box>
     ) },
 ];
@@ -405,7 +405,7 @@ const topItemCols: ColDef<TopItem>[] = [
     render: r => (
       <Box>
         <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{r.item_name}</Typography>
-        {r.category_name && <Typography sx={{ fontSize: 11, color: "#94A3B8" }}>Cat #{r.category_name}</Typography>}
+        {r.category_name && <Typography sx={{ fontSize: 11, color: "#94A3B8" }}>{r.category_name}</Typography>}
       </Box>
     ) },
   { key: "sold", label: "Sold", align: "center",
@@ -436,7 +436,7 @@ const alertCols: ColDef<AlertItem>[] = [
 
 // ── Main Dashboard ────────────────────────────────────────────
 export default function DashboardLayout() {
-  const { branchId, zoduId } = getTenantContext();
+  const { branchId, zoduId } = useTenantContext();
   const statsQuery   = useStats(zoduId, branchId);
   const salesQuery   = useSales(zoduId, branchId);
   const topQuery     = useTopItems(zoduId, branchId);
@@ -520,15 +520,6 @@ const salesCols: ColDef<SaleRow>[] = [
 
               <SectionCard
                 title="Payment Reminders"
-                action={
-                  <Button
-                    size="small"
-                    startIcon={<NotificationsActiveIcon sx={{ fontSize: 14 }} />}
-                    sx={{ color: RED, fontWeight: 700, fontSize: "0.7rem", p: 0, minWidth: 0, "&:hover": { textDecoration: "underline", bgcolor: "transparent" } }}
-                  >
-                    Send All
-                  </Button>
-                }
                 sx={{ flex: 1, minHeight: 0 }}
               >
                 {remindQuery.isLoading

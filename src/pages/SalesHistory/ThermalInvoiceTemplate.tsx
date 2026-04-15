@@ -23,37 +23,40 @@ interface PaperConfig {
 }
 
 const PAPER: Record<ThermalPaperSize, PaperConfig> = {
+  // 3" = 80 mm roll; most printers have ~4 mm hardware margin on each side → 72 mm printable
   "3": {
-    widthPx: 302,
-    widthMm: 80,
-    baseFontSize: 11,
-    itemFontSize: 11,
-    headerFontSize: 15,
-    grandFontSize: 13,
-    padding: "12px 10px 28px 10px",
-    gridCols: "1fr 24px 54px 56px",
+    widthPx: 272,          // 72 mm × (96 px/in ÷ 25.4 mm/in) ≈ 272 px
+    widthMm: 72,           // actual printable width (was 80 — caused right-side clipping)
+    baseFontSize: 10,
+    itemFontSize: 10,
+    headerFontSize: 13,
+    grandFontSize: 12,
+    padding: "10px 4px 24px 4px",    // narrow side padding to maximize usable width
+    gridCols: "1fr 22px 58px 62px",  // wider RATE+TOTAL cols so amounts aren't clipped
     showGstCol: false,
   },
+  // 4" = 104 mm roll; ~8 mm total margins → 96 mm printable
   "4": {
-    widthPx: 404,
-    widthMm: 104,
+    widthPx: 362,          // 96 mm ≈ 362 px
+    widthMm: 96,           // printable width (was 104)
     baseFontSize: 12,
     itemFontSize: 12,
-    headerFontSize: 17,
-    grandFontSize: 14,
-    padding: "14px 12px 32px 12px",
-    gridCols: "1fr 28px 68px 72px",
+    headerFontSize: 16,
+    grandFontSize: 13,
+    padding: "14px 8px 32px 8px",
+    gridCols: "1fr 26px 64px 68px",
     showGstCol: false,
   },
+  // 5" = 130 mm roll; ~10 mm total margins → 120 mm printable
   "5": {
-    widthPx: 504,
-    widthMm: 130,
+    widthPx: 453,          // 120 mm ≈ 453 px
+    widthMm: 120,          // printable width (was 130)
     baseFontSize: 13,
     itemFontSize: 13,
     headerFontSize: 19,
     grandFontSize: 15,
-    padding: "16px 14px 36px 14px",
-    gridCols: "1fr 32px 68px 34px 78px",
+    padding: "16px 10px 36px 10px",
+    gridCols: "1fr 30px 68px 34px 80px",
     showGstCol: true,
   },
 };
@@ -61,7 +64,7 @@ const PAPER: Record<ThermalPaperSize, PaperConfig> = {
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 /** Consolas / Lucida Console are bitmap-hinted monospace fonts — crisp on thermal dot-matrix heads */
-const THERMAL_FONT = "'Consolas', 'Lucida Console', 'Courier New', monospace";
+const THERMAL_FONT = "'Courier New','Consolas', 'Lucida Console',  monospace";
 
 function fmt(v: number | string) {
   return `₹${Number(v).toLocaleString("en-IN", {

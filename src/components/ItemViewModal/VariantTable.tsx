@@ -27,6 +27,20 @@ const VariantTable = ({ variantList }:VariantTableProps) => {
         maxHeight: 250,        // scroll height
         overflowY: "auto",
         borderRadius: 1,
+        "&::-webkit-scrollbar": {
+          width: 8,
+          height: 8,
+        },
+        "&::-webkit-scrollbar-track": {
+          background: "transparent",
+        },
+        "&::-webkit-scrollbar-thumb": {
+          background: "#cbd5e1",
+          borderRadius: "4px",
+          "&:hover": {
+            background: "#94a3b8",
+          },
+        },
       }}
     >
       <Table stickyHeader size="small">

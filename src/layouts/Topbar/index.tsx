@@ -11,68 +11,87 @@ import styles from "./index.module.css";
 import { useTheme } from "@mui/material/styles";
 import { drawerWidth } from "../Sidebar/index";
 import { MenuItem, Select } from "@mui/material";
-import { useAppSelector } from "@store/store";
-import { getTenantContext } from "@store/tenantContext";
+import { useAppDispatch, useAppSelector } from "@store/store";
+import {
+  AllCompanies,
+  BranchId,
+  BranchName,
+  UserProfile,
+  ZoduId,
+  addUserData,
+} from "@store/slices/userSlice";
 
 const TopBar: React.FC = () => {
   const theme = useTheme();
-  const [selectedBranch, setSelectedBranch] = React.useState("B1");
-  const { profile } = useAppSelector(getTenantContext);
+  const dispatch = useAppDispatch();
+  const profile = useAppSelector(UserProfile);
+  const zoduId = useAppSelector(ZoduId);
+  const branchId = useAppSelector(BranchId);
+  const branchName = useAppSelector(BranchName);
+  const companies = useAppSelector(AllCompanies);
+
+  const selectedCompany =
+    companies.find((company) => company.zodu_id === zoduId) ?? null;
+
+  const companyBranches = selectedCompany?.branches ?? [];
+
+  const handleBranchChange = (selectedBranchId: string) => {
+    const found = companyBranches.find((branch) => branch.branch_id === selectedBranchId);
+    if (!found || !selectedCompany) return;
+
+    dispatch(
+      addUserData({
+        branchId: found.branch_id,
+        branchName: found.branch_name,
+        zoduId: selectedCompany.zodu_id,
+      })
+    );
+  };
+
   return (
     <AppBar
       position="fixed"
       className={styles.appBar}
       sx={{
         backgroundColor: "#fff",
-        width: { sm: `calc(100% - ${drawerWidth}px)` }, // sets width minus sidebar
+        width: { sm: `calc(100% - ${drawerWidth}px)` },
         ml: { sm: drawerWidth },
         borderBottom: "1px solid " + theme.palette.divider,
       }}
       elevation={0}
     >
       <Toolbar className={styles.toolbar}>
-        {/* 60% Greeting */}
-        {/* <Box className={styles.greetingSection}>
-          <Logo fontSize="1.8rem" justifyContent="flex-start" />
-        </Box> */}
-        {/* 30% Search and Icons */}
-        {/* 10% Profile */}
-        <Typography
-               
-                sx={{ color: "black", fontWeight: 600, fontSize: 20,textTransform:"capitalize" }}
-              >
-                {profile?.restaurant_name || "Jane Doe"}
-              </Typography>
-     
+        <Typography sx={{ color: "black", fontWeight: 600, fontSize: 20, textTransform: "capitalize" }}>
+          {selectedCompany?.restaurant_name || profile?.restaurant_name || ""}
+        </Typography>
+
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-             <Select
-                size="small"
-                value={selectedBranch}
-                onChange={(e) => setSelectedBranch(e.target.value)}
-                sx={{ minWidth: 160 }}>
-                <MenuItem value="B1">Main Branch</MenuItem>
-              
-              </Select>
+          <Select
+            size="small"
+            value={branchId}
+            onChange={(e) => handleBranchChange(e.target.value)}
+            sx={{ minWidth: 180 }}
+          >
+            {companyBranches.length > 0
+              ? companyBranches.map((b) => (
+                  <MenuItem key={b.branch_id} value={b.branch_id}>
+                    {b.branch_name}
+                  </MenuItem>
+                ))
+              : <MenuItem value={branchId}>{branchName || branchId}</MenuItem>
+            }
+          </Select>
+
           <IconButton>
             <Badge color="error" variant="dot">
               <NotificationsIcon />
             </Badge>
           </IconButton>
-          <Box sx={{display:"flex",justifyContent:"center",alignItems:"center",gap:1}}>
-            <Avatar
-              
-              src="https://randomuser.me/api/portraits/women/65.jpg"
-            />
-            <Box
-              sx={{ display: { xs: "none", sm: "block" } }}
-            >
-              {/* <Typography
-               
-                sx={{ color: "black", fontWeight: 600, fontSize: 14,textTransform:"capitalize" }}
-              >
-                {profile?.restaurant_name || "Jane Doe"}
-              </Typography> */}
-              <Typography  sx={{ color: "black", fontWeight: 600, fontSize: 14 }} >
+
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 1 }}>
+            <Avatar src="https://randomuser.me/api/portraits/women/65.jpg" />
+            <Box sx={{ display: { xs: "none", sm: "block" } }}>
+              <Typography sx={{ color: "black", fontWeight: 600, fontSize: 14 }}>
                 {profile?.user_type === "super_admin" ? "Super Admin" : "Manager"}
               </Typography>
             </Box>

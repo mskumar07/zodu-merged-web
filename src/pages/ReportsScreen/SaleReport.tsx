@@ -5,7 +5,7 @@ import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined
 import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
 import StarOutlineIcon from "@mui/icons-material/StarOutline";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
-import { getTenantContext } from "@store/tenantContext";
+import { useTenantContext } from "@store/tenantContext";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
 import {
   useSalesSummary,
@@ -16,9 +16,8 @@ import {
 } from "./useReportapi";
 
 const CURRENT_YEAR = new Date().getFullYear();
-
 const fmt = (val: number | undefined) =>
-  val != null ? `₹${val.toLocaleString("en-IN")}` : "—";
+  val != null ? `₹ ${Math.round(val).toLocaleString("en-IN")}` : "0";
 
 interface StatCardProps {
   title: string;
@@ -97,7 +96,7 @@ function useInfiniteScroll(
 }
 
 const SalesReport = () => {
-  const { zoduId, branchId } = getTenantContext();
+  const { zoduId, branchId } = useTenantContext();
 
   const apiParams = {
     zodu_id: zoduId ?? "",

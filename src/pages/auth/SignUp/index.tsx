@@ -4,12 +4,15 @@ import * as Yup from "yup";
 
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import InputAdornment from "@mui/material/InputAdornment";
 import Link from "@mui/material/Link";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 
 import Logo from "@components/Common/Logo/index.tsx";
+import { useSignupMutation } from "@pages/auth/Authapi";
 
 const SignUpSchema = Yup.object().shape({
   restaurantName: Yup.string().required("Restaurant name is required"),
@@ -113,6 +116,8 @@ const renderField = (
 );
 
 const SignUp = () => {
+  const { mutate: signup } = useSignupMutation();
+
   return (
     <Box
       sx={{
@@ -167,10 +172,17 @@ const SignUp = () => {
             phone: "",
             password: "",
             confirmPassword: "",
+            same_for_branch: false,
           }}
           validationSchema={SignUpSchema}
           onSubmit={(values) => {
-            console.log("Form values", values);
+            signup({
+              restaurant_name: values.restaurantName,
+              email: values.email,
+              phone_number: values.phone,
+              password: values.password,
+              same_for_branch: values.same_for_branch,
+            });
           }}
         >
           {() => (
@@ -185,6 +197,32 @@ const SignUp = () => {
                 "Eg : Placeholder",
                 "password"
               )}
+
+              <Field name="same_for_branch">
+                {({ field }: FieldProps) => (
+                  <FormControlLabel
+                    sx={{ mb: 1.5, ml: 0 }}
+                    control={
+                      <Checkbox
+                        {...field}
+                        checked={field.value}
+                        size="small"
+                        sx={{
+                          color: "#9AA9BF",
+                          "&.Mui-checked": { color: "#D30020" },
+                          p: 0,
+                          mr: 1,
+                        }}
+                      />
+                    }
+                    label={
+                      <Typography sx={{ fontSize: "0.84rem", color: "#374151", fontWeight: 500 }}>
+                        Same for branch
+                      </Typography>
+                    }
+                  />
+                )}
+              </Field>
 
               <Button
                 type="submit"

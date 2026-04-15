@@ -475,7 +475,7 @@ import {
   Box, TextField, Button, Typography, Link, Stack,
   Alert, CircularProgress, InputAdornment, IconButton,
 } from '@mui/material';
-import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   TrendingUp as TrendingUpIcon,
   Payments as PaymentsIcon,
@@ -659,21 +659,20 @@ const BrandingPanel: React.FC = () => (
 // ─── Login Page ───────────────────────────────────────────────
 const ZoduLoginPage: React.FC = () => {
   const navigate        = useNavigate();
-  const location        = useLocation();
   const dispatch        = useAppDispatch();
   const isAuthenticated = useAppSelector(IsAuthenticated);
   const { mutateAsync: login, isPending } = useLoginMutation();
-  const redirectTo = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || '/dashboard';
-
   const [identity,     setIdentity]     = useState('');
   const [password,     setPassword]     = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error,        setError]        = useState('');
   const [fieldErrors,  setFieldErrors]  = useState<{ identity?: string; password?: string }>({});
 
+  // If already authenticated (e.g. user visits /login while logged in), send to dashboard.
   useEffect(() => {
-    if (isAuthenticated) navigate(redirectTo, { replace: true });
-  }, [isAuthenticated, navigate, redirectTo]);
+    if (isAuthenticated) navigate('/dashboard', { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function validate(): boolean {
     const errs: typeof fieldErrors = {};
@@ -705,8 +704,8 @@ const ZoduLoginPage: React.FC = () => {
           console.log("login detail",data)
       if (!data?.user || !data?.access_token || !data?.refresh_token)
         throw new Error('Invalid login response');
-      dispatch(setAuthData({ accessToken: data.access_token, refreshToken: data.refresh_token, profile: data.user, company: data.company ?? null }));
-      navigate(redirectTo, { replace: true });
+      dispatch(setAuthData({ accessToken: data.access_token, refreshToken: data.refresh_token, profile: data.user, company: data.company ?? null, companies: data.companies ?? [] }));
+      navigate('/select-branch', { replace: true, state: { companies: data.companies ?? [] } });
     } catch {
       setError('Login failed. Please check your credentials and try again.');
     }

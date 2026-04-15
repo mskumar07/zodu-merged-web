@@ -1,4 +1,6 @@
+import { useSelector } from "react-redux";
 import { store } from "./store";
+import type { RootState } from "./store";
 
 
 type PersistedUserState = {
@@ -16,6 +18,16 @@ function readPersistedUserState(): PersistedUserState | null {
   }
 }
 
+
+/** Reactive hook — re-renders the caller whenever branchId / zoduId changes. */
+export function useTenantContext() {
+  return useSelector((state: RootState) => ({
+    zoduId:   state.user.zoduId,
+    branchId: state.user.branchId,
+    profile:  state.user.profile,
+    company:  state.user.company,
+  }));
+}
 
 export function getTenantContext() {
   const state = store.getState().user;

@@ -16,7 +16,7 @@ import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
-import { getTenantContext } from "@store/tenantContext";
+import { useTenantContext } from "@store/tenantContext";
 import {
   useDatewiseSaleSummary,
   useDatewiseSaleBreakdown,
@@ -30,7 +30,7 @@ const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
 const todayStr = today.toISOString().split("T")[0];
 
 const fmt = (val: number | undefined) =>
-  val != null ? `₹ ${val.toLocaleString("en-IN")}` : "—";
+  val != null ? `₹ ${Math.round(val).toLocaleString("en-IN")}` : "0";
 
 const formatDate = (value: string) => {
   if (!value) return "—";
@@ -132,7 +132,7 @@ function useInfiniteScroll(
 }
 
 const DatewiseSaleReport = () => {
-  const { zoduId, branchId } = getTenantContext();
+  const { zoduId, branchId } = useTenantContext();
   const [fromDate, setFromDate] = useState(monthStart);
   const [toDate, setToDate] = useState(todayStr);
   const hasActiveFilters = fromDate !== monthStart || toDate !== todayStr;
@@ -225,17 +225,17 @@ const DatewiseSaleReport = () => {
           </Typography>
         ),
       },
-      {
-        key: "actions",
-        label: "ACTIONS",
-        align: "center",
-        minWidth: 80,
-        render: () => (
-          <IconButton size="small" sx={{ color: "#94A3B8" }}>
-            <VisibilityOutlinedIcon sx={{ fontSize: 17 }} />
-          </IconButton>
-        ),
-      },
+      // {
+      //   key: "actions",
+      //   label: "ACTIONS",
+      //   align: "center",
+      //   minWidth: 80,
+      //   render: () => (
+      //     <IconButton size="small" sx={{ color: "#94A3B8" }}>
+      //       <VisibilityOutlinedIcon sx={{ fontSize: 17 }} />
+      //     </IconButton>
+      //   ),
+      // },
     ],
     [],
   );

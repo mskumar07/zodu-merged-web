@@ -623,6 +623,7 @@ import React, { useState } from 'react';
 import {
   Box, TextField, Button, Typography, Link, Stack,
   Alert, CircularProgress, InputAdornment, IconButton, LinearProgress,
+  Checkbox, FormControlLabel,
 } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
@@ -829,6 +830,7 @@ const ZoduSignupPage: React.FC = () => {
     phone_number:    '',
     password:        '',
     confirmPassword: '',
+    same_for_branch: true,
   });
   const [showPassword,        setShowPassword]  = useState(false);
   const [showConfirmPassword, setShowConfirmPw] = useState(false);
@@ -869,11 +871,12 @@ const ZoduSignupPage: React.FC = () => {
         email:           form.email.trim(),
         phone_number:    form.phone_number.trim(),
         password:        form.password,
+        same_for_branch: form.same_for_branch,
       });
       setSuccess(true);
       setTimeout(() => navigate('/login'), 1800);
-    } catch (err: any) {
-      setError(err.message || 'Registration failed. Please try again.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
     }
   };
 
@@ -1114,6 +1117,30 @@ const ZoduSignupPage: React.FC = () => {
                       </Typography>
                     )}
                   </Box>
+
+                  {/* Same for branch */}
+                  <FormControlLabel
+                    sx={{ ml: 0 }}
+                    control={
+                      <Checkbox
+                        checked={form.same_for_branch}
+                        onChange={e => setForm(p => ({ ...p, same_for_branch: e.target.checked }))}
+                        disabled={isPending}
+                        size="small"
+                        sx={{
+                          color: '#9AA9BF',
+                          '&.Mui-checked': { color: '#af101a' },
+                          p: 0,
+                          mr: 1,
+                        }}
+                      />
+                    }
+                    label={
+                      <Typography sx={{ fontSize: '0.85rem', fontWeight: 500, color: '#5b403d' }}>
+                        Same for branch
+                      </Typography>
+                    }
+                  />
 
                   {/* Submit */}
                   <Button

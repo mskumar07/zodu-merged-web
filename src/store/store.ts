@@ -24,8 +24,8 @@ function loadUserState() {
       accessToken,
       refreshToken,
       profile,
-      zoduId: profile.zodu_id ?? parsedState?.zoduId ?? "ZODU035",
-      branchId: parsedState?.branchId ?? "ZODU035B1",
+      zoduId: parsedState?.zoduId ?? profile.zodu_id ?? "",
+      branchId: parsedState?.branchId ?? profile.branch_id ?? "",
       isAuthenticated: true,
     };
   } catch {

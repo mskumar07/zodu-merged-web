@@ -289,10 +289,12 @@ const {
   const qtyRefs           = useRef<Record<string, HTMLInputElement | null>>({});
   const priceRefs         = useRef<Record<string, HTMLInputElement | null>>({});
   const discountRefs      = useRef<Record<string, HTMLInputElement | null>>({});
-  const editCancelledRef  = useRef(false);
-  const inputRef          = useRef<HTMLInputElement | null>(null);
-  const pdfRef            = useRef<HTMLDivElement | null>(null);
-  const thermalRef        = useRef<HTMLDivElement | null>(null);
+  const editCancelledRef       = useRef(false);
+  const inputRef               = useRef<HTMLInputElement | null>(null);
+  const pdfRef                 = useRef<HTMLDivElement | null>(null);
+  const thermalRef             = useRef<HTMLDivElement | null>(null);
+  const suggestionListRef      = useRef<HTMLDivElement | null>(null);
+  const customerSuggestionListRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => { forceRefresh(); }, []);
   useEffect(() => { codeRef.current?.focus(); }, []);
@@ -307,6 +309,22 @@ const {
       if (rows?.[activeRowIdx]) (rows[activeRowIdx] as HTMLElement).scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
   }, [activeRowIdx, zone]);
+
+  useEffect(() => {
+    if (suggestionIdx < 0) return;
+    const container = suggestionListRef.current;
+    if (!container) return;
+    const item = container.children[suggestionIdx] as HTMLElement | undefined;
+    if (item) item.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [suggestionIdx]);
+
+  useEffect(() => {
+    if (customerSuggestionIdx < 0) return;
+    const container = customerSuggestionListRef.current;
+    if (!container) return;
+    const item = container.children[customerSuggestionIdx] as HTMLElement | undefined;
+    if (item) item.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [customerSuggestionIdx]);
 
   useEffect(() => {
     if (zone === "SEARCH")        setTimeout(() => codeRef.current?.focus(), 10);
@@ -627,7 +645,8 @@ console.log("test",serverHolds)
 
   const handleThermalPrint = useCallback(() => {
     if (!thermalRef.current) return;
-    const paperMmMap: Record<ThermalPaperSize, number> = { "3": 80, "4": 104, "5": 130 };
+    // Use actual printable widths (roll width minus hardware margins) to prevent right-side clipping
+    const paperMmMap: Record<ThermalPaperSize, number> = { "3": 72, "4": 96, "5": 120 };
     const mm = paperMmMap[thermalPaperSize];
     const content = thermalRef.current.innerHTML;
     const printWindow = window.open("", "_blank", "width=500,height=700");
@@ -1034,7 +1053,7 @@ console.log("test",serverHolds)
                       </Box>
                       {codeInput.trim() && suggestions.length === 0 && <Box sx={{ py: 3, textAlign: "center" }}><Typography sx={{ fontSize: 12, color: "#9CA3AF" }}>No items found for "{codeInput.trim()}"</Typography></Box>}
                       {suggestions.length > 0 && (
-                        <Box sx={{ maxHeight: 300, overflowY: "auto", bgcolor: "#fff" }}>
+                        <Box ref={suggestionListRef} sx={{ maxHeight: 300, overflowY: "auto", bgcolor: "#fff" }}>
                           {suggestions.map((p, idx) => (
                             <Box key={p.item_id} onMouseDown={() => selectSuggestion(p)}
                               sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 1.5, py: 0.75, cursor: "pointer", gap: 1.5, bgcolor: idx === suggestionIdx ? "#EFF6FF" : "#fff", borderBottom: "1px solid #F3F4F6", borderLeft: idx === suggestionIdx ? "3px solid #3B82F6" : "3px solid transparent", "&:hover": { bgcolor: "#F9FAFB", borderLeft: "3px solid #6B7280" }, transition: "all 0.08s" }}>
@@ -1095,7 +1114,7 @@ console.log("test",serverHolds)
                   </Box>
                   {!customerLoading && customerResults.length === 0
                     ? <Box sx={{ px: 2, py: 3, textAlign: "center" }}><Typography sx={{ fontSize: 12, color: "#9CA3AF" }}>No matching customers found.</Typography></Box>
-                    : <Box sx={{ maxHeight: 280, overflowY: "auto", bgcolor: "#fff" }}>
+                    : <Box ref={customerSuggestionListRef} sx={{ maxHeight: 280, overflowY: "auto", bgcolor: "#fff" }}>
                         {customerResults.map((c, idx) => (
                           <Box key={c.cust_uuid} onMouseDown={() => handleSelectCustomer(c)} sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1, px: 1.5, py: 1.1, borderBottom: "1px solid #F8FAFC", cursor: "pointer", bgcolor: idx === customerSuggestionIdx ? (isQuotation ? "#EFF6FF" : "#FFF7F8") : "#fff", borderLeft: idx === customerSuggestionIdx ? `3px solid ${modeAccent}` : "3px solid transparent", "&:hover": { bgcolor: isQuotation ? "#EFF6FF" : "#FFF7F8" } }}>
                             <Box sx={{ minWidth: 0 }}>

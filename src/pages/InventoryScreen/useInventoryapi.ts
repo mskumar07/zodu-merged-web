@@ -9,7 +9,7 @@
  */
 
 import axios from 'axios';
-import { getTenantContext } from '@store/tenantContext';
+import { getTenantContext, useTenantContext } from '@store/tenantContext';
 import {
   useQuery,
   useInfiniteQuery,
@@ -17,7 +17,6 @@ import {
   useQueryClient,
   type UseQueryResult,
   type UseMutationResult,
-  type InfiniteData,
 } from '@tanstack/react-query';
 
 const API_BASE  = import.meta.env.VITE_API_BASE_URL ?? 'https://api.myzodu.com';
@@ -128,9 +127,9 @@ export interface StockHistoryResponse {
 }
 // ─── Query keys ───────────────────────────────────────────────
 export const inventoryQueryKeys = {
-  summary:  () => ['inventory', 'summary']                     as const,
-  list:     (p: InventoryListParams) => ['inventory', 'list', p] as const,
-  detail:   (uuid: string)           => ['inventory', uuid]    as const,
+  summary:  (branchId: string) => ['inventory', 'summary', branchId]          as const,
+  list:     (p: InventoryListParams, branchId: string) => ['inventory', 'list', branchId, p] as const,
+  detail:   (uuid: string)     => ['inventory', uuid]                          as const,
 };
 
 // ─── API functions ────────────────────────────────────────────
@@ -187,8 +186,9 @@ async function postAdjustStock(
 
 /** Summary stats for the 4 top cards. Refreshes every 2 min. */
 export function useInventorySummary(): UseQueryResult<InventorySummary> {
+  const { branchId } = useTenantContext();
   return useQuery({
-    queryKey:             inventoryQueryKeys.summary(),
+    queryKey:             inventoryQueryKeys.summary(branchId ?? ''),
     queryFn:              fetchSummary,
     staleTime:            2 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -200,17 +200,9 @@ export function useInventorySummary(): UseQueryResult<InventorySummary> {
 export function useInfiniteInventory(
   params: Omit<InventoryListParams, 'page'> = {}
 ) {
-  return useInfiniteQuery<
-    InventoryListResponse,
-    Error,
-    InfiniteData<InventoryListResponse>,
-    ReturnType<typeof inventoryQueryKeys.list>,
-    number
-  >({
-    // Key does NOT include page — page is managed by pageParam internally.
-    // This means ['inventory', 'list', params] is the stable key,
-    // and invalidateQueries(['inventory', 'list']) correctly matches it.
-    queryKey: ['inventory', 'list', JSON.stringify(params)],
+  const { branchId } = useTenantContext();
+  return useInfiniteQuery({
+    queryKey: ['inventory', 'list', branchId ?? '', JSON.stringify(params)],
     queryFn:          ({ pageParam }) =>
                         fetchInventoryList({ ...params, page: pageParam, limit: params.limit ?? 30 }),
     initialPageParam: 1,

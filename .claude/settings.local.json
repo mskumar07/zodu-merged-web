@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//d/Zodu-Projetcs/Zodu-backend-Retail/auth-service/src/services/**)",
+      "Read(//d/Zodu-Projetcs/Zodu-backend-Retail/auth-service/src/repository/**)"
+    ]
+  }
+}

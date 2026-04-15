@@ -21,7 +21,7 @@ import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import ArrowDownwardRoundedIcon from "@mui/icons-material/ArrowDownwardRounded";
 import ArrowUpwardRoundedIcon from "@mui/icons-material/ArrowUpwardRounded";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
-import { getTenantContext } from "@store/tenantContext";
+import { useTenantContext } from "@store/tenantContext";
 import {
   useCategoryItemSalesSummary,
   useInfiniteCategoryWiseSales,
@@ -36,11 +36,11 @@ const today = new Date();
 const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
 const todayStr = today.toISOString().split("T")[0];
 
-const money = (value: number | undefined) =>
-  value != null ? `₹ ${value.toLocaleString("en-IN")}` : "—";
+const money = (val: number | undefined) =>
+  val != null ? `₹ ${Math.round(val).toLocaleString("en-IN")}` : "0";
 
 const numberFmt = (value: number | undefined) =>
-  value != null ? value.toLocaleString("en-IN") : "—";
+  value != null ? value.toLocaleString("en-IN") : "0";
 
 const shortDate = (value: string) => {
   if (!value) return "—";
@@ -205,7 +205,7 @@ const VelocityChart = ({ rows }: { rows: SalesVelocityPoint[] }) => {
 };
 
 const CategoryItemSalesReport = () => {
-  const { zoduId, branchId } = getTenantContext();
+  const { zoduId, branchId } = useTenantContext();
   const [fromDate, setFromDate] = useState(monthStart);
   const [toDate, setToDate] = useState(todayStr);
   const limit = 8;

@@ -440,11 +440,25 @@ const price = Number(info.row.original.purchase_price) || 0;
    <TableContainer
       ref={containerRef}
       sx={{
-    width: "100%",
-    height: "100%", 
-    overflowY: "auto",
-    border: "1px solid #e0e0e0",
-  }}
+        width: "100%",
+        height: "100%", 
+        overflowY: "auto",
+        border: "1px solid #e0e0e0",
+        "&::-webkit-scrollbar": {
+          width: 8,
+          height: 8,
+        },
+        "&::-webkit-scrollbar-track": {
+          background: "transparent",
+        },
+        "&::-webkit-scrollbar-thumb": {
+          background: "#cbd5e1",
+          borderRadius: "4px",
+          "&:hover": {
+            background: "#94a3b8",
+          },
+        },
+      }}
     >
       <Table stickyHeader>
         <TableHead>

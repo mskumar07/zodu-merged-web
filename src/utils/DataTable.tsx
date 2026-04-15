@@ -120,6 +120,23 @@ function DataTable<T>({
           height: "100%",
           overflow: "auto",
           backgroundColor: "#ffffff",
+          scrollbarWidth: "thin",
+          scrollbarColor: "#cbd5e1 #f1f5f9",
+          "&::-webkit-scrollbar": {
+            width: 8,
+            height: 8,
+          },
+          "&::-webkit-scrollbar-track": {
+            background: "#f1f5f9",
+            borderRadius: "4px",
+          },
+          "&::-webkit-scrollbar-thumb": {
+            background: "#cbd5e1",
+            borderRadius: "4px",
+            "&:hover": {
+              background: "#94a3b8",
+            },
+          },
         }}
       >
         <Table

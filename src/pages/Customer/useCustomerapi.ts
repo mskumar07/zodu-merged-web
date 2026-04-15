@@ -5,7 +5,7 @@
 
 import axios from "axios";
 import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
-import { getTenantContext, getAccessToken } from "@store/tenantContext";
+import { getTenantContext, useTenantContext, getAccessToken } from "@store/tenantContext";
 
 const API_BASE  = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 
@@ -228,7 +228,7 @@ async function getCustomers(): Promise<Record<string, unknown>[]> {
 }
 
 export function useCustomers() {
-  const { zoduId, branchId } = getTenantContext();
+  const { zoduId, branchId } = useTenantContext();
   return useQuery({
     queryKey: customerQueryKeys.list(zoduId, branchId),
     queryFn: getCustomers,

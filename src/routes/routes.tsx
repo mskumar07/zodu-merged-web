@@ -14,6 +14,7 @@ import CustomerManagement from "@pages/Customer/Customermanagement";
 import InventoryManagement from "../pages/InventoryScreen/InventoryManagement";
 import ZoduLoginPage from "@pages/auth/Login";
 import ZoduSignupPage from "@pages/auth/Signup";
+import SelectBranch from "@pages/auth/SelectBranch";
 import ProtectedRoute from "./ProtectedRoute";
 import ZoduLandingPage from "@pages/landingPage/ZodulandingPage";
 import Setting from "@pages/Settings/Setting";
@@ -77,4 +78,12 @@ export const routes = [
   },
   { path: "/login", element: <ZoduLoginPage /> },
   { path: "/signup", element: <ZoduSignupPage /> },
+  {
+    path: "/select-branch",
+    element: (
+      <ProtectedRoute>
+        <SelectBranch />
+      </ProtectedRoute>
+    ),
+  },
 ];

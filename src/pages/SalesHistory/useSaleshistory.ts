@@ -308,8 +308,8 @@ export async function createSaleReturn(
 
 // ─── TanStack Query keys ──────────────────────────────────────
 export const salesQueryKeys = {
-  // ✅ filters included in key so each filter combo has its own cache
-  history: (filters: Filters) => ["sales-history", filters] as const,
+  // ✅ branchId + filters in key so each branch+filter combo has its own cache
+  history: (branchId: string, filters: Filters) => ["sales-history", branchId, filters] as const,
   detail:  (sale_id: string)  => ["sale", sale_id]          as const,
   returns: () => ["sales-returns"] as const,
 };

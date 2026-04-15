@@ -1,4 +1,4 @@
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { useMutation } from '@tanstack/react-query';
 
 // ── axios instance ────────────────────────────────────────────────────────────
@@ -8,20 +8,66 @@ const api = axios.create({
   timeout: 10_000,
 });
 
-// Attach access token to every request automatically
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+type RetryableRequestConfig = InternalAxiosRequestConfig & {
+  _retry?: boolean;
+};
 
 // ── types ─────────────────────────────────────────────────────────────────────
+
+export interface Branch {
+  branch_id: string;
+  branch_name: string;
+  // Raw DB column names
+  branch_city?: string;
+  branch_district?: string;
+  branch_state?: string;
+  branch_area_street_name?: string;
+  branch_floor_building_no?: string;
+  branch_pincode?: string;
+  branch_mobile_no?: string;
+  branch_mail_id?: string;
+  branch_image?: string | null;
+  active?: boolean;
+  zodu_id?: string;
+  // Aliased fields returned by get/my-companies
+  city?: string;
+  district?: string;
+  state?: string;
+  area_street_name?: string;
+}
+
+export interface CompanyWithBranches {
+  zodu_id: string;
+  id?: string;
+  is_primary?: boolean;
+  restaurant_name: string;
+  owner_admin_name?: string;
+  gst_no?: string;
+  city?: string;
+  state?: string;
+  district?: string;
+  phone_number?: string;   // ✅ UI alias
+  mobile_no?: string;      // ✅ API field name
+  email?: string;          // ✅ UI alias
+  mail_id?: string;        // ✅ API field name
+  area_street_name?: string;
+  building_no?: string;
+  pincode?: string;
+  account_number?: string;
+  account_type?: string;
+  ifsc_code?: string;
+  status?: string;
+  created_at?: string;
+  updated_at?: string;
+  branches: Branch[];
+}
 
 export interface SignupPayload {
   restaurant_name: string;
   email: string;
   phone_number: string;
   password: string;
+  same_for_branch: boolean;
 }
 
 export interface LoginPayload {
@@ -54,12 +100,75 @@ export interface CompanyDetails {
   state: string;
 }
 
+export interface CreateCompanyPayload {
+  restaurant_name: string;
+  owner_admin_name: string;
+  gst_no: string;
+  phone_number: string;
+  email: string;
+  area_street_name: string;
+  building_no: string;
+  city: string;
+  state: string;
+  pincode: string;
+  same_for_branch: boolean;
+}
+
+export interface CreateBranchPayload {
+  zodu_id: string;
+  branch_name: string;
+  branch_manager_or_admin: string;
+  branch_mobile_no: string;
+  branch_mail_id: string;
+  branch_city: string;
+  branch_pincode: string;
+  branch_district: string;
+  branch_state: string;
+  branch_image?: string;
+  branch_floor_building_no: string;
+  branch_area_street_name: string;
+  branch_account_no: string;
+  branch_ifsc: string;
+  branch_account_type: string;
+}
+
+export interface EditCompanyPayload {
+  restaurant_name: string;
+  owner_admin_name: string;
+  gst_no: string;
+  phone_number: string;
+  email: string;
+  area_street_name: string;
+  building_no: string;
+  city: string;
+  state: string;
+  pincode: string;
+}
+
+export interface EditBranchPayload {
+  branch_name: string;
+  branch_manager_or_admin: string;
+  branch_mobile_no: string;
+  branch_mail_id: string;
+  branch_city: string;
+  branch_pincode: string;
+  branch_district: string;
+  branch_state: string;
+  branch_image?: string;
+  branch_floor_building_no: string;
+  branch_area_street_name: string;
+  branch_account_no: string;
+  branch_ifsc: string;
+  branch_account_type: string;
+}
+
 export interface LoginResponse {
   message: string;
   access_token: string;
   refresh_token: string;
   user: AuthUser;
   company?: CompanyDetails;
+  companies?: CompanyWithBranches[];
 }
 
 export interface SignupResponse {
@@ -106,6 +215,46 @@ export const authApis = {
     unwrap<{ access_token: string; refresh_token: string }>(
       api.post('/auth/api/refresh-token', { refresh_token })
     ),
+
+  // GET /restaurant/get/branches/:zodu_id — branches for a specific company
+  getBranches: (zoduId: string) =>
+    unwrap<Branch[]>(
+      api.get(`/restaurant/get/branches/${zoduId}`)
+    ),
+
+  // Fetches all companies (+ branches) the authenticated user belongs to.
+  // Calls the auth service which joins tbl_user_companies → company details + branches.
+  getMyCompanies: () =>
+    unwrap<{ companies: CompanyWithBranches[] }>(
+      api.get('/auth/api/my-companies')
+    ).then((res) => {
+      console.log(res);
+      return res.companies ?? [];
+    }),
+
+  createCompany: (payload: CreateCompanyPayload) =>
+    unwrap<any>(
+      api.post('/auth/api/create-company', payload)
+    ),
+
+  createBranch: (payload: CreateBranchPayload) =>
+    unwrap<any>(
+      api.post('/auth/api/branch/add', payload)
+    ),
+
+  editCompany: (zoduId: string, payload: EditCompanyPayload) => {
+    console.log("=== authApis.editCompany called ===");
+    console.log("zoduId:", zoduId);
+    console.log("payload:", payload);
+    const result = api.put(`/auth/api/company/edit/${zoduId}`, payload);
+    console.log("API call made to: /auth/api/company/edit/" + zoduId);
+    return unwrap<any>(result);
+  },
+
+  editBranch: (zoduId: string, branchId: string, payload: EditBranchPayload) =>
+    unwrap<any>(
+      api.put(`/auth/api/branch/edit/${zoduId}/${branchId}`, payload)
+    ),
 };
 
 // ── token helpers ─────────────────────────────────────────────────────────────
@@ -114,14 +263,82 @@ export const tokenStore = {
   save: (access_token: string, refresh_token: string) => {
     localStorage.setItem('access_token', access_token);
     localStorage.setItem('refresh_token', refresh_token);
+    try {
+      const raw = localStorage.getItem('zodu_user_state');
+      const parsed = raw ? JSON.parse(raw) : {};
+      localStorage.setItem(
+        'zodu_user_state',
+        JSON.stringify({
+          ...parsed,
+          accessToken: access_token,
+          refreshToken: refresh_token,
+        })
+      );
+    } catch {
+      // Ignore persistence issues and keep auth flow working.
+    }
   },
   clear: () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    try {
+      const raw = localStorage.getItem('zodu_user_state');
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (parsed) {
+        delete parsed.accessToken;
+        delete parsed.refreshToken;
+        localStorage.setItem('zodu_user_state', JSON.stringify(parsed));
+      }
+    } catch {
+      // Ignore persistence issues and keep auth flow working.
+    }
   },
   getRefresh: () => localStorage.getItem('refresh_token'),
   getAccess:  () => localStorage.getItem('access_token'),
 };
+
+api.interceptors.request.use((config) => {
+  const token = tokenStore.getAccess();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const status = error.response?.status;
+    const originalRequest = error.config as RetryableRequestConfig | undefined;
+    const refreshToken = tokenStore.getRefresh();
+
+    if (
+      status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      refreshToken &&
+      !String(originalRequest.url || '').includes('/auth/api/refresh-token')
+    ) {
+      originalRequest._retry = true;
+
+      try {
+        const refreshed = await authApis.refreshToken(refreshToken);
+        if (!refreshed?.access_token || !refreshed?.refresh_token) {
+          throw new Error('Invalid refresh response');
+        }
+
+        tokenStore.save(refreshed.access_token, refreshed.refresh_token);
+        originalRequest.headers.Authorization = `Bearer ${refreshed.access_token}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        tokenStore.clear();
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 // ── TanStack Query mutations ──────────────────────────────────────────────────
 
@@ -139,6 +356,7 @@ export function useLoginMutation() {
   return useMutation({
     mutationFn: (payload: LoginPayload) => authApis.login(payload),
     onSuccess: (data) => {
+      console.log(data)
       // Persist tokens on successful login
       tokenStore.save(data.access_token, data.refresh_token);
     },
@@ -156,6 +374,15 @@ export function useLogoutMutation() {
     },
     onSettled: () => {
       tokenStore.clear();
+    },
+  });
+}
+
+export function useCreateBranchMutation() {
+  return useMutation({
+    mutationFn: (payload: CreateBranchPayload) => authApis.createBranch(payload),
+    onError: (err: AxiosError<any>) => {
+      console.error('[createBranch error]', err.response?.data || err.message);
     },
   });
 }

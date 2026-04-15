@@ -30,6 +30,7 @@ import { clearAuthData } from "@store/slices/userSlice";
 import { tokenStore } from "@pages/auth/Authapi";
 import { db } from "@pages/POS/db";
 import { useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "react-router-dom";
 
 export const drawerWidth = 240;
 
@@ -61,8 +62,14 @@ export default function Sidebar() {
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
-  const [activeIndex, setActiveIndex] = React.useState(0);
+  const location = useLocation();
   const { navigate } = useNavigation();
+
+  const activeIndex = navItems.findIndex(
+    (item) =>
+      location.pathname === item.path ||
+      location.pathname.startsWith(item.path + "/")
+  );
 
   const handleLogout = async () => {
     await db.products.clear();
@@ -132,7 +139,6 @@ export default function Sidebar() {
             sx={{ mb: 0.35 }}
             onClick={() => {
               navigate(item.path);
-              setActiveIndex(i);
             }}
           >
             <ListItemButton
