@@ -48,6 +48,7 @@ import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
 import PublicIcon from "@mui/icons-material/Public";
 import ChatIcon from "@mui/icons-material/Chat";
 import { useNavigate } from "react-router-dom";
+import zoduHero from "../../assets/zodu-hero.jpeg";
 
 const PRIMARY = "#af101a";
 const PRIMARY_DARK = "#d32f2f";
@@ -432,66 +433,92 @@ const ZoduLandingPage: React.FC = () => {
       </Box>
 
       {/* HERO */}
-      <Box sx={{ bgcolor: "#fff", pt: { xs: 7, md: 11 }, pb: { xs: 5, md: 9 }, px: 3, textAlign: "center" }}>
-        <Container maxWidth="md">
-          <Typography sx={{
-            fontSize: { xs: "2rem", md: "3.4rem" }, fontWeight: 800,
-            color: "#191c1d", lineHeight: 1.15, letterSpacing: "-0.03em",
-          }}>Fast &amp; Easy Billing</Typography>
-          <Typography sx={{
-            fontSize: { xs: "2rem", md: "3.4rem" }, fontWeight: 800,
-            color: PRIMARY, lineHeight: 1.15, letterSpacing: "-0.03em", mb: 2.5,
-          }}>Command Your Business from any Device.</Typography>
-          <Typography sx={{
-            fontSize: "0.97rem", color: "#5b403d", fontWeight: 300,
-            maxWidth: 540, mx: "auto", lineHeight: 1.85, mb: 4,
-          }}>
-            Elevate your operations with zodu. Seamless GST billing, real-time inventory
-            tracking, and multi-location control in one elegant command center.
-          </Typography>
-
-          {/* Price pill */}
+      <Box sx={{ bgcolor: "#fff", pt: { xs: 7, md: 11 }, pb: { xs: 5, md: 9 }, px: { xs: 3, md: 8 } }}>
+        <Container maxWidth="lg">
           <Box sx={{
-            display: "inline-flex", alignItems: "center", gap: 1,
-            px: 3.2, py: 1.3, borderRadius: "999px",
-            bgcolor: alpha(PRIMARY, 0.07),
-            border: `2px solid ${alpha(PRIMARY, 0.22)}`,
-            color: PRIMARY, fontWeight: 800, fontSize: "0.95rem", mb: 4,
+            display: "flex",
+            flexDirection: { xs: "column", md: "row" },
+            alignItems: "center",
+            gap: { xs: 6, md: 10 },
           }}>
-            <SellIcon sx={{ fontSize: 20 }}/>
-            JUST AT ₹ 99/MONTH
+            {/* Left: text content */}
+            <Box sx={{ flex: 1 }}>
+              <Typography sx={{
+                fontSize: { xs: "2rem", md: "3.4rem" }, fontWeight: 800,
+                color: "#191c1d", lineHeight: 1.15, letterSpacing: "-0.03em",
+              }}>Fast &amp; Easy Billing</Typography>
+              <Typography sx={{
+                fontSize: { xs: "2rem", md: "3.4rem" }, fontWeight: 800,
+                color: PRIMARY, lineHeight: 1.15, letterSpacing: "-0.03em", mb: 2.5,
+              }}>Command Your Business from any Device.</Typography>
+              <Typography sx={{
+                fontSize: "0.97rem", color: "#5b403d", fontWeight: 300,
+                lineHeight: 1.85, mb: 4,
+              }}>
+                Elevate your operations with zodu. Seamless GST billing, real-time inventory
+                tracking, and multi-location control in one elegant command center.
+              </Typography>
+
+              {/* Price pill */}
+              <Box sx={{
+                display: "inline-flex", alignItems: "center", gap: 1,
+                px: 3.2, py: 1.3, borderRadius: "999px",
+                bgcolor: alpha(PRIMARY, 0.07),
+                border: `2px solid ${alpha(PRIMARY, 0.22)}`,
+                color: PRIMARY, fontWeight: 800, fontSize: "0.95rem", mb: 4,
+              }}>
+                <SellIcon sx={{ fontSize: 20 }}/>
+                JUST AT ₹ 99/MONTH
+              </Box>
+
+              {/* Buttons */}
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} mb={4}>
+                <Button variant="contained" size="large" sx={{
+                  background: `linear-gradient(135deg, ${PRIMARY}, ${PRIMARY_DARK})`,
+                  color: "#fff", px: 4, py: 1.5, borderRadius: "10px",
+                  fontSize: "0.93rem", fontWeight: 700,
+                  boxShadow: `0 14px 30px -8px ${alpha(PRIMARY, 0.42)}`,
+                  "&:hover": { transform: "scale(1.04)", boxShadow: `0 20px 40px -8px ${alpha(PRIMARY, 0.5)}` },
+                  transition: "all 0.2s",
+                }}>Get Started for Free</Button>
+                <Button variant="contained" size="large" startIcon={<PlayCircleOutlineIcon/>} sx={{
+                  bgcolor: "#f1f5f9", color: "#191c1d", px: 4, py: 1.5,
+                  borderRadius: "10px", fontSize: "0.93rem", fontWeight: 700,
+                  boxShadow: "none", "&:hover": { bgcolor: "#e2e8f0" },
+                }}>Watch Demo</Button>
+              </Stack>
+
+              {/* Social proof */}
+              <Typography sx={{ fontSize: "0.82rem", fontWeight: 500, color: "#5b403d" }}>
+                Trusted by{" "}
+                <Box component="span" sx={{ color: PRIMARY, fontWeight: 700 }}>1 Lakh +</Box>
+                {" "}business owners
+              </Typography>
+            </Box>
+
+            {/* Right: hero image */}
+            <Box sx={{
+              flex: 1,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}>
+              <Box
+                component="img"
+                src={zoduHero}
+                alt="Zodu business dashboard"
+                sx={{
+                  width: "100%",
+                  maxWidth: { xs: 420, md: "100%" },
+                  borderRadius: "28px",
+                  boxShadow: "0 24px 60px -12px rgba(25,28,29,0.18)",
+                  objectFit: "cover",
+                  transition: "transform 0.4s ease",
+                  "&:hover": { transform: "scale(1.015)" },
+                }}
+              />
+            </Box>
           </Box>
-
-          {/* Buttons */}
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} justifyContent="center" mb={4}>
-            <Button variant="contained" size="large" sx={{
-              background: `linear-gradient(135deg, ${PRIMARY}, ${PRIMARY_DARK})`,
-              color: "#fff", px: 4, py: 1.5, borderRadius: "10px",
-              fontSize: "0.93rem", fontWeight: 700,
-              boxShadow: `0 14px 30px -8px ${alpha(PRIMARY, 0.42)}`,
-              "&:hover": { transform: "scale(1.04)", boxShadow: `0 20px 40px -8px ${alpha(PRIMARY, 0.5)}` },
-              transition: "all 0.2s",
-            }}>Get Started for Free</Button>
-            <Button variant="contained" size="large" startIcon={<PlayCircleOutlineIcon/>} sx={{
-              bgcolor: "#f1f5f9", color: "#191c1d", px: 4, py: 1.5,
-              borderRadius: "10px", fontSize: "0.93rem", fontWeight: 700,
-              boxShadow: "none", "&:hover": { bgcolor: "#e2e8f0" },
-            }}>Watch Demo</Button>
-          </Stack>
-
-          {/* Social proof */}
-          <Stack direction="row" alignItems="center" spacing={1.5} justifyContent="center">
-            {/* <AvatarGroup max={3} sx={{ "& .MuiAvatar-root": { width: 34, height: 34, border: "2px solid #fff", fontSize: "0.75rem" } }}>
-              <Avatar src="https://i.pravatar.cc/80?img=47"/>
-              <Avatar src="https://i.pravatar.cc/80?img=12"/>
-              <Avatar src="https://i.pravatar.cc/80?img=32"/>
-            </AvatarGroup> */}
-            <Typography sx={{ fontSize: "0.82rem", fontWeight: 500, color: "#5b403d" }}>
-              Trusted by{" "}
-              <Box component="span" sx={{ color: PRIMARY, fontWeight: 700 }}>1 Lakh +</Box>
-              {" "}business owners
-            </Typography>
-          </Stack>
         </Container>
       </Box>
 

@@ -45,7 +45,7 @@ import {
   type CompanyWithBranches,
 } from "@pages/auth/Authapi";
 import BranchFormModal, { type BranchFormData } from "./BranchFormModal";
-import CompanyFormModal, { type CompanyFormData } from "./CompanyFormModal";
+import BusinessFormModal, { type BusinessFormData } from "./CompanyFormModal";
 import { useAppDispatch } from "@store/store";
 import { setCompanies } from "@store/slices/userSlice";
 
@@ -57,12 +57,95 @@ const redTint = "#ca0022";
 
 type SettingsTab = "company" | "invoice" | "user";
 
+const getCompanyAddressLine1 = (company?: CompanyWithBranches | null) => {
+  if (!company) return "";
+  const companyAny = company as CompanyWithBranches & {
+    address_line_1?: string;
+    business_name?: string;
+  };
+  return companyAny.address_line_1 || company.area_street_name || "";
+};
+
+const getCompanyAddressLine2 = (company?: CompanyWithBranches | null) => {
+  if (!company) return "";
+  const companyAny = company as CompanyWithBranches & { address_line_2?: string };
+  return companyAny.address_line_2 || company.building_no || "";
+};
+
+const getBranchAddressLine1 = (branch?: Branch | null) => {
+  if (!branch) return "";
+  const branchAny = branch as Branch & { address_line_1?: string; area_street_name?: string };
+  return (
+    branch.branch_address_line_1 ||
+    branchAny.address_line_1 ||
+    branch.branch_area_street_name ||
+    branchAny.area_street_name ||
+    ""
+  );
+};
+
+const getBranchAddressLine2 = (branch?: Branch | null) => {
+  if (!branch) return "";
+  const branchAny = branch as Branch & { address_line_2?: string; building_no?: string };
+  return (
+    branch.branch_address_line_2 ||
+    branchAny.address_line_2 ||
+    branch.branch_floor_building_no ||
+    branchAny.building_no ||
+    ""
+  );
+};
+
+const getBranchCity = (branch?: Branch | null) => {
+  if (!branch) return "";
+  return branch.branch_city || branch.city || "";
+};
+
+const getBranchDistrict = (branch?: Branch | null) => {
+  if (!branch) return "";
+  return branch.branch_district || branch.district || "";
+};
+
+const getBranchState = (branch?: Branch | null) => {
+  if (!branch) return "";
+  return branch.branch_state || branch.state || "";
+};
+
+const getBranchPincode = (branch?: Branch | null) => {
+  if (!branch) return "";
+  return branch.branch_pincode || (branch as Branch & { pincode?: string }).pincode || "";
+};
+
+const getBranchManager = (branch?: Branch | null) => {
+  if (!branch) return "";
+  return branch.branch_manager_or_admin || branch.branch_manager || "";
+};
+
+const getBranchAccountNumber = (branch?: Branch | null) => {
+  if (!branch) return "";
+  return branch.branch_account_no || branch.account_number || "";
+};
+
+const getBranchAccountType = (branch?: Branch | null) => {
+  if (!branch) return "";
+  return branch.branch_account_type || branch.account_type || "";
+};
+
+const getBranchIfscCode = (branch?: Branch | null) => {
+  if (!branch) return "";
+  return branch.branch_ifsc || branch.ifsc_code || "";
+};
+
 const formatLocation = (branch?: Branch) => {
   if (!branch) return "Not available";
 
-  const parts = [branch.branch_area_street_name, branch.branch_city, branch.branch_district].filter(Boolean);
+  const parts = [
+    getBranchAddressLine1(branch),
+    getBranchCity(branch),
+    getBranchDistrict(branch),
+  ].filter(Boolean);
 
-  return parts.length ? parts.join(", ") : branch.branch_state || "Not available";
+  return parts.length ? parts.join(", ") : getBranchState(branch) || "Not available";
 };
 
 const getCompanyIcon = (index: number) => {
@@ -211,7 +294,42 @@ export default function Setting() {
       return;
     }
 
+    const selectedCompany = companies.find((c) => c.zodu_id === zoduId);
+    const selectedCompanyAny = selectedCompany as
+      | (typeof selectedCompany & {
+          address_id?: string;
+          addressId?: string;
+          bank_details_id?: string;
+          bankDetailsId?: string;
+        })
+      | undefined;
+
+    const selectedAddressId =
+      selectedCompanyAny?.address_id ?? selectedCompanyAny?.addressId ?? undefined;
+    const selectedBankDetailsId =
+      selectedCompanyAny?.bank_details_id ?? selectedCompanyAny?.bankDetailsId ?? undefined;
+    const selectedAddressIdString =
+      selectedAddressId !== undefined && selectedAddressId !== null
+        ? String(selectedAddressId)
+        : undefined;
+    const selectedBankDetailsIdString =
+      selectedBankDetailsId !== undefined && selectedBankDetailsId !== null
+        ? String(selectedBankDetailsId)
+        : undefined;
+
+    if (data.use_same_address_as_company && !selectedAddressIdString) {
+      setSubmitError("Selected company address id is missing. Please update company address first.");
+      return;
+    }
+
+    if (data.use_same_bank_as_company && !selectedBankDetailsIdString) {
+      setSubmitError("Selected company bank details id is missing. Please update company bank details first.");
+      return;
+    }
+
     const payload = {
+      zodu_id: zoduId,
+      branch_id: (isEdit && editingBranch?.branch_id) || data.branch_id || undefined,
       branch_name: data.branch_name,
       branch_manager_or_admin: data.branch_manager_or_admin,
       branch_mobile_no: data.branch_mobile_no,
@@ -221,11 +339,28 @@ export default function Setting() {
       branch_district: data.branch_district,
       branch_state: data.branch_state,
       branch_image: data.branch_image || undefined,
-      branch_floor_building_no: data.branch_floor_building_no,
-      branch_area_street_name: data.branch_area_street_name,
-      branch_account_no: data.branch_account_no,
-      branch_ifsc: data.branch_ifsc,
-      branch_account_type: data.branch_account_type,
+      ...(data.use_same_address_as_company
+        ? {
+            address_id: selectedAddressIdString,
+          }
+        : {
+            address_line_1:
+              data.branch_address_line_1 || data.branch_area_street_name || undefined,
+            address_line_2:
+              data.branch_address_line_2 || data.branch_floor_building_no || undefined,
+          }),
+      ...(data.use_same_bank_as_company
+        ? {
+            bank_details_id: selectedBankDetailsIdString,
+          }
+        : {
+            bank_name: data.bank_name || undefined,
+            bank_branch: data.bank_branch || undefined,
+            holder_name: data.holder_name || undefined,
+            account_number: data.branch_account_no || undefined,
+            account_type: data.branch_account_type || undefined,
+            ifsc_code: data.branch_ifsc || undefined,
+          }),
     };
 
     if (isEdit && editingBranch) {
@@ -236,13 +371,12 @@ export default function Setting() {
       });
     } else {
       await createBranchMutation.mutateAsync({
-        zodu_id: zoduId,
         ...payload,
       });
     }
   };
 
-  const handleCompanySubmit = async (data: CompanyFormData, isEdit: boolean) => {
+  const handleCompanySubmit = async (data: BusinessFormData, isEdit: boolean) => {
     console.log("=== handleCompanySubmit called ===");
     console.log("isEdit:", isEdit);
     console.log("editingCompany:", editingCompany);
@@ -255,11 +389,18 @@ export default function Setting() {
       gst_no: data.gst_no,
       phone_number: data.phone_number,
       email: data.email,
-      area_street_name: data.area_street_name,
-      building_no: data.building_no,
+      address_line_1: data.address_line_1,
+      address_line_2: data.address_line_2,
       city: data.city,
+      district: data.district,
       state: data.state,
       pincode: data.pincode,
+      bank_name: data.bank_name,
+      bank_branch: data.bank_branch,
+      holder_name: data.holder_name,
+      account_number: data.account_number,
+      account_type: data.account_type,
+      ifsc_code: data.ifsc_code,
     };
 
     console.log("editPayload:", editPayload);
@@ -273,8 +414,24 @@ export default function Setting() {
     } else {
       console.log("✓ Calling createCompanyMutation");
       await createCompanyMutation.mutateAsync({
-        ...editPayload,
-        same_for_branch: data.same_for_branch,
+        restaurant_name: data.restaurant_name,
+        owner_admin_name: data.owner_admin_name,
+        gst_no: data.gst_no,
+        phone_number: data.phone_number,
+        email: data.email,
+        address_line_1: data.address_line_1,
+        address_line_2: data.address_line_2,
+        city: data.city,
+        district: data.district,
+        state: data.state,
+        pincode: data.pincode,
+        bank_name: data.bank_name,
+        bank_branch: data.bank_branch,
+        holder_name: data.holder_name,
+        account_number: data.account_number,
+        account_type: data.account_type,
+        ifsc_code: data.ifsc_code,
+        can_use_for_branch: data.can_use_for_branch,
       });
     }
   };
@@ -940,13 +1097,35 @@ export default function Setting() {
   branch={editingBranch}
   onSubmit={handleBranchSubmit}
   submitting={createBranchMutation.isPending || editBranchMutation.isPending}
-  companyPhone={(() => { const c = companies.find(c => c.zodu_id === branchCompanyId); return c?.phone_number || c?.mobile_no || ""; })()}
-  companyEmail={(() => { const c = companies.find(c => c.zodu_id === branchCompanyId); return c?.email || c?.mail_id || ""; })()}
+  company={(() => {
+    const c = companies.find(c => c.zodu_id === branchCompanyId);
+    const cAny = c as (typeof c & { address_line_1?: string; address_line_2?: string }) | undefined;
+    return {
+      address_id: c?.address_id || "",
+      bank_details_id: c?.bank_details_id || "",
+      phone: c?.phone_number || c?.mobile_no || "",
+      email: c?.email || c?.mail_id || "",
+      address_line_1: cAny?.address_line_1 || c?.area_street_name || "",
+      address_line_2: cAny?.address_line_2 || c?.building_no || "",
+      area_street_name: c?.area_street_name || "",
+      building_no: c?.building_no || "",
+      city: c?.city || "",
+      district: c?.district || "",
+      state: c?.state || "",
+      pincode: c?.pincode || "",
+      bank_name: c?.bank_name || "",
+      bank_branch: c?.bank_branch || "",
+      holder_name: c?.holder_name || "",
+      account_number: c?.account_number || "",
+      account_type: c?.account_type || "",
+      ifsc_code: c?.ifsc_code || "",
+    };
+  })()}
 />
-      <CompanyFormModal
+      <BusinessFormModal
         open={companyModalOpen}
         onClose={closeCompanyModal}
-        company={editingCompany}
+        business={editingCompany}
         onSubmit={handleCompanySubmit}
         submitting={createCompanyMutation.isPending || editCompanyMutation.isPending}
       />
@@ -1069,17 +1248,44 @@ export default function Setting() {
                   Address
                 </Typography>
                 <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                  {viewingCompany.area_street_name || "Not available"}
+                  {getCompanyAddressLine1(viewingCompany) || "Not available"}
                 </Typography>
               </Box>
 
               <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
                 <Box>
                   <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    Building / Floor No
+                    Address Line 2
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.building_no || "Not available"}
+                    {getCompanyAddressLine2(viewingCompany) || "Not available"}
+                  </Typography>
+                </Box>
+
+                <Box>
+                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
+                    Bank Name
+                  </Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
+                    {viewingCompany.bank_name || "Not available"}
+                  </Typography>
+                </Box>
+
+                <Box>
+                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
+                    Bank Branch
+                  </Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
+                    {viewingCompany.bank_branch || "Not available"}
+                  </Typography>
+                </Box>
+
+                <Box>
+                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
+                    Account Holder Name
+                  </Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
+                    {viewingCompany.holder_name || "Not available"}
                   </Typography>
                 </Box>
 
@@ -1178,7 +1384,7 @@ export default function Setting() {
                     City
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingBranch.branch_city || "Not available"}
+                    {getBranchCity(viewingBranch) || "Not available"}
                   </Typography>
                 </Box>
 
@@ -1187,7 +1393,7 @@ export default function Setting() {
                     State
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingBranch.branch_state || "Not available"}
+                    {getBranchState(viewingBranch) || "Not available"}
                   </Typography>
                 </Box>
               </Box>
@@ -1198,16 +1404,16 @@ export default function Setting() {
                     Address Line 1
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingBranch.branch_area_street_name || "Not available"}
+                    {getBranchAddressLine1(viewingBranch) || "Not available"}
                   </Typography>
                 </Box>
 
                 <Box>
                   <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    Building / Floor No
+                    Address Line 2
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingBranch.branch_floor_building_no || "Not available"}
+                    {getBranchAddressLine2(viewingBranch) || "Not available"}
                   </Typography>
                 </Box>
 
@@ -1216,7 +1422,7 @@ export default function Setting() {
                     District
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingBranch.branch_district || "Not available"}
+                    {getBranchDistrict(viewingBranch) || "Not available"}
                   </Typography>
                 </Box>
 
@@ -1225,7 +1431,7 @@ export default function Setting() {
                     Pincode
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingBranch.branch_pincode || "Not available"}
+                    {getBranchPincode(viewingBranch) || "Not available"}
                   </Typography>
                 </Box>
               </Box>
@@ -1235,7 +1441,7 @@ export default function Setting() {
                   Manager / Admin
                 </Typography>
                 <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                  {viewingBranch.branch_manager_or_admin || "Not available"}
+                  {getBranchManager(viewingBranch) || "Not available"}
                 </Typography>
               </Box>
 
@@ -1244,10 +1450,37 @@ export default function Setting() {
               <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
                 <Box>
                   <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
+                    Bank Name
+                  </Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
+                    {viewingBranch.bank_name || "Not available"}
+                  </Typography>
+                </Box>
+
+                <Box>
+                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
+                    Bank Branch
+                  </Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
+                    {viewingBranch.bank_branch || "Not available"}
+                  </Typography>
+                </Box>
+
+                <Box>
+                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
+                    Account Holder Name
+                  </Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
+                    {viewingBranch.holder_name || "Not available"}
+                  </Typography>
+                </Box>
+
+                <Box>
+                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
                     Account Number
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingBranch.branch_account_no || "Not available"}
+                    {getBranchAccountNumber(viewingBranch) || "Not available"}
                   </Typography>
                 </Box>
 
@@ -1256,7 +1489,7 @@ export default function Setting() {
                     Account Type
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5, textTransform: "capitalize" }}>
-                    {viewingBranch.branch_account_type || "Not available"}
+                    {getBranchAccountType(viewingBranch) || "Not available"}
                   </Typography>
                 </Box>
 
@@ -1265,7 +1498,7 @@ export default function Setting() {
                     IFSC Code
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingBranch.branch_ifsc || "Not available"}
+                    {getBranchIfscCode(viewingBranch) || "Not available"}
                   </Typography>
                 </Box>
               </Box>

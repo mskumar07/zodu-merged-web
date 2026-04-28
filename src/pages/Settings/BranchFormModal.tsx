@@ -101,8 +101,10 @@ export interface BranchFormData {
   branch_id: string;
   branch_mobile_no: string;
   branch_mail_id: string;
-  branch_area_street_name: string;
-  branch_floor_building_no: string;
+  branch_address_line_1: string;
+  branch_address_line_2: string;
+  branch_area_street_name: string;    // alias
+  branch_floor_building_no: string;   // alias
   branch_city: string;
   branch_district: string;
   branch_state: string;
@@ -112,6 +114,11 @@ export interface BranchFormData {
   branch_ifsc: string;
   branch_account_type: string;
   branch_image: string;
+  bank_name: string;
+  bank_branch: string;
+  holder_name: string;
+  use_same_address_as_company: boolean;
+  use_same_bank_as_company: boolean;
 }
 
 const EMPTY_FORM: BranchFormData = {
@@ -119,6 +126,8 @@ const EMPTY_FORM: BranchFormData = {
   branch_id: "",
   branch_mobile_no: "",
   branch_mail_id: "",
+  branch_address_line_1: "",
+  branch_address_line_2: "",
   branch_area_street_name: "",
   branch_floor_building_no: "",
   branch_city: "",
@@ -128,19 +137,41 @@ const EMPTY_FORM: BranchFormData = {
   branch_manager_or_admin: "",
   branch_account_no: "",
   branch_ifsc: "",
-  branch_account_type: "current",
+  branch_account_type: "Current Account",
   branch_image: "",
+  bank_name: "",
+  bank_branch: "",
+  holder_name: "",
+  use_same_address_as_company: false,
+  use_same_bank_as_company: false,
 };
 
-// Update Props interface
+interface CompanyRef {
+  phone?: string;
+  email?: string;
+  address_line_1?: string;
+  address_line_2?: string;
+  area_street_name?: string;
+  building_no?: string;
+  city?: string;
+  district?: string;
+  state?: string;
+  pincode?: string;
+  bank_name?: string;
+  bank_branch?: string;
+  holder_name?: string;
+  account_number?: string;
+  account_type?: string;
+  ifsc_code?: string;
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
   branch?: Branch | null;
   onSubmit: (data: BranchFormData, isEdit: boolean) => void;
   submitting?: boolean;
-  companyPhone?: string;   // ✅ add
-  companyEmail?: string;   // ✅ add
+  company?: CompanyRef;
 }
 
 
@@ -184,15 +215,13 @@ export default function BranchFormModal({
   branch,
   onSubmit,
   submitting = false,
-  companyPhone = "",       // ✅ add
-  companyEmail = "",       // ✅ add
+  company = {},
 }: Props) {
   const isEdit = Boolean(branch);
 
   const [form, setForm] = useState<BranchFormData>(EMPTY_FORM);
   const [sameMobile, setSameMobile] = useState(false);
   const [sameEmail, setSameEmail] = useState(false);
-  const [sameGstin, setSameGstin] = useState(false);
   const [stateSearch, setStateSearch] = useState("");
 
   useEffect(() => {
@@ -203,24 +232,49 @@ export default function BranchFormModal({
         branch_id: branch.branch_id ?? "",
         branch_mobile_no: branch.branch_mobile_no ?? "",
         branch_mail_id: branch.branch_mail_id ?? "",
-        branch_area_street_name: branch.branch_area_street_name ?? "",
-        branch_floor_building_no: branch.branch_floor_building_no ?? "",
-        branch_city: branch.branch_city ?? "",
-        branch_district: branch.branch_district ?? "",
-        branch_state: branch.branch_state ?? "",
-        branch_pincode: branch.branch_pincode ?? "",
-        branch_manager_or_admin: branch.branch_manager_or_admin ?? "",
-        branch_account_no: branch.branch_account_no ?? "",
-        branch_ifsc: branch.branch_ifsc ?? "",
-        branch_account_type: branch.branch_account_type ?? "current",
+        branch_address_line_1:
+          branch.branch_address_line_1 ??
+          (branch as Branch & { address_line_1?: string; building_no?: string }).address_line_1 ??
+          (branch as Branch & { address_line_1?: string; building_no?: string }).building_no ??
+          branch.branch_floor_building_no ??
+          "",
+        branch_address_line_2:
+          branch.branch_address_line_2 ??
+          (branch as Branch & { address_line_2?: string; area_street_name?: string }).address_line_2 ??
+          (branch as Branch & { address_line_2?: string; area_street_name?: string }).area_street_name ??
+          branch.branch_area_street_name ??
+          "",
+        branch_area_street_name:
+          branch.branch_area_street_name ??
+          (branch as Branch & { area_street_name?: string }).area_street_name ??
+          "",
+        branch_floor_building_no:
+          branch.branch_floor_building_no ??
+          (branch as Branch & { building_no?: string }).building_no ??
+          "",
+        branch_city: branch.branch_city ?? branch.city ?? "",
+        branch_district: branch.branch_district ?? branch.district ?? "",
+        branch_state: branch.branch_state ?? branch.state ?? "",
+        branch_pincode:
+          branch.branch_pincode ??
+          (branch as Branch & { pincode?: string }).pincode ??
+          "",
+        branch_manager_or_admin: branch.branch_manager_or_admin ?? branch.branch_manager ?? "",
+        branch_account_no: branch.branch_account_no ?? branch.account_number ?? "",
+        branch_ifsc: branch.branch_ifsc ?? branch.ifsc_code ?? "",
+        branch_account_type: branch.branch_account_type ?? branch.account_type ?? "Current Account",
         branch_image: branch.branch_image ?? "",
+        bank_name: branch.bank_name ?? "",
+        bank_branch: branch.bank_branch ?? "",
+        holder_name: branch.holder_name ?? "",
+        use_same_address_as_company: false,
+        use_same_bank_as_company: false,
       });
     } else {
       setForm(EMPTY_FORM);
     }
     setSameMobile(false);
     setSameEmail(false);
-    setSameGstin(false);
     setStateSearch("");
   }, [open, branch]);
 
@@ -288,317 +342,436 @@ export default function BranchFormModal({
         </DialogTitle>
 
         {/* ── Body ───────────────────────────────────────────────────────────── */}
-        <DialogContent sx={{ px: 3, py: 3, bgcolor: "#fff" }}>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+        <DialogContent sx={{ px: 3, py: 3, bgcolor: "#fff", maxHeight: "70vh", overflowY: "auto" }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
 
-            {/* Branch Name + Branch Code */}
-            <Grid container spacing={2.5}>
-              <Grid size={{ xs: 12, sm: 12 }}>
-                <FieldLabel>Branch Name</FieldLabel>
-                <TextField
-                  fullWidth
-                  placeholder="e.g. South Region Hub"
-                  value={form.branch_name}
-                  onChange={set("branch_name")}
-                  sx={inputSx}
-                />
-              </Grid>
-              {/* <Grid size={{ xs: 12, sm: 6 }}>
-                <FieldLabel>Branch Code</FieldLabel>
-                <TextField
-                  fullWidth
-                  placeholder="e.g. ZD-SO-01"
-                  value={form.branch_id}
-                  onChange={set("branch_id")}
-                  disabled={isEdit}
-                  sx={inputSx}
-                />
-              </Grid> */}
-            </Grid>
-
-            {/* Mobile Number + Email ID */}
-            <Grid container spacing={2.5}>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
-                  <FieldLabel>Mobile Number</FieldLabel>
-                 <SameAsCheckbox
-  label="Same as Company"
-  checked={sameMobile}
-  onChange={(checked) => {
-    setSameMobile(checked);
-    setForm((prev) => ({
-      ...prev,
-      branch_mobile_no: checked ? companyPhone : "",
-    }));
-  }}
-/>
-                </Box>
-                <TextField
-                  fullWidth
-                  placeholder="9876543210"
-                  type="tel"
-                  value={form.branch_mobile_no}
-                  onChange={set("branch_mobile_no")}
-                  disabled={sameMobile}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Typography
-                          sx={{
-                            fontSize: 12,
-                            color: "#6B7280",
-                            borderRight: "1px solid #E2E8F0",
-                            pr: 1,
-                            mr: 0.5,
-                            lineHeight: 1,
-                          }}
-                        >
-                          +91
-                        </Typography>
-                      </InputAdornment>
-                    ),
-                  }}
-                  sx={inputSx}
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
-                  <FieldLabel>Email ID</FieldLabel>
-                <SameAsCheckbox
-  label="Same as Company"
-  checked={sameEmail}
-  onChange={(checked) => {
-    setSameEmail(checked);
-    setForm((prev) => ({
-      ...prev,
-      branch_mail_id: checked ? companyEmail : "",
-    }));
-  }}
-/>
-                </Box>
-                <TextField
-                  fullWidth
-                  placeholder="branch@zodu.com"
-                  type="email"
-                  value={form.branch_mail_id}
-                  onChange={set("branch_mail_id")}
-                  disabled={sameEmail}
-                  sx={inputSx}
-                />
-              </Grid>
-            </Grid>
-
-            {/* ── Address section ─────────────────────────────────────────── */}
-            <Divider sx={{ borderColor: "#F1F5F9" }} />
-
-            <Grid container spacing={2.5}>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <FieldLabel>Address Line 1</FieldLabel>
-                <TextField
-                  fullWidth
-                  placeholder="Street Address, Area"
-                  value={form.branch_area_street_name}
-                  onChange={set("branch_area_street_name")}
-                  sx={inputSx}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <FieldLabel>Address Line 2</FieldLabel>
-                <TextField
-                  fullWidth
-                  placeholder="Building, Floor (optional)"
-                  value={form.branch_floor_building_no}
-                  onChange={set("branch_floor_building_no")}
-                  sx={inputSx}
-                />
-              </Grid>
-            </Grid>
-
-            <Grid container spacing={2.5}>
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <FieldLabel>City</FieldLabel>
-                <TextField
-                  fullWidth
-                  placeholder="Enter city"
-                  value={form.branch_city}
-                  onChange={set("branch_city")}
-                  sx={inputSx}
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <FieldLabel>District</FieldLabel>
-                <TextField
-                  fullWidth
-                  placeholder="Enter district"
-                  value={form.branch_district}
-                  onChange={set("branch_district")}
-                  sx={inputSx}
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <FieldLabel>State</FieldLabel>
-                <FormControl fullWidth size="small" sx={inputSx}>
-                  <Select
-                    value={form.branch_state}
-                    displayEmpty
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, branch_state: e.target.value }))
-                    }
-                    onOpen={() => setStateSearch("")}
-                    renderValue={(value) =>
-                      value ? (
-                        value
-                      ) : (
-                        <Typography sx={{ color: "#9CA3AF", fontSize: 13 }}>
-                          Select state
-                        </Typography>
-                      )
-                    }
-                    MenuProps={{
-                      PaperProps: {
-                        sx: {
-                          mt: 0.5,
-                          maxHeight: 320,
-                          borderRadius: 2,
-                          boxShadow: "0 18px 40px rgba(15,23,42,0.12)",
-                        },
-                      },
+            {/* BASIC DETAILS SECTION */}
+            <Box>
+              <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#1F2937", mb: 2 }}>
+                Basic Details
+              </Typography>
+              <Grid container spacing={2.5}>
+                <Grid size={{ xs: 12 }}>
+                  <FieldLabel>Branch Name *</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="e.g. South Region Hub"
+                    value={form.branch_name}
+                    onChange={set("branch_name")}
+                    sx={inputSx}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>Manager Name</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="Full legal name"
+                    value={form.branch_manager_or_admin}
+                    onChange={set("branch_manager_or_admin")}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <PersonOutlineIcon sx={{ fontSize: 17, color: "#9CA3AF" }} />
+                        </InputAdornment>
+                      ),
                     }}
-                    sx={{ bgcolor: "#F8FAFC", fontSize: 13, borderRadius: "8px" }}
-                  >
-                    <ListSubheader
-                      sx={{
-                        bgcolor: "#fff",
-                        py: 1,
-                        px: 1,
-                        borderBottom: "1px solid #F1F5F9",
-                      }}
-                      onKeyDown={(e) => e.stopPropagation()}
-                    >
-                      <TextField
-                        autoFocus
-                        size="small"
-                        fullWidth
-                        placeholder="Search state..."
-                        value={stateSearch}
-                        onChange={(e) => setStateSearch(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <SearchIcon sx={{ fontSize: 16, color: "#9CA3AF" }} />
-                            </InputAdornment>
-                          ),
-                        }}
-                        sx={{
-                          "& .MuiOutlinedInput-root": {
-                            bgcolor: "#F8FAFC",
-                            fontSize: 12.5,
-                            borderRadius: 1.5,
-                          },
-                        }}
-                      />
-                    </ListSubheader>
-                    {filteredStates.length === 0 ? (
-                      <MenuItem disabled sx={{ fontSize: 13 }}>
-                        No states found
-                      </MenuItem>
-                    ) : (
-                      filteredStates.map((state) => (
-                        <MenuItem key={state} value={state} sx={{ fontSize: 13 }}>
-                          {state}
-                        </MenuItem>
-                      ))
-                    )}
-                  </Select>
-                </FormControl>
+                    sx={inputSx}
+                  />
+                </Grid>
               </Grid>
+            </Box>
 
-              <Grid size={{ xs: 12, sm: 12 }}>
-                <FieldLabel>PIN Code</FieldLabel>
-                <TextField
-                  fullWidth
-                  placeholder="600001"
-                  value={form.branch_pincode}
-                  onChange={set("branch_pincode")}
-                  sx={inputSx}
-                />
-              </Grid>
-            </Grid>
-
-            {/* ── Manager + GSTIN ─────────────────────────────────────────── */}
             <Divider sx={{ borderColor: "#F1F5F9" }} />
 
-            <Grid container spacing={2.5}>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <FieldLabel>Manager Name</FieldLabel>
-                <TextField
-                  fullWidth
-                  placeholder="Full legal name"
-                  value={form.branch_manager_or_admin}
-                  onChange={set("branch_manager_or_admin")}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <PersonOutlineIcon sx={{ fontSize: 17, color: "#9CA3AF" }} />
-                      </InputAdornment>
-                    ),
+            {/* CONTACT INFORMATION SECTION */}
+            <Box>
+              <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#1F2937", mb: 2 }}>
+                Contact Information
+              </Typography>
+              <Grid container spacing={2.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
+                    <FieldLabel>Phone Number *</FieldLabel>
+                    <SameAsCheckbox
+                      label="Same as Company"
+                      checked={sameMobile}
+                      onChange={(checked) => {
+                        setSameMobile(checked);
+                        setForm((prev) => ({
+                          ...prev,
+                          branch_mobile_no: checked ? (company.phone ?? "") : "",
+                        }));
+                      }}
+                    />
+                  </Box>
+                  <TextField
+                    fullWidth
+                    placeholder="9876543210"
+                    type="tel"
+                    value={form.branch_mobile_no}
+                    onChange={set("branch_mobile_no")}
+                    disabled={sameMobile}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Typography
+                            sx={{
+                              fontSize: 12,
+                              color: "#6B7280",
+                              borderRight: "1px solid #E2E8F0",
+                              pr: 1,
+                              mr: 0.5,
+                              lineHeight: 1,
+                            }}
+                          >
+                            +91
+                          </Typography>
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={inputSx}
+                  />
+                </Grid>
+
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
+                    <FieldLabel>Email ID *</FieldLabel>
+                    <SameAsCheckbox
+                      label="Same as Company"
+                      checked={sameEmail}
+                      onChange={(checked) => {
+                        setSameEmail(checked);
+                        setForm((prev) => ({
+                          ...prev,
+                          branch_mail_id: checked ? (company.email ?? "") : "",
+                        }));
+                      }}
+                    />
+                  </Box>
+                  <TextField
+                    fullWidth
+                    placeholder="branch@zodu.com"
+                    type="email"
+                    value={form.branch_mail_id}
+                    onChange={set("branch_mail_id")}
+                    disabled={sameEmail}
+                    sx={inputSx}
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+
+            <Divider sx={{ borderColor: "#F1F5F9" }} />
+
+            {/* LOCATION DETAILS SECTION */}
+            <Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#1F2937" }}>
+                  Location Details
+                </Typography>
+                <SameAsCheckbox
+                  label="Same as Company"
+                  checked={form.use_same_address_as_company}
+                  onChange={(checked) => {
+                    setForm((prev) => ({
+                      ...prev,
+                      use_same_address_as_company: checked,
+                      ...(checked
+                        ? {
+                            branch_address_line_1:
+                              company.address_line_1 ?? company.area_street_name ?? "",
+                            branch_address_line_2:
+                              company.address_line_2 ?? company.building_no ?? "",
+                            branch_city: company.city ?? "",
+                            branch_district: company.district ?? "",
+                            branch_state: company.state ?? "",
+                            branch_pincode: company.pincode ?? "",
+                          }
+                        : {
+                            branch_address_line_1: "",
+                            branch_address_line_2: "",
+                            branch_city: "",
+                            branch_district: "",
+                            branch_state: "",
+                            branch_pincode: "",
+                          }),
+                    }));
                   }}
-                  sx={inputSx}
                 />
+              </Box>
+              <Grid container spacing={2.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>Address Line 1</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="Street Address, Area"
+                    value={form.branch_address_line_1}
+                    onChange={set("branch_address_line_1")}
+                    disabled={form.use_same_address_as_company}
+                    sx={inputSx}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>Address Line 2</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="Building, Floor (optional)"
+                    value={form.branch_address_line_2}
+                    onChange={set("branch_address_line_2")}
+                    disabled={form.use_same_address_as_company}
+                    sx={inputSx}
+                  />
+                </Grid>
               </Grid>
 
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <FieldLabel>Account Number</FieldLabel>
-                <TextField
-                  fullWidth
-                  placeholder="1234567890"
-                  value={form.branch_account_no}
-                  onChange={set("branch_account_no")}
-                  sx={inputSx}
-                />
-              </Grid>
-            </Grid>
+              <Grid container spacing={2.5} sx={{ mt: 0.5 }}>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <FieldLabel>City</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="Enter city"
+                    value={form.branch_city}
+                    onChange={set("branch_city")}
+                    disabled={form.use_same_address_as_company}
+                    sx={inputSx}
+                  />
+                </Grid>
 
-            <Grid container spacing={2.5}>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <FieldLabel>IFSC Code</FieldLabel>
-                <TextField
-                  fullWidth
-                  placeholder="HDFC0001234"
-                  value={form.branch_ifsc}
-                  onChange={set("branch_ifsc")}
-                  inputProps={{ style: { textTransform: "uppercase" } }}
-                  sx={inputSx}
-                />
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <FieldLabel>District</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="Enter district"
+                    value={form.branch_district}
+                    onChange={set("branch_district")}
+                    disabled={form.use_same_address_as_company}
+                    sx={inputSx}
+                  />
+                </Grid>
+
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <FieldLabel>State</FieldLabel>
+                  <FormControl fullWidth size="small" sx={inputSx}>
+                    <Select
+                      value={form.branch_state}
+                      displayEmpty
+                      disabled={form.use_same_address_as_company}
+                      onChange={(e) =>
+                        setForm((prev) => ({ ...prev, branch_state: e.target.value }))
+                      }
+                      onOpen={() => setStateSearch("")}
+                      renderValue={(value) =>
+                        value ? (
+                          value
+                        ) : (
+                          <Typography sx={{ color: "#9CA3AF", fontSize: 13 }}>
+                            Select state
+                          </Typography>
+                        )
+                      }
+                      MenuProps={{
+                        PaperProps: {
+                          sx: {
+                            mt: 0.5,
+                            maxHeight: 320,
+                            borderRadius: 2,
+                            boxShadow: "0 18px 40px rgba(15,23,42,0.12)",
+                          },
+                        },
+                      }}
+                      sx={{ bgcolor: "#F8FAFC", fontSize: 13, borderRadius: "8px" }}
+                    >
+                      <ListSubheader
+                        sx={{
+                          bgcolor: "#fff",
+                          py: 1,
+                          px: 1,
+                          borderBottom: "1px solid #F1F5F9",
+                        }}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      >
+                        <TextField
+                          autoFocus
+                          size="small"
+                          fullWidth
+                          placeholder="Search state..."
+                          value={stateSearch}
+                          onChange={(e) => setStateSearch(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <SearchIcon sx={{ fontSize: 16, color: "#9CA3AF" }} />
+                              </InputAdornment>
+                            ),
+                          }}
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
+                              bgcolor: "#F8FAFC",
+                              fontSize: 12.5,
+                              borderRadius: 1.5,
+                            },
+                          }}
+                        />
+                      </ListSubheader>
+                      {filteredStates.length === 0 ? (
+                        <MenuItem disabled sx={{ fontSize: 13 }}>
+                          No states found
+                        </MenuItem>
+                      ) : (
+                        filteredStates.map((state) => (
+                          <MenuItem key={state} value={state} sx={{ fontSize: 13 }}>
+                            {state}
+                          </MenuItem>
+                        ))
+                      )}
+                    </Select>
+                  </FormControl>
+                </Grid>
               </Grid>
 
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <FieldLabel>Account Type</FieldLabel>
-                <FormControl fullWidth size="small" sx={inputSx}>
-                  <Select
-                    value={form.branch_account_type}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        branch_account_type: e.target.value,
-                      }))
-                    }
-                    sx={{ bgcolor: "#F8FAFC", fontSize: 13, borderRadius: "8px" }}
-                  >
-                    <MenuItem value="current" sx={{ fontSize: 13 }}>
-                      Current
-                    </MenuItem>
-                    <MenuItem value="savings" sx={{ fontSize: 13 }}>
-                      Savings
-                    </MenuItem>
-                  </Select>
-                </FormControl>
+              <Grid container spacing={2.5} sx={{ mt: 0.5 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>PIN Code</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="600001"
+                    value={form.branch_pincode}
+                    onChange={set("branch_pincode")}
+                    disabled={form.use_same_address_as_company}
+                    sx={inputSx}
+                  />
+                </Grid>
               </Grid>
-            </Grid>
+            </Box>
+
+            <Divider sx={{ borderColor: "#F1F5F9" }} />
+
+            {/* BANK DETAILS SECTION */}
+            <Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#1F2937" }}>
+                  Bank Details
+                </Typography>
+                <SameAsCheckbox
+                  label="Same as Company"
+                  checked={form.use_same_bank_as_company}
+                  onChange={(checked) => {
+                    setForm((prev) => ({
+                      ...prev,
+                      use_same_bank_as_company: checked,
+                      ...(checked
+                        ? {
+                            bank_name: company.bank_name ?? "",
+                            bank_branch: company.bank_branch ?? "",
+                            holder_name: company.holder_name ?? "",
+                            branch_account_no: company.account_number ?? "",
+                            branch_account_type: company.account_type ?? "Current Account",
+                            branch_ifsc: company.ifsc_code ?? "",
+                          }
+                        : {
+                            bank_name: "",
+                            bank_branch: "",
+                            holder_name: "",
+                            branch_account_no: "",
+                            branch_account_type: "Current Account",
+                            branch_ifsc: "",
+                          }),
+                    }));
+                  }}
+                />
+              </Box>
+              <Grid container spacing={2.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>Bank Name</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="e.g. HDFC Bank"
+                    value={form.bank_name}
+                    onChange={set("bank_name")}
+                    disabled={form.use_same_bank_as_company}
+                    sx={inputSx}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>Bank Branch</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="Branch name"
+                    value={form.bank_branch}
+                    onChange={set("bank_branch")}
+                    disabled={form.use_same_bank_as_company}
+                    sx={inputSx}
+                  />
+                </Grid>
+              </Grid>
+
+              <Grid container spacing={2.5} sx={{ mt: 0.5 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>Account Holder Name</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="Name as per bank records"
+                    value={form.holder_name}
+                    onChange={set("holder_name")}
+                    disabled={form.use_same_bank_as_company}
+                    sx={inputSx}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>Account Type</FieldLabel>
+                  <FormControl fullWidth size="small" sx={inputSx}>
+                    <Select
+                      value={form.branch_account_type}
+                      disabled={form.use_same_bank_as_company}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          branch_account_type: e.target.value,
+                        }))
+                      }
+                      sx={{ bgcolor: "#F8FAFC", fontSize: 13, borderRadius: "8px" }}
+                    >
+                      <MenuItem value="Savings Account" sx={{ fontSize: 13 }}>
+                        Savings Account
+                      </MenuItem>
+                      <MenuItem value="Current Account" sx={{ fontSize: 13 }}>
+                        Current Account
+                      </MenuItem>
+                      <MenuItem value="Business Account" sx={{ fontSize: 13 }}>
+                        Business Account
+                      </MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </Grid>
+
+              <Grid container spacing={2.5} sx={{ mt: 0.5 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>Account Number</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="Bank account number"
+                    value={form.branch_account_no}
+                    onChange={set("branch_account_no")}
+                    disabled={form.use_same_bank_as_company}
+                    sx={inputSx}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>IFSC Code</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="e.g. HDFC0000123"
+                    value={form.branch_ifsc}
+                    onChange={set("branch_ifsc")}
+                    disabled={form.use_same_bank_as_company}
+                    inputProps={{ style: { textTransform: "uppercase" } }}
+                    sx={inputSx}
+                  />
+                </Grid>
+              </Grid>
+            </Box>
 
           </Box>
         </DialogContent>

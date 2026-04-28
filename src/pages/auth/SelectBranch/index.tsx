@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 import Box from "@mui/material/Box";
@@ -11,8 +11,8 @@ import WarehouseOutlinedIcon from "@mui/icons-material/WarehouseOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
 
-import { useAppDispatch } from "@store/store";
-import { addUserData } from "@store/slices/userSlice";
+import { useAppDispatch, useAppSelector } from "@store/store";
+import { addUserData, AllCompanies } from "@store/slices/userSlice";
 import { type Branch, type CompanyWithBranches } from "@pages/auth/Authapi";
 
 const BRAND_RED = "#c8101f";
@@ -310,9 +310,17 @@ const SelectBranch: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAppDispatch();
+  const storedCompanies = useAppSelector(AllCompanies);
 
-  const companies: CompanyWithBranches[] =
-    (location.state as { companies?: CompanyWithBranches[] })?.companies ?? [];
+  const companiesFromState: CompanyWithBranches[] = useMemo(
+    () => (location.state as { companies?: CompanyWithBranches[] } | null)?.companies ?? [],
+    [location.state]
+  );
+
+  const companies: CompanyWithBranches[] = useMemo(
+    () => (companiesFromState.length > 0 ? companiesFromState : storedCompanies),
+    [companiesFromState, storedCompanies]
+  );
 
   const handleSelectBranch = (
     company: CompanyWithBranches,
@@ -322,6 +330,22 @@ const SelectBranch: React.FC = () => {
     dispatch(addUserData({ branchId, branchName, zoduId: company.zodu_id }));
     navigate("/dashboard", { replace: true });
   };
+
+  useEffect(() => {
+    if (companies.length !== 1) return;
+    const onlyCompany = companies[0];
+    const branches = onlyCompany?.branches ?? [];
+    if (branches.length !== 1) return;
+    const onlyBranch = branches[0];
+    dispatch(
+      addUserData({
+        zoduId: onlyCompany.zodu_id,
+        branchId: onlyBranch.branch_id,
+        branchName: onlyBranch.branch_name,
+      })
+    );
+    navigate("/dashboard", { replace: true });
+  }, [companies, dispatch, navigate]);
 
   return (
     <Box

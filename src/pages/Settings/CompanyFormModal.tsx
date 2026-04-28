@@ -91,18 +91,25 @@ const INDIAN_STATES = [
   "Puducherry",
 ];
 
-export interface CompanyFormData {
+export interface BusinessFormData {
   restaurant_name: string;
   owner_admin_name: string;
   phone_number: string;
   email: string;
-  area_street_name: string;
-  building_no: string;
+  address_line_1: string;
+  address_line_2: string;
   city: string;
+  district: string;
   state: string;
   pincode: string;
   gst_no: string;
-  same_for_branch: boolean;
+  bank_name: string;
+  bank_branch: string;
+  holder_name: string;
+  account_number: string;
+  account_type: string;
+  ifsc_code: string;
+  can_use_for_branch: boolean;
 }
 
 export type CompanyFormInitialData = Partial<
@@ -113,25 +120,32 @@ export type CompanyFormInitialData = Partial<
     }
 >;
 
-const EMPTY_FORM: CompanyFormData = {
+const EMPTY_FORM: BusinessFormData = {
   restaurant_name: "",
   owner_admin_name: "",
   phone_number: "",
   email: "",
-  area_street_name: "",
-  building_no: "",
+  address_line_1: "",
+  address_line_2: "",
   city: "",
+  district: "",
   state: "",
   pincode: "",
   gst_no: "",
-  same_for_branch: true,
+  bank_name: "",
+  bank_branch: "",
+  holder_name: "",
+  account_number: "",
+  account_type: "",
+  ifsc_code: "",
+  can_use_for_branch: true,
 };
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  company?: CompanyFormInitialData | null;
-  onSubmit: (data: CompanyFormData, isEdit: boolean) => void;
+  business?: CompanyFormInitialData | null;
+  onSubmit: (data: BusinessFormData, isEdit: boolean) => void;
   submitting?: boolean;
 }
 
@@ -161,43 +175,50 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function CompanyFormModal({
+export default function BusinessFormModal({
   open,
   onClose,
-  company,
+  business,
   onSubmit,
   submitting = false,
 }: Props) {
-  const isEdit = Boolean(company);
-  const [form, setForm] = useState<CompanyFormData>(EMPTY_FORM);
+  const isEdit = Boolean(business);
+  const [form, setForm] = useState<BusinessFormData>(EMPTY_FORM);
   const [stateSearch, setStateSearch] = useState("");
 
   useEffect(() => {
     if (!open) return;
 
-    if (company) {
+    if (business) {
       setForm({
-        restaurant_name: company.restaurant_name ?? "",
-        owner_admin_name: company.owner_admin_name ?? "",
-        phone_number: company.phone_number ?? company.mobile_no ?? "",
-        email: company.email ?? company.mail_id ?? "",
-        area_street_name: company.area_street_name ?? "",
-        building_no: company.building_no ?? "",
-        city: company.city ?? "",
-        state: company.state ?? "",
-        pincode: company.pincode ?? "",
-        gst_no: company.gst_no ?? "",
-        same_for_branch: true,
+        restaurant_name: business.restaurant_name ?? "",
+        owner_admin_name: business.owner_admin_name ?? "",
+        phone_number: business.phone_number ?? business.mobile_no ?? "",
+        email: business.email ?? business.mail_id ?? "",
+        address_line_1: business.address_line_1 ?? business.area_street_name ?? "",
+        address_line_2: business.address_line_2 ?? business.building_no ?? "",
+        city: business.city ?? "",
+        district: business.district ?? "",
+        state: business.state ?? "",
+        pincode: business.pincode ?? "",
+        gst_no: business.gst_no ?? "",
+        bank_name: business.bank_name ?? "",
+        bank_branch: business.bank_branch ?? "",
+        holder_name: business.holder_name ?? "",
+        account_number: business.account_number ?? "",
+        account_type: business.account_type ?? "",
+        ifsc_code: business.ifsc_code ?? "",
+        can_use_for_branch: true,
       });
     } else {
       setForm(EMPTY_FORM);
     }
 
     setStateSearch("");
-  }, [open, company]);
+  }, [open, business]);
 
   const set =
-    (key: keyof CompanyFormData) =>
+    (key: keyof BusinessFormData) =>
     (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm((prev) => ({ ...prev, [key]: e.target.value }));
 
@@ -236,10 +257,10 @@ export default function CompanyFormModal({
             </Box>
             <Box>
               <Typography sx={{ fontSize: 17, fontWeight: 800, color: "#0F172A" }}>
-                {isEdit ? "Edit Company" : "Add New Company"}
+                {isEdit ? "Edit Business" : "Add New Business"}
               </Typography>
               <Typography sx={{ fontSize: 11, color: "#6B7280" }}>
-                {isEdit ? "Update company details" : "Register a new company entity"}
+                {isEdit ? "Update business details" : "Register a new business entity"}
               </Typography>
             </Box>
           </Box>
@@ -257,104 +278,363 @@ export default function CompanyFormModal({
           </IconButton>
         </DialogTitle>
 
-        <DialogContent sx={{ px: 3, py: 3, bgcolor: "#fff" }}>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-            <Grid container spacing={2.5}>
-              <Grid size={{ xs: 12 }}>
-                <FieldLabel>Company Name</FieldLabel>
-                <TextField
-                  fullWidth
-                  placeholder="e.g. Zodu Retail Private Limited"
-                  value={form.restaurant_name}
-                  onChange={set("restaurant_name")}
-                  sx={inputSx}
-                />
+        <DialogContent sx={{ px: 3, py: 3, bgcolor: "#fff", maxHeight: "70vh", overflowY: "auto" }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            {/* BASIC DETAILS SECTION */}
+            <Box>
+              <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#1F2937", mb: 2 }}>
+                Basic Details
+              </Typography>
+              <Grid container spacing={2.5}>
+                <Grid size={{ xs: 12 }}>
+                  <FieldLabel>Restaurant / Business Name *</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="e.g. Zodu Retail Private Limited"
+                    value={form.restaurant_name}
+                    onChange={set("restaurant_name")}
+                    sx={inputSx}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>Owner / Admin Name</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="Full legal name"
+                    value={form.owner_admin_name}
+                    onChange={set("owner_admin_name")}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <PersonOutlineIcon sx={{ fontSize: 17, color: "#9CA3AF" }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={inputSx}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>GSTIN</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="22AAAAA0000A1Z5"
+                    value={form.gst_no}
+                    onChange={set("gst_no")}
+                    inputProps={{ style: { textTransform: "uppercase" } }}
+                    sx={inputSx}
+                  />
+                </Grid>
               </Grid>
-            </Grid>
+            </Box>
 
-            <Grid container spacing={2.5}>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <FieldLabel>Owner / Admin Name</FieldLabel>
-                <TextField
-                  fullWidth
-                  placeholder="Full legal name"
-                  value={form.owner_admin_name}
-                  onChange={set("owner_admin_name")}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <PersonOutlineIcon sx={{ fontSize: 17, color: "#9CA3AF" }} />
-                      </InputAdornment>
-                    ),
-                  }}
-                  sx={inputSx}
-                />
+            <Divider sx={{ borderColor: "#F1F5F9" }} />
+
+            {/* CONTACT INFORMATION SECTION */}
+            <Box>
+              <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#1F2937", mb: 2 }}>
+                Contact Information
+              </Typography>
+              <Grid container spacing={2.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>Phone Number *</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="9876543210"
+                    type="tel"
+                    value={form.phone_number}
+                    onChange={set("phone_number")}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Typography
+                            sx={{
+                              fontSize: 12,
+                              color: "#6B7280",
+                              borderRight: "1px solid #E2E8F0",
+                              pr: 1,
+                              mr: 0.5,
+                              lineHeight: 1,
+                            }}
+                          >
+                            +91
+                          </Typography>
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={inputSx}
+                  />
+                </Grid>
+
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>Email ID *</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="business@zodu.com"
+                    type="email"
+                    value={form.email}
+                    onChange={set("email")}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <EmailOutlinedIcon sx={{ fontSize: 17, color: "#9CA3AF" }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={inputSx}
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+
+            <Divider sx={{ borderColor: "#F1F5F9" }} />
+
+            {/* LOCATION DETAILS SECTION */}
+            <Box>
+              <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#1F2937", mb: 2 }}>
+                Location Details
+              </Typography>
+              <Grid container spacing={2.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>Address Line 1</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="Street Address, Area"
+                    value={form.address_line_1}
+                    onChange={set("address_line_1")}
+                    sx={inputSx}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>Address Line 2</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="Building, Floor (optional)"
+                    value={form.address_line_2}
+                    onChange={set("address_line_2")}
+                    sx={inputSx}
+                  />
+                </Grid>
               </Grid>
 
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <FieldLabel>GSTIN</FieldLabel>
-                <TextField
-                  fullWidth
-                  placeholder="22AAAAA0000A1Z5"
-                  value={form.gst_no}
-                  onChange={set("gst_no")}
-                  inputProps={{ style: { textTransform: "uppercase" } }}
-                  sx={inputSx}
-                />
-              </Grid>
-            </Grid>
+              <Grid container spacing={2.5} sx={{ mt: 0.5 }}>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <FieldLabel>City</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="Enter city"
+                    value={form.city}
+                    onChange={set("city")}
+                    sx={inputSx}
+                  />
+                </Grid>
 
-            <Grid container spacing={2.5}>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <FieldLabel>Mobile Number</FieldLabel>
-                <TextField
-                  fullWidth
-                  placeholder="9876543210"
-                  type="tel"
-                  value={form.phone_number}
-                  onChange={set("phone_number")}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Typography
-                          sx={{
-                            fontSize: 12,
-                            color: "#6B7280",
-                            borderRight: "1px solid #E2E8F0",
-                            pr: 1,
-                            mr: 0.5,
-                            lineHeight: 1,
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <FieldLabel>District</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="Enter district"
+                    value={form.district}
+                    onChange={set("district")}
+                    sx={inputSx}
+                  />
+                </Grid>
+
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <FieldLabel>State</FieldLabel>
+                  <FormControl fullWidth size="small" sx={inputSx}>
+                    <Select
+                      value={form.state}
+                      displayEmpty
+                      onChange={(e) =>
+                        setForm((prev) => ({ ...prev, state: e.target.value }))
+                      }
+                      onOpen={() => setStateSearch("")}
+                      renderValue={(value) =>
+                        value ? (
+                          value
+                        ) : (
+                          <Typography sx={{ color: "#9CA3AF", fontSize: 13 }}>
+                            Select state
+                          </Typography>
+                        )
+                      }
+                      MenuProps={{
+                        PaperProps: {
+                          sx: {
+                            mt: 0.5,
+                            maxHeight: 320,
+                            borderRadius: 2,
+                            boxShadow: "0 18px 40px rgba(15,23,42,0.12)",
+                          },
+                        },
+                      }}
+                      sx={{ bgcolor: "#F8FAFC", fontSize: 13, borderRadius: "8px" }}
+                    >
+                      <ListSubheader
+                        sx={{
+                          bgcolor: "#fff",
+                          py: 1,
+                          px: 1,
+                          borderBottom: "1px solid #F1F5F9",
+                        }}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      >
+                        <TextField
+                          autoFocus
+                          size="small"
+                          fullWidth
+                          placeholder="Search state..."
+                          value={stateSearch}
+                          onChange={(e) => setStateSearch(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <SearchIcon sx={{ fontSize: 16, color: "#9CA3AF" }} />
+                              </InputAdornment>
+                            ),
                           }}
-                        >
-                          +91
-                        </Typography>
-                      </InputAdornment>
-                    ),
-                  }}
-                  sx={inputSx}
-                />
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
+                              bgcolor: "#F8FAFC",
+                              fontSize: 12.5,
+                              borderRadius: 1.5,
+                            },
+                          }}
+                        />
+                      </ListSubheader>
+                      {filteredStates.length === 0 ? (
+                        <MenuItem disabled sx={{ fontSize: 13 }}>
+                          No states found
+                        </MenuItem>
+                      ) : (
+                        filteredStates.map((state) => (
+                          <MenuItem key={state} value={state} sx={{ fontSize: 13 }}>
+                            {state}
+                          </MenuItem>
+                        ))
+                      )}
+                    </Select>
+                  </FormControl>
+                </Grid>
               </Grid>
 
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <FieldLabel>Email ID</FieldLabel>
-                <TextField
-                  fullWidth
-                  placeholder="company@zodu.com"
-                  type="email"
-                  value={form.email}
-                  onChange={set("email")}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <EmailOutlinedIcon sx={{ fontSize: 17, color: "#9CA3AF" }} />
-                      </InputAdornment>
-                    ),
-                  }}
-                  sx={inputSx}
-                />
+              <Grid container spacing={2.5} sx={{ mt: 0.5 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>PIN Code</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="600001"
+                    value={form.pincode}
+                    onChange={set("pincode")}
+                    sx={inputSx}
+                  />
+                </Grid>
               </Grid>
-            </Grid>
+            </Box>
 
+            <Divider sx={{ borderColor: "#F1F5F9" }} />
+
+            {/* BANK DETAILS SECTION */}
+            <Box>
+              <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#1F2937", mb: 2 }}>
+                Bank Details
+              </Typography>
+              <Grid container spacing={2.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>Bank Name</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="e.g. HDFC Bank"
+                    value={form.bank_name}
+                    onChange={set("bank_name")}
+                    sx={inputSx}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>Bank Branch</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="Branch name"
+                    value={form.bank_branch}
+                    onChange={set("bank_branch")}
+                    sx={inputSx}
+                  />
+                </Grid>
+              </Grid>
+
+              <Grid container spacing={2.5} sx={{ mt: 0.5 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>Account Holder Name</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="Name as per bank records"
+                    value={form.holder_name}
+                    onChange={set("holder_name")}
+                    sx={inputSx}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>Account Type</FieldLabel>
+                  <FormControl fullWidth size="small" sx={inputSx}>
+                    <Select
+                      value={form.account_type}
+                      displayEmpty
+                      onChange={(e) =>
+                        setForm((prev) => ({ ...prev, account_type: e.target.value }))
+                      }
+                      renderValue={(value) =>
+                        value ? (
+                          value
+                        ) : (
+                          <Typography sx={{ color: "#9CA3AF", fontSize: 13 }}>
+                            Select account type
+                          </Typography>
+                        )
+                      }
+                    >
+                      <MenuItem value="Savings Account" sx={{ fontSize: 13 }}>
+                        Savings Account
+                      </MenuItem>
+                      <MenuItem value="Current Account" sx={{ fontSize: 13 }}>
+                        Current Account
+                      </MenuItem>
+                      <MenuItem value="Business Account" sx={{ fontSize: 13 }}>
+                        Business Account
+                      </MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </Grid>
+
+              <Grid container spacing={2.5} sx={{ mt: 0.5 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>Account Number</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="Bank account number"
+                    value={form.account_number}
+                    onChange={set("account_number")}
+                    sx={inputSx}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>IFSC Code</FieldLabel>
+                  <TextField
+                    fullWidth
+                    placeholder="e.g. HDFC0000123"
+                    value={form.ifsc_code}
+                    onChange={set("ifsc_code")}
+                    inputProps={{ style: { textTransform: "uppercase" } }}
+                    sx={inputSx}
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+
+            <Divider sx={{ borderColor: "#F1F5F9" }} />
+
+            {/* BRANCH USAGE SECTION */}
             <Box
               sx={{
                 px: 1.5,
@@ -368,11 +648,11 @@ export default function CompanyFormModal({
               <FormControlLabel
                 control={
                   <Checkbox
-                    checked={form.same_for_branch}
+                    checked={form.can_use_for_branch}
                     onChange={(e) =>
                       setForm((prev) => ({
                         ...prev,
-                        same_for_branch: e.target.checked,
+                        can_use_for_branch: e.target.checked,
                       }))
                     }
                     sx={{
@@ -385,144 +665,16 @@ export default function CompanyFormModal({
                 label={
                   <Box>
                     <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>
-                      Same for branch
+                      Use for default branch
                     </Typography>
                     <Typography sx={{ fontSize: 11, color: "#6B7280" }}>
-                      Create the default branch using these company contact details.
+                      Create the default branch using these business details.
                     </Typography>
                   </Box>
                 }
                 sx={{ m: 0, alignItems: "flex-start", gap: 1 }}
               />
             </Box>
-
-            {!isEdit && <Divider sx={{ borderColor: "#F1F5F9" }} />}
-
-            <Grid container spacing={2.5}>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <FieldLabel>Address Line 1</FieldLabel>
-                <TextField
-                  fullWidth
-                  placeholder="Street Address, Area"
-                  value={form.area_street_name}
-                  onChange={set("area_street_name")}
-                  sx={inputSx}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <FieldLabel>Address Line 2</FieldLabel>
-                <TextField
-                  fullWidth
-                  placeholder="Building, Floor (optional)"
-                  value={form.building_no}
-                  onChange={set("building_no")}
-                  sx={inputSx}
-                />
-              </Grid>
-            </Grid>
-
-            <Grid container spacing={2.5}>
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <FieldLabel>City</FieldLabel>
-                <TextField
-                  fullWidth
-                  placeholder="Enter city"
-                  value={form.city}
-                  onChange={set("city")}
-                  sx={inputSx}
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <FieldLabel>State</FieldLabel>
-                <FormControl fullWidth size="small" sx={inputSx}>
-                  <Select
-                    value={form.state}
-                    displayEmpty
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, state: e.target.value }))
-                    }
-                    onOpen={() => setStateSearch("")}
-                    renderValue={(value) =>
-                      value ? (
-                        value
-                      ) : (
-                        <Typography sx={{ color: "#9CA3AF", fontSize: 13 }}>
-                          Select state
-                        </Typography>
-                      )
-                    }
-                    MenuProps={{
-                      PaperProps: {
-                        sx: {
-                          mt: 0.5,
-                          maxHeight: 320,
-                          borderRadius: 2,
-                          boxShadow: "0 18px 40px rgba(15,23,42,0.12)",
-                        },
-                      },
-                    }}
-                    sx={{ bgcolor: "#F8FAFC", fontSize: 13, borderRadius: "8px" }}
-                  >
-                    <ListSubheader
-                      sx={{
-                        bgcolor: "#fff",
-                        py: 1,
-                        px: 1,
-                        borderBottom: "1px solid #F1F5F9",
-                      }}
-                      onKeyDown={(e) => e.stopPropagation()}
-                    >
-                      <TextField
-                        autoFocus
-                        size="small"
-                        fullWidth
-                        placeholder="Search state..."
-                        value={stateSearch}
-                        onChange={(e) => setStateSearch(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <SearchIcon sx={{ fontSize: 16, color: "#9CA3AF" }} />
-                            </InputAdornment>
-                          ),
-                        }}
-                        sx={{
-                          "& .MuiOutlinedInput-root": {
-                            bgcolor: "#F8FAFC",
-                            fontSize: 12.5,
-                            borderRadius: 1.5,
-                          },
-                        }}
-                      />
-                    </ListSubheader>
-                    {filteredStates.length === 0 ? (
-                      <MenuItem disabled sx={{ fontSize: 13 }}>
-                        No states found
-                      </MenuItem>
-                    ) : (
-                      filteredStates.map((state) => (
-                        <MenuItem key={state} value={state} sx={{ fontSize: 13 }}>
-                          {state}
-                        </MenuItem>
-                      ))
-                    )}
-                  </Select>
-                </FormControl>
-              </Grid>
-
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <FieldLabel>PIN Code</FieldLabel>
-                <TextField
-                  fullWidth
-                  placeholder="600001"
-                  value={form.pincode}
-                  onChange={set("pincode")}
-                  sx={inputSx}
-                />
-              </Grid>
-            </Grid>
           </Box>
         </DialogContent>
 
@@ -564,7 +716,7 @@ export default function CompanyFormModal({
               },
             }}
           >
-            {submitting ? "Saving..." : isEdit ? "Save Changes" : "Save Company"}
+            {submitting ? "Saving..." : isEdit ? "Save Changes" : "Save Business"}
           </Button>
         </DialogActions>
       </Dialog>

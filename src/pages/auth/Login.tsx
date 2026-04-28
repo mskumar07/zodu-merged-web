@@ -486,7 +486,7 @@ import {
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { useLoginMutation, type LoginResponse } from './Authapi';
 import { useAppDispatch, useAppSelector } from '@store/store';
-import { IsAuthenticated, setAuthData } from '@store/slices/userSlice';
+import { IsAuthenticated, addUserData, setAuthData } from '@store/slices/userSlice';
 
 // ─── Theme ────────────────────────────────────────────────────
 const theme = createTheme({
@@ -704,8 +704,36 @@ const ZoduLoginPage: React.FC = () => {
           console.log("login detail",data)
       if (!data?.user || !data?.access_token || !data?.refresh_token)
         throw new Error('Invalid login response');
-      dispatch(setAuthData({ accessToken: data.access_token, refreshToken: data.refresh_token, profile: data.user, company: data.company ?? null, companies: data.companies ?? [] }));
-      navigate('/select-branch', { replace: true, state: { companies: data.companies ?? [] } });
+      const companies = data.companies ?? [];
+      dispatch(
+        setAuthData({
+          accessToken: data.access_token,
+          refreshToken: data.refresh_token,
+          profile: data.user,
+          company: data.company ?? null,
+          companies,
+        })
+      );
+
+      const hasSingleCompany = companies.length === 1;
+      const singleCompany = hasSingleCompany ? companies[0] : null;
+      const singleCompanyBranches = singleCompany?.branches ?? [];
+      const hasSingleBranch = singleCompanyBranches.length === 1;
+
+      if (singleCompany && hasSingleBranch) {
+        const onlyBranch = singleCompanyBranches[0];
+        dispatch(
+          addUserData({
+            zoduId: singleCompany.zodu_id,
+            branchId: onlyBranch.branch_id,
+            branchName: onlyBranch.branch_name,
+          })
+        );
+        navigate('/dashboard', { replace: true });
+        return;
+      }
+
+      navigate('/select-branch', { replace: true, state: { companies } });
     } catch {
       setError('Login failed. Please check your credentials and try again.');
     }

@@ -473,10 +473,12 @@ const salesCols: ColDef<SaleRow>[] = [
     render: r => paymentStatusBadge(r.payment_status) },
 ];
 
+console.log(stats)
+
   const summaryCards = [
     { label: "Total Sales",     value: stats ? fmt(stats.total_sales)     : undefined, icon: <PaymentsIcon    sx={{ fontSize: 18 }} /> },
     { label: "Total Invoices",  value: stats ? String(stats.total_invoices)  : undefined, icon: <DescriptionIcon sx={{ fontSize: 18 }} /> },
-    { label: "Low Stock Items", value: stats ? String(stats.low_stock_items) : undefined, icon: <Inventory2Icon  sx={{ fontSize: 18 }} /> },
+    { label: "Low Stock Items", value: stats ? String(stats.total_alerts) : undefined, icon: <Inventory2Icon  sx={{ fontSize: 18 }} /> },
     { label: "Today's Revenue", value: stats ? fmt(stats.todays_revenue)  : undefined, icon: <InsightsIcon    sx={{ fontSize: 18 }} /> },
   ];
 
@@ -494,6 +496,7 @@ const salesCols: ColDef<SaleRow>[] = [
           {/* ── Summary Cards ── */}
           <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
             {summaryCards.map(c => (
+
               <SummaryCard key={c.label} loading={statsQuery.isLoading} {...c} />
             ))}
           </Box>

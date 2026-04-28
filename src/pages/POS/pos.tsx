@@ -65,6 +65,16 @@ const INR = (v: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(v);
 const todayStr = () => new Date().toISOString().split("T")[0];
 
+// Format date string to YYYY-MM-DD without timezone shift
+const formatDateForInput = (dateString: string | undefined): string => {
+  if (!dateString) return "";
+  const d = new Date(dateString);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const theme = createTheme({
   palette: {
     primary: { main: "#C8102E" },
@@ -412,8 +422,8 @@ useEffect(() => {
         setReferenceNo(last.transaction_id || "");
         setPaymentType((last.transaction_type as any) || "Cash");
       }
-      setInvoiceDate(sale.sale_date_fmt ? new Date(sale.sale_date_fmt).toISOString().split("T")[0] : "");
-      setDueDate((sale as any).due_date ? new Date((sale as any).due_date).toISOString().split("T")[0] : ((sale as any).due_date_fmt ? new Date((sale as any).due_date_fmt).toISOString().split("T")[0] : ""));
+      setInvoiceDate(formatDateForInput(sale.sale_date_fmt));
+      setDueDate(formatDateForInput((sale as any).due_date_fmt || (sale as any).due_date));
     };
     loadSale();
   }, [saleId]);
@@ -1138,7 +1148,7 @@ console.log("test",serverHolds)
 
           {/* ORDER TABLE */}
           <Paper elevation={0} sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", border: zone === "TABLE" ? "2px solid #1976d2" : "1px solid #E5E7EB", borderRadius: 2, overflow: "hidden", transition: "border 0.2s", boxShadow: zone === "TABLE" ? "0 0 0 3px rgba(245,158,11,0.1)" : "none" }}>
-            <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", scrollbarWidth: "thin", scrollbarColor: "#C8102E #F3F4F6", "&::-webkit-scrollbar": { width: "8px" }, "&::-webkit-scrollbar-track": { backgroundColor: "#F3F4F6", borderRadius: "4px" }, "&::-webkit-scrollbar-thumb": { backgroundColor: "#C8102E", borderRadius: "4px", "&:hover": { backgroundColor: "#A50D26" } } }}>
+            <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", scrollbarWidth: "thin", scrollbarColor: "#ea9999 #F3F4F6", "&::-webkit-scrollbar": { width: "8px" }, "&::-webkit-scrollbar-track": { backgroundColor: "#F3F4F6", borderRadius: "4px" }, "&::-webkit-scrollbar-thumb": { backgroundColor: "#ea9999", borderRadius: "4px", "&:hover": { backgroundColor: "#A50D26" } } }}>
               <Table size="small" stickyHeader sx={{ borderCollapse: "separate", tableLayout: "fixed" }}>
                 <colgroup>
                   <col style={{ width: 10 }} /><col style={{ width: 120 }} /><col /><col style={{ width: 70 }} />

@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  Box, Card, Typography, CircularProgress,
+  Card, Typography, CircularProgress,
   Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Paper, Skeleton, Divider,
 } from "@mui/material";
@@ -121,20 +121,24 @@ function DataTable<T>({
           overflow: "auto",
           backgroundColor: "#ffffff",
           scrollbarWidth: "thin",
-          scrollbarColor: "#cbd5e1 #f1f5f9",
+          scrollbarColor: "#d98f8f transparent",
           "&::-webkit-scrollbar": {
-            width: 8,
-            height: 8,
+            width: 6,
+            height: 6,
           },
           "&::-webkit-scrollbar-track": {
-            background: "#f1f5f9",
-            borderRadius: "4px",
+            background: "transparent",
+            borderRadius: "999px",
           },
           "&::-webkit-scrollbar-thumb": {
-            background: "#cbd5e1",
-            borderRadius: "4px",
+            background: "#d98f8f",
+            borderRadius: "999px",
+            border: "1px solid #ffffff",
+            minHeight: 28,
+            transition: "background-color 160ms ease",
+
             "&:hover": {
-              background: "#94a3b8",
+              background: "#c87f7f",
             },
           },
         }}

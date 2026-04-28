@@ -22,11 +22,26 @@ export interface Branch {
   branch_district?: string;
   branch_state?: string;
   branch_area_street_name?: string;
+  branch_address_line_1?: string;
   branch_floor_building_no?: string;
+  branch_address_line_2?: string;
   branch_pincode?: string;
   branch_mobile_no?: string;
   branch_mail_id?: string;
   branch_image?: string | null;
+  branch_manager?: string;
+  branch_manager_or_admin?: string;
+  branch_account_no?: string;
+  branch_ifsc?: string;
+  branch_account_type?: string;
+  address_id?: string;
+  bank_details_id?: string;
+  bank_name?: string;
+  bank_branch?: string;
+  holder_name?: string;
+  account_number?: string;
+  account_type?: string;
+  ifsc_code?: string;
   active?: boolean;
   zodu_id?: string;
   // Aliased fields returned by get/my-companies
@@ -39,6 +54,8 @@ export interface Branch {
 export interface CompanyWithBranches {
   zodu_id: string;
   id?: string;
+  address_id?: string;
+  bank_details_id?: string;
   is_primary?: boolean;
   restaurant_name: string;
   owner_admin_name?: string;
@@ -56,6 +73,9 @@ export interface CompanyWithBranches {
   account_number?: string;
   account_type?: string;
   ifsc_code?: string;
+  bank_name?: string;
+  bank_branch?: string;
+  holder_name?: string;
   status?: string;
   created_at?: string;
   updated_at?: string;
@@ -87,79 +107,131 @@ export interface AuthUser {
 }
 
 export interface CompanyDetails {
-  account_number: string;
-  account_type: string;
-  area_street_name: string;
-  building_no: string;
-  city: string;
-  district: string;
-  gst_no: string;
-  ifsc_code: string;
-  owner_admin_name: string;
-  pincode: string;
-  state: string;
+  account_number?: string;
+  account_type?: string;
+  address_line_1?: string;
+  address_line_2?: string;
+  city?: string;
+  district?: string;
+  gst_no?: string;
+  ifsc_code?: string;
+  owner_admin_name?: string;
+  pincode?: string;
+  state?: string;
+  bank_name?: string;
+  bank_branch?: string;
+  holder_name?: string;
 }
 
 export interface CreateCompanyPayload {
   restaurant_name: string;
-  owner_admin_name: string;
-  gst_no: string;
+  owner_admin_name?: string;
+  gst_no?: string;
   phone_number: string;
   email: string;
-  area_street_name: string;
-  building_no: string;
-  city: string;
-  state: string;
-  pincode: string;
-  same_for_branch: boolean;
+  address_line_1?: string;
+  address_line_2?: string;
+  city?: string;
+  district?: string;
+  state?: string;
+  pincode?: string;
+  bank_name?: string;
+  bank_branch?: string;
+  holder_name?: string;
+  account_number?: string;
+  account_type?: string;
+  ifsc_code?: string;
+  can_use_for_branch?: boolean;
+}
+
+export interface OpeningHours {
+  day: string;
+  open: string;
+  close: string;
 }
 
 export interface CreateBranchPayload {
   zodu_id: string;
+  branch_id?: string;
   branch_name: string;
-  branch_manager_or_admin: string;
   branch_mobile_no: string;
   branch_mail_id: string;
   branch_city: string;
   branch_pincode: string;
   branch_district: string;
   branch_state: string;
+  // Optional fields
+  branch_manager_or_admin?: string;
   branch_image?: string;
-  branch_floor_building_no: string;
-  branch_area_street_name: string;
-  branch_account_no: string;
-  branch_ifsc: string;
-  branch_account_type: string;
+  opening_hours?: OpeningHours[];
+  // Option 1: reference existing company address and bank details
+  address_id?: string;
+  bank_details_id?: string;
+  // Option 2: separate branch address details
+  address_line_1?: string;
+  address_line_2?: string;
+  // Option 3: separate branch bank details
+  bank_name?: string;
+  bank_branch?: string;
+  holder_name?: string;
+  account_number?: string;
+  account_type?: string;
+  ifsc_code?: string;
+  // Company reference flags
+  use_same_address_as_company?: boolean;
+  use_same_bank_as_company?: boolean;
 }
 
 export interface EditCompanyPayload {
-  restaurant_name: string;
-  owner_admin_name: string;
-  gst_no: string;
-  phone_number: string;
-  email: string;
-  area_street_name: string;
-  building_no: string;
-  city: string;
-  state: string;
-  pincode: string;
+  restaurant_name?: string;
+  owner_admin_name?: string;
+  gst_no?: string;
+  phone_number?: string;
+  email?: string;
+  address_line_1?: string;
+  address_line_2?: string;
+  city?: string;
+  district?: string;
+  state?: string;
+  pincode?: string;
+  bank_name?: string;
+  bank_branch?: string;
+  holder_name?: string;
+  account_number?: string;
+  account_type?: string;
+  ifsc_code?: string;
 }
 
 export interface EditBranchPayload {
-  branch_name: string;
-  branch_manager_or_admin: string;
-  branch_mobile_no: string;
-  branch_mail_id: string;
-  branch_city: string;
-  branch_pincode: string;
-  branch_district: string;
-  branch_state: string;
+  // All fields optional - at least one must be sent
+  zodu_id?: string;
+  branch_id?: string;
+  branch_name?: string;
+  branch_manager_or_admin?: string;
+  branch_mobile_no?: string;
+  branch_mail_id?: string;
+  branch_city?: string;
+  branch_pincode?: string;
+  branch_district?: string;
+  branch_state?: string;
   branch_image?: string;
-  branch_floor_building_no: string;
-  branch_area_street_name: string;
-  branch_account_no: string;
-  branch_ifsc: string;
-  branch_account_type: string;
+  opening_hours?: OpeningHours[];
+  // Option 1: reference existing company address and bank details
+  address_id?: string;
+  bank_details_id?: string;
+  // Option 2: separate branch address details
+  address_line_1?: string;
+  address_line_2?: string;
+  // Option 3: separate branch bank details
+  bank_name?: string;
+  bank_branch?: string;
+  holder_name?: string;
+  account_number?: string;
+  account_type?: string;
+  ifsc_code?: string;
+  // Company reference flags
+  use_same_address_as_company?: boolean;
+  use_same_bank_as_company?: boolean;
 }
 
 export interface LoginResponse {
@@ -235,6 +307,7 @@ export const authApis = {
   createCompany: (payload: CreateCompanyPayload) =>
     unwrap<any>(
       api.post('/auth/api/create-company', payload)
+          
     ),
 
   createBranch: (payload: CreateBranchPayload) =>
@@ -380,7 +453,10 @@ export function useLogoutMutation() {
 
 export function useCreateBranchMutation() {
   return useMutation({
-    mutationFn: (payload: CreateBranchPayload) => authApis.createBranch(payload),
+    mutationFn: (payload: CreateBranchPayload) => {
+      console.log(payload);
+      return authApis.createBranch(payload);
+    },
     onError: (err: AxiosError<any>) => {
       console.error('[createBranch error]', err.response?.data || err.message);
     },
