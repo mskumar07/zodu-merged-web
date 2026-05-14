@@ -842,7 +842,17 @@ const ZoduSignupPage: React.FC = () => {
 
   function setField(key: keyof typeof form, value: string) {
     setForm(p => ({ ...p, [key]: value }));
-    if (fieldErrors[key]) setFieldErrors(p => ({ ...p, [key]: undefined }));
+    if (key === 'password') {
+      if (!value) {
+        setFieldErrors(p => ({ ...p, password: 'Password is required' }));
+      } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{8,30}$/.test(value)) {
+        setFieldErrors(p => ({ ...p, password: 'Password must be 8–30 characters and include uppercase, lowercase, a number, and a special character' }));
+      } else {
+        setFieldErrors(p => ({ ...p, password: undefined }));
+      }
+    } else if (fieldErrors[key]) {
+      setFieldErrors(p => ({ ...p, [key]: undefined }));
+    }
   }
 
   function validate(): boolean {
@@ -852,9 +862,9 @@ const ZoduSignupPage: React.FC = () => {
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Enter a valid email address';
     if (!form.phone_number.trim())      errs.phone_number    = 'Mobile number is required';
     else if (!/^[0-9]{10}$/.test(form.phone_number.replace(/\s/g, ''))) errs.phone_number = 'Enter a valid 10-digit mobile number';
-    if (!form.password)                 errs.password        = 'Password is required';
-    else if (form.password.length < 8)  errs.password        = 'Password must be at least 8 characters';
-    else if (pwStrength.score < 2)      errs.password        = 'Password is too weak — add numbers or special characters';
+    if (!form.password)                 errs.password = 'Password is required';
+    else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{8,30}$/.test(form.password))
+      errs.password = 'Password must be 8–30 characters and include uppercase, lowercase, a number, and a special character';
     if (!form.confirmPassword)          errs.confirmPassword = 'Please confirm your password';
     else if (form.password !== form.confirmPassword) errs.confirmPassword = 'Passwords do not match';
     setFieldErrors(errs);
