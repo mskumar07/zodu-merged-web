@@ -21,6 +21,10 @@ import Setting from "@pages/Settings/Setting";
 import SalesReport from "@pages/ReportsScreen/SaleReport";
 import CategoryItemSalesReport from "@pages/ReportsScreen/CategoryItemSalesReport";
 import DatewiseSaleReport from "@pages/ReportsScreen/DatewiseSaleReport";
+import DatewisePurchaseReport from "@pages/ReportsScreen/PurchaseReport/DatewisePurchaseReport";
+import MonthWisePurchaseReport from "@pages/ReportsScreen/PurchaseReport/MonthWisePurchaseReport";
+import DatewiseExpenseReport from "@pages/ReportsScreen/ExpenseReport/DatewiseExpenseReport";
+import MonthWiseExpenseReport from "@pages/ReportsScreen/ExpenseReport/MonthWiseExpenseReport";
 
 export const routes = [
   {
@@ -50,8 +54,10 @@ export const routes = [
           { path: "sales", element: <SalesReport /> },
           { path: "sales/category-item", element: <CategoryItemSalesReport /> },
           { path: "sales/datewise", element: <DatewiseSaleReport /> },
-          // { path: "expenses", element: <ExpenseReport /> },
-          // { path: "purchase", element: <PurchaseReport /> },
+          { path: "purchase/datewise", element: <DatewisePurchaseReport /> },
+          { path: "purchase/monthwise", element: <MonthWisePurchaseReport /> },
+          { path: "expenses/datewise", element: <DatewiseExpenseReport /> },
+          { path: "expenses/monthwise", element: <MonthWiseExpenseReport /> },
           // { path: "inventory", element: <InventoryReport /> },
         ],
       },
