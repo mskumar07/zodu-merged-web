@@ -23,7 +23,10 @@ const SignUpSchema = Yup.object().shape({
     .matches(/^[0-9]{10}$/, "Mobile number must be 10 digits")
     .required("Mobile number is required"),
   password: Yup.string()
-    .min(6, "Password must be at least 6 characters")
+    .matches(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{8,30}$/,
+      "Password must be 8–30 characters and include uppercase, lowercase, a number, and a special character"
+    )
     .required("Password is required"),
   confirmPassword: Yup.string()
     .oneOf([Yup.ref("password")], "Passwords must match")

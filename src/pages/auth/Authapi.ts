@@ -3,7 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 
 // ── axios instance ────────────────────────────────────────────────────────────
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000',
   headers: { 'Content-Type': 'application/json' },
   timeout: 10_000,
 });
