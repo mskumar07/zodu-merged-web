@@ -1,15 +1,3 @@
-/**
- * pos/usePosProducts.ts
- * ─────────────────────────────────────────────────────────────
- * Changes:
- *  - Empty query → returns [] (no suggestions shown until user types)
- *  - Deduplication happens in db.bulkUpsertProducts (by item_id)
- *  - refetchOnWindowFocus / refetchOnReconnect enabled so new items
- *    added on other screens appear when user returns to POS
- *  - useForceRefreshProducts now accepts zoduId (was missing from key)
- * ─────────────────────────────────────────────────────────────
- */
-
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef } from "react";
 import Fuse from "fuse.js";
