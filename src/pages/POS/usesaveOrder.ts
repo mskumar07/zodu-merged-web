@@ -240,6 +240,7 @@ export function useSaveOrder() {
         params.discountPct, params.discountFlat
       );
 
+      const isQuotation = params.posMode === "QUOTATION";
       const paidAmount = parseFloat(params.receivedAmount) || 0;
 
       console.log("me002",params)
@@ -247,9 +248,9 @@ export function useSaveOrder() {
         zodu_id:   zoduId,
         branch_id: branchId,
 
-        sale_type:  params.posMode === "QUOTATION" ? "quotation" : "retail",
+        sale_type:  isQuotation ? "quotation" : "retail",
         sale_date:  params.invoiceDate,
-        due_date:   params.dueDate || null,
+        ...(!isQuotation && { due_date: params.dueDate || null }),
         sale_time:  currentHHmm(),
 
         customer_id: params.customer.id ?? null,
@@ -259,9 +260,11 @@ export function useSaveOrder() {
         discount_gst_mode: params.discountGstMode,
         roundoff:          params.roundoff,
 
-        paid_amount:    paidAmount,
-        payment_mode:   params.paymentType,
-        transaction_id: params.referenceNo || null,
+        ...(!isQuotation && {
+          paid_amount:    paidAmount,
+          payment_mode:   params.paymentType,
+          transaction_id: params.referenceNo || null,
+        }),
 
         notes: null,
 
@@ -312,6 +315,7 @@ const updateOrder = useCallback(async (
       params.discountFlat
     );
 
+    const isQuotation = params.posMode === "QUOTATION";
     const paidAmount = parseFloat(params.receivedAmount) || 0;
 
     // ✅ SAME PAYLOAD AS saveOrder
@@ -320,9 +324,9 @@ const updateOrder = useCallback(async (
       zodu_id:   zoduId,
       branch_id: branchId,
 
-      sale_type:  params.posMode === "QUOTATION" ? "quotation"  : "retail",
+      sale_type:  isQuotation ? "quotation" : "retail",
       sale_date:  params.invoiceDate,
-      due_date:   params.dueDate || null,
+      ...(!isQuotation && { due_date: params.dueDate || null }),
       sale_time:  currentHHmm(),
 
       customer_id: params.customer.id ?? null,
@@ -332,9 +336,11 @@ const updateOrder = useCallback(async (
       discount_gst_mode: params.discountGstMode,
       roundoff:          params.roundoff,
 
-      paid_amount:    paidAmount,
-      payment_mode:   params.paymentType,
-      transaction_id: params.referenceNo || null,
+      ...(!isQuotation && {
+        paid_amount:    paidAmount,
+        payment_mode:   params.paymentType,
+        transaction_id: params.referenceNo || null,
+      }),
 
       notes: null,
 

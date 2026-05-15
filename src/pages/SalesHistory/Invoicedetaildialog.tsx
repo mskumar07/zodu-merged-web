@@ -427,6 +427,7 @@ export default function InvoiceDetailsModal({
     ? `Discount (${Number(sale.discount_value)}%)`
     : "Discount";
 
+  const isQuotation    = sale?.sale_type === "quotation";
   const totalReturned  = returnHistory.reduce((s: number, r: any) => s + Number(r.return_amount), 0);
   const originalTotal  = Number(sale?.total_amount ?? 0);
   const adjustedTotal  = originalTotal - totalReturned;
@@ -927,7 +928,7 @@ export default function InvoiceDetailsModal({
                   large
                 />
 
-                {paidAmount > 0 && (
+                {!isQuotation && paidAmount > 0 && (
                   <SRow
                     label="Paid Amount"
                     value={INR(paidAmount)}
@@ -935,7 +936,7 @@ export default function InvoiceDetailsModal({
                   />
                 )}
 
-                {adjustedBalance > 0 && (
+                {!isQuotation && adjustedBalance > 0 && (
                   <SRow
                     label="Balance Due"
                     value={INR(adjustedBalance)}
@@ -947,7 +948,7 @@ export default function InvoiceDetailsModal({
             </Box>
 
             {/* 4 ── Payment history ─────────────────────────── */}
-            {history.length > 0 && (
+            {!isQuotation && history.length > 0 && (
               <Box>
                 <SectionTitle>Payment History</SectionTitle>
                 <TableContainer component={Paper} elevation={0}
