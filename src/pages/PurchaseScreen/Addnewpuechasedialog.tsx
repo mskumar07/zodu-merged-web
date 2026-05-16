@@ -560,7 +560,7 @@ export default function AddNewPurchaseDialog({
   const handleAddAtts   = useCallback((files: AttachmentFile[]) => setAttachments(prev => [...prev, ...files]), []);
   const handleRemoveAtt = useCallback((id: string) => setAttachments(prev => { const f = prev.find(a => a.id === id); if (f?.previewUrl) URL.revokeObjectURL(f.previewUrl); return prev.filter(a => a.id !== id); }), []);
 
-  const grandTotal = form.items.reduce((s, i) => s + itemSubtotal(i), 0);
+  const grandTotal = parseFloat(form.items.reduce((s, i) => s + itemSubtotal(i), 0).toFixed(2));
   const paid       = parseFloat(form.paidAmount) || 0;
   const balanceDue = Math.max(0, grandTotal - paid);
   const alreadyAdded = form.items.map(i => i.itemUuid);
@@ -579,6 +579,7 @@ export default function AddNewPurchaseDialog({
   const isBusy = createPurchase.isPending || updatePurchase.isPending || detailLoading;
 
   const handleSave = async () => {
+    console.log("Attenpting to save purchase with data:",{paid, grandTotal, form});
     if (!form.supplier)     { setSaveError("Select a supplier before saving."); return; }
     if (!form.items.length) { setSaveError("Add at least one item before saving."); return; }
     if (paid > grandTotal)  { setSaveError("Paid amount cannot exceed grand total."); return; }

@@ -48,6 +48,16 @@ interface ReportEndpoints {
   salesHistorical: string;
   salesDatewiseSummary: string;
   salesDatewiseBreakdown: string;
+  purchaseSummary: string;
+  purchaseMonthlyBreakdown: string;
+  purchaseHistorical: string;
+  purchaseDatewiseSummary: string;
+  purchaseDatewiseBreakdown: string;
+  expenseSummary: string;
+  expenseMonthlyBreakdown: string;
+  expenseHistorical: string;
+  expenseDatewiseSummary: string;
+  expenseDatewiseBreakdown: string;
 }
 
 interface DashboardEndpoints {
@@ -180,6 +190,16 @@ export const apiConfig: ApiConstants = {
     salesHistorical: `${RESTAURANT_BASE}/api/report/sales/historical`,
     salesDatewiseSummary: `${RESTAURANT_BASE}/api/report/sales/datewise/summary`,
     salesDatewiseBreakdown: `${RESTAURANT_BASE}/api/report/sales/datewise`,
+    purchaseSummary: `${RESTAURANT_BASE}/api/report/purchase/summary`,
+    purchaseMonthlyBreakdown: `${RESTAURANT_BASE}/api/report/purchase/monthly-breakdown`,
+    purchaseHistorical: `${RESTAURANT_BASE}/api/report/purchase/historical`,
+    purchaseDatewiseSummary: `${RESTAURANT_BASE}/api/report/purchase/datewise/summary`,
+    purchaseDatewiseBreakdown: `${RESTAURANT_BASE}/api/report/purchase/datewise`,
+    expenseSummary: `${RESTAURANT_BASE}/api/report/expense/summary`,
+    expenseMonthlyBreakdown: `${RESTAURANT_BASE}/api/report/expense/monthly-breakdown`,
+    expenseHistorical: `${RESTAURANT_BASE}/api/report/expense/historical`,
+    expenseDatewiseSummary: `${RESTAURANT_BASE}/api/report/expense/datewise/summary`,
+    expenseDatewiseBreakdown: `${RESTAURANT_BASE}/api/report/expense/datewise`,
   },
 
   mainDashboard: {

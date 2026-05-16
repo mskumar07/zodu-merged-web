@@ -32,7 +32,8 @@ const reportCards = [
     description:
       "Monitor ingredient costs, supplier performance, and procurement history.",
     icon: ShoppingCart,
-    path: "/reports/purchase",
+    path: "/reports/purchase/monthwise",
+    datewise: "/reports/purchase/datewise",
     color: "#3f51b5",
   },
   {
@@ -40,7 +41,8 @@ const reportCards = [
     description:
       "Track operational costs including utilities, rent, and miscellaneous overheads.",
     icon: MoneyOff,
-    path: "/reports/expenses",
+    path: "/reports/expenses/monthwise",
+    datewise: "/reports/expenses/datewise",
     color: "#fbc02d",
   },
   {
