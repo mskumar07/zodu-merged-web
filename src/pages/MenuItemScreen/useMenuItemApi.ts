@@ -107,12 +107,13 @@ export interface MenuItemListResponse {
 
 // Params for GET /api/menu_items
 export interface MenuItemListParams {
-  search?:      string;
-  category_id?: number;
-  item_type?:   "S" | "P";
-  status?:      "active" | "inactive";
-  page?:        number;
-  limit?:       number;
+  search?:        string;
+  category_id?:   number;
+  category_ids?:  number[];
+  item_type?:     "S" | "P";
+  status?:        "active" | "inactive";
+  page?:          number;
+  limit?:         number;
 }
 
 // Raw shape from GET /get/gst/:branch_id
@@ -160,14 +161,14 @@ export const menuQueryKeys = {
 
 /**
  * GET /restaurant/get/category/:type/:branch_id
- * type: product → "S" | service → "M"
+ * type: product → "S" | service → "M" | expense → "E"
  * NOTE: API returns capital "Data" key (not lowercase "data")
  */
 async function fetchCategories(
-  serviceType: "product" | "service"
+  serviceType: "product" | "service" | "expense"
 ): Promise<Category[]> {
   const { branchId, zoduId } = getTenantContext();
-  const type = serviceType === "product" ? "S" : "M";
+  const type = serviceType === "product" ? "S" : serviceType === "expense" ? "E" : "M";
   const { data } = await axios.get<{ Data?: ApiCategory[]; data?: ApiCategory[] }>(
     `${API_BASE}/restaurant/get/category/${type}/${branchId}/${zoduId}`
   );
@@ -226,7 +227,7 @@ async function fetchMenuItems(
         zodu_id:     zoduId,
         branch_id:   branchId,
         search:      params.search      || undefined,
-        category_id: params.category_id || undefined,
+        category_id: params.category_ids  || [],
         item_type:   params.item_type   || undefined,
         status:      params.status      || undefined,
         page:        params.page        ?? 1,
@@ -280,6 +281,23 @@ async function postAddMenuItem(
   const { data } = await axios.post<AddMenuItemResponse>(
     `${API_BASE}/restaurant/api/menu/add/menu_item`,
     { zodu_id: zoduId, branch_id: branchId, ...payload }
+  );
+  return data;
+}
+
+// ─── Check Item ID ────────────────────────────────────────────
+
+export interface CheckItemIdResponse {
+  success: boolean;
+  exists:  boolean;
+  data?:   { item_uuid: string; item_id: string; item_name: string; status: string };
+}
+
+export async function checkItemId(item_id: string): Promise<CheckItemIdResponse> {
+  const { zoduId, branchId } = getTenantContext();
+  const { data } = await axios.get<CheckItemIdResponse>(
+    `${API_BASE}/restaurant/api/menu/check/item_id`,
+    { params: { zodu_id: zoduId, branch_id: branchId, item_id } }
   );
   return data;
 }
@@ -385,7 +403,7 @@ export function useUpdateMenuItemStatus(options?: {
  * No enabled flag — always fetches on mount so data is ready when dialog opens.
  */
 export function useCategories(
-  serviceType: "product" | "service"
+  serviceType: "product" | "service" | "expense"
 ): UseQueryResult<Category[]> {
   useTenantContext();
   return useQuery({

@@ -46,6 +46,7 @@ const navItems = [
   { label: "Inventory", icon: <ReceiptIcon />, path: "/stock" },
   // { label: "Expense", icon: <PaymentsIcon />, path: "/expense" },
   { label: "Purchase", icon: <CategoryIcon />, path:"/purchase"},
+  { label: "Expense", icon: <PaymentsIcon />, path: "/expense" },
     { label: "Customer Management", icon: <Person />, path: "/customer-details" },
   // { label: "Checklist", icon: <ChecklistIcon />, path: "/checklist" },
   // {label: "Attendance", icon:<GroupsIcon/>, path:"/attendance"},

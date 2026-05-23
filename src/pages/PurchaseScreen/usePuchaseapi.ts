@@ -57,7 +57,7 @@ export interface PurchasePayload {
   due_date: any;
   payment_status?: "pending" | "partial" | "paid";
   notes?: string;
-  attachment_url?: object | null;
+  attachment_url?: Array<{ id: string; url: string; filename: string; size: number; mimetype: string }> | null;
   transaction_type?: string;
   transaction_id?: string | null;
   items: PurchaseItemPayload[];
@@ -138,6 +138,7 @@ export interface PurchasePaymentRow {
 
 /** Full detail returned by GET /purchase/:id */
 export interface PurchaseDetail extends PurchaseRow {
+  due_date?: string | null;
   // extended vendor fields
   vendor_email: string | null;
   vendor_address_1: string | null;
@@ -155,13 +156,13 @@ export interface PurchaseDetail extends PurchaseRow {
    🔹 VENDOR APIs
 ========================================================= */
 
-export const useVendors = () =>
+export const useVendors = (type?: "Expense" | "Purchase") =>
   useQuery({
-    queryKey: ["vendors", getZoduId(), getBranchId()],
+    queryKey: ["vendors", getZoduId(), getBranchId(), type],
     queryFn: async () => {
       const { zoduId, branchId } = getTenantContext();
       const res = await api.get("/vendor", {
-        params: { zodu_id: zoduId, branch_id: branchId },
+        params: { zodu_id: zoduId, branch_id: branchId, ...(type ? { type } : {}) },
       });
       return (res.data?.data ?? res.data?.Data ?? res.data ?? []) as Vendor[];
     },

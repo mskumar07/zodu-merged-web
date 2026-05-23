@@ -28,6 +28,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import SearchIcon from "@mui/icons-material/Search";
 import CircularProgress from "@mui/material/CircularProgress";
 import {  useCreateVendor } from "./useVendorApi";
+import SuccessToast from "@components/Common/SuccessToast";
 import { getTenantContext } from "@store/tenantContext";
 
 const theme = createTheme({
@@ -72,6 +73,7 @@ interface AddVendorModalProps {
   open: boolean;
   onClose: () => void;
   onSave?: (data: VendorFormState) => void;
+  vendorType?: "Expense" | "Purchase";
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
@@ -134,10 +136,11 @@ const emptyForm = (): VendorFormState => ({
   pinCode: "",
 });
 
-const AddVendorModal: React.FC<AddVendorModalProps> = ({ open, onClose, onSave }) => {
+const AddVendorModal: React.FC<AddVendorModalProps> = ({ open, onClose, onSave, vendorType = "Purchase" }) => {
   const [form, setForm] = useState<VendorFormState>(emptyForm);
   const [stateSearch, setStateSearch] = useState("");
   const [saveError, setSaveError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
   const createVendor = useCreateVendor();
   const {zoduId, branchId} = getTenantContext();
 
@@ -178,9 +181,11 @@ const AddVendorModal: React.FC<AddVendorModalProps> = ({ open, onClose, onSave }
         city: form.city || null,
         state: form.state || null,
         pincode: form.pinCode || null,
+        type: vendorType,
       };
 
       const result = await createVendor.mutateAsync(payload);
+      setSuccessMsg("Vendor added successfully!");
       onSave?.(form);
       setForm(emptyForm());
       setStateSearch("");
@@ -537,6 +542,8 @@ const AddVendorModal: React.FC<AddVendorModalProps> = ({ open, onClose, onSave }
           </DialogActions>
         </form>
       </Dialog>
+
+      <SuccessToast message={successMsg} onClose={() => setSuccessMsg("")} />
     </ThemeProvider>
   );
 };

@@ -5,6 +5,7 @@ import {
   ToggleButtonGroup, ToggleButton, FormControl,
   Select, MenuItem, InputAdornment, Tooltip, CircularProgress, ListSubheader,
 } from '@mui/material';
+import SuccessToast from '@components/Common/SuccessToast';
 import { useFormik } from 'formik';
 import axios from 'axios';
 import AddCircleIcon        from '@mui/icons-material/AddCircle';
@@ -25,6 +26,7 @@ import {
   useEditMenuItem,
   useGstList,
   useUnitList,
+  checkItemId,
   type Category,
   type MenuItem as MenuItemData,
   type AddMenuItemResponse,
@@ -176,6 +178,9 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
   const [categorySearch,   setCategorySearch]   = useState('');
   const [unitSearch,       setUnitSearch]       = useState('');
   const [gstSearch,        setGstSearch]        = useState('');
+  const [itemIdError,      setItemIdError]      = useState<string | null>(null);
+  const [itemIdChecking,   setItemIdChecking]   = useState(false);
+  const [successMsg,       setSuccessMsg]       = useState("");
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -244,10 +249,10 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
   const { data: unitOptions = [], isLoading: unitsLoading }      = useUnitList();
 
   const { mutate: saveItem,  isPending: saving,  isError: saveError, error: saveErr, reset: resetSave } = useAddMenuItem({
-    onSuccess: (data) => { onSave?.(data); handleReset(); },
+    onSuccess: (data) => { setSuccessMsg("Item added successfully!"); onSave?.(data); handleReset(); },
   });
   const { mutate: editItem_, isPending: editing, isError: editError, error: editErr, reset: resetEdit } = useEditMenuItem({
-    onSuccess: (data) => { onSave?.(data); handleReset(); },
+    onSuccess: (data) => { setSuccessMsg("Item updated successfully!"); onSave?.(data); handleReset(); },
   });
 
   const isSaving = saving || editing;
@@ -264,6 +269,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
     setCategorySearch('');
     setUnitSearch('');
     setGstSearch('');
+    setItemIdError(null);
     onClose();
   };
 
@@ -306,6 +312,24 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
 
   const handleCategoryAdded = (cat: Category) => {
     formik.setFieldValue('category', cat.value);
+  };
+
+  const handleItemIdBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
+    formik.handleBlur(e);
+    const value = e.target.value.trim();
+    if (!value) { setItemIdError(null); return; }
+    // In edit mode skip the check when the ID hasn't changed
+    if (isEditMode && editItem && value === editItem.item_id) { setItemIdError(null); return; }
+    setItemIdChecking(true);
+    setItemIdError(null);
+    try {
+      const res = await checkItemId(value);
+      if (res.exists) setItemIdError('Entered Item ID Already Exist');
+    } catch {
+      // silently ignore network errors for the duplicate check
+    } finally {
+      setItemIdChecking(false);
+    }
   };
 
   const err   = formik.errors;
@@ -450,9 +474,23 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                       fullWidth size="small"
                       placeholder="e.g. ITM-001"
                       {...formik.getFieldProps('itemId')}
-                      error={touch.itemId && Boolean(err.itemId)}
-                      helperText={touch.itemId && err.itemId}
-                      InputProps={{ sx: inputSx }}
+                      onBlur={handleItemIdBlur}
+                      onChange={(e) => {
+                        formik.handleChange(e);
+                        setItemIdError(null);
+                      }}
+                      error={(touch.itemId && Boolean(err.itemId)) || Boolean(itemIdError)}
+                      helperText={
+                        itemIdError
+                          ? itemIdError
+                          : (touch.itemId && err.itemId)
+                      }
+                      InputProps={{
+                        sx: inputSx,
+                        endAdornment: itemIdChecking
+                          ? <InputAdornment position="end"><CircularProgress size={14} /></InputAdornment>
+                          : undefined,
+                      }}
                     />
                   </Box>
                   <Box>
@@ -720,6 +758,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
           </Button>
           <Button
             onClick={async () => {
+              if (itemIdError) return;
               const errors = await formik.validateForm();
               if (Object.keys(errors).length > 0) {
                 formik.setTouched(
@@ -744,6 +783,8 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
         onClose={() => setCatDialogOpen(false)}
         onAdded={handleCategoryAdded}
       />
+
+      <SuccessToast message={successMsg} onClose={() => setSuccessMsg("")} />
     </>
   );
 };
