@@ -17,6 +17,7 @@ import {
   InputAdornment,
   CircularProgress,
 } from '@mui/material';
+import SuccessToast from '@components/Common/SuccessToast';
 import {
   Close as CloseIcon,
   Search as SearchIcon,
@@ -72,6 +73,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
   const [reason,             setReason]             = useState('');
   const [notes,              setNotes]              = useState('');
   const [apiError,           setApiError]           = useState<string | null>(null);
+  const [successMsg,         setSuccessMsg]         = useState("");
 
   // ── Fetch full inventory list for the dropdown ─────────────
   const { data: inventoryPages } = useInfiniteInventory({ limit: 100 });
@@ -107,7 +109,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
 
   // ── Adjust stock mutation ─────────────────────────────────
   const { mutate, isPending } = useAdjustStock({
-    onSuccess: (res) => { onSuccess?.(res); onClose(); },
+    onSuccess: (res) => { setSuccessMsg("Stock adjusted successfully!"); onSuccess?.(res); onClose(); },
     onError:   (msg) => setApiError(msg),
   });
 
@@ -519,6 +521,8 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
           </Button>
         </DialogActions>
       </Dialog>
+
+      <SuccessToast message={successMsg} onClose={() => setSuccessMsg("")} />
     </ThemeProvider>
   );
 };

@@ -5,6 +5,7 @@ import {
   Select, MenuItem, FormControl, InputAdornment,
   Divider, CircularProgress, Alert,
 } from "@mui/material";
+import SuccessToast from "@components/Common/SuccessToast";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import CloseIcon     from "@mui/icons-material/Close";
@@ -100,6 +101,7 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved, editingCu
   
   const [form, setForm]       = useState<CustomerForm>(EMPTY);
   const [error, setError]     = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState("");
 
   // Update form when editingCustomer changes
   useEffect(() => {
@@ -124,12 +126,12 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved, editingCu
   }, [isEditing, editingCustomer, open]);
 
   const { mutate: mutateAdd, isPending: isPendingAdd } = useAddCustomer({
-    onSuccess: (customer) => { setForm(EMPTY); setError(null); onSaved?.(customer); onClose(); },
+    onSuccess: (customer) => { setSuccessMsg("Customer added successfully!"); setForm(EMPTY); setError(null); onSaved?.(customer); onClose(); },
     onError:   (msg) => setError(msg),
   });
 
   const { mutate: mutateUpdate, isPending: isPendingUpdate } = useUpdateCustomer({
-    onSuccess: (customer) => { setForm(EMPTY); setError(null); onSaved?.(customer); onClose(); },
+    onSuccess: (customer) => { setSuccessMsg("Customer updated successfully!"); setForm(EMPTY); setError(null); onSaved?.(customer); onClose(); },
     onError:   (msg) => setError(msg),
   });
 
@@ -348,6 +350,8 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved, editingCu
           </Button>
         </DialogActions>
       </Dialog>
+
+      <SuccessToast message={successMsg} onClose={() => setSuccessMsg("")} />
     </ThemeProvider>
   );
 }

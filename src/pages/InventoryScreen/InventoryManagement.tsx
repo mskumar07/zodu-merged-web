@@ -4,7 +4,7 @@ import React, {
 import {
   Box, Typography, TextField, Button, InputAdornment,
   CircularProgress, Alert, Chip, Avatar,
-  Select, MenuItem, FormControl,
+  Select, MenuItem, FormControl, Checkbox, ListItemText, OutlinedInput,
 } from '@mui/material';
 import SearchIcon        from '@mui/icons-material/Search';
 import Inventory2Icon    from '@mui/icons-material/Inventory2';
@@ -14,6 +14,7 @@ import ErrorOutlineIcon  from '@mui/icons-material/ErrorOutline';
 import QrCodeIcon        from '@mui/icons-material/QrCode2';
 import StatCard          from '@components/StatCard';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useCategories } from '@pages/MenuItemScreen/useMenuItemApi';
 import DataTable, { type ColumnDef } from '@utils/DataTable';
 import AdjustStockModal from './AdjustStockModal';
 import {
@@ -67,9 +68,10 @@ function toRow(item: InventoryItem) {
 
 // ─────────────────────────────────────────────────────────────
 function InventoryScreen() {
-  const [searchInput,   setSearchInput]   = useState('');
-  const [searchQuery,   setSearchQuery]   = useState('');
-  const [stockFilter,   setStockFilter]   = useState<StockStatus | ''>('');
+  const [searchInput,         setSearchInput]         = useState('');
+  const [searchQuery,         setSearchQuery]         = useState('');
+  const [stockFilter,         setStockFilter]         = useState<StockStatus | ''>('');
+  const [selectedCategories,  setSelectedCategories]  = useState<number[]>([]);
 
   // ── Adjust stock modal ─────────────────────────────────────
   const [adjustItem,    setAdjustItem]    = useState<InventoryItem | null>(null);
@@ -94,11 +96,14 @@ const [historyOpen, setHistoryOpen] = useState(false);
   const { data: summary, refetch: refetchSummary } = useInventorySummary();
 
   // ── Infinite list query ────────────────────────────────────
+  const { data: categories = [] } = useCategories('product');
+
   const queryParams = useMemo<Omit<InventoryListParams, 'page'>>(() => ({
-    search:       searchQuery   || undefined,
-    stock_status: stockFilter   || undefined,
-    limit:        30,
-  }), [searchQuery, stockFilter]);
+    search:        searchQuery              || undefined,
+    stock_status:  stockFilter             || undefined,
+    category_ids:  selectedCategories.length ? selectedCategories : undefined,
+    limit:         30,
+  }), [searchQuery, stockFilter, selectedCategories]);
 
   const {
     data, isLoading, isFetchingNextPage,
@@ -354,7 +359,7 @@ const handleCloseHistory = () => {
         />
 
         {/* Stock status filter */}
-        <FormControl size="small" sx={{ minWidth: 250 }}>
+        <FormControl size="small" sx={{ minWidth: 180 }}>
           <Select
             value={stockFilter}
             onChange={e => setStockFilter(e.target.value as StockStatus | '')}
@@ -363,12 +368,43 @@ const handleCloseHistory = () => {
               ? STATUS_MAP[v as StockStatus]?.label
               : <Box component="span" sx={{ color: 'text.disabled' }}>All Status</Box>
             }
-            sx={{ borderRadius: 0.5, fontSize: 13,backgroundColor:"#fff" }}
+            sx={{ borderRadius: 0.5, fontSize: 13, backgroundColor: '#fff' }}
           >
             <MenuItem value="">All Status</MenuItem>
             <MenuItem value="in_stock">In Stock</MenuItem>
             <MenuItem value="low_stock">Low Stock</MenuItem>
             <MenuItem value="out_of_stock">Out of Stock</MenuItem>
+          </Select>
+        </FormControl>
+
+        {/* Category multi-select */}
+        <FormControl size="small" sx={{ minWidth: 220 }}>
+          <Select
+            multiple
+            displayEmpty
+            value={selectedCategories}
+            onChange={e => setSelectedCategories(e.target.value as number[])}
+            input={<OutlinedInput sx={{ borderRadius: 0.5, fontSize: 13, backgroundColor: '#fff' }} />}
+            renderValue={selected => {
+              if (!(selected as number[]).length)
+                return <Box component="span" sx={{ color: 'text.disabled', fontSize: 13 }}>All Categories</Box>;
+              return (
+                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                  {(selected as number[]).map(id => {
+                    const cat = categories.find(c => Number(c.value) === id);
+                    return <Chip key={id} label={cat?.label ?? id} size="small" sx={{ height: 20, fontSize: 11 }} />;
+                  })}
+                </Box>
+              );
+            }}
+            MenuProps={{ PaperProps: { sx: { maxHeight: 300 } } }}
+          >
+            {categories.map(cat => (
+              <MenuItem key={cat.value} value={Number(cat.value)} sx={{ fontSize: 13 }}>
+                <Checkbox checked={selectedCategories.includes(Number(cat.value))} size="small" sx={{ py: 0 }} />
+                <ListItemText primary={cat.label} primaryTypographyProps={{ fontSize: 13 }} />
+              </MenuItem>
+            ))}
           </Select>
         </FormControl>
 

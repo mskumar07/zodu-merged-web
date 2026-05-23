@@ -2,9 +2,9 @@
  * SalesHistoryPage.tsx
  */
 import React, { useRef, useCallback, useEffect, useState } from "react";
-import { useInfiniteQuery, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
-  Box, Typography, Button, Stack, Grid,
+  Box, Typography, Button, Stack,
   Avatar, TextField, InputAdornment, Select, MenuItem,
   FormControl, IconButton, Tooltip, alpha, Chip,
   Dialog, DialogTitle, DialogContent, DialogActions, CircularProgress,
@@ -15,8 +15,8 @@ import {
 } from "@mui/icons-material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import {
-  fetchHistory, salesQueryKeys, deleteSale,
-  type Sale, type Filters, type PaymentStatus,
+  fetchHistory, fetchSummary, salesQueryKeys, deleteSale,
+  type Sale, type Filters,
 } from "./useSaleshistory";
 import { useTenantContext } from "@store/tenantContext";
 
@@ -201,10 +201,14 @@ export default function SalesHistoryPage() {
     getNextPageParam: (last) => last.page < last.total_pages ? last.page + 1 : undefined,
   });
 
+  const { data: summary } = useQuery({
+    queryKey: salesQueryKeys.summary(branchId ?? '', appliedFilters),
+    queryFn:  () => fetchSummary(appliedFilters),
+  });
+
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef       = useInfiniteScroll(hasNextPage, fetchNextPage, isFetchingNextPage, tableContainerRef);
   const allItems          = data?.pages.flatMap(p => p.data) ?? [];
-  const totalCount        = data?.pages[0]?.total ?? 0;
 
   // ── Column definitions ────────────────────────────────────────
   const columns = [
@@ -420,35 +424,28 @@ export default function SalesHistoryPage() {
     >
 
       {/* Summary cards */}
-      <Box sx={{
-        display: "flex", alignItems: { xs: "stretch", md: "center" },
-        justifyContent: "space-between", gap: 2, mb: 1,
-        flexDirection: { xs: "column", md: "row" },
-      }}>
-        <Grid container spacing={2} >
-          <Grid item>
-            <StatCard
-              label="Total Transactions" value={totalCount} valuePrefix=""
-              icon={<ReceiptIcon color="primary" />} iconBgColor="#FFEBEE"
-            />
-          </Grid>
-          <Grid item>
-            <StatCard
-              label="Net Revenue"
-              value={INR(allItems.reduce((s, i) => s + Number(i.total_amount), 0))}
-              valuePrefix=""
-              icon={<TrendingUpIcon color="success" />} iconBgColor="#E8F5E9"
-            />
-          </Grid>
-        </Grid>
-        {/* <Button
-          onClick={() => window.history.back()}
-          startIcon={<ReceiptIcon />}
-          variant="contained" color="primary" disableElevation
-          sx={{ borderRadius: 0.6, fontWeight: 600, alignSelf: { xs: "flex-start", md: "center" } }}
-        >
-          <Typography variant="caption" color="white" fontWeight={600}>Back to POS</Typography>
-        </Button> */}
+      <Box sx={{ display: "flex", gap: 2, mb: 1, flexWrap: "wrap" }}>
+        <StatCard
+          label="Total Transactions"
+          value={summary?.total_transactions ?? 0}
+          valuePrefix=""
+          icon={<ReceiptIcon color="primary" />}
+          iconBgColor="#FFEBEE"
+        />
+        <StatCard
+          label="Net Revenue"
+          value={INR(summary?.net_revenue ?? 0)}
+          valuePrefix=""
+          icon={<TrendingUpIcon color="success" />}
+          iconBgColor="#E8F5E9"
+        />
+        <StatCard
+          label="Total Quotations"
+          value={summary?.total_quotations ?? 0}
+          valuePrefix=""
+          icon={<ReceiptIcon sx={{ color: "#475569" }} />}
+          iconBgColor="#F1F5F9"
+        />
       </Box>
 
       {/* Filter bar */}

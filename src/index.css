@@ -30,3 +30,21 @@ body {
   height: 100%;
   overflow: hidden;
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  [data-print-content],
+  [data-print-content] * {
+    visibility: visible;
+  }
+  [data-print-content] {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 24px;
+    background: #fff;
+  }
+}

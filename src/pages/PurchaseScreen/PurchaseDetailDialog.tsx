@@ -488,13 +488,15 @@ export default function PurchaseDetailDialog({ purchaseId, onClose }: Props) {
       </DialogTitle>
 
       <DialogContent sx={{ px: 3.5, py: 3, overflow: "auto" }}>
-        {isLoading && <DetailSkeleton />}
-        {isError && (
-          <Typography sx={{ color: "#DC2626", textAlign: "center", py: 6, fontSize: 14 }}>
-            Failed to load purchase details. Please try again.
-          </Typography>
-        )}
-        {data && <PurchaseDetailContent data={data} />}
+        <div data-print-content>
+          {isLoading && <DetailSkeleton />}
+          {isError && (
+            <Typography sx={{ color: "#DC2626", textAlign: "center", py: 6, fontSize: 14 }}>
+              Failed to load purchase details. Please try again.
+            </Typography>
+          )}
+          {data && <PurchaseDetailContent data={data} />}
+        </div>
       </DialogContent>
 
       <DialogActions

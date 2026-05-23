@@ -255,7 +255,7 @@ function SummaryCard({ label, value, icon, loading }: {
     <Box sx={{
       ...card, px: 2, py: 1.5,
       display: "flex", alignItems: "center", gap: 1.5,
-      width: 190, flexShrink: 0,
+      minWidth: 160, flex: "1 1 160px", maxWidth: 220,
     }}>
       <Box sx={{
         width: 36, height: 36, borderRadius: "8px",
@@ -264,13 +264,13 @@ function SummaryCard({ label, value, icon, loading }: {
       }}>
         {icon}
       </Box>
-      <Box sx={{ minWidth: 0 }}>
+      <Box sx={{ minWidth: 0, flex: 1 }}>
         <Typography sx={{ fontSize: "11px", fontWeight: 500, color: "#64748B", whiteSpace: "nowrap" }}>
           {label}
         </Typography>
         {loading
           ? <Skeleton width={80} height={24} sx={{ borderRadius: 1, mt: 0.5 }} />
-          : <Typography sx={{ fontSize: "1.15rem", fontWeight: 800, color: "#0F172A", lineHeight: 1.3 }}>
+          : <Typography sx={{ fontSize: "1.05rem", fontWeight: 800, color: "#0F172A", lineHeight: 1.3, wordBreak: "break-all" }}>
               {value}
             </Typography>
         }
@@ -388,11 +388,10 @@ const reminderCols: ColDef<ReminderRow>[] = [
     render: r => <Typography sx={{ fontSize: 13, color: "#475569" }}>{fmt(+r.total_amount)}</Typography> },
   { key: "due_amt", label: "Due Amt", align: "right",
     render: r => (
-      <Box sx={{ textAlign: "right" }}>
-        <Typography sx={{ fontSize: 13, fontWeight: 700, color: RED }}>{fmt(+r.balance_amount)}</Typography>
-        {paymentStatusBadge(r.payment_status)}
-      </Box>
+      <Typography sx={{ fontSize: 13, fontWeight: 700, color: RED }}>{fmt(+r.balance_amount)}</Typography>
     ) },
+  { key: "status", label: "Status", align: "center",
+    render: r => paymentStatusBadge(r.payment_status) },
 ];
 
 // Top Items

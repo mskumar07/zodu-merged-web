@@ -306,10 +306,38 @@ export async function createSaleReturn(
   return data;
 }
 
+export interface SalesSummary {
+  success:            boolean;
+  total_transactions: number;
+  net_revenue:        number;
+  total_quotations:   number;
+}
+
+/**
+ * GET /api/sales/history/summary — card totals, respects the same filters.
+ */
+export async function fetchSummary(filters: Filters): Promise<SalesSummary> {
+  const { zoduId, branchId } = getTenantContext();
+  const params: Record<string, string> = {
+    zodu_id:   zoduId,
+    branch_id: branchId,
+  };
+  if (filters.payment_status) params.payment_status = filters.payment_status;
+  if (filters.from_date)      params.from_date       = filters.from_date;
+  if (filters.to_date)        params.to_date         = filters.to_date;
+  if (filters.search)         params.search          = filters.search;
+
+  const { data } = await axios.get<SalesSummary>(
+    `${API_BASE}/restaurant/api/sales/history/summary`,
+    { params }
+  );
+  return data;
+}
+
 // ─── TanStack Query keys ──────────────────────────────────────
 export const salesQueryKeys = {
-  // ✅ branchId + filters in key so each branch+filter combo has its own cache
   history: (branchId: string, filters: Filters) => ["sales-history", branchId, filters] as const,
+  summary: (branchId: string, filters: Filters) => ["sales-summary", branchId, filters] as const,
   detail:  (sale_id: string)  => ["sale", sale_id]          as const,
   returns: () => ["sales-returns"] as const,
 };

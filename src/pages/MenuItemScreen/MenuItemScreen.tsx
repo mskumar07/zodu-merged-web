@@ -4,6 +4,8 @@ import React, {
 import {
   Box, TextField, Button, InputAdornment, Alert,
   Dialog, DialogTitle, DialogContent, Typography, DialogActions,
+  FormControl, Select, MenuItem, Checkbox, ListItemText, OutlinedInput,
+  Chip,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
@@ -18,6 +20,7 @@ import AddItemModal from './AddItemModal';
 import {
   useInfiniteMenuItems,
   useMenuItemDetail,
+  useCategories,
   type MenuItem as MenuItemData,
   type MenuItemListParams,
   type MenuItemListResponse,
@@ -63,6 +66,7 @@ function MenuItemScreen() {
   const [activeTab, setActiveTab] = useState<TabValue>('all');
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<MenuItemData | null>(null);
 
@@ -80,14 +84,17 @@ function MenuItemScreen() {
     debounceRef.current = setTimeout(() => setSearchQuery(val), 400);
   };
 
+  const { data: categories = [] } = useCategories('product');
+
   const queryParams = useMemo<Omit<MenuItemListParams, 'page'>>(() => ({
-    search: searchQuery || undefined,
-    item_type: activeTab === 'sellable' ? 'S'
-      : activeTab === 'raw' ? 'P'
-        : undefined,
+    search:        searchQuery || undefined,
+    category_ids:  selectedCategories.length ? selectedCategories : undefined,
+    item_type:     activeTab === 'sellable' ? 'S'
+                 : activeTab === 'raw'      ? 'P'
+                 : undefined,
     status: 'active',
-    limit: 40,
-  }), [activeTab, searchQuery]);
+    limit:  40,
+  }), [activeTab, searchQuery, selectedCategories]);
 
   const {
     data,
@@ -191,23 +198,55 @@ function MenuItemScreen() {
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column',p:2 }}>
       <ProductTabs value={activeTab} onChange={setActiveTab} />
 
-      <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+      <Box sx={{ display: 'flex', gap: 1.5, mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
         <TextField
           size="small"
           placeholder="Search..."
-          sx={{width:"90%"}}
+          sx={{ flex: 1, minWidth: 200, bgcolor: '#fff' }}
           value={searchInput}
           onChange={(e) => handleSearchChange(e.target.value)}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon />
+                <SearchIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
               </InputAdornment>
             ),
+            sx: { borderRadius: 0.5, fontSize: 13 },
           }}
         />
 
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setModalOpen(true)}>
+        {/* Category multi-select */}
+        <FormControl size="small" sx={{ minWidth: 220 }}>
+          <Select
+            multiple
+            displayEmpty
+            value={selectedCategories}
+            onChange={(e) => setSelectedCategories(e.target.value as number[])}
+            input={<OutlinedInput sx={{ borderRadius: 0.5, fontSize: 13, bgcolor: '#fff' }} />}
+            renderValue={(selected) => {
+              if (!selected.length) return <Box component="span" sx={{ color: 'text.disabled', fontSize: 13 }}>All Categories</Box>;
+              return (
+                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                  {(selected as number[]).map((id) => {
+                    const cat = categories.find(c => Number(c.value) === id);
+                    return <Chip key={id} label={cat?.label ?? id} size="small" sx={{ height: 20, fontSize: 11 }} />;
+                  })}
+                </Box>
+              );
+            }}
+            MenuProps={{ PaperProps: { sx: { maxHeight: 300 } } }}
+          >
+            {categories.map((cat) => (
+              <MenuItem key={cat.value} value={Number(cat.value)} sx={{ fontSize: 13 }}>
+                <Checkbox checked={selectedCategories.includes(Number(cat.value))} size="small" sx={{ py: 0 }} />
+                <ListItemText primary={cat.label} primaryTypographyProps={{ fontSize: 13 }} />
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setModalOpen(true)}
+          sx={{ borderRadius: 0.5, fontWeight: 700, px: 2.5, height: 40, textTransform: 'none', fontSize: 13, whiteSpace: 'nowrap', boxShadow: '0 4px 14px rgba(210,18,46,0.25)' }}>
           Add Item
         </Button>
       </Box>

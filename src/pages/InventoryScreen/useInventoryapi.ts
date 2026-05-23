@@ -66,11 +66,12 @@ export interface InventoryListResponse {
 }
 
 export interface InventoryListParams {
-  search?:       string;
-  category_id?:  number;
-  stock_status?: StockStatus;
-  page?:         number;
-  limit?:        number;
+  search?:        string;
+  category_id?:   number;
+  category_ids?:  number[];
+  stock_status?:  StockStatus;
+  page?:          number;
+  limit?:         number;
 }
 
 export interface AdjustStockPayload {
@@ -154,7 +155,7 @@ async function fetchInventoryList(
         zodu_id:      zoduId,
         branch_id:    branchId,
         search:       params.search       || undefined,
-        category_id:  params.category_id  || undefined,
+        category_id:  params.category_ids || [],
         stock_status: params.stock_status || undefined,
         page:         params.page         ?? 1,
         limit:        params.limit        ?? 30,

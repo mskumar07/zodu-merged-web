@@ -23,6 +23,7 @@ export interface CreateVendorPayload {
   city?: string | null;
   state?: string | null;
   pincode?: string | null;
+  type?: "Expense" | "Purchase";
 }
 
 export const useCreateVendor = () => {
