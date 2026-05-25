@@ -15,6 +15,8 @@ import NotificationsActiveIcon   from "@mui/icons-material/NotificationsActive";
 import ShoppingCartCheckoutIcon  from "@mui/icons-material/ShoppingCartCheckout";
 import TrendingUpIcon            from "@mui/icons-material/TrendingUp";
 import WarningAmberIcon          from "@mui/icons-material/WarningAmber";
+import AccountBalanceWalletIcon  from "@mui/icons-material/AccountBalanceWallet";
+import MoneyOffIcon              from "@mui/icons-material/MoneyOff";
 
 import {
   useStats,
@@ -248,8 +250,9 @@ function StatusBadge({ label, color, bg }: { label: string; color: string; bg: s
 }
 
 // ── SummaryCard ───────────────────────────────────────────────
-function SummaryCard({ label, value, icon, loading }: {
+function SummaryCard({ label, value, icon, loading, iconBg, iconColor }: {
   label: string; value?: string; icon: React.ReactNode; loading: boolean;
+  iconBg?: string; iconColor?: string;
 }) {
   return (
     <Box sx={{
@@ -259,7 +262,8 @@ function SummaryCard({ label, value, icon, loading }: {
     }}>
       <Box sx={{
         width: 36, height: 36, borderRadius: "8px",
-        bgcolor: "rgba(211,47,47,0.07)", color: RED,
+        bgcolor: iconBg ?? "rgba(211,47,47,0.07)",
+        color:   iconColor ?? RED,
         display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
       }}>
         {icon}
@@ -281,7 +285,7 @@ function SummaryCard({ label, value, icon, loading }: {
 
 // ── helpers ───────────────────────────────────────────────────
 const fmt = (n: number) =>
-  "₹" + Number(n).toLocaleString("en-IN");
+  "₹" + Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function flatPages(query: { data?: { pages: Array<{ data: any[] }> } }) {
   return query.data?.pages.flatMap(p => p.data) ?? [];
@@ -475,10 +479,44 @@ const salesCols: ColDef<SaleRow>[] = [
 console.log(stats)
 
   const summaryCards = [
-    { label: "Total Sales",     value: stats ? fmt(stats.total_sales)     : undefined, icon: <PaymentsIcon    sx={{ fontSize: 18 }} /> },
-    { label: "Total Invoices",  value: stats ? String(stats.total_invoices)  : undefined, icon: <DescriptionIcon sx={{ fontSize: 18 }} /> },
-    { label: "Low Stock Items", value: stats ? String(stats.total_alerts) : undefined, icon: <Inventory2Icon  sx={{ fontSize: 18 }} /> },
-    { label: "Today's Revenue", value: stats ? fmt(stats.todays_revenue)  : undefined, icon: <InsightsIcon    sx={{ fontSize: 18 }} /> },
+    {
+      label: "Total Sales",
+      value: stats ? fmt(stats.total_sales) : undefined,
+      icon: <PaymentsIcon sx={{ fontSize: 18 }} />,
+    },
+    {
+      label: "Total Invoices",
+      value: stats ? String(stats.total_invoices) : undefined,
+      icon: <DescriptionIcon sx={{ fontSize: 18 }} />,
+    },
+    {
+      label: "Low Stock Items",
+      value: stats ? String(stats.total_alerts) : undefined,
+      icon: <Inventory2Icon sx={{ fontSize: 18 }} />,
+    },
+    {
+      label: "Today's Revenue",
+      value: stats ? fmt(stats.todays_revenue) : undefined,
+      icon: <InsightsIcon sx={{ fontSize: 18 }} />,
+    },
+    {
+      label: "Due Receivable",
+      value: stats?.total_due_to_receivable_amount != null
+        ? fmt(stats.total_due_to_receivable_amount)
+        : undefined,
+      icon:     <AccountBalanceWalletIcon sx={{ fontSize: 18 }} />,
+      iconBg:   "rgba(22,163,74,0.08)",
+      iconColor: "#16A34A",
+    },
+    {
+      label: "Due Payable",
+      value: stats?.total_due_to_payable_amount != null
+        ? fmt(stats.total_due_to_payable_amount)
+        : undefined,
+      icon:     <MoneyOffIcon sx={{ fontSize: 18 }} />,
+      iconBg:   "rgba(220,38,38,0.08)",
+      iconColor: "#DC2626",
+    },
   ];
 
   return (

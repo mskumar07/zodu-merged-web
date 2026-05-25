@@ -37,7 +37,9 @@ const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOStrin
 const todayStr = today.toISOString().split("T")[0];
 
 const money = (val: number | undefined) =>
-  val != null ? `₹ ${Math.round(val).toLocaleString("en-IN")}` : "0";
+  val != null
+    ? `₹ ${val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : "₹ 0.00";
 
 const numberFmt = (value: number | undefined) =>
   value != null ? value.toLocaleString("en-IN") : "0";

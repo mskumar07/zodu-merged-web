@@ -17,7 +17,9 @@ import {
 
 const CURRENT_YEAR = new Date().getFullYear();
 const fmt = (val: number | undefined) =>
-  val != null ? `₹ ${Math.round(val).toLocaleString("en-IN")}` : "0";
+  val != null
+    ? `₹ ${val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : "₹ 0.00";
 
 interface StatCardProps {
   title: string;

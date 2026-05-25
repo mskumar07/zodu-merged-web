@@ -28,7 +28,9 @@ const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
 const todayStr = today.toISOString().split("T")[0];
 
 const fmt = (val: number | undefined) =>
-  val != null ? `₹ ${Math.round(val).toLocaleString("en-IN")}` : "0";
+  val != null
+    ? `₹ ${val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : "₹ 0.00";
 
 const formatDate = (value: string) => {
   if (!value) return "—";
@@ -202,7 +204,7 @@ const DatewisePurchaseReport = () => {
           <StatCard
             loading={summaryLoading}
             title="Total Purchase"
-            value={summary?.totalPurchase != null ? summary.totalPurchase.toLocaleString("en-IN") : "—"}
+            value={summary?.totalPurchase != null ? String(Math.floor(summary.totalPurchase)) : "0"}
             iconBg="#e3f2fd"
             icon={<ShoppingCartOutlinedIcon sx={{ color: "#1976d2", fontSize: 18 }} />}
           />

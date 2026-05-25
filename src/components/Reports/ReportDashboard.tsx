@@ -3,7 +3,6 @@ import React from "react";
 import {
   Card,
   CardContent,
-  CardActionArea,
   Typography,
   Box,
   Divider,
@@ -13,10 +12,23 @@ import {
   ShoppingCart,
   MoneyOff,
   Inventory2,
+  TrendingUp,
+  type SvgIconComponent,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 
-const reportCards = [
+interface ReportCard {
+  title:       string;
+  description: string;
+  icon:        SvgIconComponent;
+  path:        string;
+  color:       string;
+  datewise?:   string;
+  category?:   string;
+  yearwise?:   string;
+}
+
+const reportCards: ReportCard[] = [
   {
     title: "Sales Report",
     description:
@@ -52,6 +64,14 @@ const reportCards = [
     icon: Inventory2,
     path: "/reports/inventory",
     color: "#4caf50",
+  },
+  {
+    title:       "Profit Report",
+    description: "View monthly profit breakdown with sales, purchase, and expense comparison.",
+    icon:        TrendingUp,
+    path:        "/reports/profit/monthwise",
+    yearwise:    "/reports/profit/yearwise",
+    color:       "#7b1fa2",
   },
 ];
 
@@ -134,11 +154,15 @@ const ReportDashboard: React.FC = () => {
                      • MonthWise Report
                     </Typography>
                     {card.category && (
-                      <Typography onClick={() => navigate(card.category)} fontSize={14} fontWeight={400} sx={{cursor:"pointer", "&:hover": { color:"#1976d2" }}} color="#000" mt={1}>
+                      <Typography onClick={() => navigate(card.category!)} fontSize={14} fontWeight={400} sx={{cursor:"pointer", "&:hover": { color:"#1976d2" }}} color="#000" mt={1}>
                         • Category/Item-wise Report
                       </Typography>
                     )}
-                
+                    {card.yearwise && (
+                      <Typography onClick={() => navigate(card.yearwise!)} fontSize={14} fontWeight={400} sx={{cursor:"pointer", "&:hover": { color:"#1976d2" }}} color="#000" mt={1}>
+                        • Year-wise Report
+                      </Typography>
+                    )}
                     </Box>
 {/* 
                   <Typography
