@@ -15,7 +15,9 @@ import {
 
 const CURRENT_YEAR = new Date().getFullYear();
 const fmt = (val: number | undefined) =>
-  val != null ? `₹ ${Math.round(val).toLocaleString("en-IN")}` : "0";
+  val != null
+    ? `₹ ${val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : "₹ 0.00";
 
 interface StatCardProps {
   title: string;
@@ -173,7 +175,7 @@ const MonthWisePurchaseReport = () => {
           <StatCard
             loading={summaryLoading}
             title="Total Purchase"
-            value={summary?.totalPurchase != null ? summary.totalPurchase.toLocaleString("en-IN") : "—"}
+            value={summary?.totalPurchase != null ? String(Math.floor(summary.totalPurchase)) : "0"}
             iconBg="#e3f2fd"
             icon={<ShoppingCartOutlinedIcon sx={{ color: "#1976d2", fontSize: 18 }} />}
           />

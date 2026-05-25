@@ -40,7 +40,10 @@ export default function InventoryScreenRoot() {
 
 // ── Formatters ─────────────────────────────────────────────────
 const formatINR = (v: number) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(Math.round(Number(v)));
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency', currency: 'INR',
+    minimumFractionDigits: 2, maximumFractionDigits: 2,
+  }).format(Number(v));
 const TABLE_TEXT_COLOR = '#374151';
 
 

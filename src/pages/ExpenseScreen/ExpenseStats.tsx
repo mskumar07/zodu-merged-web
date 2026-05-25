@@ -10,43 +10,43 @@ interface ExpenseStatsProps {
   data: ExpenseSummary;
 }
 
-const fmt = (v: string) =>
-  Number(Math.round(parseFloat(v) || 0)).toLocaleString("en-IN");
+const fmtMoney = (v: string) =>
+  (parseFloat(v) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const ExpenseStats = ({ data }: ExpenseStatsProps) => (
   <Grid container spacing={2}>
-    <Grid item>
+    <Grid size="auto">
       <StatCard
         radius={2}
         label="Total Expenses"
-        value={data.total_expense_count}
+        value={String(parseInt(data.total_expense_count, 10) || 0)}
         valuePrefix=""
         icon={<ReceiptLongIcon color="primary" />}
       />
     </Grid>
-    <Grid item>
+    <Grid size="auto">
       <StatCard
         radius={2}
         label="Total Paid"
-        value={fmt(data.total_paid_amount)}
+        value={fmtMoney(data.total_paid_amount)}
         icon={<PaidIcon color="success" />}
         iconBgColor="#E8F5E9"
       />
     </Grid>
-    <Grid item>
+    <Grid size="auto">
       <StatCard
         radius={2}
         label="Total Unpaid"
-        value={fmt(data.total_unpaid_amount)}
+        value={fmtMoney(data.total_unpaid_amount)}
         icon={<MoneyOffIcon color="error" />}
         iconBgColor="#FDECEA"
       />
     </Grid>
-    <Grid item>
+    <Grid size="auto">
       <StatCard
         radius={2}
         label="This Month Spent"
-        value={fmt(data.this_month_spent)}
+        value={fmtMoney(data.this_month_spent)}
         icon={<CalendarMonthIcon color="primary" />}
       />
     </Grid>
