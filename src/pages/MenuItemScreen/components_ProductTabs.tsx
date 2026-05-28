@@ -8,7 +8,8 @@ interface ProductTabsProps {
 }
 
 const TAB_CONFIG: { label: string; value: TabValue }[] = [
-  { label: "All Items", value: "all" },
+  { label: "Menu Item", value: "all" },
+   { label: "Category", value: "category" },
   { label: "Sellable Products", value: "sellable" },
   { label: "Raw Materials", value: "raw" },
 ];

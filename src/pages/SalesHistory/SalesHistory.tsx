@@ -8,6 +8,7 @@ import {
   Avatar, TextField, InputAdornment, Select, MenuItem,
   FormControl, IconButton, Tooltip, alpha, Chip,
   Dialog, DialogTitle, DialogContent, DialogActions, CircularProgress,
+  Grid,
 } from "@mui/material";
 import {
   Search as SearchIcon, Receipt as ReceiptIcon,
@@ -52,7 +53,7 @@ const theme = createTheme({
   shape: { borderRadius: 12 },
   components: {
     MuiCard:      { styleOverrides: { root: { boxShadow: "0 1px 3px rgba(0,0,0,0.06)", borderRadius: 14 } } },
-    MuiButton:    { styleOverrides: { root: { textTransform: "none", fontWeight: 600, borderRadius: 8 } } },
+    MuiButton:    { styleOverrides: { root: { textTransform: "none", fontWeight: 700, borderRadius: 8 } } },
     MuiTextField: { styleOverrides: { root: { "& .MuiOutlinedInput-root": { borderRadius: 8 } } } },
   },
 });
@@ -282,7 +283,7 @@ export default function SalesHistoryPage() {
                 {INR(totalAmount)}
               </Typography>
             )} */}
-            <Typography variant="body2" fontWeight={700} sx={{ fontSize: BODY_FONT_SIZE, color: TABLE_TEXT_COLOR }}>
+            <Typography variant="body2" fontWeight={700} sx={{ fontSize: BODY_FONT_SIZE, color: "#1976d2" }}>
               {INR(adjustedTotal)}
             </Typography>
             <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 0.5 }}>
@@ -314,22 +315,26 @@ export default function SalesHistoryPage() {
         const returnCount = Number(sale.return_count ?? 0);
         return (
           <Stack direction="column" alignItems="flex-start" gap={0.3}>
-            <Stack direction="row" alignItems="center" gap={1}>
-              <StatusBadge status={status} />
-              {/* ✅ Don't show "Mark as Paid" for returned/fully-returned sales */}
-              {status !== "Paid" && !isReturned && !isQuotation && (
-                <Button
-                  size="small" variant="contained" color="primary" disableElevation
-                  onClick={() => setPaymentDialog(sale)}
-                  sx={{
-                    fontSize: "0.65rem", py: 0.4, px: 1.5,
-                    height: 24, ml: 1, minWidth: 0,
-                    whiteSpace: "nowrap", borderRadius: 0.5,
-                  }}
-                >
-                  Mark as Paid
-                </Button>
-              )}
+            <Stack direction="row" alignItems="center" gap={1} sx={{ minWidth: 200 }}>
+              <Box sx={{ minWidth: 70 }}>
+                <StatusBadge status={status} />
+              </Box>
+              <Box sx={{ width: 110 }}>
+                {/* ✅ Don't show "Mark as Paid" for returned/fully-returned/quotation sales */}
+                {status !== "Paid" && !isReturned && !isQuotation && (
+                  <Button
+                    size="small" variant="contained" color="primary" disableElevation
+                    onClick={() => setPaymentDialog(sale)}
+                    sx={{
+                      fontSize: "0.65rem", py: 0.4, px: 1.5,
+                      height: 24, width: "100%",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Mark as Paid
+                  </Button>
+                )}
+              </Box>
             </Stack>
             {/* ✅ Return summary chip */}
             {returnCount > 0 && sale.total_returned && (
@@ -424,29 +429,35 @@ export default function SalesHistoryPage() {
     >
 
       {/* Summary cards */}
-      <Box sx={{ display: "flex", gap: 2, mb: 1, flexWrap: "wrap" }}>
-        <StatCard
-          label="Total Transactions"
-          value={summary?.total_transactions ?? 0}
-          valuePrefix=""
-          icon={<ReceiptIcon color="primary" />}
-          iconBgColor="#FFEBEE"
-        />
-        <StatCard
-          label="Net Revenue"
-          value={INR(summary?.net_revenue ?? 0)}
-          valuePrefix=""
-          icon={<TrendingUpIcon color="success" />}
-          iconBgColor="#E8F5E9"
-        />
-        <StatCard
-          label="Total Quotations"
-          value={summary?.total_quotations ?? 0}
-          valuePrefix=""
-          icon={<ReceiptIcon sx={{ color: "#475569" }} />}
-          iconBgColor="#F1F5F9"
-        />
-      </Box>
+      <Grid container spacing={2}>
+        <Grid size="auto">
+          <StatCard
+            label="Total Transactions"
+            value={summary?.total_transactions ?? 0}
+            valuePrefix=""
+            icon={<ReceiptIcon color="primary" />}
+            iconBgColor="#FFEBEE"
+          />
+        </Grid>
+        <Grid size="auto">
+          <StatCard
+            label="Net Revenue"
+            value={INR(summary?.net_revenue ?? 0)}
+            valuePrefix=""
+            icon={<TrendingUpIcon color="success" />}
+            iconBgColor="#E8F5E9"
+          />
+        </Grid>
+        <Grid size="auto">
+          <StatCard
+            label="Total Quotations"
+            value={summary?.total_quotations ?? 0}
+            valuePrefix=""
+            icon={<ReceiptIcon sx={{ color: "#475569" }} />}
+            iconBgColor="#F1F5F9"
+          />
+        </Grid>
+      </Grid>
 
       {/* Filter bar */}
       <Box sx={{ mb: 1, px: 0.5, py: 0.25 }}>

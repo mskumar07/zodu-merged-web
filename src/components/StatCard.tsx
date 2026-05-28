@@ -1,4 +1,4 @@
-import { Card, CardContent, Stack, Typography, Box } from "@mui/material";
+import { Box, Skeleton, Typography } from "@mui/material";
 import type { ReactNode } from "react";
 
 interface StatCardProps {
@@ -10,86 +10,116 @@ interface StatCardProps {
   valuePrefix?: string;
   sub?: ReactNode;
   radius?: number | string;
+  loading?: boolean;
 }
 
 const StatCard = ({
   label,
   value,
   icon,
-  iconBgColor = "#E3F2FD",
-  iconColor,
+  iconBgColor = "rgba(211,47,47,0.07)",
+  iconColor = "#D32F2F",
   valuePrefix = "₹",
   sub,
-  radius,
+  loading = false,
 }: StatCardProps) => {
   const displayValue =
-    typeof value === "number" || !isNaN(Number(value))
-      ? valuePrefix
-        ? `${valuePrefix} ${value}`
-        : value
+    valuePrefix === ""
+      ? value
+      : typeof value === "number" || !isNaN(Number(value))
+      ? `${valuePrefix}${value}`
       : value;
 
+  // auto min-width: estimate based on label/value length
+  const valueStr = String(displayValue ?? "");
+  const labelLen = label.length;
+  const valueLen = valueStr.length;
+  const computed = Math.max(valueLen * 9, labelLen * 7) + 80;
+  const minW = Math.min(Math.max(computed, 150), 260);
+
   return (
-    <Card
-      elevation={0}
+    <Box
       sx={{
-        border: "1px solid #E5E7EB",
-        borderRadius: radius ? radius : 1,
-        minWidth: 220,
-        boxShadow: "0 1px 2px rgba(15,23,42,0.04)",
+        bgcolor: "#fff",
+        border: "1px solid #F1F5F9",
+        borderRadius: "8px",
+        boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+        px: 2,
+        py: 1.5,
+        display: "flex",
+        alignItems: "center",
+        gap: 1.5,
+        minWidth: minW,
+        flex: `1 1 ${minW}px`,
+        width: "fit-content",
       }}
     >
-      <CardContent sx={{ px: 2, py: 1.8, "&:last-child": { pb: 1.8 } }}>
-        <Stack direction="row" spacing={1.5} alignItems="center">
-          <Box
+      {/* Icon box — square with rounded corners, matches Dashboard */}
+      <Box
+        sx={{
+          width: 36,
+          height: 36,
+          borderRadius: "8px",
+          bgcolor: iconBgColor,
+          color: iconColor,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        {icon}
+      </Box>
+
+      <Box sx={{ minWidth: 0, flex: 1 }}>
+        {/* Label — same as Dashboard "11px / 500 / #64748B" */}
+        <Typography
+          sx={{
+            fontSize: "11px",
+            fontWeight: 500,
+            color: "#64748B",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {label}
+        </Typography>
+
+        {/* Value */}
+        {loading ? (
+          <Skeleton width={80} height={24} sx={{ borderRadius: 1, mt: 0.5 }} />
+        ) : displayValue != null && displayValue !== "" ? (
+          <Typography
             sx={{
-              width: 40,
-              height: 40,
-              flexShrink: 0,
-              borderRadius: 1.2,
-              backgroundColor: iconBgColor,
-              color: iconColor,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              fontSize: "1.05rem",
+              fontWeight: 800,
+              color: "#0F172A",
+              lineHeight: 1.3,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
             }}
           >
-            {icon}
-          </Box>
+            {displayValue}
+          </Typography>
+        ) : (
+          <Typography
+            sx={{
+              fontSize: "1.2rem",
+              fontWeight: 700,
+              color: "#CBD5E1",
+              lineHeight: 1.3,
+              letterSpacing: "0.05em",
+            }}
+          >
+            —
+          </Typography>
+        )}
 
-          <Box sx={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
-            <Typography
-              sx={{
-                color: "#64748B",
-                fontSize: 13,
-                fontWeight: 500,
-                lineHeight: 1.2,
-                mb: 0.5,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {label}
-            </Typography>
-            <Typography
-              variant="h6"
-              sx={{
-                color: "#0F172A",
-                fontWeight: 700,
-                lineHeight: 1.2,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {displayValue}
-            </Typography>
-            {sub && <Box sx={{ mt: 0.35 }}>{sub}</Box>}
-          </Box>
-        </Stack>
-      </CardContent>
-    </Card>
+        {sub && <Box sx={{ mt: 0.35 }}>{sub}</Box>}
+      </Box>
+    </Box>
   );
 };
 

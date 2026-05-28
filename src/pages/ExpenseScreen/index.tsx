@@ -2,8 +2,9 @@ import { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import {
   Box, Typography, TextField, Button, IconButton,
   InputAdornment, Fab, CircularProgress,
-  FormControl, Select, MenuItem, Skeleton,
+  FormControl, Select, MenuItem, Skeleton, Stack,
   Dialog, DialogTitle, DialogContent, DialogActions,
+  Tabs, Tab,
 } from "@mui/material";
 import { Circle } from "@mui/icons-material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
@@ -17,6 +18,7 @@ import AddNewExpenseDialog from "./AddNewExpenseDialog";
 import ExpensePaymentDialog from "./ExpensePaymentDialog";
 import ExpenseDetailDialog from "./ExpenseDetailDialog";
 import ExpenseStats from "./ExpenseStats";
+import CategoryTab from "@pages/MenuItemScreen/CategoryTab";
 
 const theme = createTheme({
   palette: {
@@ -76,6 +78,7 @@ function StatusBadge({ status }: { status: ExpenseStatus }) {
 
 
 export default function ExpenseScreen() {
+  const [activeTab, setActiveTab] = useState(0);
   const [search, setSearch]             = useState("");
   const [statusFilter, setStatusFilter] = useState<ExpenseStatus | "">("");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -196,7 +199,7 @@ export default function ExpenseScreen() {
         align: "right",
         width: 120,
         render: (e) => (
-          <Typography sx={{ fontSize: 13, fontWeight: 600, color: TABLE_TEXT_COLOR, whiteSpace: "nowrap" }}>
+          <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#1976d2", whiteSpace: "nowrap" }}>
             {INR(e.total_amount)}
           </Typography>
         ),
@@ -242,18 +245,22 @@ export default function ExpenseScreen() {
         width: 200,
         align: "left",
         render: (e) => (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-            <StatusBadge status={e.payment_status} />
-            {(e.payment_status === "pending" || e.payment_status === "partial") && (
-              <Button
-                size="small" variant="contained" disableElevation
-                onClick={() => setPaymentTarget(e)}
-                sx={{ fontSize: "0.65rem", py: 0.4, px: 1.5, height: 24, minWidth: 0, whiteSpace: "nowrap", bgcolor: "#D32F2F", "&:hover": { bgcolor: "#B71C1C" } }}
-              >
-                Mark as Paid
-              </Button>
-            )}
-          </Box>
+          <Stack direction="row" alignItems="center" gap={1} sx={{ minWidth: 200 }}>
+            <Box sx={{ minWidth: 70 }}>
+              <StatusBadge status={e.payment_status} />
+            </Box>
+            <Box sx={{ width: 110 }}>
+              {(e.payment_status === "pending" || e.payment_status === "partial") && (
+                <Button
+                  size="small" variant="contained" disableElevation
+                  onClick={() => setPaymentTarget(e)}
+                  sx={{ fontSize: "0.65rem", py: 0.4, px: 1.5, height: 24, width: "100%", whiteSpace: "nowrap", bgcolor: "#D32F2F", "&:hover": { bgcolor: "#B71C1C" } }}
+                >
+                  Mark as Paid
+                </Button>
+              )}
+            </Box>
+          </Stack>
         ),
       },
       {
@@ -292,71 +299,91 @@ export default function ExpenseScreen() {
           {/* Stats */}
           {summaryLoading || !summary ? <StatsSkeleton /> : <ExpenseStats data={summary} />}
 
-          {/* Toolbar */}
-          <Box sx={{ px: 1, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, gap: 2 }}>
-            <TextField
-              value={search}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Search expenses, vendors..."
-              size="small"
-              sx={{ flex: "1 1 380px", minWidth: { xs: "100%", sm: 260 }, "& .MuiOutlinedInput-root": { bgcolor: "white", height: 38, fontSize: "0.875rem", borderRadius: 1.5 } }}
-              slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 17, color: "#9CA3AF" }} /></InputAdornment> } }}
-            />
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <Select
-                value={statusFilter}
-                onChange={(e) => handleStatusChange(e.target.value as ExpenseStatus | "")}
-                displayEmpty
-                sx={{ bgcolor: "white", height: 38, fontSize: "0.875rem", borderRadius: 1.5 }}
-                renderValue={(value) =>
-                  value ? STATUS_STYLES[value as ExpenseStatus]?.label ?? value : "All Status"
-                }
-              >
-                <MenuItem value="">All Status</MenuItem>
-                <MenuItem value="paid">Paid</MenuItem>
-                <MenuItem value="partial">Partial</MenuItem>
-                <MenuItem value="pending">Pending</MenuItem>
-              </Select>
-            </FormControl>
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<AddIcon sx={{ fontSize: 16 }} />}
-              onClick={() => { setEditExpenseId(null); setAddDialogOpen(true); }}
-              disableElevation
-              sx={{ fontSize: 14, fontWeight: 700, bgcolor: "#D32F2F", color: "#fff", px: 2, py: 0.9, borderRadius: 1.5, boxShadow: "0 4px 14px rgba(211,47,47,0.3)", "&:hover": { bgcolor: "#B71C1C" }, "&:active": { transform: "scale(0.97)" }, transition: "all 0.15s", display: { xs: "none", md: "inline-flex" } }}
+          {/* Tab switcher */}
+          <Box sx={{ borderBottom: 1, borderColor: "divider", flexShrink: 0 }}>
+            <Tabs
+              value={activeTab}
+              onChange={(_e, v) => setActiveTab(v)}
+              sx={{
+                minHeight: 40,
+                "& .MuiTab-root": { minHeight: 40, textTransform: "none", fontWeight: 600, fontSize: 13 },
+                "& .MuiTabs-indicator": { bgcolor: "#D32F2F" },
+                "& .Mui-selected": { color: "#D32F2F !important" },
+              }}
             >
-              Add New Expense
-            </Button>
+              <Tab label="Expenses" />
+              <Tab label="Category" />
+            </Tabs>
           </Box>
 
-          {/* Table */}
-          <Box sx={{ flex: 1, minHeight: 0 }}>
-            {isLoading ? (
-              <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
-                <CircularProgress size={32} sx={{ color: "#D32F2F" }} />
+          {activeTab === 1 ? (
+            <Box sx={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+              <CategoryTab typeFilter="E" fixedType="E" />
+            </Box>
+          ) : (
+            <>
+              {/* Toolbar */}
+              <Box sx={{ px: 1, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, gap: 2 }}>
+                <TextField
+                  value={search}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  placeholder="Search expenses, vendors..."
+                  size="small"
+                  sx={{ flex: "1 1 380px", minWidth: { xs: "100%", sm: 260 }, "& .MuiOutlinedInput-root": { bgcolor: "white", height: 38, fontSize: "0.875rem", borderRadius: 1.5 } }}
+                  slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 17, color: "#9CA3AF" }} /></InputAdornment> } }}
+                />
+                <FormControl size="small" sx={{ minWidth: 150 }}>
+                  <Select
+                    value={statusFilter}
+                    onChange={(e) => handleStatusChange(e.target.value as ExpenseStatus | "")}
+                    displayEmpty
+                    sx={{ bgcolor: "white", height: 38, fontSize: "0.875rem", borderRadius: 1.5 }}
+                    renderValue={(value) =>
+                      value ? STATUS_STYLES[value as ExpenseStatus]?.label ?? value : "All Status"
+                    }
+                  >
+                    <MenuItem value="">All Status</MenuItem>
+                    <MenuItem value="paid">Paid</MenuItem>
+                    <MenuItem value="partial">Partial</MenuItem>
+                    <MenuItem value="pending">Pending</MenuItem>
+                  </Select>
+                </FormControl>
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<AddIcon sx={{ fontSize: 16 }} />}
+                  onClick={() => { setEditExpenseId(null); setAddDialogOpen(true); }}
+                  disableElevation
+                  sx={{ fontSize: 14, fontWeight: 700, bgcolor: "#D32F2F", color: "#fff", px: 2, py: 0.9, borderRadius: 1.5, boxShadow: "0 4px 14px rgba(211,47,47,0.3)", "&:hover": { bgcolor: "#B71C1C" }, "&:active": { transform: "scale(0.97)" }, transition: "all 0.15s", display: { xs: "none", md: "inline-flex" } }}
+                >
+                  Add New Expense
+                </Button>
               </Box>
-            ) : (
-              <DataTable<ExpenseRow>
-                columns={columns}
-                rows={expenses}
-                rowKey={(e) => String(e.id)}
-                maxHeight="100%"
-                emptyMessage={search ? `No expenses found for "${search}"` : "No expenses found."}
-              />
-            )}
-          </Box>
 
-          {/* Infinite scroll footer */}
-          {isFetchingNextPage && (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-              <CircularProgress size={24} sx={{ color: "#D32F2F" }} />
-            </Box>
-          )}
-          {!isLoading && !hasNextPage && expenses.length > 0 && (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 1.5 }}>
-              <Typography sx={{ fontSize: 12, color: "#9CA3AF" }}>All expenses loaded</Typography>
-            </Box>
+              {/* Table */}
+              <Box sx={{ flex: 1, minHeight: 0 }}>
+                {isLoading ? (
+                  <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+                    <CircularProgress size={32} sx={{ color: "#D32F2F" }} />
+                  </Box>
+                ) : (
+                  <DataTable<ExpenseRow>
+                    columns={columns}
+                    rows={expenses}
+                    rowKey={(e) => String(e.id)}
+                    maxHeight="100%"
+                    emptyMessage={search ? `No expenses found for "${search}"` : "No expenses found."}
+                  />
+                )}
+              </Box>
+
+              {/* Infinite scroll footer */}
+              {isFetchingNextPage && (
+                <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+                  <CircularProgress size={24} sx={{ color: "#D32F2F" }} />
+                </Box>
+              )}
+            </>
           )}
         </Box>
 

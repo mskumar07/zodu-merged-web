@@ -137,7 +137,7 @@ const getBranchIfscCode = (branch?: Branch | null) => {
 };
 
 const formatLocation = (branch?: Branch) => {
-  if (!branch) return "Not available";
+  if (!branch) return "-";
 
   const parts = [
     getBranchAddressLine1(branch),
@@ -145,7 +145,7 @@ const formatLocation = (branch?: Branch) => {
     getBranchDistrict(branch),
   ].filter(Boolean);
 
-  return parts.length ? parts.join(", ") : getBranchState(branch) || "Not available";
+  return parts.length ? parts.join(", ") : getBranchState(branch) || "-";
 };
 
 const getCompanyIcon = (index: number) => {
@@ -706,7 +706,7 @@ export default function Setting() {
                                   color: "#6f7785",
                                 }}
                               >
-                                {company.gst_no || "Not available"}
+                                {company.gst_no || "-"}
                               </Typography>
                             </Box>
 
@@ -912,7 +912,7 @@ export default function Setting() {
                                           color: "#6f7785",
                                         }}
                                       >
-                                        {branch.branch_mobile_no || "Not available"}
+                                        {branch.branch_mobile_no || "-"}
                                       </TableCell>
                                       <TableCell align="right" sx={{ py: 1.25 }}>
                                         {/* <Tooltip title="View">
@@ -1175,7 +1175,7 @@ export default function Setting() {
                     Owner / Admin Name
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.owner_admin_name || "Not available"}
+                    {viewingCompany.owner_admin_name || "-"}
                   </Typography>
                 </Box>
 
@@ -1184,7 +1184,7 @@ export default function Setting() {
                     GSTIN
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.gst_no || "Not available"}
+                    {viewingCompany.gst_no || "-"}
                   </Typography>
                 </Box>
 
@@ -1193,7 +1193,7 @@ export default function Setting() {
                     Phone Number
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.phone_number || viewingCompany.mobile_no || "Not available"}
+                    {viewingCompany.phone_number || viewingCompany.mobile_no || "-"}
                   </Typography>
                 </Box>
 
@@ -1202,7 +1202,7 @@ export default function Setting() {
                     Email ID
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.email || viewingCompany.mail_id || "Not available"}
+                    {viewingCompany.email || viewingCompany.mail_id || "-"}
                   </Typography>
                 </Box>
 
@@ -1211,7 +1211,7 @@ export default function Setting() {
                     City
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.city || "Not available"}
+                    {viewingCompany.city || "-"}
                   </Typography>
                 </Box>
 
@@ -1220,7 +1220,7 @@ export default function Setting() {
                     State
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.state || "Not available"}
+                    {viewingCompany.state || "-"}
                   </Typography>
                 </Box>
 
@@ -1229,7 +1229,7 @@ export default function Setting() {
                     District
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.district || "Not available"}
+                    {viewingCompany.district || "-"}
                   </Typography>
                 </Box>
 
@@ -1238,7 +1238,7 @@ export default function Setting() {
                     Pincode
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.pincode || "Not available"}
+                    {viewingCompany.pincode || "-"}
                   </Typography>
                 </Box>
               </Box>
@@ -1248,7 +1248,7 @@ export default function Setting() {
                   Address
                 </Typography>
                 <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                  {getCompanyAddressLine1(viewingCompany) || "Not available"}
+                  {getCompanyAddressLine1(viewingCompany) || "-"}
                 </Typography>
               </Box>
 
@@ -1258,7 +1258,7 @@ export default function Setting() {
                     Address Line 2
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {getCompanyAddressLine2(viewingCompany) || "Not available"}
+                    {getCompanyAddressLine2(viewingCompany) || "-"}
                   </Typography>
                 </Box>
 
@@ -1267,7 +1267,7 @@ export default function Setting() {
                     Bank Name
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.bank_name || "Not available"}
+                    {viewingCompany.bank_name || "-"}
                   </Typography>
                 </Box>
 
@@ -1276,7 +1276,7 @@ export default function Setting() {
                     Bank Branch
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.bank_branch || "Not available"}
+                    {viewingCompany.bank_branch || "-"}
                   </Typography>
                 </Box>
 
@@ -1285,7 +1285,7 @@ export default function Setting() {
                     Account Holder Name
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.holder_name || "Not available"}
+                    {viewingCompany.holder_name || "-"}
                   </Typography>
                 </Box>
 
@@ -1294,7 +1294,7 @@ export default function Setting() {
                     Account Number
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.account_number || "Not available"}
+                    {viewingCompany.account_number || "-"}
                   </Typography>
                 </Box>
 
@@ -1303,7 +1303,7 @@ export default function Setting() {
                     Account Type
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.account_type || "Not available"}
+                    {viewingCompany.account_type || "-"}
                   </Typography>
                 </Box>
 
@@ -1312,7 +1312,7 @@ export default function Setting() {
                     IFSC Code
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.ifsc_code || "Not available"}
+                    {viewingCompany.ifsc_code || "-"}
                   </Typography>
                 </Box>
               </Box>
@@ -1366,7 +1366,7 @@ export default function Setting() {
                     Mobile Number
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingBranch.branch_mobile_no || "Not available"}
+                    {viewingBranch.branch_mobile_no || "-"}
                   </Typography>
                 </Box>
 
@@ -1375,7 +1375,7 @@ export default function Setting() {
                     Email ID
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingBranch.branch_mail_id || "Not available"}
+                    {viewingBranch.branch_mail_id || "-"}
                   </Typography>
                 </Box>
 
@@ -1384,7 +1384,7 @@ export default function Setting() {
                     City
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {getBranchCity(viewingBranch) || "Not available"}
+                    {getBranchCity(viewingBranch) || "-"}
                   </Typography>
                 </Box>
 
@@ -1393,7 +1393,7 @@ export default function Setting() {
                     State
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {getBranchState(viewingBranch) || "Not available"}
+                    {getBranchState(viewingBranch) || "-"}
                   </Typography>
                 </Box>
               </Box>
@@ -1404,7 +1404,7 @@ export default function Setting() {
                     Address Line 1
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {getBranchAddressLine1(viewingBranch) || "Not available"}
+                    {getBranchAddressLine1(viewingBranch) || "-"}
                   </Typography>
                 </Box>
 
@@ -1413,7 +1413,7 @@ export default function Setting() {
                     Address Line 2
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {getBranchAddressLine2(viewingBranch) || "Not available"}
+                    {getBranchAddressLine2(viewingBranch) || "-"}
                   </Typography>
                 </Box>
 
@@ -1422,7 +1422,7 @@ export default function Setting() {
                     District
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {getBranchDistrict(viewingBranch) || "Not available"}
+                    {getBranchDistrict(viewingBranch) || "-"}
                   </Typography>
                 </Box>
 
@@ -1431,7 +1431,7 @@ export default function Setting() {
                     Pincode
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {getBranchPincode(viewingBranch) || "Not available"}
+                    {getBranchPincode(viewingBranch) || "-"}
                   </Typography>
                 </Box>
               </Box>
@@ -1441,7 +1441,7 @@ export default function Setting() {
                   Manager / Admin
                 </Typography>
                 <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                  {getBranchManager(viewingBranch) || "Not available"}
+                  {getBranchManager(viewingBranch) || "-"}
                 </Typography>
               </Box>
 
@@ -1453,7 +1453,7 @@ export default function Setting() {
                     Bank Name
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingBranch.bank_name || "Not available"}
+                    {viewingBranch.bank_name || "-"}
                   </Typography>
                 </Box>
 
@@ -1462,7 +1462,7 @@ export default function Setting() {
                     Bank Branch
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingBranch.bank_branch || "Not available"}
+                    {viewingBranch.bank_branch || "-"}
                   </Typography>
                 </Box>
 
@@ -1471,7 +1471,7 @@ export default function Setting() {
                     Account Holder Name
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingBranch.holder_name || "Not available"}
+                    {viewingBranch.holder_name || "-"}
                   </Typography>
                 </Box>
 
@@ -1480,7 +1480,7 @@ export default function Setting() {
                     Account Number
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {getBranchAccountNumber(viewingBranch) || "Not available"}
+                    {getBranchAccountNumber(viewingBranch) || "-"}
                   </Typography>
                 </Box>
 
@@ -1489,7 +1489,7 @@ export default function Setting() {
                     Account Type
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5, textTransform: "capitalize" }}>
-                    {getBranchAccountType(viewingBranch) || "Not available"}
+                    {getBranchAccountType(viewingBranch) || "-"}
                   </Typography>
                 </Box>
 
@@ -1498,7 +1498,7 @@ export default function Setting() {
                     IFSC Code
                   </Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {getBranchIfscCode(viewingBranch) || "Not available"}
+                    {getBranchIfscCode(viewingBranch) || "-"}
                   </Typography>
                 </Box>
               </Box>

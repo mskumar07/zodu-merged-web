@@ -919,7 +919,7 @@ const ZoduSignupPage: React.FC = () => {
     <ThemeProvider theme={theme}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@700;800&display=swap');`}</style>
 
-      <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#f8f9fa' }}>
+      <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden', bgcolor: '#f8f9fa' }}>
         <BrandingPanel />
 
         {/* ── Right: form panel ── */}
@@ -931,6 +931,7 @@ const ZoduSignupPage: React.FC = () => {
             bgcolor:       '#ffffff',
             position:      'relative',
             overflowY:     'auto',
+            height:        '100vh',
           }}
         >
           {/* ── Logo — top right ── */}
@@ -984,7 +985,7 @@ const ZoduSignupPage: React.FC = () => {
                   Create Account
                 </Typography>
                 <Typography sx={{ color: '#5b403d', fontSize: '0.95rem', lineHeight: 1.6 }}>
-                  Join 5,000+ restaurants and retailers on ZODU.
+                  Simplify Your Restaurant & Retail Business with ZODU
                 </Typography>
               </Box>
 
@@ -1004,7 +1005,7 @@ const ZoduSignupPage: React.FC = () => {
                   {/* Restaurant name */}
                   <Box>
                     <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: '#5b403d', mb: 0.75, ml: 0.5 }}>
-                      Restaurant Name
+                      Company Name
                     </Typography>
                     <TextField
                       fullWidth placeholder="e.g. Spice Garden"

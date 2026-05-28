@@ -295,8 +295,8 @@ interface PurchaseItem {
 // ✅ UPDATED: Added dueDate field
 interface PurchaseForm {
   supplier: string; purchaseDate: string; invoiceNo: string;
-  paymentMethod: PaymentMethod; paymentRef: string; paidAmount: string; notes: string;
-  dueDate?: string; // ✅ NEW: Due date field
+  paymentMethod: PaymentMethod; paymentRef: string; paymentDate: string; paidAmount: string; notes: string;
+  dueDate?: string;
   items: PurchaseItem[];
 }
 
@@ -478,8 +478,8 @@ interface AddNewPurchaseDialogProps {
 
 const emptyForm = (): PurchaseForm => ({
   supplier: "", purchaseDate: todayStr(), invoiceNo: "",
-  paymentMethod: "Bank Transfer", paymentRef: "", paidAmount: "", notes: "",
-  dueDate: "", // ✅ Initialize empty due date
+  paymentMethod: "Bank Transfer", paymentRef: "", paymentDate: todayStr(), paidAmount: "", notes: "",
+  dueDate: "",
   items: [],
 });
 
@@ -491,6 +491,7 @@ function detailToForm(detail: PurchaseDetail): PurchaseForm {
     invoiceNo:     detail.purchase_id ?? "",
     paymentMethod: (detail.payments?.[0]?.transaction_type as PaymentMethod) ?? "Bank Transfer",
     paymentRef:    detail.payments?.[0]?.transaction_id ?? "",
+    paymentDate:   detail.payments?.[0]?.payment_date ? formatDateForInput(detail.payments[0].payment_date) : todayStr(),
     paidAmount:    detail.paid_amount ?? "0",
     notes:         detail.notes ?? "",
 dueDate: detail.due_date
@@ -660,6 +661,7 @@ export default function AddNewPurchaseDialog({
       notes: form.notes || undefined,
       transaction_type: form.paymentMethod,
       transaction_id: form.paymentRef || null,
+      payment_date: form.paymentDate || null,
       due_date: form.dueDate ? new Date(form.dueDate).toISOString() : null,
       attachment_url: allUrls,
       items: form.items.map((item): PurchaseItemPayload => {
@@ -893,6 +895,10 @@ export default function AddNewPurchaseDialog({
                       ))}
                     </Select>
                   </FormControl>
+                </Box>
+                <Box>
+                  <FieldLabel>Payment Date</FieldLabel>
+                  <TextField type="date" size="small" fullWidth value={form.paymentDate} onChange={e => setField("paymentDate", e.target.value)} sx={{ ...inputSx, "& .MuiOutlinedInput-root": { ...inputSx["& .MuiOutlinedInput-root"], bgcolor: "#fff" } }} inputProps={{ style: { fontSize: 13 } }} />
                 </Box>
                 <Box>
                   <FieldLabel>Payment Reference</FieldLabel>

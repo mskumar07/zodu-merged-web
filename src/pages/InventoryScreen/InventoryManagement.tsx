@@ -3,8 +3,8 @@ import React, {
 } from 'react';
 import {
   Box, Typography, TextField, Button, InputAdornment,
-  CircularProgress, Alert, Chip, Avatar,
-  Select, MenuItem, FormControl, Checkbox, ListItemText, OutlinedInput,
+  CircularProgress, Alert, Avatar,
+  Select, MenuItem, FormControl, Checkbox, ListItemText, OutlinedInput, Grid,
 } from '@mui/material';
 import SearchIcon        from '@mui/icons-material/Search';
 import Inventory2Icon    from '@mui/icons-material/Inventory2';
@@ -12,6 +12,7 @@ import TrendingUpIcon    from '@mui/icons-material/TrendingUp';
 import WarningAmberIcon  from '@mui/icons-material/WarningAmber';
 import ErrorOutlineIcon  from '@mui/icons-material/ErrorOutline';
 import QrCodeIcon        from '@mui/icons-material/QrCode2';
+import FilterListOffIcon from '@mui/icons-material/FilterListOff';
 import StatCard          from '@components/StatCard';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useCategories } from '@pages/MenuItemScreen/useMenuItemApi';
@@ -94,6 +95,16 @@ const [historyOpen, setHistoryOpen] = useState(false);
     debounceRef.current = setTimeout(() => setSearchQuery(val), 400);
   }, []);
   useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+
+  const hasActiveFilters = searchInput !== '' || stockFilter !== '' || selectedCategories.length > 0;
+
+  const handleResetFilters = () => {
+    setSearchInput('');
+    setSearchQuery('');
+    setStockFilter('');
+    setSelectedCategories([]);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+  };
 
   // ── Summary query ──────────────────────────────────────────
   const { data: summary, refetch: refetchSummary } = useInventorySummary();
@@ -298,47 +309,52 @@ const handleCloseHistory = () => {
   }}
 >
       {/* ── Stat cards ── */}
-      <Box
-        sx={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 2,
-          alignItems: 'stretch',
-        }}
-      >
-        <StatCard
-          icon={<Inventory2Icon sx={{ fontSize: 20 }} />}
-          iconBgColor="#DBEAFE"
-          iconColor="#2563EB"
-          label="Total Stock Value"
-          value={summary ? formatINR(summary.total_stock_value) : '—'}
-          valuePrefix=""
-        />
-        <StatCard
-          icon={<WarningAmberIcon sx={{ fontSize: 20 }} />}
-          iconBgColor="#FEF3C7"
-          iconColor="#D97706"
-          label="Low Stock Items"
-          value={summary?.low_stock_count ?? '—'}
-          valuePrefix=""
-        />
-        <StatCard
-          icon={<ErrorOutlineIcon sx={{ fontSize: 20 }} />}
-          iconBgColor="#FEE2E2"
-          iconColor="#DC2626"
-          label="Out of Stock"
-          value={summary?.out_of_stock_count ?? '—'}
-          valuePrefix=""
-        />
-        <StatCard
-          icon={<QrCodeIcon sx={{ fontSize: 20 }} />}
-          iconBgColor="#DCFCE7"
-          iconColor="#16A34A"
-          label="Total SKUs"
-          value={summary?.total_skus?.toLocaleString() ?? '—'}
-          valuePrefix=""
-        />
-      </Box>
+      <Grid container spacing={2}>
+        <Grid size="auto">
+          <StatCard
+            icon={<Inventory2Icon sx={{ fontSize: 20 }} />}
+            iconBgColor="#DBEAFE"
+            iconColor="#2563EB"
+            label="Total Stock Value"
+            value={summary ? formatINR(summary.total_stock_value) : '—'}
+            valuePrefix=""
+            radius={2}
+          />
+        </Grid>
+        <Grid size="auto">
+          <StatCard
+            icon={<WarningAmberIcon sx={{ fontSize: 20 }} />}
+            iconBgColor="#FEF3C7"
+            iconColor="#D97706"
+            label="Low Stock Items"
+            value={summary?.low_stock_count ?? '—'}
+            valuePrefix=""
+            radius={2}
+          />
+        </Grid>
+        <Grid size="auto">
+          <StatCard
+            icon={<ErrorOutlineIcon sx={{ fontSize: 20 }} />}
+            iconBgColor="#FEE2E2"
+            iconColor="#DC2626"
+            label="Out of Stock"
+            value={summary?.out_of_stock_count ?? '—'}
+            valuePrefix=""
+            radius={2}
+          />
+        </Grid>
+        <Grid size="auto">
+          <StatCard
+            icon={<QrCodeIcon sx={{ fontSize: 20 }} />}
+            iconBgColor="#DCFCE7"
+            iconColor="#16A34A"
+            label="Total SKUs"
+            value={summary?.total_skus?.toLocaleString() ?? '—'}
+            valuePrefix=""
+            radius={2}
+          />
+        </Grid>
+      </Grid>
 
       {/* ── Filter bar ── */}
       <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -392,11 +408,8 @@ const handleCloseHistory = () => {
               if (!(selected as number[]).length)
                 return <Box component="span" sx={{ color: 'text.disabled', fontSize: 13 }}>All Categories</Box>;
               return (
-                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                  {(selected as number[]).map(id => {
-                    const cat = categories.find(c => Number(c.value) === id);
-                    return <Chip key={id} label={cat?.label ?? id} size="small" sx={{ height: 20, fontSize: 11 }} />;
-                  })}
+                <Box component="span" sx={{ fontSize: 13, color: 'text.primary', fontWeight: 600 }}>
+                  {(selected as number[]).length} {(selected as number[]).length === 1 ? 'Category' : 'Categories'}
                 </Box>
               );
             }}
@@ -411,14 +424,22 @@ const handleCloseHistory = () => {
           </Select>
         </FormControl>
 
-
-        {/* {!isLoading && totalItems > 0 && (
-          <Chip
-            label={`${rows.length.toLocaleString()} / ${totalItems.toLocaleString()}`}
-            size="small"
-            sx={{ fontSize: 12, fontWeight: 600, bgcolor: 'action.hover' }}
-          />
-        )} */}
+        {/* Reset Filters */}
+        {hasActiveFilters && (
+          <Box
+            onClick={handleResetFilters}
+            title="Reset Filters"
+            sx={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 36, height: 36, borderRadius: 1, cursor: 'pointer',
+              bgcolor: '#F97316', color: '#fff',
+              '&:hover': { bgcolor: '#ea6c0a' },
+              flexShrink: 0,
+            }}
+          >
+            <FilterListOffIcon sx={{ fontSize: 20 }} />
+          </Box>
+        )}
       </Box>
 
       {/* ── Error ── */}

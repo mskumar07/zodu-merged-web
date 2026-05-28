@@ -191,7 +191,7 @@ export default function PurchaseScreen() {
         align: "right",
         width: 120,
         render: (p) => (
-          <Typography sx={{ fontSize: 13, fontWeight: 600, color: TABLE_TEXT_COLOR, whiteSpace: "nowrap" }}>
+          <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#1976d2", whiteSpace: "nowrap" }}>
             {INR(p.total_amount)}
           </Typography>
         ),
@@ -252,20 +252,39 @@ export default function PurchaseScreen() {
       {
         key: "payment_status",
         label: "Status",
-        width: 200,
-        align:"left",
+        width: 220,
+        align: "left",
         render: (p) => (
-          <Stack direction="row" alignItems="center" gap={1}>
-            <StatusBadge status={p.payment_status} />
-            {Number(p.balance_amount) > 0 && (
-              <Button
-                size="small" variant="contained" color="primary" disableElevation
-                onClick={() => setPayment(p)}
-                sx={{ fontSize: "0.65rem", py: 0.4, px: 1.5, height: 24, minWidth: 0, whiteSpace: "nowrap" }}
-              >
-                Mark as Paid
-              </Button>
-            )}
+          <Stack
+            direction="row"
+            alignItems="center"
+            gap={1}
+            sx={{ minWidth: 200 }}
+          >
+            <Box sx={{ minWidth: 70 }}>
+              <StatusBadge status={p.payment_status} />
+            </Box>
+            <Box sx={{ width: 110 }}>
+              {Number(p.balance_amount) > 0 && (
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="primary"
+                  disableElevation
+                  onClick={() => setPayment(p)}
+                  sx={{
+                    fontSize: "0.65rem",
+                    py: 0.4,
+                    px: 1.5,
+                    height: 24,
+                    width: "100%",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Mark as Paid
+                </Button>
+              )}
+            </Box>
           </Stack>
         ),
       },

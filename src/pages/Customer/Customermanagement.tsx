@@ -198,12 +198,12 @@ export default function CustomerManagement({
         minWidth: 220,
         render: (customer) => (
           <Box>
-            <Typography sx={{ fontSize: 13, fontWeight: 600, color: TABLE_TEXT_COLOR, whiteSpace: "nowrap" }}>
-              {customer.businessName}
-            </Typography>
             <Typography sx={{ fontSize: 13, fontWeight: 500, color: TABLE_TEXT_COLOR }}>
               {customer.contactName}
             </Typography>
+            <Typography sx={{ fontSize: 13, fontWeight: 600, color: TABLE_TEXT_COLOR, whiteSpace: "nowrap" }}>
+              {customer.businessName}
+            </Typography> 
           </Box>
         ),
       },

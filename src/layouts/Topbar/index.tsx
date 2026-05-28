@@ -62,7 +62,7 @@ const TopBar: React.FC = () => {
     >
       <Toolbar className={styles.toolbar}>
         <Typography sx={{ color: "black", fontWeight: 600, fontSize: 20, textTransform: "capitalize" }}>
-          {selectedCompany?.restaurant_name || profile?.restaurant_name || ""}
+          {selectedCompany?.company_name || profile?.company_name || ""}
         </Typography>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>

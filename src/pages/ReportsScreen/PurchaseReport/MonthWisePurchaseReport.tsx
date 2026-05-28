@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
-import { Box, Card, Grid, Paper, Skeleton, Typography } from "@mui/material";
+import { Box, Grid, Paper, Skeleton, Typography } from "@mui/material";
 import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
 import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
@@ -29,36 +29,31 @@ interface StatCardProps {
 }
 
 const StatCard = ({ title, value, icon, iconBg, valueColor, loading }: StatCardProps) => (
-  <Card sx={{ p: 1.5, borderRadius: 1, height: "100%" }} elevation={1}>
-    <Box display="flex" justifyContent="space-between" gap={1} alignItems="center">
-      <Box
-        sx={{
-          width: 36,
-          height: 36,
-          borderRadius: "50%",
-          bgcolor: iconBg,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
-        {icon}
-      </Box>
-      <Box flex={1}>
-        <Typography variant="caption" color="text.secondary" fontWeight={500} sx={{ letterSpacing: 0.3 }}>
-          {title}
-        </Typography>
-        {loading ? (
-          <Skeleton width={90} height={24} />
-        ) : (
-          <Typography fontWeight="bold" mt={0.5} sx={{ fontSize: 18, lineHeight: 1.3, color: valueColor || "text.primary" }}>
-            {value}
-          </Typography>
-        )}
-      </Box>
+  <Box sx={{
+    bgcolor: "#fff", border: "1px solid #F1F5F9", borderRadius: "8px",
+    boxShadow: "0 1px 4px rgba(0,0,0,0.05)", px: 2, py: 1.5,
+    display: "flex", alignItems: "center", gap: 1.5,
+    minWidth: 150, flex: "1 1 150px", width: "fit-content",
+  }}>
+    <Box sx={{
+      width: 36, height: 36, borderRadius: "8px", bgcolor: iconBg,
+      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+    }}>
+      {icon}
     </Box>
-  </Card>
+    <Box sx={{ minWidth: 0, flex: 1 }}>
+      <Typography sx={{ fontSize: "11px", fontWeight: 500, color: "#64748B", whiteSpace: "nowrap" }}>
+        {title}
+      </Typography>
+      {loading ? (
+        <Skeleton width={80} height={24} sx={{ borderRadius: 1, mt: 0.5 }} />
+      ) : (
+        <Typography sx={{ fontSize: "1.05rem", fontWeight: 800, color: valueColor || "#0F172A", lineHeight: 1.3, whiteSpace: "nowrap" }}>
+          {value}
+        </Typography>
+      )}
+    </Box>
+  </Box>
 );
 
 function useInfiniteScroll(
@@ -122,7 +117,7 @@ const MonthWisePurchaseReport = () => {
         label: "MONTH",
         minWidth: 120,
         render: (row) => (
-          <Typography sx={{ fontSize: "0.8rem", color: "primary.main", fontWeight: 500, whiteSpace: "nowrap" }}>
+          <Typography sx={{ fontSize: "0.8rem", color: "#000", fontWeight: 500, whiteSpace: "nowrap" }}>
             {row.month}
           </Typography>
         ),
@@ -139,7 +134,11 @@ const MonthWisePurchaseReport = () => {
         label: "TOTAL AMOUNT",
         align: "right",
         minWidth: 130,
-        render: (row) => fmt(row.totalAmount),
+        render: (row) => (
+          <Typography sx={{ fontSize: "0.8rem", color: "#1565C0", fontWeight: 500, whiteSpace: "nowrap" }}>
+            {fmt(row.totalAmount)}
+          </Typography>
+        ),
       },
       {
         key: "pendingAmount",
@@ -158,7 +157,7 @@ const MonthWisePurchaseReport = () => {
         align: "right",
         minWidth: 130,
         render: (row) => (
-          <Typography sx={{ fontSize: "0.8rem", fontWeight: "bold", whiteSpace: "nowrap" }}>
+          <Typography sx={{ fontSize: "0.8rem", fontWeight: "bold", color: "#2e7d32", whiteSpace: "nowrap" }}>
             {fmt(row.paidAmount)}
           </Typography>
         ),

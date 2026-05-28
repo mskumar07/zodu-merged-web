@@ -40,9 +40,23 @@ interface ApiCategory {
   active:     boolean;
 }
 
+// Full category row used in the Category tab table
+export interface CategoryRow {
+  id:         number;
+  zodu_id:    string;
+  branch_id:  string;
+  name:       string;
+  type:       string;       // full name: "Sellable" | "Service" | "Expense"
+  type_code:  string;       // short code: "S" | "M" | "E"
+  active:     boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AddCategoryPayload {
   name:        string;
   serviceType: "product" | "service";
+  type:        "S" | "M" | "E";
 }
 
 export interface AddMenuItemPayload {
@@ -164,20 +178,41 @@ export const menuQueryKeys = {
  * type: product → "S" | service → "M" | expense → "E"
  * NOTE: API returns capital "Data" key (not lowercase "data")
  */
+interface CategoryFilterPage {
+  Data?: ApiCategory[];
+  data?: ApiCategory[];
+  pagination?: {
+    current_page: number;
+    total_pages:  number;
+    total_count:  number;
+    limit:        number;
+  };
+}
+
+async function fetchCategoriesPage(
+  serviceType: "product" | "service" | "expense",
+  page: number,
+  limit = 15
+): Promise<{ categories: Category[]; currentPage: number; totalPages: number }> {
+  const { branchId, zoduId } = getTenantContext();
+  const type = serviceType === "product" ? "S" : serviceType === "expense" ? "E" : "M";
+  const { data } = await axios.get<CategoryFilterPage>(
+    `${API_BASE}/restaurant/get/category/${type}/${branchId}/${zoduId}`,
+    { params: { page, limit } }
+  );
+  const rows = data.Data ?? data.data ?? [];
+  return {
+    categories: rows.map((c) => ({ value: String(c.id), label: c.name })),
+    currentPage: data.pagination?.current_page ?? page,
+    totalPages:  data.pagination?.total_pages  ?? 1,
+  };
+}
+
 async function fetchCategories(
   serviceType: "product" | "service" | "expense"
 ): Promise<Category[]> {
-  const { branchId, zoduId } = getTenantContext();
-  const type = serviceType === "product" ? "S" : serviceType === "expense" ? "E" : "M";
-  const { data } = await axios.get<{ Data?: ApiCategory[]; data?: ApiCategory[] }>(
-    `${API_BASE}/restaurant/get/category/${type}/${branchId}/${zoduId}`
-  );
-  // Handle both capital "Data" and lowercase "data" for safety
-  const rows = data.Data ?? data.data ?? [];
-  return rows.map((c) => ({
-    value: String(c.id),
-    label: c.name,
-  }));
+  const result = await fetchCategoriesPage(serviceType, 1, 500);
+  return result.categories;
 }
 
 /**
@@ -253,21 +288,24 @@ async function fetchMenuItemDetail(item_uuid: string): Promise<MenuItem> {
 /**
  * POST /restaurant/add/category
  */
-async function postAddCategory(payload: AddCategoryPayload): Promise<Category> {
+async function postAddCategory(
+  payload: AddCategoryPayload
+): Promise<Category & { apiMessage: string }> {
   const { zoduId, branchId } = getTenantContext();
-  const { data } = await axios.post<{ data: ApiCategory }>(
+  const { data } = await axios.post<{ message: string; data: ApiCategory }>(
     `${API_BASE}/restaurant/add/category`,
     {
       zodu_id:   zoduId,
       branch_id: branchId,
       name:      payload.name.trim(),
-      type:      payload.serviceType === "product" ? "S" : "M",
+      type:      payload.type,
     }
   );
   const created = data.data;
   return {
-    value: String(created.id),   // id → value
-    label: created.name,          // name → label
+    value:      String(created.id),
+    label:      created.name,
+    apiMessage: data.message ?? "Category added successfully",
   };
 }
 
@@ -403,12 +441,34 @@ export function useUpdateMenuItemStatus(options?: {
  * No enabled flag — always fetches on mount so data is ready when dialog opens.
  */
 export function useCategories(
-  serviceType: "product" | "service" | "expense"
+  serviceType: "product" | "service" | "expense",
+  enabled = true
 ): UseQueryResult<Category[]> {
   useTenantContext();
   return useQuery({
     queryKey:             menuQueryKeys.categories(serviceType),
     queryFn:              () => fetchCategories(serviceType),
+    enabled,
+    staleTime:            5 * 60 * 1000,
+    gcTime:               10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry:                2,
+  });
+}
+
+/**
+ * Infinite-scroll hook for the category filter dropdown.
+ * Loads 15 per page; next page fetches when user scrolls to the bottom of the list.
+ */
+export function useInfiniteCategories(serviceType: "product" | "service" | "expense") {
+  const { zoduId, branchId } = useTenantContext();
+  return useInfiniteQuery({
+    queryKey:         ["menu", "categories-filter", zoduId, branchId, serviceType],
+    queryFn:          ({ pageParam = 1 }) =>
+                        fetchCategoriesPage(serviceType, pageParam as number, 15),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.currentPage < lastPage.totalPages ? lastPage.currentPage + 1 : undefined,
     staleTime:            5 * 60 * 1000,
     gcTime:               10 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -529,9 +589,9 @@ export function useMenuItemDetail(
  *  - Returns the newly created Category to the caller via onSuccess
  */
 export function useAddCategory(options?: {
-  onSuccess?: (category: Category) => void;
+  onSuccess?: (category: Category, apiMessage: string) => void;
   onError?:   (message: string) => void;
-}): UseMutationResult<Category, unknown, AddCategoryPayload> {
+}): UseMutationResult<Category & { apiMessage: string }, unknown, AddCategoryPayload> {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -541,7 +601,7 @@ export function useAddCategory(options?: {
       queryClient.invalidateQueries({
         queryKey: menuQueryKeys.categories(variables.serviceType),
       });
-      options?.onSuccess?.(category);
+      options?.onSuccess?.(category, category.apiMessage);
     },
     onError: (err: unknown) => {
       const msg = axios.isAxiosError(err)
@@ -575,6 +635,185 @@ export function useAddMenuItem(options?: {
       const msg = axios.isAxiosError(err)
         ? err.response?.data?.message ?? err.message
         : "Failed to save item";
+      options?.onError?.(msg);
+    },
+  });
+}
+
+// ─── Category List (full rows for Category tab — paginated) ──────
+
+export interface CategoryListPage {
+  message:    string;
+  pagination: {
+    current_page: number;
+    total_pages:  number;
+    total_count:  number;
+    limit:        number;
+  };
+  Data: CategoryRow[];
+}
+
+/**
+ * GET /restaurant/get/category/:zodu_id/:branch_id?type=S&type=M&page=N&limit=10
+ * type = comma-separated codes split into repeated query params, e.g. "S,M" → type=S&type=M
+ */
+async function fetchCategoryPage(
+  page:  number,
+  type:  string,
+  limit = 10
+): Promise<CategoryListPage> {
+  const { zoduId, branchId } = getTenantContext();
+  const types = type.split(",").map((t) => t.trim()).filter(Boolean);
+  const { data } = await axios.get<CategoryListPage>(
+    `${API_BASE}/restaurant/get/category/${zoduId}/${branchId}`,
+    { params: { type: types, page, limit } }
+  );
+  return data;
+}
+
+/**
+ * Infinite-scroll hook for the Category management tab.
+ * @param type  comma-separated type codes: "S,M" (menu) | "E" (expense)
+ */
+export function useInfiniteCategoryList(enabled = true, type = "S,M") {
+  const { zoduId, branchId } = useTenantContext();
+  return useInfiniteQuery({
+    queryKey:         ["menu", "categoryList", zoduId, branchId, type],
+    queryFn:          ({ pageParam = 1 }) => fetchCategoryPage(pageParam as number, type, 10),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const { current_page, total_pages } = lastPage.pagination;
+      return current_page < total_pages ? current_page + 1 : undefined;
+    },
+    enabled,
+    staleTime:            2 * 60 * 1000,
+    gcTime:               5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount:       false,
+    retry:                2,
+  });
+}
+
+// ─── Update Category ─────────────────────────────────────────
+
+export interface UpdateCategoryPayload {
+  id:   number;
+  name: string;
+  type: 'S' | 'M' | 'E';
+}
+
+async function patchUpdateCategory(
+  payload: UpdateCategoryPayload
+): Promise<{ message: string }> {
+  const { zoduId, branchId } = getTenantContext();
+  const { data } = await axios.put<{ message: string }>(
+    `${API_BASE}/restaurant/update/category/${payload.id}`,
+    {
+      zodu_id:   zoduId,
+      branch_id: branchId,
+      name:      payload.name.trim(),
+      type:      payload.type,
+    }
+  );
+  return data;
+}
+
+export function useUpdateCategory(options?: {
+  onSuccess?: (message: string) => void;
+  onError?:   (message: string) => void;
+}): UseMutationResult<{ message: string }, unknown, UpdateCategoryPayload> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: patchUpdateCategory,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["menu", "categoryList"] });
+      queryClient.invalidateQueries({ queryKey: ["menu", "categories"] });
+      options?.onSuccess?.(data.message ?? "Category updated successfully");
+    },
+    onError: (err: unknown) => {
+      const msg = axios.isAxiosError(err)
+        ? err.response?.data?.message ?? err.message
+        : "Failed to update category";
+      options?.onError?.(msg);
+    },
+  });
+}
+
+// ─── Toggle Category Status ───────────────────────────────────
+
+/**
+ * PUT /restaurant/inactivate/category/:id
+ * Toggles a category between active and inactive.
+ */
+async function putToggleCategoryStatus(payload: {
+  id:          number;
+  active:      boolean;
+  pageExpense: boolean;
+}): Promise<{ message: string }> {
+  const { zoduId, branchId } = getTenantContext();
+  const { data } = await axios.put<{ message: string }>(
+    `${API_BASE}/restaurant/inactivate/category/${payload.id}`,
+    { zodu_id: zoduId, branch_id: branchId, active: payload.active, page_expense: payload.pageExpense }
+  );
+  return data;
+}
+
+export function useToggleCategoryStatus(options?: {
+  onSuccess?: (id: number, message: string) => void;
+  onError?:   (message: string) => void;
+}): UseMutationResult<{ message: string }, unknown, { id: number; active: boolean; pageExpense: boolean }> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: putToggleCategoryStatus,
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["menu", "categoryList"] });
+      queryClient.invalidateQueries({ queryKey: ["menu", "categories"] });
+      options?.onSuccess?.(variables.id, data.message ?? "Status updated");
+    },
+    onError: (err: unknown) => {
+      const msg = axios.isAxiosError(err)
+        ? err.response?.data?.message ?? err.message
+        : "Failed to update status";
+      options?.onError?.(msg);
+    },
+  });
+}
+
+// ─── Delete Category ─────────────────────────────────────────
+
+/**
+ * DELETE /restaurant/delete/category/:id/:branch_id/:zodu_id/:page_expense
+ * page_expense: true when deleting from the Expense category tab, false otherwise
+ */
+async function deleteCategory(payload: { id: number; pageExpense: boolean }): Promise<{ success: boolean; message: string }> {
+  const { zoduId, branchId } = getTenantContext();
+  const { data } = await axios.delete<{ success: boolean; message: string }>(
+    `${API_BASE}/restaurant/delete/category/${payload.id}/${branchId}/${zoduId}/${payload.pageExpense}`
+  );
+  return data;
+}
+
+export function useDeleteCategory(options?: {
+  onSuccess?: (data: { success: boolean; message: string }) => void;
+  onError?:   (message: string) => void;
+}): UseMutationResult<{ success: boolean; message: string }, unknown, { id: number; pageExpense: boolean }> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteCategory,
+    onSuccess: (data) => {
+      // Refresh the category list in the tab
+      queryClient.invalidateQueries({ queryKey: ["menu", "categoryList"] });
+      // Also refresh dropdowns that use categories
+      queryClient.invalidateQueries({ queryKey: ["menu", "categories"] });
+      options?.onSuccess?.(data);
+    },
+    onError: (err: unknown) => {
+      const msg = axios.isAxiosError(err)
+        ? err.response?.data?.message ?? err.message
+        : "Failed to delete category";
       options?.onError?.(msg);
     },
   });

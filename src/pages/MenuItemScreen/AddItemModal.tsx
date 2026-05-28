@@ -18,10 +18,9 @@ import InventoryIcon        from '@mui/icons-material/Inventory2Outlined';
 import SearchIcon           from '@mui/icons-material/Search';
 import axiosInstance from '@store/services/axiosInstance';
 import { apiConfig } from '@config/api';
-import { addItemSchema, addCategorySchema } from './ItemValidation';
+import { addItemSchema } from './ItemValidation';
 import {
-  useCategories,
-  useAddCategory,
+  useInfiniteCategoryList,
   useAddMenuItem,
   useEditMenuItem,
   useGstList,
@@ -33,6 +32,7 @@ import {
   type GstOption,
   type UnitOption,
 } from './useMenuItemApi';
+import AddCategoryDialog from './AddCategoryDialog';
 
 interface AddItemModalProps {
   open:      boolean;
@@ -66,105 +66,6 @@ const Label: React.FC<{ text: string; required?: boolean }> = ({ text, required 
     {text}{required && <Box component="span" sx={{ color: 'primary.main', ml: 0.3 }}>*</Box>}
   </Typography>
 );
-
-// ─── Add Category dialog ──────────────────────────────────────
-interface AddCategoryDialogProps {
-  open:        boolean;
-  serviceType: 'product' | 'service';
-  onClose:     () => void;
-  onAdded:     (cat: Category) => void;
-}
-
-const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
-  open, serviceType, onClose, onAdded,
-}) => {
-  const [apiError, setApiError] = useState<string | null>(null);
-
-  const { mutate, isPending, reset } = useAddCategory({
-    onSuccess: (category) => {
-      onAdded(category);
-      f.resetForm();
-      setApiError(null);
-      onClose();
-    },
-    onError: (msg) => setApiError(msg),
-  });
-
-  const f = useFormik({
-    initialValues: { name: '', description: '' },
-    validationSchema: addCategorySchema,
-    onSubmit: (values) => {
-      setApiError(null);
-      mutate({ name: values.name, serviceType });
-    },
-  });
-
-  const handleClose = () => {
-    f.resetForm();
-    reset();
-    setApiError(null);
-    onClose();
-  };
-
-  return (
-    <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth
-      PaperProps={{ sx: { borderRadius: 1.5, boxShadow: '0 24px 60px rgba(0,0,0,0.2)' } }}>
-      <DialogTitle sx={{ p: 0 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 3, py: 2.5, borderBottom: '1px solid', borderColor: 'divider' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Box sx={{ width: 38, height: 38, borderRadius: '50%', bgcolor: 'rgba(210,18,46,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <AddCircleIcon sx={{ color: 'primary.main', fontSize: 20 }} />
-            </Box>
-            <Box>
-              <Typography fontWeight={800} lineHeight={1.2} fontSize={16}>Add New Category</Typography>
-              <Typography variant="caption" color="text.secondary">Create a custom product category</Typography>
-            </Box>
-          </Box>
-          <IconButton size="small" onClick={handleClose} sx={{ color: 'text.disabled', borderRadius: 1.5 }}>
-            <CloseIcon fontSize="small" />
-          </IconButton>
-        </Box>
-      </DialogTitle>
-
-      <DialogContent sx={{ px: 3, py: 3 }}>
-        {apiError && (
-          <Box sx={{ mb: 2, p: 1.5, bgcolor: 'error.light', borderRadius: 1 }}>
-            <Typography variant="caption" color="error.contrastText">{apiError}</Typography>
-          </Box>
-        )}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-          <Box>
-            <Label text="Category Name" required />
-            <TextField fullWidth size="small" placeholder="e.g. Winterwear" autoFocus
-              {...f.getFieldProps('name')}
-              error={f.touched.name && Boolean(f.errors.name)}
-              helperText={f.touched.name && f.errors.name}
-              InputProps={{ sx: { borderRadius: 1, fontSize: 14 } }} />
-          </Box>
-          <Box>
-            <Label text="Description" />
-            <TextField fullWidth size="small" multiline rows={2} placeholder="Describe this category..."
-              {...f.getFieldProps('description')}
-              InputProps={{ sx: { borderRadius: 1, fontSize: 14 } }} />
-          </Box>
-        </Box>
-      </DialogContent>
-
-      <DialogActions sx={{ px: 3, py: 2.5, borderTop: '1px solid', borderColor: 'divider', gap: 1.5 }}>
-        <Button onClick={handleClose} variant="outlined" disabled={isPending}
-          sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600, px: 3, borderColor: 'divider', color: 'text.secondary' }}>
-          Cancel
-        </Button>
-        <Button onClick={() => f.submitForm()} variant="contained"
-          disabled={isPending}
-          startIcon={isPending ? <CircularProgress size={15} color="inherit" /> : <AddCircleIcon />}
-          sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 700, px: 3, boxShadow: '0 4px 12px rgba(210,18,46,0.25)' }}>
-          {isPending ? 'Saving…' : 'Add Category'}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-};
 
 // ─── Main AddItemModal ────────────────────────────────────────
 const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, editItem }) => {
@@ -244,7 +145,30 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
     },
   });
 
-  const { data: categories = [], isLoading: categoriesLoading } = useCategories(formik.values.serviceType);
+  const catType = 'S,M';
+  const catIsFetchingRef = React.useRef(false);
+  const {
+    data:                catPages,
+    isLoading:           categoriesLoading,
+    hasNextPage:         catHasNextPage,
+    isFetchingNextPage:  catIsFetchingNextPage,
+    fetchNextPage:       catFetchNextPage,
+  } = useInfiniteCategoryList(open, catType);
+
+  const categories: Category[] = catPages?.pages.flatMap((p) =>
+    p.Data.map((c) => ({ value: String(c.id), label: c.name }))
+  ) ?? [];
+
+  const handleCatScroll = (e: React.UIEvent<HTMLElement>) => {
+    const el = e.currentTarget;
+    if (
+      el.scrollTop + el.clientHeight >= el.scrollHeight - 40 &&
+      catHasNextPage && !catIsFetchingNextPage && !catIsFetchingRef.current
+    ) {
+      catIsFetchingRef.current = true;
+      catFetchNextPage().finally(() => { catIsFetchingRef.current = false; });
+    }
+  };
   const { data: gstOptions  = [], isLoading: gstLoading  }      = useGstList();
   const { data: unitOptions = [], isLoading: unitsLoading }      = useUnitList();
 
@@ -537,7 +461,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                         );
                         return categories.find(c => c.value === selected)?.label ?? selected;
                       }}
-                      MenuProps={{ PaperProps: { sx: { maxHeight: 340 } } }}
+                      MenuProps={{ PaperProps: { sx: { maxHeight: 340 }, onScroll: handleCatScroll } }}
                       sx={inputSx}
                       startAdornment={categoriesLoading
                         ? <InputAdornment position="start"><CircularProgress size={14} /></InputAdornment>
@@ -556,6 +480,9 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                       {filteredCategories.map(c => (
                         <MenuItem key={c.value} value={c.value} sx={{ fontSize: 14 }}>{c.label}</MenuItem>
                       ))}
+                      {catIsFetchingNextPage && (
+                        <MenuItem disabled sx={{ fontSize: 12, color: 'text.disabled', justifyContent: 'center' }}>Loading...</MenuItem>
+                      )}
                     </Select>
                     {touch.category && err.category && (
                       <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>{err.category}</Typography>

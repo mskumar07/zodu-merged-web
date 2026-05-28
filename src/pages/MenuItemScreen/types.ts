@@ -1,6 +1,6 @@
 export type ItemType = 'Sellable Product' | 'Raw Material';
 export type TaxInclusion = 'Incl.' | 'Excl.';
-export type TabValue = 'all' | 'sellable' | 'raw';
+export type TabValue = 'all' | 'category' | 'sellable' | 'raw';
 
 export interface Product {
   id: string;

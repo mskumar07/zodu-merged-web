@@ -5,10 +5,10 @@ import {
   Box, TextField, Button, InputAdornment, Alert,
   Dialog, DialogTitle, DialogContent, Typography, DialogActions,
   FormControl, Select, MenuItem, Checkbox, ListItemText, OutlinedInput,
-  Chip,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
+import FilterListOffIcon from '@mui/icons-material/FilterListOff';
 import {
   QueryClient, QueryClientProvider, useQueryClient, type InfiniteData,
 } from '@tanstack/react-query';
@@ -16,11 +16,12 @@ import {
 import ProductTabs from './components_ProductTabs';
 import ProductTable from './components_ProductTable';
 import AddItemModal from './AddItemModal';
+import CategoryTab from './CategoryTab';
 
 import {
   useInfiniteMenuItems,
   useMenuItemDetail,
-  useCategories,
+  useInfiniteCategories,
   type MenuItem as MenuItemData,
   type MenuItemListParams,
   type MenuItemListResponse,
@@ -39,7 +40,7 @@ export default function MenuItemScreenRoot() {
   );
 }
 
-type TabValue = 'all' | 'sellable' | 'raw';
+type TabValue = 'all' | 'category' | 'sellable' | 'raw';
 
 function toProduct(item: MenuItemData) {
   return {
@@ -77,6 +78,7 @@ function MenuItemScreen() {
   const sentinelRef = useRef<HTMLTableRowElement>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFetchingRef = useRef(false);
+  const catIsFetchingRef = useRef(false);
 
   const handleSearchChange = (val: string) => {
     setSearchInput(val);
@@ -84,7 +86,32 @@ function MenuItemScreen() {
     debounceRef.current = setTimeout(() => setSearchQuery(val), 400);
   };
 
-  const { data: categories = [] } = useCategories('product');
+  const hasActiveFilters = searchInput !== '' || selectedCategories.length > 0;
+
+  const handleResetFilters = () => {
+    setSearchInput('');
+    setSearchQuery('');
+    setSelectedCategories([]);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+  };
+
+  const {
+    data: catPages,
+    hasNextPage: catHasNextPage,
+    isFetchingNextPage: catIsFetchingNextPage,
+    fetchNextPage: catFetchNextPage,
+  } = useInfiniteCategories('product');
+
+  const categories = catPages?.pages.flatMap((p) => p.categories) ?? [];
+
+  const handleCatMenuScroll = (e: React.UIEvent<HTMLElement>) => {
+    const el = e.currentTarget;
+    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 40;
+    if (nearBottom && catHasNextPage && !catIsFetchingNextPage && !catIsFetchingRef.current) {
+      catIsFetchingRef.current = true;
+      catFetchNextPage().finally(() => { catIsFetchingRef.current = false; });
+    }
+  };
 
   const queryParams = useMemo<Omit<MenuItemListParams, 'page'>>(() => ({
     search:        searchQuery || undefined,
@@ -195,97 +222,134 @@ function MenuItemScreen() {
   const activeEditItem = freshEditItem ?? editItem;
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column',p:2 }}>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 2 }}>
       <ProductTabs value={activeTab} onChange={setActiveTab} />
 
-      <Box sx={{ display: 'flex', gap: 1.5, mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-        <TextField
-          size="small"
-          placeholder="Search..."
-          sx={{ flex: 1, minWidth: 200, bgcolor: '#fff' }}
-          value={searchInput}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
-              </InputAdornment>
-            ),
-            sx: { borderRadius: 0.5, fontSize: 13 },
-          }}
-        />
+      {/* ── Category Tab ── */}
+      {activeTab === 'category' && (
+        <Box sx={{ flex: 1, overflow: 'hidden' }}>
+          <CategoryTab />
+        </Box>
+      )}
 
-        {/* Category multi-select */}
-        <FormControl size="small" sx={{ minWidth: 220 }}>
-          <Select
-            multiple
-            displayEmpty
-            value={selectedCategories}
-            onChange={(e) => setSelectedCategories(e.target.value as number[])}
-            input={<OutlinedInput sx={{ borderRadius: 0.5, fontSize: 13, bgcolor: '#fff' }} />}
-            renderValue={(selected) => {
-              if (!selected.length) return <Box component="span" sx={{ color: 'text.disabled', fontSize: 13 }}>All Categories</Box>;
-              return (
-                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                  {(selected as number[]).map((id) => {
-                    const cat = categories.find(c => Number(c.value) === id);
-                    return <Chip key={id} label={cat?.label ?? id} size="small" sx={{ height: 20, fontSize: 11 }} />;
-                  })}
-                </Box>
-              );
-            }}
-            MenuProps={{ PaperProps: { sx: { maxHeight: 300 } } }}
-          >
-            {categories.map((cat) => (
-              <MenuItem key={cat.value} value={Number(cat.value)} sx={{ fontSize: 13 }}>
-                <Checkbox checked={selectedCategories.includes(Number(cat.value))} size="small" sx={{ py: 0 }} />
-                <ListItemText primary={cat.label} primaryTypographyProps={{ fontSize: 13 }} />
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+      {/* ── Menu Item / Sellable / Raw Tabs ── */}
+      {activeTab !== 'category' && (
+        <>
+          <Box sx={{ display: 'flex', gap: 1.5, mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+            <TextField
+              size="small"
+              placeholder="Search..."
+              sx={{ flex: 1, minWidth: 200, bgcolor: '#fff' }}
+              value={searchInput}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
+                  </InputAdornment>
+                ),
+                sx: { borderRadius: 0.5, fontSize: 13 },
+              }}
+            />
 
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setModalOpen(true)}
-          sx={{ borderRadius: 0.5, fontWeight: 700, px: 2.5, height: 40, textTransform: 'none', fontSize: 13, whiteSpace: 'nowrap', boxShadow: '0 4px 14px rgba(210,18,46,0.25)' }}>
-          Add Item
-        </Button>
-      </Box>
+            {/* Category multi-select */}
+            <FormControl size="small" sx={{ minWidth: 220 }}>
+              <Select
+                multiple
+                displayEmpty
+                value={selectedCategories}
+                onChange={(e) => setSelectedCategories(e.target.value as number[])}
+                input={<OutlinedInput sx={{ borderRadius: 0.5, fontSize: 13, bgcolor: '#fff' }} />}
+                renderValue={(selected) => {
+                  if (!(selected as number[]).length)
+                    return <Box component="span" sx={{ color: 'text.disabled', fontSize: 13 }}>All Categories</Box>;
+                  return (
+                    <Box component="span" sx={{ fontSize: 13, color: 'text.primary', fontWeight: 600 }}>
+                      {(selected as number[]).length} {(selected as number[]).length === 1 ? 'Category' : 'Categories'}
+                    </Box>
+                  );
+                }}
+                MenuProps={{
+                  PaperProps: {
+                    sx: { maxHeight: 300 },
+                    onScroll: handleCatMenuScroll,
+                  },
+                }}
+              >
+                {categories.map((cat) => (
+                  <MenuItem key={cat.value} value={Number(cat.value)} sx={{ fontSize: 13 }}>
+                    <Checkbox checked={selectedCategories.includes(Number(cat.value))} size="small" sx={{ py: 0 }} />
+                    <ListItemText primary={cat.label} primaryTypographyProps={{ fontSize: 13 }} />
+                  </MenuItem>
+                ))}
+                {catIsFetchingNextPage && (
+                  <MenuItem disabled sx={{ fontSize: 12, color: 'text.disabled', justifyContent: 'center' }}>
+                    Loading...
+                  </MenuItem>
+                )}
+              </Select>
+            </FormControl>
 
-      {isLoading && <Alert>Loading...</Alert>}
+            {/* Reset Filters */}
+            {hasActiveFilters && (
+              <Box
+                onClick={handleResetFilters}
+                title="Reset Filters"
+                sx={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 36, height: 36, borderRadius: 1, cursor: 'pointer',
+                  bgcolor: '#F97316', color: '#fff',
+                  '&:hover': { bgcolor: '#ea6c0a' },
+                  flexShrink: 0,
+                }}
+              >
+                <FilterListOffIcon sx={{ fontSize: 20 }} />
+              </Box>
+            )}
 
-      <Box sx={{ flex: 1, overflow: 'hidden' }}>
-        <ProductTable
-          products={products}
-          onEdit={(p) => handleEditClick((p as any)._raw)}
-          onDelete={(p) => openDeleteDialog((p as any).item_uuid)}
-          onToggleStatus={(p, newStatus) => updateStatus({ item_uuid: p.item_uuid, status: newStatus })}
-          hasNextPage={hasNextPage}
-          isFetchingNextPage={isFetchingNextPage}
-          loadMoreRef={sentinelRef}
-          tableContainerRef={tableContainerRef}
-        />
-      </Box>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setModalOpen(true)}
+              sx={{ borderRadius: 0.5, fontWeight: 700, px: 2.5, height: 40, textTransform: 'none', fontSize: 13, whiteSpace: 'nowrap', boxShadow: '0 4px 14px rgba(210,18,46,0.25)' }}>
+              Add Item
+            </Button>
+          </Box>
 
-      {/* 🔥 DELETE DIALOG */}
-      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)}>
-        <DialogTitle>Delete Item</DialogTitle>
-        <DialogContent>
-          <Typography>Are you sure you want to delete this item?</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
-          <Button color="error" variant="contained" onClick={confirmDelete}>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+          {isLoading && <Alert>Loading...</Alert>}
 
-      <AddItemModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onSave={handleSave}
-        editItem={modalOpen ? activeEditItem : null}
-      />
+          <Box sx={{ flex: 1, overflow: 'hidden' }}>
+            <ProductTable
+              products={products}
+              onEdit={(p) => handleEditClick((p as any)._raw)}
+              onDelete={(p) => openDeleteDialog((p as any).item_uuid)}
+              onToggleStatus={(p, newStatus) => updateStatus({ item_uuid: p.item_uuid, status: newStatus })}
+              hasNextPage={hasNextPage}
+              isFetchingNextPage={isFetchingNextPage}
+              loadMoreRef={sentinelRef}
+              tableContainerRef={tableContainerRef}
+            />
+          </Box>
+
+          {/* 🔥 DELETE DIALOG */}
+          <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)}>
+            <DialogTitle>Delete Item</DialogTitle>
+            <DialogContent>
+              <Typography>Are you sure you want to delete this item?</Typography>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
+              <Button color="error" variant="contained" onClick={confirmDelete}>
+                Delete
+              </Button>
+            </DialogActions>
+          </Dialog>
+
+          <AddItemModal
+            open={modalOpen}
+            onClose={() => setModalOpen(false)}
+            onSave={handleSave}
+            editItem={modalOpen ? activeEditItem : null}
+          />
+        </>
+      )}
     </Box>
   );
 }

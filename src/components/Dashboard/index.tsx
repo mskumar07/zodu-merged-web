@@ -254,11 +254,20 @@ function SummaryCard({ label, value, icon, loading, iconBg, iconColor }: {
   label: string; value?: string; icon: React.ReactNode; loading: boolean;
   iconBg?: string; iconColor?: string;
 }) {
+  // Estimate char-based min width: icon(36) + gap(12) + padding(32) + ~8px/char for value
+  const valueLen  = value?.length ?? 6;
+  const labelLen  = label.length;
+  // value chars × ~9px, label chars × ~7px — pick the wider, clamp between 150 and 260
+  const computed  = Math.max(valueLen * 9, labelLen * 7) + 80;
+  const minW      = Math.min(Math.max(computed, 150), 260);
+
   return (
     <Box sx={{
       ...card, px: 2, py: 1.5,
       display: "flex", alignItems: "center", gap: 1.5,
-      minWidth: 160, flex: "1 1 160px", maxWidth: 220,
+      minWidth: minW,
+      flex: `1 1 ${minW}px`,
+      width: "fit-content",
     }}>
       <Box sx={{
         width: 36, height: 36, borderRadius: "8px",
@@ -274,9 +283,13 @@ function SummaryCard({ label, value, icon, loading, iconBg, iconColor }: {
         </Typography>
         {loading
           ? <Skeleton width={80} height={24} sx={{ borderRadius: 1, mt: 0.5 }} />
-          : <Typography sx={{ fontSize: "1.05rem", fontWeight: 800, color: "#0F172A", lineHeight: 1.3, wordBreak: "break-all" }}>
-              {value}
-            </Typography>
+          : value != null && value !== ""
+            ? <Typography sx={{ fontSize: "1.05rem", fontWeight: 800, color: "#0F172A", lineHeight: 1.3, whiteSpace: "nowrap" }}>
+                {value}
+              </Typography>
+            : <Typography sx={{ fontSize: "1.2rem", fontWeight: 700, color: "#CBD5E1", lineHeight: 1.3, letterSpacing: "0.05em" }}>
+                —
+              </Typography>
         }
       </Box>
     </Box>
@@ -389,7 +402,7 @@ const reminderCols: ColDef<ReminderRow>[] = [
   { key: "name", label: "Name",
     render: r => <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{r.party_name ?? r.vendor_name ?? "—"}</Typography> },
   { key: "total", label: "Total", align: "right",
-    render: r => <Typography sx={{ fontSize: 13, color: "#475569" }}>{fmt(+r.total_amount)}</Typography> },
+    render: r => <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#1976d2" }}>{fmt(+r.total_amount)}</Typography> },
   { key: "due_amt", label: "Due Amt", align: "right",
     render: r => (
       <Typography sx={{ fontSize: 13, fontWeight: 700, color: RED }}>{fmt(+r.balance_amount)}</Typography>
@@ -414,7 +427,7 @@ const topItemCols: ColDef<TopItem>[] = [
   { key: "sold", label: "Sold", align: "center",
     render: r => <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{Math.round(+r.total_sold)}</Typography> },
   { key: "rev",  label: "Revenue", align: "right",
-    render: r => <Typography sx={{ fontSize: 13, fontWeight: 700, color: RED }}>{fmt(+r.total_revenue)}</Typography> },
+    render: r => <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#1976d2" }}>{fmt(+r.total_revenue)}</Typography> },
 ];
 
 // Inventory Alerts
@@ -471,7 +484,7 @@ const salesCols: ColDef<SaleRow>[] = [
   { key: "customer", label: "Customer",
     render: r => <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{r.customer_name}</Typography> },
   { key: "amount",   label: "Amount", align: "right",
-    render: r => <Typography sx={{ fontSize: 13, fontWeight: 700, color: RED }}>{fmt(+r.total_amount)}</Typography> },
+    render: r => <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#1976d2" }}>{fmt(+r.total_amount)}</Typography> },
   { key: "status",   label: "Status", align: "center",
     render: r => paymentStatusBadge(r.payment_status) },
 ];
@@ -531,9 +544,8 @@ console.log(stats)
         }}>
 
           {/* ── Summary Cards ── */}
-          <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
+          <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", alignItems: "stretch" }}>
             {summaryCards.map(c => (
-
               <SummaryCard key={c.label} loading={statsQuery.isLoading} {...c} />
             ))}
           </Box>

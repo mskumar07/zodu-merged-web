@@ -60,6 +60,7 @@ export interface PurchasePayload {
   attachment_url?: Array<{ id: string; url: string; filename: string; size: number; mimetype: string }> | null;
   transaction_type?: string;
   transaction_id?: string | null;
+  payment_date?: string | null;
   items: PurchaseItemPayload[];
 }
 
