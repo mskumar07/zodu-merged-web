@@ -7,6 +7,7 @@ type PersistedUserState = {
   zoduId?: string;
   branchId?: string;
   accessToken?: string | null;
+  businessType?: string;
 };
 
 function readPersistedUserState(): PersistedUserState | null {
@@ -25,7 +26,8 @@ export function useTenantContext() {
     zoduId:   state.user.zoduId,
     branchId: state.user.branchId,
     profile:  state.user.profile,
-    company:  state.user.company,
+    company: state.user.company,
+    businessType: state.user.businessType,
   }));
 }
 
@@ -33,15 +35,12 @@ export function getTenantContext() {
   const state = store.getState().user;
   const persistedState = readPersistedUserState();
 
-
+  const businessType = state.businessType || persistedState?.businessType || "";
 
   return {
-    zoduId:
-      state.zoduId ||
-      persistedState?.zoduId,
-    branchId:
-      state.branchId ||
-      persistedState?.branchId ,
+    zoduId: state.zoduId || persistedState?.zoduId,
+    branchId: state.branchId || persistedState?.branchId,
+    businessType,
     profile: state.profile,
     company: state.company,
   };

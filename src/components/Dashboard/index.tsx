@@ -452,7 +452,7 @@ const alertCols: ColDef<AlertItem>[] = [
 
 // ── Main Dashboard ────────────────────────────────────────────
 export default function DashboardLayout() {
-  const { branchId, zoduId } = useTenantContext();
+  const { branchId, zoduId, businessType } = useTenantContext();
   const statsQuery   = useStats(zoduId, branchId);
   const salesQuery   = useSales(zoduId, branchId);
   const topQuery     = useTopItems(zoduId, branchId);
@@ -489,7 +489,7 @@ const salesCols: ColDef<SaleRow>[] = [
     render: r => paymentStatusBadge(r.payment_status) },
 ];
 
-console.log(stats)
+console.log("Business Type in Dashboard:", businessType);
 
   const summaryCards = [
     {

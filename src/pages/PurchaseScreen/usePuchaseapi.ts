@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { getTenantContext } from "@store/tenantContext";
+import { getTenantContext, getAccessToken } from "@store/tenantContext";
 
 /* =========================================================
    🔹 AXIOS INSTANCE
@@ -9,10 +9,18 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 export const getZoduId = () => getTenantContext().zoduId;
 export const getBranchId = () => getTenantContext().branchId;
 
-const api = axios.create({
-  baseURL: `${API_BASE}/retail/api`,
-  headers: { "Content-Type": "application/json" },
-});
+function getApi() {
+  const { businessType } = getTenantContext();
+  const route = businessType === "Restaurant" ? "restaurant" : "retail";
+  const token = getAccessToken();
+  return axios.create({
+    baseURL: `${API_BASE}/${route}/api`,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+}
 
 /* =========================================================
    🔹 TYPES
@@ -157,23 +165,24 @@ export interface PurchaseDetail extends PurchaseRow {
    🔹 VENDOR APIs
 ========================================================= */
 
-export const useVendors = (type?: "Expense" | "Purchase") =>
-  useQuery({
-    queryKey: ["vendors", getZoduId(), getBranchId(), type],
+export const useVendors = (type?: "Expense" | "Purchase") => {
+  const { zoduId, branchId, businessType } = getTenantContext();
+  return useQuery({
+    queryKey: ["vendors", zoduId, branchId, businessType, type],
     queryFn: async () => {
-      const { zoduId, branchId } = getTenantContext();
-      const res = await api.get("/vendor", {
+      const res = await getApi().get("/vendor", {
         params: { zodu_id: zoduId, branch_id: branchId, ...(type ? { type } : {}) },
       });
       return (res.data?.data ?? res.data?.Data ?? res.data ?? []) as Vendor[];
     },
   });
+};
 
 export const useVendorById = (vendor_id: string) =>
   useQuery({
     queryKey: ["vendor", vendor_id],
     queryFn: async () => {
-      const res = await api.get(`/vendor/${vendor_id}`);
+      const res = await getApi().get(`/vendor/${vendor_id}`);
       return res.data as Vendor;
     },
     enabled: !!vendor_id,
@@ -183,7 +192,7 @@ export const useCreateVendor = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: Partial<Vendor>) => {
-      const res = await api.post("/vendor", data);
+      const res = await getApi().post("/vendor", data);
       return res.data;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["vendors"] }),
@@ -194,7 +203,7 @@ export const useUpdateVendor = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Vendor> }) => {
-      const res = await api.put(`/vendor/${id}`, data);
+      const res = await getApi().put(`/vendor/${id}`, data);
       return res.data;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["vendors"] }),
@@ -205,7 +214,7 @@ export const useDeleteVendor = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await api.delete(`/vendor/${id}`);
+      const res = await getApi().delete(`/vendor/${id}`);
       return res.data;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["vendors"] }),
@@ -216,23 +225,24 @@ export const useDeleteVendor = () => {
    🔹 PURCHASE APIs
 ========================================================= */
 
-export const usePurchaseSummary = () =>
-  useQuery({
-    queryKey: ["purchase-summary", getZoduId(), getBranchId()],
+export const usePurchaseSummary = () => {
+  const { zoduId, branchId, businessType } = getTenantContext();
+  return useQuery({
+    queryKey: ["purchase-summary", zoduId, branchId, businessType],
     queryFn: async () => {
-      const { zoduId, branchId } = getTenantContext();
-      const res = await api.get("/purchase/summary", {
+      const res = await getApi().get("/purchase/summary", {
         params: { zodu_id: zoduId, branch_id: branchId },
       });
       return (res.data?.data ?? res.data) as PurchaseStatsData;
     },
   });
+};
 
 export const useCreatePurchase = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: PurchasePayload) => {
-      const res = await api.post("/purchase", data);
+      const res = await getApi().post("/purchase", data);
       if (!res.data?.success) {
         throw new Error(res.data?.message ?? "Failed to create purchase");
       }
@@ -245,36 +255,38 @@ export const useCreatePurchase = () => {
   });
 };
 
-export const usePurchases = (params: Record<string, string> = {}) =>
-  useQuery({
-    queryKey: ["purchases", getZoduId(), getBranchId(), params],
+export const usePurchases = (params: Record<string, string> = {}) => {
+  const { zoduId, branchId, businessType } = getTenantContext();
+  return useQuery({
+    queryKey: ["purchases", zoduId, branchId, businessType, params],
     queryFn: async () => {
-      const { zoduId, branchId } = getTenantContext();
-      const res = await api.get("/purchase", {
+      const res = await getApi().get("/purchase", {
         params: { zodu_id: zoduId, branch_id: branchId, ...params },
       });
       return (res.data?.data ?? res.data ?? []) as PurchaseRow[];
     },
   });
+};
 
-export const usePurchaseById = (id: string) =>
-  useQuery({
-    queryKey: ["purchase", id, getZoduId(), getBranchId()],
+export const usePurchaseById = (id: string) => {
+  const { zoduId, branchId, businessType } = getTenantContext();
+  return useQuery({
+    queryKey: ["purchase", id, zoduId, branchId, businessType],
     queryFn: async () => {
-      const { zoduId, branchId } = getTenantContext();
-      const res = await api.get(`/purchase/${id}`, {
+      const res = await getApi().get(`/purchase/${id}`, {
         params: { zodu_id: zoduId, branch_id: branchId },
       });
       return (res.data?.data ?? res.data) as PurchaseDetail;
     },
     enabled: !!id,
   });
+};
 
 export const useUpdatePurchase = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: PurchasePayload }) => {
-      const res = await api.put(`/purchase/${id}`, data);
+      const res = await getApi().put(`/purchase/${id}`, data);
       if (!res.data?.success) {
         throw new Error(res.data?.message ?? "Failed to update purchase");
       }
@@ -292,7 +304,7 @@ export const useDeletePurchase = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await api.delete(`/purchase/${id}`);
+      const res = await getApi().delete(`/purchase/${id}`);
       if (!res.data?.success) {
         throw new Error(res.data?.message ?? "Failed to delete purchase");
       }
@@ -315,7 +327,7 @@ export const useMarkPayment = () => {
       purchase_id: string;
       data: MarkPaymentPayload;
     }) => {
-      const res = await api.post(`/purchase/payment/${purchase_id}`, data);
+      const res = await getApi().post(`/purchase/payment/${purchase_id}`, data);
       if (!res.data?.success) {
         throw new Error(res.data?.message ?? "Failed to mark payment");
       }

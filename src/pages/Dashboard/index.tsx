@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import DashboardLayout from "@components/Dashboard";
+import { getTenantContext } from "@store/tenantContext";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,6 +40,7 @@ const theme = createTheme({
 });
 
 const Dashboard: React.FC = () => {
+ 
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider theme={theme}>

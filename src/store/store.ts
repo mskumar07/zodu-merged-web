@@ -19,14 +19,20 @@ function loadUserState() {
       return undefined;
     }
 
+    const zoduId = parsedState?.zoduId ?? profile.zodu_id ?? "";
+    // If businessType was not saved (old sessions), derive it from the stored companies array
+    const storedBusinessType = parsedState?.businessType ?? "";
+    const derivedBusinessType = storedBusinessType ||
+      ((parsedState?.companies ?? []).find((c: any) => c.zodu_id === zoduId)?.business_type ?? "");
+
     return {
       ...parsedState,
       accessToken,
       refreshToken,
       profile,
-      zoduId: parsedState?.zoduId ?? profile.zodu_id ?? "",
+      zoduId,
       branchId: parsedState?.branchId ?? profile.branch_id ?? "",
-      businessType: parsedState?.businessType ?? "",
+      businessType: derivedBusinessType,
       isAuthenticated: true,
     };
   } catch {

@@ -1,6 +1,7 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { getTenantContext } from "@store/tenantContext";
+import { getAccessToken } from "@store/tenantContext";
 
 export interface ExpenseCatalogItem {
   id: number;
@@ -14,10 +15,19 @@ export interface ExpenseCatalogItem {
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 
-const api = axios.create({
-  baseURL: `${API_BASE}/retail/api`,
-  headers: { "Content-Type": "application/json" },
-});
+function getApi() {
+  const { businessType } = getTenantContext();
+  console.log("Creating API instance for business type:", businessType);
+  const route = businessType === "Restaurant" ? "restaurant" : "retail";
+  const token = getAccessToken();
+  return axios.create({
+    baseURL: `${API_BASE}/${route}/api`,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+}
 
 export interface ExpenseRow {
   id: number;
@@ -61,11 +71,12 @@ export interface ExpenseSummary {
 }
 
 export const useExpenseSummary = () => {
-  const { zoduId, branchId } = getTenantContext();
+  const { zoduId, branchId, businessType } = getTenantContext();
+  console.log("Fetching expense summary for business type:", businessType);
   return useQuery({
-    queryKey: ["expense", "summary", zoduId, branchId],
+    queryKey: ["expense", "summary", zoduId, branchId, businessType],
     queryFn: async () => {
-      const res = await api.get("/expense/summary", {
+      const res = await getApi().get("/expense/summary", {
         params: { zodu_id: zoduId, branch_id: branchId },
       });
       return res.data?.data as ExpenseSummary;
@@ -75,11 +86,11 @@ export const useExpenseSummary = () => {
 };
 
 export const useExpenseCatalog = (categoryId: string) => {
-  const { zoduId, branchId } = getTenantContext();
+  const { zoduId, branchId, businessType } = getTenantContext();
   return useQuery({
-    queryKey: ["expense", "catalog", zoduId, branchId, categoryId],
+    queryKey: ["expense", "catalog", zoduId, branchId, businessType, categoryId],
     queryFn: async () => {
-      const res = await api.get("/expense/catalog", {
+      const res = await getApi().get("/expense/catalog", {
         params: {
           zodu_id: zoduId,
           branch_id: branchId,
@@ -152,7 +163,7 @@ export const useExpenseDetail = (expenseId: string | null) =>
   useQuery({
     queryKey: ["expense", "detail", expenseId],
     queryFn: async () => {
-      const res = await api.get(`/expense/${expenseId}`);
+      const res = await getApi().get(`/expense/${expenseId}`);
       return res.data?.data as ExpenseDetail;
     },
     enabled: !!expenseId,
@@ -164,12 +175,12 @@ export const useExpenses = (params: {
   limit?: number;
   search?: string;
   payment_status?: string;
-}) =>
-  useQuery({
-    queryKey: ["expenses", getTenantContext().zoduId, getTenantContext().branchId, params],
+}) => {
+  const { zoduId, branchId, businessType } = getTenantContext();
+  return useQuery({
+    queryKey: ["expenses", zoduId, branchId, businessType, params],
     queryFn: async () => {
-      const { zoduId, branchId } = getTenantContext();
-      const res = await api.get("/expense", {
+      const res = await getApi().get("/expense", {
         params: {
           zodu_id: zoduId,
           branch_id: branchId,
@@ -189,6 +200,7 @@ export const useExpenses = (params: {
       } as ExpenseListResponse;
     },
   });
+};
 
 export const useMarkExpensePayment = () => {
   const qc = useQueryClient();
@@ -207,7 +219,7 @@ export const useMarkExpensePayment = () => {
         transaction_id: string | null;
       };
     }) => {
-      const res = await api.post(`/expense/payment/${expense_id}`, data);
+      const res = await getApi().post(`/expense/payment/${expense_id}`, data);
       if (!res.data?.success) throw new Error(res.data?.message ?? "Failed to record payment");
       return res.data;
     },
@@ -225,7 +237,7 @@ export const useDeleteExpense = (options?: {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (expenseId: string) => {
-      const res = await api.delete(`/expense/${expenseId}`);
+      const res = await getApi().delete(`/expense/${expenseId}`);
       return res.data;
     },
     onSuccess: () => {
@@ -246,13 +258,14 @@ export const useInfiniteExpenses = (params: {
   limit?: number;
   search?: string;
   payment_status?: string;
-}) =>
-  useInfiniteQuery({
-    queryKey: ["expenses-infinite", getTenantContext().zoduId, getTenantContext().branchId, params],
+}) => {
+  const { zoduId, branchId, businessType } = getTenantContext();
+  return useInfiniteQuery({
+    queryKey: ["expenses-infinite", zoduId, branchId, businessType, params],
+    enabled: !!zoduId && !!branchId,
     initialPageParam: 1,
     queryFn: async ({ pageParam }) => {
-      const { zoduId, branchId } = getTenantContext();
-      const res = await api.get("/expense", {
+      const res = await getApi().get("/expense", {
         params: {
           zodu_id: zoduId,
           branch_id: branchId,
@@ -272,3 +285,4 @@ export const useInfiniteExpenses = (params: {
     getNextPageParam: (lastPage) =>
       lastPage.currentPage < lastPage.totalPages ? lastPage.currentPage + 1 : undefined,
   });
+};

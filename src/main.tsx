@@ -16,8 +16,18 @@ import { ToastContainer } from "react-toastify";
 import muiTheme from "./theme/theme";
 import "./index.css";
 
-// ✅ Create QueryClient ONCE (outside component)
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 0,
+      gcTime: 0,
+      retry: 1,
+    },
+  },
+});
+
+// expose for debugging
+(window as any).__queryClient = queryClient;
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

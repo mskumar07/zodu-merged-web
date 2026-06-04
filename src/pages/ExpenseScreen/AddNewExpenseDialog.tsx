@@ -34,9 +34,28 @@ import {
 import AddVendorModal from "@pages/Vendor/AddVendorDialog";
 import axios from "axios";
 import SuccessToast from "@components/Common/SuccessToast";
-import { getTenantContext } from "@store/tenantContext";
+import { getTenantContext, getAccessToken } from "@store/tenantContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
+
+function getApi() {
+  const { businessType } = getTenantContext();
+  const route = businessType === "Restaurant" ? "restaurant" : "retail";
+  const token = getAccessToken();
+  return axios.create({
+    baseURL: `${API_BASE}/${route}/api`,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+}
+
+function getUploadUrl() {
+  const { businessType } = getTenantContext();
+  const route = businessType === "Restaurant" ? "restaurant" : "retail";
+  return `${API_BASE}/${route}/upload/multiple`;
+}
 
 // ─── Theme ────────────────────────────────────────────────────
 const theme = createTheme({
@@ -516,7 +535,8 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
     try {
       const formData = new FormData();
       entries.forEach(e => formData.append("files", e.file));
-      const res = await axios.post(`${API_BASE}/retail/upload/multiple`, formData, { headers: { "Content-Type": "multipart/form-data" } });
+      const token = getAccessToken();
+      const res = await axios.post(getUploadUrl(), formData, { headers: { "Content-Type": "multipart/form-data", ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
       const uploaded: { id: string; url: string; filename: string; size: number; mimetype: string }[] = res.data.files || [];
       setAttachments(prev => prev.map(a => {
         const idx = ids.indexOf(a.id);
@@ -587,10 +607,10 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
       setSaveError("");
       setIsSaving(true);
       if (isEditMode && editExpenseId) {
-        await axios.put(`${API_BASE}/retail/api/expense/${editExpenseId}`, payload);
+        await getApi().put(`/expense/${editExpenseId}`, payload);
         setSuccessMsg("Expense updated successfully!");
       } else {
-        await axios.post(`${API_BASE}/retail/api/expense`, payload);
+        await getApi().post(`/expense`, payload);
         setSuccessMsg("Expense added successfully!");
       }
       onSuccess?.();

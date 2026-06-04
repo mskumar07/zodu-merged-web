@@ -327,6 +327,8 @@ const SelectBranch: React.FC = () => {
     branchId: string,
     branchName: string
   ) => {
+    console.log("[SelectBranch] full company object:", company);
+    console.log("[SelectBranch] business_type value:", company.business_type);
     dispatch(addUserData({ branchId, branchName, zoduId: company.zodu_id, businessType: company.business_type ?? "" }));
     navigate("/dashboard", { replace: true });
   };
