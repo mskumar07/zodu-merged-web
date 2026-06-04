@@ -7,6 +7,15 @@ interface MenuEndPoints {
     page?: number,
     pageSize?: number
   ) => string; // Z-T97
+  getMenuItemsByType: (
+    branchId: string,
+    type?: string,
+    search?: string,
+    page?: number,
+    pageSize?: number,
+    categoryIds?: number[]
+  ) => string;
+  getCategoryList: (zoduId: string, branchId: string, types?: string[], page?: number, limit?: number) => string;
   add: string;
   menustatus: (menu_status: boolean, menuId: string) => string;
   menufav: (favorite: boolean, menuId: string) => string;
@@ -143,6 +152,27 @@ export const apiConfig: ApiConstants = {
     getGstList: (branchId: string) => `${RESTAURANT_BASE}/get/gst/${branchId}`, //Z-T97,
     getPosData: (branchId: string) =>
       `${RESTAURANT_BASE}/get/pos_data/${branchId}`,
+    getMenuItemsByType: (branchId, type, search, page, pageSize, categoryIds) => {
+      const url = type
+        ? `${RESTAURANT_BASE}/api/menu/get/menu_item/${branchId}/${type}`
+        : `${RESTAURANT_BASE}/api/menu/get/menu_item/${branchId}`;
+      const params = new URLSearchParams();
+      if (search) params.append("search", search);
+      if (page !== undefined) params.append("page", String(page));
+      if (pageSize !== undefined) params.append("limit", String(pageSize));
+      if (categoryIds && categoryIds.length > 0) params.append("category_ids", categoryIds.join(","));
+      const qs = params.toString();
+      return qs ? `${url}?${qs}` : url;
+    },
+    getCategoryList: (zoduId, branchId, types, page, limit) => {
+      const url = `${RESTAURANT_BASE}/get/category/${zoduId}/${branchId}`;
+      const params = new URLSearchParams();
+      if (types && types.length > 0) types.forEach((t) => params.append("type", t));
+      if (page !== undefined) params.append("page", String(page));
+      if (limit !== undefined) params.append("limit", String(limit));
+      const qs = params.toString();
+      return qs ? `${url}?${qs}` : url;
+    },
   },
   restaurant: {
     getExpenseList: (branchId: string) =>

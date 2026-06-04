@@ -38,6 +38,16 @@ export interface RestaurantMenuListItem {
   items: unknown[];
 }
 
+export interface RestaurantCategory {
+  id: number;
+  name: string;
+  type?: string;
+  type_code?: string;
+  active: boolean;
+  zodu_id: string;
+  branch_id: string;
+}
+
 export interface MenuListPagination {
   total_count: number;
   total_pages: number;
@@ -50,18 +60,28 @@ export interface MenuListPage {
   pagination: MenuListPagination;
 }
 
+export interface CategoryPage {
+  data: RestaurantCategory[];
+  pagination: MenuListPagination;
+}
+
 const PAGE_SIZE = 20;
+const CATEGORY_PAGE_SIZE = 10;
 
 async function fetchMenuList(
   branchId: string,
+  menuType: string | undefined,
   search: string,
-  page: number
+  page: number,
+  categoryIds?: number[]
 ): Promise<MenuListPage> {
-  const url = `${API_BASE}${apiConfig.menu.getAllMenuItemsByBranchId(
+  const url = `${API_BASE}${apiConfig.menu.getMenuItemsByType(
     branchId,
+    menuType,
     search || undefined,
     page,
-    PAGE_SIZE
+    PAGE_SIZE,
+    categoryIds
   )}`;
   const { data } = await axios.get(url, { headers: authHeaders() });
   return {
@@ -75,11 +95,16 @@ async function fetchMenuList(
   };
 }
 
-export function useInfiniteRestaurantMenu(branchId: string, search: string) {
+export function useInfiniteRestaurantMenu(
+  branchId: string,
+  search: string,
+  menuType?: string,
+  categoryIds?: number[]
+) {
   return useInfiniteQuery({
-    queryKey: ["restaurant", "menuList", branchId, search],
+    queryKey: ["restaurant", "menuList", branchId, search, menuType ?? "all", categoryIds ?? []],
     queryFn: ({ pageParam }) =>
-      fetchMenuList(branchId, search, pageParam as number),
+      fetchMenuList(branchId, menuType, search, pageParam as number, categoryIds),
     initialPageParam: 1,
     getNextPageParam: (last) => {
       const { current_page, total_pages } = last.pagination;
@@ -87,5 +112,49 @@ export function useInfiniteRestaurantMenu(branchId: string, search: string) {
     },
     enabled: !!branchId,
     staleTime: 2 * 60 * 1000,
+  });
+}
+
+async function fetchCategories(
+  zoduId: string,
+  branchId: string,
+  types: string[] | undefined,
+  page: number
+): Promise<CategoryPage> {
+  const url = `${API_BASE}${apiConfig.menu.getCategoryList(
+    zoduId,
+    branchId,
+    types,
+    page,
+    CATEGORY_PAGE_SIZE
+  )}`;
+  const { data } = await axios.get(url, { headers: authHeaders() });
+  return {
+    data: (data?.Data ?? []) as RestaurantCategory[],
+    pagination: data?.pagination ?? {
+      total_count: 0,
+      total_pages: 1,
+      current_page: page,
+      limit: CATEGORY_PAGE_SIZE,
+    },
+  };
+}
+
+export function useInfiniteRestaurantCategories(
+  zoduId: string,
+  branchId: string,
+  types?: string[]
+) {
+  return useInfiniteQuery({
+    queryKey: ["restaurant", "categories", zoduId, branchId, types ?? []],
+    queryFn: ({ pageParam }) =>
+      fetchCategories(zoduId, branchId, types, pageParam as number),
+    initialPageParam: 1,
+    getNextPageParam: (last) => {
+      const { current_page, total_pages } = last.pagination;
+      return current_page < total_pages ? current_page + 1 : undefined;
+    },
+    enabled: !!zoduId && !!branchId,
+    staleTime: 5 * 60 * 1000,
   });
 }
