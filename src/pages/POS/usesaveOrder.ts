@@ -1,7 +1,7 @@
 // /**
 //  * useSaveOrder.ts
 //  * ─────────────────────────────────────────────────────────────
-//  * Maps RetailPOS state → POST /restaurant/api/add/orders
+//  * Maps RetailPOS state → POST /retail/api/add/orders
 //  *
 //  * Tax-inclusive fix:
 //  *  - LineItem.unitPrice is always the BASE (pre-tax) price
@@ -126,7 +126,7 @@
 //       };
 
 //       const { data } = await axios.post<SaveOrderResult>(
-//         `${API_BASE}/restaurant/api/add/orders`,
+//         `${API_BASE}/retail/api/add/orders`,
 //         payload
 //       );
 //       return data;
@@ -146,7 +146,7 @@
 /**
  * useSaveOrder.ts
  * ─────────────────────────────────────────────────────────────
- * Maps RetailPOS state → POST /restaurant/api/add/orders
+ * Maps RetailPOS state → POST /retail/api/add/orders
  *
  * Tax-inclusive fix:
  *  - LineItem.unitPrice is always the BASE (pre-tax) price
@@ -284,7 +284,7 @@ export function useSaveOrder() {
       };
 
       const { data } = await axios.post<SaveOrderResult>(
-        `${API_BASE}/restaurant/api/add/orders`,
+        `${API_BASE}/retail/api/add/orders`,
         payload
       );
       return data;
@@ -360,7 +360,7 @@ const updateOrder = useCallback(async (
     };
 
     const { data } = await axios.put<SaveOrderResult>(
-      `${API_BASE}/restaurant/api/update/orders`,
+      `${API_BASE}/retail/api/update/orders`,
       payload
     );
 

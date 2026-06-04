@@ -10,6 +10,7 @@ import ExpenseScreen from "@pages/ExpenseScreen";
 import ReportDashboard from "@components/Reports/ReportDashboard";
 
 import RetailPOS from "@pages/POS/pos";
+import RestaurantPOS from "@pages/restaurant/pos/RestaurantPOS";
 import SalesHistoryScreen from "@pages/SalesHistory/SalesHistory";
 import CustomerManagement from "@pages/Customer/Customermanagement";
 import InventoryManagement from "../pages/InventoryScreen/InventoryManagement";
@@ -79,6 +80,10 @@ export const routes = [
   {
     path:"/settings",
     element: <Setting />
+  },
+  {
+    path: "/restaurant-pos",
+    element: <RestaurantPOS />,
   }
       // add more child routes as needed ...
     ],

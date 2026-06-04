@@ -18,7 +18,7 @@ import axios from "axios";
 import { getTenantContext } from "@store/tenantContext";
 
 // ─── Config ───────────────────────────────────────────────────
-export const API_BASE  = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000";
+export const API_BASE  = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5001";
 export const getZoduId = () => getTenantContext().zoduId;
 export const getBranchId = () => getTenantContext().branchId;
 
@@ -259,7 +259,7 @@ export async function fetchHistory(page: number, filters: Filters): Promise<Hist
   if (filters.search)         params.search   = filters.search;
 
   const { data } = await axios.get<HistoryPage>(
-    `${API_BASE}/restaurant/api/sales/history`,
+    `${API_BASE}/retail/api/sales/history`,
     { params }
   );
   return data;
@@ -271,7 +271,7 @@ export async function fetchHistory(page: number, filters: Filters): Promise<Hist
 export async function fetchSaleDetail(sale_id: string): Promise<SaleDetail> {
   const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.get<{ success: boolean; data: SaleDetail }>(
-    `${API_BASE}/restaurant/api/sales/${sale_id}`,
+    `${API_BASE}/retail/api/sales/${sale_id}`,
     { params: { zodu_id: zoduId, branch_id: branchId } }
   );
   console.log(data)
@@ -287,20 +287,20 @@ export async function postMarkPayment(
 ): Promise<MarkPaymentResponse> {
   const { sale_id, ...body } = payload;
   const { data } = await axios.post<MarkPaymentResponse>(
-    `${API_BASE}/restaurant/api/sales/${sale_id}/payment`,
+    `${API_BASE}/retail/api/sales/${sale_id}/payment`,
     body
   );
   return data;
 }
 
 /**
- * POST /api/restaurant/sale-returns — create a sales return
+ * POST /api/retail/sale-returns — create a sales return
  */
 export async function createSaleReturn(
   payload: CreateSaleReturnPayload
 ): Promise<CreateSaleReturnResponse> {
   const { data } = await axios.post<CreateSaleReturnResponse>(
-    `${API_BASE}/restaurant/api/sale-returns`,
+    `${API_BASE}/retail/api/sale-returns`,
     payload
   );
   return data;
@@ -328,7 +328,7 @@ export async function fetchSummary(filters: Filters): Promise<SalesSummary> {
   if (filters.search)         params.search          = filters.search;
 
   const { data } = await axios.get<SalesSummary>(
-    `${API_BASE}/restaurant/api/sales/history/summary`,
+    `${API_BASE}/retail/api/sales/history/summary`,
     { params }
   );
   return data;
@@ -349,7 +349,7 @@ export async function deleteSale(sale_id: string): Promise<{ success: boolean; m
   const { zoduId, branchId } = getTenantContext();
 
   const { data } = await axios.delete(
-    `${API_BASE}/restaurant/api/sales/${sale_id}`,
+    `${API_BASE}/retail/api/sales/${sale_id}`,
     {
       params: {
         zodu_id: zoduId,

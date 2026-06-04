@@ -109,15 +109,15 @@ export const apiConfig: ApiConstants = {
       `${RESTAURANT_BASE}/update/menustatus/${menu_status}/${menuId}`,
     menufav: (favorite: boolean, menuId: string) =>
       `${RESTAURANT_BASE}/update/favorite/${favorite}/${menuId}`,
-    addTableKOT: () => `${RESTAURANT_BASE}/api/add/orders`, // Z-T77
+    addTableKOT: () => `${RESTAURANT_BASE}/api/orders/add/orders`, // Z-T77
     completeKOT: () => `${RESTAURANT_BASE}/api/completeorder`, //zodu-hotfix-01
     getTableKOT: (branchId: string) =>
-      `${RESTAURANT_BASE}/get/orders/${branchId}`, // Z-T77
-    holdMenu: () => `${RESTAURANT_BASE}/add/hold_menu`, //Z-T97
+      `${RESTAURANT_BASE}/api/orders/get/orders/${branchId}`, // Z-T77
+    holdMenu: () => `${RESTAURANT_BASE}/api/hold/add/hold_menu`, //Z-T97
     getHoldMenu: (branchId: string) =>
-      `${RESTAURANT_BASE}/get/hold-orders/${branchId}`, //Z-T97
-    deleteHoldMenu: (menuId: string) =>
-      `${RESTAURANT_BASE}/delete/hold-menu/${menuId}`,
+      `${RESTAURANT_BASE}/api/hold/get/hold-orders/ZODU035B1`, //Z-T97
+    deleteHoldMenu: (holdId: string) =>
+      `${RESTAURANT_BASE}/api/hold/delete/hold-menu/${holdId}`,
     deleteMenuItem: (menuId: string) =>
       `${RESTAURANT_BASE}/delete/menu_item/${menuId}`, //z-T97
     updateMenuItem: (menuId: string) =>
@@ -142,7 +142,7 @@ export const apiConfig: ApiConstants = {
       `${RESTAURANT_BASE}/get/units/${branchId}`, //Z-T97
     getGstList: (branchId: string) => `${RESTAURANT_BASE}/get/gst/${branchId}`, //Z-T97,
     getPosData: (branchId: string) =>
-      `${RESTAURANT_BASE}/get/pos_data/${branchId}`, //
+      `/restaurant/get/pos_data/ZODU035B1`,
   },
   restaurant: {
     getExpenseList: (branchId: string) =>

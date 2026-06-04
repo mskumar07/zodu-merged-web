@@ -2,7 +2,7 @@
  * useCustomer.ts
  * ─────────────────────────────────────────────────────────────
  * Hooks for customer search + single customer fetch.
- * Calls GET /restaurant/api/customers  (tbl_customer)
+ * Calls GET /retail/api/customers  (tbl_customer)
  * ─────────────────────────────────────────────────────────────
  */
 
@@ -80,7 +80,7 @@ export function useCustomerSearch(zodu_id: string, branch_id: string) {
         setError(null);
         try {
           const { data } = await axios.get<CustomerSearchResult>(
-            `${API_BASE}/restaurant/api/customers`,
+            `${API_BASE}/retail/api/customers`,
             { params: { zodu_id, branch_id, search: query.trim(), limit: 10, page: 1 } }
           );
           setResults(data.customers ?? []);

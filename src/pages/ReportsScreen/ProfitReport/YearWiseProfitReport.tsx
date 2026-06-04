@@ -12,7 +12,7 @@ import { useTenantContext }     from "@store/tenantContext";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
 
 // ── Config ────────────────────────────────────────────────────
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5001";
 const PAGE_LIMIT = 10;
 
 const fmt = (val: number) =>
@@ -54,7 +54,7 @@ function useYearWiseProfitReport(zoduId: string, branchId: string) {
     queryKey: ["profit-yearwise", zoduId, branchId],
     queryFn: async ({ pageParam = 1 }) => {
       const { data } = await axios.get(
-        `${API_BASE}/restaurant/api/report/profit/yearwise`,
+        `${API_BASE}/retail/api/report/profit/yearwise`,
         { params: { zodu_id: zoduId, branch_id: branchId, page: pageParam, limit: PAGE_LIMIT } },
       );
       return data as YearWisePageResponse;

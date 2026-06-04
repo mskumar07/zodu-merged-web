@@ -26,6 +26,7 @@ function loadUserState() {
       profile,
       zoduId: parsedState?.zoduId ?? profile.zodu_id ?? "",
       branchId: parsedState?.branchId ?? profile.branch_id ?? "",
+      businessType: parsedState?.businessType ?? "",
       isAuthenticated: true,
     };
   } catch {
