@@ -121,7 +121,10 @@ const RestaurantPOS: React.FC = () => {
   const [showTable,    setShowTable   ] = useState(false);
   const [showDiscount, setShowDiscount] = useState(false);
   const [showCustomer, setShowCustomer] = useState(false);
+<<<<<<< work-sandy
+=======
   const [showPayment,  setShowPayment ] = useState(false);
+>>>>>>> main
   const [runningOrderSummary, setRunningOrderSummary] = useState<RunningOrderOrderedItem[]>([]);
   const [variantItem,  setVariantItem ] = useState<RestaurantMenuItem | null>(null);
 

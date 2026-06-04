@@ -128,7 +128,7 @@ export const apiConfig: ApiConstants = {
       page?: number,
       pageSize?: number
     ) => {
-      let url = `${RESTAURANT_BASE}/get/menu_item/${branchId}`;
+      let url = `${RESTAURANT_BASE}/api/menu/get/menu_item/${branchId}`;
       const params = new URLSearchParams();
 
       if (searchTerm) params.append("search", searchTerm);
@@ -142,7 +142,7 @@ export const apiConfig: ApiConstants = {
       `${RESTAURANT_BASE}/get/units/${branchId}`, //Z-T97
     getGstList: (branchId: string) => `${RESTAURANT_BASE}/get/gst/${branchId}`, //Z-T97,
     getPosData: (branchId: string) =>
-      `/restaurant/get/pos_data/ZODU035B1`,
+      `${RESTAURANT_BASE}/get/pos_data/${branchId}`,
   },
   restaurant: {
     getExpenseList: (branchId: string) =>
