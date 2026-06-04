@@ -11,7 +11,6 @@ import ReportDashboard from "@components/Reports/ReportDashboard";
 
 import RetailPOS from "@pages/POS/pos";
 import RestaurantPOS from "@pages/restaurant/pos/RestaurantPOS";
-import RestaurantMenuList from "@pages/restaurant/menu/RestaurantMenuList";
 import SalesHistoryScreen from "@pages/SalesHistory/SalesHistory";
 import CustomerManagement from "@pages/Customer/Customermanagement";
 import InventoryManagement from "../pages/InventoryScreen/InventoryManagement";
@@ -85,10 +84,6 @@ export const routes = [
   {
     path: "/restaurant-pos",
     element: <RestaurantPOS />,
-  },
-  {
-    path: "/restaurant-menu",
-    element: <RestaurantMenuList />,
   }
       // add more child routes as needed ...
     ],

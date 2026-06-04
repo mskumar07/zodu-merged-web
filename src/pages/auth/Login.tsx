@@ -704,7 +704,9 @@ const ZoduLoginPage: React.FC = () => {
           console.log("login detail",data)
       if (!data?.user || !data?.access_token || !data?.refresh_token)
         throw new Error('Invalid login response');
+      console.log("login response",data)
       const companies = data.companies ?? [];
+
       dispatch(
         setAuthData({
           accessToken: data.access_token,
@@ -727,6 +729,7 @@ const ZoduLoginPage: React.FC = () => {
             zoduId: singleCompany.zodu_id,
             branchId: onlyBranch.branch_id,
             branchName: onlyBranch.branch_name,
+            businessType: singleCompany.business_type ?? "",
           })
         );
         navigate('/dashboard', { replace: true });

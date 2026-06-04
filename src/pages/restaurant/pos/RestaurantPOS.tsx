@@ -44,6 +44,7 @@ import TableModal           from "./components/modals/TableModal";
 import VariantModal         from "./components/modals/VariantModal";
 import DiscountModal        from "./components/modals/DiscountModal";
 import CustomerModal, { type CustomerFormData } from "./components/modals/CustomerModal";
+import PaymentModal         from "./components/modals/PaymentModal";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -120,6 +121,10 @@ const RestaurantPOS: React.FC = () => {
   const [showTable,    setShowTable   ] = useState(false);
   const [showDiscount, setShowDiscount] = useState(false);
   const [showCustomer, setShowCustomer] = useState(false);
+<<<<<<< work-sandy
+=======
+  const [showPayment,  setShowPayment ] = useState(false);
+>>>>>>> main
   const [runningOrderSummary, setRunningOrderSummary] = useState<RunningOrderOrderedItem[]>([]);
   const [variantItem,  setVariantItem ] = useState<RestaurantMenuItem | null>(null);
 
@@ -348,28 +353,16 @@ const RestaurantPOS: React.FC = () => {
   // ── Build items payload ───────────────────────────────────────────────────
   const buildPayloadItems = (items: RestaurantCartItem[]) =>
     items.map((i) => ({
-      menu_id:        i.product.menu_id,
-      name:           i.product.menu_name,
-      price:          getItemPrice(i.product),
-      qty:            i.quantity,
-      gst_percentage: parseFloat(i.product.gst_tax) || 0,
-      tax_inclusive:  i.product.tax_include_or_exclude ?? false,
-      menu_unit:      i.product.menu_unit ?? null,
-      variant_id:     i.product.variant_id ?? null,
-      variant_name:   i.product.variant_name ?? null,
-    }));
-
-  const buildSummaryPayloadItems = (items: typeof runningOrderSummary) =>
-    items.map((i) => ({
-      menu_id:        i.item_id,
-      name:           i.item_name,
-      price:          i.price,
-      qty:            i.qty,
-      gst_percentage: parseFloat(String(i.gst_tax ?? 0)) || 0,
-      tax_inclusive:  i.tax_include_or_exclude ?? false,
-      menu_unit:      i.item_unit ?? null,
-      variant_id:     null,
-      variant_name:   null,
+      menu_id:         i.product.menu_id,
+      name:            i.product.menu_name,
+      price:           getItemPrice(i.product),
+      qty:             i.quantity,
+      tax:             parseFloat(i.product.gst_tax) || 0,
+      gst_percentage:  parseFloat(i.product.gst_tax) || 0,
+      tax_inclusive:   i.product.tax_include_or_exclude ?? false,
+      menu_unit:       i.product.menu_unit,
+      variant_id:      i.product.variant_id ?? null,
+      variant_name:    i.product.variant_name ?? null,
     }));
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -414,17 +407,18 @@ const RestaurantPOS: React.FC = () => {
     try {
       if (order.orderType === "DineIn") {
         if (!order.tableNumber) { toast.error("Select a table first"); return; }
+        const summaryTotal = runningOrderSummary.reduce((s, i) => s + i.price * i.qty, 0);
+        const payTotal = cartItems.length > 0 ? totals.grandTotal : summaryTotal;
         await completeOrder({
           api_order_id:  order.orderId,
           zodu_id:       zoduId,
           branch_id:     branchId,
-          table_no:      order.tableNumber,
-          payment_type:  payMethod,
+          tableNumber:   order.tableNumber,
+          items:         buildPayloadItems(cartItems),
           discount_type: order.discountType === "Amount" ? "FLAT" : "PERCENT",
           discount_value: order.discountValue,
-          items: cartItems.length > 0
-            ? buildPayloadItems(cartItems)
-            : buildSummaryPayloadItems(runningOrderSummary),
+          totalAmount:   payTotal,
+          paymentType:   payMethod,
         });
       } else {
         await addOrder({
@@ -446,6 +440,7 @@ const RestaurantPOS: React.FC = () => {
         });
       }
       toast.success("Payment successful!");
+      setShowPayment(false);
       resetOrder();
     } catch {
       toast.error("Payment failed. Please try again.");
@@ -482,22 +477,8 @@ const RestaurantPOS: React.FC = () => {
   const handleRestoreRunningOrder = (ro: RunningOrder) => {
     const tableNum    = parseInt(ro.table_no, 10) || null;
     const latestKotNo = ro.kot_items[ro.kot_items.length - 1]?.kot_no ?? null;
-
-    // Build a flat menu lookup so we can enrich ordered_items with tax data
-    const menuItemMap = new Map(
-      categories.flatMap((cat) => cat.items.map((item) => [item.menu_id, item]))
-    );
-    const enrichedItems = ro.ordered_items.map((item) => {
-      const menuItem = menuItemMap.get(item.item_id);
-      return {
-        ...item,
-        gst_tax:                menuItem?.gst_tax              ?? null,
-        tax_include_or_exclude: menuItem?.tax_include_or_exclude ?? null,
-      };
-    });
-
     setCartItems([]);
-    setRunningOrderSummary(enrichedItems);
+    setRunningOrderSummary(ro.ordered_items);
     setOrder((p) => ({
       ...p,
       orderId:       ro.api_order_id,
@@ -907,7 +888,7 @@ const RestaurantPOS: React.FC = () => {
                 return (
                   <Chip
                     key={ho.hold_id ?? idx}
-                    label={`${ho.hold_id} · ${itemCount} item${itemCount !== 1 ? "s" : ""}`}
+                    label={`${typeLabel}${tableInfo} · ${itemCount} item${itemCount !== 1 ? "s" : ""}`}
                     size="small"
                     icon={<RestoreIcon sx={{ fontSize: "12px !important" }} />}
                     onClick={() => handleRestoreHold(ho)}
@@ -943,7 +924,7 @@ const RestaurantPOS: React.FC = () => {
           onDiscountClick={() => setShowDiscount(true)}
           onPaymentMethodChange={(m) => setOrder((p) => ({ ...p, paymentMethod: m }))}
           onSendToKDS={handleSendToKDS}
-          onPaid={() => handlePay(order.paymentMethod)}
+          onPaid={() => setShowPayment(true)}
           onIncrement={incrementCart}
           onDecrement={decrementCart}
           onRemove={removeFromCart}
@@ -957,7 +938,6 @@ const RestaurantPOS: React.FC = () => {
         activeTableNumbers={activeTableNumbers}
         selectedTable={order.tableNumber}
         onSelect={(n) => {
-          setRunningOrderSummary([]);
           setOrder((p) => ({ ...p, tableNumber: n, orderType: "DineIn" }));
           setShowTable(false);
         }}
@@ -994,6 +974,18 @@ const RestaurantPOS: React.FC = () => {
         onClose={() => setVariantItem(null)}
       />
 
+      <PaymentModal
+        open={showPayment}
+        total={cartItems.length > 0
+          ? totals.grandTotal
+          : runningOrderSummary.reduce((s, i) => s + i.price * i.qty, 0)}
+        cartItems={cartItems}
+        paymentMethod={order.paymentMethod}
+        onMethodChange={(m) => setOrder((p) => ({ ...p, paymentMethod: m }))}
+        onPay={handlePay}
+        onClose={() => setShowPayment(false)}
+        isLoading={isBusy}
+      />
     </Box>
   );
 };

@@ -327,7 +327,7 @@ const SelectBranch: React.FC = () => {
     branchId: string,
     branchName: string
   ) => {
-    dispatch(addUserData({ branchId, branchName, zoduId: company.zodu_id }));
+    dispatch(addUserData({ branchId, branchName, zoduId: company.zodu_id, businessType: company.business_type ?? "" }));
     navigate("/dashboard", { replace: true });
   };
 
@@ -342,6 +342,7 @@ const SelectBranch: React.FC = () => {
         zoduId: onlyCompany.zodu_id,
         branchId: onlyBranch.branch_id,
         branchName: onlyBranch.branch_name,
+        businessType: onlyCompany.business_type ?? "",
       })
     );
     navigate("/dashboard", { replace: true });

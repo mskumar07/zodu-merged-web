@@ -6,6 +6,7 @@ interface Userstate {
   branchId: string;
   branchName: string;
   zoduId: string;
+  businessType: string;
   companies: CompanyWithBranches[];
   accessToken: string | null;
   refreshToken: string | null;
@@ -18,6 +19,7 @@ const initialState: Userstate = {
   branchId: "",
   branchName: "",
   zoduId: "",
+  businessType: "",
   companies: [],
   accessToken: null,
   refreshToken: null,
@@ -30,10 +32,11 @@ const userSlice = createSlice({
   name: "userSlice",
   initialState,
   reducers: {
-    addUserData: (state, action: PayloadAction<{ branchId: string; branchName: string; zoduId: string }>) => {
+    addUserData: (state, action: PayloadAction<{ branchId: string; branchName: string; zoduId: string; businessType?: string }>) => {
       state.branchId = action.payload.branchId;
       state.branchName = action.payload.branchName;
       state.zoduId = action.payload.zoduId;
+      state.businessType = action.payload.businessType ?? "";
     },
     setAuthData: (
       state,
@@ -70,6 +73,7 @@ const userSlice = createSlice({
       state.branchId = "";
       state.branchName = "";
       state.zoduId = "";
+      state.businessType = "";
     },
   },
 });
@@ -79,6 +83,7 @@ export const { addUserData, setAuthData, setCompanies, clearAuthData } = userSli
 export const BranchId = (state: RootState) => state.user.branchId;
 export const BranchName = (state: RootState) => state.user.branchName;
 export const ZoduId = (state: RootState) => state.user.zoduId;
+export const BusinessType = (state: RootState) => state.user.businessType;
 export const AllCompanies = (state: RootState) => state.user.companies;
 export const AuthToken = (state: RootState) => state.user.accessToken;
 export const RefreshToken = (state: RootState) => state.user.refreshToken;

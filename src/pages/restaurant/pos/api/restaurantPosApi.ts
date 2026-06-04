@@ -112,8 +112,6 @@ export interface RunningOrderOrderedItem {
   item_unit: string;
   qty: number;
   price: number;
-  gst_tax?: number | string | null;
-  tax_include_or_exclude?: boolean | null;
 }
 
 export interface RunningOrder {
@@ -139,9 +137,10 @@ export interface AddOrderPayload {
     name: string;
     price: number;
     qty: number;
+    tax: number;
     gst_percentage: number;
     tax_inclusive: boolean;
-    menu_unit: string | null;
+    menu_unit: string;
     variant_id: string | null;
     variant_name: string | null;
   }[];
@@ -160,21 +159,23 @@ export interface CompleteOrderPayload {
   api_order_id: string;
   zodu_id: string;
   branch_id: string;
-  table_no: number | null;
-  payment_type: string;
-  discount_type: string;
-  discount_value: number;
+  tableNumber: number;
   items: {
     menu_id: string;
     name: string;
     price: number;
     qty: number;
+    tax: number;
     gst_percentage: number;
     tax_inclusive: boolean;
-    menu_unit: string | null;
+    menu_unit: string;
     variant_id: string | null;
     variant_name: string | null;
   }[];
+  discount_type: string;
+  discount_value: number;
+  totalAmount: number;
+  paymentType: string;
 }
 
 export interface HoldOrderPayload {
@@ -466,12 +467,7 @@ export function calcTax(items: RestaurantCartItem[]): number {
 export function calcSubtotal(items: RestaurantCartItem[]): number {
   return items.reduce((sum, item) => {
     const price = getItemPrice(item.product);
-    const gst   = parseFloat(item.product.gst_tax) || 0;
-    // Tax-inclusive: extract the pre-tax base from the sell_price
-    const base  = item.product.tax_include_or_exclude
-      ? price / (1 + gst / 100)
-      : price;
-    return sum + base * item.quantity;
+    return sum + price * item.quantity;
   }, 0);
 }
 

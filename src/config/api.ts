@@ -115,7 +115,7 @@ export const apiConfig: ApiConstants = {
       `${RESTAURANT_BASE}/api/orders/get/orders/${branchId}`, // Z-T77
     holdMenu: () => `${RESTAURANT_BASE}/api/hold/add/hold_menu`, //Z-T97
     getHoldMenu: (branchId: string) =>
-      `${RESTAURANT_BASE}/api/hold/get/hold-orders/${branchId}`, //Z-T97
+      `${RESTAURANT_BASE}/api/hold/get/hold-orders/ZODU035B1`, //Z-T97
     deleteHoldMenu: (holdId: string) =>
       `${RESTAURANT_BASE}/api/hold/delete/hold-menu/${holdId}`,
     deleteMenuItem: (menuId: string) =>
