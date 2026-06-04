@@ -3,7 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 
 // ── axios instance ────────────────────────────────────────────────────────────
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001',
   headers: { 'Content-Type': 'application/json' },
   timeout: 10_000,
 });
@@ -49,6 +49,8 @@ export interface Branch {
   district?: string;
   state?: string;
   area_street_name?: string;
+  same_as_address?: boolean;
+  same_as_bank_details?: boolean;
 }
 
 export interface CompanyWithBranches {
@@ -288,10 +290,10 @@ export const authApis = {
       api.post('/auth/api/refresh-token', { refresh_token })
     ),
 
-  // GET /restaurant/get/branches/:zodu_id — branches for a specific company
+  // GET /retail/get/branches/:zodu_id — branches for a specific company
   getBranches: (zoduId: string) =>
     unwrap<Branch[]>(
-      api.get(`/restaurant/get/branches/${zoduId}`)
+      api.get(`/retail/get/branches/${zoduId}`)
     ),
 
   // Fetches all companies (+ branches) the authenticated user belongs to.

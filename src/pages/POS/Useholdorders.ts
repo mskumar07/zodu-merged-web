@@ -108,7 +108,7 @@ export interface ApiHold {
 // ── Fetch holds ───────────────────────────────────────────────
 async function fetchHolds(zoduId: string, branchId: string): Promise<ApiHold[]> {
   const { data } = await axios.get(
-    `${API_BASE}/restaurant/get/hold_menu/${zoduId}/${branchId}`
+    `${API_BASE}/retail/get/hold_menu/${zoduId}/${branchId}`
   );
   return data.data ?? [];
 }
@@ -116,7 +116,7 @@ async function fetchHolds(zoduId: string, branchId: string): Promise<ApiHold[]> 
 // ── Save hold ─────────────────────────────────────────────────
 async function saveHold(payload: SaveHoldPayload): Promise<{ hold_uuid: string }> {
   const { data } = await axios.post(
-    `${API_BASE}/restaurant/add/hold_menu`,
+    `${API_BASE}/retail/add/hold_menu`,
     payload
   );
   return data.data;
@@ -125,7 +125,7 @@ async function saveHold(payload: SaveHoldPayload): Promise<{ hold_uuid: string }
 // ── Delete hold ───────────────────────────────────────────────
 async function deleteHold(holdUuid: string): Promise<void> {
   await axios.delete(
-    `${API_BASE}/restaurant/delete/hold-menu/${holdUuid}`
+    `${API_BASE}/retail/delete/hold-menu/${holdUuid}`
   );
 }
 

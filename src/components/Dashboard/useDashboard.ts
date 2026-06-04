@@ -30,7 +30,7 @@ export function useStats(zodu_id: string, branch_id: string) {
   return useQuery({
     queryKey: dashboardKeys.stats(zodu_id, branch_id),
     queryFn:  () =>
-      fetchJSON(`${API_BASE}/restaurant/api/dashboard/stats?zodu_id=${zodu_id}&branch_id=${branch_id}`),
+      fetchJSON(`${API_BASE}/retail/api/dashboard/stats?zodu_id=${zodu_id}&branch_id=${branch_id}`),
     select: (res) => res.data,
     staleTime: 30_000,
   });
@@ -47,7 +47,7 @@ function makeInfiniteQuery(
     queryFn: ({ pageParam }: { pageParam: string | undefined }) => {
       const cursor = pageParam ? `&cursor=${pageParam}` : "";
       return fetchJSON(
-        `${API_BASE}/restaurant/api/dashboard/${endpoint}?zodu_id=${zodu_id}&branch_id=${branch_id}&limit=${limit}${cursor}`
+        `${API_BASE}/retail/api/dashboard/${endpoint}?zodu_id=${zodu_id}&branch_id=${branch_id}&limit=${limit}${cursor}`
       );
     },
     initialPageParam: undefined as string | undefined,

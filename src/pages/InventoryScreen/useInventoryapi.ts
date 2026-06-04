@@ -2,10 +2,10 @@
  * useInventoryApi.ts
  * ─────────────────────────────────────────────────────────────
  * TanStack Query hooks for:
- *   GET  /restaurant/api/inventory/summary  → useInventorySummary
- *   GET  /restaurant/api/inventory/list     → useInfiniteInventory
- *   GET  /restaurant/api/inventory/:uuid    → useInventoryDetail
- *   POST /restaurant/api/inventory/adjust   → useAdjustStock
+ *   GET  /retail/api/inventory/summary  → useInventorySummary
+ *   GET  /retail/api/inventory/list     → useInfiniteInventory
+ *   GET  /retail/api/inventory/:uuid    → useInventoryDetail
+ *   POST /retail/api/inventory/adjust   → useAdjustStock
  */
 
 import axios from 'axios';
@@ -138,7 +138,7 @@ export const inventoryQueryKeys = {
 async function fetchSummary(): Promise<InventorySummary> {
   const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.get<{ success: boolean; data: InventorySummary }>(
-    `${API_BASE}/restaurant/api/menu/inventory/summary`,
+    `${API_BASE}/retail/api/menu/inventory/summary`,
     { params: { zodu_id: zoduId, branch_id: branchId } }
   );
   return data.data;
@@ -149,7 +149,7 @@ async function fetchInventoryList(
 ): Promise<InventoryListResponse> {
   const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.get<InventoryListResponse>(
-    `${API_BASE}/restaurant/api/menu/inventory/list`,
+    `${API_BASE}/retail/api/menu/inventory/list`,
     {
       params: {
         zodu_id:      zoduId,
@@ -168,7 +168,7 @@ async function fetchInventoryList(
 
 async function fetchInventoryDetail(inventory_uuid: string): Promise<InventoryItem> {
   const { data } = await axios.get<{ success: boolean; data: InventoryItem }>(
-    `${API_BASE}/restaurant/api/menu/inventory/${inventory_uuid}`
+    `${API_BASE}/retail/api/menu/inventory/${inventory_uuid}`
   );
   return data.data;
 }
@@ -177,7 +177,7 @@ async function postAdjustStock(
   payload: AdjustStockPayload
 ): Promise<AdjustStockResponse> {
   const { data } = await axios.post<AdjustStockResponse>(
-    `${API_BASE}/restaurant/api/menu/inventory/adjust`,
+    `${API_BASE}/retail/api/menu/inventory/adjust`,
     payload
   );
   return data;
@@ -269,7 +269,7 @@ export function useAdjustStock(options?: {
 async function fetchStockHistory(item_uuid: string): Promise<StockHistoryResponse> {
   const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.get<StockHistoryResponse>(
-    `${API_BASE}/restaurant/api/menu/stock/history/${item_uuid}`,
+    `${API_BASE}/retail/api/menu/stock/history/${item_uuid}`,
     {
       params: {
         zodu_id: zoduId,

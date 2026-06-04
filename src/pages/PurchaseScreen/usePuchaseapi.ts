@@ -10,7 +10,7 @@ export const getZoduId = () => getTenantContext().zoduId;
 export const getBranchId = () => getTenantContext().branchId;
 
 const api = axios.create({
-  baseURL: `${API_BASE}/restaurant/api`,
+  baseURL: `${API_BASE}/retail/api`,
   headers: { "Content-Type": "application/json" },
 });
 

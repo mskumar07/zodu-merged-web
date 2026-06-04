@@ -24,7 +24,7 @@ async function fetchAndCacheProducts(branchId: string, zoduId: string): Promise<
     message: string;
     Data?: PosProduct[];
     data?: PosProduct[];
-  }>(`${API_BASE}/restaurant/get/pos_data/${branchId}/${zoduId}`);
+  }>(`${API_BASE}/retail/get/pos_data/${branchId}/${zoduId}`);
 
   const products = data.Data ?? data.data ?? [];
 

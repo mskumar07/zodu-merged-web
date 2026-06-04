@@ -2,9 +2,9 @@
  * useMenuItemApi.ts
  * ─────────────────────────────────────────────────────────────
  * TanStack Query hooks for:
- *   - GET  /restaurant/get/category/:type/:branch_id  → useCategories
- *   - POST /restaurant/add/category                   → useAddCategory
- *   - POST /restaurant/api/add/menu_item              → useAddMenuItem
+ *   - GET  /retail/get/category/:type/:branch_id  → useCategories
+ *   - POST /retail/add/category                   → useAddCategory
+ *   - POST /retail/api/add/menu_item              → useAddMenuItem
  */
 
 import axios from "axios";
@@ -174,7 +174,7 @@ export const menuQueryKeys = {
 // ─── API functions ────────────────────────────────────────────
 
 /**
- * GET /restaurant/get/category/:type/:branch_id
+ * GET /retail/get/category/:type/:branch_id
  * type: product → "S" | service → "M" | expense → "E"
  * NOTE: API returns capital "Data" key (not lowercase "data")
  */
@@ -197,7 +197,7 @@ async function fetchCategoriesPage(
   const { branchId, zoduId } = getTenantContext();
   const type = serviceType === "product" ? "S" : serviceType === "expense" ? "E" : "M";
   const { data } = await axios.get<CategoryFilterPage>(
-    `${API_BASE}/restaurant/get/category/${type}/${branchId}/${zoduId}`,
+    `${API_BASE}/retail/get/category/${type}/${branchId}/${zoduId}`,
     { params: { page, limit } }
   );
   const rows = data.Data ?? data.data ?? [];
@@ -216,12 +216,12 @@ async function fetchCategories(
 }
 
 /**
- * GET /restaurant/get/gst/:branch_id
+ * GET /retail/get/gst/:branch_id
  */
 async function fetchGstList(): Promise<GstOption[]> {
   const { branchId, zoduId } = getTenantContext();
   const { data } = await axios.get<{ data: ApiGst[] }>(
-    `${API_BASE}/restaurant/get/gst/${branchId}/${zoduId}`
+    `${API_BASE}/retail/get/gst/${branchId}/${zoduId}`
   );
   return (data.data ?? []).map((g) => ({
     value:      g.id,                        // id → value (sent as gst_type to API)
@@ -231,13 +231,13 @@ async function fetchGstList(): Promise<GstOption[]> {
 }
 
 /**
- * GET /restaurant/get/units/:branch_id
+ * GET /retail/get/units/:branch_id
  * NOTE: API returns capital "Data" key (same pattern as categories)
  */
 async function fetchUnitList(): Promise<UnitOption[]> {
   const { branchId,zoduId } = getTenantContext();
   const { data } = await axios.get<{ Data?: ApiUnit[]; data?: ApiUnit[] }>(
-    `${API_BASE}/restaurant/get/units/${branchId}/${zoduId}`
+    `${API_BASE}/retail/get/units/${branchId}/${zoduId}`
   );
   const rows = data.Data ?? data.data ?? [];
   return rows.map((u) => ({
@@ -248,7 +248,7 @@ async function fetchUnitList(): Promise<UnitOption[]> {
 }
 
 /**
- * GET /restaurant/api/menu_items
+ * GET /retail/api/menu_items
  * Paginated list with optional search + filters.
  */
 async function fetchMenuItems(
@@ -256,7 +256,7 @@ async function fetchMenuItems(
 ): Promise<MenuItemListResponse> {
   const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.get<MenuItemListResponse>(
-    `${API_BASE}/restaurant/api/menu/menu_items`,
+    `${API_BASE}/retail/api/menu/menu_items`,
     {
       params: {
         zodu_id:     zoduId,
@@ -275,25 +275,25 @@ async function fetchMenuItems(
 }
 
 /**
- * GET /restaurant/api/menu_item/:item_uuid
+ * GET /retail/api/menu_item/:item_uuid
  * Single item detail by uuid.
  */
 async function fetchMenuItemDetail(item_uuid: string): Promise<MenuItem> {
   const { data } = await axios.get<{ success: boolean; data: MenuItem }>(
-    `${API_BASE}/restaurant/api/menu/menu_item/${item_uuid}`
+    `${API_BASE}/retail/api/menu/menu_item/${item_uuid}`
   );
   return data.data;
 }
 
 /**
- * POST /restaurant/add/category
+ * POST /retail/add/category
  */
 async function postAddCategory(
   payload: AddCategoryPayload
 ): Promise<Category & { apiMessage: string }> {
   const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.post<{ message: string; data: ApiCategory }>(
-    `${API_BASE}/restaurant/add/category`,
+    `${API_BASE}/retail/add/category`,
     {
       zodu_id:   zoduId,
       branch_id: branchId,
@@ -310,14 +310,14 @@ async function postAddCategory(
 }
 
 /**
- * POST /restaurant/api/add/menu_item
+ * POST /retail/api/add/menu_item
  */
 async function postAddMenuItem(
   payload: AddMenuItemPayload
 ): Promise<AddMenuItemResponse> {
   const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.post<AddMenuItemResponse>(
-    `${API_BASE}/restaurant/api/menu/add/menu_item`,
+    `${API_BASE}/retail/api/menu/add/menu_item`,
     { zodu_id: zoduId, branch_id: branchId, ...payload }
   );
   return data;
@@ -334,20 +334,20 @@ export interface CheckItemIdResponse {
 export async function checkItemId(item_id: string): Promise<CheckItemIdResponse> {
   const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.get<CheckItemIdResponse>(
-    `${API_BASE}/restaurant/api/menu/check/item_id`,
+    `${API_BASE}/retail/api/menu/check/item_id`,
     { params: { zodu_id: zoduId, branch_id: branchId, item_id } }
   );
   return data;
 }
 
 /**
- * DELETE /restaurant/api/delete/menu_item/:item_uuid
+ * DELETE /retail/api/delete/menu_item/:item_uuid
  */
 
 
 async function hardDeleteMenuItem(item_uuid: string): Promise<{ success: boolean; message: string }> {
   const { data } = await axios.delete<{ success: boolean; message: string }>(
-    `${API_BASE}/restaurant/api/menu/remove/menu_item/${item_uuid}`
+    `${API_BASE}/retail/api/menu/remove/menu_item/${item_uuid}`
   );
   return data;
 }
@@ -401,7 +401,7 @@ async function updateMenuItemStatus(params: {
 }): Promise<{ success: boolean; message: string }> {
   console.log(params)
   const { data } = await axios.put<{ success: boolean; message: string }>(
-    `${API_BASE}/restaurant/api/menu/status/${params.item_uuid}`,
+    `${API_BASE}/retail/api/menu/status/${params.item_uuid}`,
     { status: params.status }
   );
   console.log(data)
@@ -654,7 +654,7 @@ export interface CategoryListPage {
 }
 
 /**
- * GET /restaurant/get/category/:zodu_id/:branch_id?type=S&type=M&page=N&limit=10
+ * GET /retail/get/category/:zodu_id/:branch_id?type=S&type=M&page=N&limit=10
  * type = comma-separated codes split into repeated query params, e.g. "S,M" → type=S&type=M
  */
 async function fetchCategoryPage(
@@ -665,7 +665,7 @@ async function fetchCategoryPage(
   const { zoduId, branchId } = getTenantContext();
   const types = type.split(",").map((t) => t.trim()).filter(Boolean);
   const { data } = await axios.get<CategoryListPage>(
-    `${API_BASE}/restaurant/get/category/${zoduId}/${branchId}`,
+    `${API_BASE}/retail/get/category/${zoduId}/${branchId}`,
     { params: { type: types, page, limit } }
   );
   return data;
@@ -707,7 +707,7 @@ async function patchUpdateCategory(
 ): Promise<{ message: string }> {
   const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.put<{ message: string }>(
-    `${API_BASE}/restaurant/update/category/${payload.id}`,
+    `${API_BASE}/retail/update/category/${payload.id}`,
     {
       zodu_id:   zoduId,
       branch_id: branchId,
@@ -743,7 +743,7 @@ export function useUpdateCategory(options?: {
 // ─── Toggle Category Status ───────────────────────────────────
 
 /**
- * PUT /restaurant/inactivate/category/:id
+ * PUT /retail/inactivate/category/:id
  * Toggles a category between active and inactive.
  */
 async function putToggleCategoryStatus(payload: {
@@ -753,7 +753,7 @@ async function putToggleCategoryStatus(payload: {
 }): Promise<{ message: string }> {
   const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.put<{ message: string }>(
-    `${API_BASE}/restaurant/inactivate/category/${payload.id}`,
+    `${API_BASE}/retail/inactivate/category/${payload.id}`,
     { zodu_id: zoduId, branch_id: branchId, active: payload.active, page_expense: payload.pageExpense }
   );
   return data;
@@ -784,13 +784,13 @@ export function useToggleCategoryStatus(options?: {
 // ─── Delete Category ─────────────────────────────────────────
 
 /**
- * DELETE /restaurant/delete/category/:id/:branch_id/:zodu_id/:page_expense
+ * DELETE /retail/delete/category/:id/:branch_id/:zodu_id/:page_expense
  * page_expense: true when deleting from the Expense category tab, false otherwise
  */
 async function deleteCategory(payload: { id: number; pageExpense: boolean }): Promise<{ success: boolean; message: string }> {
   const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.delete<{ success: boolean; message: string }>(
-    `${API_BASE}/restaurant/delete/category/${payload.id}/${branchId}/${zoduId}/${payload.pageExpense}`
+    `${API_BASE}/retail/delete/category/${payload.id}/${branchId}/${zoduId}/${payload.pageExpense}`
   );
   return data;
 }
@@ -829,7 +829,7 @@ async function postEditMenuItem({
   ...payload
 }: EditMenuItemPayload & { item_uuid: string }): Promise<AddMenuItemResponse> {
   const { data } = await axios.put<AddMenuItemResponse>(
-    `${API_BASE}/restaurant/api/menu/edit/menu_item/${item_uuid}`,
+    `${API_BASE}/retail/api/menu/edit/menu_item/${item_uuid}`,
     payload
   );
   return data;

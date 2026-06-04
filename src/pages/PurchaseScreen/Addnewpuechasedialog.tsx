@@ -608,7 +608,7 @@ export default function AddNewPurchaseDialog({
     try {
       const formData = new FormData();
       entries.forEach(e => formData.append("files", e.file));
-      const res = await axios.post(`${API_BASE}/restaurant/upload/multiple`, formData, { headers: { "Content-Type": "multipart/form-data" } });
+      const res = await axios.post(`${API_BASE}/retail/upload/multiple`, formData, { headers: { "Content-Type": "multipart/form-data" } });
       const uploaded: { id: string; url: string; filename: string; size: number; mimetype: string }[] = res.data.files || [];
       setAttachments(prev => prev.map(a => {
         const idx = ids.indexOf(a.id);

@@ -6,7 +6,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 
 
 const api = axios.create({
-  baseURL: `${API_BASE}/restaurant/api/vendor`,
+  baseURL: `${API_BASE}/retail/api/vendor`,
   headers: { "Content-Type": "application/json" },
 });
 

@@ -339,6 +339,8 @@ export default function Setting() {
       branch_district: data.branch_district,
       branch_state: data.branch_state,
       branch_image: data.branch_image || undefined,
+      same_as_address: data.use_same_address_as_company,
+      same_as_bank_details: data.use_same_bank_as_company,
       ...(data.use_same_address_as_company
         ? {
             address_id: selectedAddressIdString,
