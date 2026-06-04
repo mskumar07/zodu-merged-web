@@ -1,12 +1,19 @@
-/**
- * RestaurantPOS.tsx
- * Modern restaurant billing POS screen.
- * Uses hooks from ./api/restaurantPosApi.ts
- * Reusable components live in ./components/
- */
-
-import React, { useState, useMemo, useCallback } from "react";
+import React, {
+  useState, useMemo, useCallback, useRef, useEffect,
+} from "react";
+import {
+  Box, Typography, TextField, InputAdornment, Chip, CircularProgress, Divider,
+} from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import StarIcon from "@mui/icons-material/Star";
+import PauseCircleOutlineIcon from "@mui/icons-material/PauseCircleOutline";
+import RestoreIcon from "@mui/icons-material/Restore";
+import type { HoldOrder, RunningOrder, RunningOrderOrderedItem } from "./api/restaurantPosApi";
+import TableBarIcon from "@mui/icons-material/TableBar";
+import DeliveryDiningIcon from "@mui/icons-material/DeliveryDining";
+import ShoppingBagIcon from "@mui/icons-material/ShoppingBag";
 import { toast } from "react-toastify";
+
 import { useAppSelector } from "../../../store/store";
 import { BranchId, ZoduId } from "@store/slices/userSlice";
 
@@ -30,78 +37,107 @@ import {
   type RestaurantVariant,
 } from "./api/restaurantPosApi";
 
-import CategorySidebar from "./components/CategorySidebar";
-import ProductCard from "./components/ProductCard";
-import OrderSummaryPanel from "./components/OrderSummaryPanel";
-import DiscountModal from "./components/DiscountModal";
-import CreateCustomerModal, { type CustomerFormData } from "./components/CreateCustomerModal";
-import VariantModal from "./components/VariantModal";
-import styles from "./RestaurantPOS.module.css";
+import CategoryNav          from "./components/CategoryNav";
+import ProductCard          from "./components/ProductCard";
+import OrderPanel, { type Totals } from "./components/OrderPanel";
+import TableModal           from "./components/modals/TableModal";
+import VariantModal         from "./components/modals/VariantModal";
+import DiscountModal        from "./components/modals/DiscountModal";
+import CustomerModal, { type CustomerFormData } from "./components/modals/CustomerModal";
 
-const ORDER_TYPE_MAP: Record<string, string> = {
-  DineIn: "DINE_IN",
+// ─── Constants ──────────────────────────────────────────────────────────────
+
+// Used by hold-order API
+const HOLD_ORDER_TYPE_MAP: Record<string, string> = {
+  DineIn:   "DINE_IN",
   Delivery: "DELIVERY",
-  PickUp: "TAKEAWAY",
+  PickUp:   "TAKEAWAY",
 };
+
+// Used by add-order / KDS API  ("Dine-In" | "Takeaway" | "Delivery")
+const ADD_ORDER_TYPE_MAP: Record<string, string> = {
+  DineIn:   "Dine-In",
+  Delivery: "Delivery",
+  PickUp:   "Takeaway",
+};
+
+const ORDER_TYPES: Array<{
+  key: "DineIn" | "Delivery" | "PickUp";
+  label: string;
+  icon: React.ReactNode;
+}> = [
+  { key: "DineIn",   label: "Dine In",  icon: <TableBarIcon sx={{ fontSize: 15 }} /> },
+  { key: "Delivery", label: "Delivery", icon: <DeliveryDiningIcon sx={{ fontSize: 15 }} /> },
+  { key: "PickUp",   label: "Pick Up",  icon: <ShoppingBagIcon sx={{ fontSize: 15 }} /> },
+];
 
 function buildInitialOrder(): RestaurantOrder {
   return {
-    orderId: `ORD-${Date.now()}`,
-    tableNumber: null,
-    items: [],
-    customerName: "",
+    orderId:       `ORD-${Date.now()}`,
+    tableNumber:   null,
+    kotNo:         null,
+    items:         [],
+    customerName:  "",
     customerPhone: "",
-    orderType: "DineIn",
-    subtotal: 0,
-    taxAmount: 0,
-    discount: 0,
-    discountType: "Percent",
+    orderType:     "DineIn",
+    subtotal:      0,
+    taxAmount:     0,
+    discount:      0,
+    discountType:  "Percent",
     discountValue: 0,
-    grandTotal: 0,
+    grandTotal:    0,
     paymentMethod: "Cash",
-    notes: "",
+    notes:         "",
   };
 }
 
+// ─── Component ──────────────────────────────────────────────────────────────
+
 const RestaurantPOS: React.FC = () => {
-  const branchId = useAppSelector(BranchId);
-  const zoduId = useAppSelector(ZoduId);
+  const branchId = "ZODU035B1"; // useAppSelector(BranchId);
+  const zoduId   = "ZODU035";
 
-  // ── Remote data ─────────────────────────────────────────────
-  const { data: menuData, isLoading: menuLoading, isError: menuError } = useRestaurantMenuQuery(branchId);
-  const { data: tableOrdersData, isLoading: tableLoading } = useTableOrdersQuery(branchId);
-  const { data: holdOrdersData } = useHoldOrdersQuery(branchId);
+  // ── API ─────────────────────────────────────────────────────────────────
+  const { data: menuData,        isLoading: menuLoading } = useRestaurantMenuQuery(branchId);
+  const { data: tableOrdersData                         } = useTableOrdersQuery(branchId);
+  const { data: holdOrdersData                          } = useHoldOrdersQuery(branchId);
 
-  // ── Mutations ────────────────────────────────────────────────
-  const { mutateAsync: addOrder, isPending: addingOrder } = useAddOrderMutation();
-  const { mutateAsync: completeOrder, isPending: completingOrder } = useCompleteOrderMutation();
-  const { mutateAsync: holdOrder, isPending: holdingOrder } = useHoldOrderMutation();
-  const { mutateAsync: deleteHold } = useDeleteHoldOrderMutation();
+  const { mutateAsync: addOrder,      isPending: addingOrder      } = useAddOrderMutation();
+  const { mutateAsync: completeOrder, isPending: completingOrder  } = useCompleteOrderMutation();
+  const { mutateAsync: holdOrder,     isPending: holdingOrder     } = useHoldOrderMutation();
+  const { mutateAsync: deleteHoldOrder                            } = useDeleteHoldOrderMutation();
 
-  // ── Local state ──────────────────────────────────────────────
-  const [order, setOrder] = useState<RestaurantOrder>(buildInitialOrder());
-  const [cartItems, setCartItems] = useState<RestaurantCartItem[]>([]);
+  const isBusy = addingOrder || completingOrder || holdingOrder;
+
+  // ── State ────────────────────────────────────────────────────────────────
+  const [order,        setOrder       ] = useState<RestaurantOrder>(buildInitialOrder());
+  const [cartItems,    setCartItems   ] = useState<RestaurantCartItem[]>([]);
+  const [searchQuery,  setSearchQuery ] = useState("");
+  const [filterMode,   setFilterMode  ] = useState<"All" | "Favourites">("All");
   const [activeCategory, setActiveCategory] = useState("All");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterMode, setFilterMode] = useState<"All" | "Favourites">("All");
-  const [showDiscountModal, setShowDiscountModal] = useState(false);
-  const [showCustomerModal, setShowCustomerModal] = useState(false);
-  const [variantModalProduct, setVariantModalProduct] = useState<RestaurantMenuItem | null>(null);
 
-  const isLoading = addingOrder || completingOrder || holdingOrder;
+  // Modal open flags
+  const [showTable,    setShowTable   ] = useState(false);
+  const [showDiscount, setShowDiscount] = useState(false);
+  const [showCustomer, setShowCustomer] = useState(false);
+  const [runningOrderSummary, setRunningOrderSummary] = useState<RunningOrderOrderedItem[]>([]);
+  const [variantItem,  setVariantItem ] = useState<RestaurantMenuItem | null>(null);
 
-  // ── Derived data ─────────────────────────────────────────────
+  // ── Auto-scroll refs ─────────────────────────────────────────────────────
+  const menuScrollRef    = useRef<HTMLDivElement>(null);
+  const sectionRefs      = useRef<Map<string, HTMLDivElement>>(new Map());
+  const manualScrollRef  = useRef(false);   // suppress observer while programmatic scrolling
+
+  // ── Derived data ─────────────────────────────────────────────────────────
   const categories: RestaurantCategory[] = useMemo(() => menuData ?? [], [menuData]);
 
   const filteredCategories = useMemo(() => {
     let cats = categories;
 
     if (filterMode === "Favourites") {
-      cats = cats.map((c) => ({ ...c, items: c.items.filter((i) => i.favorites) })).filter((c) => c.items.length > 0);
-    }
-
-    if (activeCategory !== "All") {
-      cats = cats.filter((c) => c.name === activeCategory);
+      cats = cats
+        .map((c) => ({ ...c, items: c.items.filter((i) => i.favorites) }))
+        .filter((c) => c.items.length > 0);
     }
 
     if (searchQuery.trim()) {
@@ -119,60 +155,120 @@ const RestaurantPOS: React.FC = () => {
     }
 
     return cats;
-  }, [categories, activeCategory, searchQuery, filterMode]);
+  }, [categories, searchQuery, filterMode]);
 
-  const tableLabel = useMemo(() => {
-    if (order.orderType !== "DineIn") return "";
-    return order.tableNumber ? `Table / Customer: Table ${order.tableNumber}` : "Table / Customer: Table";
-  }, [order.orderType, order.tableNumber]);
+  const runningOrders: RunningOrder[] = useMemo(
+    () => tableOrdersData ?? [],
+    [tableOrdersData]
+  );
 
-  const activeTableOrders: number[] = useMemo(() => {
-    if (!tableOrdersData) return [];
-    return tableOrdersData.map((o: any) => Number(o.table_no)).filter((n: number) => n > 0);
-  }, [tableOrdersData]);
+  const activeTableNumbers: number[] = useMemo(
+    () => runningOrders.map((o) => parseInt(o.table_no, 10)).filter((n) => n > 0),
+    [runningOrders]
+  );
 
-  const heldOrders: Array<{ id: string; label: string }> = useMemo(() => {
-    if (!holdOrdersData?.data) return [];
-    return holdOrdersData.data.map((ho: any, idx: number) => ({
-      id: ho.hold_uuid ?? ho.id ?? String(idx),
-      label: `HOLD${idx + 1}`,
-    }));
-  }, [holdOrdersData]);
+  const heldOrders = useMemo(() => holdOrdersData ?? [], [holdOrdersData]);
 
-  // ── Cart helpers ─────────────────────────────────────────────
+  const totals: Totals = useMemo(() => {
+    const subtotal   = calcSubtotal(cartItems);
+    const taxAmount  = calcTax(cartItems);
+    const discount   = calcDiscount(subtotal, order.discountType, order.discountValue);
+    const grandTotal = calcGrandTotal(subtotal, taxAmount, discount);
+    return { subtotal, taxAmount, discount, grandTotal };
+  }, [cartItems, order.discountType, order.discountValue]);
 
-  const addToCart = useCallback((product: RestaurantMenuItem, variant?: RestaurantVariant) => {
-    setCartItems((prev) => {
-      const variantId = variant ? (variant.variant_id ?? variant.id) : undefined;
-      const existing = prev.find(
-        (c) =>
-          c.product.menu_id === product.menu_id &&
-          (variantId ? c.product.variant_id === variantId : !c.product.variant_id)
-      );
+  // ── Auto-scroll: click category → scroll section into view ───────────────
+  const handleCategorySelect = useCallback((catName: string) => {
+    setActiveCategory(catName);
 
-      if (existing) {
-        return prev.map((c) =>
-          c === existing ? { ...c, quantity: c.quantity + 1 } : c
-        );
-      }
+    if (catName === "All") {
+      menuScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
 
-      const enriched: RestaurantMenuItem = variant
-        ? {
-            ...product,
-            sell_price: variant.price,
-            variant_id: variant.variant_id ?? variant.id,
-            variant_name: variant.variant_name,
-          } as RestaurantMenuItem & { variant_id?: string; variant_name?: string }
-        : product;
+    const el        = sectionRefs.current.get(catName);
+    const container = menuScrollRef.current;
+    if (!el || !container) return;
 
-      return [...prev, { product: enriched, quantity: 1 }];
-    });
+    manualScrollRef.current = true;
+
+    const containerTop = container.getBoundingClientRect().top;
+    const elTop        = el.getBoundingClientRect().top;
+    const offset       = container.scrollTop + elTop - containerTop - 12;
+
+    container.scrollTo({ top: Math.max(0, offset), behavior: "smooth" });
+
+    // Re-enable observer after animation finishes (~700 ms)
+    setTimeout(() => { manualScrollRef.current = false; }, 750);
   }, []);
 
-  const handleSelectProduct = useCallback(
+  // ── Auto-scroll: scroll → update active category in sidebar ──────────────
+  useEffect(() => {
+    const container = menuScrollRef.current;
+    if (!container || filteredCategories.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (manualScrollRef.current) return;
+
+        // Pick topmost visible section header
+        const topEntry = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+
+        if (topEntry) {
+          const cat = topEntry.target.getAttribute("data-category");
+          if (cat) setActiveCategory(cat);
+        }
+      },
+      {
+        root:       container,
+        threshold:  0,
+        // Section is "active" once its top edge is in the upper 30% of the container
+        rootMargin: "0px 0px -70% 0px",
+      }
+    );
+
+    sectionRefs.current.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [filteredCategories]);
+
+  // ── Cart helpers ──────────────────────────────────────────────────────────
+  const addToCart = useCallback(
+    (product: RestaurantMenuItem, variant?: RestaurantVariant) => {
+      setCartItems((prev) => {
+        const variantId = variant ? (variant.variant_id ?? variant.id) : undefined;
+        const existing  = prev.find(
+          (c) =>
+            c.product.menu_id === product.menu_id &&
+            (variantId ? (c.product as any).variant_id === variantId : !(c.product as any).variant_id)
+        );
+
+        if (existing) {
+          return prev.map((c) =>
+            c === existing ? { ...c, quantity: c.quantity + 1 } : c
+          );
+        }
+
+        const enriched = variant
+          ? {
+              ...product,
+              sell_price:   variant.price,
+              variant_id:   variant.variant_id ?? variant.id,
+              variant_name: variant.variant_name,
+            }
+          : product;
+
+        return [...prev, { product: enriched as any, quantity: 1 }];
+      });
+    },
+    []
+  );
+
+  const handleProductClick = useCallback(
     (product: RestaurantMenuItem) => {
       if (product.variants && product.variants.length > 0) {
-        setVariantModalProduct(product);
+        setVariantItem(product);
         return;
       }
       addToCart(product);
@@ -180,91 +276,133 @@ const RestaurantPOS: React.FC = () => {
     [addToCart]
   );
 
-  const incrementCart = useCallback((item: RestaurantCartItem) => {
-    setCartItems((prev) =>
-      prev.map((c) => (c === item ? { ...c, quantity: c.quantity + 1 } : c))
-    );
+  // Total qty in cart for a given menu item (all variants combined)
+  const getCartQty = useCallback(
+    (menuId: string) =>
+      cartItems
+        .filter((c) => c.product.menu_id === menuId)
+        .reduce((s, c) => s + c.quantity, 0),
+    [cartItems]
+  );
+
+  const incrementCart = useCallback((ci: RestaurantCartItem) => {
+    setCartItems((prev) => prev.map((c) => (c === ci ? { ...c, quantity: c.quantity + 1 } : c)));
   }, []);
 
-  const decrementCart = useCallback((item: RestaurantCartItem) => {
+  const decrementCart = useCallback((ci: RestaurantCartItem) => {
     setCartItems((prev) => {
       const updated = prev.map((c) =>
-        c === item ? { ...c, quantity: Math.max(0, c.quantity - 1) } : c
+        c === ci ? { ...c, quantity: Math.max(0, c.quantity - 1) } : c
       );
       return updated.filter((c) => c.quantity > 0);
     });
   }, []);
 
-  const removeFromCart = useCallback((item: RestaurantCartItem) => {
-    setCartItems((prev) => prev.filter((c) => c !== item));
+  const removeFromCart = useCallback((ci: RestaurantCartItem) => {
+    setCartItems((prev) => prev.filter((c) => c !== ci));
   }, []);
 
-  const incrementByProduct = useCallback((product: RestaurantMenuItem) => {
-    const found = cartItems.find(
-      (c) => c.product.menu_id === product.menu_id && !c.product.variant_id
-    );
-    if (found) incrementCart(found);
-    else addToCart(product);
-  }, [cartItems, incrementCart, addToCart]);
+  const incrementByProduct = useCallback(
+    (product: RestaurantMenuItem) => {
+      const found = cartItems.find(
+        (c) => c.product.menu_id === product.menu_id && !(c.product as any).variant_id
+      );
+      if (found) incrementCart(found);
+      else addToCart(product);
+    },
+    [cartItems, incrementCart, addToCart]
+  );
 
-  const decrementByProduct = useCallback((product: RestaurantMenuItem) => {
-    const found = cartItems.find(
-      (c) => c.product.menu_id === product.menu_id && !c.product.variant_id
-    );
-    if (found) decrementCart(found);
-  }, [cartItems, decrementCart]);
+  const decrementByProduct = useCallback(
+    (product: RestaurantMenuItem) => {
+      const found = cartItems.find(
+        (c) => c.product.menu_id === product.menu_id && !(c.product as any).variant_id
+      );
+      if (found) decrementCart(found);
+    },
+    [cartItems, decrementCart]
+  );
 
-  // ── Reset order ──────────────────────────────────────────────
+  const setQtyByProduct = useCallback(
+    (product: RestaurantMenuItem, newQty: number) => {
+      setCartItems((prev) => {
+        const found = prev.find(
+          (c) => c.product.menu_id === product.menu_id && !("variant_id" in c.product)
+        );
+        if (!found) return prev;
+        const updated = prev.map((c) =>
+          c === found ? { ...c, quantity: Math.max(1, newQty) } : c
+        );
+        return updated;
+      });
+    },
+    []
+  );
 
   const resetOrder = useCallback(() => {
     setCartItems([]);
+    setRunningOrderSummary([]);
     setOrder(buildInitialOrder());
   }, []);
 
-  // ── Checkout / Send to KDS ───────────────────────────────────
-
-  const buildItemsPayload = (items: RestaurantCartItem[]) =>
-    items.map((item) => ({
-      menu_id: item.product.menu_id,
-      name: item.product.menu_name,
-      price: getItemPrice(item.product),
-      qty: item.quantity,
-      tax: parseFloat(item.product.gst_tax) || 0,
-      tax_inclusive: item.product.tax_include_or_exclude ?? false,
-      variant_id: item.product.variant_id ?? null,
-      variant_name: item.product.variant_name ?? null,
-      image: item.product.menu_image,
-      menu_unit: item.product.menu_unit,
+  // ── Build items payload ───────────────────────────────────────────────────
+  const buildPayloadItems = (items: RestaurantCartItem[]) =>
+    items.map((i) => ({
+      menu_id:        i.product.menu_id,
+      name:           i.product.menu_name,
+      price:          getItemPrice(i.product),
+      qty:            i.quantity,
+      gst_percentage: parseFloat(i.product.gst_tax) || 0,
+      tax_inclusive:  i.product.tax_include_or_exclude ?? false,
+      menu_unit:      i.product.menu_unit ?? null,
+      variant_id:     i.product.variant_id ?? null,
+      variant_name:   i.product.variant_name ?? null,
     }));
 
-  const handleSendToKDS = async () => {
-    if (cartItems.length === 0) { toast.error("Add items before sending to KDS"); return; }
-    if (order.orderType === "DineIn" && !order.tableNumber) { toast.error("Select a table first"); return; }
+  const buildSummaryPayloadItems = (items: typeof runningOrderSummary) =>
+    items.map((i) => ({
+      menu_id:        i.item_id,
+      name:           i.item_name,
+      price:          i.price,
+      qty:            i.qty,
+      gst_percentage: parseFloat(String(i.gst_tax ?? 0)) || 0,
+      tax_inclusive:  i.tax_include_or_exclude ?? false,
+      menu_unit:      i.item_unit ?? null,
+      variant_id:     null,
+      variant_name:   null,
+    }));
 
-    const subtotal = calcSubtotal(cartItems);
-    const taxAmount = calcTax(cartItems);
-    const discount = calcDiscount(subtotal, order.discountType, order.discountValue);
-    const grandTotal = calcGrandTotal(subtotal, taxAmount, discount);
+  // ── Actions ───────────────────────────────────────────────────────────────
+  const handleSendToKDS = async () => {
+    if (!cartItems.length)        
+     { toast.error("Add items first"); return; }
+    if (order.orderType === "DineIn" && !order.tableNumber) { setShowTable(true); return; }
+    console.log("Sending to KDS with payload:", order);
 
     try {
-      const response = await addOrder({
-        zodu_id: zoduId,
-        branch_id: branchId,
-        table_no: order.tableNumber ?? 0,
-        order_type: ORDER_TYPE_MAP[order.orderType] ?? "DINE_IN",
-        items: buildItemsPayload(cartItems),
-        no_of_items: cartItems.length,
-        total_amt: grandTotal,
+      const res = await addOrder({
+        zodu_id:       zoduId,
+        branch_id:     branchId,
+        table_no:      order.tableNumber ?? null,
+        order_type:    ADD_ORDER_TYPE_MAP[order.orderType],
+        kot_no:        order.kotNo ?? "KOT-1",
+        items:         buildPayloadItems(cartItems),
+        no_of_items:   cartItems.length,
+        total_amt:     totals.grandTotal,
         discount_type: order.discountType === "Amount" ? "FLAT" : "PERCENT",
         discount_value: order.discountValue,
         final_payment: false,
-        order_date: new Date().toISOString().split("T")[0],
-        order_time: new Date().toLocaleTimeString("en-GB"),
+        
+        order_date:    new Date().toISOString().split("T")[0],
+        order_time:    new Date().toLocaleTimeString("en-GB"),
         customer_name: order.customerName,
         customer_phone: order.customerPhone,
       });
-
-      setOrder((prev) => ({ ...prev, orderId: response?.Data?.api_order_id ?? prev.orderId }));
+      setOrder((p) => ({
+        ...p,
+        orderId: res?.Data?.api_order_id ?? p.orderId,
+        kotNo:   res?.Data?.kot_no        ?? p.kotNo,
+      }));
       toast.success("Order sent to KDS!");
       setCartItems([]);
     } catch {
@@ -272,45 +410,37 @@ const RestaurantPOS: React.FC = () => {
     }
   };
 
-  const handlePaid = async () => {
-    if (cartItems.length === 0 && order.orderType !== "DineIn") {
-      toast.error("No items in cart");
-      return;
-    }
-
-    const subtotal = calcSubtotal(cartItems);
-    const taxAmount = calcTax(cartItems);
-    const discount = calcDiscount(subtotal, order.discountType, order.discountValue);
-    const grandTotal = calcGrandTotal(subtotal, taxAmount, discount);
-
+  const handlePay = async (payMethod: "Card" | "QR" | "Cash") => {
     try {
       if (order.orderType === "DineIn") {
-        if (!order.tableNumber) { toast.error("Select a table"); return; }
+        if (!order.tableNumber) { toast.error("Select a table first"); return; }
         await completeOrder({
-          api_order_id: order.orderId,
-          zodu_id: zoduId,
-          branch_id: branchId,
-          tableNumber: order.tableNumber,
-          items: buildItemsPayload(cartItems),
+          api_order_id:  order.orderId,
+          zodu_id:       zoduId,
+          branch_id:     branchId,
+          table_no:      order.tableNumber,
+          payment_type:  payMethod,
           discount_type: order.discountType === "Amount" ? "FLAT" : "PERCENT",
           discount_value: order.discountValue,
-          totalAmount: grandTotal,
-          paymentType: order.paymentMethod,
+          items: cartItems.length > 0
+            ? buildPayloadItems(cartItems)
+            : buildSummaryPayloadItems(runningOrderSummary),
         });
       } else {
         await addOrder({
-          zodu_id: zoduId,
-          branch_id: branchId,
-          table_no: 0,
-          order_type: ORDER_TYPE_MAP[order.orderType] ?? "TAKEAWAY",
-          items: buildItemsPayload(cartItems),
-          no_of_items: cartItems.length,
-          total_amt: grandTotal,
+          zodu_id:       zoduId,
+          kot_no:        order.kotNo ?? "KOT-1",
+          branch_id:     branchId,
+          table_no:      null,
+          order_type:    ADD_ORDER_TYPE_MAP[order.orderType],
+          items:         buildPayloadItems(cartItems),
+          no_of_items:   cartItems.length,
+          total_amt:     totals.grandTotal,
           discount_type: order.discountType === "Amount" ? "FLAT" : "PERCENT",
           discount_value: order.discountValue,
           final_payment: true,
-          order_date: new Date().toISOString().split("T")[0],
-          order_time: new Date().toLocaleTimeString("en-GB"),
+          order_date:    new Date().toISOString().split("T")[0],
+          order_time:    new Date().toLocaleTimeString("en-GB"),
           customer_name: order.customerName,
           customer_phone: order.customerPhone,
         });
@@ -323,22 +453,24 @@ const RestaurantPOS: React.FC = () => {
   };
 
   const handleHold = async () => {
-    if (cartItems.length === 0) { toast.error("No items to hold"); return; }
-    const subtotal = calcSubtotal(cartItems);
-    const taxAmount = calcTax(cartItems);
-    const discount = calcDiscount(subtotal, order.discountType, order.discountValue);
-    const grandTotal = calcGrandTotal(subtotal, taxAmount, discount);
-
+    if (!cartItems.length) { toast.error("No items to hold"); return; }
     try {
       await holdOrder({
-        zodu_id: zoduId,
-        branch_id: branchId,
-        table_no: order.tableNumber,
-        order_type: ORDER_TYPE_MAP[order.orderType] ?? "DINE_IN",
-        items: buildItemsPayload(cartItems),
-        total_amt: grandTotal,
-        order_date: new Date().toISOString().split("T")[0],
-        order_time: new Date().toLocaleTimeString("en-GB"),
+        zodu_id:       zoduId,
+        branch_id:     branchId,
+        orderType:     HOLD_ORDER_TYPE_MAP[order.orderType],
+        table_no:      order.tableNumber != null ? String(order.tableNumber) : null,
+        customerName:  order.customerName || null,
+        customerPhone: order.customerPhone || null,
+        items: cartItems.map((ci) => ({
+          item_id:      ci.product.menu_id,
+          item_name:    ci.product.menu_name,
+          item_unit:    ci.product.menu_unit || null,
+          qty:          ci.quantity,
+          price:        getItemPrice(ci.product),
+          variant_name: ci.product.variant_name ?? null,
+          variant_id:   ci.product.variant_id ?? null,
+        })),
       });
       toast.success("Order placed on hold");
       resetOrder();
@@ -347,208 +479,522 @@ const RestaurantPOS: React.FC = () => {
     }
   };
 
-  const handleRestoreHeld = async (holdId: string) => {
-    if (!holdOrdersData?.data) return;
-    const held = holdOrdersData.data.find((ho: any) => (ho.hold_uuid ?? ho.id) === holdId);
-    if (!held) return;
+  const handleRestoreRunningOrder = (ro: RunningOrder) => {
+    const tableNum    = parseInt(ro.table_no, 10) || null;
+    const latestKotNo = ro.kot_items[ro.kot_items.length - 1]?.kot_no ?? null;
 
-    const restoredItems: RestaurantCartItem[] = (held.items ?? []).map((item: any) => ({
+    // Build a flat menu lookup so we can enrich ordered_items with tax data
+    const menuItemMap = new Map(
+      categories.flatMap((cat) => cat.items.map((item) => [item.menu_id, item]))
+    );
+    const enrichedItems = ro.ordered_items.map((item) => {
+      const menuItem = menuItemMap.get(item.item_id);
+      return {
+        ...item,
+        gst_tax:                menuItem?.gst_tax              ?? null,
+        tax_include_or_exclude: menuItem?.tax_include_or_exclude ?? null,
+      };
+    });
+
+    setCartItems([]);
+    setRunningOrderSummary(enrichedItems);
+    setOrder((p) => ({
+      ...p,
+      orderId:       ro.api_order_id,
+      tableNumber:   tableNum,
+      kotNo:         latestKotNo,
+      orderType:     "DineIn",
+      customerName:  ro.customer_name ?? "",
+      customerPhone: ro.customer_phone ?? "",
+    }));
+    toast.info(`Table ${ro.table_no} selected — add items for next KOT`);
+  };
+
+  const handleDeleteHold = async (holdId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await deleteHoldOrder(holdId);
+      toast.success("Hold order removed");
+    } catch {
+      toast.error("Failed to remove hold order");
+    }
+  };
+
+  const handleRestoreHold = async (held: HoldOrder) => {
+    const restoredItems: RestaurantCartItem[] = held.items.map((i) => ({
       product: {
-        menu_id: item.menu_id,
-        menu_name: item.name,
-        sell_price: String(item.price),
-        gst_tax: String(item.tax ?? 0),
-        tax_include_or_exclude: item.tax_inclusive ?? false,
-        menu_image: item.image ?? null,
-        menu_unit: item.menu_unit ?? "",
-        food_type: "",
-        category: "",
-        hsn_code: "",
-        purchase_price: "0",
-        active: true,
-        favorites: null,
-        variants: null,
-        count: 0,
-        menu_type: "",
-        variant_id: item.variant_id ?? undefined,
-        variant_name: item.variant_name ?? undefined,
+        menu_id:                i.item_id,
+        menu_name:              i.item_name,
+        sell_price:             String(i.price),
+        gst_tax:                "0",
+        tax_include_or_exclude: false,
+        menu_image:             null,
+        menu_unit:              i.item_unit ?? "",
+        food_type:              "",
+        category:               "",
+        hsn_code:               "",
+        purchase_price:         "0",
+        active:                 true,
+        favorites:              null,
+        variants:               null,
+        count:                  0,
+        menu_type:              "",
+        variant_id:             i.variant_id ?? undefined,
+        variant_name:           i.variant_name ?? undefined,
       } as RestaurantMenuItem,
-      quantity: item.qty ?? 1,
+      quantity: i.qty,
     }));
-
     setCartItems(restoredItems);
-    setOrder((prev) => ({
-      ...prev,
-      tableNumber: held.table_no ?? null,
-      orderType: held.order_type === "DINE_IN" ? "DineIn" : held.order_type === "DELIVERY" ? "Delivery" : "PickUp",
+    setOrder((p) => ({
+      ...p,
+      tableNumber:   held.table_no ? Number(held.table_no) : null,
+      customerName:  held.customer_name ?? "",
+      customerPhone: held.customer_phone ?? "",
+      orderType:
+        held.order_type === "DINE_IN"   ? "DineIn"
+        : held.order_type === "DELIVERY" ? "Delivery"
+        : "PickUp",
     }));
+    try {
+      await deleteHoldOrder(held.hold_id);
+    } catch {
+      // restore succeeded even if delete fails — don't block the user
+    }
     toast.info("Hold order restored");
   };
 
-  const handleOrderTypeChange = (type: "DineIn" | "Delivery" | "PickUp") => {
-    setOrder((prev) => ({ ...prev, orderType: type, customerName: "", customerPhone: "" }));
-  };
-
-  const handleApplyDiscount = (type: "Percent" | "Amount", value: number) => {
-    setOrder((prev) => ({ ...prev, discountType: type, discountValue: value }));
-  };
-
-  const handleSaveCustomer = (data: CustomerFormData) => {
-    setOrder((prev) => ({ ...prev, customerName: data.name, customerPhone: data.phone }));
-  };
-
-  const handleVariantSelect = (product: RestaurantMenuItem, variant: RestaurantVariant) => {
-    addToCart(product, variant);
-    setVariantModalProduct(null);
-  };
-
-  const handleTableSelect = (tableNo: number) => {
-    setOrder((prev) => ({ ...prev, tableNumber: tableNo, orderType: "DineIn" }));
-  };
-
-  // ── Render ───────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className={styles.posRoot}>
-      {/* Category sidebar */}
-      <CategorySidebar
-        categories={categories}
-        activeCategory={activeCategory}
-        onSelect={setActiveCategory}
-      />
+    <Box
+      sx={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1299,
+        display: "flex",
+        flexDirection: "column",
+        bgcolor: "#f5f5f5",
+        overflow: "hidden",
+      }}
+    >
+      {/* ════ Header / Navbar ════ */}
+      <Box
+        sx={{
+          height: 54,
+          bgcolor: "#fff",
+          borderBottom: "1px solid #e5e7eb",
+          display: "flex",
+          alignItems: "center",
+          px: 2,
+          gap: 1.5,
+          flexShrink: 0,
+        }}
+      >
+        {/* Logo */}
+        <Typography
+          sx={{
+            fontWeight: 900,
+            fontSize: "1.2rem",
+            color: "#d32f2f",
+            fontStyle: "italic",
+            letterSpacing: "-0.02em",
+            whiteSpace: "nowrap",
+          }}
+        >
+          zodu
+        </Typography>
+        <Divider orientation="vertical" flexItem sx={{ borderColor: "#e5e7eb" }} />
+        <Typography variant="body2" color="text.secondary" fontWeight={500} sx={{ whiteSpace: "nowrap" }}>
+          Restaurant POS
+        </Typography>
 
-      {/* Main product area */}
-      <div className={styles.mainArea}>
-        {/* Top search & filter bar */}
-        <div className={styles.topBar}>
-          <div className={styles.searchWrap}>
-            <span className={styles.searchIcon}>🔍</span>
-            <input
-              className={styles.searchInput}
-              placeholder="Search products..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <div className={styles.filterTabs}>
-            {(["All", "Favourites"] as const).map((f) => (
-              <button
-                key={f}
-                className={`${styles.filterTab} ${filterMode === f ? styles.filterTabActive : ""}`}
-                onClick={() => setFilterMode(f)}
+        <Box sx={{ flex: 1 }} />
+
+        {/* Search */}
+        <TextField
+          size="small"
+          placeholder="Search dishes by name..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          sx={{
+            width: { xs: 140, sm: 200, md: 240 },
+            "& .MuiOutlinedInput-root": {
+              borderRadius: "8px",
+              bgcolor: "#f9fafb",
+              height: 34,
+              fontSize: "0.82rem",
+            },
+          }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon sx={{ color: "#9ca3af", fontSize: 17 }} />
+              </InputAdornment>
+            ),
+          }}
+        />
+
+        {/* Favourites toggle */}
+        <Box
+          onClick={() => setFilterMode(filterMode === "Favourites" ? "All" : "Favourites")}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5,
+            px: 1.2,
+            py: 0.55,
+            borderRadius: "20px",
+            border: filterMode === "Favourites" ? "1.5px solid #f59e0b" : "1.5px solid #e5e7eb",
+            bgcolor: filterMode === "Favourites" ? "#fffbeb" : "#fff",
+            color: filterMode === "Favourites" ? "#d97706" : "#6b7280",
+            fontSize: "0.75rem",
+            fontWeight: filterMode === "Favourites" ? 700 : 500,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+            transition: "all 0.15s",
+            "&:hover": { border: "1.5px solid #f59e0b", color: "#d97706" },
+          }}
+        >
+          <StarIcon sx={{ fontSize: 14 }} />
+          <Typography sx={{ fontSize: "0.75rem", fontWeight: "inherit", lineHeight: 1 }}>
+            Favourites
+          </Typography>
+        </Box>
+
+        <Divider orientation="vertical" flexItem sx={{ borderColor: "#e5e7eb" }} />
+
+        {/* Order type tabs */}
+        {ORDER_TYPES.map((t) => {
+          const active = order.orderType === t.key;
+          return (
+            <Box
+              key={t.key}
+              onClick={() =>
+                setOrder((p) => ({ ...p, orderType: t.key, customerName: "", customerPhone: "" }))
+              }
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0.5,
+                px: 1,
+                height: "100%",
+                cursor: "pointer",
+                borderBottom: active ? "2.5px solid #d32f2f" : "2.5px solid transparent",
+                color: active ? "#d32f2f" : "#6b7280",
+                transition: "all 0.15s",
+                "&:hover": { color: "#d32f2f" },
+              }}
+            >
+              {t.icon}
+              <Typography sx={{ fontSize: "0.78rem", fontWeight: active ? 700 : 500, lineHeight: 1 }}>
+                {t.label}
+              </Typography>
+            </Box>
+          );
+        })}
+
+      </Box>
+
+      {/* ════ Body ════ */}
+      <Box sx={{ flex: 1, display: "flex", overflow: "hidden" }}>
+
+        {/* ── Category sidebar ── */}
+        <CategoryNav
+          categories={categories}
+          activeCategory={activeCategory}
+          onSelect={handleCategorySelect}
+          totalItems={categories.reduce((s, c) => s + c.items.length, 0)}
+        />
+
+        {/* ── Center: search + product grid ── */}
+        <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+          {/* Scrollable product grid */}
+          <Box
+            ref={menuScrollRef}
+            sx={{
+              flex: 1,
+              overflowY: "auto",
+              p: 2,
+              "&::-webkit-scrollbar": { width: 5 },
+              "&::-webkit-scrollbar-track": { bgcolor: "transparent" },
+              "&::-webkit-scrollbar-thumb": { bgcolor: "#e5e7eb", borderRadius: 3 },
+            }}
+          >
+            {menuLoading ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  height: "80%",
+                  gap: 2,
+                }}
               >
-                {f}
-              </button>
-            ))}
-          </div>
-        </div>
+                <CircularProgress sx={{ color: "#d32f2f" }} size={36} />
+                <Typography color="text.secondary" variant="body2">
+                  Loading menu...
+                </Typography>
+              </Box>
+            ) : filteredCategories.length === 0 ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  height: "80%",
+                  gap: 1,
+                }}
+              >
+                <Typography sx={{ fontSize: "3rem" }}>🍽️</Typography>
+                <Typography color="text.secondary">No items found</Typography>
+              </Box>
+            ) : (
+              filteredCategories.map((cat) => (
+                /* ── Category section ── */
+                <Box
+                  key={cat.name}
+                  ref={(el: HTMLDivElement | null) => {
+                    if (el) sectionRefs.current.set(cat.name, el);
+                    else    sectionRefs.current.delete(cat.name);
+                  }}
+                  data-category={cat.name}
+                  sx={{ mb: 3 }}
+                >
+                  {/* Section header */}
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      mb: 1.5,
+                    }}
+                  >
+                    <Typography
+                      variant="subtitle2"
+                      fontWeight={700}
+                      color="#111827"
+                    >
+                      {cat.name}
+                    </Typography>
+                    <Box
+                      sx={{
+                        px: 0.8,
+                        py: 0.1,
+                        borderRadius: "10px",
+                        bgcolor: "#fee2e2",
+                        color: "#d32f2f",
+                        fontSize: "0.62rem",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {cat.items.length}
+                    </Box>
+                    <Divider sx={{ flex: 1 }} />
+                  </Box>
 
-        {/* Product grid */}
-        <div className={styles.productArea}>
-          {menuLoading ? (
-            <div className={styles.loadingWrap}>
-              <div className={styles.spinner} />
-              <span>Loading menu...</span>
-            </div>
-          ) : menuError ? (
-            <div className={styles.errorBanner}>Failed to load menu. Please refresh.</div>
-          ) : filteredCategories.length === 0 ? (
-            <div className={styles.loadingWrap}>
-              <span style={{ fontSize: 40 }}>🍽️</span>
-              <span>No items found</span>
-            </div>
-          ) : (
-            filteredCategories.map((cat) => (
-              <div key={cat.name} className={styles.categorySection}>
-                <h3 className={styles.categorySectionTitle}>
-                  {cat.name} — {cat.items.length}
-                </h3>
-                <div className={styles.productGrid}>
-                  {cat.items.map((item) => (
-                    <ProductCard
-                      key={item.menu_id}
-                      item={item}
-                      cartItems={cartItems}
-                      onSelect={handleSelectProduct}
-                      onIncrement={incrementByProduct}
-                      onDecrement={decrementByProduct}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))
+                  {/* Product grid */}
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: {
+                        xs: "repeat(auto-fill, minmax(160px, 1fr))",
+                        sm: "repeat(auto-fill, minmax(185px, 1fr))",
+                        md: "repeat(auto-fill, minmax(200px, 1fr))",
+                        lg: "repeat(auto-fill, minmax(210px, 1fr))",
+                        xl: "repeat(auto-fill, minmax(220px, 1fr))",
+                      },
+                      gap: 1.5,
+                    }}
+                  >
+                    {cat.items.map((item) => (
+                      <ProductCard
+                        key={item.menu_id}
+                        item={item}
+                        qty={getCartQty(item.menu_id)}
+                        onAdd={() => handleProductClick(item)}
+                        onIncrement={() => incrementByProduct(item)}
+                        onDecrement={() => decrementByProduct(item)}
+                        onSetQty={(n) => setQtyByProduct(item, n)}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+              ))
+            )}
+          </Box>
+
+          {/* ── Running orders bar ── */}
+          {runningOrders.length > 0 && (
+            <Box
+              sx={{
+                flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                px: 2,
+                py: 0.9,
+                bgcolor: "#eff6ff",
+                borderTop: "1px solid #bfdbfe",
+                overflowX: "auto",
+                scrollbarWidth: "none",
+                "&::-webkit-scrollbar": { display: "none" },
+              }}
+            >
+              <TableBarIcon sx={{ fontSize: 15, color: "#2563eb", flexShrink: 0 }} />
+              <Typography sx={{ fontSize: "0.72rem", fontWeight: 700, color: "#1e3a8a", whiteSpace: "nowrap", flexShrink: 0 }}>
+                Running:
+              </Typography>
+              {runningOrders.map((ro) => {
+                const tableNum  = parseInt(ro.table_no, 10);
+                const latestKot = ro.kot_items[ro.kot_items.length - 1]?.kot_no;
+                const itemCount = ro.ordered_items.reduce((s, i) => s + i.qty, 0);
+                const isActive  = order.tableNumber === tableNum && order.orderId === ro.api_order_id;
+                return (
+                  <Chip
+                    key={ro.api_order_id}
+                    label={`T${ro.table_no}${latestKot ? ` · ${latestKot}` : ""} · ${itemCount} item${itemCount !== 1 ? "s" : ""}`}
+                    size="small"
+                    icon={<TableBarIcon sx={{ fontSize: "12px !important" }} />}
+                    onClick={() => handleRestoreRunningOrder(ro)}
+                    sx={{
+                      height: 26,
+                      fontSize: "0.7rem",
+                      fontWeight: 600,
+                      bgcolor: isActive ? "#bfdbfe" : "#dbeafe",
+                      color: "#1e3a8a",
+                      border: isActive ? "1.5px solid #2563eb" : "1px solid #bfdbfe",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                      "& .MuiChip-icon": { color: "#2563eb" },
+                      "&:hover": { bgcolor: "#bfdbfe" },
+                    }}
+                  />
+                );
+              })}
+            </Box>
           )}
-        </div>
 
-        {/* Active tables bar */}
-        {activeTableOrders.length > 0 && order.orderType === "DineIn" && (
-          <div className={styles.tableBar}>
-            <span className={styles.tableBarLabel}>Tables:</span>
-            {activeTableOrders.map((t) => (
-              <button
-                key={t}
-                className={`${styles.tableChip} ${order.tableNumber === t ? styles.tableChipActive : ""}`}
-                onClick={() => handleTableSelect(t)}
-              >
-                T{t}
-              </button>
-            ))}
-          </div>
-        )}
+          {/* ── Floating hold bar ── */}
+          {heldOrders.length > 0 && (
+            <Box
+              sx={{
+                flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                px: 2,
+                py: 0.9,
+                bgcolor: "#fffbeb",
+                borderTop: "1px solid #fcd34d",
+                overflowX: "auto",
+                scrollbarWidth: "none",
+                "&::-webkit-scrollbar": { display: "none" },
+              }}
+            >
+              <PauseCircleOutlineIcon sx={{ fontSize: 15, color: "#d97706", flexShrink: 0 }} />
+              <Typography sx={{ fontSize: "0.72rem", fontWeight: 700, color: "#92400e", whiteSpace: "nowrap", flexShrink: 0 }}>
+                On Hold:
+              </Typography>
+              {heldOrders.map((ho, idx) => {
+                const typeLabel =
+                  ho.order_type === "DINE_IN"   ? "Dine In"
+                  : ho.order_type === "DELIVERY" ? "Delivery"
+                  : "Pickup";
+                const itemCount = ho.items?.length ?? 0;
+                const tableInfo = ho.table_no ? ` · T${ho.table_no}` : "";
+                return (
+                  <Chip
+                    key={ho.hold_id ?? idx}
+                    label={`${ho.hold_id} · ${itemCount} item${itemCount !== 1 ? "s" : ""}`}
+                    size="small"
+                    icon={<RestoreIcon sx={{ fontSize: "12px !important" }} />}
+                    onClick={() => handleRestoreHold(ho)}
+                    onDelete={(e) => handleDeleteHold(ho.hold_id, e)}
+                    sx={{
+                      height: 26,
+                      fontSize: "0.7rem",
+                      fontWeight: 600,
+                      bgcolor: "#fef3c7",
+                      color: "#92400e",
+                      border: "1px solid #fcd34d",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                      "& .MuiChip-icon": { color: "#d97706" },
+                      "&:hover": { bgcolor: "#fde68a" },
+                    }}
+                  />
+                );
+              })}
+            </Box>
+          )}
+        </Box>
 
-        {/* Hold orders bar */}
-        {heldOrders.length > 0 && (
-          <div className={styles.holdBar}>
-            <span className={styles.holdBarLabel}>On Hold:</span>
-            {heldOrders.map((ho) => (
-              <button
-                key={ho.id}
-                className={styles.holdChip}
-                onClick={() => handleRestoreHeld(ho.id)}
-              >
-                ⏸ {ho.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+        {/* ── Right: order panel ── */}
+        <OrderPanel
+          order={order}
+          cartItems={cartItems}
+          totals={totals}
+          isLoading={isBusy}
+          orderSummary={runningOrderSummary}
+          onTableClick={() => setShowTable(true)}
+          onCustomerClick={() => setShowCustomer(true)}
+          onDiscountClick={() => setShowDiscount(true)}
+          onPaymentMethodChange={(m) => setOrder((p) => ({ ...p, paymentMethod: m }))}
+          onSendToKDS={handleSendToKDS}
+          onPaid={() => handlePay(order.paymentMethod)}
+          onIncrement={incrementCart}
+          onDecrement={decrementCart}
+          onRemove={removeFromCart}
+          onHold={handleHold}
+        />
+      </Box>
 
-      {/* Order summary / cart panel */}
-      <OrderSummaryPanel
-        order={order}
-        cartItems={cartItems}
-        onOrderTypeChange={handleOrderTypeChange}
-        onAddCustomer={() => setShowCustomerModal(true)}
-        onDiscountClick={() => setShowDiscountModal(true)}
-        onPaymentMethodChange={(m) => setOrder((p) => ({ ...p, paymentMethod: m }))}
-        onPaid={handlePaid}
-        onSendToKDS={handleSendToKDS}
-        onIncrement={incrementCart}
-        onDecrement={decrementCart}
-        onRemove={removeFromCart}
-        isLoading={isLoading}
-        tableLabel={tableLabel}
+      {/* ════ Modals ════ */}
+      <TableModal
+        open={showTable}
+        activeTableNumbers={activeTableNumbers}
+        selectedTable={order.tableNumber}
+        onSelect={(n) => {
+          setRunningOrderSummary([]);
+          setOrder((p) => ({ ...p, tableNumber: n, orderType: "DineIn" }));
+          setShowTable(false);
+        }}
+        onClose={() => setShowTable(false)}
       />
 
-      {/* Modals */}
       <DiscountModal
-        open={showDiscountModal}
+        open={showDiscount}
         discountType={order.discountType}
         discountValue={order.discountValue}
-        onApply={handleApplyDiscount}
-        onClose={() => setShowDiscountModal(false)}
+        onApply={(type, value) => {
+          setOrder((p) => ({ ...p, discountType: type, discountValue: value }));
+          setShowDiscount(false);
+        }}
+        onClose={() => setShowDiscount(false)}
       />
-      <CreateCustomerModal
-        open={showCustomerModal}
-        onSave={handleSaveCustomer}
-        onClose={() => setShowCustomerModal(false)}
+
+      <CustomerModal
+        open={showCustomer}
+        onSave={(data: CustomerFormData) => {
+          setOrder((p) => ({ ...p, customerName: data.name, customerPhone: data.phone }));
+          setShowCustomer(false);
+        }}
+        onClose={() => setShowCustomer(false)}
       />
+
       <VariantModal
-        open={!!variantModalProduct}
-        product={variantModalProduct}
-        onSelect={handleVariantSelect}
-        onClose={() => setVariantModalProduct(null)}
+        open={!!variantItem}
+        product={variantItem}
+        onSelect={(product, variant) => {
+          addToCart(product, variant);
+          setVariantItem(null);
+        }}
+        onClose={() => setVariantItem(null)}
       />
-    </div>
+
+    </Box>
   );
 };
 

@@ -25,8 +25,8 @@ import {
 import { useTheme } from "@mui/material/styles";
 import React from "react";
 import { History, Person, Settings } from "@mui/icons-material";
-import { useAppDispatch } from "@store/store";
-import { clearAuthData } from "@store/slices/userSlice";
+import { useAppDispatch, useAppSelector } from "@store/store";
+import { clearAuthData, BusinessType } from "@store/slices/userSlice";
 import { tokenStore } from "@pages/auth/Authapi";
 import { db } from "@pages/POS/db";
 import { useQueryClient } from "@tanstack/react-query";
@@ -34,29 +34,30 @@ import { useLocation } from "react-router-dom";
 
 export const drawerWidth = 240;
 
-const navItems = [
+const retailNavItems = [
   { label: "Dashboard", icon: <DashboardIcon />, path: "/dashboard" },
- { label: "Billing", icon: <PointOfSaleIcon />, path: "/pos" },
+  { label: "Billing", icon: <PointOfSaleIcon />, path: "/pos" },
   { label: "Sales History", icon: <History />, path: "/sales-history" },
-
   { label: "Menu Items", icon: <CategoryIcon />, path: "/menu" },
-  // { label: "Category", icon: <BarChartIcon />, path: "/category" },
-
-  
   { label: "Inventory", icon: <ReceiptIcon />, path: "/stock" },
-  // { label: "Expense", icon: <PaymentsIcon />, path: "/expense" },
-  { label: "Purchase", icon: <CategoryIcon />, path:"/purchase"},
+  { label: "Purchase", icon: <CategoryIcon />, path: "/purchase" },
   { label: "Expense", icon: <PaymentsIcon />, path: "/expense" },
-    { label: "Customer Management", icon: <Person />, path: "/customer-details" },
-  // { label: "Checklist", icon: <ChecklistIcon />, path: "/checklist" },
-  // {label: "Attendance", icon:<GroupsIcon/>, path:"/attendance"},
+  { label: "Customer Management", icon: <Person />, path: "/customer-details" },
   { label: "Report", icon: <BarChartIcon />, path: "/reports" },
-  
-   {
-    label: "Settings",
-    icon: <Settings />,
-    path: "/settings",
-  },
+  { label: "Settings", icon: <Settings />, path: "/settings" },
+];
+
+const restaurantNavItems = [
+  { label: "Dashboard", icon: <DashboardIcon />, path: "/dashboard" },
+  { label: "POS", icon: <PointOfSaleIcon />, path: "/restaurant-pos" },
+  { label: "Sales History", icon: <History />, path: "/sales-history" },
+  { label: "Menu Items", icon: <CategoryIcon />, path: "/menu" },
+  { label: "Inventory", icon: <ReceiptIcon />, path: "/stock" },
+  { label: "Purchase", icon: <CategoryIcon />, path: "/purchase" },
+  { label: "Expense", icon: <PaymentsIcon />, path: "/expense" },
+  { label: "Customer Management", icon: <Person />, path: "/customer-details" },
+  { label: "Report", icon: <BarChartIcon />, path: "/reports" },
+  { label: "Settings", icon: <Settings />, path: "/settings" },
 ];
 
 export default function Sidebar() {
@@ -65,6 +66,9 @@ export default function Sidebar() {
   const queryClient = useQueryClient();
   const location = useLocation();
   const { navigate } = useNavigation();
+  const businessType = useAppSelector(BusinessType);
+
+  const navItems = businessType === "Restaurant" ? restaurantNavItems : retailNavItems;
 
   const activeIndex = navItems.findIndex(
     (item) =>

@@ -7,9 +7,10 @@
 import { useState, useCallback, useRef } from "react";
 import axios from "axios";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiConfig } from "@config/api";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
-const BASE = "/retail";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+const RETAIL_BASE = "/retail";
 
 // ─── Auth helper ────────────────────────────────────────────────
 function authHeaders() {
@@ -23,29 +24,32 @@ export interface RestaurantMenuItem {
   menu_id: string;
   menu_name: string;
   sell_price: string;
-  purchase_price: string;
+  purchase_price: string | null;
   gst_tax: string;
   tax_include_or_exclude: boolean | null;
   menu_image: string | null;
   menu_type: string;
   menu_unit: string;
-  food_type: string;
-  hsn_code: string;
+  food_type: string | null;
+  hsn_code: string | null;
   category: string;
   active: boolean;
   favorites: boolean | null;
   variants: RestaurantVariant[] | null;
   count: number;
+  zodu_id?: string;
+  branch_id?: string;
+  qr_code?: string | null;
 }
 
 export interface RestaurantVariant {
   id?: string;
-  variant_id?: string;
   variant_name: string;
   price: string;
 }
 
 export interface RestaurantCategory {
+  id?: number;
   name: string;
   items: RestaurantMenuItem[];
 }
@@ -79,6 +83,7 @@ export interface ApiCustomer {
 export interface RestaurantOrder {
   orderId: string;
   tableNumber: number | null;
+  kotNo: string | null;
   items: RestaurantCartItem[];
   customerName: string;
   customerPhone: string;
@@ -93,22 +98,51 @@ export interface RestaurantOrder {
   notes: string;
 }
 
+export interface RunningOrderKotItem {
+  item_id: string;
+  kot_no: string;
+  status: string;
+  table_no: string;
+  qty: number;
+}
+
+export interface RunningOrderOrderedItem {
+  item_id: string;
+  item_name: string;
+  item_unit: string;
+  qty: number;
+  price: number;
+}
+
+export interface RunningOrder {
+  api_order_id: string;
+  table_no: string;
+  order_type: string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  final_payment: boolean;
+  total_amt: string;
+  kot_items: RunningOrderKotItem[];
+  ordered_items: RunningOrderOrderedItem[];
+}
+
 export interface AddOrderPayload {
   zodu_id: string;
   branch_id: string;
-  table_no: number;
+  table_no: number | null;
   order_type: string;
+  kot_no: string;
   items: {
     menu_id: string;
     name: string;
     price: number;
     qty: number;
     tax: number;
+    gst_percentage: number;
     tax_inclusive: boolean;
+    menu_unit: string;
     variant_id: string | null;
     variant_name: string | null;
-    image: string | null;
-    menu_unit: string;
   }[];
   no_of_items: number;
   total_amt: number;
@@ -132,10 +166,11 @@ export interface CompleteOrderPayload {
     price: number;
     qty: number;
     tax: number;
+    gst_percentage: number;
     tax_inclusive: boolean;
+    menu_unit: string;
     variant_id: string | null;
     variant_name: string | null;
-    image: string | null;
   }[];
   discount_type: string;
   discount_value: number;
@@ -146,12 +181,41 @@ export interface CompleteOrderPayload {
 export interface HoldOrderPayload {
   zodu_id: string;
   branch_id: string;
-  table_no: number | null;
+  orderType: string;
+  table_no: string | null;
+  customerName: string | null;
+  customerPhone: string | null;
+  items: {
+    item_id: string;
+    item_name: string;
+    item_unit: string | null;
+    qty: number;
+    price: number;
+    variant_name: string | null;
+    variant_id: string | null;
+  }[];
+}
+
+export interface HoldOrderItem {
+  item_id: string;
+  item_name: string;
+  item_unit: string | null;
+  qty: number;
+  price: number;
+  variant_name: string | null;
+  variant_id: string | null;
+}
+
+export interface HoldOrder {
+  hold_id: string;
+  zodu_id: string;
+  branch_id: string;
   order_type: string;
-  items: any[];
-  total_amt: number;
-  order_date: string;
-  order_time: string;
+  table_no: string | null;
+  customer_name: string | null;
+  customer_phone: string | null;
+  created_at: string;
+  items: HoldOrderItem[];
 }
 
 export interface CreateCustomerPayload {
@@ -163,66 +227,118 @@ export interface CreateCustomerPayload {
   address_line1?: string;
 }
 
+// ─── Response normalizers ─────────────────────────────────────────
+
+function normalizeVariants(raw: any[] | null | undefined): RestaurantVariant[] | null {
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  return raw.map((v) => ({
+    id: v.id,
+    variant_name: v.variant_name ?? v.name ?? "",
+    price: String(v.price ?? "0"),
+  }));
+}
+
+function normalizeItem(raw: any, categoryName: string): RestaurantMenuItem {
+  return {
+    zodu_id:              raw.zodu_id,
+    branch_id:            raw.branch_id,
+    menu_id:              raw.menu_id,
+    menu_name:            raw.menu_name,
+    sell_price:           String(raw.sell_price ?? "0"),
+    purchase_price:       raw.purchase_price ?? null,
+    gst_tax:              String(raw.gst_tax ?? "0"),
+    tax_include_or_exclude: raw.tax_include_or_exclude ?? false,
+    menu_image:           raw.menu_image || null,
+    menu_type:            raw.menu_type ?? "Food",
+    menu_unit:            raw.menu_unit ?? "PC",
+    food_type:            raw.food_type ?? null,
+    hsn_code:             raw.hsn_code ?? null,
+    qr_code:              raw.qr_code ?? null,
+    count:                raw.count ?? 0,
+    favorites:            raw.favorites ?? false,
+    active:               true,
+    category:             categoryName,
+    variants:             normalizeVariants(raw.variants),
+  };
+}
+
 // ─── API functions ────────────────────────────────────────────────
 
 async function fetchMenuData(branchId: string): Promise<RestaurantCategory[]> {
-  const { data } = await axios.get(`${API_BASE}${BASE}/get/pos_data/${branchId}`, {
-    headers: authHeaders(),
-  });
-  return data?.Data ?? [];
+  const { data } = await axios.get(
+    `http://localhost:5001/restaurant/get/pos_data/ZODU035B1`,
+    { headers: authHeaders() }
+  );
+  const raw: any[] = data?.Data ?? [];
+  return raw.map((cat) => ({
+    id:    cat.id,
+    name:  cat.name,
+    items: (cat.items ?? []).map((item: any) => normalizeItem(item, cat.name)),
+  }));
 }
 
-async function fetchTableOrders(branchId: string) {
-  const { data } = await axios.get(`${API_BASE}${BASE}/get/orders/${branchId}`, {
-    headers: authHeaders(),
-  });
-  return data?.Data ?? [];
+async function fetchTableOrders(branchId: string): Promise<RunningOrder[]> {
+  const { data } = await axios.get(
+    `${API_BASE}${apiConfig.menu.getTableKOT(branchId)}`,
+    { headers: authHeaders() }
+  );
+  return (data?.data ?? []) as RunningOrder[];
 }
 
 async function fetchHoldOrders(branchId: string) {
-  const { data } = await axios.get(`${API_BASE}${BASE}/get/hold-orders/${branchId}`, {
-    headers: authHeaders(),
-  });
-  return data?.Data ?? [];
+  const { data } = await axios.get(
+    `${API_BASE}${apiConfig.menu.getHoldMenu(branchId)}`,
+    { headers: authHeaders() }
+  );
+  return (data?.Data?.data ?? []) as HoldOrder[];
 }
 
 async function postAddOrder(payload: AddOrderPayload) {
-  const { data } = await axios.post(`${API_BASE}${BASE}/api/add/orders`, payload, {
-    headers: authHeaders(),
-  });
+  const { data } = await axios.post(
+    `${API_BASE}${apiConfig.menu.addTableKOT()}`,
+    payload,
+    { headers: authHeaders() }
+  );
   return data;
 }
 
 async function postCompleteOrder(payload: CompleteOrderPayload) {
-  const { data } = await axios.post(`${API_BASE}${BASE}/api/completeorder`, payload, {
-    headers: authHeaders(),
-  });
+  const { data } = await axios.post(
+    `${API_BASE}${apiConfig.menu.completeKOT()}`,
+    payload,
+    { headers: authHeaders() }
+  );
   return data;
 }
 
 async function postHoldOrder(payload: HoldOrderPayload) {
-  const { data } = await axios.post(`${API_BASE}${BASE}/add/hold_menu`, payload, {
-    headers: authHeaders(),
-  });
+  const { data } = await axios.post(
+    `${API_BASE}${apiConfig.menu.holdMenu()}`,
+    payload,
+    { headers: authHeaders() }
+  );
   return data;
 }
 
 async function deleteHoldOrder(holdUuid: string) {
-  const { data } = await axios.delete(`${API_BASE}${BASE}/delete/hold-menu/${holdUuid}`, {
-    headers: authHeaders(),
-  });
+  const { data } = await axios.delete(
+    `${API_BASE}${apiConfig.menu.deleteHoldMenu(holdUuid)}`,
+    { headers: authHeaders() }
+  );
   return data;
 }
 
 async function postCreateCustomer(payload: CreateCustomerPayload) {
-  const { data } = await axios.post(`${API_BASE}/retail/api/add/customer`, payload, {
-    headers: authHeaders(),
-  });
+  const { data } = await axios.post(
+    `${API_BASE}${RETAIL_BASE}/api/add/customer`,
+    payload,
+    { headers: authHeaders() }
+  );
   return data;
 }
 
 async function searchCustomers(zoduId: string, branchId: string, query: string) {
-  const { data } = await axios.get(`${API_BASE}/retail/api/customers`, {
+  const { data } = await axios.get(`${API_BASE}${RETAIL_BASE}/api/customers`, {
     params: { zodu_id: zoduId, branch_id: branchId, search: query.trim(), limit: 10, page: 1 },
     headers: authHeaders(),
   });
