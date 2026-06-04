@@ -293,7 +293,7 @@ async function postAddCategory(
 ): Promise<Category & { apiMessage: string }> {
   const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.post<{ message: string; data: ApiCategory }>(
-    `${API_BASE}/restaurant/add/category`,
+    `${API_BASE}/retail/add/category`,
     {
       zodu_id:   zoduId,
       branch_id: branchId,
@@ -654,7 +654,7 @@ export interface CategoryListPage {
 }
 
 /**
- * GET /restaurant/get/category/:zodu_id/:branch_id?type=S&type=M&page=N&limit=10
+ * GET /retail/get/category/:zodu_id/:branch_id?type=S&type=M&page=N&limit=10
  * type = comma-separated codes split into repeated query params, e.g. "S,M" → type=S&type=M
  */
 async function fetchCategoryPage(
@@ -665,7 +665,7 @@ async function fetchCategoryPage(
   const { zoduId, branchId } = getTenantContext();
   const types = type.split(",").map((t) => t.trim()).filter(Boolean);
   const { data } = await axios.get<CategoryListPage>(
-    `${API_BASE}/restaurant/get/category/${zoduId}/${branchId}`,
+    `${API_BASE}/retail/get/category/${zoduId}/${branchId}`,
     { params: { type: types, page, limit } }
   );
   return data;
@@ -707,7 +707,7 @@ async function patchUpdateCategory(
 ): Promise<{ message: string }> {
   const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.put<{ message: string }>(
-    `${API_BASE}/restaurant/update/category/${payload.id}`,
+    `${API_BASE}/retail/update/category/${payload.id}`,
     {
       zodu_id:   zoduId,
       branch_id: branchId,
@@ -743,7 +743,7 @@ export function useUpdateCategory(options?: {
 // ─── Toggle Category Status ───────────────────────────────────
 
 /**
- * PUT /restaurant/inactivate/category/:id
+ * PUT /retail/inactivate/category/:id
  * Toggles a category between active and inactive.
  */
 async function putToggleCategoryStatus(payload: {
@@ -753,7 +753,7 @@ async function putToggleCategoryStatus(payload: {
 }): Promise<{ message: string }> {
   const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.put<{ message: string }>(
-    `${API_BASE}/restaurant/inactivate/category/${payload.id}`,
+    `${API_BASE}/retail/inactivate/category/${payload.id}`,
     { zodu_id: zoduId, branch_id: branchId, active: payload.active, page_expense: payload.pageExpense }
   );
   return data;
@@ -784,13 +784,13 @@ export function useToggleCategoryStatus(options?: {
 // ─── Delete Category ─────────────────────────────────────────
 
 /**
- * DELETE /restaurant/delete/category/:id/:branch_id/:zodu_id/:page_expense
+ * DELETE /retail/delete/category/:id/:branch_id/:zodu_id/:page_expense
  * page_expense: true when deleting from the Expense category tab, false otherwise
  */
 async function deleteCategory(payload: { id: number; pageExpense: boolean }): Promise<{ success: boolean; message: string }> {
   const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.delete<{ success: boolean; message: string }>(
-    `${API_BASE}/restaurant/delete/category/${payload.id}/${branchId}/${zoduId}/${payload.pageExpense}`
+    `${API_BASE}/retail/delete/category/${payload.id}/${branchId}/${zoduId}/${payload.pageExpense}`
   );
   return data;
 }
