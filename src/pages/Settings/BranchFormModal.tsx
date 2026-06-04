@@ -267,8 +267,8 @@ export default function BranchFormModal({
         bank_name: branch.bank_name ?? "",
         bank_branch: branch.bank_branch ?? "",
         holder_name: branch.holder_name ?? "",
-        use_same_address_as_company: false,
-        use_same_bank_as_company: false,
+        use_same_address_as_company: branch.same_as_address ?? false,
+        use_same_bank_as_company: branch.same_as_bank_details ?? false,
       });
     } else {
       setForm(EMPTY_FORM);

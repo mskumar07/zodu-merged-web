@@ -628,8 +628,12 @@ export default function AddNewPurchaseDialog({
     try {
       const formData = new FormData();
       entries.forEach(e => formData.append("files", e.file));
+<<<<<<< HEAD
       const token = getAccessToken();
       const res = await axios.post(getUploadUrl(), formData, { headers: { "Content-Type": "multipart/form-data", ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
+=======
+      const res = await axios.post(`${API_BASE}/retail/upload/multiple`, formData, { headers: { "Content-Type": "multipart/form-data" } });
+>>>>>>> 6572542ac8c38ed70a77b139a78fcbd7797da5ee
       const uploaded: { id: string; url: string; filename: string; size: number; mimetype: string }[] = res.data.files || [];
       setAttachments(prev => prev.map(a => {
         const idx = ids.indexOf(a.id);

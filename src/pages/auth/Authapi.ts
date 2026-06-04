@@ -49,6 +49,8 @@ export interface Branch {
   district?: string;
   state?: string;
   area_street_name?: string;
+  same_as_address?: boolean;
+  same_as_bank_details?: boolean;
 }
 
 export interface CompanyWithBranches {

@@ -1,55 +1,47 @@
-import React from "react";
+import React, { useRef } from "react";
 import {
-  Card, Typography, CircularProgress,
-  Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, Paper, Skeleton, Divider,
+  Box,
+  Card,
+  CircularProgress,
+  Divider,
+  Paper,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
 } from "@mui/material";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const ROW_HEIGHT    = 40;          // px — every body row is exactly this tall
-const CELL_PX       = "5px 12px"; // padding: top/bottom 0 (height is controlled by ROW_HEIGHT), left/right 12px
+const ROW_HEIGHT = 40;
+const CELL_PX    = "5px 12px";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface ColumnDef<T> {
-  /** Column header label */
   label: React.ReactNode;
-  /** Unique key for the column */
   key: string;
-  /** Optional width */
   width?: number | string;
-  /** Optional min-width */
   minWidth?: number | string;
-  /** Alignment for both header and cell */
   align?: "left" | "center" | "right";
-  /** Render function for the cell — receives the row item */
   render: (row: T) => React.ReactNode;
 }
 
 export interface DataTableProps<T> {
-  /** Column definitions including header labels and cell renderers */
   columns: ColumnDef<T>[];
-  /** Flat array of data rows */
   rows: T[];
-  /** Unique key extractor for each row */
   rowKey: (row: T) => string | number;
-  /** Show skeleton rows while loading */
   isLoading?: boolean;
-  /** Number of skeleton rows to show during loading */
   skeletonRows?: number;
-  /** Whether more pages exist (for infinite scroll) */
   hasNextPage?: boolean;
-  /** Whether the next page is currently being fetched */
   isFetchingNextPage?: boolean;
-  /** Ref attached to the sentinel row that triggers infinite scroll */
   loadMoreRef?: React.RefObject<HTMLTableRowElement>;
-  /** Ref for the scroll container (used by IntersectionObserver) */
   tableContainerRef?: React.RefObject<HTMLDivElement>;
-  /** Max height of the scrollable table container */
   maxHeight?: string | number;
-  /** Called when a row is clicked */
   onRowClick?: (row: T) => void;
-  /** Optional empty state message */
   emptyMessage?: string;
 }
 
@@ -71,10 +63,14 @@ const bodyCellSx = {
   padding: CELL_PX,
   fontSize: "13px",
   color: "#374151",
-  // Keep cell content vertically centered when it wraps (e.g. balance sub-line)
   verticalAlign: "middle",
   backgroundColor: "#ffffff",
 } as const;
+
+// Resolve a column's effective width (number → px, string → as-is, undefined → auto)
+function resolveColWidth(col: ColumnDef<unknown>): string | number | undefined {
+  return col.width ?? col.minWidth;
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -92,8 +88,63 @@ function DataTable<T>({
   onRowClick,
   emptyMessage = "No records found.",
 }: DataTableProps<T>) {
-  const colSpan = columns.length;
+  const headerContainerRef = useRef<HTMLDivElement>(null);
+
+  const colSpan    = columns.length;
   const tableHeight = typeof maxHeight === "number" ? `${maxHeight}px` : maxHeight;
+
+  // Min width ensures horizontal scroll triggers at the same point for header + body
+  const tableMinWidth = columns.reduce((sum, col) => {
+    const w = resolveColWidth(col);
+    return sum + (typeof w === "number" ? w : 100);
+  }, 0);
+
+  // Sync horizontal scroll from body → header
+  const handleBodyScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (headerContainerRef.current) {
+      headerContainerRef.current.scrollLeft = e.currentTarget.scrollLeft;
+    }
+  };
+
+  // Shared colgroup — same for both tables so column widths are identical
+  const colgroup = (
+    <colgroup>
+      {columns.map((col) => {
+        const w = resolveColWidth(col);
+        return (
+          <col
+            key={col.key}
+            style={
+              w !== undefined
+                ? { width: typeof w === "number" ? `${w}px` : w }
+                : undefined
+            }
+          />
+        );
+      })}
+    </colgroup>
+  );
+
+  const tableSx = {
+    minWidth: tableMinWidth,
+    tableLayout: "fixed" as const,
+    borderCollapse: "separate" as const,
+    borderSpacing: 0,
+    backgroundColor: "#ffffff",
+  };
+
+  const bodyScrollbarSx = {
+    scrollbarWidth: "thin" as const,
+    scrollbarColor: "#d98f8f transparent",
+    "&::-webkit-scrollbar": { width: 6, height: 6 },
+    "&::-webkit-scrollbar-track": { background: "transparent", borderRadius: "999px" },
+    "&::-webkit-scrollbar-thumb": {
+      background: "#d98f8f",
+      borderRadius: "999px",
+      border: "1px solid #ffffff",
+      minHeight: 40,
+    },
+  };
 
   return (
     <Card
@@ -110,64 +161,48 @@ function DataTable<T>({
         overflow: "hidden",
       }}
     >
-      <TableContainer
-        ref={tableContainerRef}
-        component={Paper}
-        elevation={0}
-        sx={{
-          flex: 1,
-          minHeight: 0,
-          height: "100%",
-          overflow: "auto",
-          backgroundColor: "#ffffff",
-          scrollbarWidth: "thin",
-          scrollbarColor: "#d98f8f transparent",
-          "&::-webkit-scrollbar": {
-            width: 6,
-            height: 6,
-          },
-          "&::-webkit-scrollbar-track": {
-            background: "transparent",
-            borderRadius: "999px",
-          },
-          "&::-webkit-scrollbar-thumb": {
-            background: "#d98f8f",
-            borderRadius: "999px",
-            border: "1px solid #ffffff",
-            minHeight: 28,
-            transition: "background-color 160ms ease",
-
-            "&:hover": {
-              background: "#c87f7f",
-            },
-          },
-        }}
+      {/* ── Fixed Header (no scrollbar) ─────────────────────────────────── */}
+      <Box
+        ref={headerContainerRef}
+        sx={{ overflowX: "hidden", overflowY: "hidden", flexShrink: 0 }}
       >
-        <Table
-          stickyHeader
-          size="small"
-          sx={{ borderCollapse: "separate", borderSpacing: 0, backgroundColor: "#ffffff" }}
-        >
-
-          {/* ── Header ─────────────────────────────────────────────────── */}
+        <Table size="small" sx={tableSx}>
+          {colgroup}
           <TableHead>
             <TableRow>
               {columns.map((col) => (
                 <TableCell
                   key={col.key}
                   align={col.align ?? "left"}
-                  sx={{ ...headCellSx, width: col.width, minWidth: col.minWidth }}
+                  sx={headCellSx}
                 >
                   {col.label}
                 </TableCell>
               ))}
             </TableRow>
           </TableHead>
+        </Table>
+      </Box>
 
-          {/* ── Body ───────────────────────────────────────────────────── */}
+      {/* ── Scrollable Body ─────────────────────────────────────────────── */}
+      <TableContainer
+        ref={tableContainerRef}
+        component={Paper}
+        elevation={0}
+        onScroll={handleBodyScroll}
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflow: "auto",
+          backgroundColor: "#ffffff",
+          ...bodyScrollbarSx,
+        }}
+      >
+        <Table size="small" sx={tableSx}>
+          {colgroup}
           <TableBody>
 
-            {/* Skeleton rows while loading */}
+            {/* Skeleton rows */}
             {isLoading &&
               Array.from({ length: skeletonRows }).map((_, i) => (
                 <TableRow key={`skeleton-${i}`} sx={{ height: ROW_HEIGHT }}>
@@ -207,7 +242,7 @@ function DataTable<T>({
                 </TableRow>
               ))}
 
-            {/* Infinite scroll sentinel (invisible trigger row) */}
+            {/* Infinite scroll sentinel */}
             {hasNextPage && (
               <TableRow ref={loadMoreRef} sx={{ height: 20 }}>
                 <TableCell colSpan={colSpan} sx={{ py: 0, border: 0 }} />
@@ -237,6 +272,7 @@ function DataTable<T>({
           </TableBody>
         </Table>
       </TableContainer>
+
       <Divider />
     </Card>
   );

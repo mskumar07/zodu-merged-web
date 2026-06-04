@@ -217,7 +217,7 @@ export interface ReturnItem {
   return_qty:       number;
 }
 
-/** Payload for POST /api/restaurant/sale-returns */
+/** Payload for POST /api/retail/sale-returns */
 export interface CreateSaleReturnPayload {
   original_sale_uuid: string;
   zodu_id:            string;

@@ -315,9 +315,19 @@ async function postAddCategory(
   const { zoduId, branchId } = getTenantContext();
   const token = getAccessToken();
   const { data } = await axios.post<{ message: string; data: ApiCategory }>(
+<<<<<<< HEAD
     `${API_BASE}/${getRoute()}/add/category`,
     { zodu_id: zoduId, branch_id: branchId, name: payload.name.trim(), type: payload.type },
     { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
+=======
+    `${API_BASE}/retail/add/category`,
+    {
+      zodu_id:   zoduId,
+      branch_id: branchId,
+      name:      payload.name.trim(),
+      type:      payload.type,
+    }
+>>>>>>> 6572542ac8c38ed70a77b139a78fcbd7797da5ee
   );
   const created = data.data;
   return {
@@ -672,7 +682,7 @@ export interface CategoryListPage {
 }
 
 /**
- * GET /restaurant/get/category/:zodu_id/:branch_id?type=S&type=M&page=N&limit=10
+ * GET /retail/get/category/:zodu_id/:branch_id?type=S&type=M&page=N&limit=10
  * type = comma-separated codes split into repeated query params, e.g. "S,M" → type=S&type=M
  */
 async function fetchCategoryPage(
@@ -684,8 +694,13 @@ async function fetchCategoryPage(
   const types = type.split(",").map((t) => t.trim()).filter(Boolean);
   const token = getAccessToken();
   const { data } = await axios.get<CategoryListPage>(
+<<<<<<< HEAD
     `${API_BASE}/${getRoute()}/get/category/${zoduId}/${branchId}`,
     { params: { type: types, page, limit }, headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
+=======
+    `${API_BASE}/retail/get/category/${zoduId}/${branchId}`,
+    { params: { type: types, page, limit } }
+>>>>>>> 6572542ac8c38ed70a77b139a78fcbd7797da5ee
   );
   return data;
 }
@@ -727,9 +742,19 @@ async function patchUpdateCategory(
   const { zoduId, branchId } = getTenantContext();
   const token = getAccessToken();
   const { data } = await axios.put<{ message: string }>(
+<<<<<<< HEAD
     `${API_BASE}/${getRoute()}/update/category/${payload.id}`,
     { zodu_id: zoduId, branch_id: branchId, name: payload.name.trim(), type: payload.type },
     { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
+=======
+    `${API_BASE}/retail/update/category/${payload.id}`,
+    {
+      zodu_id:   zoduId,
+      branch_id: branchId,
+      name:      payload.name.trim(),
+      type:      payload.type,
+    }
+>>>>>>> 6572542ac8c38ed70a77b139a78fcbd7797da5ee
   );
   return data;
 }
@@ -759,7 +784,7 @@ export function useUpdateCategory(options?: {
 // ─── Toggle Category Status ───────────────────────────────────
 
 /**
- * PUT /restaurant/inactivate/category/:id
+ * PUT /retail/inactivate/category/:id
  * Toggles a category between active and inactive.
  */
 async function putToggleCategoryStatus(payload: {
@@ -770,9 +795,14 @@ async function putToggleCategoryStatus(payload: {
   const { zoduId, branchId } = getTenantContext();
   const token = getAccessToken();
   const { data } = await axios.put<{ message: string }>(
+<<<<<<< HEAD
     `${API_BASE}/${getRoute()}/inactivate/category/${payload.id}`,
     { zodu_id: zoduId, branch_id: branchId, active: payload.active, page_expense: payload.pageExpense },
     { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
+=======
+    `${API_BASE}/retail/inactivate/category/${payload.id}`,
+    { zodu_id: zoduId, branch_id: branchId, active: payload.active, page_expense: payload.pageExpense }
+>>>>>>> 6572542ac8c38ed70a77b139a78fcbd7797da5ee
   );
   return data;
 }
@@ -802,15 +832,19 @@ export function useToggleCategoryStatus(options?: {
 // ─── Delete Category ─────────────────────────────────────────
 
 /**
- * DELETE /restaurant/delete/category/:id/:branch_id/:zodu_id/:page_expense
+ * DELETE /retail/delete/category/:id/:branch_id/:zodu_id/:page_expense
  * page_expense: true when deleting from the Expense category tab, false otherwise
  */
 async function deleteCategory(payload: { id: number; pageExpense: boolean }): Promise<{ success: boolean; message: string }> {
   const { zoduId, branchId } = getTenantContext();
   const token = getAccessToken();
   const { data } = await axios.delete<{ success: boolean; message: string }>(
+<<<<<<< HEAD
     `${API_BASE}/${getRoute()}/delete/category/${payload.id}/${branchId}/${zoduId}/${payload.pageExpense}`,
     { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
+=======
+    `${API_BASE}/retail/delete/category/${payload.id}/${branchId}/${zoduId}/${payload.pageExpense}`
+>>>>>>> 6572542ac8c38ed70a77b139a78fcbd7797da5ee
   );
   return data;
 }
