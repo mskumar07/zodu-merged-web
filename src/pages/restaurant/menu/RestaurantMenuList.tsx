@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Avatar,
   Box,
+  Checkbox,
   Chip,
   Collapse,
   Dialog,
@@ -13,12 +14,18 @@ import {
   IconButton,
   InputAdornment,
   Button,
+  ListItemText,
   MenuItem,
+  OutlinedInput,
   Select,
   Switch,
+  Tab,
+  Tabs,
   TextField,
   Tooltip,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
@@ -37,13 +44,22 @@ import LabelIcon from "@mui/icons-material/Label";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import AddIcon from "@mui/icons-material/Add";
+import { useSelector } from "react-redux";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
 import {
   useInfiniteRestaurantMenu,
+  useInfiniteRestaurantCategories,
   type RestaurantMenuListItem,
 } from "./restaurantMenuApi";
+import { BranchId, ZoduId } from "@store/slices/userSlice";
 
-const BRANCH_ID = "ZODU035B1";
+type MenuTab = "all" | "food" | "product";
+
+const TABS: { value: MenuTab; label: string }[] = [
+  { value: "all",     label: "All Items" },
+  { value: "food",    label: "Food"      },
+  { value: "product", label: "Product"   },
+];
 
 const FOOD_COLOR: Record<string, { dot: string; bg: string; label: string }> = {
   veg:     { dot: "#16a34a", bg: "#dcfce7", label: "Veg" },
@@ -141,7 +157,6 @@ const ItemDetailDialog: React.FC<{
         },
       }}
     >
-      {/* ── Header ── */}
       <Box
         sx={{
           px: 1,
@@ -167,9 +182,7 @@ const ItemDetailDialog: React.FC<{
       </Box>
 
       <DialogContent sx={{ px: 2.5, pt: 2.5, pb: 2 }}>
-        {/* ── Image + Info row ── */}
         <Box sx={{ display: "flex", gap: 2, mb: 2.5 }}>
-          {/* Square image */}
           <Box
             sx={{
               width: 130,
@@ -204,7 +217,6 @@ const ItemDetailDialog: React.FC<{
             )}
           </Box>
 
-          {/* Info */}
           <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 0.7, minWidth: 0 }}>
             <Typography
               sx={{
@@ -221,7 +233,6 @@ const ItemDetailDialog: React.FC<{
               #{item.menu_code} · {item.category}
             </Typography>
 
-            {/* Active chip */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <Box
                 sx={{
@@ -247,7 +258,6 @@ const ItemDetailDialog: React.FC<{
               </Typography>
             </Box>
 
-            {/* Type chips */}
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.6 }}>
               <Chip
                 label={foodLabel}
@@ -276,7 +286,6 @@ const ItemDetailDialog: React.FC<{
           </Box>
         </Box>
 
-        {/* ── Selling Price ── */}
         <Box sx={{ mb: 2.5 }}>
           <Typography sx={{ fontSize: "1.9rem", fontWeight: 800, color: "#111827", lineHeight: 1 }}>
             ₹{price.toFixed(2)}
@@ -284,7 +293,6 @@ const ItemDetailDialog: React.FC<{
           <Typography sx={{ fontSize: "0.75rem", color: "#6b7280", mt: 0.4 }}>Selling Price</Typography>
         </Box>
 
-        {/* ── 2×2 Stat Cards ── */}
         <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.2, mb: 2 }}>
           <InfoStatCard
             iconBg="#dbeafe"
@@ -315,7 +323,6 @@ const ItemDetailDialog: React.FC<{
           />
         </Box>
 
-        {/* ── Additional Information (collapsible) ── */}
         <Box sx={{ border: "1px solid #f0f0f0", borderRadius: "12px", overflow: "hidden" }}>
           <Box
             onClick={() => setShowAdditional((v) => !v)}
@@ -345,7 +352,6 @@ const ItemDetailDialog: React.FC<{
           </Box>
           <Collapse in={showAdditional}>
             <Box sx={{ borderTop: "1px solid #f0f0f0" }}>
-              {/* Menu ID */}
               <Box
                 sx={{
                   px: 2,
@@ -419,7 +425,6 @@ const ItemDetailDialog: React.FC<{
           </Collapse>
         </Box>
 
-        {/* ── Variants ── */}
         {item.variants && item.variants.length > 0 && (
           <Box sx={{ mt: 2 }}>
             <Typography
@@ -462,7 +467,6 @@ const ItemDetailDialog: React.FC<{
         )}
       </DialogContent>
 
-      {/* ── Footer actions ── */}
       <Box
         sx={{
           px: 2.5,
@@ -546,11 +550,17 @@ const DeleteConfirmDialog: React.FC<{
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 const RestaurantMenuList: React.FC = () => {
-  const branchId = BRANCH_ID;
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.down("md"));
 
-  const [search, setSearch]                   = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [categoryFilter, setCategoryFilter]   = useState("all");
+  const branchId = "ZODU035B1";
+  const zoduId   = "ZODU035";
+
+  const [activeTab, setActiveTab]                   = useState<MenuTab>("all");
+  const [search, setSearch]                         = useState("");
+  const [debouncedSearch, setDebouncedSearch]       = useState("");
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
   const [detailItem, setDetailItem]           = useState<RestaurantMenuListItem | null>(null);
   const [deleteItem, setDeleteItem]           = useState<RestaurantMenuListItem | null>(null);
   const [favOverrides, setFavOverrides]       = useState<Record<string, boolean>>({});
@@ -561,25 +571,40 @@ const RestaurantMenuList: React.FC = () => {
     return () => clearTimeout(t);
   }, [search]);
 
+  const menuType = activeTab === "all" ? undefined : activeTab;
+  const categoryIdsParam = selectedCategoryIds.length > 0 ? selectedCategoryIds : undefined;
+
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError } =
-    useInfiniteRestaurantMenu(branchId, debouncedSearch);
+    useInfiniteRestaurantMenu(branchId, debouncedSearch, menuType, categoryIdsParam);
 
-  const allItems = useMemo(() => data?.pages.flatMap((p) => p.data) ?? [], [data]);
-  const totalCount = data?.pages[0]?.pagination.total_count ?? 0;
+  const categoryTypes = activeTab === "all" ? undefined : [activeTab];
+  const {
+    data: categoryPagesData,
+    fetchNextPage: fetchNextCategoryPage,
+    hasNextPage: hasNextCategoryPage,
+    isFetchingNextPage: isFetchingNextCategoryPage,
+  } = useInfiniteRestaurantCategories(zoduId, branchId, categoryTypes);
 
-  // Unique categories from loaded data
-  const categories = useMemo(() => {
-    const set = new Set(allItems.map((i) => i.category));
-    return Array.from(set).sort();
-  }, [allItems]);
-
-  // Client-side category filter
-  const filteredItems = useMemo(
-    () => (categoryFilter === "all" ? allItems : allItems.filter((i) => i.category === categoryFilter)),
-    [allItems, categoryFilter]
+  const categories = useMemo(
+    () => categoryPagesData?.pages.flatMap((p) => p.data) ?? [],
+    [categoryPagesData]
   );
 
-  // Infinite scroll refs
+  const allItems   = useMemo(() => data?.pages.flatMap((p) => p.data) ?? [], [data]);
+  const totalCount = data?.pages[0]?.pagination.total_count ?? 0;
+
+  const handleTabChange = (_: React.SyntheticEvent, tab: MenuTab) => {
+    setActiveTab(tab);
+    setSelectedCategoryIds([]);
+  };
+
+  const handleCategoryDropdownScroll = (e: React.UIEvent<HTMLElement>) => {
+    const el = e.currentTarget;
+    if (el.scrollHeight - el.scrollTop <= el.clientHeight + 40) {
+      if (hasNextCategoryPage && !isFetchingNextCategoryPage) fetchNextCategoryPage();
+    }
+  };
+
   const loadMoreRef  = useRef<HTMLTableRowElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -598,22 +623,20 @@ const RestaurantMenuList: React.FC = () => {
     return () => observer.disconnect();
   }, [handleObserver, allItems.length]);
 
-  const handleToggleFav = (item: RestaurantMenuListItem) => {
+  const handleToggleFav = useCallback((item: RestaurantMenuListItem) => {
     const current = favOverrides[item.menu_id] ?? item.favorites;
     setFavOverrides((prev) => ({ ...prev, [item.menu_id]: !current }));
-  };
+  }, [favOverrides]);
 
-  const handleToggleActive = (item: RestaurantMenuListItem) => {
+  const handleToggleActive = useCallback((item: RestaurantMenuListItem) => {
     const current = activeOverrides[item.menu_id] ?? item.active;
     setActiveOverrides((prev) => ({ ...prev, [item.menu_id]: !current }));
-  };
+  }, [activeOverrides]);
 
   const handleDeleteConfirm = () => {
-    // wire to delete API here
     setDeleteItem(null);
   };
 
-  // ── Column definitions ────────────────────────────────────────────────────────
   const columns = useMemo<ColumnDef<RestaurantMenuListItem>[]>(
     () => [
       {
@@ -624,14 +647,11 @@ const RestaurantMenuList: React.FC = () => {
           <Typography
             onClick={(e) => { e.stopPropagation(); setDetailItem(row); }}
             sx={{
-              fontSize: "0.78rem",
+              fontSize: 13,
               fontWeight: 600,
-              color: "#1d4ed8",
+              color: "#1976d2",
               cursor: "pointer",
-              fontFamily: "monospace",
-              textDecoration: "underline",
-              textDecorationStyle: "dotted",
-              "&:hover": { color: "#1e40af" },
+              "&:hover": { textDecoration: "underline" },
             }}
           >
             #{row.menu_code}
@@ -645,113 +665,124 @@ const RestaurantMenuList: React.FC = () => {
         render: (row) => {
           const initials = row.menu_name.slice(0, 2).toUpperCase();
           return (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               {row.menu_image ? (
-                <Avatar src={row.menu_image} alt={row.menu_name} variant="rounded" sx={{ width: 30, height: 30, flexShrink: 0 }} />
+                <Avatar
+                  src={row.menu_image}
+                  alt={row.menu_name}
+                  variant="rounded"
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    flexShrink: 0,
+                    border: `1px solid ${theme.palette.divider}`,
+                  }}
+                />
               ) : (
                 <Avatar
                   variant="rounded"
-                  sx={{ width: 30, height: 30, flexShrink: 0, bgcolor: "rgba(211,47,47,0.1)", color: "#c62828", fontSize: "0.68rem", fontWeight: 700 }}
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    flexShrink: 0,
+                    bgcolor: "rgba(211,47,47,0.1)",
+                    color: "#c62828",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    border: `1px solid ${theme.palette.divider}`,
+                  }}
                 >
                   {initials}
                 </Avatar>
               )}
-              <Typography sx={{ fontSize: "0.8rem", fontWeight: 600, color: "#111827" }} noWrap>
-                {row.menu_name}
-              </Typography>
+              <Box>
+                <Typography sx={{ fontWeight: 600, lineHeight: 1.3, fontSize: 13, color: "#374151" }} noWrap>
+                  {row.menu_name}
+                </Typography>
+                <Typography sx={{ fontSize: 13, color: "#374151" }} noWrap>
+                  {row.category}
+                </Typography>
+              </Box>
             </Box>
           );
         },
       },
-      {
-        key: "category",
-        label: "Category",
-        minWidth: 140,
-        render: (row) => (
-          <Typography sx={{ fontSize: "0.78rem", color: "#374151" }} noWrap>{row.category}</Typography>
-        ),
-      },
-      {
+      ...(!isMobile ? [{
         key: "food_type",
         label: "Type",
         width: 90,
-        align: "center",
-        render: (row) => {
+        align: "center" as const,
+        render: (row: RestaurantMenuListItem) => {
           const { dot, bg, label } = foodStyle(row.food_type);
           return (
             <Chip label={label} size="small" sx={{ height: 20, fontSize: "0.65rem", fontWeight: 600, bgcolor: bg, color: dot, "& .MuiChip-label": { px: 0.8 } }} />
           );
         },
-      },
+      }] : []),
       {
         key: "sell_price",
-        label: "Sell Price",
+        label: "Rate",
         width: 90,
-        align: "right",
-        render: (row) => (
-          <Typography sx={{ fontSize: "0.82rem", fontWeight: 700, color: "#111827" }}>
+        align: "right" as const,
+        render: (row: RestaurantMenuListItem) => (
+          <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
             ₹{(parseFloat(row.sell_price) || 0).toFixed(2)}
           </Typography>
         ),
       },
-      {
+      ...(!isTablet ? [{
         key: "purchase_price",
-        label: "Purchase",
-        width: 90,
-        align: "right",
-        render: (row) => {
+        label: "Purchase Price",
+        width: 110,
+        align: "right" as const,
+        render: (row: RestaurantMenuListItem) => {
           const p = row.purchase_price && row.purchase_price !== "NULL" ? parseFloat(row.purchase_price) : null;
           return (
-            <Typography sx={{ fontSize: "0.82rem", color: p !== null ? "#374151" : "#d1d5db" }}>
+            <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
               {p !== null ? `₹${p.toFixed(2)}` : "—"}
             </Typography>
           );
         },
-      },
-      {
+      }] : []),
+      ...(!isTablet ? [{
         key: "gst",
         label: "GST",
         width: 70,
-        align: "center",
-        render: (row) => {
+        align: "center" as const,
+        render: (row: RestaurantMenuListItem) => {
           const g = parseFloat(row.gst_tax) || 0;
           return g > 0 ? (
             <Chip label={`${g}%`} size="small" sx={{ height: 20, fontSize: "0.65rem", fontWeight: 600, bgcolor: "#eff6ff", color: "#1d4ed8", "& .MuiChip-label": { px: 0.8 } }} />
           ) : (
-            <Typography sx={{ fontSize: "0.78rem", color: "#d1d5db" }}>—</Typography>
+            <Typography sx={{ fontSize: 13, color: "#374151" }}>—</Typography>
           );
         },
-      },
-      {
+      }] : []),
+      ...(!isMobile ? [{
         key: "tax_type",
-        label: "Tax Type",
+        label: "Inclusion",
         width: 100,
-        align: "center",
-        render: (row) => (
-          <Chip
-            label={row.tax_include_or_exclude ? "Inclusive" : "Exclusive"}
-            size="small"
-            sx={{ height: 20, fontSize: "0.65rem", fontWeight: 600, bgcolor: row.tax_include_or_exclude ? "#dcfce7" : "#fef9c3", color: row.tax_include_or_exclude ? "#15803d" : "#92400e", "& .MuiChip-label": { px: 0.8 } }}
-          />
+        align: "center" as const,
+        render: (row: RestaurantMenuListItem) => (
+          <Typography variant="body2" sx={{ fontSize: 13, color: "#374151" }}>
+            {row.tax_include_or_exclude ? "Inclusive" : "Exclusive"}
+          </Typography>
         ),
-      },
+      }] : []),
       {
         key: "status",
-        label: "Active",
+        label: "Status",
         width: 80,
-        align: "center",
-        render: (row) => {
+        align: "center" as const,
+        render: (row: RestaurantMenuListItem) => {
           const isActive = activeOverrides[row.menu_id] ?? row.active;
           return (
             <Switch
               checked={isActive}
               size="small"
+              color="primary"
               onClick={(e) => e.stopPropagation()}
               onChange={() => handleToggleActive(row)}
-              sx={{
-                "& .MuiSwitch-switchBase.Mui-checked": { color: "#16a34a" },
-                "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: "#16a34a" },
-              }}
             />
           );
         },
@@ -759,37 +790,39 @@ const RestaurantMenuList: React.FC = () => {
       {
         key: "actions",
         label: "Actions",
-        width: 110,
-        align: "center",
-        render: (row) => {
+        width: isMobile ? 80 : 110,
+        align: "center" as const,
+        render: (row: RestaurantMenuListItem) => {
           const isFav = favOverrides[row.menu_id] ?? row.favorites;
           return (
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.2 }}>
-              <Tooltip title={isFav ? "Remove from favorites" : "Add to favorites"}>
-                <IconButton
-                  size="small"
-                  onClick={(e) => { e.stopPropagation(); handleToggleFav(row); }}
-                  sx={{ color: isFav ? "#f59e0b" : "#d1d5db", "&:hover": { color: "#f59e0b", bgcolor: "#fef9c3" } }}
-                >
-                  {isFav ? <StarIcon sx={{ fontSize: 18 }} /> : <StarBorderIcon sx={{ fontSize: 18 }} />}
-                </IconButton>
-              </Tooltip>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5 }}>
+              {!isMobile && (
+                <Tooltip title={isFav ? "Remove from favorites" : "Add to favorites"}>
+                  <IconButton
+                    size="small"
+                    onClick={(e) => { e.stopPropagation(); handleToggleFav(row); }}
+                    sx={{ color: isFav ? "#f59e0b" : "text.disabled", "&:hover": { color: "#f59e0b", bgcolor: "#fef9c3" }, borderRadius: 1.5 }}
+                  >
+                    {isFav ? <StarIcon sx={{ fontSize: 18 }} /> : <StarBorderIcon sx={{ fontSize: 18 }} />}
+                  </IconButton>
+                </Tooltip>
+              )}
               <Tooltip title="Edit">
                 <IconButton
                   size="small"
                   onClick={(e) => { e.stopPropagation(); setDetailItem(row); }}
-                  sx={{ color: "#6b7280", "&:hover": { color: "#1d4ed8", bgcolor: "#eff6ff" } }}
+                  sx={{ color: "text.disabled", "&:hover": { color: "primary.main", bgcolor: "primary.light" + "22" }, borderRadius: 1.5 }}
                 >
-                  <EditIcon sx={{ fontSize: 16 }} />
+                  <EditIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
               <Tooltip title="Delete">
                 <IconButton
                   size="small"
                   onClick={(e) => { e.stopPropagation(); setDeleteItem(row); }}
-                  sx={{ color: "#6b7280", "&:hover": { color: "#d32f2f", bgcolor: "#fef2f2" } }}
+                  sx={{ color: "primary.main", "&:hover": { bgcolor: "primary.light" + "22" }, borderRadius: 1.5 }}
                 >
-                  <DeleteIcon sx={{ fontSize: 16 }} />
+                  <DeleteIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
             </Box>
@@ -797,28 +830,44 @@ const RestaurantMenuList: React.FC = () => {
         },
       },
     ],
-    [favOverrides, activeOverrides]
+    [handleToggleFav, handleToggleActive, favOverrides, activeOverrides, isMobile, isTablet, theme]
   );
 
   return (
-    <Box sx={{ height: "100%", display: "flex", flexDirection: "column", bgcolor: "#f9fafb" }}>
-      {/* Top bar */}
-      <Box
-        sx={{
-          px: { xs: 2, md: 3 },
-          py: 1.5,
-          bgcolor: "#fff",
-          borderBottom: "1px solid #f3f4f6",
-          display: "flex",
-          alignItems: "center",
-          gap: 2,
-          flexWrap: "wrap",
-        }}
-      >
-        {/* Title */}
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column", p: 2 }}>
+      {/* ── Tabs ── */}
+      <Box sx={{ borderBottom: `1px solid ${theme.palette.divider}`, mb: 2 }}>
+        <Tabs
+          value={activeTab}
+          onChange={handleTabChange}
+          textColor="primary"
+          indicatorColor="primary"
+          sx={{
+            minHeight: 28,
+            "& .MuiTab-root": {
+              textTransform: "none",
+              fontWeight: 600,
+              fontSize: 14,
+              minHeight: 30,
+              px: 3,
+              color: "text.secondary",
+              "&.Mui-selected": { fontWeight: 700, color: "primary.main" },
+            },
+            "& .MuiTabs-indicator": { height: 2 },
+          }}
+        >
+          {TABS.map((tab) => (
+            <Tab key={tab.value} label={tab.label} value={tab.value} disableRipple />
+          ))}
+        </Tabs>
+      </Box>
+
+      {/* ── Toolbar ── */}
+      <Box sx={{ display: "flex", gap: 1.5, mb: 2, alignItems: "center", flexWrap: "wrap" }}>
+        {/* Title + count */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: "0 0 auto" }}>
-          <RestaurantMenuIcon sx={{ color: "#d32f2f", fontSize: 22 }} />
-          <Typography sx={{ fontWeight: 800, fontSize: "1.1rem", color: "#111827" }}>Menu Items</Typography>
+          <RestaurantMenuIcon sx={{ color: "#d32f2f", fontSize: 20 }} />
+          <Typography sx={{ fontWeight: 700, fontSize: 14, color: "#111827" }}>Menu Items</Typography>
           {totalCount > 0 && (
             <Chip
               label={totalCount}
@@ -831,13 +880,14 @@ const RestaurantMenuList: React.FC = () => {
         {/* Search */}
         <TextField
           size="small"
-          placeholder="Search items…"
+          placeholder="Search..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          sx={{ flex: 1, minWidth: isMobile ? "100%" : 200, bgcolor: "#fff" }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon sx={{ fontSize: 18, color: "#9ca3af" }} />
+                <SearchIcon sx={{ fontSize: 18, color: "text.disabled" }} />
               </InputAdornment>
             ),
             endAdornment: search ? (
@@ -847,68 +897,89 @@ const RestaurantMenuList: React.FC = () => {
                 </IconButton>
               </InputAdornment>
             ) : null,
-          }}
-          sx={{
-            flex: 1,
-          
-            "& .MuiOutlinedInput-root": {
-              borderRadius: "10px",
-              fontSize: "0.85rem",
-              "&.Mui-focused fieldset": { borderColor: "#d32f2f" },
-            },
+            sx: { borderRadius: 0.5, fontSize: 13 },
           }}
         />
 
         {/* Category filter */}
-        <FormControl size="small" sx={{ minWidth: 180 }}>
+        <FormControl size="small" sx={{ minWidth: isMobile ? "100%" : 220 }}>
           <Select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            displayEmpty
-            startAdornment={<FilterListIcon sx={{ fontSize: 16, color: "#9ca3af", mr: 0.5 }} />}
-            sx={{
-              borderRadius: "10px",
-              fontSize: "0.85rem",
-              "& .MuiOutlinedInput-notchedOutline": { borderColor: "#e5e7eb" },
-              "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#d32f2f" },
+            multiple
+            value={selectedCategoryIds}
+            onChange={(e) => {
+              const val = e.target.value;
+              setSelectedCategoryIds(typeof val === "string" ? [] : (val as number[]));
             }}
+            displayEmpty
+            renderValue={(selected) => {
+              const sel = selected as number[];
+              if (sel.length === 0) {
+                return <Box component="span" sx={{ color: "text.disabled", fontSize: 13 }}>All Categories</Box>;
+              }
+              if (sel.length === 1) {
+                const name = categories.find((c) => c.id === sel[0])?.name ?? String(sel[0]);
+                return <Typography noWrap sx={{ fontSize: 13 }}>{name}</Typography>;
+              }
+              return <Typography noWrap sx={{ fontSize: 13 }}>{sel.length} categories selected</Typography>;
+            }}
+            startAdornment={<FilterListIcon sx={{ fontSize: 16, color: "#9ca3af", mr: 0.5 }} />}
+            input={<OutlinedInput sx={{ borderRadius: 0.5, fontSize: 13, bgcolor: "#fff" }} />}
+            MenuProps={{
+              PaperProps: {
+                onScroll: handleCategoryDropdownScroll,
+                sx: { maxHeight: 280 },
+              },
+            }}
+            sx={{ borderRadius: 0.5, fontSize: 13, bgcolor: "#fff" }}
           >
-            <MenuItem value="all">
-              <Typography sx={{ fontSize: "0.83rem" }}>All Categories</Typography>
-            </MenuItem>
-            <Divider />
+            {selectedCategoryIds.length > 0 && (
+              <MenuItem
+                onClick={() => setSelectedCategoryIds([])}
+                sx={{ fontSize: 12, color: "#d32f2f", fontWeight: 600, py: 0.5 }}
+              >
+                Clear selection
+              </MenuItem>
+            )}
+            {selectedCategoryIds.length > 0 && <Divider />}
             {categories.map((cat) => (
-              <MenuItem key={cat} value={cat}>
-                <Typography sx={{ fontSize: "0.83rem" }}>{cat}</Typography>
+              <MenuItem key={cat.id} value={cat.id} sx={{ fontSize: 13, py: 0.5 }}>
+                <Checkbox
+                  checked={selectedCategoryIds.includes(cat.id)}
+                  size="small"
+                  sx={{ p: 0.5, mr: 0.5 }}
+                />
+                <ListItemText primary={cat.name} primaryTypographyProps={{ fontSize: 13 }} />
               </MenuItem>
             ))}
+            {isFetchingNextCategoryPage && (
+              <MenuItem disabled sx={{ fontSize: 12, color: "text.disabled", justifyContent: "center" }}>
+                Loading...
+              </MenuItem>
+            )}
           </Select>
         </FormControl>
 
-        {/* Create button */}
+        {/* Add button */}
         <Button
           variant="contained"
-          startIcon={<AddIcon sx={{ fontSize: 18 }} />}
+          startIcon={<AddIcon />}
           sx={{
+            borderRadius: 0.5,
+            fontWeight: 700,
+            px: 2.5,
+            height: 40,
             textTransform: "none",
-            borderRadius: "10px",
-            bgcolor: "#d32f2f",
-            fontWeight: 600,
-            fontSize: "0.85rem",
-            px: 2,
-            py: 0.85,
-            boxShadow: "none",
+            fontSize: 13,
             whiteSpace: "nowrap",
-            ml: "auto",
-            "&:hover": { bgcolor: "#b71c1c", boxShadow: "none" },
+            boxShadow: "0 4px 14px rgba(210,18,46,0.25)",
           }}
         >
-          Create Menu Item
+          {isMobile ? "Add" : "Create Menu Item"}
         </Button>
       </Box>
 
-      {/* Table area */}
-      <Box sx={{ flex: 1, minHeight: 0, px: { xs: 2, md: 3 }, py: 2 }}>
+      {/* ── Table ── */}
+      <Box sx={{ flex: 1, overflow: "hidden" }}>
         {isError ? (
           <Box sx={{ textAlign: "center", pt: 8, color: "#6b7280" }}>
             <Typography>Failed to load menu items. Please try again.</Typography>
@@ -916,10 +987,10 @@ const RestaurantMenuList: React.FC = () => {
         ) : (
           <DataTable
             columns={columns}
-            rows={filteredItems}
+            rows={allItems}
             rowKey={(row) => row.menu_id}
             isLoading={isLoading}
-            hasNextPage={categoryFilter === "all" ? hasNextPage : false}
+            hasNextPage={hasNextPage}
             isFetchingNextPage={isFetchingNextPage}
             loadMoreRef={loadMoreRef}
             tableContainerRef={containerRef}
@@ -929,7 +1000,6 @@ const RestaurantMenuList: React.FC = () => {
         )}
       </Box>
 
-      {/* Item detail dialog */}
       <ItemDetailDialog
         item={detailItem}
         onClose={() => setDetailItem(null)}
@@ -937,7 +1007,6 @@ const RestaurantMenuList: React.FC = () => {
         onDelete={(item) => setDeleteItem(item)}
       />
 
-      {/* Delete confirm */}
       <DeleteConfirmDialog
         item={deleteItem}
         onConfirm={handleDeleteConfirm}
