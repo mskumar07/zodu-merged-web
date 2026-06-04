@@ -516,7 +516,7 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
     try {
       const formData = new FormData();
       entries.forEach(e => formData.append("files", e.file));
-      const res = await axios.post(`${API_BASE}/restaurant/upload/multiple`, formData, { headers: { "Content-Type": "multipart/form-data" } });
+      const res = await axios.post(`${API_BASE}/retail/upload/multiple`, formData, { headers: { "Content-Type": "multipart/form-data" } });
       const uploaded: { id: string; url: string; filename: string; size: number; mimetype: string }[] = res.data.files || [];
       setAttachments(prev => prev.map(a => {
         const idx = ids.indexOf(a.id);
@@ -587,10 +587,10 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
       setSaveError("");
       setIsSaving(true);
       if (isEditMode && editExpenseId) {
-        await axios.put(`${API_BASE}/restaurant/api/expense/${editExpenseId}`, payload);
+        await axios.put(`${API_BASE}/retail/api/expense/${editExpenseId}`, payload);
         setSuccessMsg("Expense updated successfully!");
       } else {
-        await axios.post(`${API_BASE}/restaurant/api/expense`, payload);
+        await axios.post(`${API_BASE}/retail/api/expense`, payload);
         setSuccessMsg("Expense added successfully!");
       }
       onSuccess?.();

@@ -12,7 +12,7 @@ import { useTenantContext }     from "@store/tenantContext";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
 
 // ── Config ────────────────────────────────────────────────────
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5001";
 const CURRENT_YEAR = new Date().getFullYear();
 
 const fmt = (val: number) =>
@@ -53,7 +53,7 @@ function useActiveYears(zoduId: string, branchId: string) {
   return useQuery<number[]>({
     queryKey: ["profit-active-years", zoduId, branchId],
     queryFn: async () => {
-      const { data } = await axios.get(`${API_BASE}/restaurant/api/report/profit/active-years`, {
+      const { data } = await axios.get(`${API_BASE}/retail/api/report/profit/active-years`, {
         params: { zodu_id: zoduId, branch_id: branchId },
       });
       return (data?.data?.active_years as number[]) ?? [CURRENT_YEAR];
@@ -67,7 +67,7 @@ function useProfitReport(zoduId: string, branchId: string, year: number) {
   return useQuery<ProfitResponse>({
     queryKey: ["profit-report", zoduId, branchId, year],
     queryFn: async () => {
-      const { data } = await axios.get(`${API_BASE}/restaurant/api/report/profit`, {
+      const { data } = await axios.get(`${API_BASE}/retail/api/report/profit`, {
         params: { zodu_id: zoduId, branch_id: branchId, year },
       });
       return data;

@@ -134,7 +134,7 @@ export const customerQueryKeys = {
 // ─── API call ─────────────────────────────────────────────────
 async function postAddCustomer(payload: AddCustomerPayload): Promise<AddCustomerResponse> {
   const { data } = await axios.post<AddCustomerResponse>(
-    `${API_BASE}/restaurant/api/customers`,
+    `${API_BASE}/retail/api/customers`,
     payload
   );
   return data;
@@ -148,7 +148,7 @@ interface UpdateCustomerPayload extends AddCustomerPayload {
 async function putUpdateCustomer(payload: UpdateCustomerPayload): Promise<AddCustomerResponse> {
   const { cust_uuid, ...updatePayload } = payload;
   const { data } = await axios.put<AddCustomerResponse>(
-    `${API_BASE}/restaurant/api/customers/${cust_uuid}`,
+    `${API_BASE}/retail/api/customers/${cust_uuid}`,
     updatePayload
   );
   return data;
@@ -209,7 +209,7 @@ export function useUpdateCustomer(options?: {
 async function getCustomers(): Promise<Record<string, unknown>[]> {
   const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.get(
-    `${API_BASE}/restaurant/api/customers`,
+    `${API_BASE}/retail/api/customers`,
     {
       params: {
         zodu_id: zoduId,
@@ -252,7 +252,7 @@ async function getCustomersPage(page: number, search: string): Promise<CustomerP
   };
   if (search) params.search = search;
 
-  const { data } = await axios.get(`${API_BASE}/restaurant/api/customers`, { params });
+  const { data } = await axios.get(`${API_BASE}/retail/api/customers`, { params });
 
   if (data?.success) {
     return {
@@ -348,7 +348,7 @@ async function fetchCustomerLedger(
   const { zoduId, branchId } = getTenantContext();
 console.log(custUuid,filters)
   const { data } = await axios.get<CustomerLedgerResponse>(
-    `${API_BASE}/restaurant/api/customers/${custUuid}/ledger`,
+    `${API_BASE}/retail/api/customers/${custUuid}/ledger`,
     {
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),

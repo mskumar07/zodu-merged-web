@@ -6,9 +6,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/auth':       { target: 'http://localhost:5000', changeOrigin: true },
-      '/restaurant': { target: 'http://localhost:5000', changeOrigin: true },
-      '/employee':   { target: 'http://localhost:5000', changeOrigin: true },
+      '/auth':       { target: 'http://localhost:5001', changeOrigin: true },
+      '/retail':     { target: 'http://localhost:5001', changeOrigin: true },
+      '^/restaurant/': { target: 'http://localhost:5001', changeOrigin: true },
+      '/employee':   { target: 'http://localhost:5001', changeOrigin: true },
     },
   },
   resolve: {

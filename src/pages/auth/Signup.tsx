@@ -623,7 +623,7 @@ import React, { useState } from 'react';
 import {
   Box, TextField, Button, Typography, Link, Stack,
   Alert, CircularProgress, InputAdornment, IconButton, LinearProgress,
-  Checkbox, FormControlLabel,
+  Checkbox, FormControlLabel, Select, MenuItem, FormControl,
 } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
@@ -632,6 +632,8 @@ import {
   Visibility, VisibilityOff,
   StorefrontOutlined, EmailOutlined, PhoneOutlined, LockOutlined,
   CheckCircle, HowToReg as HowToRegIcon,
+  Storefront as StoreIcon,
+  RestaurantMenu as RestaurantMenuIcon,
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { useSignupMutation } from './authApi';
@@ -831,6 +833,7 @@ const ZoduSignupPage: React.FC = () => {
     password:        '',
     confirmPassword: '',
     same_for_branch: true,
+    business_type:   'Retail' as 'Retail' | 'Restaurant',
   });
   const [showPassword,        setShowPassword]  = useState(false);
   const [showConfirmPassword, setShowConfirmPw] = useState(false);
@@ -882,6 +885,7 @@ const ZoduSignupPage: React.FC = () => {
         phone_number:    form.phone_number.trim(),
         password:        form.password,
         same_for_branch: form.same_for_branch,
+        business_type:   form.business_type,
       });
       setSuccess(true);
       setTimeout(() => navigate('/login'), 1800);
@@ -987,6 +991,56 @@ const ZoduSignupPage: React.FC = () => {
                 <Typography sx={{ color: '#5b403d', fontSize: '0.95rem', lineHeight: 1.6 }}>
                   Simplify Your Restaurant & Retail Business with ZODU
                 </Typography>
+              </Box>
+
+              {/* ── Business Type dropdown ── */}
+              <Box sx={{ mb: 3.5 }}>
+                <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: '#5b403d', mb: 1.2, ml: 0.5 }}>
+                  Business Type
+                </Typography>
+                <FormControl fullWidth disabled={isPending}>
+                  <Select
+                    value={form.business_type}
+                    onChange={e => setForm(p => ({ ...p, business_type: e.target.value as 'Retail' | 'Restaurant' }))}
+                    renderValue={selected => {
+                      const isRetail = selected === 'Retail';
+                      return (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          {isRetail
+                            ? <StoreIcon sx={{ fontSize: 20, color: '#af101a' }} />
+                            : <RestaurantMenuIcon sx={{ fontSize: 20, color: '#af101a' }} />}
+                          <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: '#191c1d' }}>
+                            {selected}
+                          </Typography>
+                        </Box>
+                      );
+                    }}
+                    sx={{
+                      borderRadius: '8px',
+                      bgcolor: '#f3f4f5',
+                      '& .MuiOutlinedInput-notchedOutline': { border: '1px solid #d1d5db' },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#af101a', borderWidth: '1px' },
+                      '& .MuiSelect-select': { py: '14px', px: '16px' },
+                    }}
+                  >
+                    {([
+                      { key: 'Retail',     label: 'Retail',     icon: <StoreIcon sx={{ fontSize: 20 }} /> },
+                      { key: 'Restaurant', label: 'Restaurant', icon: <RestaurantMenuIcon sx={{ fontSize: 20 }} /> },
+                    ] as const).map(({ key, label, icon }) => (
+                      <MenuItem key={key} value={key}
+                        sx={{
+                          display: 'flex', alignItems: 'center', gap: 1.5, py: 1.5,
+                          '&.Mui-selected': { bgcolor: '#fef2f2', color: '#af101a' },
+                          '&.Mui-selected:hover': { bgcolor: '#fde8e8' },
+                          '& svg': { color: form.business_type === key ? '#af101a' : '#6b7280' },
+                        }}
+                      >
+                        {icon}
+                        <Typography sx={{ fontSize: '0.9rem', fontWeight: 600 }}>{label}</Typography>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </Box>
 
               {/* Error */}
