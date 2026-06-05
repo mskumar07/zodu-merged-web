@@ -51,7 +51,7 @@ const restaurantNavItems = [
   { label: "Dashboard", icon: <DashboardIcon />, path: "/dashboard" },
   { label: "POS", icon: <PointOfSaleIcon />, path: "/restaurant-pos" },
   { label: "Sales History", icon: <History />, path: "/sales-history" },
-  { label: "Menu Items", icon: <CategoryIcon />, path: "/menu" },
+  { label: "Menu Items", icon: <CategoryIcon />, path: "/restaurant-menu" },
   { label: "Inventory", icon: <ReceiptIcon />, path: "/stock" },
   { label: "Purchase", icon: <CategoryIcon />, path: "/purchase" },
   { label: "Expense", icon: <PaymentsIcon />, path: "/expense" },

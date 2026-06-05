@@ -1,12 +1,18 @@
 import axios from "axios";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { apiConfig } from "@config/api";
+import { getTenantContext, getAccessToken } from "@store/tenantContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 function authHeaders() {
-  const token = localStorage.getItem("token");
+  const token = getAccessToken() ?? localStorage.getItem("token");
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function getRoute() {
+  const { businessType } = getTenantContext();
+  return businessType === "Restaurant" ? "restaurant" : "retail";
 }
 
 export interface RestaurantMenuListItem {
@@ -69,21 +75,23 @@ const PAGE_SIZE = 20;
 const CATEGORY_PAGE_SIZE = 10;
 
 async function fetchMenuList(
+  zoduId: string,
   branchId: string,
   menuType: string | undefined,
   search: string,
   page: number,
   categoryIds?: number[]
 ): Promise<MenuListPage> {
-  const url = `${API_BASE}${apiConfig.menu.getMenuItemsByType(
-    branchId,
-    menuType,
-    search || undefined,
-    page,
-    PAGE_SIZE,
-    categoryIds
-  )}`;
-  const { data } = await axios.get(url, { headers: authHeaders() });
+  const route = getRoute();
+  const params: Record<string, string | number> = { page, limit: PAGE_SIZE };
+  if (menuType) params.type = menuType;
+  if (search)   params.search = search;
+  if (categoryIds?.length) params.category_ids = categoryIds.join(",");
+
+  const { data } = await axios.get(
+    `${API_BASE}/${route}/api/menu/get/menu_item/${zoduId}/${branchId}`,
+    { params, headers: authHeaders() }
+  );
   return {
     data: (data?.data ?? []) as RestaurantMenuListItem[],
     pagination: data?.pagination ?? {
@@ -96,23 +104,50 @@ async function fetchMenuList(
 }
 
 export function useInfiniteRestaurantMenu(
+  zoduId: string,
   branchId: string,
   search: string,
-  menuType?: string,
+  menuType?: string | undefined,
   categoryIds?: number[]
 ) {
   return useInfiniteQuery({
-    queryKey: ["restaurant", "menuList", branchId, search, menuType ?? "all", categoryIds ?? []],
+    queryKey: ["restaurant", "menuList", zoduId, branchId, search, menuType ?? "all", categoryIds ?? []],
     queryFn: ({ pageParam }) =>
-      fetchMenuList(branchId, menuType, search, pageParam as number, categoryIds),
+      fetchMenuList(zoduId, branchId, menuType, search, pageParam as number, categoryIds),
     initialPageParam: 1,
     getNextPageParam: (last) => {
       const { current_page, total_pages } = last.pagination;
       return current_page < total_pages ? current_page + 1 : undefined;
     },
-    enabled: !!branchId,
+    enabled: !!zoduId && !!branchId,
     staleTime: 2 * 60 * 1000,
   });
+}
+
+export async function updateMenuFav(menuId: string, fav: boolean): Promise<void> {
+  const route = getRoute();
+  await axios.put(
+    `${API_BASE}/${route}/api/menu/update/menusfav/${fav}/${menuId}`,
+    {},
+    { headers: authHeaders() }
+  );
+}
+
+export async function updateMenuStatus(menuId: string, active: boolean): Promise<void> {
+  const route = getRoute();
+  await axios.put(
+    `${API_BASE}/${route}/api/menu/update/menustatus/${active}/${menuId}`,
+    {},
+    { headers: authHeaders() }
+  );
+}
+
+export async function deleteMenuItem(menuId: string): Promise<void> {
+  const route = getRoute();
+  await axios.delete(
+    `${API_BASE}/${route}/api/menu/delete/menu_item/${menuId}`,
+    { headers: authHeaders() }
+  );
 }
 
 async function fetchCategories(

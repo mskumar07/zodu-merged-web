@@ -49,8 +49,12 @@ import DataTable, { type ColumnDef } from "@utils/DataTable";
 import {
   useInfiniteRestaurantMenu,
   useInfiniteRestaurantCategories,
+  updateMenuStatus,
+  updateMenuFav,
+  deleteMenuItem,
   type RestaurantMenuListItem,
 } from "./restaurantMenuApi";
+import AddRestaurantMenuItemDialog from "./AddRestaurantMenuItemDialog";
 import { BranchId, ZoduId } from "@store/slices/userSlice";
 
 type MenuTab = "all" | "food" | "product";
@@ -425,7 +429,13 @@ const ItemDetailDialog: React.FC<{
           </Collapse>
         </Box>
 
-        {item.variants && item.variants.length > 0 && (
+        {(() => {
+          let parsedVariants = item.variants;
+          if (typeof parsedVariants === "string") {
+            try { parsedVariants = JSON.parse(parsedVariants); } catch { parsedVariants = []; }
+          }
+          if (!Array.isArray(parsedVariants) || parsedVariants.length === 0) return null;
+          return (
           <Box sx={{ mt: 2 }}>
             <Typography
               sx={{
@@ -440,7 +450,7 @@ const ItemDetailDialog: React.FC<{
               Variants
             </Typography>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 0.6 }}>
-              {item.variants.map((v, i) => (
+              {parsedVariants.map((v: { id?: string; name?: string; variant_name?: string; price?: string }, i: number) => (
                 <Box
                   key={i}
                   sx={{
@@ -455,16 +465,17 @@ const ItemDetailDialog: React.FC<{
                   }}
                 >
                   <Typography sx={{ fontSize: "0.78rem", color: "#374151", fontWeight: 500 }}>
-                    {v.variant_name}
+                    {v.name ?? v.variant_name}
                   </Typography>
                   <Typography sx={{ fontSize: "0.82rem", fontWeight: 700, color: "#d32f2f" }}>
-                    ₹{parseFloat(v.price).toFixed(2)}
+                    ₹{parseFloat(v.price ?? "0").toFixed(2)}
                   </Typography>
                 </Box>
               ))}
             </Box>
           </Box>
-        )}
+          );
+        })()}
       </DialogContent>
 
       <Box
@@ -554,8 +565,8 @@ const RestaurantMenuList: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isTablet = useMediaQuery(theme.breakpoints.down("md"));
 
-  const branchId = "ZODU035B1";
-  const zoduId   = "ZODU035";
+  const branchId = useSelector(BranchId) ?? "";
+  const zoduId   = useSelector(ZoduId)   ?? "";
 
   const [activeTab, setActiveTab]                   = useState<MenuTab>("all");
   const [search, setSearch]                         = useState("");
@@ -563,6 +574,8 @@ const RestaurantMenuList: React.FC = () => {
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
   const [detailItem, setDetailItem]           = useState<RestaurantMenuListItem | null>(null);
   const [deleteItem, setDeleteItem]           = useState<RestaurantMenuListItem | null>(null);
+  const [addMenuOpen, setAddMenuOpen]         = useState(false);
+  const [editItem, setEditItem]               = useState<RestaurantMenuListItem | null>(null);
   const [favOverrides, setFavOverrides]       = useState<Record<string, boolean>>({});
   const [activeOverrides, setActiveOverrides] = useState<Record<string, boolean>>({});
 
@@ -574,8 +587,8 @@ const RestaurantMenuList: React.FC = () => {
   const menuType = activeTab === "all" ? undefined : activeTab;
   const categoryIdsParam = selectedCategoryIds.length > 0 ? selectedCategoryIds : undefined;
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError } =
-    useInfiniteRestaurantMenu(branchId, debouncedSearch, menuType, categoryIdsParam);
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError, refetch } =
+    useInfiniteRestaurantMenu(zoduId, branchId, debouncedSearch, menuType, categoryIdsParam);
 
   const categoryTypes = activeTab === "all" ? undefined : [activeTab];
   const {
@@ -623,18 +636,37 @@ const RestaurantMenuList: React.FC = () => {
     return () => observer.disconnect();
   }, [handleObserver, allItems.length]);
 
-  const handleToggleFav = useCallback((item: RestaurantMenuListItem) => {
+  const handleToggleFav = useCallback(async (item: RestaurantMenuListItem) => {
     const current = favOverrides[item.menu_id] ?? item.favorites;
-    setFavOverrides((prev) => ({ ...prev, [item.menu_id]: !current }));
+    const next = !current;
+    setFavOverrides((prev) => ({ ...prev, [item.menu_id]: next }));
+    try {
+      await updateMenuFav(item.menu_id, next);
+    } catch {
+      setFavOverrides((prev) => ({ ...prev, [item.menu_id]: current }));
+    }
   }, [favOverrides]);
 
-  const handleToggleActive = useCallback((item: RestaurantMenuListItem) => {
+  const handleToggleActive = useCallback(async (item: RestaurantMenuListItem) => {
     const current = activeOverrides[item.menu_id] ?? item.active;
-    setActiveOverrides((prev) => ({ ...prev, [item.menu_id]: !current }));
+    const next = !current;
+    setActiveOverrides((prev) => ({ ...prev, [item.menu_id]: next }));
+    try {
+      await updateMenuStatus(item.menu_id, next);
+    } catch {
+      setActiveOverrides((prev) => ({ ...prev, [item.menu_id]: current }));
+    }
   }, [activeOverrides]);
 
-  const handleDeleteConfirm = () => {
-    setDeleteItem(null);
+  const handleDeleteConfirm = async () => {
+    if (!deleteItem) return;
+    try {
+      await deleteMenuItem(deleteItem.menu_id);
+      setDeleteItem(null);
+      refetch();
+    } catch {
+      setDeleteItem(null);
+    }
   };
 
   const columns = useMemo<ColumnDef<RestaurantMenuListItem>[]>(
@@ -963,6 +995,7 @@ const RestaurantMenuList: React.FC = () => {
         <Button
           variant="contained"
           startIcon={<AddIcon />}
+          onClick={() => setAddMenuOpen(true)}
           sx={{
             borderRadius: 0.5,
             fontWeight: 700,
@@ -1003,7 +1036,7 @@ const RestaurantMenuList: React.FC = () => {
       <ItemDetailDialog
         item={detailItem}
         onClose={() => setDetailItem(null)}
-        onEdit={(item) => setDetailItem(item)}
+        onEdit={(item) => { setDetailItem(null); setEditItem(item); setAddMenuOpen(true); }}
         onDelete={(item) => setDeleteItem(item)}
       />
 
@@ -1011,6 +1044,13 @@ const RestaurantMenuList: React.FC = () => {
         item={deleteItem}
         onConfirm={handleDeleteConfirm}
         onClose={() => setDeleteItem(null)}
+      />
+
+      <AddRestaurantMenuItemDialog
+        open={addMenuOpen}
+        editItem={editItem}
+        onClose={() => { setAddMenuOpen(false); setEditItem(null); }}
+        onSuccess={() => { setAddMenuOpen(false); setEditItem(null); refetch(); }}
       />
     </Box>
   );

@@ -38,8 +38,8 @@ export interface DataTableProps<T> {
   skeletonRows?: number;
   hasNextPage?: boolean;
   isFetchingNextPage?: boolean;
-  loadMoreRef?: React.RefObject<HTMLTableRowElement>;
-  tableContainerRef?: React.RefObject<HTMLDivElement>;
+  loadMoreRef?: React.RefObject<HTMLTableRowElement | null>;
+  tableContainerRef?: React.RefObject<HTMLDivElement | null>;
   maxHeight?: string | number;
   onRowClick?: (row: T) => void;
   emptyMessage?: string;

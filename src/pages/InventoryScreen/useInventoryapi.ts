@@ -9,7 +9,7 @@
  */
 
 import axios from 'axios';
-import { getTenantContext, useTenantContext } from '@store/tenantContext';
+import { getTenantContext, getAccessToken, useTenantContext } from '@store/tenantContext';
 import {
   useQuery,
   useInfiniteQuery,
@@ -19,7 +19,23 @@ import {
   type UseMutationResult,
 } from '@tanstack/react-query';
 
-const API_BASE  = import.meta.env.VITE_API_BASE_URL ?? 'https://api.myzodu.com';
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://api.myzodu.com';
+
+function getRoute() {
+  const { businessType } = getTenantContext();
+  return businessType === 'Restaurant' ? 'restaurant' : 'retail';
+}
+
+function getApi() {
+  const token = getAccessToken();
+  return axios.create({
+    baseURL: `${API_BASE}/${getRoute()}/api`,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+}
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -128,28 +144,120 @@ export interface StockHistoryResponse {
 }
 // ─── Query keys ───────────────────────────────────────────────
 export const inventoryQueryKeys = {
-  summary:  (branchId: string) => ['inventory', 'summary', branchId]          as const,
-  list:     (p: InventoryListParams, branchId: string) => ['inventory', 'list', branchId, p] as const,
+  summary:  (branchId: string, businessType: string) => ['inventory', 'summary', branchId, businessType]          as const,
+  list:     (p: InventoryListParams, branchId: string, businessType: string) => ['inventory', 'list', branchId, businessType, p] as const,
   detail:   (uuid: string)     => ['inventory', uuid]                          as const,
 };
 
 // ─── API functions ────────────────────────────────────────────
 
 async function fetchSummary(): Promise<InventorySummary> {
-  const { zoduId, branchId } = getTenantContext();
-  const { data } = await axios.get<{ success: boolean; data: InventorySummary }>(
-    `${API_BASE}/retail/api/menu/inventory/summary`,
+  const { zoduId, branchId, businessType } = getTenantContext();
+  const url = businessType === 'Restaurant'
+    ? `/inventory/summary`
+    : `/menu/inventory/summary`;
+  const { data } = await getApi().get<{ success: boolean; data: InventorySummary }>(
+    url,
     { params: { zodu_id: zoduId, branch_id: branchId } }
   );
   return data.data;
 }
 
+interface RestaurantInventoryRaw {
+  inventory_id:       number;
+  inventory_uuid:     string;
+  zodu_id:            string;
+  branch_id:          string;
+  category_id:        number | null;
+  item_id:            string;
+  item_name:          string | null;
+  item_unit:          string | null;
+  stock_qty:          string;
+  stock_alert:        string;
+  purchase_price:     string | null;
+  selling_price:      string | null;
+  last_purchase_date: string | null;
+  updated_at:         string | null;
+  inventory_type:     string | null;
+  created_at:         string;
+  item_uuid:          string;
+  category_name:      string | null;
+  gst_tax:            number | null;
+  unit_name:          string | null;
+  unit_short_name:    string | null;
+}
+
+interface RawInventoryListResponse {
+  message:      string;
+  data:         RestaurantInventoryRaw[];
+  total_count:  number;
+  total_pages:  number;
+  current_page: number;
+  limit:        number;
+}
+
+function normalizeRestaurantItem(r: RestaurantInventoryRaw): InventoryItem {
+  const qty    = Number(r.stock_qty  ?? 0);
+  const alert  = Number(r.stock_alert ?? 0);
+  const price  = Number(r.purchase_price ?? 0);
+  const status: StockStatus =
+    qty === 0 ? 'out_of_stock' :
+    qty <= alert ? 'low_stock' :
+    'in_stock';
+  return {
+    inventory_uuid:    r.inventory_uuid ?? String(r.inventory_id),
+    item_uuid:         r.item_uuid,
+    item_id:           r.item_id,
+    item_name:         r.item_name ?? '',
+    available_qty:     r.stock_qty,
+    reorder_level:     r.stock_alert,
+    last_stock_update: r.last_purchase_date ?? r.updated_at ?? r.created_at,
+    created_at:        r.created_at,
+    sell_price:        r.selling_price,
+    purchase_price:    r.purchase_price,
+    item_img:          null,
+    item_type:         r.inventory_type,
+    item_status:       null,
+    hsn_code:          null,
+    barcode:           null,
+    category_name:     r.category_name,
+    unit_short_name:   r.unit_short_name,
+    gst_rate:          r.gst_tax != null ? String(r.gst_tax) : null,
+    stock_status:      status,
+    stock_value:       String((qty * price).toFixed(2)),
+  };
+}
+
 async function fetchInventoryList(
   params: InventoryListParams
 ): Promise<InventoryListResponse> {
-  const { zoduId, branchId } = getTenantContext();
-  const { data } = await axios.get<InventoryListResponse>(
-    `${API_BASE}/retail/api/menu/inventory/list`,
+  const { zoduId, branchId, businessType } = getTenantContext();
+
+  if (businessType === 'Restaurant') {
+    const { data } = await getApi().get<RawInventoryListResponse>(
+      `/inventory/get/inventory-list/${zoduId}/${branchId}`,
+      {
+        params: {
+          page:     params.page   ?? 1,
+          limit:    params.limit  ?? 15,
+          ...(params.search?.trim()        ? { search:   params.search.trim() }  : {}),
+          ...(params.category_ids?.length  ? { category: params.category_ids }   : {}),
+        },
+      }
+    );
+    return {
+      success:     true,
+      total:       data.total_count,
+      page:        data.current_page,
+      limit:       data.limit,
+      total_pages: data.total_pages,
+      data:        (data.data ?? []).map(normalizeRestaurantItem),
+    };
+  }
+
+  // Retail
+  const { data } = await getApi().get<InventoryListResponse>(
+    `/menu/inventory/list`,
     {
       params: {
         zodu_id:      zoduId,
@@ -158,17 +266,16 @@ async function fetchInventoryList(
         category_id:  params.category_ids || [],
         stock_status: params.stock_status || undefined,
         page:         params.page         ?? 1,
-        limit:        params.limit        ?? 30,
+        limit:        params.limit        ?? 15,
       },
     }
   );
-  console.log(data)
   return data;
 }
 
 async function fetchInventoryDetail(inventory_uuid: string): Promise<InventoryItem> {
-  const { data } = await axios.get<{ success: boolean; data: InventoryItem }>(
-    `${API_BASE}/retail/api/menu/inventory/${inventory_uuid}`
+  const { data } = await getApi().get<{ success: boolean; data: InventoryItem }>(
+    `/menu/inventory/${inventory_uuid}`
   );
   return data.data;
 }
@@ -176,10 +283,11 @@ async function fetchInventoryDetail(inventory_uuid: string): Promise<InventoryIt
 async function postAdjustStock(
   payload: AdjustStockPayload
 ): Promise<AdjustStockResponse> {
-  const { data } = await axios.post<AdjustStockResponse>(
-    `${API_BASE}/retail/api/menu/inventory/adjust`,
-    payload
-  );
+  const { businessType } = getTenantContext();
+  const url = businessType === 'Restaurant'
+    ? `/inventory/adjust`
+    : `/menu/inventory/adjust`;
+  const { data } = await getApi().post<AdjustStockResponse>(url, payload);
   return data;
 }
 
@@ -187,9 +295,9 @@ async function postAdjustStock(
 
 /** Summary stats for the 4 top cards. Refreshes every 2 min. */
 export function useInventorySummary(): UseQueryResult<InventorySummary> {
-  const { branchId } = useTenantContext();
+  const { branchId, businessType } = useTenantContext();
   return useQuery({
-    queryKey:             inventoryQueryKeys.summary(branchId ?? ''),
+    queryKey:             inventoryQueryKeys.summary(branchId ?? '', businessType ?? ''),
     queryFn:              fetchSummary,
     staleTime:            2 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -201,11 +309,11 @@ export function useInventorySummary(): UseQueryResult<InventorySummary> {
 export function useInfiniteInventory(
   params: Omit<InventoryListParams, 'page'> = {}
 ) {
-  const { branchId } = useTenantContext();
+  const { branchId, businessType } = useTenantContext();
   return useInfiniteQuery({
-    queryKey: ['inventory', 'list', branchId ?? '', JSON.stringify(params)],
+    queryKey: ['inventory', 'list', branchId ?? '', businessType ?? '', JSON.stringify(params)],
     queryFn:          ({ pageParam }) =>
-                        fetchInventoryList({ ...params, page: pageParam, limit: params.limit ?? 30 }),
+                        fetchInventoryList({ ...params, page: pageParam, limit: params.limit ?? 15 }),
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
       lastPage.page < lastPage.total_pages ? lastPage.page + 1 : undefined,
@@ -267,17 +375,14 @@ export function useAdjustStock(options?: {
 }
 
 async function fetchStockHistory(item_uuid: string): Promise<StockHistoryResponse> {
-  const { zoduId, branchId } = getTenantContext();
-  const { data } = await axios.get<StockHistoryResponse>(
-    `${API_BASE}/retail/api/menu/stock/history/${item_uuid}`,
-    {
-      params: {
-        zodu_id: zoduId,
-        branch_id: branchId,
-      },
-    }
-  );
-  return data.data;
+  const { zoduId, branchId, businessType } = getTenantContext();
+  const url = businessType === 'Restaurant'
+    ? `/inventory/stock/history/${item_uuid}`
+    : `/menu/stock/history/${item_uuid}`;
+  const { data } = await getApi().get<StockHistoryResponse>(url, {
+    params: { zodu_id: zoduId, branch_id: branchId },
+  });
+  return data;
 }
 
 // ─── Hook ─────────────────────────────────────────

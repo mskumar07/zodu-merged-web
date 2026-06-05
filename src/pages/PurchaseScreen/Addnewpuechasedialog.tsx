@@ -107,7 +107,7 @@ export interface CatalogueItem {
   itemId: string;
   name: string; sku: string; category: string;
   categoryId?: number | null;
-  unitPrice: number; unit: string; gstPct: number;
+  unitPrice: number; unit: string; unitId?: number | null; gstPct: number;
 }
 
 const menuItemToCatalogue = (item: ApiMenuItem): CatalogueItem => ({
@@ -119,6 +119,7 @@ const menuItemToCatalogue = (item: ApiMenuItem): CatalogueItem => ({
   categoryId: item.category_id ?? null,
   unitPrice: Number(item.purchase_price) || Number(item.sell_price) || 0,
   unit: item.unit_short_name || "NOS",
+  unitId: item.unit ?? null,
   gstPct: Number(item.gst_rate) || 0,
 });
 
@@ -309,7 +310,7 @@ type PaymentMethod =  "Cash" | "UPI" | "Bank Transfer" | "Others";
 
 interface PurchaseItem {
   id: string; itemUuid: string; itemId: string; itemName: string; sku: string;
-  qty: number; unitPrice: number; taxPct: number; unit: string; categoryId?: number | null;
+  qty: number; unitPrice: number; taxPct: number; unit: string; unitId?: number | null; categoryId?: number | null;
 }
 
 // ✅ UPDATED: Added dueDate field
@@ -329,7 +330,7 @@ const catalogueToItem = (cat: CatalogueItem & { qty?: number }): PurchaseItem =>
   id: `pi-${cat.id}-${Date.now()}-${Math.random()}`,
   itemUuid: cat.id, itemId: cat.itemId, itemName: cat.name, sku: cat.sku,
   qty: cat.qty ?? 1, unitPrice: cat.unitPrice, taxPct: cat.gstPct,
-  unit: cat.unit, categoryId: cat.categoryId ?? null,
+  unit: cat.unit, unitId: cat.unitId ?? null, categoryId: cat.categoryId ?? null,
 });
 
 function FieldLabel({ children, sx }: { children: React.ReactNode; sx?: object }) {
@@ -628,12 +629,8 @@ export default function AddNewPurchaseDialog({
     try {
       const formData = new FormData();
       entries.forEach(e => formData.append("files", e.file));
-<<<<<<< HEAD
       const token = getAccessToken();
       const res = await axios.post(getUploadUrl(), formData, { headers: { "Content-Type": "multipart/form-data", ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
-=======
-      const res = await axios.post(`${API_BASE}/retail/upload/multiple`, formData, { headers: { "Content-Type": "multipart/form-data" } });
->>>>>>> 6572542ac8c38ed70a77b139a78fcbd7797da5ee
       const uploaded: { id: string; url: string; filename: string; size: number; mimetype: string }[] = res.data.files || [];
       setAttachments(prev => prev.map(a => {
         const idx = ids.indexOf(a.id);
@@ -691,7 +688,7 @@ export default function AddNewPurchaseDialog({
       attachment_url: allUrls,
       items: form.items.map((item): PurchaseItemPayload => {
         const tax = itemTaxAmount(item);
-        return { item_uuid: item.itemUuid, item_id: item.itemId, item_name: item.itemName, qty: item.qty, unit: item.unit, purchase_price: item.unitPrice, gst_percentage: item.taxPct, tax_amount: tax, cgst: tax / 2, sgst: tax / 2, category_id: item.categoryId ?? null };
+        return { item_uuid: item.itemUuid, item_id: item.itemId, item_name: item.itemName, qty: item.qty, unit: item.unit, unit_id: item.unitId ?? null, purchase_price: item.unitPrice, gst_percentage: item.taxPct, tax_amount: tax, cgst: tax / 2, sgst: tax / 2, category_id: item.categoryId ?? null };
       }),
     };
 

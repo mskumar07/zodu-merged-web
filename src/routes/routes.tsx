@@ -47,6 +47,7 @@ export const routes = [
       { path: "dashboard", element: <Dashboard /> },
       { path: "restaurant-setup", element: <RestaurantSetup /> },
       { path: "menu", element: <MenuItemsScreen /> },
+      { path: "restaurant-menu", element: <RestaurantMenuList /> },
       { path: "stock", element: <InventoryManagement /> },
       { path: "purchase", element: <PurchaseScreen /> },
       { path: "expense", element: <ExpenseScreen /> },
@@ -86,10 +87,6 @@ export const routes = [
     path: "/restaurant-pos",
     element: <RestaurantPOS />,
   },
-  {
-    path: "/restaurant-menu",
-    element: <RestaurantMenuList />,
-  }
       // add more child routes as needed ...
     ],
   },

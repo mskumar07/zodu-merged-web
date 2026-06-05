@@ -8,14 +8,12 @@ import {
 } from '@mui/material';
 import SearchIcon        from '@mui/icons-material/Search';
 import Inventory2Icon    from '@mui/icons-material/Inventory2';
-import TrendingUpIcon    from '@mui/icons-material/TrendingUp';
 import WarningAmberIcon  from '@mui/icons-material/WarningAmber';
 import ErrorOutlineIcon  from '@mui/icons-material/ErrorOutline';
 import QrCodeIcon        from '@mui/icons-material/QrCode2';
 import FilterListOffIcon from '@mui/icons-material/FilterListOff';
 import StatCard          from '@components/StatCard';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useCategories } from '@pages/MenuItemScreen/useMenuItemApi';
+import { useInfiniteCategories } from '@pages/MenuItemScreen/useMenuItemApi';
 import DataTable, { type ColumnDef } from '@utils/DataTable';
 import AdjustStockModal from './AdjustStockModal';
 import {
@@ -27,16 +25,8 @@ import {
 } from './useInventoryApi';
 import StockHistoryModal from './StockHistoryModal';
 
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { refetchOnWindowFocus: false, retry: 1 } },
-});
-
 export default function InventoryScreenRoot() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <InventoryScreen />
-    </QueryClientProvider>
-  );
+  return <InventoryScreen />;
 }
 
 // ── Formatters ─────────────────────────────────────────────────
@@ -109,14 +99,28 @@ const [historyOpen, setHistoryOpen] = useState(false);
   // ── Summary query ──────────────────────────────────────────
   const { data: summary, refetch: refetchSummary } = useInventorySummary();
 
-  // ── Infinite list query ────────────────────────────────────
-  const { data: categories = [] } = useCategories('product');
+  // ── Category infinite dropdown ─────────────────────────────
+  const {
+    data: categoryPages,
+    hasNextPage: catHasNextPage,
+    isFetchingNextPage: catFetchingNext,
+    fetchNextPage: fetchNextCatPage,
+  } = useInfiniteCategories('product');
+
+  const categories = (categoryPages?.pages ?? []).flatMap(p => p.categories);
+
+  const handleCatMenuScroll = useCallback((e: React.UIEvent<HTMLElement>) => {
+    const el = e.currentTarget;
+    if (catHasNextPage && !catFetchingNext && el.scrollHeight - el.scrollTop - el.clientHeight < 60) {
+      fetchNextCatPage();
+    }
+  }, [catHasNextPage, catFetchingNext, fetchNextCatPage]);
 
   const queryParams = useMemo<Omit<InventoryListParams, 'page'>>(() => ({
     search:        searchQuery              || undefined,
     stock_status:  stockFilter             || undefined,
     category_ids:  selectedCategories.length ? selectedCategories : undefined,
-    limit:         30,
+    limit:         15,
   }), [searchQuery, stockFilter, selectedCategories]);
 
   const {
@@ -165,8 +169,6 @@ useEffect(() => {
   return data.pages.flatMap(p => p.data.map(toRow));
 }, [data]);
 
-  const totalItems = data?.pages[0]?.total ?? 0;
-
   // ── Handlers ───────────────────────────────────────────────
   const handleAdjustClick = useCallback((item: InventoryItem) => {
     setAdjustItem(item);
@@ -212,7 +214,7 @@ const handleCloseHistory = () => {
       render: (r) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Avatar src={r.item_img ?? ''} variant="rounded" sx={{ width: 38, height: 38, border: '1px solid', borderColor: 'divider' }}>
-            {r?.item_name[0]}
+            {r?.item_name?.[0] ?? ''}
           </Avatar>
           <Box>
             <Typography variant="body2" fontWeight={600} sx={{ lineHeight: 1.3, fontSize: 13, color: TABLE_TEXT_COLOR }}>{r?.item_name}</Typography>
@@ -413,14 +415,19 @@ const handleCloseHistory = () => {
                 </Box>
               );
             }}
-            MenuProps={{ PaperProps: { sx: { maxHeight: 300 } } }}
+            MenuProps={{ PaperProps: { sx: { maxHeight: 300 }, onScroll: handleCatMenuScroll } }}
           >
             {categories.map(cat => (
               <MenuItem key={cat.value} value={Number(cat.value)} sx={{ fontSize: 13 }}>
                 <Checkbox checked={selectedCategories.includes(Number(cat.value))} size="small" sx={{ py: 0 }} />
-                <ListItemText primary={cat.label} primaryTypographyProps={{ fontSize: 13 }} />
+                <ListItemText primary={cat.label} slotProps={{ primary: { fontSize: 13 } }} />
               </MenuItem>
             ))}
+            {catFetchingNext && (
+              <MenuItem disabled sx={{ justifyContent: 'center', py: 1 }}>
+                <CircularProgress size={16} />
+              </MenuItem>
+            )}
           </Select>
         </FormControl>
 
@@ -480,6 +487,7 @@ const handleCloseHistory = () => {
       <AdjustStockModal
         open={adjustOpen}
         preselectedItem={adjustItem}
+        inventoryItems={rows}
         onClose={handleAdjustClose}
         onSuccess={() => {
           refetchSummary();

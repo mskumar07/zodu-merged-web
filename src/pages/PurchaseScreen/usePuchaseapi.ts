@@ -46,6 +46,7 @@ export interface PurchaseItemPayload {
   item_name: string;
   qty: number;
   unit?: string;
+  unit_id?: number | null;
   purchase_price: number;
   gst_percentage?: number;
   tax_amount?: number;

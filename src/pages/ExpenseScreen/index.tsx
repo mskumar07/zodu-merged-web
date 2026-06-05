@@ -323,16 +323,16 @@ export default function ExpenseScreen() {
           ) : (
             <>
               {/* Toolbar */}
-              <Box sx={{ px: 1, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, gap: 2 }}>
+              <Box sx={{ px: 1, display: "flex", alignItems: "center", flexShrink: 0, gap: 1.5, flexWrap: "nowrap" }}>
                 <TextField
                   value={search}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   placeholder="Search expenses, vendors..."
                   size="small"
-                  sx={{ flex: "1 1 380px", minWidth: { xs: "100%", sm: 260 }, "& .MuiOutlinedInput-root": { bgcolor: "white", height: 38, fontSize: "0.875rem", borderRadius: 1.5 } }}
+                  sx={{ flex: 1, minWidth: 0, "& .MuiOutlinedInput-root": { bgcolor: "white", height: 38, fontSize: "0.875rem", borderRadius: 1.5 } }}
                   slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 17, color: "#9CA3AF" }} /></InputAdornment> } }}
                 />
-                <FormControl size="small" sx={{ minWidth: 150 }}>
+                <FormControl size="small" sx={{ minWidth: 140, flexShrink: 0 }}>
                   <Select
                     value={statusFilter}
                     onChange={(e) => handleStatusChange(e.target.value as ExpenseStatus | "")}
@@ -354,7 +354,7 @@ export default function ExpenseScreen() {
                   startIcon={<AddIcon sx={{ fontSize: 16 }} />}
                   onClick={() => { setEditExpenseId(null); setAddDialogOpen(true); }}
                   disableElevation
-                  sx={{ fontSize: 14, fontWeight: 700, bgcolor: "#D32F2F", color: "#fff", px: 2, py: 0.9, borderRadius: 1.5, boxShadow: "0 4px 14px rgba(211,47,47,0.3)", "&:hover": { bgcolor: "#B71C1C" }, "&:active": { transform: "scale(0.97)" }, transition: "all 0.15s", display: { xs: "none", md: "inline-flex" } }}
+                  sx={{ flexShrink: 0, fontSize: 14, fontWeight: 700, bgcolor: "#D32F2F", color: "#fff", px: 2, py: 0.9, borderRadius: 1.5, boxShadow: "0 4px 14px rgba(211,47,47,0.3)", "&:hover": { bgcolor: "#B71C1C" }, whiteSpace: "nowrap" }}
                 >
                   Add New Expense
                 </Button>

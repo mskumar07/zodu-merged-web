@@ -30,7 +30,6 @@ import {
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import {
-  useInfiniteInventory,
   useAdjustStock,
   type InventoryItem,
   type AdjustStockResponse,
@@ -47,8 +46,8 @@ const theme = createTheme({
 interface AdjustStockModalProps {
   open:             boolean;
   onClose:          () => void;
-  // Optional: pre-select an item when opened from the inventory row
   preselectedItem?: InventoryItem | null;
+  inventoryItems?:  InventoryItem[];
   onSuccess?:       (res: AdjustStockResponse) => void;
 }
 
@@ -64,6 +63,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
   open,
   onClose,
   preselectedItem,
+  inventoryItems = [],
   onSuccess,
 }) => {
   // ── State ──────────────────────────────────────────────────
@@ -74,11 +74,6 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
   const [notes,              setNotes]              = useState('');
   const [apiError,           setApiError]           = useState<string | null>(null);
   const [successMsg,         setSuccessMsg]         = useState("");
-
-  // ── Fetch full inventory list for the dropdown ─────────────
-  const { data: inventoryPages } = useInfiniteInventory({ limit: 100 });
-  const inventoryItems: InventoryItem[] =
-    (inventoryPages?.pages ?? []).flatMap(p => p.data);
 
   // ── Derive selected item data ─────────────────────────────
   // Priority: preselectedItem (already loaded, instant) → dropdown selection
