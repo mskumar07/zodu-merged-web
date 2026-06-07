@@ -52,6 +52,7 @@ interface ExpenseSummaryParams {
   zodu_id: string;
   branch_id: string;
   year?: number | string;
+  isRestaurant?: boolean;
 }
 
 interface ExpenseBreakdownParams extends ExpenseSummaryParams {
@@ -63,11 +64,13 @@ interface DatewiseExpenseParams {
   branch_id: string;
   from_date?: string;
   to_date?: string;
+  isRestaurant?: boolean;
 }
 
 interface DatewiseExpenseBreakdownParams extends DatewiseExpenseParams {
   limit?: number;
 }
+
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === "object" ? (value as Record<string, unknown>) : null;
@@ -150,13 +153,17 @@ const toDatewiseExpenseBreakdownPage = (payload: unknown): DatewiseExpenseBreakd
   };
 };
 
+const swapBase = (url: string, isRestaurant: boolean) =>
+  isRestaurant ? url.replace(/^\/retail/, "/restaurant") : url;
+
 export const useExpenseSummary = (params: ExpenseSummaryParams) => {
   return useQuery<ExpenseSummary>({
-    queryKey: ["expense-summary", params.zodu_id, params.branch_id, params.year],
+    queryKey: ["expense-summary", params.zodu_id, params.branch_id, params.year, params.isRestaurant],
     queryFn: async () => {
       const p = new URLSearchParams({ zodu_id: params.zodu_id, branch_id: params.branch_id });
       if (params.year) p.append("year", String(params.year));
-      const res = await axiosInstance.get(`${apiConfig.report.expenseSummary}?${p}`);
+      const url = swapBase(apiConfig.report.expenseSummary, !!params.isRestaurant);
+      const res = await axiosInstance.get(`${url}?${p}`);
       return toExpenseSummary(res.data);
     },
     enabled: !!params.zodu_id && !!params.branch_id,
@@ -168,7 +175,7 @@ export const useExpenseSummary = (params: ExpenseSummaryParams) => {
 export const useExpenseMonthlyBreakdown = (params: ExpenseBreakdownParams) => {
   const limit = params.limit ?? 12;
   return useInfiniteQuery<ExpenseMonthlyBreakdownPage>({
-    queryKey: ["expense-monthly-breakdown", params.zodu_id, params.branch_id, params.year],
+    queryKey: ["expense-monthly-breakdown", params.zodu_id, params.branch_id, params.year, params.isRestaurant],
     queryFn: async ({ pageParam = 1 }) => {
       const p = new URLSearchParams({
         zodu_id: params.zodu_id,
@@ -177,7 +184,8 @@ export const useExpenseMonthlyBreakdown = (params: ExpenseBreakdownParams) => {
         limit: String(limit),
       });
       if (params.year) p.append("year", String(params.year));
-      const res = await axiosInstance.get(`${apiConfig.report.expenseMonthlyBreakdown}?${p}`);
+      const url = swapBase(apiConfig.report.expenseMonthlyBreakdown, !!params.isRestaurant);
+      const res = await axiosInstance.get(`${url}?${p}`);
       return toExpenseMonthlyBreakdownPage(res.data);
     },
     getNextPageParam: (lastPage) => {
@@ -193,12 +201,13 @@ export const useExpenseMonthlyBreakdown = (params: ExpenseBreakdownParams) => {
 
 export const useDatewiseExpenseSummary = (params: DatewiseExpenseParams) => {
   return useQuery<DatewiseExpenseSummary>({
-    queryKey: ["datewise-expense-summary", params.zodu_id, params.branch_id, params.from_date, params.to_date],
+    queryKey: ["datewise-expense-summary", params.zodu_id, params.branch_id, params.from_date, params.to_date, params.isRestaurant],
     queryFn: async () => {
       const p = new URLSearchParams({ zodu_id: params.zodu_id, branch_id: params.branch_id });
       if (params.from_date) p.append("from_date", params.from_date);
       if (params.to_date) p.append("to_date", params.to_date);
-      const res = await axiosInstance.get(`${apiConfig.report.expenseDatewiseSummary}?${p}`);
+      const url = swapBase(apiConfig.report.expenseDatewiseSummary, !!params.isRestaurant);
+      const res = await axiosInstance.get(`${url}?${p}`);
       return toDatewiseExpenseSummary(res.data);
     },
     enabled: !!params.zodu_id && !!params.branch_id,
@@ -210,7 +219,7 @@ export const useDatewiseExpenseSummary = (params: DatewiseExpenseParams) => {
 export const useDatewiseExpenseBreakdown = (params: DatewiseExpenseBreakdownParams) => {
   const limit = params.limit ?? 15;
   return useInfiniteQuery<DatewiseExpenseBreakdownPage>({
-    queryKey: ["datewise-expense-breakdown", params.zodu_id, params.branch_id, params.from_date, params.to_date, limit],
+    queryKey: ["datewise-expense-breakdown", params.zodu_id, params.branch_id, params.from_date, params.to_date, limit, params.isRestaurant],
     queryFn: async ({ pageParam = 1 }) => {
       const p = new URLSearchParams({
         zodu_id: params.zodu_id,
@@ -220,7 +229,8 @@ export const useDatewiseExpenseBreakdown = (params: DatewiseExpenseBreakdownPara
       });
       if (params.from_date) p.append("from_date", params.from_date);
       if (params.to_date) p.append("to_date", params.to_date);
-      const res = await axiosInstance.get(`${apiConfig.report.expenseDatewiseBreakdown}?${p}`);
+      const url = swapBase(apiConfig.report.expenseDatewiseBreakdown, !!params.isRestaurant);
+      const res = await axiosInstance.get(`${url}?${p}`);
       return toDatewiseExpenseBreakdownPage(res.data);
     },
     getNextPageParam: (lastPage) => {

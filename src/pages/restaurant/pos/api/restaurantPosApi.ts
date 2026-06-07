@@ -44,6 +44,7 @@ export interface RestaurantMenuItem {
 
 export interface RestaurantVariant {
   id?: string;
+  variant_id?: string;
   variant_name: string;
   price: string;
 }
@@ -112,6 +113,8 @@ export interface RunningOrderOrderedItem {
   item_unit: string;
   qty: number;
   price: number;
+  gst_tax?: string | number;
+  tax_include_or_exclude?: boolean;
 }
 
 export interface RunningOrder {
@@ -277,17 +280,17 @@ async function fetchMenuData(branchId: string, zoduId: string): Promise<Restaura
   }));
 }
 
-async function fetchTableOrders(branchId: string): Promise<RunningOrder[]> {
+async function fetchTableOrders(branchId: string, zoduId: string): Promise<RunningOrder[]> {
   const { data } = await axios.get(
-    `${API_BASE}${apiConfig.menu.getTableKOT(branchId)}`,
+    `${API_BASE}${apiConfig.menu.getTableKOT(branchId, zoduId)}`,
     { headers: authHeaders() }
   );
   return (data?.data ?? []) as RunningOrder[];
 }
 
-async function fetchHoldOrders(branchId: string) {
+async function fetchHoldOrders(branchId: string, zoduId: string) {
   const { data } = await axios.get(
-    `${API_BASE}${apiConfig.menu.getHoldMenu(branchId)}`,
+    `${API_BASE}${apiConfig.menu.getHoldMenu(branchId, zoduId)}`,
     { headers: authHeaders() }
   );
   return (data?.Data?.data ?? []) as HoldOrder[];
@@ -347,29 +350,29 @@ async function searchCustomers(zoduId: string, branchId: string, query: string) 
 
 // ─── React Query hooks ────────────────────────────────────────────
 
-export function useRestaurantMenuQuery(branchId: string,zoduId: string) {
+export function useRestaurantMenuQuery(branchId: string, zoduId: string) {
   return useQuery({
     queryKey: ["restaurant", "menu", branchId, zoduId],
-    queryFn: () => fetchMenuData(branchId,zoduId),
-    enabled: !!branchId,
+    queryFn: () => fetchMenuData(branchId, zoduId),
+    enabled: !!branchId && !!zoduId,
     staleTime: 5 * 60 * 1000,
   });
 }
 
-export function useTableOrdersQuery(branchId: string) {
+export function useTableOrdersQuery(branchId: string, zoduId: string) {
   return useQuery({
-    queryKey: ["restaurant", "tableOrders", branchId],
-    queryFn: () => fetchTableOrders(branchId),
-    enabled: !!branchId,
+    queryKey: ["restaurant", "tableOrders", branchId, zoduId],
+    queryFn: () => fetchTableOrders(branchId, zoduId),
+    enabled: !!branchId && !!zoduId,
     refetchInterval: 30 * 1000,
   });
 }
 
-export function useHoldOrdersQuery(branchId: string) {
+export function useHoldOrdersQuery(branchId: string, zoduId: string) {
   return useQuery({
-    queryKey: ["restaurant", "holdOrders", branchId],
-    queryFn: () => fetchHoldOrders(branchId),
-    enabled: !!branchId,
+    queryKey: ["restaurant", "holdOrders", branchId, zoduId],
+    queryFn: () => fetchHoldOrders(branchId, zoduId),
+    enabled: !!branchId && !!zoduId,
   });
 }
 

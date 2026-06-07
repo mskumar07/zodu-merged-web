@@ -253,8 +253,6 @@ const HEADERS = [
   { label: 'Item Type', align: 'left' as const },
   { label: 'MRP', align: 'right' as const },
   { label: 'Rate', align: 'right' as const },
-  { label: 'Tax Type', align: 'left' as const },
-  { label: 'Inclusion', align: 'left' as const },
   { label: 'HSN', align: 'left' as const },
   { label: 'Actions', align: 'center' as const },
 ];
@@ -282,7 +280,7 @@ const ProductTable: React.FC<ProductTableProps> = ({ products }) => {
           <TableBody>
             {products.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} align="center" sx={{ py: 8 }}>
+                <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
                   <Typography color="text.secondary" variant="body2">No items match your search.</Typography>
                 </TableCell>
               </TableRow>
@@ -301,9 +299,9 @@ const ProductTable: React.FC<ProductTableProps> = ({ products }) => {
                 </TableCell>
 
                 {/* Name + Category */}
-                <TableCell sx={{ px: 2, minWidth: 180 }}>
-                  <Typography variant="body2" fontWeight={700} color="text.primary">{p.name}</Typography>
-                  <Typography variant="caption" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.06em', color: 'text.disabled' }}>{p.category}</Typography>
+                <TableCell sx={{ px: 2, maxWidth: 200 }}>
+                  <Typography variant="body2" fontWeight={700} color="text.primary" sx={{ whiteSpace: 'normal', wordBreak: 'break-all', width: 175 }}>{p.name}</Typography>
+                  <Typography variant="caption" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.06em', color: 'text.disabled', display: 'block' }}>{p.category}</Typography>
                 </TableCell>
 
                 {/* Item Type */}
@@ -320,18 +318,6 @@ const ProductTable: React.FC<ProductTableProps> = ({ products }) => {
                 {/* Rate */}
                 <TableCell align="right" sx={{ px: 2 }}>
                   <Typography variant="body2" fontWeight={700} color="primary.main">{formatINR(p.rate)}</Typography>
-                </TableCell>
-
-                {/* Tax Type */}
-                <TableCell sx={{ px: 2 }}>
-                  <Box component="span" sx={{ fontSize: 11, fontWeight: 700, px: 1, py: 0.4, bgcolor: 'action.selected', borderRadius: 1, color: 'text.secondary', whiteSpace: 'nowrap' }}>
-                    {p.taxType}
-                  </Box>
-                </TableCell>
-
-                {/* Inclusion */}
-                <TableCell sx={{ px: 2 }}>
-                  <Typography variant="caption" fontWeight={600} sx={{ textTransform: 'uppercase', color: 'text.secondary' }}>{p.inclusion}</Typography>
                 </TableCell>
 
                 {/* HSN */}

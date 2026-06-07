@@ -35,6 +35,7 @@ interface SummaryParams {
   zodu_id: string;
   branch_id: string;
   year?: number | string;
+  disabled?: boolean;
 }
 
 interface BreakdownParams {
@@ -42,11 +43,13 @@ interface BreakdownParams {
   branch_id: string;
   year?: number | string;
   limit?: number;
+  disabled?: boolean;
 }
 
 interface HistoricalParams {
   zodu_id: string;
   branch_id: string;
+  disabled?: boolean;
 }
 
 interface CategoryItemSalesBaseParams {
@@ -55,6 +58,7 @@ interface CategoryItemSalesBaseParams {
   from_date?: string;
   to_date?: string;
   search?: string;
+  disabled?: boolean;
 }
 
 interface CategoryItemSalesPageParams extends CategoryItemSalesBaseParams {
@@ -185,11 +189,13 @@ const toHistoricalYears = (payload: unknown): HistoricalYear[] => {
 
 const CATEGORY_ITEM_SALES_BASE = `${apiConfig.report.getReport}/category-item-sales`;
 
+const EXCLUDED_PARAMS = new Set(["disabled"]);
+
 const buildReportParams = (params: Record<string, unknown>) => {
   const searchParams = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") {
+    if (!EXCLUDED_PARAMS.has(key) && value !== undefined && value !== null && value !== "") {
       searchParams.append(key, String(value));
     }
   });
@@ -296,7 +302,7 @@ export const useSalesSummary = (params: SummaryParams) => {
 
       return toSalesSummary(res.data);
     },
-    enabled: !!params.zodu_id && !!params.branch_id,
+    enabled: !params.disabled && !!params.zodu_id && !!params.branch_id,
     staleTime: 1000 * 60 * 2,
     refetchOnWindowFocus: false,
   });
@@ -323,7 +329,7 @@ export const useSalesMonthlyBreakdown = (params: BreakdownParams) => {
       return page * currentLimit < total ? page + 1 : undefined;
     },
     initialPageParam: 1,
-    enabled: !!params.zodu_id && !!params.branch_id,
+    enabled: !params.disabled && !!params.zodu_id && !!params.branch_id,
     staleTime: 1000 * 60 * 2,
     refetchOnWindowFocus: false,
   });
@@ -338,7 +344,7 @@ export const useSalesHistorical = (params: HistoricalParams) => {
       console.log("api res",res)
       return toHistoricalYears(res.data.data);
     },
-    enabled: !!params.zodu_id && !!params.branch_id,
+    enabled: !params.disabled && !!params.zodu_id && !!params.branch_id,
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
   });
@@ -352,7 +358,7 @@ export const useCategoryItemSalesSummary = (params: CategoryItemSalesBaseParams)
       const res = await axiosInstance.get(`${CATEGORY_ITEM_SALES_BASE}/summary?${query}`);
       return toCategoryItemSalesSummary(res.data);
     },
-    enabled: !!params.zodu_id && !!params.branch_id,
+    enabled: !params.disabled && !!params.zodu_id && !!params.branch_id,
     staleTime: 1000 * 60 * 2,
     refetchOnWindowFocus: false,
   });
@@ -371,7 +377,7 @@ export const useCategoryWiseSales = (params: CategoryItemSalesPageParams) => {
       console.log("category",res.data)
       return toCategoryItemSalesPage(res.data, toCategoryWiseSalesRow);
     },
-    enabled: !!params.zodu_id && !!params.branch_id,
+    enabled: !params.disabled && !!params.zodu_id && !!params.branch_id,
     staleTime: 1000 * 60 * 2,
     refetchOnWindowFocus: false,
   });
@@ -396,7 +402,7 @@ export const useInfiniteCategoryWiseSales = (params: CategoryItemSalesPageParams
       return page * limit < total ? page + 1 : undefined;
     },
     initialPageParam: 1,
-    enabled: !!params.zodu_id && !!params.branch_id,
+    enabled: !params.disabled && !!params.zodu_id && !!params.branch_id,
     staleTime: 1000 * 60 * 2,
     refetchOnWindowFocus: false,
   });
@@ -415,7 +421,7 @@ export const useItemWiseSales = (params: CategoryItemSalesPageParams) => {
       console.log("Item",res.data)
       return toCategoryItemSalesPage(res.data, toItemWiseSalesRow);
     },
-    enabled: !!params.zodu_id && !!params.branch_id,
+    enabled: !params.disabled && !!params.zodu_id && !!params.branch_id,
     staleTime: 1000 * 60 * 2,
     refetchOnWindowFocus: false,
   });
@@ -440,7 +446,7 @@ export const useInfiniteItemWiseSales = (params: CategoryItemSalesPageParams) =>
       return page * limit < total ? page + 1 : undefined;
     },
     initialPageParam: 1,
-    enabled: !!params.zodu_id && !!params.branch_id,
+    enabled: !params.disabled && !!params.zodu_id && !!params.branch_id,
     staleTime: 1000 * 60 * 2,
     refetchOnWindowFocus: false,
   });
@@ -476,6 +482,7 @@ interface DatewiseParams {
   branch_id: string;
   from_date?: string;
   to_date?: string;
+  disabled?: boolean;
 }
 
 interface DatewiseBreakdownParams extends DatewiseParams {
@@ -527,7 +534,7 @@ export const useDatewiseSaleSummary = (params: DatewiseParams) => {
       const res = await axiosInstance.get(`${apiConfig.report.salesDatewiseSummary}?${p}`);
       return toDatewiseSummary(res.data);
     },
-    enabled: !!params.zodu_id && !!params.branch_id,
+    enabled: !params.disabled && !!params.zodu_id && !!params.branch_id,
     staleTime: 1000 * 60 * 2,
     refetchOnWindowFocus: false,
   });
@@ -554,7 +561,176 @@ export const useDatewiseSaleBreakdown = (params: DatewiseBreakdownParams) => {
       return page * currentLimit < total ? page + 1 : undefined;
     },
     initialPageParam: 1,
-    enabled: !!params.zodu_id && !!params.branch_id,
+    enabled: !params.disabled && !!params.zodu_id && !!params.branch_id,
+    staleTime: 1000 * 60 * 2,
+    refetchOnWindowFocus: false,
+  });
+};
+
+// ── Restaurant datewise order report ──────────────────────────────────────
+
+export interface RestaurantDatewiseSummaryRow {
+  date: string;
+  total_orders: number;
+  total_items: number;
+  total_tax: number;
+  total_amt: number;
+  payment_type: string;
+}
+
+export interface RestaurantDatewiseReportPage {
+  success: boolean;
+  data: RestaurantDatewiseSummaryRow[];
+  totalAmount: number;
+  totalItems: number;
+  total: number;
+  page: number;
+  limit: number;
+}
+
+interface RestaurantDatewiseParams {
+  zodu_id: string;
+  branch_id: string;
+  start_date?: string;
+  end_date?: string;
+  limit?: number;
+  disabled?: boolean;
+}
+
+const toRestaurantDatewisePage = (payload: unknown): RestaurantDatewiseReportPage => {
+  const source = asRecord(payload) ?? {};
+  const pagination = asRecord(source.pagination);
+  const rows = Array.isArray(source.datewise_summary) ? source.datewise_summary : [];
+
+  const data: RestaurantDatewiseSummaryRow[] = rows.map((entry) => {
+    const row = asRecord(entry);
+    return {
+      date: String(row?.created_at ?? row?.date ?? ""),
+      total_orders: toNumber(row?.total_orders),
+      total_items: toNumber(row?.total_items),
+      total_tax: toNumber(row?.total_tax),
+      total_amt: toNumber(row?.all_total_amount ?? row?.total_amt),
+      payment_type: String(row?.payment_type ?? ""),
+    };
+  });
+
+  const total = toNumber(pagination?.totalRecords ?? source.total);
+  const page = toNumber(pagination?.page ?? source.page) || 1;
+  const limit = toNumber(pagination?.limit ?? source.limit) || data.length || 1;
+
+  return {
+    success: source.success !== false,
+    data,
+    totalAmount: toNumber(source.totalAmount),
+    totalItems: toNumber(source.totalItems),
+    total,
+    page,
+    limit,
+  };
+};
+
+export const useRestaurantDatewiseSaleReport = (params: RestaurantDatewiseParams) => {
+  const limit = params.limit ?? 15;
+  return useInfiniteQuery<RestaurantDatewiseReportPage>({
+    queryKey: ["restaurant-datewise-orders", params.zodu_id, params.branch_id, params.start_date, params.end_date, limit],
+    queryFn: async ({ pageParam = 1 }) => {
+      const p = new URLSearchParams({
+        filtered_type: "date_wise",
+        zodu_id: params.zodu_id,
+        branch_id: params.branch_id,
+        page: String(pageParam),
+        limit: String(limit),
+      });
+      if (params.start_date) p.append("start_date", params.start_date);
+      if (params.end_date) p.append("end_date", params.end_date);
+      const res = await axiosInstance.get(`${apiConfig.report.restaurantDatewiseOrders}?${p}`);
+      return toRestaurantDatewisePage(res.data);
+    },
+    getNextPageParam: (lastPage) => {
+      const { page, limit: currentLimit, total } = lastPage;
+      return page * currentLimit < total ? page + 1 : undefined;
+    },
+    initialPageParam: 1,
+    enabled: !params.disabled && !!params.zodu_id && !!params.branch_id,
+    staleTime: 1000 * 60 * 2,
+    refetchOnWindowFocus: false,
+  });
+};
+
+// ── Restaurant monthwise order report ─────────────────────────────────────
+
+export interface RestaurantMonthwiseSummaryRow {
+  month: string;
+  month_number: number;
+  total_orders: number;
+  total_amount: number;
+}
+
+export interface RestaurantMonthwiseReportPage {
+  success: boolean;
+  data: RestaurantMonthwiseSummaryRow[];
+  totalAmount: number;
+  totalItems: number;
+  total: number;
+  page: number;
+  limit: number;
+}
+
+interface RestaurantMonthwiseParams {
+  zodu_id: string;
+  branch_id: string;
+  year?: number | string;
+  limit?: number;
+  disabled?: boolean;
+}
+
+const toRestaurantMonthwisePage = (payload: unknown): RestaurantMonthwiseReportPage => {
+  const source = asRecord(payload) ?? {};
+
+  // Response shape: { monthly_summary: [{ year, total_orders, total_amount, months: [...] }] }
+  const monthlySummaryArr = Array.isArray(source.monthly_summary) ? source.monthly_summary : [];
+  const firstEntry = asRecord(monthlySummaryArr[0]);
+  const monthsArr = Array.isArray(firstEntry?.months) ? firstEntry.months : [];
+
+  const data: RestaurantMonthwiseSummaryRow[] = monthsArr.map((entry) => {
+    const row = asRecord(entry);
+    return {
+      month: String(row?.month ?? ""),
+      month_number: toNumber(row?.month_number),
+      total_orders: toNumber(row?.total_orders),
+      total_amount: toNumber(row?.total_amount),
+    };
+  });
+
+  return {
+    success: source.success !== false,
+    data,
+    totalAmount: toNumber(source.totalAmount ?? firstEntry?.total_amount),
+    totalItems: toNumber(source.totalItems),
+    total: data.length,
+    page: 1,
+    limit: data.length || 12,
+  };
+};
+
+export const useRestaurantMonthwiseSaleReport = (params: RestaurantMonthwiseParams) => {
+  const limit = params.limit ?? 12;
+  const year = params.year ?? new Date().getFullYear();
+  return useInfiniteQuery<RestaurantMonthwiseReportPage>({
+    queryKey: ["restaurant-monthwise-orders", params.zodu_id, params.branch_id, year, limit],
+    queryFn: async () => {
+      const p = new URLSearchParams({
+        filtered_type: "month_year_wise",
+        zodu_id: params.zodu_id,
+        branch_id: params.branch_id,
+        year: String(year),
+      });
+      const res = await axiosInstance.get(`${apiConfig.report.restaurantDatewiseOrders}?${p}`);
+      return toRestaurantMonthwisePage(res.data);
+    },
+    getNextPageParam: () => undefined,
+    initialPageParam: 1,
+    enabled: !params.disabled && !!params.zodu_id && !!params.branch_id,
     staleTime: 1000 * 60 * 2,
     refetchOnWindowFocus: false,
   });
@@ -568,7 +744,119 @@ export const useSalesVelocity = (params: CategoryItemSalesBaseParams) => {
       const res = await axiosInstance.get(`${CATEGORY_ITEM_SALES_BASE}/sales-velocity?${query}`);
       return toSalesVelocity(res.data);
     },
-    enabled: !!params.zodu_id && !!params.branch_id,
+    enabled: !params.disabled && !!params.zodu_id && !!params.branch_id,
+    staleTime: 1000 * 60 * 2,
+    refetchOnWindowFocus: false,
+  });
+};
+
+// ── Restaurant category/item sales report ─────────────────────────────────
+
+export interface RestaurantCategoryItem {
+  item_id: number;
+  item_name: string;
+  total_qty: number;
+  total_amount: number;
+  price: number;
+}
+
+export interface RestaurantCategoryRow {
+  category_id: number;
+  category_name: string;
+  total_qty: number;
+  total_amount: number;
+  items: RestaurantCategoryItem[];
+}
+
+export interface RestaurantCategoryReportSummary {
+  totalOrders: number;
+  totalQty: number;
+  totalAmount: number;
+}
+
+export interface RestaurantCategoryReportData {
+  summary: RestaurantCategoryReportSummary;
+  categories: RestaurantCategoryRow[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+interface RestaurantCategoryParams {
+  zodu_id: string;
+  branch_id: string;
+  from_date?: string;
+  to_date?: string;
+  limit?: number;
+  disabled?: boolean;
+}
+
+const toRestaurantCategoryReport = (payload: unknown): RestaurantCategoryReportData => {
+  const source = asRecord(payload) ?? {};
+  const summaryRaw = asRecord(source.summary);
+  const pagination = asRecord(source.pagination);
+
+  const summary: RestaurantCategoryReportSummary = {
+    totalOrders: toNumber(summaryRaw?.totalOrders),
+    totalQty: toNumber(summaryRaw?.totalQty),
+    totalAmount: toNumber(summaryRaw?.totalAmount),
+  };
+
+  const rawData = Array.isArray(source.data) ? source.data : [];
+  const categories: RestaurantCategoryRow[] = rawData.map((entry) => {
+    const cat = asRecord(entry);
+    const items: RestaurantCategoryItem[] = Array.isArray(cat?.items)
+      ? cat.items.map((i: unknown) => {
+          const item = asRecord(i);
+          return {
+            item_id: toNumber(item?.item_id),
+            item_name: String(item?.item_name ?? ""),
+            total_qty: toNumber(item?.total_qty),
+            total_amount: toNumber(item?.total_amount),
+            price: toNumber(item?.price),
+          };
+        })
+      : [];
+    return {
+      category_id: toNumber(cat?.category_id),
+      category_name: String(cat?.category_name ?? ""),
+      total_qty: toNumber(cat?.total_qty),
+      total_amount: toNumber(cat?.total_amount),
+      items,
+    };
+  });
+
+  return {
+    summary,
+    categories,
+    total: toNumber(pagination?.totalRecords ?? source.total) || categories.length,
+    page: toNumber(pagination?.page ?? source.page) || 1,
+    limit: toNumber(pagination?.limit ?? source.limit) || categories.length || 10,
+  };
+};
+
+export const useRestaurantCategoryReport = (params: RestaurantCategoryParams) => {
+  const limit = params.limit ?? 10;
+  return useInfiniteQuery<RestaurantCategoryReportData>({
+    queryKey: ["restaurant-category-report", params.zodu_id, params.branch_id, params.from_date, params.to_date, limit],
+    queryFn: async ({ pageParam = 1 }) => {
+      const p = new URLSearchParams({
+        zodu_id: params.zodu_id,
+        branch_id: params.branch_id,
+        page: String(pageParam),
+        limit: String(limit),
+      });
+      if (params.from_date) p.append("from_date", params.from_date);
+      if (params.to_date) p.append("to_date", params.to_date);
+      const res = await axiosInstance.get(`${apiConfig.report.restaurantOrderCategory}?${p}`);
+      return toRestaurantCategoryReport(res.data);
+    },
+    getNextPageParam: (lastPage) => {
+      const { page, limit: lim, total } = lastPage;
+      return page * lim < total ? page + 1 : undefined;
+    },
+    initialPageParam: 1,
+    enabled: !params.disabled && !!params.zodu_id && !!params.branch_id,
     staleTime: 1000 * 60 * 2,
     refetchOnWindowFocus: false,
   });

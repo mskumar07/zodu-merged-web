@@ -109,7 +109,8 @@ function useInfiniteScroll(
 }
 
 const DatewiseExpenseReport = () => {
-  const { zoduId, branchId } = useTenantContext();
+  const { zoduId, branchId, businessType } = useTenantContext();
+  const isRestaurant = businessType?.toLowerCase() === "restaurant";
   const [fromDate, setFromDate] = useState(monthStart);
   const [toDate, setToDate] = useState(todayStr);
   const hasActiveFilters = fromDate !== monthStart || toDate !== todayStr;
@@ -119,6 +120,7 @@ const DatewiseExpenseReport = () => {
     branch_id: branchId ?? "",
     from_date: fromDate,
     to_date: toDate,
+    isRestaurant,
   };
 
   const { data: summary, isLoading: summaryLoading } = useDatewiseExpenseSummary(params);

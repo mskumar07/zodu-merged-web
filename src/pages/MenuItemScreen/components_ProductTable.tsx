@@ -95,29 +95,38 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
         {
           key: "name",
           label: "Item Name",
-          minWidth: 180,
+          width: 220,
           render: (product) => (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, maxWidth: 220 }}>
               <Avatar
                 src={product.imageUrl}
                 variant="rounded"
-                sx={{ width: 40, height: 40, border: `1px solid ${theme.palette.divider}` }}
+                sx={{ width: 40, height: 40, border: `1px solid ${theme.palette.divider}`, flexShrink: 0 }}
               >
                 {product.name[0]}
               </Avatar>
               <Box>
                 <Typography
                   fontWeight={600}
-                  sx={{ lineHeight: 1.3, fontSize: 13, color: TABLE_TEXT_COLOR }}
+                  sx={{
+                    lineHeight: 1.4,
+                    fontSize: 13,
+                    color: TABLE_TEXT_COLOR,
+                    whiteSpace: "normal",
+                    wordBreak: "break-all",
+                    width: 175,
+                  }}
                 >
                   {product.name}
                 </Typography>
                 <Typography
                   sx={{
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: 400,
                     color: TABLE_TEXT_COLOR,
+                    whiteSpace: "normal",
+                    wordBreak: "break-word",
+                    maxWidth: 165,
                   }}
                 >
                   {product.category}
@@ -153,24 +162,6 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
           render: (product) => (
             <Typography variant="body2" fontWeight={600} sx={{ fontSize: 13, color: TABLE_TEXT_COLOR }}>
               {formatINR(product.rate)}
-            </Typography>
-          ),
-        },
-        {
-          key: "gst",
-          label: "GST",
-          render: (product) => (
-            <Typography variant="body2" sx={{ fontSize: 13, color: TABLE_TEXT_COLOR }}>
-              {product.taxType}
-            </Typography>
-          ),
-        },
-        {
-          key: "inclusion",
-          label: "Inclusion",
-          render: (product) => (
-            <Typography variant="body2" sx={{ fontSize: 13, color: TABLE_TEXT_COLOR }}>
-              {product.inclusion}
             </Typography>
           ),
         },

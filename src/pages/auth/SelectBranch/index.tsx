@@ -312,9 +312,12 @@ const SelectBranch: React.FC = () => {
   const dispatch = useAppDispatch();
   const storedCompanies = useAppSelector(AllCompanies);
 
+  const locationState = location.state as { companies?: CompanyWithBranches[]; fromSwitch?: boolean } | null;
+  const fromSwitch = locationState?.fromSwitch ?? false;
+
   const companiesFromState: CompanyWithBranches[] = useMemo(
-    () => (location.state as { companies?: CompanyWithBranches[] } | null)?.companies ?? [],
-    [location.state]
+    () => locationState?.companies ?? [],
+    [locationState]
   );
 
   const companies: CompanyWithBranches[] = useMemo(
@@ -334,6 +337,7 @@ const SelectBranch: React.FC = () => {
   };
 
   useEffect(() => {
+    if (fromSwitch) return;
     if (companies.length !== 1) return;
     const onlyCompany = companies[0];
     const branches = onlyCompany?.branches ?? [];
@@ -348,7 +352,7 @@ const SelectBranch: React.FC = () => {
       })
     );
     navigate("/dashboard", { replace: true });
-  }, [companies, dispatch, navigate]);
+  }, [companies, dispatch, navigate, fromSwitch]);
 
   return (
     <Box
