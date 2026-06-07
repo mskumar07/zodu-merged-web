@@ -87,9 +87,9 @@ export const menuApi = apiSlice.injectEndpoints({
       invalidatesTags: ["Menu"],
     }),
     //Z-T97
-    getAllPOSData: builder.query<any, string>({
-      query: (branchId) => ({
-        url: apiConfig.menu.getPosData(branchId),
+    getAllPOSData: builder.query<any, { branchId: string; zoduId: string }>({
+      query: ({ branchId, zoduId }) => ({
+        url: apiConfig.menu.getPosData(branchId, zoduId),
         method: "GET",
       }),
       providesTags: ["Menu"],

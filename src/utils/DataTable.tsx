@@ -51,11 +51,13 @@ const headCellSx = {
   padding: CELL_PX,
   lineHeight: `${ROW_HEIGHT}px`,
   whiteSpace: "nowrap" as const,
-  fontSize: "13px",
-  fontWeight: 500,
-  color: "#374151",
+  fontSize: "11px",
+  fontWeight: 600,
+  color: "#6B7280",
   backgroundColor: "#F5F5F5",
   borderBottom: "1px solid #CBD5E1",
+  letterSpacing: "0.06em",
+  textTransform: "uppercase" as const,
 } as const;
 
 const bodyCellSx = {

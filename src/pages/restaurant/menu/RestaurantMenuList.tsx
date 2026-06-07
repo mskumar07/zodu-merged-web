@@ -693,9 +693,13 @@ const RestaurantMenuList: React.FC = () => {
       {
         key: "menu_name",
         label: "Item Name",
-        minWidth: 180,
+        width: 280,
         render: (row) => {
           const initials = row.menu_name.slice(0, 2).toUpperCase();
+          const ft = (row.food_type ?? "").toLowerCase();
+          const isNonVeg = ft === "nonveg" || ft === "non_veg" || ft === "non-veg";
+          const isEgg = ft === "egg";
+          const dotColor = isNonVeg ? "#dc2626" : isEgg ? "#d97706" : "#16a34a";
           return (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               {row.menu_image ? (
@@ -728,10 +732,33 @@ const RestaurantMenuList: React.FC = () => {
                 </Avatar>
               )}
               <Box>
-                <Typography sx={{ fontWeight: 600, lineHeight: 1.3, fontSize: 13, color: "#374151" }} noWrap>
-                  {row.menu_name}
-                </Typography>
-                <Typography sx={{ fontSize: 13, color: "#374151" }} noWrap>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <Box
+                    sx={{
+                      width: 14,
+                      height: 14,
+                      borderRadius: "3px",
+                      border: `1.5px solid ${dotColor}`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: 7,
+                        height: 7,
+                        borderRadius: "50%",
+                        bgcolor: dotColor,
+                      }}
+                    />
+                  </Box>
+                  <Typography sx={{ fontWeight: 600, lineHeight: 1.4, fontSize: 13, color: "#374151", whiteSpace: "normal", wordBreak: "break-word", width: 340 }}>
+                    {row.menu_name}
+                  </Typography>
+                </Box>
+                <Typography sx={{ fontSize: 13, color: "#374151", whiteSpace: "normal", wordBreak: "break-word", width: 340 }}>
                   {row.category}
                 </Typography>
               </Box>
@@ -739,18 +766,6 @@ const RestaurantMenuList: React.FC = () => {
           );
         },
       },
-      ...(!isMobile ? [{
-        key: "food_type",
-        label: "Type",
-        width: 90,
-        align: "center" as const,
-        render: (row: RestaurantMenuListItem) => {
-          const { dot, bg, label } = foodStyle(row.food_type);
-          return (
-            <Chip label={label} size="small" sx={{ height: 20, fontSize: "0.65rem", fontWeight: 600, bgcolor: bg, color: dot, "& .MuiChip-label": { px: 0.8 } }} />
-          );
-        },
-      }] : []),
       {
         key: "sell_price",
         label: "Rate",
@@ -775,31 +790,6 @@ const RestaurantMenuList: React.FC = () => {
             </Typography>
           );
         },
-      }] : []),
-      ...(!isTablet ? [{
-        key: "gst",
-        label: "GST",
-        width: 70,
-        align: "center" as const,
-        render: (row: RestaurantMenuListItem) => {
-          const g = parseFloat(row.gst_tax) || 0;
-          return g > 0 ? (
-            <Chip label={`${g}%`} size="small" sx={{ height: 20, fontSize: "0.65rem", fontWeight: 600, bgcolor: "#eff6ff", color: "#1d4ed8", "& .MuiChip-label": { px: 0.8 } }} />
-          ) : (
-            <Typography sx={{ fontSize: 13, color: "#374151" }}>—</Typography>
-          );
-        },
-      }] : []),
-      ...(!isMobile ? [{
-        key: "tax_type",
-        label: "Inclusion",
-        width: 100,
-        align: "center" as const,
-        render: (row: RestaurantMenuListItem) => (
-          <Typography variant="body2" sx={{ fontSize: 13, color: "#374151" }}>
-            {row.tax_include_or_exclude ? "Inclusive" : "Exclusive"}
-          </Typography>
-        ),
       }] : []),
       {
         key: "status",
@@ -1048,7 +1038,7 @@ const RestaurantMenuList: React.FC = () => {
 
       <AddRestaurantMenuItemDialog
         open={addMenuOpen}
-        editItem={editItem}
+        editItem={editItem ? { ...editItem, menu_unit: editItem.menu_unit ?? undefined } : null}
         onClose={() => { setAddMenuOpen(false); setEditItem(null); }}
         onSuccess={() => { setAddMenuOpen(false); setEditItem(null); refetch(); }}
       />

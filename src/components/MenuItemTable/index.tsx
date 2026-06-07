@@ -182,22 +182,30 @@ const MenuItemsTable: React.FC<MenuItemsTableProps> = ({
           </Typography>
         ),
         enableSorting: true,
+        size: 200,
         cell: ({ row }) => (
-          <Box sx={{ display: "flex", flexDirection: "column" }}>
+          <Box sx={{ display: "flex", flexDirection: "column", maxWidth: 200, minWidth: 140 }}>
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: 2,
-                minWidth: 100,
               }}
             >
-              <Typography variant="subtitle2">
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  whiteSpace: "normal",
+                  wordBreak: "break-all",
+                  width: 175,
+                  lineHeight: 1.4,
+                }}
+              >
                 {row.original.menu_name}
               </Typography>
               <img
                 src={row.original.food_type == "Veg" ? veg : nonveg}
-                style={{ width: 16, height: 16, marginLeft: 5 }}
+                style={{ width: 16, height: 16, marginLeft: 5, flexShrink: 0 }}
               />
             </div>
 
@@ -273,31 +281,6 @@ const MenuItemsTable: React.FC<MenuItemsTableProps> = ({
 const price = Number(info.row.original.purchase_price) || 0;
     return `₹ ${price}`;
   },
-},
-     {
-  accessorKey: "gst",
-  header: ({ column }) => (
-    <Typography
-      variant="body2"
-      color="text.disabled"
-      component="span"
-      sx={{ cursor: "pointer" }}
-      onClick={column.getToggleSortingHandler()}
-    >
-      GST %{" "}
-      <SortIcon
-        direction={
-          column.getIsSorted() === "desc"
-            ? "desc"
-            : column.getIsSorted() === "asc"
-            ? "asc"
-            : "asc"
-        }
-      />
-    </Typography>
-  ),
-  enableSorting: true,
-        cell: (info) => `${info.row.original.gst_tax} %`,
 },
       {
         accessorKey: "stock",
@@ -460,7 +443,7 @@ const price = Number(info.row.original.purchase_price) || 0;
         },
       }}
     >
-      <Table stickyHeader>
+      <Table stickyHeader sx={{ tableLayout: "fixed", minWidth: 700 }}>
         <TableHead>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>

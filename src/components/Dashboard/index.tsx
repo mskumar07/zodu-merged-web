@@ -2,7 +2,6 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { createTheme, ThemeProvider, CssBaseline } from "@mui/material";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
 import Skeleton from "@mui/material/Skeleton";
 import { Circle } from "@mui/icons-material";
@@ -11,7 +10,6 @@ import PaymentsIcon              from "@mui/icons-material/Payments";
 import DescriptionIcon           from "@mui/icons-material/Description";
 import Inventory2Icon            from "@mui/icons-material/Inventory2";
 import InsightsIcon              from "@mui/icons-material/Insights";
-import NotificationsActiveIcon   from "@mui/icons-material/NotificationsActive";
 import ShoppingCartCheckoutIcon  from "@mui/icons-material/ShoppingCartCheckout";
 import TrendingUpIcon            from "@mui/icons-material/TrendingUp";
 import WarningAmberIcon          from "@mui/icons-material/WarningAmber";
@@ -22,8 +20,10 @@ import {
   useStats,
   useSales,
   useTopItems,
+  useRestaurantTopItems,
   useReminders,
   useInventoryAlerts,
+  useOrders,
 } from "./useDashboard";
 import { useTenantContext } from "@store/tenantContext";
 import InvoiceDetailsModal from "@pages/SalesHistory/Invoicedetaildialog";
@@ -101,7 +101,7 @@ function MiniTable<T>({
   rows,
   rowKey,
   onLoadMore,
-  onRowClick,
+  onRowClick: _onRowClick,
   isFetchingNextPage,
   hasNextPage,
 }: {
@@ -236,7 +236,7 @@ function SectionCard({
 }
 
 // ── StatusBadge ───────────────────────────────────────────────
-function StatusBadge({ label, color, bg }: { label: string; color: string; bg: string }) {
+function StatusBadge({ label, color, bg: _bg }: { label: string; color: string; bg: string }) {
   return (
     <Box sx={{
       display: "inline-flex", alignItems: "center", gap: 0.5,
@@ -382,6 +382,33 @@ type SaleRow = {
   total_amount: string; payment_status: string; customer_name: string;
 };
 
+// Restaurant Orders
+type OrderRow = {
+  public_order_no: string; api_order_id: string;
+  total_amt: string; no_of_items: number;
+  order_type: string; formatted_date: string;
+};
+const orderCols: ColDef<OrderRow>[] = [
+  { key: "date",     label: "Date",     minWidth: 160,
+    render: r => <Typography sx={{ fontSize: 12, color: "#64748B" }}>{r.formatted_date}</Typography> },
+  { key: "order_id", label: "Order ID", minWidth: 100,
+    render: r => <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#1976d2", fontFamily: "monospace" }}>{r.public_order_no}</Typography> },
+  { key: "amount",   label: "Amount",   align: "right",
+    render: r => <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#1976d2" }}>{fmt(+r.total_amt)}</Typography> },
+  { key: "items",    label: "Items",    align: "center",
+    render: r => <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{r.no_of_items}</Typography> },
+  { key: "type",     label: "Type",     align: "center",
+    render: r => (
+      <Box sx={{
+        display: "inline-block", px: 1.2, py: 0.2, borderRadius: "5px", fontSize: "11px", fontWeight: 700,
+        bgcolor: r.order_type === "Dine-In" ? "rgba(22,163,74,0.1)" : "rgba(234,179,8,0.12)",
+        color:   r.order_type === "Dine-In" ? "#16A34A" : "#CA8A04",
+      }}>
+        {r.order_type}
+      </Box>
+    ) },
+];
+
 
 // Reminders
 type ReminderRow = {
@@ -430,6 +457,29 @@ const topItemCols: ColDef<TopItem>[] = [
     render: r => <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#1976d2" }}>{fmt(+r.total_revenue)}</Typography> },
 ];
 
+// Restaurant Top Items
+type RestaurantTopItem = {
+  menu_name: string; category_name?: string; unit?: string;
+  total_qty: string; total_amount: string;
+};
+const restaurantTopItemCols: ColDef<RestaurantTopItem>[] = [
+  { key: "name",   label: "Item Name",
+    render: r => (
+      <Box>
+        <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{r.menu_name}</Typography>
+        {r.category_name && <Typography sx={{ fontSize: 11, color: "#94A3B8" }}>{r.category_name}</Typography>}
+      </Box>
+    ) },
+  { key: "amount", label: "Total Amount", align: "right",
+    render: r => <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#1976d2" }}>{fmt(+r.total_amount)}</Typography> },
+  { key: "qty",    label: "Quantity", align: "center",
+    render: r => (
+      <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
+        {Math.round(+r.total_qty)}{r.unit ? ` ${r.unit}` : ""}
+      </Typography>
+    ) },
+];
+
 // Inventory Alerts
 type AlertItem = {
   item_uuid: string; item_id: string; item_name: string;
@@ -453,25 +503,32 @@ const alertCols: ColDef<AlertItem>[] = [
 // ── Main Dashboard ────────────────────────────────────────────
 export default function DashboardLayout() {
   const { branchId, zoduId, businessType } = useTenantContext();
-  const statsQuery   = useStats(zoduId, branchId);
-  const salesQuery   = useSales(zoduId, branchId);
-  const topQuery     = useTopItems(zoduId, branchId);
-  const remindQuery  = useReminders(zoduId, branchId);
-  const alertQuery   = useInventoryAlerts(zoduId, branchId);
-    const [invoiceDialog, setInvoiceDialog] = useState<string | null>(null);
+  const isRestaurant = businessType?.toLowerCase() === "restaurant";
 
+  const statsQuery   = useStats(zoduId, branchId, businessType ?? "");
+  const salesQuery   = useSales(zoduId, branchId, businessType ?? "");
+  const topQuery          = useTopItems(zoduId, branchId, businessType ?? "");
+  const restTopQuery      = useRestaurantTopItems(zoduId, branchId, isRestaurant);
+  const remindQuery       = useReminders(zoduId, branchId, businessType ?? "");
+  const alertQuery        = useInventoryAlerts(zoduId, branchId, businessType ?? "");
+  const ordersQuery       = useOrders(zoduId, branchId, isRestaurant);
+  const [invoiceDialog, setInvoiceDialog] = useState<string | null>(null);
 
-  const stats  = statsQuery.data;
-  const sales  = flatPages(salesQuery)   as SaleRow[];
-  const tops   = flatPages(topQuery)     as TopItem[];
-  const remind = flatPages(remindQuery)  as ReminderRow[];
-  const alerts = flatPages(alertQuery)   as AlertItem[];
+  const stats     = statsQuery.data;
+  const sales     = flatPages(salesQuery)   as SaleRow[];
+  const tops      = flatPages(topQuery)     as TopItem[];
+  const restTops  = (restTopQuery.data?.pages.flatMap(p => p.data) ?? []) as RestaurantTopItem[];
+  const remind    = flatPages(remindQuery)  as ReminderRow[];
+  const alerts    = flatPages(alertQuery)   as AlertItem[];
+  const orders    = (ordersQuery.data?.pages.flatMap(p => p.data) ?? []) as OrderRow[];
 
   // Stable callbacks so MiniTable doesn't re-subscribe observers on every render
-  const loadMoreSales   = useCallback(() => salesQuery.fetchNextPage(),  [salesQuery]);
-  const loadMoreTops    = useCallback(() => topQuery.fetchNextPage(),    [topQuery]);
-  const loadMoreRemind  = useCallback(() => remindQuery.fetchNextPage(), [remindQuery]);
-  const loadMoreAlerts  = useCallback(() => alertQuery.fetchNextPage(),  [alertQuery]);
+  const loadMoreSales    = useCallback(() => salesQuery.fetchNextPage(),   [salesQuery]);
+  const loadMoreTops     = useCallback(() => topQuery.fetchNextPage(),     [topQuery]);
+  const loadMoreRestTops = useCallback(() => restTopQuery.fetchNextPage(), [restTopQuery]);
+  const loadMoreRemind   = useCallback(() => remindQuery.fetchNextPage(),  [remindQuery]);
+  const loadMoreAlerts   = useCallback(() => alertQuery.fetchNextPage(),   [alertQuery]);
+  const loadMoreOrders   = useCallback(() => ordersQuery.fetchNextPage(),  [ordersQuery]);
 
 
   const handleInvoice = (saleId: string) => setInvoiceDialog(saleId);
@@ -489,48 +546,71 @@ const salesCols: ColDef<SaleRow>[] = [
     render: r => paymentStatusBadge(r.payment_status) },
 ];
 
-console.log("Business Type in Dashboard:", businessType);
-
-  const summaryCards = [
-    {
-      label: "Total Sales",
-      value: stats ? fmt(stats.total_sales) : undefined,
-      icon: <PaymentsIcon sx={{ fontSize: 18 }} />,
-    },
-    {
-      label: "Total Invoices",
-      value: stats ? String(stats.total_invoices) : undefined,
-      icon: <DescriptionIcon sx={{ fontSize: 18 }} />,
-    },
-    {
-      label: "Low Stock Items",
-      value: stats ? String(stats.total_alerts) : undefined,
-      icon: <Inventory2Icon sx={{ fontSize: 18 }} />,
-    },
-    {
-      label: "Today's Revenue",
-      value: stats ? fmt(stats.todays_revenue) : undefined,
-      icon: <InsightsIcon sx={{ fontSize: 18 }} />,
-    },
-    {
-      label: "Due Receivable",
-      value: stats?.total_due_to_receivable_amount != null
-        ? fmt(stats.total_due_to_receivable_amount)
-        : undefined,
-      icon:     <AccountBalanceWalletIcon sx={{ fontSize: 18 }} />,
-      iconBg:   "rgba(22,163,74,0.08)",
-      iconColor: "#16A34A",
-    },
-    {
-      label: "Due Payable",
-      value: stats?.total_due_to_payable_amount != null
-        ? fmt(stats.total_due_to_payable_amount)
-        : undefined,
-      icon:     <MoneyOffIcon sx={{ fontSize: 18 }} />,
-      iconBg:   "rgba(220,38,38,0.08)",
-      iconColor: "#DC2626",
-    },
-  ];
+  const summaryCards = isRestaurant
+    ? [
+        {
+          label: "Total Sales",
+          value: stats ? fmt(stats.total_sales) : undefined,
+          icon: <PaymentsIcon sx={{ fontSize: 18 }} />,
+        },
+        {
+          label: "Total Orders",
+          value: stats ? String(stats.total_orders) : undefined,
+          icon: <DescriptionIcon sx={{ fontSize: 18 }} />,
+        },
+        {
+          label: "Low Stock Items",
+          value: stats ? String(stats.low_stocks) : undefined,
+          icon: <Inventory2Icon sx={{ fontSize: 18 }} />,
+        },
+        {
+          label: "Due Payable",
+          value: stats?.total_due != null ? fmt(stats.total_due) : undefined,
+          icon:     <MoneyOffIcon sx={{ fontSize: 18 }} />,
+          iconBg:   "rgba(220,38,38,0.08)",
+          iconColor: "#DC2626",
+        },
+      ]
+    : [
+        {
+          label: "Total Sales",
+          value: stats ? fmt(stats.total_sales) : undefined,
+          icon: <PaymentsIcon sx={{ fontSize: 18 }} />,
+        },
+        {
+          label: "Total Invoices",
+          value: stats ? String(stats.total_invoices) : undefined,
+          icon: <DescriptionIcon sx={{ fontSize: 18 }} />,
+        },
+        {
+          label: "Low Stock Items",
+          value: stats ? String(stats.total_alerts) : undefined,
+          icon: <Inventory2Icon sx={{ fontSize: 18 }} />,
+        },
+        {
+          label: "Today's Revenue",
+          value: stats ? fmt(stats.todays_revenue) : undefined,
+          icon: <InsightsIcon sx={{ fontSize: 18 }} />,
+        },
+        {
+          label: "Due Receivable",
+          value: stats?.total_due_to_receivable_amount != null
+            ? fmt(stats.total_due_to_receivable_amount)
+            : undefined,
+          icon:     <AccountBalanceWalletIcon sx={{ fontSize: 18 }} />,
+          iconBg:   "rgba(22,163,74,0.08)",
+          iconColor: "#16A34A",
+        },
+        {
+          label: "Due Payable",
+          value: stats?.total_due_to_payable_amount != null
+            ? fmt(stats.total_due_to_payable_amount)
+            : undefined,
+          icon:     <MoneyOffIcon sx={{ fontSize: 18 }} />,
+          iconBg:   "rgba(220,38,38,0.08)",
+          iconColor: "#DC2626",
+        },
+      ];
 
   return (
     <ThemeProvider theme={theme}>
@@ -556,19 +636,35 @@ console.log("Business Type in Dashboard:", businessType);
             {/* LEFT — 60% */}
             <Box sx={{ flex: "0 0 60%", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", gap: 2 }}>
 
-              <SectionCard title="Recent Sales Activity" sx={{ flex: 1, minHeight: 0 }}>
-                {salesQuery.isLoading
-                  ? <SkeletonTable cols={5} />
-                  : <MiniTable
-                      columns={salesCols}
-                      rows={sales}
-                      rowKey={r => r.sale_uuid}
-                      onLoadMore={loadMoreSales}
-                      isFetchingNextPage={salesQuery.isFetchingNextPage}
-                      hasNextPage={salesQuery.hasNextPage}
-                    />
-                }
-              </SectionCard>
+              {isRestaurant ? (
+                <SectionCard title="Recent Orders" sx={{ flex: 1, minHeight: 0 }}>
+                  {ordersQuery.isLoading
+                    ? <SkeletonTable cols={5} />
+                    : <MiniTable
+                        columns={orderCols}
+                        rows={orders}
+                        rowKey={r => r.api_order_id}
+                        onLoadMore={loadMoreOrders}
+                        isFetchingNextPage={ordersQuery.isFetchingNextPage}
+                        hasNextPage={ordersQuery.hasNextPage}
+                      />
+                  }
+                </SectionCard>
+              ) : (
+                <SectionCard title="Recent Sales Activity" sx={{ flex: 1, minHeight: 0 }}>
+                  {salesQuery.isLoading
+                    ? <SkeletonTable cols={5} />
+                    : <MiniTable
+                        columns={salesCols}
+                        rows={sales}
+                        rowKey={r => r.sale_uuid}
+                        onLoadMore={loadMoreSales}
+                        isFetchingNextPage={salesQuery.isFetchingNextPage}
+                        hasNextPage={salesQuery.hasNextPage}
+                      />
+                  }
+                </SectionCard>
+              )}
 
               <SectionCard
                 title="Payment Reminders"
@@ -592,22 +688,41 @@ console.log("Business Type in Dashboard:", businessType);
             {/* RIGHT — 40% */}
             <Box sx={{ flex: "0 0 39%", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", gap: 2 }}>
 
-              <SectionCard
-                title={<Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}><TrendingUpIcon sx={{ fontSize: 16, color: RED }} />Top Selling Items</Box>}
-                sx={{ flex: 1, minHeight: 0 }}
-              >
-                {topQuery.isLoading
-                  ? <SkeletonTable cols={3} />
-                  : <MiniTable
-                      columns={topItemCols}
-                      rows={tops}
-                      rowKey={r => r.item_id}
-                      onLoadMore={loadMoreTops}
-                      isFetchingNextPage={topQuery.isFetchingNextPage}
-                      hasNextPage={topQuery.hasNextPage}
-                    />
-                }
-              </SectionCard>
+              {isRestaurant ? (
+                <SectionCard
+                  title={<Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}><TrendingUpIcon sx={{ fontSize: 16, color: RED }} />Top Selling Items</Box>}
+                  sx={{ flex: 1, minHeight: 0 }}
+                >
+                  {restTopQuery.isLoading
+                    ? <SkeletonTable cols={3} />
+                    : <MiniTable
+                        columns={restaurantTopItemCols}
+                        rows={restTops}
+                        rowKey={r => r.menu_name}
+                        onLoadMore={loadMoreRestTops}
+                        isFetchingNextPage={restTopQuery.isFetchingNextPage}
+                        hasNextPage={restTopQuery.hasNextPage}
+                      />
+                  }
+                </SectionCard>
+              ) : (
+                <SectionCard
+                  title={<Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}><TrendingUpIcon sx={{ fontSize: 16, color: RED }} />Top Selling Items</Box>}
+                  sx={{ flex: 1, minHeight: 0 }}
+                >
+                  {topQuery.isLoading
+                    ? <SkeletonTable cols={3} />
+                    : <MiniTable
+                        columns={topItemCols}
+                        rows={tops}
+                        rowKey={r => r.item_id}
+                        onLoadMore={loadMoreTops}
+                        isFetchingNextPage={topQuery.isFetchingNextPage}
+                        hasNextPage={topQuery.hasNextPage}
+                      />
+                  }
+                </SectionCard>
+              )}
 
               <SectionCard
                 title={<Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}><WarningAmberIcon sx={{ fontSize: 16, color: "#D97706" }} />Inventory Alerts</Box>}

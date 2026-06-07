@@ -16,6 +16,7 @@ import {
   type SvgIconComponent,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
+import { useTenantContext } from "@store/tenantContext";
 
 interface ReportCard {
   title:       string;
@@ -77,6 +78,11 @@ const reportCards: ReportCard[] = [
 
 const ReportDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { businessType } = useTenantContext();
+  const isRestaurant = businessType?.toLowerCase() === "restaurant";
+  const visibleCards = isRestaurant
+    ? reportCards.filter((c) => c.title !== "Profit Report")
+    : reportCards;
 
   return (
     <Box sx={{ width: "100%", p: 3 }}>
@@ -100,7 +106,7 @@ const ReportDashboard: React.FC = () => {
           gap: 2,
         }}
       >
-        {reportCards.map((card) => {
+        {visibleCards.map((card) => {
           const Icon = card.icon;
 
           return (

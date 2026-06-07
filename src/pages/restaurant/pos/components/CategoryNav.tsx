@@ -74,7 +74,7 @@ const NavItem: React.FC<ItemProps> = ({
         color: isActive ? "#111827" : "#4b5563",
         overflow: "hidden",
         textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
+        whiteSpace: "normal",
         lineHeight: 1.3,
       }}
     >
@@ -109,11 +109,12 @@ const CategoryNav: React.FC<Props> = ({
 }) => (
   <Box
     sx={{
-      width: 204,
-      minWidth: 204,
+      width: 220,
+      minWidth: 220,
       height: "100%",
       overflowY: "auto",
       overflowX: "hidden",
+      flexWrap: "wrap",
       bgcolor: "#fff",
       borderRight: "1px solid #e5e7eb",
       display: "flex",

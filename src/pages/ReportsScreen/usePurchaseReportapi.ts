@@ -52,6 +52,7 @@ interface PurchaseSummaryParams {
   zodu_id: string;
   branch_id: string;
   year?: number | string;
+  isRestaurant?: boolean;
 }
 
 interface PurchaseBreakdownParams extends PurchaseSummaryParams {
@@ -63,6 +64,7 @@ interface DatewisePurchaseParams {
   branch_id: string;
   from_date?: string;
   to_date?: string;
+  isRestaurant?: boolean;
 }
 
 interface DatewisePurchaseBreakdownParams extends DatewisePurchaseParams {
@@ -150,13 +152,17 @@ const toDatewisePurchaseBreakdownPage = (payload: unknown): DatewisePurchaseBrea
   };
 };
 
+const swapBase = (url: string, isRestaurant: boolean) =>
+  isRestaurant ? url.replace(/^\/retail/, "/restaurant") : url;
+
 export const usePurchaseSummary = (params: PurchaseSummaryParams) => {
   return useQuery<PurchaseSummary>({
-    queryKey: ["purchase-summary", params.zodu_id, params.branch_id, params.year],
+    queryKey: ["purchase-summary", params.zodu_id, params.branch_id, params.year, params.isRestaurant],
     queryFn: async () => {
       const p = new URLSearchParams({ zodu_id: params.zodu_id, branch_id: params.branch_id });
       if (params.year) p.append("year", String(params.year));
-      const res = await axiosInstance.get(`${apiConfig.report.purchaseSummary}?${p}`);
+      const url = swapBase(apiConfig.report.purchaseSummary, !!params.isRestaurant);
+      const res = await axiosInstance.get(`${url}?${p}`);
       return toPurchaseSummary(res.data);
     },
     enabled: !!params.zodu_id && !!params.branch_id,
@@ -168,7 +174,7 @@ export const usePurchaseSummary = (params: PurchaseSummaryParams) => {
 export const usePurchaseMonthlyBreakdown = (params: PurchaseBreakdownParams) => {
   const limit = params.limit ?? 12;
   return useInfiniteQuery<PurchaseMonthlyBreakdownPage>({
-    queryKey: ["purchase-monthly-breakdown", params.zodu_id, params.branch_id, params.year],
+    queryKey: ["purchase-monthly-breakdown", params.zodu_id, params.branch_id, params.year, params.isRestaurant],
     queryFn: async ({ pageParam = 1 }) => {
       const p = new URLSearchParams({
         zodu_id: params.zodu_id,
@@ -177,7 +183,8 @@ export const usePurchaseMonthlyBreakdown = (params: PurchaseBreakdownParams) => 
         limit: String(limit),
       });
       if (params.year) p.append("year", String(params.year));
-      const res = await axiosInstance.get(`${apiConfig.report.purchaseMonthlyBreakdown}?${p}`);
+      const url = swapBase(apiConfig.report.purchaseMonthlyBreakdown, !!params.isRestaurant);
+      const res = await axiosInstance.get(`${url}?${p}`);
       return toPurchaseMonthlyBreakdownPage(res.data);
     },
     getNextPageParam: (lastPage) => {
@@ -193,12 +200,13 @@ export const usePurchaseMonthlyBreakdown = (params: PurchaseBreakdownParams) => 
 
 export const useDatewisePurchaseSummary = (params: DatewisePurchaseParams) => {
   return useQuery<DatewisePurchaseSummary>({
-    queryKey: ["datewise-purchase-summary", params.zodu_id, params.branch_id, params.from_date, params.to_date],
+    queryKey: ["datewise-purchase-summary", params.zodu_id, params.branch_id, params.from_date, params.to_date, params.isRestaurant],
     queryFn: async () => {
       const p = new URLSearchParams({ zodu_id: params.zodu_id, branch_id: params.branch_id });
       if (params.from_date) p.append("from_date", params.from_date);
       if (params.to_date) p.append("to_date", params.to_date);
-      const res = await axiosInstance.get(`${apiConfig.report.purchaseDatewiseSummary}?${p}`);
+      const url = swapBase(apiConfig.report.purchaseDatewiseSummary, !!params.isRestaurant);
+      const res = await axiosInstance.get(`${url}?${p}`);
       return toDatewisePurchaseSummary(res.data);
     },
     enabled: !!params.zodu_id && !!params.branch_id,
@@ -210,7 +218,7 @@ export const useDatewisePurchaseSummary = (params: DatewisePurchaseParams) => {
 export const useDatewisePurchaseBreakdown = (params: DatewisePurchaseBreakdownParams) => {
   const limit = params.limit ?? 15;
   return useInfiniteQuery<DatewisePurchaseBreakdownPage>({
-    queryKey: ["datewise-purchase-breakdown", params.zodu_id, params.branch_id, params.from_date, params.to_date, limit],
+    queryKey: ["datewise-purchase-breakdown", params.zodu_id, params.branch_id, params.from_date, params.to_date, limit, params.isRestaurant],
     queryFn: async ({ pageParam = 1 }) => {
       const p = new URLSearchParams({
         zodu_id: params.zodu_id,
@@ -220,7 +228,8 @@ export const useDatewisePurchaseBreakdown = (params: DatewisePurchaseBreakdownPa
       });
       if (params.from_date) p.append("from_date", params.from_date);
       if (params.to_date) p.append("to_date", params.to_date);
-      const res = await axiosInstance.get(`${apiConfig.report.purchaseDatewiseBreakdown}?${p}`);
+      const url = swapBase(apiConfig.report.purchaseDatewiseBreakdown, !!params.isRestaurant);
+      const res = await axiosInstance.get(`${url}?${p}`);
       return toDatewisePurchaseBreakdownPage(res.data);
     },
     getNextPageParam: (lastPage) => {

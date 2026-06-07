@@ -6,7 +6,9 @@ import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import Avatar from "@mui/material/Avatar";
 import Badge from "@mui/material/Badge";
+import Tooltip from "@mui/material/Tooltip";
 import NotificationsIcon from "@mui/icons-material/Notifications";
+import SwitchAccountIcon from "@mui/icons-material/SwitchAccount";
 import styles from "./index.module.css";
 import { useTheme } from "@mui/material/styles";
 import { drawerWidth } from "../Sidebar/index";
@@ -20,10 +22,12 @@ import {
   ZoduId,
   addUserData,
 } from "@store/slices/userSlice";
+import { useNavigate } from "react-router-dom";
 
 const TopBar: React.FC = () => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const profile = useAppSelector(UserProfile);
   const zoduId = useAppSelector(ZoduId);
   const branchId = useAppSelector(BranchId);
@@ -61,9 +65,26 @@ const TopBar: React.FC = () => {
       elevation={0}
     >
       <Toolbar className={styles.toolbar}>
-        <Typography sx={{ color: "black", fontWeight: 600, fontSize: 20, textTransform: "capitalize" }}>
-          {selectedCompany?.company_name || profile?.company_name || ""}
-        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Typography sx={{ color: "black", fontWeight: 600, fontSize: 20, textTransform: "capitalize" }}>
+            {selectedCompany?.restaurant_name || selectedCompany?.company_name || profile?.restaurant_name || ""}
+          </Typography>
+          <Tooltip title="Switch Organisation">
+            <IconButton
+              size="small"
+              onClick={() => navigate("/select-branch", { state: { companies, fromSwitch: true } })}
+              sx={{
+                color: "#c8101f",
+                bgcolor: "rgba(200,16,31,0.07)",
+                borderRadius: "8px",
+                p: 0.6,
+                "&:hover": { bgcolor: "rgba(200,16,31,0.14)" },
+              }}
+            >
+              <SwitchAccountIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           <Select

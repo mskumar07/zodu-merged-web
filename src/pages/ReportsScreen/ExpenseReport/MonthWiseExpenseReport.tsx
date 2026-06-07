@@ -85,12 +85,14 @@ function useInfiniteScroll(
 }
 
 const MonthWiseExpenseReport = () => {
-  const { zoduId, branchId } = useTenantContext();
+  const { zoduId, branchId, businessType } = useTenantContext();
+  const isRestaurant = businessType?.toLowerCase() === "restaurant";
 
   const apiParams = {
     zodu_id: zoduId ?? "",
     branch_id: branchId ?? "",
     year: CURRENT_YEAR,
+    isRestaurant,
   };
 
   const { data: summary, isLoading: summaryLoading } = useExpenseSummary(apiParams);

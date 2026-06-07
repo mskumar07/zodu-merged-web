@@ -172,7 +172,7 @@ export default function CustomerManagement({
       {
         key: "customerId",
         label: "Customer ID",
-        width: 110,
+        width: 100,
         render: (customer) => (
           <Typography
             onClick={(event) => {
@@ -195,22 +195,22 @@ export default function CustomerManagement({
       {
         key: "businessName",
         label: "Customer / Business Name",
-        minWidth: 220,
+        width: 220,
         render: (customer) => (
-          <Box>
-            <Typography sx={{ fontSize: 13, fontWeight: 500, color: TABLE_TEXT_COLOR }}>
+          <Box sx={{ overflow: "hidden" }}>
+            <Typography sx={{ fontSize: 13, fontWeight: 500, color: TABLE_TEXT_COLOR, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {customer.contactName}
             </Typography>
-            <Typography sx={{ fontSize: 13, fontWeight: 600, color: TABLE_TEXT_COLOR, whiteSpace: "nowrap" }}>
+            <Typography sx={{ fontSize: 13, fontWeight: 600, color: TABLE_TEXT_COLOR, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {customer.businessName}
-            </Typography> 
+            </Typography>
           </Box>
         ),
       },
       {
         key: "mobile",
         label: "Mobile Number",
-        width: 140,
+        width: 130,
         render: (customer) => (
           <Typography sx={{ fontSize: 13, color: TABLE_TEXT_COLOR, whiteSpace: "nowrap" }}>
             {customer.mobile}
@@ -220,7 +220,7 @@ export default function CustomerManagement({
       {
         key: "email",
         label: "Email Address",
-        minWidth: 220,
+        width: 240,
         render: (customer) => (
           <Typography sx={{ fontSize: 13, color: TABLE_TEXT_COLOR, whiteSpace: "nowrap" }}>
             {customer.email}
@@ -230,7 +230,7 @@ export default function CustomerManagement({
       {
         key: "address",
         label: "Address",
-        minWidth: 220,
+        width: 170,
         render: (customer) => (
           <Typography
             sx={{
@@ -239,7 +239,6 @@ export default function CustomerManagement({
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
-              maxWidth: 220,
             }}
             title={customer.address}
           >
@@ -250,7 +249,7 @@ export default function CustomerManagement({
       {
         key: "gstin",
         label: "GSTIN",
-        width: 170,
+        width: 140,
         render: (customer) =>
           customer.gstin ? (
             <Typography
@@ -276,7 +275,7 @@ export default function CustomerManagement({
         key: "outstandingBalance",
         label: "Outstanding Balance",
         align: "right",
-        width: 160,
+        width: 150,
         render: (customer) => (
           <Typography
             sx={{
@@ -365,9 +364,10 @@ export default function CustomerManagement({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-          
             flexShrink: 0,
             gap: 2,
+            flexWrap: "nowrap",
+            overflow: "hidden",
           }}
         >
           <TextField
@@ -376,7 +376,8 @@ export default function CustomerManagement({
             placeholder="Search by name, phone, or GSTIN..."
             size="small"
             sx={{
-              flex: 1,
+              flex: "1 1 0",
+              minWidth: 0,
               "& .MuiOutlinedInput-root": {
                 borderRadius: 1,
                 bgcolor: "#ffff",
@@ -386,16 +387,18 @@ export default function CustomerManagement({
                 "&.Mui-focused fieldset": { borderColor: "#E11D48", borderWidth: 2 },
               },
             }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ fontSize: 17, color: "#9CA3AF" }} />
-                </InputAdornment>
-              ),
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ fontSize: 17, color: "#9CA3AF" }} />
+                  </InputAdornment>
+                ),
+              },
             }}
           />
 
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexShrink: 0 }}>
             <Typography sx={{ fontSize: 12, color: "#9CA3AF", fontWeight: 500 }}>
               Showing{" "}
               <Box component="span" sx={{ fontWeight: 800, color: "#1A1A2E" }}>

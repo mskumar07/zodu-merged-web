@@ -94,13 +94,13 @@ function buildInitialOrder(): RestaurantOrder {
 // ─── Component ──────────────────────────────────────────────────────────────
 
 const RestaurantPOS: React.FC = () => {
-  const branchId = "ZODU035B1"; // useAppSelector(BranchId);
-  const zoduId   = "ZODU035";
+  const branchId = useAppSelector(BranchId) ?? "";
+  const zoduId   = useAppSelector(ZoduId)   ?? "";
 
   // ── API ─────────────────────────────────────────────────────────────────
-  const { data: menuData,        isLoading: menuLoading } = useRestaurantMenuQuery(branchId);
-  const { data: tableOrdersData                         } = useTableOrdersQuery(branchId);
-  const { data: holdOrdersData                          } = useHoldOrdersQuery(branchId);
+  const { data: menuData,        isLoading: menuLoading } = useRestaurantMenuQuery(branchId, zoduId);
+  const { data: tableOrdersData                         } = useTableOrdersQuery(branchId, zoduId);
+  const { data: holdOrdersData                          } = useHoldOrdersQuery(branchId, zoduId);
 
   const { mutateAsync: addOrder,      isPending: addingOrder      } = useAddOrderMutation();
   const { mutateAsync: completeOrder, isPending: completingOrder  } = useCompleteOrderMutation();
@@ -352,6 +352,7 @@ const RestaurantPOS: React.FC = () => {
       name:           i.product.menu_name,
       price:          getItemPrice(i.product),
       qty:            i.quantity,
+      tax:            0,
       gst_percentage: parseFloat(i.product.gst_tax) || 0,
       tax_inclusive:  i.product.tax_include_or_exclude ?? false,
       menu_unit:      i.product.menu_unit ?? null,
@@ -365,6 +366,7 @@ const RestaurantPOS: React.FC = () => {
       name:           i.item_name,
       price:          i.price,
       qty:            i.qty,
+      tax:            0,
       gst_percentage: parseFloat(String(i.gst_tax ?? 0)) || 0,
       tax_inclusive:  i.tax_include_or_exclude ?? false,
       menu_unit:      i.item_unit ?? null,
