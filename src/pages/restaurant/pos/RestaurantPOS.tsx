@@ -44,6 +44,7 @@ import TableModal           from "./components/modals/TableModal";
 import VariantModal         from "./components/modals/VariantModal";
 import DiscountModal        from "./components/modals/DiscountModal";
 import CustomerModal, { type CustomerFormData } from "./components/modals/CustomerModal";
+import { getTenantContext } from "@store/tenantContext";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -94,11 +95,11 @@ function buildInitialOrder(): RestaurantOrder {
 // ─── Component ──────────────────────────────────────────────────────────────
 
 const RestaurantPOS: React.FC = () => {
-  const branchId = "ZODU035B1"; // useAppSelector(BranchId);
-  const zoduId   = "ZODU035";
+  const branchId =  getTenantContext().branchId ?? ""; // useAppSelector(BranchId);
+  const zoduId   = getTenantContext().zoduId ?? "";   // useAppSelector(ZoduId);
 
   // ── API ─────────────────────────────────────────────────────────────────
-  const { data: menuData,        isLoading: menuLoading } = useRestaurantMenuQuery(branchId);
+  const { data: menuData,        isLoading: menuLoading } = useRestaurantMenuQuery(branchId,zoduId);
   const { data: tableOrdersData                         } = useTableOrdersQuery(branchId);
   const { data: holdOrdersData                          } = useHoldOrdersQuery(branchId);
 

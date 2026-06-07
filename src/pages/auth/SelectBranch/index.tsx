@@ -226,14 +226,14 @@ function CompanyCard({
         <Box sx={{ minWidth: 0 }}>
           <Typography
             sx={{
-              fontSize: 23,
-              fontWeight: 900,
+              fontSize: 18,
+              fontWeight: 700,
               color: TEXT_PRIMARY,
               letterSpacing: "-0.03em",
               lineHeight: 1.05,
             }}
           >
-            {company.restaurant_name}
+            {company.restaurant_name || company.business_name || company.company_name || "Company Name"} - {company.business_type}
           </Typography>
           <Typography
             sx={{

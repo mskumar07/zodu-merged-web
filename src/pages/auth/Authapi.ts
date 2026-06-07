@@ -60,6 +60,7 @@ export interface CompanyWithBranches {
   bank_details_id?: string;
   is_primary?: boolean;
   restaurant_name: string;
+  business_name?: string;
   store_name?: string;
   company_name?: string;
   business_type?: string;

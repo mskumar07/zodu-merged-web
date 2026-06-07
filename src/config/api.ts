@@ -27,7 +27,7 @@ interface MenuEndPoints {
   getUnitsList: (branchId: string) => string; //Z-T97
   getGstList: (branchId: string) => string; //Z-T97
   getHoldMenu: (branchId: string) => string;
-  getPosData: (branchId: string) => string; //Z-T97
+  getPosData: (branchId: string, zoduId: string) => string; //Z-T97
   deleteMenuItem: (menuId: string) => string; //Z-T97
   updateMenuItem: (menuId: string) => string; //Z-T97
 }
@@ -106,7 +106,7 @@ interface ApiConstants {
   mainDashboard: DashboardEndpoints;
 }
 
-const RESTAURANT_BASE = "/retail";
+const RESTAURANT_BASE = "/restaurant";
 
 export const apiConfig: ApiConstants = {
   menu: {
@@ -124,7 +124,7 @@ export const apiConfig: ApiConstants = {
       `${RESTAURANT_BASE}/api/orders/get/orders/${branchId}`, // Z-T77
     holdMenu: () => `${RESTAURANT_BASE}/api/hold/add/hold_menu`, //Z-T97
     getHoldMenu: (branchId: string) =>
-      `${RESTAURANT_BASE}/api/hold/get/hold-orders/ZODU035B1`, //Z-T97
+      `${RESTAURANT_BASE}/api/hold/get/hold-orders/${branchId}`, //Z-T97
     deleteHoldMenu: (holdId: string) =>
       `${RESTAURANT_BASE}/api/hold/delete/hold-menu/${holdId}`,
     deleteMenuItem: (menuId: string) =>
@@ -150,8 +150,8 @@ export const apiConfig: ApiConstants = {
     getUnitsList: (branchId: string) =>
       `${RESTAURANT_BASE}/get/units/${branchId}`, //Z-T97
     getGstList: (branchId: string) => `${RESTAURANT_BASE}/get/gst/${branchId}`, //Z-T97,
-    getPosData: (branchId: string) =>
-      `${RESTAURANT_BASE}/get/pos_data/${branchId}`,
+    getPosData: (branchId: string, zoduId: string) =>
+      `${RESTAURANT_BASE}/get/pos_data/${branchId}/${zoduId}`, //Z-T97
     getMenuItemsByType: (branchId, type, search, page, pageSize, categoryIds) => {
       const url = type
         ? `${RESTAURANT_BASE}/api/menu/get/menu_item/${branchId}/${type}`

@@ -264,9 +264,9 @@ function normalizeItem(raw: any, categoryName: string): RestaurantMenuItem {
 
 // ─── API functions ────────────────────────────────────────────────
 
-async function fetchMenuData(branchId: string): Promise<RestaurantCategory[]> {
+async function fetchMenuData(branchId: string, zoduId: string): Promise<RestaurantCategory[]> {
   const { data } = await axios.get(
-    `http://localhost:5001/restaurant/get/pos_data/ZODU035B1`,
+    `${API_BASE}${apiConfig.menu.getPosData(branchId, zoduId)}`,
     { headers: authHeaders() }
   );
   const raw: any[] = data?.Data ?? [];
@@ -347,10 +347,10 @@ async function searchCustomers(zoduId: string, branchId: string, query: string) 
 
 // ─── React Query hooks ────────────────────────────────────────────
 
-export function useRestaurantMenuQuery(branchId: string) {
+export function useRestaurantMenuQuery(branchId: string,zoduId: string) {
   return useQuery({
-    queryKey: ["restaurant", "menu", branchId],
-    queryFn: () => fetchMenuData(branchId),
+    queryKey: ["restaurant", "menu", branchId, zoduId],
+    queryFn: () => fetchMenuData(branchId,zoduId),
     enabled: !!branchId,
     staleTime: 5 * 60 * 1000,
   });
