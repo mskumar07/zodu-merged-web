@@ -293,6 +293,7 @@ const DatewiseSaleReport = () => {
     branch_id: branchId ?? "",
     from_date: fromDate,
     to_date: toDate,
+    isRestaurant,
   };
 
   const { data: summary, isLoading: summaryLoading } =

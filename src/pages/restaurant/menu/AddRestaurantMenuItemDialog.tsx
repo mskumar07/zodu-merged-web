@@ -54,6 +54,8 @@ interface EditItemData {
   menu_image?: string | null;
   menu_code?: string;
   variants?: unknown;
+  opening_stock?: string | number | null;
+  alert_stock?: string | number | null;
 }
 
 interface AddRestaurantMenuItemDialogProps {
@@ -160,7 +162,10 @@ const AddRestaurantMenuItemDialog: React.FC<
   const [unitSearch, setUnitSearch] = useState("");
   const [gstSearch, setGstSearch] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [imageDeleting, setImageDeleting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [itemCodeChecking, setItemCodeChecking] = useState(false);
+  const [itemCodeExistsError, setItemCodeExistsError] = useState<string | null>(null);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -206,6 +211,8 @@ const AddRestaurantMenuItemDialog: React.FC<
     setUnitSearch("");
     setGstSearch("");
     setErrorMsg(null);
+    setItemCodeChecking(false);
+    setItemCodeExistsError(null);
   };
 
   // ── Pre-fill form when editItem changes ───────────────────────────────────
@@ -230,8 +237,8 @@ const AddRestaurantMenuItemDialog: React.FC<
         taxType:       editItem.tax_include_or_exclude ? "include" : "exclude",
         gstTax:        String(editItem.gst_id ?? ""),
         hsnCode:       editItem.hsn_code ?? "",
-        openingStock:  "",
-        alertStock:    "",
+        openingStock:  editItem.opening_stock != null ? String(editItem.opening_stock) : "",
+        alertStock:    editItem.alert_stock != null ? String(editItem.alert_stock) : "",
       });
       setImagePreview(editItem.menu_image ?? null);
       setImageUrl(editItem.menu_image ?? null);
@@ -257,6 +264,38 @@ const AddRestaurantMenuItemDialog: React.FC<
 
   const touch = (key: keyof FormState) =>
     setTouched((prev) => ({ ...prev, [key]: true }));
+
+  // ── Item code existence check on blur ─────────────────────────────────────
+  const checkItemCodeExists = async () => {
+    touch("itemCode");
+    const code = form.itemCode.trim();
+    if (!code) return;
+    // In edit mode skip check if code hasn't changed
+    if (isEditMode && editItem && editItem.menu_code === code) return;
+
+    const { zoduId, branchId } = getTenantContext();
+    const token = getAccessToken();
+    if (!zoduId || !branchId) return;
+
+    setItemCodeChecking(true);
+    setItemCodeExistsError(null);
+    try {
+      const res = await axios.get<{ success: boolean; exists: boolean }>(
+        `${API_BASE}/restaurant/api/menu/check/item_id`,
+        {
+          params: { zodu_id: zoduId, branch_id: branchId, item_id: code },
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
+      if (res.data?.exists) {
+        setItemCodeExistsError("Entered Item Code Already Exists");
+      }
+    } catch {
+      // silently ignore network errors for this check
+    } finally {
+      setItemCodeChecking(false);
+    }
+  };
 
   // ── Image handling — upload immediately on select ──────────────────────────
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -285,6 +324,35 @@ const AddRestaurantMenuItemDialog: React.FC<
       setImageUrl(null);
     } finally {
       setImageUploading(false);
+    }
+  };
+
+  // ── Remove image — calls delete API then clears state ─────────────────────
+  const handleRemoveImage = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!imageUrl || imageDeleting) return;
+
+    const token = getAccessToken();
+    // Extract filename from URL (last path segment)
+    const fileName = imageUrl.split("/").pop();
+    if (!fileName) {
+      setImagePreview(null);
+      setImageUrl(null);
+      return;
+    }
+
+    setImageDeleting(true);
+    try {
+      await axios.delete(`${API_BASE}/restaurant/delete/file/${fileName}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+    } catch {
+      // ignore delete errors — clear locally regardless
+    } finally {
+      setImageDeleting(false);
+      setImagePreview(null);
+      setImageUrl(null);
+      if (imageInputRef.current) imageInputRef.current.value = "";
     }
   };
 
@@ -318,6 +386,7 @@ const AddRestaurantMenuItemDialog: React.FC<
 
     const errors = validate();
     if (Object.keys(errors).length > 0) return;
+    if (itemCodeExistsError) return;
 
     const { zoduId, branchId } = getTenantContext();
     const token = getAccessToken();
@@ -555,9 +624,19 @@ const AddRestaurantMenuItemDialog: React.FC<
                   </>
                 )}
                 {imagePreview && imageUrl && (
-                  <Box sx={{ position: "absolute", bottom: 4, right: 4, bgcolor: "#16a34a", borderRadius: "50%", width: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2 }}>
-                    <Typography sx={{ color: "#fff", fontSize: 11, fontWeight: 800, lineHeight: 1 }}>✓</Typography>
-                  </Box>
+                  <>
+                    <Box sx={{ position: "absolute", bottom: 4, right: 4, bgcolor: "#16a34a", borderRadius: "50%", width: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2 }}>
+                      <Typography sx={{ color: "#fff", fontSize: 11, fontWeight: 800, lineHeight: 1 }}>✓</Typography>
+                    </Box>
+                    <IconButton
+                      size="small"
+                      onClick={handleRemoveImage}
+                      disabled={imageDeleting}
+                      sx={{ position: "absolute", top: 2, right: 2, bgcolor: "rgba(0,0,0,0.55)", color: "#fff", width: 20, height: 20, zIndex: 3, "&:hover": { bgcolor: "rgba(210,31,60,0.85)" }, p: 0 }}
+                    >
+                      {imageDeleting ? <CircularProgress size={11} sx={{ color: "#fff" }} /> : <CloseIcon sx={{ fontSize: 13 }} />}
+                    </IconButton>
+                  </>
                 )}
               </Box>
               <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleImageChange} />
@@ -604,11 +683,24 @@ const AddRestaurantMenuItemDialog: React.FC<
               <TextField
                 fullWidth size="small" placeholder="e.g. MENU-001"
                 value={form.itemCode}
-                onChange={(e) => set("itemCode", e.target.value)}
-                onBlur={() => touch("itemCode")}
-                error={Boolean(fieldError("itemCode"))}
-                helperText={fieldError("itemCode")}
-                InputProps={{ sx: inputSx, endAdornment: <InputAdornment position="end"><QrCode2Icon sx={{ color: "text.disabled", fontSize: 18 }} /></InputAdornment> }}
+                onChange={(e) => {
+                  set("itemCode", e.target.value);
+                  setItemCodeExistsError(null);
+                }}
+                onBlur={checkItemCodeExists}
+                error={Boolean(fieldError("itemCode")) || Boolean(itemCodeExistsError)}
+                helperText={fieldError("itemCode") || itemCodeExistsError || undefined}
+                InputProps={{
+                  sx: inputSx,
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      {itemCodeChecking
+                        ? <CircularProgress size={14} sx={{ color: "text.disabled" }} />
+                        : <QrCode2Icon sx={{ color: "text.disabled", fontSize: 18 }} />
+                      }
+                    </InputAdornment>
+                  ),
+                }}
               />
             </Box>
             <Box>

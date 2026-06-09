@@ -36,6 +36,8 @@ export interface RestaurantMenuListItem {
   category_id: number;
   stock_qty: string;
   stock_alert: string;
+  alert_stock: string | number | null;
+  opening_stock: string | number | null;
   active: boolean;
   food_type: string | null;
   tax_include_or_exclude: boolean | null;

@@ -55,14 +55,16 @@ import {
   type RestaurantMenuListItem,
 } from "./restaurantMenuApi";
 import AddRestaurantMenuItemDialog from "./AddRestaurantMenuItemDialog";
+import CategoryTab from "@pages/MenuItemScreen/CategoryTab";
 import { BranchId, ZoduId } from "@store/slices/userSlice";
 
-type MenuTab = "all" | "food" | "product";
+type MenuTab = "all" | "food" | "product" | "Category";
 
 const TABS: { value: MenuTab; label: string }[] = [
   { value: "all",     label: "All Items" },
   { value: "food",    label: "Food"      },
   { value: "product", label: "Product"   },
+  { value: "Category", label: "Category"   },
 ];
 
 const FOOD_COLOR: Record<string, { dot: string; bg: string; label: string }> = {
@@ -310,7 +312,7 @@ const ItemDetailDialog: React.FC<{
             icon={<Inventory2Icon sx={{ fontSize: 17, color: "#7c3aed" }} />}
             label="Stock Qty"
             value={item.stock_qty ?? "—"}
-            sub={`Alert at ${item.stock_alert ?? "—"}`}
+            sub={`Alert at ${item.alert_stock ?? item.stock_alert ?? "—"}`}
           />
           <InfoStatCard
             iconBg="#dcfce7"
@@ -584,13 +586,13 @@ const RestaurantMenuList: React.FC = () => {
     return () => clearTimeout(t);
   }, [search]);
 
-  const menuType = activeTab === "all" ? undefined : activeTab;
+  const menuType = (activeTab === "all" || activeTab === "Category") ? undefined : activeTab;
   const categoryIdsParam = selectedCategoryIds.length > 0 ? selectedCategoryIds : undefined;
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError, refetch } =
     useInfiniteRestaurantMenu(zoduId, branchId, debouncedSearch, menuType, categoryIdsParam);
 
-  const categoryTypes = activeTab === "all" ? undefined : [activeTab];
+  const categoryTypes = (activeTab === "all" || activeTab === "Category") ? undefined : [activeTab];
   const {
     data: categoryPagesData,
     fetchNextPage: fetchNextCategoryPage,
@@ -884,144 +886,155 @@ const RestaurantMenuList: React.FC = () => {
         </Tabs>
       </Box>
 
-      {/* ── Toolbar ── */}
-      <Box sx={{ display: "flex", gap: 1.5, mb: 2, alignItems: "center", flexWrap: "wrap" }}>
-        {/* Title + count */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: "0 0 auto" }}>
-          <RestaurantMenuIcon sx={{ color: "#d32f2f", fontSize: 20 }} />
-          <Typography sx={{ fontWeight: 700, fontSize: 14, color: "#111827" }}>Menu Items</Typography>
-          {totalCount > 0 && (
-            <Chip
-              label={totalCount}
-              size="small"
-              sx={{ height: 20, fontSize: "0.68rem", fontWeight: 700, bgcolor: "#fef2f2", color: "#d32f2f", "& .MuiChip-label": { px: 0.8 } }}
-            />
-          )}
+      {/* ── Category Tab view ── */}
+      {activeTab === "Category" && (
+        <Box sx={{ flex: 1, overflow: "hidden" }}>
+          <CategoryTab typeFilter="F,P" businessType="Restaurant" />
         </Box>
+      )}
 
-        {/* Search */}
-        <TextField
-          size="small"
-          placeholder="Search..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          sx={{ flex: 1, minWidth: isMobile ? "100%" : 200, bgcolor: "#fff" }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon sx={{ fontSize: 18, color: "text.disabled" }} />
-              </InputAdornment>
-            ),
-            endAdornment: search ? (
-              <InputAdornment position="end">
-                <IconButton size="small" onClick={() => setSearch("")}>
-                  <CloseIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-              </InputAdornment>
-            ) : null,
-            sx: { borderRadius: 0.5, fontSize: 13 },
-          }}
-        />
-
-        {/* Category filter */}
-        <FormControl size="small" sx={{ minWidth: isMobile ? "100%" : 220 }}>
-          <Select
-            multiple
-            value={selectedCategoryIds}
-            onChange={(e) => {
-              const val = e.target.value;
-              setSelectedCategoryIds(typeof val === "string" ? [] : (val as number[]));
-            }}
-            displayEmpty
-            renderValue={(selected) => {
-              const sel = selected as number[];
-              if (sel.length === 0) {
-                return <Box component="span" sx={{ color: "text.disabled", fontSize: 13 }}>All Categories</Box>;
-              }
-              if (sel.length === 1) {
-                const name = categories.find((c) => c.id === sel[0])?.name ?? String(sel[0]);
-                return <Typography noWrap sx={{ fontSize: 13 }}>{name}</Typography>;
-              }
-              return <Typography noWrap sx={{ fontSize: 13 }}>{sel.length} categories selected</Typography>;
-            }}
-            startAdornment={<FilterListIcon sx={{ fontSize: 16, color: "#9ca3af", mr: 0.5 }} />}
-            input={<OutlinedInput sx={{ borderRadius: 0.5, fontSize: 13, bgcolor: "#fff" }} />}
-            MenuProps={{
-              PaperProps: {
-                onScroll: handleCategoryDropdownScroll,
-                sx: { maxHeight: 280 },
-              },
-            }}
-            sx={{ borderRadius: 0.5, fontSize: 13, bgcolor: "#fff" }}
-          >
-            {selectedCategoryIds.length > 0 && (
-              <MenuItem
-                onClick={() => setSelectedCategoryIds([])}
-                sx={{ fontSize: 12, color: "#d32f2f", fontWeight: 600, py: 0.5 }}
-              >
-                Clear selection
-              </MenuItem>
-            )}
-            {selectedCategoryIds.length > 0 && <Divider />}
-            {categories.map((cat) => (
-              <MenuItem key={cat.id} value={cat.id} sx={{ fontSize: 13, py: 0.5 }}>
-                <Checkbox
-                  checked={selectedCategoryIds.includes(cat.id)}
+      {/* ── Toolbar + Table (hidden on Category tab) ── */}
+      {activeTab !== "Category" && (
+        <>
+          <Box sx={{ display: "flex", gap: 1.5, mb: 2, alignItems: "center", flexWrap: "wrap" }}>
+            {/* Title + count */}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: "0 0 auto" }}>
+              <RestaurantMenuIcon sx={{ color: "#d32f2f", fontSize: 20 }} />
+              <Typography sx={{ fontWeight: 700, fontSize: 14, color: "#111827" }}>Menu Items</Typography>
+              {totalCount > 0 && (
+                <Chip
+                  label={totalCount}
                   size="small"
-                  sx={{ p: 0.5, mr: 0.5 }}
+                  sx={{ height: 20, fontSize: "0.68rem", fontWeight: 700, bgcolor: "#fef2f2", color: "#d32f2f", "& .MuiChip-label": { px: 0.8 } }}
                 />
-                <ListItemText primary={cat.name} primaryTypographyProps={{ fontSize: 13 }} />
-              </MenuItem>
-            ))}
-            {isFetchingNextCategoryPage && (
-              <MenuItem disabled sx={{ fontSize: 12, color: "text.disabled", justifyContent: "center" }}>
-                Loading...
-              </MenuItem>
-            )}
-          </Select>
-        </FormControl>
+              )}
+            </Box>
 
-        {/* Add button */}
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setAddMenuOpen(true)}
-          sx={{
-            borderRadius: 0.5,
-            fontWeight: 700,
-            px: 2.5,
-            height: 40,
-            textTransform: "none",
-            fontSize: 13,
-            whiteSpace: "nowrap",
-            boxShadow: "0 4px 14px rgba(210,18,46,0.25)",
-          }}
-        >
-          {isMobile ? "Add" : "Create Menu Item"}
-        </Button>
-      </Box>
+            {/* Search */}
+            <TextField
+              size="small"
+              placeholder="Search..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              sx={{ flex: 1, minWidth: isMobile ? "100%" : 200, bgcolor: "#fff" }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ fontSize: 18, color: "text.disabled" }} />
+                  </InputAdornment>
+                ),
+                endAdornment: search ? (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => setSearch("")}>
+                      <CloseIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </InputAdornment>
+                ) : null,
+                sx: { borderRadius: 0.5, fontSize: 13 },
+              }}
+            />
 
-      {/* ── Table ── */}
-      <Box sx={{ flex: 1, overflow: "hidden" }}>
-        {isError ? (
-          <Box sx={{ textAlign: "center", pt: 8, color: "#6b7280" }}>
-            <Typography>Failed to load menu items. Please try again.</Typography>
+            {/* Category filter */}
+            <FormControl size="small" sx={{ minWidth: isMobile ? "100%" : 220 }}>
+              <Select
+                multiple
+                value={selectedCategoryIds}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedCategoryIds(typeof val === "string" ? [] : (val as number[]));
+                }}
+                displayEmpty
+                renderValue={(selected) => {
+                  const sel = selected as number[];
+                  if (sel.length === 0) {
+                    return <Box component="span" sx={{ color: "text.disabled", fontSize: 13 }}>All Categories</Box>;
+                  }
+                  if (sel.length === 1) {
+                    const name = categories.find((c) => c.id === sel[0])?.name ?? String(sel[0]);
+                    return <Typography noWrap sx={{ fontSize: 13 }}>{name}</Typography>;
+                  }
+                  return <Typography noWrap sx={{ fontSize: 13 }}>{sel.length} categories selected</Typography>;
+                }}
+                startAdornment={<FilterListIcon sx={{ fontSize: 16, color: "#9ca3af", mr: 0.5 }} />}
+                input={<OutlinedInput sx={{ borderRadius: 0.5, fontSize: 13, bgcolor: "#fff" }} />}
+                MenuProps={{
+                  PaperProps: {
+                    onScroll: handleCategoryDropdownScroll,
+                    sx: { maxHeight: 280 },
+                  },
+                }}
+                sx={{ borderRadius: 0.5, fontSize: 13, bgcolor: "#fff" }}
+              >
+                {selectedCategoryIds.length > 0 && (
+                  <MenuItem
+                    onClick={() => setSelectedCategoryIds([])}
+                    sx={{ fontSize: 12, color: "#d32f2f", fontWeight: 600, py: 0.5 }}
+                  >
+                    Clear selection
+                  </MenuItem>
+                )}
+                {selectedCategoryIds.length > 0 && <Divider />}
+                {categories.map((cat) => (
+                  <MenuItem key={cat.id} value={cat.id} sx={{ fontSize: 13, py: 0.5 }}>
+                    <Checkbox
+                      checked={selectedCategoryIds.includes(cat.id)}
+                      size="small"
+                      sx={{ p: 0.5, mr: 0.5 }}
+                    />
+                    <ListItemText primary={cat.name} primaryTypographyProps={{ fontSize: 13 }} />
+                  </MenuItem>
+                ))}
+                {isFetchingNextCategoryPage && (
+                  <MenuItem disabled sx={{ fontSize: 12, color: "text.disabled", justifyContent: "center" }}>
+                    Loading...
+                  </MenuItem>
+                )}
+              </Select>
+            </FormControl>
+
+            {/* Add button */}
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setAddMenuOpen(true)}
+              sx={{
+                borderRadius: 0.5,
+                fontWeight: 700,
+                px: 2.5,
+                height: 40,
+                textTransform: "none",
+                fontSize: 13,
+                whiteSpace: "nowrap",
+                boxShadow: "0 4px 14px rgba(210,18,46,0.25)",
+              }}
+            >
+              {isMobile ? "Add" : "Create Menu Item"}
+            </Button>
           </Box>
-        ) : (
-          <DataTable
-            columns={columns}
-            rows={allItems}
-            rowKey={(row) => row.menu_id}
-            isLoading={isLoading}
-            hasNextPage={hasNextPage}
-            isFetchingNextPage={isFetchingNextPage}
-            loadMoreRef={loadMoreRef}
-            tableContainerRef={containerRef}
-            maxHeight="100%"
-            emptyMessage="No menu items found."
-          />
-        )}
-      </Box>
+
+          {/* ── Table ── */}
+          <Box sx={{ flex: 1, overflow: "hidden" }}>
+            {isError ? (
+              <Box sx={{ textAlign: "center", pt: 8, color: "#6b7280" }}>
+                <Typography>Failed to load menu items. Please try again.</Typography>
+              </Box>
+            ) : (
+              <DataTable
+                columns={columns}
+                rows={allItems}
+                rowKey={(row) => row.menu_id}
+                isLoading={isLoading}
+                hasNextPage={hasNextPage}
+                isFetchingNextPage={isFetchingNextPage}
+                loadMoreRef={loadMoreRef}
+                tableContainerRef={containerRef}
+                maxHeight="100%"
+                emptyMessage="No menu items found."
+              />
+            )}
+          </Box>
+        </>
+      )}
 
       <ItemDetailDialog
         item={detailItem}

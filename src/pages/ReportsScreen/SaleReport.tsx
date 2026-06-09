@@ -247,6 +247,7 @@ const SalesReport = () => {
     zodu_id: zoduId ?? "",
     branch_id: branchId ?? "",
     year: CURRENT_YEAR,
+    isRestaurant,
   };
 
   const { data: summary, isLoading: summaryLoading } = useSalesSummary({ ...apiParams, disabled: isRestaurant });
@@ -261,6 +262,7 @@ const SalesReport = () => {
     zodu_id: zoduId ?? "",
     branch_id: branchId ?? "",
     disabled: isRestaurant,
+    isRestaurant,
   });
 
   const rows: MonthlyBreakdownRow[] = useMemo(

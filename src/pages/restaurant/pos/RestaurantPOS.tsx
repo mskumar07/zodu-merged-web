@@ -4,6 +4,7 @@ import React, {
 import {
   Box, Typography, TextField, InputAdornment, Chip, CircularProgress, Divider,
 } from "@mui/material";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SearchIcon from "@mui/icons-material/Search";
 import StarIcon from "@mui/icons-material/Star";
 import PauseCircleOutlineIcon from "@mui/icons-material/PauseCircleOutline";
@@ -45,6 +46,7 @@ import VariantModal         from "./components/modals/VariantModal";
 import DiscountModal        from "./components/modals/DiscountModal";
 import CustomerModal, { type CustomerFormData } from "./components/modals/CustomerModal";
 import { getTenantContext } from "@store/tenantContext";
+import { useNavigate } from "react-router-dom";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -95,6 +97,7 @@ function buildInitialOrder(): RestaurantOrder {
 // ─── Component ──────────────────────────────────────────────────────────────
 
 const RestaurantPOS: React.FC = () => {
+  const navigate  = useNavigate();
   const branchId = useAppSelector(BranchId) ?? "";
   const zoduId   = useAppSelector(ZoduId)   ?? "";
 
@@ -606,9 +609,29 @@ const RestaurantPOS: React.FC = () => {
           zodu
         </Typography>
         <Divider orientation="vertical" flexItem sx={{ borderColor: "#e5e7eb" }} />
-        <Typography variant="body2" color="text.secondary" fontWeight={500} sx={{ whiteSpace: "nowrap" }}>
-          Restaurant POS
-        </Typography>
+
+        {/* Back + Title */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box
+            onClick={() => navigate("/restaurant-menu")}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              bgcolor: "#d32f2f",
+              color: "#fff",
+              borderRadius: "8px",
+              p: 0.5,
+              cursor: "pointer",
+              "&:hover": { bgcolor: "#b71c1c" },
+            }}
+          >
+            <ArrowBackIcon sx={{ fontSize: 18 }} />
+          </Box>
+          <Typography variant="body2" fontWeight={600} sx={{ whiteSpace: "nowrap", fontSize: "1rem", color: "#111" }}>
+            Restaurant POS
+          </Typography>
+        </Box>
 
         <Box sx={{ flex: 1 }} />
 

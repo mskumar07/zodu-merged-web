@@ -29,23 +29,29 @@ import SuccessToast from '@components/Common/SuccessToast';
 // ── Props ─────────────────────────────────────────────────────
 
 export interface AddCategoryDialogProps {
-  open:         boolean;
-  serviceType?: 'product' | 'service';
-  editRow?:     CategoryRow | null;
+  open:          boolean;
+  serviceType?:  'product' | 'service';
+  editRow?:      CategoryRow | null;
   /** When set, hides the Type toggle and always submits this type (e.g. "E" for expense) */
-  fixedType?:   TypeCode;
-  onClose:      () => void;
-  onAdded?:     (cat: Category) => void;
-  onEdited?:    () => void;
+  fixedType?:    TypeCode;
+  businessType?: string;
+  onClose:       () => void;
+  onAdded?:      (cat: Category) => void;
+  onEdited?:     () => void;
 }
 
 // ── Constants ─────────────────────────────────────────────────
 
-type TypeCode = 'S' | 'M' | 'E';
+type TypeCode = 'S' | 'M' | 'E' | 'F' | 'P';
 
-const TYPE_OPTIONS: { value: TypeCode; label: string }[] = [
+const TYPE_OPTIONS_RETAIL: { value: TypeCode; label: string }[] = [
   { value: 'S', label: 'Sellable' },
   { value: 'M', label: 'Service'  },
+];
+
+const TYPE_OPTIONS_RESTAURANT: { value: TypeCode; label: string }[] = [
+  { value: 'F', label: 'Food'    },
+  { value: 'P', label: 'Product' },
 ];
 
 const RED = '#D2122E';
@@ -54,7 +60,7 @@ const RED = '#D2122E';
 
 const schema = Yup.object({
   name: Yup.string().trim().required('Category name is required'),
-  type: Yup.string().oneOf(['S', 'M', 'E']).required('Type is required'),
+  type: Yup.string().oneOf(['S', 'M', 'E', 'F', 'P']).required('Type is required'),
 });
 
 // ── Helper ────────────────────────────────────────────────────
@@ -70,17 +76,21 @@ const Label: React.FC<{ text: string; required?: boolean }> = ({ text, required 
 
 const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
   open,
-  serviceType = 'product',
-  editRow     = null,
+  serviceType  = 'product',
+  editRow      = null,
   fixedType,
+  businessType,
   onClose,
   onAdded,
   onEdited,
 }) => {
+  const isRestaurant = businessType === 'Restaurant';
+  const typeOptions  = isRestaurant ? TYPE_OPTIONS_RESTAURANT : TYPE_OPTIONS_RETAIL;
+  const defaultCode: TypeCode = isRestaurant ? 'F' : 'S';
+
   const isEditMode  = Boolean(editRow);
-  // when fixedType is set, hide the type toggle entirely
   const showToggle  = !fixedType;
-  const defaultType = fixedType ?? ((editRow?.type_code as TypeCode) ?? 'S');
+  const defaultType = fixedType ?? ((editRow?.type_code as TypeCode) ?? defaultCode);
 
   const [apiError,   setApiError]   = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
@@ -252,7 +262,7 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
                     '& .MuiToggleButtonGroup-grouped': { margin: 0 },
                   }}
                 >
-                  {TYPE_OPTIONS.map((opt) => (
+                  {typeOptions.map((opt) => (
                     <ToggleButton key={opt.value} value={opt.value} sx={toggleSx}>
                       {opt.label}
                     </ToggleButton>

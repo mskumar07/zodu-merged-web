@@ -124,6 +124,7 @@ const CategoryItemSalesReport = () => {
     branch_id: branchId ?? "",
     from_date: fromDate,
     to_date: toDate,
+    isRestaurant,
   };
 
   // Retail hooks — disabled for restaurant
