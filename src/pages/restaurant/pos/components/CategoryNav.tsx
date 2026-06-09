@@ -76,6 +76,7 @@ const NavItem: React.FC<ItemProps> = ({
         textOverflow: "ellipsis",
         whiteSpace: "normal",
         lineHeight: 1.3,
+        textTransform: "uppercase",
       }}
     >
       {label}

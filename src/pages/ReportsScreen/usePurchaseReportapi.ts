@@ -153,7 +153,7 @@ const toDatewisePurchaseBreakdownPage = (payload: unknown): DatewisePurchaseBrea
 };
 
 const swapBase = (url: string, isRestaurant: boolean) =>
-  isRestaurant ? url.replace(/^\/retail/, "/restaurant") : url;
+  isRestaurant ? url : url.replace(/^\/restaurant/, "/retail");
 
 export const usePurchaseSummary = (params: PurchaseSummaryParams) => {
   return useQuery<PurchaseSummary>({

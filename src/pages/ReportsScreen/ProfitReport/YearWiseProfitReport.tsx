@@ -49,12 +49,15 @@ interface YearWisePageResponse {
 }
 
 // ── Infinite-scroll hook ──────────────────────────────────────
-function useYearWiseProfitReport(zoduId: string, branchId: string) {
+const getBase = (isRestaurant: boolean) =>
+  isRestaurant ? "restaurant" : "retail";
+
+function useYearWiseProfitReport(zoduId: string, branchId: string, isRestaurant: boolean) {
   return useInfiniteQuery<YearWisePageResponse>({
-    queryKey: ["profit-yearwise", zoduId, branchId],
+    queryKey: ["profit-yearwise", zoduId, branchId, isRestaurant],
     queryFn: async ({ pageParam = 1 }) => {
       const { data } = await axios.get(
-        `${API_BASE}/retail/api/report/profit/yearwise`,
+        `${API_BASE}/${getBase(isRestaurant)}/api/report/profit/yearwise`,
         { params: { zodu_id: zoduId, branch_id: branchId, page: pageParam, limit: PAGE_LIMIT } },
       );
       return data as YearWisePageResponse;
@@ -137,7 +140,8 @@ const StatCard = ({ title, value, icon, iconBg, valueColor, loading }: StatCardP
 
 // ── Main ──────────────────────────────────────────────────────
 const YearWiseProfitReport: React.FC = () => {
-  const { zoduId, branchId } = useTenantContext();
+  const { zoduId, branchId, businessType } = useTenantContext();
+  const isRestaurant = businessType?.toLowerCase() === "restaurant";
 
   const {
     data: pages,
@@ -145,7 +149,7 @@ const YearWiseProfitReport: React.FC = () => {
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
-  } = useYearWiseProfitReport(zoduId ?? "", branchId ?? "");
+  } = useYearWiseProfitReport(zoduId ?? "", branchId ?? "", isRestaurant);
 
   // overall_summary is the same across all pages — take it from page 1
   const summary = pages?.pages[0]?.overall_summary;
@@ -177,7 +181,7 @@ const YearWiseProfitReport: React.FC = () => {
     },
     {
       key:      "total_sales",
-      label:    "TOTAL SALES",
+      label:    isRestaurant ? "TOTAL ORDERS" : "TOTAL SALES",
       align:    "right",
       minWidth: 150,
       render:   (row) => (
@@ -222,7 +226,7 @@ const YearWiseProfitReport: React.FC = () => {
         </Typography>
       ),
     },
-  ], []);
+  ], [isRestaurant]);
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", p: { xs: 1, md: 1 }, background: "#fff", gap: 1.5 }}>
@@ -232,7 +236,7 @@ const YearWiseProfitReport: React.FC = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             loading={isLoading}
-            title="Total Sales"
+            title={isRestaurant ? "Total Orders" : "Total Sales"}
             value={fmt(summary?.total_sales ?? 0)}
             iconBg="#e8f5e9"
             icon={<ShoppingBagOutlinedIcon sx={{ color: "#2e7d32", fontSize: 18 }} />}

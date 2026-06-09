@@ -76,6 +76,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
   const [imageFile,        setImageFile]        = useState<File | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(editItem?.item_img ?? null);
   const [imageUploading,   setImageUploading]   = useState(false);
+  const [imageDeleting,    setImageDeleting]    = useState(false);
   const [categorySearch,   setCategorySearch]   = useState('');
   const [unitSearch,       setUnitSearch]       = useState('');
   const [gstSearch,        setGstSearch]        = useState('');
@@ -85,10 +86,12 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (!open) return;
     setUploadedImageUrl(editItem?.item_img ?? null);
     setImagePreview(editItem?.item_img ?? null);
     setImageFile(null);
-  }, [editItem]);
+    setImageDeleting(false);
+  }, [open, editItem]);
 
   // ── 2. getInitialValues — itemId pre-filled in edit mode ────
   const getInitialValues = () => {
@@ -189,7 +192,8 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
     resetEdit();
     setImagePreview(null);
     setImageFile(null);
-    setUploadedImageUrl(editItem?.item_img ?? null);
+    setUploadedImageUrl(null);
+    setImageDeleting(false);
     setCategorySearch('');
     setUnitSearch('');
     setGstSearch('');
@@ -231,6 +235,27 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
       setUploadedImageUrl(fileUrl);
     } finally {
       setImageUploading(false);
+    }
+  };
+
+  const handleRemoveImage = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!uploadedImageUrl || imageDeleting) return;
+
+    const fileName = uploadedImageUrl.split('/').pop();
+    setImageDeleting(true);
+    try {
+      if (fileName) {
+        await axiosInstance.delete(`/retail/delete/file/${fileName}`);
+      }
+    } catch {
+      // ignore errors — clear locally regardless
+    } finally {
+      setImageDeleting(false);
+      setImagePreview(null);
+      setImageFile(null);
+      setUploadedImageUrl(null);
+      if (imageInputRef.current) imageInputRef.current.value = '';
     }
   };
 
@@ -341,27 +366,57 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
               {/* Image Upload */}
               <Box sx={{ width: { xs: '100%', md: 156 }, flexShrink: 0 }}>
                 <Label text="Item Image" />
-                <Box onClick={() => imageInputRef.current?.click()}
+                <Box
+                  onClick={() => imageInputRef.current?.click()}
                   sx={{
                     aspectRatio: '1/1', width: '100%', borderRadius: 1.5, border: '2px dashed',
                     borderColor: imagePreview ? 'primary.main' : 'divider',
-                    bgcolor: imagePreview ? 'transparent' : 'action.hover',
+                    bgcolor: 'action.hover',
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                     cursor: 'pointer', overflow: 'hidden', transition: 'all 0.2s',
-                    backgroundImage:    imagePreview ? `url(${imagePreview})` : 'none',
-                    backgroundSize:     'cover',
-                    backgroundPosition: 'center',
-                    '&:hover': { borderColor: 'primary.main', bgcolor: 'rgba(210,18,46,0.04)' },
-                  }}>
-                  {!imagePreview && (
+                    position: 'relative',
+                    '&:hover': { borderColor: 'primary.main' },
+                  }}
+                >
+                  {/* Image preview as <img> tag so external URLs render correctly */}
+                  {imagePreview && !imageUploading && (
+                    <Box
+                      component="img"
+                      src={imagePreview}
+                      alt="Item"
+                      sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  )}
+                  {imageUploading && (
+                    <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(255,255,255,0.7)', zIndex: 2 }}>
+                      <CircularProgress size={28} />
+                    </Box>
+                  )}
+                  {!imagePreview && !imageUploading && (
                     <>
-                      {imageUploading
-                        ? <CircularProgress size={28} sx={{ mb: 0.8 }} />
-                        : <AddAPhotoIcon sx={{ color: 'text.disabled', fontSize: 32, mb: 0.8 }} />}
+                      <AddAPhotoIcon sx={{ color: 'text.disabled', fontSize: 32, mb: 0.8 }} />
                       <Typography variant="caption" color="text.disabled" fontWeight={500}>
-                        {imageUploading ? 'Uploading…' : 'Click to upload'}
+                        Click to upload
                       </Typography>
                     </>
+                  )}
+                  {imagePreview && uploadedImageUrl && (
+                    <IconButton
+                      size="small"
+                      onClick={handleRemoveImage}
+                      disabled={imageDeleting}
+                      sx={{
+                        position: 'absolute', top: 4, right: 4,
+                        bgcolor: 'rgba(0,0,0,0.55)', color: '#fff',
+                        width: 22, height: 22, zIndex: 3,
+                        '&:hover': { bgcolor: 'rgba(210,18,46,0.85)' },
+                        p: 0,
+                      }}
+                    >
+                      {imageDeleting
+                        ? <CircularProgress size={12} sx={{ color: '#fff' }} />
+                        : <CloseIcon sx={{ fontSize: 14 }} />}
+                    </IconButton>
                   )}
                 </Box>
                 <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleImageChange} />

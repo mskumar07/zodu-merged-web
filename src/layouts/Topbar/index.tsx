@@ -9,6 +9,7 @@ import Badge from "@mui/material/Badge";
 import Tooltip from "@mui/material/Tooltip";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import SwitchAccountIcon from "@mui/icons-material/SwitchAccount";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import styles from "./index.module.css";
 import { useTheme } from "@mui/material/styles";
 import { drawerWidth } from "../Sidebar/index";
@@ -22,13 +23,18 @@ import {
   ZoduId,
   addUserData,
 } from "@store/slices/userSlice";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const TopBar: React.FC = () => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const profile = useAppSelector(UserProfile);
+
+  const isReportSubPage =
+    location.pathname.startsWith("/reports") &&
+    location.pathname !== "/reports";
   const zoduId = useAppSelector(ZoduId);
   const branchId = useAppSelector(BranchId);
   const branchName = useAppSelector(BranchName);
@@ -66,6 +72,24 @@ const TopBar: React.FC = () => {
     >
       <Toolbar className={styles.toolbar}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          {isReportSubPage && (
+            <Tooltip title="Back to Reports">
+              <IconButton
+                size="small"
+                onClick={() => navigate("/reports")}
+                sx={{
+                  color: "#fff",
+                  bgcolor: "#c8101f",
+                  borderRadius: "8px",
+                  p: 0.6,
+                  mr: 0.5,
+                  "&:hover": { bgcolor: "#a50d19" },
+                }}
+              >
+                <ArrowBackIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
+          )}
           <Typography sx={{ color: "black", fontWeight: 600, fontSize: 20, textTransform: "capitalize" }}>
             {selectedCompany?.restaurant_name || selectedCompany?.company_name || profile?.restaurant_name || ""}
           </Typography>

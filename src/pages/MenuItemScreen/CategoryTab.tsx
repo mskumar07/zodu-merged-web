@@ -32,10 +32,11 @@ import { useQueryClient } from "@tanstack/react-query";
 // ── Props ─────────────────────────────────────────────────────
 
 interface CategoryTabProps {
-  /** comma-separated type codes sent in the URL, e.g. "S,M" or "E" */
-  typeFilter?: string;
+  /** comma-separated type codes sent in the URL, e.g. "S,M" or "E" or "F,P" */
+  typeFilter?:  string;
   /** when provided, Add/Edit dialog hides the Type toggle and always uses this value */
-  fixedType?:  "S" | "M" | "E";
+  fixedType?:   "S" | "M" | "E";
+  businessType?: string;
 }
 
 // ─── CategoryTab ──────────────────────────────────────────────────────────────
@@ -43,6 +44,7 @@ interface CategoryTabProps {
 const CategoryTab: React.FC<CategoryTabProps> = ({
   typeFilter = "S,M",
   fixedType,
+  businessType,
 }) => {
   const qc = useQueryClient();
 
@@ -143,10 +145,12 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
   // ── Columns ───────────────────────────────────────────────────────────────
   type CategoryRowWithSno = CategoryRow & { _sno: number };
 
-  const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
-    S: { bg: "#EFF6FF", text: "#1D4ED8" },
-    M: { bg: "#F0FDF4", text: "#15803D" },
-    E: { bg: "#FFF7ED", text: "#C2410C" },
+  const TYPE_META: Record<string, { bg: string; text: string; label: string }> = {
+    S: { bg: "#EFF6FF", text: "#1D4ED8", label: "Sellable" },
+    M: { bg: "#F0FDF4", text: "#15803D", label: "Service"  },
+    E: { bg: "#FFF7ED", text: "#C2410C", label: "Expense"  },
+    F: { bg: "#FDF4FF", text: "#7E22CE", label: "Food"     },
+    P: { bg: "#F0FDF4", text: "#065F46", label: "Product"  },
   };
 
   const columns = useMemo<ColumnDef<CategoryRowWithSno>[]>(
@@ -168,10 +172,10 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
       {
         key: "type", label: "Type", width: 110,
         render: (row) => {
-          const c = TYPE_COLORS[row.type_code] ?? { bg: "#F3F4F6", text: "#374151" };
+          const meta = TYPE_META[row.type_code] ?? { bg: "#F3F4F6", text: "#374151", label: row.type };
           return (
-            <Chip label={row.type} size="small" sx={{
-              fontSize: 11, fontWeight: 600, bgcolor: c.bg, color: c.text, border: "none", height: 22,
+            <Chip label={meta.label} size="small" sx={{
+              fontSize: 11, fontWeight: 600, bgcolor: meta.bg, color: meta.text, border: "none", height: 22,
             }} />
           );
         },
@@ -285,6 +289,7 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
         serviceType="product"
         editRow={editRow}
         fixedType={fixedType}
+        businessType={businessType}
         onClose={() => { setCatDialogOpen(false); setEditRow(null); }}
         onAdded={invalidate}
         onEdited={invalidate}

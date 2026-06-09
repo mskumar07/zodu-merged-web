@@ -49,27 +49,32 @@ interface ProfitResponse {
 // ── API hooks ─────────────────────────────────────────────────
 
 /** Fetches only years that have real data from the backend */
-function useActiveYears(zoduId: string, branchId: string) {
+const getBase = (isRestaurant: boolean) =>
+  isRestaurant ? "restaurant" : "retail";
+
+function useActiveYears(zoduId: string, branchId: string, isRestaurant: boolean) {
   return useQuery<number[]>({
-    queryKey: ["profit-active-years", zoduId, branchId],
+    queryKey: ["profit-active-years", zoduId, branchId, isRestaurant],
     queryFn: async () => {
-      const { data } = await axios.get(`${API_BASE}/retail/api/report/profit/active-years`, {
-        params: { zodu_id: zoduId, branch_id: branchId },
-      });
+      const { data } = await axios.get(
+        `${API_BASE}/${getBase(isRestaurant)}/api/report/profit/active-years`,
+        { params: { zodu_id: zoduId, branch_id: branchId } },
+      );
       return (data?.data?.active_years as number[]) ?? [CURRENT_YEAR];
     },
     enabled:   !!zoduId && !!branchId,
-    staleTime: 10 * 60 * 1000, // cache 10 min — years rarely change mid-session
+    staleTime: 10 * 60 * 1000,
   });
 }
 
-function useProfitReport(zoduId: string, branchId: string, year: number) {
+function useProfitReport(zoduId: string, branchId: string, year: number, isRestaurant: boolean) {
   return useQuery<ProfitResponse>({
-    queryKey: ["profit-report", zoduId, branchId, year],
+    queryKey: ["profit-report", zoduId, branchId, year, isRestaurant],
     queryFn: async () => {
-      const { data } = await axios.get(`${API_BASE}/retail/api/report/profit`, {
-        params: { zodu_id: zoduId, branch_id: branchId, year },
-      });
+      const { data } = await axios.get(
+        `${API_BASE}/${getBase(isRestaurant)}/api/report/profit`,
+        { params: { zodu_id: zoduId, branch_id: branchId, year } },
+      );
       return data;
     },
     enabled:   !!zoduId && !!branchId,
@@ -115,18 +120,19 @@ const StatCard = ({ title, value, icon, iconBg, valueColor, loading }: StatCardP
 
 // ── Main ──────────────────────────────────────────────────────
 const MonthWiseProfitReport: React.FC = () => {
-  const { zoduId, branchId } = useTenantContext();
+  const { zoduId, branchId, businessType } = useTenantContext();
+  const isRestaurant = businessType?.toLowerCase() === "restaurant";
 
   // fetch active years first, then default-select the most recent one
   const { data: activeYears = [CURRENT_YEAR], isLoading: yearsLoading } =
-    useActiveYears(zoduId ?? "", branchId ?? "");
+    useActiveYears(zoduId ?? "", branchId ?? "", isRestaurant);
 
   const [year, setYear] = useState<number>(CURRENT_YEAR);
 
   // once active years load, sync selected year to the first (most recent) one
   const selectedYear = activeYears.includes(year) ? year : (activeYears[0] ?? CURRENT_YEAR);
 
-  const { data: res, isLoading } = useProfitReport(zoduId ?? "", branchId ?? "", selectedYear);
+  const { data: res, isLoading } = useProfitReport(zoduId ?? "", branchId ?? "", selectedYear, isRestaurant);
 
   const summary = res?.data?.yearly_summary;
   const rows    = res?.data?.monthly_data ?? [];
@@ -146,7 +152,7 @@ const MonthWiseProfitReport: React.FC = () => {
     },
     {
       key:      "total_sales",
-      label:    "TOTAL SALES",
+      label:    isRestaurant ? "TOTAL ORDERS" : "TOTAL SALES",
       align:    "right",
       minWidth: 140,
       render:   (row) => (
@@ -191,7 +197,7 @@ const MonthWiseProfitReport: React.FC = () => {
         </Typography>
       ),
     },
-  ], []);
+  ], [isRestaurant]);
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", p: { xs: 1, md: 1 }, background: "#fff", gap: 1.5 }}>
@@ -201,7 +207,7 @@ const MonthWiseProfitReport: React.FC = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             loading={isLoading}
-            title="Total Sales"
+            title={isRestaurant ? "Total Orders" : "Total Sales"}
             value={fmt(summary?.total_sales ?? 0)}
             iconBg="#e8f5e9"
             icon={<ShoppingBagOutlinedIcon sx={{ color: "#2e7d32", fontSize: 18 }} />}

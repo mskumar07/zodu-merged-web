@@ -36,6 +36,7 @@ interface SummaryParams {
   branch_id: string;
   year?: number | string;
   disabled?: boolean;
+  isRestaurant?: boolean;
 }
 
 interface BreakdownParams {
@@ -44,12 +45,14 @@ interface BreakdownParams {
   year?: number | string;
   limit?: number;
   disabled?: boolean;
+  isRestaurant?: boolean;
 }
 
 interface HistoricalParams {
   zodu_id: string;
   branch_id: string;
   disabled?: boolean;
+  isRestaurant?: boolean;
 }
 
 interface CategoryItemSalesBaseParams {
@@ -59,6 +62,7 @@ interface CategoryItemSalesBaseParams {
   to_date?: string;
   search?: string;
   disabled?: boolean;
+  isRestaurant?: boolean;
 }
 
 interface CategoryItemSalesPageParams extends CategoryItemSalesBaseParams {
@@ -187,6 +191,9 @@ const toHistoricalYears = (payload: unknown): HistoricalYear[] => {
   return [];
 };
 
+const swapBase = (url: string, isRestaurant: boolean) =>
+  isRestaurant ? url : url.replace(/^\/restaurant/, "/retail");
+
 const CATEGORY_ITEM_SALES_BASE = `${apiConfig.report.getReport}/category-item-sales`;
 
 const EXCLUDED_PARAMS = new Set(["disabled"]);
@@ -294,11 +301,12 @@ const toSalesVelocity = (payload: unknown): SalesVelocityPoint[] => {
 
 export const useSalesSummary = (params: SummaryParams) => {
   return useQuery<SalesSummary>({
-    queryKey: ["sales-summary", params.zodu_id, params.branch_id, params.year],
+    queryKey: ["sales-summary", params.zodu_id, params.branch_id, params.year, params.isRestaurant],
     queryFn: async () => {
       const p = new URLSearchParams({ zodu_id: params.zodu_id, branch_id: params.branch_id });
       if (params.year) p.append("year", String(params.year));
-      const res = await axiosInstance.get(`${apiConfig.report.salesSummary}?${p}`);
+      const url = swapBase(apiConfig.report.salesSummary, !!params.isRestaurant);
+      const res = await axiosInstance.get(`${url}?${p}`);
 
       return toSalesSummary(res.data);
     },
@@ -312,7 +320,7 @@ export const useSalesMonthlyBreakdown = (params: BreakdownParams) => {
   const limit = params.limit ?? 12;
 
   return useInfiniteQuery<MonthlyBreakdownPage>({
-    queryKey: ["sales-monthly-breakdown", params.zodu_id, params.branch_id, params.year],
+    queryKey: ["sales-monthly-breakdown", params.zodu_id, params.branch_id, params.year, params.isRestaurant],
     queryFn: async ({ pageParam = 1 }) => {
       const p = new URLSearchParams({
         zodu_id: params.zodu_id,
@@ -321,7 +329,8 @@ export const useSalesMonthlyBreakdown = (params: BreakdownParams) => {
         limit: String(limit),
       });
       if (params.year) p.append("year", String(params.year));
-      const res = await axiosInstance.get(`${apiConfig.report.salesMonthlyBreakdown}?${p}`);
+      const url = swapBase(apiConfig.report.salesMonthlyBreakdown, !!params.isRestaurant);
+      const res = await axiosInstance.get(`${url}?${p}`);
       return toMonthlyBreakdownPage(res.data);
     },
     getNextPageParam: (lastPage) => {
@@ -337,10 +346,11 @@ export const useSalesMonthlyBreakdown = (params: BreakdownParams) => {
 
 export const useSalesHistorical = (params: HistoricalParams) => {
   return useQuery<HistoricalYear[]>({
-    queryKey: ["sales-historical", params.zodu_id, params.branch_id],
+    queryKey: ["sales-historical", params.zodu_id, params.branch_id, params.isRestaurant],
     queryFn: async () => {
       const p = new URLSearchParams({ zodu_id: params.zodu_id, branch_id: params.branch_id });
-      const res = await axiosInstance.get(`${apiConfig.report.salesHistorical}?${p}`);
+      const url = swapBase(apiConfig.report.salesHistorical, !!params.isRestaurant);
+      const res = await axiosInstance.get(`${url}?${p}`);
       console.log("api res",res)
       return toHistoricalYears(res.data.data);
     },
@@ -355,7 +365,8 @@ export const useCategoryItemSalesSummary = (params: CategoryItemSalesBaseParams)
     queryKey: ["category-item-sales-summary", params],
     queryFn: async () => {
       const query = buildReportParams(params);
-      const res = await axiosInstance.get(`${CATEGORY_ITEM_SALES_BASE}/summary?${query}`);
+      const base = swapBase(CATEGORY_ITEM_SALES_BASE, !!params.isRestaurant);
+      const res = await axiosInstance.get(`${base}/summary?${query}`);
       return toCategoryItemSalesSummary(res.data);
     },
     enabled: !params.disabled && !!params.zodu_id && !!params.branch_id,
@@ -387,14 +398,15 @@ export const useInfiniteCategoryWiseSales = (params: CategoryItemSalesPageParams
   const limit = params.limit ?? 10;
 
   return useInfiniteQuery<CategoryItemSalesPage<CategoryWiseSalesRow>>({
-    queryKey: ["category-wise-sales-infinite", params.zodu_id, params.branch_id, params.from_date, params.to_date, params.search, limit],
+    queryKey: ["category-wise-sales-infinite", params.zodu_id, params.branch_id, params.from_date, params.to_date, params.search, limit, params.isRestaurant],
     queryFn: async ({ pageParam = 1 }) => {
       const query = buildReportParams({
         ...params,
         page: pageParam,
         limit,
       });
-      const res = await axiosInstance.get(`${CATEGORY_ITEM_SALES_BASE}/category-wise?${query}`);
+      const base = swapBase(CATEGORY_ITEM_SALES_BASE, !!params.isRestaurant);
+      const res = await axiosInstance.get(`${base}/category-wise?${query}`);
       return toCategoryItemSalesPage(res.data, toCategoryWiseSalesRow);
     },
     getNextPageParam: (lastPage) => {
@@ -431,14 +443,15 @@ export const useInfiniteItemWiseSales = (params: CategoryItemSalesPageParams) =>
   const limit = params.limit ?? 10;
 
   return useInfiniteQuery<CategoryItemSalesPage<ItemWiseSalesRow>>({
-    queryKey: ["item-wise-sales-infinite", params.zodu_id, params.branch_id, params.from_date, params.to_date, params.search, limit],
+    queryKey: ["item-wise-sales-infinite", params.zodu_id, params.branch_id, params.from_date, params.to_date, params.search, limit, params.isRestaurant],
     queryFn: async ({ pageParam = 1 }) => {
       const query = buildReportParams({
         ...params,
         page: pageParam,
         limit,
       });
-      const res = await axiosInstance.get(`${CATEGORY_ITEM_SALES_BASE}/item-wise?${query}`);
+      const base = swapBase(CATEGORY_ITEM_SALES_BASE, !!params.isRestaurant);
+      const res = await axiosInstance.get(`${base}/item-wise?${query}`);
       return toCategoryItemSalesPage(res.data, toItemWiseSalesRow);
     },
     getNextPageParam: (lastPage) => {
@@ -483,6 +496,7 @@ interface DatewiseParams {
   from_date?: string;
   to_date?: string;
   disabled?: boolean;
+  isRestaurant?: boolean;
 }
 
 interface DatewiseBreakdownParams extends DatewiseParams {
@@ -526,12 +540,13 @@ const toDatewiseBreakdownPage = (payload: unknown): DatewiseBreakdownPage => {
 
 export const useDatewiseSaleSummary = (params: DatewiseParams) => {
   return useQuery<DatewiseSummary>({
-    queryKey: ["datewise-sale-summary", params.zodu_id, params.branch_id, params.from_date, params.to_date],
+    queryKey: ["datewise-sale-summary", params.zodu_id, params.branch_id, params.from_date, params.to_date, params.isRestaurant],
     queryFn: async () => {
       const p = new URLSearchParams({ zodu_id: params.zodu_id, branch_id: params.branch_id });
       if (params.from_date) p.append("from_date", params.from_date);
       if (params.to_date) p.append("to_date", params.to_date);
-      const res = await axiosInstance.get(`${apiConfig.report.salesDatewiseSummary}?${p}`);
+      const url = swapBase(apiConfig.report.salesDatewiseSummary, !!params.isRestaurant);
+      const res = await axiosInstance.get(`${url}?${p}`);
       return toDatewiseSummary(res.data);
     },
     enabled: !params.disabled && !!params.zodu_id && !!params.branch_id,
@@ -543,7 +558,7 @@ export const useDatewiseSaleSummary = (params: DatewiseParams) => {
 export const useDatewiseSaleBreakdown = (params: DatewiseBreakdownParams) => {
   const limit = params.limit ?? 15;
   return useInfiniteQuery<DatewiseBreakdownPage>({
-    queryKey: ["datewise-sale-breakdown", params.zodu_id, params.branch_id, params.from_date, params.to_date, limit],
+    queryKey: ["datewise-sale-breakdown", params.zodu_id, params.branch_id, params.from_date, params.to_date, limit, params.isRestaurant],
     queryFn: async ({ pageParam = 1 }) => {
       const p = new URLSearchParams({
         zodu_id: params.zodu_id,
@@ -553,7 +568,8 @@ export const useDatewiseSaleBreakdown = (params: DatewiseBreakdownParams) => {
       });
       if (params.from_date) p.append("from_date", params.from_date);
       if (params.to_date) p.append("to_date", params.to_date);
-      const res = await axiosInstance.get(`${apiConfig.report.salesDatewiseBreakdown}?${p}`);
+      const url = swapBase(apiConfig.report.salesDatewiseBreakdown, !!params.isRestaurant);
+      const res = await axiosInstance.get(`${url}?${p}`);
       return toDatewiseBreakdownPage(res.data);
     },
     getNextPageParam: (lastPage) => {
@@ -741,7 +757,8 @@ export const useSalesVelocity = (params: CategoryItemSalesBaseParams) => {
     queryKey: ["sales-velocity", params],
     queryFn: async () => {
       const query = buildReportParams(params);
-      const res = await axiosInstance.get(`${CATEGORY_ITEM_SALES_BASE}/sales-velocity?${query}`);
+      const base = swapBase(CATEGORY_ITEM_SALES_BASE, !!params.isRestaurant);
+      const res = await axiosInstance.get(`${base}/sales-velocity?${query}`);
       return toSalesVelocity(res.data);
     },
     enabled: !params.disabled && !!params.zodu_id && !!params.branch_id,

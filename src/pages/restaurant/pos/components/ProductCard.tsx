@@ -232,6 +232,7 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
             WebkitLineClamp: 2,
             WebkitBoxOrient: "vertical",
             flex:            "1 1 auto",
+            textTransform:   "uppercase",
           }}
         >
           {item.menu_name}

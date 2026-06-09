@@ -46,6 +46,7 @@ import {
 } from "@pages/auth/Authapi";
 import BranchFormModal, { type BranchFormData } from "./BranchFormModal";
 import BusinessFormModal, { type BusinessFormData } from "./CompanyFormModal";
+import InvoiceSetting from "./InvoiceSetting";
 import { useAppDispatch } from "@store/store";
 import { setCompanies } from "@store/slices/userSlice";
 
@@ -1037,32 +1038,7 @@ export default function Setting() {
             </Stack>
           ))}
 
-          {activeTab === "invoice" && (
-            <Paper
-              elevation={0}
-              sx={{
-                borderRadius: 1,
-                border: "1px solid",
-                borderColor: cardBorder,
-                bgcolor: "#fff",
-                px: { xs: 2, md: 3 },
-                py: { xs: 3, md: 4 },
-              }}
-            >
-              <Typography
-                sx={{
-                  fontSize: { xs: 24, md: 28 },
-                  fontWeight: 800,
-                  color: headingText,
-                }}
-              >
-                Invoice settings
-              </Typography>
-              <Typography sx={{ mt: 1, fontSize: 14, color: subtleText }}>
-                Configure invoice preferences, numbering rules, tax details, and print layout from this section.
-              </Typography>
-            </Paper>
-          )}
+          {activeTab === "invoice" && <InvoiceSetting />}
 
           {activeTab === "user" && (
             <Paper

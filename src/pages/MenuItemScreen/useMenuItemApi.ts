@@ -72,7 +72,7 @@ export interface CategoryRow {
 export interface AddCategoryPayload {
   name:        string;
   serviceType: "product" | "service";
-  type:        "S" | "M" | "E";
+  type:        "S" | "M" | "E" | "F" | "P";
 }
 
 export interface AddMenuItemPayload {
@@ -806,7 +806,7 @@ export function useInfiniteCategoryList(enabled = true, type = "S,M") {
 export interface UpdateCategoryPayload {
   id:   number;
   name: string;
-  type: 'S' | 'M' | 'E';
+  type: 'S' | 'M' | 'E' | 'F' | 'P';
 }
 
 async function patchUpdateCategory(
