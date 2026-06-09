@@ -1,6 +1,7 @@
 import React from "react";
 import { useAppSelector } from "@store/store";
-import { getTenantContext } from "@store/tenantContext";
+import { useTenantContext } from "@store/tenantContext";
+import { AllCompanies } from "@store/slices/userSlice";
 
 // ── Paper-size config ──────────────────────────────────────────────────────
 
@@ -128,7 +129,9 @@ export const ThermalInvoiceTemplate = React.forwardRef(
     { data, paperSize = "3" }: { data: any; paperSize?: ThermalPaperSize },
     ref: any
   ) => {
-    const { profile, company } = useAppSelector(getTenantContext);
+    const { profile, company, zoduId } = useTenantContext();
+    const companies = useAppSelector(AllCompanies);
+    const selectedCompany = companies.find(c => c.zodu_id === zoduId);
     const cfg = PAPER[paperSize];
 
     const {
@@ -148,18 +151,18 @@ export const ThermalInvoiceTemplate = React.forwardRef(
 
     // ── Company info ──
     const addressParts = [
-      company?.building_no,
-      company?.area_street_name,
-      company?.city,
-      company?.district,
-      company?.state,
-      company?.pincode,
+      selectedCompany?.area_street_name || company?.address_line_1,
+      selectedCompany?.building_no || company?.address_line_2,
+      company?.city || selectedCompany?.city,
+      company?.district || selectedCompany?.district,
+      company?.state || selectedCompany?.state,
+      company?.pincode || selectedCompany?.pincode,
     ].filter(Boolean);
     const addressLine1 = addressParts.slice(0, 3).join(", ");
     const addressLine2 = addressParts.slice(3).join(", ");
-    const companyName  = profile?.restaurant_name || "Your Company";
-    const companyGstin = company?.gst_no  || "";
-    const companyPhone = profile?.phone_number || "";
+    const companyName  = selectedCompany?.restaurant_name || selectedCompany?.business_name || selectedCompany?.store_name || selectedCompany?.company_name || profile?.restaurant_name || "Your Company";
+    const companyGstin = company?.gst_no || selectedCompany?.gst_no || "";
+    const companyPhone = profile?.phone_number || selectedCompany?.phone_number || selectedCompany?.mobile_no || "";
 
     // ── GST summary grouped by rate slab ──
     interface GstSlab {

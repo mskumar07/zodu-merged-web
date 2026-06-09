@@ -109,6 +109,7 @@ interface ApiConstants {
 }
 
 const RESTAURANT_BASE = "/restaurant";
+const RETAIL_BASE = "/retail";
 
 export const apiConfig: ApiConstants = {
   menu: {
@@ -216,24 +217,24 @@ export const apiConfig: ApiConstants = {
   },
 
   report: {
-    getReport: `${RESTAURANT_BASE}/api/report`,
-    salesSummary: `${RESTAURANT_BASE}/api/report/sales/summary`,
-    salesMonthlyBreakdown: `${RESTAURANT_BASE}/api/report/sales/monthly-breakdown`,
-    salesHistorical: `${RESTAURANT_BASE}/api/report/sales/historical`,
-    salesDatewiseSummary: `${RESTAURANT_BASE}/api/report/sales/datewise/summary`,
-    salesDatewiseBreakdown: `${RESTAURANT_BASE}/api/report/sales/datewise`,
-    purchaseSummary: `${RESTAURANT_BASE}/api/report/purchase/summary`,
-    purchaseMonthlyBreakdown: `${RESTAURANT_BASE}/api/report/purchase/monthly-breakdown`,
-    purchaseHistorical: `${RESTAURANT_BASE}/api/report/purchase/historical`,
-    purchaseDatewiseSummary: `${RESTAURANT_BASE}/api/report/purchase/datewise/summary`,
-    purchaseDatewiseBreakdown: `${RESTAURANT_BASE}/api/report/purchase/datewise`,
-    expenseSummary: `${RESTAURANT_BASE}/api/report/expense/summary`,
-    expenseMonthlyBreakdown: `${RESTAURANT_BASE}/api/report/expense/monthly-breakdown`,
-    expenseHistorical: `${RESTAURANT_BASE}/api/report/expense/historical`,
-    expenseDatewiseSummary: `${RESTAURANT_BASE}/api/report/expense/datewise/summary`,
-    expenseDatewiseBreakdown: `${RESTAURANT_BASE}/api/report/expense/datewise`,
-    restaurantDatewiseOrders: `/restaurant/api/orders/api/report/orders`,
-    restaurantOrderCategory: `/restaurant/api/orders/get/report/order-category`,
+    getReport: `${RETAIL_BASE}/api/report`,
+    salesSummary: `${RETAIL_BASE}/api/report/sales/summary`,
+    salesMonthlyBreakdown: `${RETAIL_BASE}/api/report/sales/monthly-breakdown`,
+    salesHistorical: `${RETAIL_BASE}/api/report/sales/historical`,
+    salesDatewiseSummary: `${RETAIL_BASE}/api/report/sales/datewise/summary`,
+    salesDatewiseBreakdown: `${RETAIL_BASE}/api/report/sales/datewise`,
+    purchaseSummary: `${RETAIL_BASE}/api/report/purchase/summary`,
+    purchaseMonthlyBreakdown: `${RETAIL_BASE}/api/report/purchase/monthly-breakdown`,
+    purchaseHistorical: `${RETAIL_BASE}/api/report/purchase/historical`,
+    purchaseDatewiseSummary: `${RETAIL_BASE}/api/report/purchase/datewise/summary`,
+    purchaseDatewiseBreakdown: `${RETAIL_BASE}/api/report/purchase/datewise`,
+    expenseSummary: `${RETAIL_BASE}/api/report/expense/summary`,
+    expenseMonthlyBreakdown: `${RETAIL_BASE}/api/report/expense/monthly-breakdown`,
+    expenseHistorical: `${RETAIL_BASE}/api/report/expense/historical`,
+    expenseDatewiseSummary: `${RETAIL_BASE}/api/report/expense/datewise/summary`,
+    expenseDatewiseBreakdown: `${RETAIL_BASE}/api/report/expense/datewise`,
+    restaurantDatewiseOrders: `${RESTAURANT_BASE}/api/orders/api/report/orders`,
+    restaurantOrderCategory: `${RESTAURANT_BASE}/api/orders/get/report/order-category`,
   },
 
   mainDashboard: {

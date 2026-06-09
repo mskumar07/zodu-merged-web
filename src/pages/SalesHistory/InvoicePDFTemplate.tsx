@@ -1,5 +1,6 @@
 import { useAppSelector } from "@store/store";
-import { getTenantContext } from "@store/tenantContext";
+import { useTenantContext } from "@store/tenantContext";
+import { AllCompanies } from "@store/slices/userSlice";
 import React from "react";
 
 // ── Inline style constants ────────────────────────────────────
@@ -302,32 +303,33 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
     amount_in_words,
     gst_breakdown = [],
   } = data;
-  const { profile, company } = useAppSelector(getTenantContext);
-
+  const { profile, company, zoduId } = useTenantContext();
+  const companies = useAppSelector(AllCompanies);
+  const selectedCompany = companies.find(c => c.zodu_id === zoduId);
 
   const showDiscount = discount && Number(discount) > 0;
   const showRoundOff = round_off !== undefined && round_off !== null && Number(round_off) !== 0;
 
   const addressParts = [
-    company?.building_no,
-    company?.area_street_name,
-    company?.city,
-    company?.district,
-    company?.state,
-    company?.pincode,
+    selectedCompany?.area_street_name || company?.address_line_1,
+    selectedCompany?.building_no || company?.address_line_2,
+    company?.city || selectedCompany?.city,
+    company?.district || selectedCompany?.district,
+    company?.state || selectedCompany?.state,
+    company?.pincode || selectedCompany?.pincode,
   ].filter(Boolean);
   const addressLine1 = addressParts.slice(0, 3).join(", ");
   const addressLine2 = addressParts.slice(3).join(", ");
 
   const co = {
-    name:          profile?.restaurant_name || "Your Company Name",
-    gstin:         company?.gst_no || "",
+    name:          selectedCompany?.restaurant_name || selectedCompany?.business_name || selectedCompany?.store_name || selectedCompany?.company_name || profile?.restaurant_name || "Your Company Name",
+    gstin:         company?.gst_no || selectedCompany?.gst_no || "",
     line1:         addressLine1,
     line2:         addressLine2,
-    phone:         profile?.phone_number || "",
-    bankName:      "Bank Details N/A",
-    accountNumber: company?.account_number || "",
-    branchIfsc:    company?.ifsc_code || "",
+    phone:         profile?.phone_number || selectedCompany?.phone_number || selectedCompany?.mobile_no || "",
+    bankName:      company?.bank_name || selectedCompany?.bank_name || "Bank Details N/A",
+    accountNumber: company?.account_number || selectedCompany?.account_number || "",
+    branchIfsc:    company?.ifsc_code || selectedCompany?.ifsc_code || "",
     declaration:   "We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.",
   };
 

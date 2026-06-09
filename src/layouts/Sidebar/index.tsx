@@ -10,6 +10,7 @@ import RestaurantMenuIcon from "@mui/icons-material/RestaurantMenu";
 import ChecklistIcon from "@mui/icons-material/Checklist";
 import GroupsIcon from '@mui/icons-material/Groups';
 import Logo from "@components/Common/Logo";
+import zlogo from "../../assets/zlogo.png";
 import {
   Box,
   Divider,
@@ -20,7 +21,6 @@ import {
   ListItemIcon,
   ListItemText,
   Toolbar,
-  Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import React from "react";
@@ -112,18 +112,12 @@ export default function Sidebar() {
           minHeight: "64px !important",
         }}
       >
-        <Typography
+        <Box
           onClick={() => navigate("/")}
-          sx={{
-            cursor: "pointer",
-            color: "#DC143C",
-            fontSize: "2.5rem",
-            fontWeight: 800,
-            letterSpacing: "0.05em",
-          }}
+          sx={{ cursor: "pointer", height: 40, display: "flex", alignItems: "center" }}
         >
-          zodu
-        </Typography>
+          <img src={zlogo} alt="Zodu" style={{ height: "100%", width: "auto", objectFit: "contain" }} />
+        </Box>
       </Toolbar>
 
 <Divider />

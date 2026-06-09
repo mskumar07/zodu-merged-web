@@ -58,14 +58,14 @@ const reportCards: ReportCard[] = [
     datewise: "/reports/expenses/datewise",
     color: "#fbc02d",
   },
-  {
-    title: "Inventory Report",
-    description:
-      "Analyze stock levels, waste management, and inventory turnover ratios.",
-    icon: Inventory2,
-    path: "/reports/inventory",
-    color: "#4caf50",
-  },
+  // {
+  //   title: "Inventory Report",
+  //   description:
+  //     "Analyze stock levels, waste management, and inventory turnover ratios.",
+  //   icon: Inventory2,
+  //   path: "/reports/inventory",
+  //   color: "#4caf50",
+  // },
   {
     title:       "Profit Report",
     description: "View monthly profit breakdown with sales, purchase, and expense comparison.",

@@ -28,8 +28,15 @@ import VerifiedIcon from "@mui/icons-material/Verified";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import SpeedIcon from "@mui/icons-material/Speed";
+import StorefrontIcon from "@mui/icons-material/Storefront";
+import RestaurantIcon from "@mui/icons-material/Restaurant";
+import LocalGroceryStoreIcon from "@mui/icons-material/LocalGroceryStore";
+import LocalPharmacyIcon from "@mui/icons-material/LocalPharmacy";
+import SpaIcon from "@mui/icons-material/Spa";
+import MiscellaneousServicesIcon from "@mui/icons-material/MiscellaneousServices";
 import { useNavigate } from "react-router-dom";
 import heroSection from "../../assets/hero-section.png";
+import zlogo from "../../assets/zlogo.png";
 
 // ── Design Tokens ─────────────────────────────────────────────────────────────
 const PRIMARY       = "#d32f2f";
@@ -135,12 +142,12 @@ const steps = [
 ];
 
 const businessTypes = [
-  { icon: "🏪", title: "Retail Stores",       desc: "Clothing, footwear, electronics & general stores" },
-  { icon: "🍽️", title: "Restaurants & Cafés", desc: "QSR, dine-in, cloud kitchens & food courts" },
-  { icon: "🛒", title: "Supermarkets",         desc: "Daily needs, FMCG, fresh produce & kirana shops" },
-  { icon: "💊", title: "Pharmacies",           desc: "Medical shops, clinics & diagnostic centres" },
-  { icon: "💄", title: "Beauty & Wellness",    desc: "Salons, spas, fitness studios & wellness centres" },
-  { icon: "📚", title: "Services & Others",    desc: "Coaching centres, print shops & service businesses" },
+  { icon: StorefrontIcon,           title: "Retail Stores",       desc: "Clothing, footwear, electronics & general stores" },
+  { icon: RestaurantIcon,           title: "Restaurants & Cafés", desc: "QSR, dine-in, cloud kitchens & food courts" },
+  { icon: LocalGroceryStoreIcon,    title: "Supermarkets",        desc: "Daily needs, FMCG, fresh produce & kirana shops" },
+  { icon: LocalPharmacyIcon,        title: "Pharmacies",          desc: "Medical shops, clinics & diagnostic centres" },
+  { icon: SpaIcon,                  title: "Beauty & Wellness",   desc: "Salons, spas, fitness studios & wellness centres" },
+  { icon: MiscellaneousServicesIcon,title: "Services & Others",   desc: "Coaching centres, print shops & service businesses" },
 ];
 
 const plans = [
@@ -271,15 +278,13 @@ const ZoduLandingPage: React.FC = () => {
           bgcolor: "rgba(255,255,255,0.92)",
           backdropFilter: "blur(12px)",
           borderBottom: `1px solid ${BORDER}`,
-          px: { xs: 3, md: 6 }, py: 1.5,
+          px: { xs: 3, md: 6 }, py: 2,
           display: "flex", justifyContent: "space-between", alignItems: "center",
         }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Box sx={{ width: 36, height: 36, bgcolor: PRIMARY, borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Typography sx={{ color: "#fff", fontWeight: 900, fontSize: "1.1rem", letterSpacing: "-0.05em" }}>z</Typography>
+          
+            <Box sx={{ height: 40, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+              <img src={zlogo} alt="Zodu Logo" style={{ height: "100%", width: "auto", objectFit: "contain" }} />
             </Box>
-            <Typography sx={{ fontSize: "1.5rem", fontWeight: 900, color: DARK, letterSpacing: "-0.04em" }}>zodu</Typography>
-          </Box>
 
           <Stack direction="row" spacing={0.5} alignItems="center" sx={{ display: { xs: "none", md: "flex" } }}>
             {["Features", "Solutions", "Pricing", "Resources", "Company"].map((item) => (
@@ -306,14 +311,26 @@ const ZoduLandingPage: React.FC = () => {
         </Box>
 
         {/* ── HERO ─────────────────────────────────────────────────────────── */}
-        <Box sx={{ bgcolor: "#fff", overflow: "hidden" }}>
-          <Container maxWidth="lg" sx={{ px: { xs: 3, md: 6 } }}>
+        <Box sx={{
+          overflow: "hidden", position: "relative",
+          backgroundImage: `url(${heroSection})`,
+          backgroundSize: "contain",
+          backgroundPosition: "right center",
+          backgroundRepeat: "no-repeat",
+        }}>
+          {/* gradient overlay — opaque white on left so text stays readable */}
+          <Box sx={{
+            position: "absolute", inset: 0, zIndex: 0,
+            background: "linear-gradient(to right, rgba(255,255,255,1) 48%, rgba(255,255,255,0.15) 100%)",
+          }} />
+          <Container maxWidth="lg" sx={{ px: { xs: 3, md: 6 }, position: "relative", zIndex: 1 }}>
             <Box sx={{
               display: "flex",
               flexDirection: { xs: "column", md: "row" },
               alignItems: "center",
               gap: { xs: 4, md: 2 },
               pt: { xs: 6, md: 5 },
+              minHeight: { md: 380 },
             }}>
               {/* Left */}
               <Box sx={{ flex: "0 0 auto", maxWidth: { xs: "100%", md: 530 }, pt: { xs: 0, md: 3 } }}>
@@ -398,22 +415,6 @@ const ZoduLandingPage: React.FC = () => {
                 </Stack>
               </Box>
 
-              {/* Right: device mockup */}
-              <Box sx={{ flex: 1, display: "flex", alignItems: "flex-end", justifyContent: "center", minHeight: { md: 440 } }}>
-                <Box
-                  component="img"
-                  src={heroSection}
-                  alt="Zodu POS dashboard on multiple devices"
-                  sx={{
-                    width: "100%",
-                    maxWidth: { xs: 500, md: "100%" },
-                    display: "block",
-                    objectFit: "contain",
-                    objectPosition: "bottom",
-                    filter: "drop-shadow(0 -4px 32px rgba(211,47,47,0.1))",
-                  }}
-                />
-              </Box>
             </Box>
 
             {/* Trust badges */}
@@ -448,7 +449,7 @@ const ZoduLandingPage: React.FC = () => {
           <Container maxWidth="lg">
             <Box sx={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: { xs: 5, md: 0 } }}>
               {[
-                { value: "10,000+",  label: "Active Businesses"  },
+                { value: "1 lakh",  label: "Active Businesses"  },
                 { value: "₹500 Cr+", label: "Bills Generated"    },
                 { value: "4.9 / 5",  label: "Average Rating"     },
                 { value: "30 Min",   label: "Average Setup Time" },
@@ -603,7 +604,7 @@ const ZoduLandingPage: React.FC = () => {
                   transition: "all 0.2s",
                   "&:hover": { borderColor: alpha(PRIMARY, 0.35), boxShadow: `0 4px 20px ${alpha(PRIMARY, 0.08)}`, transform: "translateY(-2px)" },
                 }}>
-                  <Typography sx={{ fontSize: "2rem", mb: 1.2 }}>{biz.icon}</Typography>
+                  <biz.icon sx={{ fontSize: "2.2rem", color: PRIMARY, mb: 1.2 }} />
                   <Typography sx={{ fontWeight: 700, fontSize: "0.85rem", color: DARK, mb: 0.5, lineHeight: 1.35 }}>{biz.title}</Typography>
                   <Typography sx={{ fontSize: "0.73rem", color: GRAY, lineHeight: 1.5 }}>{biz.desc}</Typography>
                 </Box>
@@ -899,10 +900,9 @@ const ZoduLandingPage: React.FC = () => {
               {/* Brand */}
               <Box sx={{ maxWidth: 260 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-                  <Box sx={{ width: 32, height: 32, bgcolor: PRIMARY, borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <Typography sx={{ color: "#fff", fontWeight: 900, fontSize: "1rem", letterSpacing: "-0.05em" }}>z</Typography>
+                  <Box sx={{ height: 44, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                    <img src={zlogo} alt="Zodu Logo" style={{ height: "100%", width: "auto", objectFit: "contain" }} />
                   </Box>
-                  <Typography sx={{ fontSize: "1.4rem", fontWeight: 900, color: "#fff", letterSpacing: "-0.04em" }}>zodu</Typography>
                 </Box>
                 <Typography sx={{ color: "#6B7280", fontSize: "0.87rem", lineHeight: 1.75, mb: 3 }}>
                   All-in-one POS solution to bill, manage, analyse and grow your business effortlessly.

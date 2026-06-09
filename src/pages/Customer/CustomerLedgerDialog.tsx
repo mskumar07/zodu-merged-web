@@ -545,7 +545,7 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                                 py: 1.5,
                               }}
                             >
-                              {row.description}
+                              {row.description === "S" ? "Sale" : isReturn ? "Return - " + row.description : row.description}
                             </TableCell>
 
                             <TableCell align="right" sx={{ fontSize: "0.8rem", fontWeight: 500, color: "#1e293b", py: 1.5, whiteSpace: "nowrap" }}>
