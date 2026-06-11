@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import LottieLoader from "@components/LottieLoader";
 import {
   Box,
   Button,
@@ -520,6 +521,8 @@ const CategoryItemSalesReport = () => {
       ),
     },
   ], []);
+
+  if (summaryLoading || categoryLoading) return <LottieLoader />;
 
   return (
     <Box

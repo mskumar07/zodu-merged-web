@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react";
+import LottieLoader from "@components/LottieLoader";
 import { createTheme, ThemeProvider, CssBaseline } from "@mui/material";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -611,6 +612,8 @@ const salesCols: ColDef<SaleRow>[] = [
           iconColor: "#DC2626",
         },
       ];
+
+  if (statsQuery.isLoading) return <LottieLoader />;
 
   return (
     <ThemeProvider theme={theme}>

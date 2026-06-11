@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useCallback, useRef, useEffect } from "react";
+import LottieLoader from "@components/LottieLoader";
 import {
   Box,
   Typography,
@@ -344,6 +345,8 @@ export default function CustomerManagement({
     ],
     [onEditCustomer, apiCustomers, handleDelete, handleCustomerClick]
   );
+
+  if (isLoading) return <LottieLoader />;
 
   return (
     <ThemeProvider theme={theme}>

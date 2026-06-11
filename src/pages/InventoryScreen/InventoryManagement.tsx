@@ -1,6 +1,7 @@
 import React, {
   useState, useCallback, useRef, useEffect, useMemo,
 } from 'react';
+import LottieLoader from "@components/LottieLoader";
 import {
   Box, Typography, TextField, Button, InputAdornment,
   CircularProgress, Alert, Avatar,
@@ -297,6 +298,8 @@ const handleCloseHistory = () => {
       ),
     },
   ], [handleAdjustClick]);
+
+  if (isLoading) return <LottieLoader />;
 
   return (
 <Box

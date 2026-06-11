@@ -146,11 +146,17 @@ export interface AddOrderPayload {
     menu_unit: string;
     variant_id: string | null;
     variant_name: string | null;
+    cgst: number;
+    sgst: number;
   }[];
   no_of_items: number;
+  subtotal: number;
   total_amt: number;
+  discount_amount: number;
+  tax_amount: number;
   discount_type: string;
   discount_value: number;
+  payment_type: string;
   final_payment: boolean;
   order_date: string;
   order_time: string;
@@ -162,7 +168,7 @@ export interface CompleteOrderPayload {
   api_order_id: string;
   zodu_id: string;
   branch_id: string;
-  tableNumber: number;
+  table_no: number;
   items: {
     menu_id: string;
     name: string;
@@ -174,11 +180,17 @@ export interface CompleteOrderPayload {
     menu_unit: string;
     variant_id: string | null;
     variant_name: string | null;
+    cgst: number;
+    sgst: number;
   }[];
+  no_of_items: number;
+  subtotal: number;
+  total_amt: number;
+  discount_amount: number;
+  total_tax: number;
   discount_type: string;
   discount_value: number;
-  totalAmount: number;
-  paymentType: string;
+  payment_type: string;
 }
 
 export interface HoldOrderPayload {
@@ -479,6 +491,7 @@ export function calcDiscount(
   discountType: "Percent" | "Amount",
   discountValue: number
 ): number {
+  console.log("Calculating discount with", { subtotal, discountType, discountValue });
   if (discountType === "Percent") return (subtotal * discountValue) / 100;
   return Math.min(discountValue, subtotal);
 }

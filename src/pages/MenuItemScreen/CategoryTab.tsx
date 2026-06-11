@@ -10,6 +10,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import LottieLoader from "@components/LottieLoader";
 import {
   Box, TextField, Button, InputAdornment, Typography,
   IconButton, Tooltip, Switch, Dialog, DialogTitle,
@@ -226,6 +227,8 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
   }, [qc]);
 
   // ── Render ────────────────────────────────────────────────────────────────
+  if (isLoading) return <LottieLoader />;
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2, height: "100%" }}>
 

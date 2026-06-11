@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import LottieLoader from "@components/LottieLoader";
 import { Box, Grid, Paper, Skeleton, Typography } from "@mui/material";
 import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
@@ -167,6 +168,8 @@ const MonthWisePurchaseReport = () => {
     ],
     [],
   );
+
+  if (summaryLoading) return <LottieLoader />;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", p: { xs: 1, md: 1 }, background: "#fff", gap: 1.5 }}>

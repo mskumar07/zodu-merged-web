@@ -1,6 +1,7 @@
 import React, {
   useState, useCallback, useRef, useEffect, useMemo,
 } from 'react';
+import LottieLoader from "@components/LottieLoader";
 import {
   Box, TextField, Button, InputAdornment, Alert,
   Dialog, DialogTitle, DialogContent, Typography, DialogActions,
@@ -220,6 +221,8 @@ function MenuItemScreen() {
   };
 
   const activeEditItem = freshEditItem ?? editItem;
+
+  if (isLoading) return <LottieLoader />;
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 2 }}>

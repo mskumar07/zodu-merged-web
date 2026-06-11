@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import LottieLoader from "@components/LottieLoader";
 import {
   Avatar,
   Box,
@@ -856,6 +857,8 @@ const RestaurantMenuList: React.FC = () => {
     ],
     [handleToggleFav, handleToggleActive, favOverrides, activeOverrides, isMobile, isTablet, theme]
   );
+
+  if (isLoading) return <LottieLoader />;
 
   return (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column", p: 2 }}>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import LottieLoader from "@components/LottieLoader";
 import {
   Alert,
   Avatar,
@@ -438,6 +439,8 @@ export default function Setting() {
       });
     }
   };
+
+  if (companiesQuery.isLoading) return <LottieLoader />;
 
   return (
     <Box

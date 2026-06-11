@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import LottieLoader from "@components/LottieLoader";
 import {
   Box, Grid, Paper, Skeleton, Typography,
 } from "@mui/material";
@@ -227,6 +228,8 @@ const YearWiseProfitReport: React.FC = () => {
       ),
     },
   ], [isRestaurant]);
+
+  if (isLoading) return <LottieLoader />;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", p: { xs: 1, md: 1 }, background: "#fff", gap: 1.5 }}>

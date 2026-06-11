@@ -127,21 +127,20 @@ export interface StockHistoryItem {
 
 export interface StockHistoryResponse {
   success: boolean;
-
   item: {
     item_uuid: string;
     item_id: string;
     item_name: string;
   };
-
   data: StockHistoryItem[];
-
   summary: {
     current_stock: number;
     low_stock_alert: number;
     is_low: boolean;
   };
 }
+
+
 // ─── Query keys ───────────────────────────────────────────────
 export const inventoryQueryKeys = {
   summary:  (branchId: string, businessType: string) => ['inventory', 'summary', branchId, businessType]          as const,
@@ -379,10 +378,10 @@ async function fetchStockHistory(item_uuid: string): Promise<StockHistoryRespons
   const url = businessType === 'Restaurant'
     ? `/inventory/stock/history/${item_uuid}`
     : `/menu/stock/history/${item_uuid}`;
-  const { data } = await getApi().get<StockHistoryResponse>(url, {
+  const { data } = await getApi().get<{ success: boolean; data: StockHistoryResponse }>(url, {
     params: { zodu_id: zoduId, branch_id: branchId },
   });
-  return data;
+  return data.data;
 }
 
 // ─── Hook ─────────────────────────────────────────

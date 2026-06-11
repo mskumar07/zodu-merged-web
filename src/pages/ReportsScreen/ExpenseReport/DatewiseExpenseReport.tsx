@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import LottieLoader from "@components/LottieLoader";
 import {
   Box,
   Button,
@@ -195,6 +196,8 @@ const DatewiseExpenseReport = () => {
     ],
     [],
   );
+
+  if (summaryLoading) return <LottieLoader />;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", p: { xs: 1, md: 1 }, background: "#fff", gap: 1.5 }}>

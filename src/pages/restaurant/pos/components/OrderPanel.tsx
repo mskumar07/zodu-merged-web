@@ -30,6 +30,8 @@ interface Props {
   totals: Totals;
   isLoading: boolean;
   orderSummary: RunningOrderOrderedItem[];
+  runningOrderTotal: number;
+  runningOrderTotals: Totals;
   onTableClick: () => void;
   onCustomerClick: () => void;
   onDiscountClick: () => void;
@@ -53,7 +55,7 @@ const PAYMENT_METHODS: Array<{
 ];
 
 const OrderPanel: React.FC<Props> = ({
-  order, cartItems, totals, isLoading, orderSummary,
+  order, cartItems, totals, isLoading, orderSummary, runningOrderTotal, runningOrderTotals,
   onTableClick, onCustomerClick, onDiscountClick,
   onPaymentMethodChange, onSendToKDS, onPaid,
   onIncrement, onDecrement, onRemove, onHold,
@@ -81,7 +83,6 @@ const OrderPanel: React.FC<Props> = ({
     if (cartItems.length > 0) setActiveTab("order");
   }, [cartItems.length]);
 
-  const summaryTotal = orderSummary.reduce((s, i) => s + i.price * i.qty, 0);
 
   return (
     <Box
@@ -402,136 +403,89 @@ const OrderPanel: React.FC<Props> = ({
                 </Box>
               ))}
 
-              {/* Summary total */}
-              <Box
-                sx={{
-                  mt: 1,
-                  pt: 1,
-                  borderTop: "1.5px dashed #e5e7eb",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <Typography sx={{ fontSize: "0.78rem", fontWeight: 600, color: "#6b7280" }}>
-                  Previous total
-                </Typography>
-                <Typography sx={{ fontSize: "0.88rem", fontWeight: 800, color: "#374151" }}>
-                  ₹{summaryTotal.toFixed(2)}
-                </Typography>
-              </Box>
             </Box>
           )}
         </Box>
       )}
 
-      {/* ── Totals (Order tab or non-DineIn) ── */}
-      {(!isDineIn || activeTab === "order") && cartItems.length > 0 && (
+      {/* ── Totals: non-DineIn OR DineIn Summary tab with KOT data ── */}
+      {(!isDineIn && cartItems.length > 0) || (isDineIn && activeTab === "summary" && orderSummary.length > 0) ? (
         <Box sx={{ px: 1.5, py: 1.2, borderTop: "1px solid #f3f4f6", flexShrink: 0 }}>
-          <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.7 }}>
-            <Typography sx={{ fontSize: "0.76rem", color: "#6b7280" }}>Subtotal</Typography>
-            <Typography sx={{ fontSize: "0.76rem", color: "#374151", fontWeight: 500 }}>
-              ₹{totals.subtotal.toFixed(2)}
-            </Typography>
-          </Box>
-          <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.7 }}>
-            <Typography sx={{ fontSize: "0.76rem", color: "#6b7280" }}>GST</Typography>
-            <Typography sx={{ fontSize: "0.76rem", color: "#374151" }}>
-              ₹{totals.taxAmount.toFixed(2)}
-            </Typography>
-          </Box>
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              mb: 0.7,
-            }}
-          >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.6 }}>
-              <Typography sx={{ fontSize: "0.76rem", color: "#6b7280" }}>Discount</Typography>
-              <Chip
-                label={
-                  order.discountType === "Percent"
-                    ? `${order.discountValue}%`
-                    : `₹${order.discountValue}`
-                }
-                size="small"
-                icon={<LocalOfferIcon sx={{ fontSize: "10px !important", color: "inherit !important" }} />}
-                onClick={onDiscountClick}
+          {(() => {
+            const t = isDineIn ? runningOrderTotals : totals;
+            return (
+              <>
+                <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.7 }}>
+                  <Typography sx={{ fontSize: "0.76rem", color: "#6b7280" }}>Subtotal</Typography>
+                  <Typography sx={{ fontSize: "0.76rem", color: "#374151", fontWeight: 500 }}>
+                    ₹{t.subtotal.toFixed(2)}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.7 }}>
+                  <Typography sx={{ fontSize: "0.76rem", color: "#6b7280" }}>GST</Typography>
+                  <Typography sx={{ fontSize: "0.76rem", color: "#374151" }}>
+                    ₹{t.taxAmount.toFixed(2)}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.7 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.6 }}>
+                    <Typography sx={{ fontSize: "0.76rem", color: "#6b7280" }}>Discount</Typography>
+                    <Chip
+                      label={order.discountType === "Percent" ? `${order.discountValue}%` : `₹${order.discountValue}`}
+                      size="small"
+                      icon={<LocalOfferIcon sx={{ fontSize: "10px !important", color: "inherit !important" }} />}
+                      onClick={onDiscountClick}
+                      sx={{
+                        height: 17, fontSize: "0.6rem", cursor: "pointer",
+                        bgcolor: t.discount > 0 ? "#dcfce7" : "#f3f4f6",
+                        color:   t.discount > 0 ? "#16a34a" : "#6b7280",
+                        "& .MuiChip-label": { px: 0.5 },
+                      }}
+                    />
+                  </Box>
+                  <Typography sx={{ fontSize: "0.76rem", color: t.discount > 0 ? "#16a34a" : "#374151", fontWeight: t.discount > 0 ? 600 : 400 }}>
+                    {t.discount > 0 ? `−₹${t.discount.toFixed(2)}` : "₹0.00"}
+                  </Typography>
+                </Box>
+                <Divider sx={{ my: 0.8 }} />
+                <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                  <Typography sx={{ fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>Grand Total</Typography>
+                  <Typography sx={{ fontSize: "0.9rem", fontWeight: 800, color: "#d32f2f" }}>
+                    ₹{t.grandTotal.toFixed(2)}
+                  </Typography>
+                </Box>
+              </>
+            );
+          })()}
+        </Box>
+      ) : null}
+
+      {/* ── Payment method: non-DineIn always, DineIn only on Summary tab with KOT data ── */}
+      {(!isDineIn || (isDineIn && activeTab === "summary" && orderSummary.length > 0)) && (
+        <Box sx={{ px: 1.5, py: 1, borderTop: "1px solid #f3f4f6", display: "flex", gap: 0.8, flexShrink: 0 }}>
+          {PAYMENT_METHODS.map((pm) => {
+            const active = order.paymentMethod === pm.key;
+            return (
+              <Box
+                key={pm.key}
+                onClick={() => onPaymentMethodChange(pm.key)}
                 sx={{
-                  height: 17,
-                  fontSize: "0.6rem",
-                  cursor: "pointer",
-                  bgcolor: totals.discount > 0 ? "#dcfce7" : "#f3f4f6",
-                  color: totals.discount > 0 ? "#16a34a" : "#6b7280",
-                  "& .MuiChip-label": { px: 0.5 },
+                  flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+                  gap: 0.5, py: 0.7, borderRadius: "8px",
+                  border:  active ? "1.5px solid #d32f2f" : "1.5px solid #e5e7eb",
+                  bgcolor: active ? "#fff5f5" : "#fff",
+                  color:   active ? "#d32f2f" : "#6b7280",
+                  cursor: "pointer", transition: "all 0.15s",
+                  "&:hover": { border: "1.5px solid #fca5a5", bgcolor: "#fef2f2" },
                 }}
-              />
-            </Box>
-            <Typography
-              sx={{
-                fontSize: "0.76rem",
-                color: totals.discount > 0 ? "#16a34a" : "#374151",
-                fontWeight: totals.discount > 0 ? 600 : 400,
-              }}
-            >
-              {totals.discount > 0 ? `−₹${totals.discount.toFixed(2)}` : "₹0.00"}
-            </Typography>
-          </Box>
-          <Divider sx={{ my: 0.8 }} />
-          <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-            <Typography sx={{ fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
-              Grand Total
-            </Typography>
-            <Typography sx={{ fontSize: "0.9rem", fontWeight: 800, color: "#d32f2f" }}>
-              ₹{totals.grandTotal.toFixed(2)}
-            </Typography>
-          </Box>
+              >
+                {pm.icon}
+                <Typography sx={{ fontSize: "0.68rem", fontWeight: active ? 700 : 400 }}>{pm.label}</Typography>
+              </Box>
+            );
+          })}
         </Box>
       )}
-
-      {/* ── Payment method ── */}
-      <Box
-        sx={{
-          px: 1.5,
-          py: 1,
-          borderTop: "1px solid #f3f4f6",
-          display: "flex",
-          gap: 0.8,
-          flexShrink: 0,
-        }}
-      >
-        {PAYMENT_METHODS.map((pm) => {
-          const active = order.paymentMethod === pm.key;
-          return (
-            <Box
-              key={pm.key}
-              onClick={() => onPaymentMethodChange(pm.key)}
-              sx={{
-                flex: 1,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 0.5,
-                py: 0.7,
-                borderRadius: "8px",
-                border: active ? "1.5px solid #d32f2f" : "1.5px solid #e5e7eb",
-                bgcolor: active ? "#fff5f5" : "#fff",
-                color: active ? "#d32f2f" : "#6b7280",
-                cursor: "pointer",
-                transition: "all 0.15s",
-                "&:hover": { border: "1.5px solid #fca5a5", bgcolor: "#fef2f2" },
-              }}
-            >
-              {pm.icon}
-              <Typography sx={{ fontSize: "0.68rem", fontWeight: active ? 700 : 400 }}>
-                {pm.label}
-              </Typography>
-            </Box>
-          );
-        })}
-      </Box>
 
       {/* ── Action buttons ── */}
       <Box
@@ -609,7 +563,7 @@ const OrderPanel: React.FC<Props> = ({
               : cartItems.length > 0
               ? `Pay ₹${totals.grandTotal.toFixed(2)}`
               : orderSummary.length > 0
-              ? `Pay ₹${summaryTotal.toFixed(2)}`
+              ? `Pay ₹${runningOrderTotals.grandTotal.toFixed(2)}`
               : "Pay"}
           </Button>
         )}

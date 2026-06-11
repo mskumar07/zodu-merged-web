@@ -1,4 +1,5 @@
 import { useMemo, useState, useRef, useCallback, useEffect } from "react";
+import LottieLoader from "@components/LottieLoader";
 import {
   Box, Typography, TextField, Button, IconButton,
   InputAdornment, Fab, CircularProgress,
@@ -290,6 +291,8 @@ export default function ExpenseScreen() {
     ],
     [setPaymentTarget]
   );
+
+  if (isLoading && summaryLoading) return <LottieLoader />;
 
   return (
     <ThemeProvider theme={theme}>

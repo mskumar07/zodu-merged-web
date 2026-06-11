@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import LottieLoader from "@components/LottieLoader";
 import {
   Box, Typography, TextField, Button, IconButton,
   InputAdornment, Chip, Tooltip, Fab, CircularProgress, Skeleton,
@@ -328,6 +329,8 @@ export default function PurchaseScreen() {
     ],
     [isDeleting]
   );
+
+  if (listLoading && statsLoading) return <LottieLoader />;
 
   return (
     <ThemeProvider theme={theme}>

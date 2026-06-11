@@ -2,6 +2,8 @@
  * SalesHistoryPage.tsx
  */
 import React, { useRef, useCallback, useEffect, useState } from "react";
+import Lottie from "lottie-react";
+import loadingAnimation from "@assets/loading.json";
 import { useInfiniteQuery, useQuery, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Box, Typography, Button, Stack,
@@ -16,7 +18,8 @@ import {
 } from "@mui/icons-material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import {
-  fetchHistory, fetchSummary, salesQueryKeys, deleteSale,
+  fetchHistory, fetchSummary, fetchRestaurantHistory, fetchRestaurantSummary,
+  salesQueryKeys, deleteSale,
   type Sale, type Filters,
 } from "./useSaleshistory";
 import { useTenantContext } from "@store/tenantContext";
@@ -183,9 +186,10 @@ const queryClient = new QueryClient();
 export default function SalesHistoryPage() {
   const navigate = useNavigate();
 
-  const { branchId } = useTenantContext();
-  const [draftFilters,   setDraftFilters]   = useState<Filters>({ search: "", payment_status: "", from_date: "", to_date: "" });
-  const [appliedFilters, setAppliedFilters] = useState<Filters>({ search: "", payment_status: "", from_date: "", to_date: "" });
+  const { branchId, businessType } = useTenantContext();
+  const isRestaurant = businessType?.toLowerCase() === "restaurant";
+  const [draftFilters,   setDraftFilters]   = useState<Filters>({ search: "", payment_status: "", from_date: "", to_date: "", order_type: "" });
+  const [appliedFilters, setAppliedFilters] = useState<Filters>({ search: "", payment_status: "", from_date: "", to_date: "", order_type: "" });
 
   const [invoiceDialog, setInvoiceDialog] = useState<string | null>(null);
   const [paymentDialog, setPaymentDialog] = useState<Sale   | null>(null);
@@ -197,14 +201,23 @@ export default function SalesHistoryPage() {
     data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, refetch,
   } = useInfiniteQuery({
     queryKey:         salesQueryKeys.history(branchId ?? '', appliedFilters),
-    queryFn:          ({ pageParam = 1 }) => fetchHistory(pageParam as number, appliedFilters),
+    queryFn:          ({ pageParam = 1 }) => isRestaurant
+      ? fetchRestaurantHistory(pageParam as number, appliedFilters)
+      : fetchHistory(pageParam as number, appliedFilters),
     initialPageParam: 1,
     getNextPageParam: (last) => last.page < last.total_pages ? last.page + 1 : undefined,
   });
 
-  const { data: summary } = useQuery({
-    queryKey: salesQueryKeys.summary(branchId ?? '', appliedFilters),
+  const { data: retailSummary } = useQuery({
+    queryKey: [...salesQueryKeys.summary(branchId ?? '', appliedFilters), "retail"],
     queryFn:  () => fetchSummary(appliedFilters),
+    enabled:  !isRestaurant,
+  });
+
+  const { data: restaurantSummary } = useQuery({
+    queryKey: [...salesQueryKeys.summary(branchId ?? '', appliedFilters), "restaurant"],
+    queryFn:  () => fetchRestaurantSummary(appliedFilters),
+    enabled:  isRestaurant,
   });
 
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
@@ -215,7 +228,7 @@ export default function SalesHistoryPage() {
   const columns = [
     {
       key: "sale_id",
-      label: "Invoice ID",
+      label: isRestaurant ? "Order ID" : "Invoice ID",
       width: 130,
       render: (sale: Sale) => (
         <Typography
@@ -223,7 +236,7 @@ export default function SalesHistoryPage() {
           sx={{ cursor: "pointer", fontSize: BODY_FONT_SIZE }}
           onClick={() => setInvoiceDialog(sale.sale_id)}
         >
-          {sale.sale_id}
+          {isRestaurant ? (sale.public_order_no ?? sale.sale_id) : sale.sale_id}
         </Typography>
       ),
     },
@@ -237,7 +250,7 @@ export default function SalesHistoryPage() {
         </Typography>
       ),
     },
-    {
+    ...(!isRestaurant ? [{
       key: "customer",
       label: "Customer",
       minWidth: 220,
@@ -252,7 +265,7 @@ export default function SalesHistoryPage() {
               {name.charAt(0).toUpperCase()}
             </Avatar>
             <Box>
-              <Typography  fontWeight={600} sx={{ fontSize: BODY_FONT_SIZE, color: TABLE_TEXT_COLOR }}>{name}</Typography>
+              <Typography fontWeight={600} sx={{ fontSize: BODY_FONT_SIZE, color: TABLE_TEXT_COLOR }}>{name}</Typography>
               {sale.customer_mobile && (
                 <Typography sx={{ fontSize: BODY_FONT_SIZE, color: TABLE_TEXT_COLOR }}>
                   {sale.customer_mobile}
@@ -262,27 +275,30 @@ export default function SalesHistoryPage() {
           </Stack>
         );
       },
-    },
+    }] : []),
     {
       key: "total",
       label: "Total",
       align: "right" as const,
       width: 170,
       render: (sale: Sale) => {
+        if (isRestaurant) {
+          return (
+            <Box textAlign="right">
+              <Typography variant="body2" fontWeight={700} sx={{ fontSize: BODY_FONT_SIZE, color: "#1976d2" }}>
+                {INR(Number(sale.total_amt ?? 0))}
+              </Typography>
+            </Box>
+          );
+        }
         const fullyReturned = isFullyReturnedSale(sale);
         const isQuotation = isQuotationSale(sale);
         const balance       = Number(sale.balance_amount);
         const totalReturned = Number(sale.total_returned ?? 0);
         const totalAmount   = Number(sale.total_amount);
         const adjustedTotal = totalAmount - totalReturned;
-        
         return (
           <Box textAlign="right">
-            {/* {totalReturned > 0 && (
-              <Typography variant="caption" sx={{ fontSize: "11px", color: "#94A3B8", textDecoration: "line-through" }}>
-                {INR(totalAmount)}
-              </Typography>
-            )} */}
             <Typography variant="body2" fontWeight={700} sx={{ fontSize: BODY_FONT_SIZE, color: "#1976d2" }}>
               {INR(adjustedTotal)}
             </Typography>
@@ -292,7 +308,6 @@ export default function SalesHistoryPage() {
                   Balance: {INR(balance)}
                 </Typography>
               )}
-              {/* ✅ Show how much has been returned — was never shown */}
               {totalReturned > 0 && (
                 <Typography variant="caption" sx={{ fontSize: "11px", color: "#7C3AED" }}>
                   Returned: {INR(totalReturned)}
@@ -308,9 +323,16 @@ export default function SalesHistoryPage() {
       label: "Payment",
       minWidth: 210,
       render: (sale: Sale) => {
+        if (isRestaurant) {
+          return (
+            <Typography variant="body2" sx={{ fontSize: BODY_FONT_SIZE, color: TABLE_TEXT_COLOR, fontWeight: 600 }}>
+              {sale.payment_type ?? "—"}
+            </Typography>
+          );
+        }
         const fullyReturned = isFullyReturnedSale(sale);
         const isQuotation = isQuotationSale(sale);
-        const status = fullyReturned ? "Returned":isQuotation? "Quotation" : mapStatus(sale.payment_status);
+        const status = fullyReturned ? "Returned" : isQuotation ? "Quotation" : mapStatus(sale.payment_status);
         const isReturned = status === "Returned" || status === "Partial Return";
         const returnCount = Number(sale.return_count ?? 0);
         return (
@@ -320,23 +342,17 @@ export default function SalesHistoryPage() {
                 <StatusBadge status={status} />
               </Box>
               <Box sx={{ width: 110 }}>
-                {/* ✅ Don't show "Mark as Paid" for returned/fully-returned/quotation sales */}
                 {status !== "Paid" && !isReturned && !isQuotation && (
                   <Button
                     size="small" variant="contained" color="primary" disableElevation
                     onClick={() => setPaymentDialog(sale)}
-                    sx={{
-                      fontSize: "0.65rem", py: 0.4, px: 1.5,
-                      height: 24, width: "100%",
-                      whiteSpace: "nowrap",
-                    }}
+                    sx={{ fontSize: "0.65rem", py: 0.4, px: 1.5, height: 24, width: "100%", whiteSpace: "nowrap" }}
                   >
                     Mark as Paid
                   </Button>
                 )}
               </Box>
             </Stack>
-            {/* ✅ Return summary chip */}
             {returnCount > 0 && sale.total_returned && (
               <ReturnChip count={returnCount} amount={sale.total_returned} />
             )}
@@ -344,6 +360,40 @@ export default function SalesHistoryPage() {
         );
       },
     },
+    ...(isRestaurant ? [{
+      key: "order_type",
+      label: "Order Type",
+      width: 130,
+      render: (sale: Sale) => {
+        const type = sale.order_type ?? "";
+        const styleMap: Record<string, { color: string; bg: string }> = {
+          "Dine-In":  { color: "#166534", bg: "#DCFCE7" },
+          "Takeaway": { color: "#155E75", bg: "#CFFAFE" },
+          "Delivery": { color: "#92400E", bg: "#FEF3C7" },
+        };
+        const style = styleMap[type];
+        if (!type || !style) {
+          return (
+            <Typography variant="body2" sx={{ fontSize: BODY_FONT_SIZE, color: TABLE_TEXT_COLOR }}>—</Typography>
+          );
+        }
+        return (
+          <Box
+            sx={{
+              display: "inline-block",
+              px: 1.2, py: 0.3,
+              borderRadius: "6px",
+              bgcolor: style.bg,
+              color: style.color,
+              fontWeight: 600,
+              fontSize: "12px",
+            }}
+          >
+            {type}
+          </Box>
+        );
+      },
+    }] : []),
     {
       key:"created at",
       label:"Created At",
@@ -415,6 +465,21 @@ export default function SalesHistoryPage() {
     },
   ];
 
+  if (isLoading) {
+    return (
+      <Box
+        sx={{
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Lottie animationData={loadingAnimation} loop style={{ width: 120, height: 120 }} />
+      </Box>
+    );
+  }
+
   return (
     <Box
       sx={{
@@ -430,33 +495,85 @@ export default function SalesHistoryPage() {
 
       {/* Summary cards */}
       <Grid container spacing={2}>
-        <Grid size="auto">
-          <StatCard
-            label="Total Transactions"
-            value={summary?.total_transactions ?? 0}
-            valuePrefix=""
-            icon={<ReceiptIcon color="primary" />}
-            iconBgColor="#FFEBEE"
-          />
-        </Grid>
-        <Grid size="auto">
-          <StatCard
-            label="Net Revenue"
-            value={INR(summary?.net_revenue ?? 0)}
-            valuePrefix=""
-            icon={<TrendingUpIcon color="success" />}
-            iconBgColor="#E8F5E9"
-          />
-        </Grid>
-        <Grid size="auto">
-          <StatCard
-            label="Total Quotations"
-            value={summary?.total_quotations ?? 0}
-            valuePrefix=""
-            icon={<ReceiptIcon sx={{ color: "#475569" }} />}
-            iconBgColor="#F1F5F9"
-          />
-        </Grid>
+        {isRestaurant ? (
+          <>
+            <Grid size="auto">
+              <StatCard
+                label="Total Orders"
+                value={restaurantSummary?.total_orders ?? 0}
+                valuePrefix=""
+                icon={<ReceiptIcon color="primary" />}
+                iconBgColor="#FFEBEE"
+              />
+            </Grid>
+            <Grid size="auto">
+              <StatCard
+                label="Total Amount"
+                value={INR(restaurantSummary?.subtotal ?? 0)}
+                valuePrefix=""
+                icon={<TrendingUpIcon sx={{ color: "#F57C00" }} />}
+                iconBgColor="#FFF3E0"
+              />
+            </Grid>
+            <Grid size="auto">
+              <StatCard
+                label="Total Tax"
+                value={INR(restaurantSummary?.total_tax ?? 0)}
+                valuePrefix=""
+                icon={<ReceiptIcon sx={{ color: "#475569" }} />}
+                iconBgColor="#F1F5F9"
+              />
+            </Grid>
+            <Grid size="auto">
+              <StatCard
+                label="Total Discount"
+                value={INR(restaurantSummary?.total_discount ?? 0)}
+                valuePrefix=""
+                icon={<TrendingUpIcon sx={{ color: "#F57C00" }} />}
+                iconBgColor="#FFF3E0"
+              />
+            </Grid>
+            <Grid size="auto">
+              <StatCard
+                label="Net Revenue"
+                value={INR(restaurantSummary?.total_revenue ?? 0)}
+                valuePrefix=""
+                icon={<TrendingUpIcon color="success" />}
+                iconBgColor="#E8F5E9"
+              />
+            </Grid>
+          </>
+        ) : (
+          <>
+            <Grid size="auto">
+              <StatCard
+                label="Total Transactions"
+                value={retailSummary?.total_transactions ?? 0}
+                valuePrefix=""
+                icon={<ReceiptIcon color="primary" />}
+                iconBgColor="#FFEBEE"
+              />
+            </Grid>
+            <Grid size="auto">
+              <StatCard
+                label="Net Revenue"
+                value={INR(retailSummary?.net_revenue ?? 0)}
+                valuePrefix=""
+                icon={<TrendingUpIcon color="success" />}
+                iconBgColor="#E8F5E9"
+              />
+            </Grid>
+            <Grid size="auto">
+              <StatCard
+                label="Total Quotations"
+                value={retailSummary?.total_quotations ?? 0}
+                valuePrefix=""
+                icon={<ReceiptIcon sx={{ color: "#475569" }} />}
+                iconBgColor="#F1F5F9"
+              />
+            </Grid>
+          </>
+        )}
       </Grid>
 
       {/* Filter bar */}
@@ -464,10 +581,10 @@ export default function SalesHistoryPage() {
         <Stack direction={{ xs: "column", sm: "row" }} gap={2} alignItems="flex-end">
           <Box sx={{ flex: 1.2 }}>
             <Typography variant="caption" fontWeight={600} color="text.secondary" display="block" mb={0.6}>
-              Search Customer
+              {isRestaurant ? "Search" : "Search Customer"}
             </Typography>
             <TextField
-              placeholder="Invoice ID or Customer name or mobile"
+              placeholder={isRestaurant ? "Order ID" : "Invoice ID or Customer name or mobile"}
               size="small" fullWidth
               value={draftFilters.search}
               sx={{ backgroundColor: "#fff" }}
@@ -494,42 +611,71 @@ export default function SalesHistoryPage() {
               onChange={e => setDraftFilters(f => ({ ...f, to_date: e.target.value }))} />
           </Box>
           <Box sx={{ flex: 0.5, minWidth: 140 }}>
-            <Typography variant="caption" fontWeight={600} color="text.secondary" display="block" mb={0.6}>Status</Typography>
+            <Typography variant="caption" fontWeight={600} color="text.secondary" display="block" mb={0.6}>
+              {isRestaurant ? "Order Type" : "Status"}
+            </Typography>
             <FormControl size="small" fullWidth>
-              <Select
-                value={draftFilters.payment_status}
-                displayEmpty
-                sx={{ borderRadius: 0.5, backgroundColor: "#fff" }}
-                renderValue={(selected) => {
-                  if (!selected)                return "All Status";
-                  if (selected === "fully_paid")     return "Paid";
-                  if (selected === "partially_paid") return "Partial";
-                  if (selected === "unpaid")         return "Unpaid";
-                  if (selected === "returned")       return "Returned";
-                  if (selected === "partial_return") return "Partial Return";
-                  return selected;
-                }}
-                onChange={e => setDraftFilters(f => ({ ...f, payment_status: e.target.value }))}
-              >
-                <MenuItem value="">All Status</MenuItem>
-                <MenuItem value="fully_paid">Paid</MenuItem>
-                <MenuItem value="partially_paid">Partial</MenuItem>
-                <MenuItem value="unpaid">Unpaid</MenuItem>
-                {/* ✅ New statuses now filterable */}
-                <MenuItem value="returned">Returned</MenuItem>
-                <MenuItem value="partial_return">Partial Return</MenuItem>
-              </Select>
+              {isRestaurant ? (
+                <Select
+                  value={draftFilters.order_type ?? ""}
+                  displayEmpty
+                  sx={{ borderRadius: 0.5, backgroundColor: "#fff" }}
+                  renderValue={(selected) => selected || "All Types"}
+                  onChange={e => setDraftFilters(f => ({ ...f, order_type: e.target.value }))}
+                >
+                  <MenuItem value="">All Types</MenuItem>
+                  <MenuItem value="Dine-In">Dine-In</MenuItem>
+                  <MenuItem value="Delivery">Delivery</MenuItem>
+                  <MenuItem value="Takeaway">Takeaway</MenuItem>
+                </Select>
+              ) : (
+                <Select
+                  value={draftFilters.payment_status}
+                  displayEmpty
+                  sx={{ borderRadius: 0.5, backgroundColor: "#fff" }}
+                  renderValue={(selected) => {
+                    if (!selected)                     return "All Status";
+                    if (selected === "fully_paid")     return "Paid";
+                    if (selected === "partially_paid") return "Partial";
+                    if (selected === "unpaid")         return "Unpaid";
+                    if (selected === "returned")       return "Returned";
+                    if (selected === "partial_return") return "Partial Return";
+                    return selected;
+                  }}
+                  onChange={e => setDraftFilters(f => ({ ...f, payment_status: e.target.value }))}
+                >
+                  <MenuItem value="">All Status</MenuItem>
+                  <MenuItem value="fully_paid">Paid</MenuItem>
+                  <MenuItem value="partially_paid">Partial</MenuItem>
+                  <MenuItem value="unpaid">Unpaid</MenuItem>
+                  <MenuItem value="returned">Returned</MenuItem>
+                  <MenuItem value="partial_return">Partial Return</MenuItem>
+                </Select>
+              )}
             </FormControl>
           </Box>
           <Box>
             <Typography variant="caption" color="transparent" display="block" mb={0.6} sx={{ userSelect: "none" }}>&nbsp;</Typography>
-            <Button
-              variant="contained" color="primary" disableElevation size="medium"
-              sx={{ px: 3.5, height: 40 }}
-              onClick={() => setAppliedFilters({ ...draftFilters })}
-            >
-              Apply
-            </Button>
+            <Stack direction="row" gap={1}>
+              <Button
+                variant="contained" color="primary" disableElevation size="medium"
+                sx={{ px: 3.5, height: 40 }}
+                onClick={() => setAppliedFilters({ ...draftFilters })}
+              >
+                Apply
+              </Button>
+              <Button
+                variant="outlined" color="inherit" size="medium"
+                sx={{ px: 2, height: 40, borderColor: "#D1D5DB", color: "#6B7280", "&:hover": { borderColor: "#9CA3AF", bgcolor: "#F9FAFB" } }}
+                onClick={() => {
+                  const empty = { search: "", payment_status: "", from_date: "", to_date: "", order_type: "" };
+                  setDraftFilters(empty);
+                  setAppliedFilters(empty);
+                }}
+              >
+                Reset
+              </Button>
+            </Stack>
           </Box>
         </Stack>
       </Box>

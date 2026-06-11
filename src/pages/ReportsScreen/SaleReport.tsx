@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import LottieLoader from "@components/LottieLoader";
 import { Box, Button, Card, Grid, Paper, Skeleton, Typography } from "@mui/material";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
@@ -358,6 +359,8 @@ const SalesReport = () => {
     ],
     [],
   );
+
+  if (summaryLoading) return <LottieLoader />;
 
   return (
     <Box

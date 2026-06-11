@@ -62,6 +62,18 @@ export interface Sale {
   customer_city:          string | null;
   customer_state:         string | null;
 
+  // return aggregates (joined from return history)
+  total_returned?:     string | null;
+  return_count?:       number | null;
+
+  // restaurant-specific fields
+  api_order_id?:       string | null;
+  public_order_no?:    string | null;
+  order_type?:         string | null;
+  table_no?:           string | null;
+  total_amt?:          string | null;
+  payment_type?:       string | null;
+
   // latest payment fields (joined from tbl_sale_payment)
   payment_row_id:          number | null;
   payment_uuid:            string | null;
@@ -188,6 +200,7 @@ export interface Filters {
   payment_status: string;
   from_date:      string;
   to_date:        string;
+  order_type?:    string;   // restaurant only: Dine-In | Delivery | Takeaway
 }
 
 /** Payload for POST /api/sales/:sale_id/payment */
@@ -313,6 +326,15 @@ export interface SalesSummary {
   total_quotations:   number;
 }
 
+export interface RestaurantSalesSummary {
+  success:         boolean;
+  total_orders: number;
+  subtotal:       number;
+  total_revenue:   number;
+  total_tax:       number;
+  total_discount:  number;
+}
+
 /**
  * GET /api/sales/history/summary — card totals, respects the same filters.
  */
@@ -329,6 +351,52 @@ export async function fetchSummary(filters: Filters): Promise<SalesSummary> {
 
   const { data } = await axios.get<SalesSummary>(
     `${API_BASE}/retail/api/sales/history/summary`,
+    { params }
+  );
+  return data;
+}
+
+/**
+ * GET /restaurant/api/sales/history — paginated + filtered sales list for Restaurant.
+ */
+export async function fetchRestaurantHistory(page: number, filters: Filters): Promise<HistoryPage> {
+  const { zoduId, branchId } = getTenantContext();
+  const params: Record<string, string> = {
+    zodu_id:   zoduId,
+    branch_id: branchId,
+    page:      String(page),
+    limit:     "20",
+  };
+  if (filters.payment_status) params.payment_status = filters.payment_status;
+  if (filters.from_date)      params.from_date       = filters.from_date;
+  if (filters.to_date)        params.to_date         = filters.to_date;
+  if (filters.search)         params.search          = filters.search;
+  if (filters.order_type)     params.order_type      = filters.order_type;
+
+  const { data } = await axios.get<HistoryPage>(
+    `${API_BASE}/restaurant/api/sales/history`,
+    { params }
+  );
+  return data;
+}
+
+/**
+ * GET /restaurant/api/sales/history/summary — card totals for Restaurant.
+ */
+export async function fetchRestaurantSummary(filters: Filters): Promise<RestaurantSalesSummary> {
+  const { zoduId, branchId } = getTenantContext();
+  const params: Record<string, string> = {
+    zodu_id:   zoduId,
+    branch_id: branchId,
+  };
+  if (filters.payment_status) params.payment_status = filters.payment_status;
+  if (filters.from_date)      params.from_date       = filters.from_date;
+  if (filters.to_date)        params.to_date         = filters.to_date;
+  if (filters.search)         params.search          = filters.search;
+  if (filters.order_type)     params.order_type      = filters.order_type;
+
+  const { data } = await axios.get<RestaurantSalesSummary>(
+    `${API_BASE}/restaurant/api/sales/history/summary`,
     { params }
   );
   return data;

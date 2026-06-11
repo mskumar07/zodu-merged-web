@@ -28,6 +28,7 @@
     "fuse.js": "^7.1.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
+    "lottie-react": "^2.4.1",
     "path": "^0.12.7",
     "react": "^19.1.0",
     "react-barcode": "^1.6.1",

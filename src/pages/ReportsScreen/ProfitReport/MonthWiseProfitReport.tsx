@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
+import LottieLoader from "@components/LottieLoader";
 import {
   Box, Grid, MenuItem, Paper, Select, Skeleton, Typography,
 } from "@mui/material";
@@ -198,6 +199,8 @@ const MonthWiseProfitReport: React.FC = () => {
       ),
     },
   ], [isRestaurant]);
+
+  if (isLoading) return <LottieLoader />;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", p: { xs: 1, md: 1 }, background: "#fff", gap: 1.5 }}>
