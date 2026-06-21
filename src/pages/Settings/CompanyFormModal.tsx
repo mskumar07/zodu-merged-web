@@ -25,6 +25,8 @@ import DomainAddRoundedIcon from "@mui/icons-material/DomainAddRounded";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import SearchIcon from "@mui/icons-material/Search";
 import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
+import StorefrontIcon from "@mui/icons-material/Storefront";
+import RestaurantMenuIcon from "@mui/icons-material/RestaurantMenu";
 import type { CompanyDetails, CompanyWithBranches } from "@pages/auth/Authapi";
 
 const theme = createTheme({
@@ -92,6 +94,7 @@ const INDIAN_STATES = [
 ];
 
 export interface BusinessFormData {
+  type: string;
   restaurant_name: string;
   owner_admin_name: string;
   phone_number: string;
@@ -121,6 +124,7 @@ export type CompanyFormInitialData = Partial<
 >;
 
 const EMPTY_FORM: BusinessFormData = {
+  type: "Retail",
   restaurant_name: "",
   owner_admin_name: "",
   phone_number: "",
@@ -191,6 +195,7 @@ export default function BusinessFormModal({
 
     if (business) {
       setForm({
+        type: (business as any).type ?? "Retail",
         restaurant_name: business.restaurant_name ?? "",
         owner_admin_name: business.owner_admin_name ?? "",
         phone_number: business.phone_number ?? business.mobile_no ?? "",
@@ -286,6 +291,41 @@ export default function BusinessFormModal({
                 Basic Details
               </Typography>
               <Grid container spacing={2.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>Business Type *</FieldLabel>
+                  <FormControl size="small" sx={{ ...inputSx, width: 220 }}>
+                    <Select
+                      value={form.type}
+                      onChange={(e) =>
+                        setForm((prev) => ({ ...prev, type: e.target.value }))
+                      }
+                      renderValue={(value) => (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          {value === "Retail" ? (
+                            <StorefrontIcon sx={{ fontSize: 16, color: "#af101a" }} />
+                          ) : (
+                            <RestaurantMenuIcon sx={{ fontSize: 16, color: "#6B7280" }} />
+                          )}
+                          <Typography sx={{ fontSize: 13, color: "#0F172A" }}>{value}</Typography>
+                        </Box>
+                      )}
+                      sx={{ bgcolor: "#F8FAFC", fontSize: 13, borderRadius: "8px" }}
+                    >
+                      <MenuItem value="Retail" sx={{ fontSize: 13 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <StorefrontIcon sx={{ fontSize: 16, color: "#af101a" }} />
+                          Retail
+                        </Box>
+                      </MenuItem>
+                      <MenuItem value="Restaurant" sx={{ fontSize: 13 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <RestaurantMenuIcon sx={{ fontSize: 16, color: "#6B7280" }} />
+                          Restaurant
+                        </Box>
+                      </MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
                 <Grid size={{ xs: 12 }}>
                   <FieldLabel>Restaurant / Business Name *</FieldLabel>
                   <TextField

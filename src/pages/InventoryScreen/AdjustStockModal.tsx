@@ -72,6 +72,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
   const [adjustmentQuantity, setAdjustmentQuantity] = useState('');
   const [reason,             setReason]             = useState('');
   const [notes,              setNotes]              = useState('');
+  const [stockAlert,         setStockAlert]         = useState('');
   const [apiError,           setApiError]           = useState<string | null>(null);
   const [successMsg,         setSuccessMsg]         = useState("");
 
@@ -87,6 +88,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
   useEffect(() => {
     if (open && preselectedItem) {
       setSelectedUuid(preselectedItem.inventory_uuid);
+      setStockAlert(preselectedItem.reorder_level ?? '');
     }
   }, [open, preselectedItem]);
 
@@ -98,6 +100,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
       setAdjustmentQuantity('');
       setReason('');
       setNotes('');
+      setStockAlert('');
       setApiError(null);
     }
   }, [open, preselectedItem]);
@@ -115,9 +118,12 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
   ) => { if (val !== null) setAdjustmentType(val); };
 
   const handleItemChange = (e: SelectChangeEvent) => {
-    setSelectedUuid(e.target.value);
+    const uuid = e.target.value;
+    setSelectedUuid(uuid);
     setAdjustmentQuantity('');
     setApiError(null);
+    const item = inventoryItems.find(i => i.inventory_uuid === uuid);
+    if (item) setStockAlert(item.reorder_level ?? '');
   };
 
   const handleReasonChange = (e: SelectChangeEvent) => setReason(e.target.value);
@@ -141,7 +147,8 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
       adjustment_type: adjustmentType,
       adjustment_qty:  parsedAdjustmentQuantity,
       reason,
-      notes: notes || undefined,
+      notes:       notes || undefined,
+      stock_alert: stockAlert !== '' ? Number(stockAlert) : undefined,
     });
   };
 
@@ -384,9 +391,36 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
               </FormControl>
             </Box>
 
-            {/* Row 3: New Stock Level Preview */}
+            {/* Row 3: Stock Alert & New Stock Level Preview */}
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5, mt: -0.5 }}>
-              <Box />
+              <FormControl fullWidth>
+                <Typography variant="body2" fontWeight={600} sx={{ mb: 1, fontSize: '0.92rem', color: '#475569' }}>
+                  Stock Alert
+                </Typography>
+                <TextField
+                  type="number"
+                  value={stockAlert}
+                  onChange={(e) => setStockAlert(e.target.value)}
+                  placeholder="Enter stock alert level"
+                  inputProps={{ min: 0 }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '5px',
+                      minHeight: 40,
+                      '& .MuiOutlinedInput-notchedOutline': { borderColor: '#dbe3ef' },
+                      '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e1' },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'primary.main', borderWidth: 2,
+                      },
+                    },
+                    '& .MuiInputBase-input': { py: 1.1 },
+                    '& input[type=number]': { MozAppearance: 'textfield' },
+                    '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                      WebkitAppearance: 'none', margin: 0,
+                    },
+                  }}
+                />
+              </FormControl>
               <Box>
                 <Typography variant="body2" fontWeight={600} sx={{ mb: 1, fontSize: '0.92rem', color: '#475569' }}>
                   New Stock Level Preview

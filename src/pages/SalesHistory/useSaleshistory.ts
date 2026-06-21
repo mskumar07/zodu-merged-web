@@ -42,8 +42,9 @@ export interface Sale {
   total_amount:    string;
   paid_amount:     string;
   balance_amount:  string;
-  payment_status:  "fully_paid" | "partially_paid" | "unpaid";
+  payment_status:  "fully_paid" | "partially_paid" | "unpaid" | boolean;
   notes:           string | null;
+  round_off?:      string | number | null;
 
   // formatted dates from TO_CHAR
   sale_date_fmt:   string;
@@ -69,10 +70,13 @@ export interface Sale {
   // restaurant-specific fields
   api_order_id?:       string | null;
   public_order_no?:    string | null;
+  cancelled_order?:    boolean | null;
   order_type?:         string | null;
   table_no?:           string | null;
+  no_of_items?:        number | null;
   total_amt?:          string | null;
   payment_type?:       string | null;
+  items?:              Array<{ item_id: string; qty: number }> | null;
 
   // latest payment fields (joined from tbl_sale_payment)
   payment_row_id:          number | null;
@@ -178,12 +182,23 @@ export interface SaleCustomer {
   pincode:        string | null;
 }
 
+export interface HsnWiseTax {
+  hsn_code:      string;
+  taxable_value: string;
+  cgst_percent:  string;
+  cgst_amount:   string;
+  sgst_percent:  string;
+  sgst_amount:   string;
+  total_tax:     string;
+}
+
 export interface SaleDetail {
   sale:            Sale;
-  customer:        SaleCustomer | null;   // null = walk-in
+  customer:        SaleCustomer | null;
   items:           SaleItem[];
   payment_history: PaymentHistoryRow[];
   return_history:  SaleReturnHistoryRow[];
+  hsn_wise_tax?:   HsnWiseTax[];
 }
 
 export interface HistoryPage {
@@ -196,11 +211,12 @@ export interface HistoryPage {
 }
 
 export interface Filters {
-  search:         string;   // searches customer name / mobile
-  payment_status: string;
-  from_date:      string;
-  to_date:        string;
-  order_type?:    string;   // restaurant only: Dine-In | Delivery | Takeaway
+  search:           string;   // searches customer name / mobile
+  payment_status:   string;
+  from_date:        string;
+  to_date:          string;
+  order_type?:      string;   // restaurant only: Dine-In | Delivery | Takeaway
+  cancelled_order?: boolean;  // restaurant only: true = cancelled tab, false = orders tab
 }
 
 /** Payload for POST /api/sales/:sale_id/payment */
@@ -260,8 +276,8 @@ export interface CreateSaleReturnResponse {
 export async function fetchHistory(page: number, filters: Filters): Promise<HistoryPage> {
   const { zoduId, branchId } = getTenantContext();
   const params: Record<string, string> = {
-    zodu_id:   zoduId,
-    branch_id: branchId,
+    zodu_id:   zoduId!,
+    branch_id: branchId!,
     page:      String(page),
     limit:     "20",
   };
@@ -279,7 +295,7 @@ export async function fetchHistory(page: number, filters: Filters): Promise<Hist
 }
 
 /**
- * GET /api/sales/:sale_id — full sale detail.
+ * GET /retail/api/sales/:sale_id — full sale detail (retail).
  */
 export async function fetchSaleDetail(sale_id: string): Promise<SaleDetail> {
   const { zoduId, branchId } = getTenantContext();
@@ -288,6 +304,18 @@ export async function fetchSaleDetail(sale_id: string): Promise<SaleDetail> {
     { params: { zodu_id: zoduId, branch_id: branchId } }
   );
   console.log(data)
+  return data.data;
+}
+
+/**
+ * GET /restaurant/api/sales/:sale_id — full sale detail (restaurant).
+ */
+export async function fetchRestaurantSaleDetail(sale_id: string): Promise<SaleDetail> {
+  const { zoduId, branchId } = getTenantContext();
+  const { data } = await axios.get<{ success: boolean; data: SaleDetail }>(
+    `${API_BASE}/restaurant/api/sales/data/get/${sale_id}`,
+    { params: { zodu_id: zoduId, branch_id: branchId } }
+  );
   return data.data;
 }
 
@@ -341,8 +369,8 @@ export interface RestaurantSalesSummary {
 export async function fetchSummary(filters: Filters): Promise<SalesSummary> {
   const { zoduId, branchId } = getTenantContext();
   const params: Record<string, string> = {
-    zodu_id:   zoduId,
-    branch_id: branchId,
+    zodu_id:   zoduId!,
+    branch_id: branchId!,
   };
   if (filters.payment_status) params.payment_status = filters.payment_status;
   if (filters.from_date)      params.from_date       = filters.from_date;
@@ -362,16 +390,17 @@ export async function fetchSummary(filters: Filters): Promise<SalesSummary> {
 export async function fetchRestaurantHistory(page: number, filters: Filters): Promise<HistoryPage> {
   const { zoduId, branchId } = getTenantContext();
   const params: Record<string, string> = {
-    zodu_id:   zoduId,
-    branch_id: branchId,
+    zodu_id:   zoduId!,
+    branch_id: branchId!,
     page:      String(page),
     limit:     "20",
   };
-  if (filters.payment_status) params.payment_status = filters.payment_status;
-  if (filters.from_date)      params.from_date       = filters.from_date;
-  if (filters.to_date)        params.to_date         = filters.to_date;
-  if (filters.search)         params.search          = filters.search;
-  if (filters.order_type)     params.order_type      = filters.order_type;
+  if (filters.payment_status)              params.payment_status  = filters.payment_status;
+  if (filters.from_date)                   params.from_date        = filters.from_date;
+  if (filters.to_date)                     params.to_date          = filters.to_date;
+  if (filters.search)                      params.search           = filters.search;
+  if (filters.order_type)                  params.order_type       = filters.order_type;
+  if (filters.cancelled_order !== undefined) params.cancelled_order = String(filters.cancelled_order);
 
   const { data } = await axios.get<HistoryPage>(
     `${API_BASE}/restaurant/api/sales/history`,
@@ -386,14 +415,15 @@ export async function fetchRestaurantHistory(page: number, filters: Filters): Pr
 export async function fetchRestaurantSummary(filters: Filters): Promise<RestaurantSalesSummary> {
   const { zoduId, branchId } = getTenantContext();
   const params: Record<string, string> = {
-    zodu_id:   zoduId,
-    branch_id: branchId,
+    zodu_id:   zoduId!,
+    branch_id: branchId!,
   };
   if (filters.payment_status) params.payment_status = filters.payment_status;
   if (filters.from_date)      params.from_date       = filters.from_date;
   if (filters.to_date)        params.to_date         = filters.to_date;
-  if (filters.search)         params.search          = filters.search;
-  if (filters.order_type)     params.order_type      = filters.order_type;
+  if (filters.search)                        params.search           = filters.search;
+  if (filters.order_type)                    params.order_type       = filters.order_type;
+  if (filters.cancelled_order !== undefined) params.cancelled_order  = String(filters.cancelled_order);
 
   const { data } = await axios.get<RestaurantSalesSummary>(
     `${API_BASE}/restaurant/api/sales/history/summary`,
@@ -413,17 +443,21 @@ export const salesQueryKeys = {
 
 
 
-export async function deleteSale(sale_id: string): Promise<{ success: boolean; message: string }> {
+export async function deleteSale(
+  sale_id: string,
+  isRestaurant = false,
+  items?: Array<{ item_id: string; qty: number }> | null,
+): Promise<{ success: boolean; message: string }> {
   const { zoduId, branchId } = getTenantContext();
+  const base = isRestaurant ? "restaurant" : "retail";
+
+  const params = { zodu_id: zoduId, branch_id: branchId };
+
+  const body = isRestaurant && items && items.length > 0 ? { items } : undefined;
 
   const { data } = await axios.delete(
-    `${API_BASE}/retail/api/sales/${sale_id}`,
-    {
-      params: {
-        zodu_id: zoduId,
-        branch_id: branchId,
-      },
-    }
+    `${API_BASE}/${base}/api/sales/${sale_id}`,
+    { params, data: body },
   );
 
   return data;

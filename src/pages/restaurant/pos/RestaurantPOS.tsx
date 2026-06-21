@@ -46,7 +46,6 @@ import TableModal           from "./components/modals/TableModal";
 import VariantModal         from "./components/modals/VariantModal";
 import DiscountModal        from "./components/modals/DiscountModal";
 import CustomerModal, { type CustomerFormData } from "./components/modals/CustomerModal";
-import { getTenantContext } from "@store/tenantContext";
 import { useNavigate } from "react-router-dom";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -128,6 +127,7 @@ const RestaurantPOS: React.FC = () => {
   const [runningOrderSummary, setRunningOrderSummary] = useState<RunningOrderOrderedItem[]>([]);
   const [runningOrderTotal,   setRunningOrderTotal  ] = useState<number>(0);
   const [variantItem,  setVariantItem ] = useState<RestaurantMenuItem | null>(null);
+
 
   // ── Auto-scroll refs ─────────────────────────────────────────────────────
   const menuScrollRef    = useRef<HTMLDivElement>(null);
@@ -563,12 +563,12 @@ const RestaurantPOS: React.FC = () => {
     const menuItemMap = new Map(
       categories.flatMap((cat) => cat.items.map((item) => [item.menu_id, item]))
     );
-    const enrichedItems = ro.ordered_items.map((item) => {
+    const enrichedItems: RunningOrderOrderedItem[] = ro.ordered_items.map((item) => {
       const menuItem = menuItemMap.get(item.item_id);
       return {
         ...item,
-        gst_tax:                menuItem?.gst_tax              ?? null,
-        tax_include_or_exclude: menuItem?.tax_include_or_exclude ?? null,
+        gst_tax:                menuItem?.gst_tax              ?? undefined,
+        tax_include_or_exclude: menuItem?.tax_include_or_exclude ?? undefined,
       };
     });
 
@@ -690,7 +690,7 @@ const RestaurantPOS: React.FC = () => {
         {/* Back + Title */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Box
-            onClick={() => navigate("/restaurant-menu")}
+            onClick={() => navigate("/sales-history")}
             sx={{
               display: "flex",
               alignItems: "center",

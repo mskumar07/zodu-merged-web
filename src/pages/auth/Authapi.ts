@@ -131,6 +131,7 @@ export interface CompanyDetails {
 }
 
 export interface CreateCompanyPayload {
+  type?: string;
   restaurant_name: string;
   owner_admin_name?: string;
   gst_no?: string;
@@ -190,6 +191,7 @@ export interface CreateBranchPayload {
 }
 
 export interface EditCompanyPayload {
+  type?: string;
   restaurant_name?: string;
   owner_admin_name?: string;
   gst_no?: string;

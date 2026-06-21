@@ -96,6 +96,7 @@ export interface AdjustStockPayload {
   adjustment_qty:  number;
   reason:          string;
   notes?:          string;
+  stock_alert?:    number;
 }
 
 export interface AdjustStockResponse {
@@ -378,10 +379,11 @@ async function fetchStockHistory(item_uuid: string): Promise<StockHistoryRespons
   const url = businessType === 'Restaurant'
     ? `/inventory/stock/history/${item_uuid}`
     : `/menu/stock/history/${item_uuid}`;
-  const { data } = await getApi().get<{ success: boolean; data: StockHistoryResponse }>(url, {
+  const { data } = await getApi().get<StockHistoryResponse | { success: boolean; data: StockHistoryResponse }>(url, {
     params: { zodu_id: zoduId, branch_id: branchId },
   });
-  return data.data;
+  // Restaurant returns the payload at the top level; Retail wraps it under { data: ... }
+  return ('item' in data ? data : (data as { data: StockHistoryResponse }).data) as StockHistoryResponse;
 }
 
 // ─── Hook ─────────────────────────────────────────

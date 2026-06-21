@@ -36,6 +36,7 @@ import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
 import RestaurantMenuIcon from "@mui/icons-material/RestaurantMenu";
 import FilterListIcon from "@mui/icons-material/FilterList";
+import FilterListOffIcon from "@mui/icons-material/FilterListOff";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import PercentIcon from "@mui/icons-material/Percent";
@@ -308,13 +309,15 @@ const ItemDetailDialog: React.FC<{
             value={<Box component="span" sx={{ color: "#1d4ed8" }}>{gst > 0 ? `${gst}%` : "—"}</Box>}
             sub={item.tax_include_or_exclude ? "Inclusive" : "Exclusive"}
           />
-          <InfoStatCard
-            iconBg="#ede9fe"
-            icon={<Inventory2Icon sx={{ fontSize: 17, color: "#7c3aed" }} />}
-            label="Stock Qty"
-            value={item.stock_qty ?? "—"}
-            sub={`Alert at ${item.alert_stock ?? item.stock_alert ?? "—"}`}
-          />
+          {item.menu_type !== "Food" && (
+            <InfoStatCard
+              iconBg="#ede9fe"
+              icon={<Inventory2Icon sx={{ fontSize: 17, color: "#7c3aed" }} />}
+              label="Stock Qty"
+              value={item.stock_qty != null ? parseInt(String(item.stock_qty), 10) : "—"}
+              sub={`Alert at ${item.alert_stock != null ? parseInt(String(item.alert_stock), 10) : item.stock_alert != null ? parseInt(String(item.stock_alert), 10) : "—"}`}
+            />
+          )}
           <InfoStatCard
             iconBg="#dcfce7"
             icon={<CurrencyRupeeIcon sx={{ fontSize: 17, color: "#16a34a" }} />}
@@ -593,7 +596,10 @@ const RestaurantMenuList: React.FC = () => {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError, refetch } =
     useInfiniteRestaurantMenu(zoduId, branchId, debouncedSearch, menuType, categoryIdsParam);
 
-  const categoryTypes = (activeTab === "all" || activeTab === "Category") ? undefined : [activeTab];
+  const categoryTypes =
+    activeTab === "food" ? ["F"] :
+    activeTab === "product" ? ["P"] :
+    undefined;
   const {
     data: categoryPagesData,
     fetchNextPage: fetchNextCategoryPage,
@@ -938,62 +944,89 @@ const RestaurantMenuList: React.FC = () => {
             />
 
             {/* Category filter */}
-            <FormControl size="small" sx={{ minWidth: isMobile ? "100%" : 220 }}>
-              <Select
-                multiple
-                value={selectedCategoryIds}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setSelectedCategoryIds(typeof val === "string" ? [] : (val as number[]));
-                }}
-                displayEmpty
-                renderValue={(selected) => {
-                  const sel = selected as number[];
-                  if (sel.length === 0) {
-                    return <Box component="span" sx={{ color: "text.disabled", fontSize: 13 }}>All Categories</Box>;
-                  }
-                  if (sel.length === 1) {
-                    const name = categories.find((c) => c.id === sel[0])?.name ?? String(sel[0]);
-                    return <Typography noWrap sx={{ fontSize: 13 }}>{name}</Typography>;
-                  }
-                  return <Typography noWrap sx={{ fontSize: 13 }}>{sel.length} categories selected</Typography>;
-                }}
-                startAdornment={<FilterListIcon sx={{ fontSize: 16, color: "#9ca3af", mr: 0.5 }} />}
-                input={<OutlinedInput sx={{ borderRadius: 0.5, fontSize: 13, bgcolor: "#fff" }} />}
-                MenuProps={{
-                  PaperProps: {
-                    onScroll: handleCategoryDropdownScroll,
-                    sx: { maxHeight: 280 },
-                  },
-                }}
-                sx={{ borderRadius: 0.5, fontSize: 13, bgcolor: "#fff" }}
-              >
-                {selectedCategoryIds.length > 0 && (
-                  <MenuItem
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <FormControl size="small" sx={{ minWidth: isMobile ? "100%" : 220 }}>
+                <Select
+                  multiple
+                  value={selectedCategoryIds}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSelectedCategoryIds(typeof val === "string" ? [] : (val as number[]));
+                  }}
+                  displayEmpty
+                  renderValue={(selected) => {
+                    const sel = selected as number[];
+                    if (sel.length === 0) {
+                      return <Box component="span" sx={{ color: "text.disabled", fontSize: 13 }}>All Categories</Box>;
+                    }
+                    if (sel.length === 1) {
+                      const name = categories.find((c) => c.id === sel[0])?.name ?? String(sel[0]);
+                      return <Typography noWrap sx={{ fontSize: 13 }}>{name}</Typography>;
+                    }
+                    return <Typography noWrap sx={{ fontSize: 13 }}>{sel.length} categories selected</Typography>;
+                  }}
+                  startAdornment={<FilterListIcon sx={{ fontSize: 16, color: "#9ca3af", mr: 0.5 }} />}
+                  input={<OutlinedInput sx={{ borderRadius: 0.5, fontSize: 13, bgcolor: "#fff" }} />}
+                  MenuProps={{
+                    PaperProps: {
+                      onScroll: handleCategoryDropdownScroll,
+                      sx: { maxHeight: 280 },
+                    },
+                  }}
+                  sx={{ borderRadius: 0.5, fontSize: 13, bgcolor: "#fff" }}
+                >
+                  {selectedCategoryIds.length > 0 && (
+                    <MenuItem
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setSelectedCategoryIds([]);
+                      }}
+                      sx={{ fontSize: 12, color: "#d32f2f", fontWeight: 600, py: 0.5 }}
+                    >
+                      Clear selection
+                    </MenuItem>
+                  )}
+                  {selectedCategoryIds.length > 0 && <Divider />}
+                  {categories.length === 0 && !isFetchingNextCategoryPage && (
+                    <MenuItem disabled sx={{ fontSize: 13, color: "text.disabled", justifyContent: "center", py: 1.5 }}>
+                      No Category Data
+                    </MenuItem>
+                  )}
+                  {categories.map((cat) => (
+                    <MenuItem key={cat.id} value={cat.id} sx={{ fontSize: 13, py: 0.5 }}>
+                      <Checkbox
+                        checked={selectedCategoryIds.includes(cat.id)}
+                        size="small"
+                        sx={{ p: 0.5, mr: 0.5 }}
+                      />
+                      <ListItemText primary={cat.name} primaryTypographyProps={{ fontSize: 13 }} />
+                    </MenuItem>
+                  ))}
+                  {isFetchingNextCategoryPage && (
+                    <MenuItem disabled sx={{ fontSize: 12, color: "text.disabled", justifyContent: "center" }}>
+                      Loading...
+                    </MenuItem>
+                  )}
+                </Select>
+              </FormControl>
+              {selectedCategoryIds.length > 0 && (
+                <Tooltip title="Reset Filters">
+                  <Box
                     onClick={() => setSelectedCategoryIds([])}
-                    sx={{ fontSize: 12, color: "#d32f2f", fontWeight: 600, py: 0.5 }}
+                    sx={{
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      width: 36, height: 36, borderRadius: 1, cursor: "pointer",
+                      bgcolor: "#F97316", color: "#fff",
+                      "&:hover": { bgcolor: "#ea6c0a" },
+                      flexShrink: 0,
+                    }}
                   >
-                    Clear selection
-                  </MenuItem>
-                )}
-                {selectedCategoryIds.length > 0 && <Divider />}
-                {categories.map((cat) => (
-                  <MenuItem key={cat.id} value={cat.id} sx={{ fontSize: 13, py: 0.5 }}>
-                    <Checkbox
-                      checked={selectedCategoryIds.includes(cat.id)}
-                      size="small"
-                      sx={{ p: 0.5, mr: 0.5 }}
-                    />
-                    <ListItemText primary={cat.name} primaryTypographyProps={{ fontSize: 13 }} />
-                  </MenuItem>
-                ))}
-                {isFetchingNextCategoryPage && (
-                  <MenuItem disabled sx={{ fontSize: 12, color: "text.disabled", justifyContent: "center" }}>
-                    Loading...
-                  </MenuItem>
-                )}
-              </Select>
-            </FormControl>
+                    <FilterListOffIcon sx={{ fontSize: 20 }} />
+                  </Box>
+                </Tooltip>
+              )}
+            </Box>
 
             {/* Add button */}
             <Button

@@ -1,7 +1,7 @@
 /**
  * InvoiceDetailsModal.tsx
  */
-import React, { useRef } from "react";
+import { useRef } from "react";
 import {
   Dialog, DialogContent, DialogActions,
   Box, Typography, IconButton, Button, Chip, Divider,
@@ -21,10 +21,12 @@ import jsPDF                  from "jspdf";
 import { useNavigate }        from "react-router-dom";
 import {
   fetchSaleDetail,
+  fetchRestaurantSaleDetail,
   salesQueryKeys,
   type SaleItem,
   type SaleReturnHistoryItem,
   type SaleReturnHistoryRow,
+  type HsnWiseTax,
 } from "./useSaleshistory";
 import { InvoicePDFTemplate } from "./InvoicePDFTemplate";
 
@@ -309,6 +311,7 @@ interface Props {
   open?: boolean;
   saleId: string;
   onClose: () => void;
+  isRestaurant?: boolean;
 }
 
 function getPosEditUrl(saleId: string | undefined, saleType: string | null | undefined): string {
@@ -328,94 +331,46 @@ function getPosEditUrl(saleId: string | undefined, saleType: string | null | und
 // Component
 // ─────────────────────────────────────────────────────────────
 export default function InvoiceDetailsModal({
-  open = true, saleId, onClose,
+  open = true, saleId, onClose, isRestaurant = false,
 }: Props) {
   const navigate = useNavigate();
   const pdfRef   = useRef<HTMLDivElement | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: salesQueryKeys.detail(saleId),
-    queryFn:  () => fetchSaleDetail(saleId),
+    queryKey: [...salesQueryKeys.detail(saleId), isRestaurant ? "restaurant" : "retail"],
+    queryFn:  () => isRestaurant ? fetchRestaurantSaleDetail(saleId) : fetchSaleDetail(saleId),
     enabled:  !!saleId,
   });
 
   const sale = data?.sale;
   const customer = data?.customer ?? null;
-  const items: SaleItem[] = data?.items ?? [];
+  const rawItems = data?.items ?? [];
+  // Normalize restaurant item fields to match retail shape for display
+  const items: any[] = rawItems.map((item: any) => ({
+    ...item,
+    quantity:       item.quantity       ?? item.qty,
+    unit:           item.unit           ?? item.item_unit,
+    hsn_code:       item.hsn_code       ?? item.hsn,
+    item_name:      item.item_name,
+    gst_percentage: item.gst_percentage,
+    cgst:           item.cgst,
+    sgst:           item.sgst,
+    total_amount:   item.total_amount,
+    price:          item.price,
+  }));
   const history = data?.payment_history ?? [];
   const returnHistory: SaleReturnHistoryRow[] = data?.return_history ?? [];
 
-  // ── HSN breakdown ─────────────────────────────────────────
-  const hsnMap: Record<string, {
-    taxable: number; cgst: number; sgst: number;
-    cgstPct: number; sgstPct: number;
-  }> = {};
-
-  items.forEach((item: any) => {
-    const hsn   = item.hsn_code ?? "—";
-    const qty   = Number(item.quantity)       || 0;
-    const price = Number(item.price)          || 0;
-    const cgst  = Number(item.cgst)           || 0;
-    const sgst  = Number(item.sgst)           || 0;
-    const gst   = Number(item.gst_percentage) || 0;
-    if (!hsnMap[hsn]) {
-      hsnMap[hsn] = { taxable: 0, cgst: 0, sgst: 0, cgstPct: gst / 2, sgstPct: gst / 2 };
-    }
-    hsnMap[hsn].taxable += qty * price;
-    hsnMap[hsn].cgst    += cgst;
-    hsnMap[hsn].sgst    += sgst;
-  });
-
-  const hsnRows   = Object.entries(hsnMap);
-  const hsnTotals = hsnRows.reduce(
-    (acc, [, v]) => ({
-      taxable: acc.taxable + v.taxable,
-      cgst:    acc.cgst    + v.cgst,
-      sgst:    acc.sgst    + v.sgst,
+  // ── HSN breakdown — from API (retail only) ────────────────
+  const hsnWiseTax: HsnWiseTax[] = data?.hsn_wise_tax ?? [];
+  const hsnTotals = hsnWiseTax.reduce(
+    (acc, row) => ({
+      taxable: acc.taxable + Number(row.taxable_value),
+      cgst:    acc.cgst    + Number(row.cgst_amount),
+      sgst:    acc.sgst    + Number(row.sgst_amount),
     }),
-    { taxable: 0, cgst: 0, sgst: 0 }
+    { taxable: 0, cgst: 0, sgst: 0 },
   );
-  const gstRateMap: Record<string, {
-    taxable: number; cgstRate: number; cgstAmount: number;
-    sgstRate: number; sgstAmount: number; totalTaxAmount: number;
-  }> = {};
-
-  items.forEach((item: any) => {
-    const gstPct = Number(item.gst_percentage) || 0;
-    const rateKey = gstPct.toFixed(2);
-    const qty = Number(item.quantity) || 0;
-    const price = Number(item.price) || 0;
-    const taxable = qty * price;
-    const cgstAmount = Number(item.cgst) || 0;
-    const sgstAmount = Number(item.sgst) || 0;
-
-    if (!gstRateMap[rateKey]) {
-      gstRateMap[rateKey] = {
-        taxable: 0,
-        cgstRate: gstPct / 2,
-        cgstAmount: 0,
-        sgstRate: gstPct / 2,
-        sgstAmount: 0,
-        totalTaxAmount: 0,
-      };
-    }
-
-    gstRateMap[rateKey].taxable += taxable;
-    gstRateMap[rateKey].cgstAmount += cgstAmount;
-    gstRateMap[rateKey].sgstAmount += sgstAmount;
-    gstRateMap[rateKey].totalTaxAmount += cgstAmount + sgstAmount;
-  });
-
-  const gstBreakdown = Object.entries(hsnMap)
-    .map(([hsn, value]) => ({
-      hsn,
-      taxable: value.taxable.toFixed(2),
-      cgstRate: value.cgstPct.toFixed(2),
-      cgstAmount: value.cgst.toFixed(2),
-      sgstRate: value.sgstPct.toFixed(2),
-      sgstAmount: value.sgst.toFixed(2),
-      totalTaxAmount: (value.cgst + value.sgst).toFixed(2),
-    }));
 
   // ── Derived values ────────────────────────────────────────
   const hasDiscount = sale && Number(sale.discount_amount) > 0;
@@ -433,6 +388,9 @@ export default function InvoiceDetailsModal({
   const adjustedTotal  = originalTotal - totalReturned;
   const paidAmount     = Number(sale?.paid_amount ?? 0);
   const adjustedBalance = Math.max(0, adjustedTotal - paidAmount);
+
+  // Restaurant-specific: payment_status is boolean (true = paid, false = unpaid)
+  const restaurantIsPaid = isRestaurant && sale?.payment_status === true;
 
   const customerName    = customer?.cust_name ?? customer?.cpy_name ?? "Walk-In";
   const customerMobile  = customer?.mobile ? `+91 ${customer.mobile}` : "—";
@@ -690,12 +648,20 @@ export default function InvoiceDetailsModal({
     discount_label: discountLabel,
     cgst:           hsnTotals.cgst,
     sgst:           hsnTotals.sgst,
-    cgst_pct:       hsnRows[0]?.[1]?.cgstPct ?? 2.5,
-    sgst_pct:       hsnRows[0]?.[1]?.sgstPct ?? 2.5,
+    cgst_pct:       Number(hsnWiseTax[0]?.cgst_percent ?? 0) || 2.5,
+    sgst_pct:       Number(hsnWiseTax[0]?.sgst_percent ?? 0) || 2.5,
     round_off:      hasRoundOff ? sale?.round_off : null,
     total:          originalTotal,
     amount_in_words: `${toWords(Math.round(originalTotal))} Rupees Only`,
-    gst_breakdown: gstBreakdown,
+    gst_breakdown: hsnWiseTax.map((row) => ({
+      hsn:            row.hsn_code,
+      taxable:        row.taxable_value,
+      cgstRate:       Number(row.cgst_percent).toFixed(2),
+      cgstAmount:     row.cgst_amount,
+      sgstRate:       Number(row.sgst_percent).toFixed(2),
+      sgstAmount:     row.sgst_amount,
+      totalTaxAmount: row.total_tax,
+    })),
     company: {
       name: "Zodu Retail Co.",
       gstin: "29AAAAA0000A1Z5",
@@ -723,10 +689,11 @@ export default function InvoiceDetailsModal({
       }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
           <Typography sx={{ fontSize: 18, fontWeight: 800, color: "#0F172A" }}>
-            Invoice Details
+            {isRestaurant ? "Order Details" : "Invoice Details"}
           </Typography>
           <Chip
-            label={sale?.sale_id ?? "—"} size="small"
+            label={isRestaurant ? (sale?.public_order_no ?? sale?.sale_id ?? "—") : (sale?.sale_id ?? "—")}
+            size="small"
             sx={{ bgcolor: "rgba(208,2,27,0.08)", color: "#D0021B", fontWeight: 700, fontSize: 11, height: 20, borderRadius: "999px" }}
           />
           {sale && (
@@ -734,7 +701,7 @@ export default function InvoiceDetailsModal({
               {sale.sale_date_fmt}{sale.sale_time_fmt ? ` · ${sale.sale_time_fmt}` : ""}
             </Typography>
           )}
-          {returnHistory.length > 0 && (
+          {!isRestaurant && returnHistory.length > 0 && (
             <Chip
               icon={<AssignmentReturnIcon sx={{ fontSize: "12px !important" }} />}
               label={`${returnHistory.length} return${returnHistory.length > 1 ? "s" : ""} · ${INR(totalReturned)}`}
@@ -744,12 +711,14 @@ export default function InvoiceDetailsModal({
           )}
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Tooltip title="Edit in POS">
-            <IconButton size="small" onClick={() => navigate(getPosEditUrl(sale?.sale_id, sale?.sale_type))}
-              sx={{ color: "#2563EB", bgcolor: "#EFF6FF", "&:hover": { bgcolor: "#DBEAFE" }, borderRadius: "50%", width: 32, height: 32 }}>
-              <EditIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
+          {!isRestaurant && (
+            <Tooltip title="Edit in POS">
+              <IconButton size="small" onClick={() => navigate(getPosEditUrl(sale?.sale_id, sale?.sale_type))}
+                sx={{ color: "#2563EB", bgcolor: "#EFF6FF", "&:hover": { bgcolor: "#DBEAFE" }, borderRadius: "50%", width: 32, height: 32 }}>
+                <EditIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          )}
           <IconButton size="small" onClick={onClose}
             sx={{ color: "#64748B", "&:hover": { color: "#0F172A" }, width: 32, height: 32 }}>
             <CloseIcon sx={{ fontSize: 18 }} />
@@ -770,39 +739,41 @@ export default function InvoiceDetailsModal({
         ) : (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
 
-            {/* 1 ── Customer details ────────────────────────── */}
-            <InfoCard elevation={0}>
-              <Box sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" },
-                gap: 2,
-              }}>
-                {[
-                  { label: "Customer Name", value: customerName, bold: true },
-                  { label: "Mobile No.",    value: customerMobile },
-                  { label: "GSTIN",         value: customerGstin },
-                  { label: "Address",       value: customerAddress, small: true },
-                ].map(({ label, value, bold, small }) => (
-                  <Box key={label}>
-                    <Typography sx={{
-                      fontSize: 9, fontWeight: 700, textTransform: "uppercase",
-                      letterSpacing: "0.09em", color: "#94A3B8", mb: 0.5,
-                    }}>
-                      {label}
-                    </Typography>
-                    <Typography sx={{
-                      fontSize: small ? 12 : 13,
-                      fontWeight: bold ? 700 : 600,
-                      color: "#0F172A",
-                      lineHeight: 1.5,
-                      wordBreak: "break-word",
-                    }}>
-                      {value}
-                    </Typography>
-                  </Box>
-                ))}
-              </Box>
-            </InfoCard>
+            {/* 1 ── Customer details (retail only) ─────────── */}
+            {!isRestaurant && (
+              <InfoCard elevation={0}>
+                <Box sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" },
+                  gap: 2,
+                }}>
+                  {[
+                    { label: "Customer Name", value: customerName, bold: true },
+                    { label: "Mobile No.",    value: customerMobile },
+                    { label: "GSTIN",         value: customerGstin },
+                    { label: "Address",       value: customerAddress, small: true },
+                  ].map(({ label, value, bold, small }) => (
+                    <Box key={label}>
+                      <Typography sx={{
+                        fontSize: 9, fontWeight: 700, textTransform: "uppercase",
+                        letterSpacing: "0.09em", color: "#94A3B8", mb: 0.5,
+                      }}>
+                        {label}
+                      </Typography>
+                      <Typography sx={{
+                        fontSize: small ? 12 : 13,
+                        fontWeight: bold ? 700 : 600,
+                        color: "#0F172A",
+                        lineHeight: 1.5,
+                        wordBreak: "break-word",
+                      }}>
+                        {value}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </InfoCard>
+            )}
 
             {/* 2 ── Items list ──────────────────────────────── */}
             <Box>
@@ -824,8 +795,7 @@ export default function InvoiceDetailsModal({
                   </TableHead>
                   <TableBody>
                     {items.map((item: any, idx: number) => {
-                      const isLast    = idx === items.length - 1;
-                      const returned  = Number(item.returned_qty ?? 0);
+                      const isLast = idx === items.length - 1;
                       return (
                         <TableRow key={item.id} sx={{ "&:hover": { bgcolor: "#FAFBFC" } }}>
                           <TD sx={{ borderBottom: isLast ? "none" : undefined, color: "#64748B" }}>
@@ -860,7 +830,7 @@ export default function InvoiceDetailsModal({
                             )}
                           </TD> */}
                           <TD align="center" sx={{ borderBottom: isLast ? "none" : undefined }}>
-                            {Number(item.gst_percentage)}%
+                            {Number(item.gst_percentage) === 0 ? "—" : `${Number(item.gst_percentage)}%`}
                           </TD>
                           <TD align="right" sx={{ borderBottom: isLast ? "none" : undefined, fontWeight: 700 }}>
                             {INR(item.total_amount)}
@@ -892,22 +862,28 @@ export default function InvoiceDetailsModal({
 
                 <Divider sx={{ my: 1, borderColor: "#E2E8F0" }} />
 
-                <SRow label="CGST Total" value={INR(hsnTotals.cgst)} />
-                <SRow label="SGST Total" value={INR(hsnTotals.sgst)} />
+                {hsnWiseTax.length > 0 ? (
+                  <>
+                    <SRow label="CGST Total" value={INR(hsnTotals.cgst)} />
+                    <SRow label="SGST Total" value={INR(hsnTotals.sgst)} />
+                  </>
+                ) : (
+                  <SRow label="Total Tax" value={INR(Number(sale.total_tax ?? 0))} />
+                )}
 
-                {hasRoundOff && (
+                {!isRestaurant && hasRoundOff && (
                   <SRow
                     label="Round Off"
                     value={Number(sale.round_off) > 0
-                      ? `+ ${INR(sale.round_off)}`
-                      : INR(sale.round_off)
+                      ? `+ ${INR(sale.round_off ?? 0)}`
+                      : INR(sale.round_off ?? 0)
                     }
                     color={Number(sale.round_off) > 0 ? "#16A34A" : "#DC2626"}
                   />
                 )}
 
-                {/* Return deduction — only if returns exist */}
-                {totalReturned > 0 && (
+                {/* Return deduction — retail only */}
+                {!isRestaurant && totalReturned > 0 && (
                   <>
                     <Divider sx={{ my: 1, borderColor: "#E2E8F0" }} />
                     <SRow label="Invoice Total" value={INR(originalTotal)} />
@@ -922,13 +898,13 @@ export default function InvoiceDetailsModal({
 
                 <SRow
                   label="Grand Total"
-                  value={INR(totalReturned > 0 ? adjustedTotal : originalTotal)}
+                  value={INR(!isRestaurant && totalReturned > 0 ? adjustedTotal : originalTotal)}
                   color={"#000000"}
                   borderTop
                   large
                 />
 
-                {!isQuotation && paidAmount > 0 && (
+                {!isQuotation && !isRestaurant && paidAmount > 0 && (
                   <SRow
                     label="Paid Amount"
                     value={INR(paidAmount)}
@@ -936,7 +912,7 @@ export default function InvoiceDetailsModal({
                   />
                 )}
 
-                {!isQuotation && adjustedBalance > 0 && (
+                {!isQuotation && !isRestaurant && adjustedBalance > 0 && (
                   <SRow
                     label="Balance Due"
                     value={INR(adjustedBalance)}
@@ -944,11 +920,19 @@ export default function InvoiceDetailsModal({
                     bold
                   />
                 )}
+
+                {isRestaurant && (
+                  <SRow
+                    label="Paid Amount"
+                    value={restaurantIsPaid ? INR(originalTotal) : "Unpaid"}
+                    color={restaurantIsPaid ? "#16A34A" : "#C62828"}
+                  />
+                )}
               </Box>
             </Box>
 
             {/* 4 ── Payment history ─────────────────────────── */}
-            {!isQuotation && history.length > 0 && (
+            {(isRestaurant || (!isQuotation && history.length > 0)) && (
               <Box>
                 <SectionTitle>Payment History</SectionTitle>
                 <TableContainer component={Paper} elevation={0}
@@ -958,13 +942,42 @@ export default function InvoiceDetailsModal({
                       <TableRow>
                         <TH>Date</TH>
                         <TH>Payment Type</TH>
-                        <TH>Reference No</TH>
+                        {!isRestaurant && <TH>Reference No</TH>}
                         <TH align="right">Amount</TH>
                         <TH align="center">Status</TH>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {history.map((h: any, idx: number) => {
+                      {isRestaurant ? (
+                        <TableRow sx={{ "&:hover": { bgcolor: "#FAFBFC" } }}>
+                          <TD sx={{ borderBottom: "none", color: "#334155" }}>
+                            {sale?.sale_date_fmt ?? "—"}
+                          </TD>
+                          <TD sx={{ borderBottom: "none" }}>
+                            <Box sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
+                              <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: paymentDot(sale?.payment_type ?? ""), flexShrink: 0 }} />
+                              <Typography sx={{ fontSize: 13, color: "#0F172A" }}>
+                                {sale?.payment_type ?? "—"}
+                              </Typography>
+                            </Box>
+                          </TD>
+                          <TD align="right" sx={{ borderBottom: "none", fontWeight: 700 }}>
+                            {INR(originalTotal)}
+                          </TD>
+                          <TD align="center" sx={{ borderBottom: "none" }}>
+                            <Chip
+                              label={restaurantIsPaid ? "PAID" : "UNPAID"} size="small"
+                              sx={{
+                                fontSize: 9, fontWeight: 700, borderRadius: "999px",
+                                bgcolor: restaurantIsPaid ? "#DCFCE7" : "#FFEBEE",
+                                color:   restaurantIsPaid ? "#16A34A" : "#C62828",
+                                height: 20,
+                              }}
+                            />
+                          </TD>
+                        </TableRow>
+                      ) : (
+                      history.map((h: any, idx: number) => {
                         const isLast = idx === history.length - 1;
                         const dot    = paymentDot(h.transaction_type);
                         return (
@@ -1002,15 +1015,16 @@ export default function InvoiceDetailsModal({
                             </TD>
                           </TableRow>
                         );
-                      })}
+                      })
+                      )}
                     </TableBody>
                   </Table>
                 </TableContainer>
               </Box>
             )}
 
-            {/* 5 ── Return history ──────────────────────────── */}
-            {returnHistory.length > 0 && (
+            {/* 5 ── Return history (retail only) ───────────── */}
+            {!isRestaurant && returnHistory.length > 0 && (
               <Box>
                 <SectionTitle sx={{ color: "#D0021B !important" }}>
                   Sales Returns
@@ -1237,50 +1251,54 @@ export default function InvoiceDetailsModal({
               </Box>
             )}
 
-            {/* 6 ── HSN-wise tax breakdown ───────────────────── */}
-            <Box>
-              <SectionTitle>HSN-wise Tax Breakdown</SectionTitle>
-            </Box>
-           <TableContainer component={Paper} elevation={0}
-                sx={{ border: "1px solid #E2E8F0", borderRadius: "12px", overflow: "hidden" }}>
-                <Table>
-                  <TableHead sx={{ bgcolor: "#F1F5F9" }}>
-                    <TableRow>
-                      <TH>HSN Code</TH>
-                      <TH align="right">Taxable Val</TH>
-                      <TH align="center">CGST %</TH>
-                      <TH align="right">CGST Amt</TH>
-                      <TH align="center">SGST %</TH>
-                      <TH align="right">SGST Amt</TH>
-                      <TH align="right">Total Tax</TH>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {hsnRows.map(([hsn, v]) => (
-                      <TableRow key={hsn}>
-                        <TD sx={{ fontWeight: 500 }}>{hsn}</TD>
-                        <TD align="right">{INR(v.taxable)}</TD>
-                        <TD align="center">{v.cgstPct}%</TD>
-                        <TD align="right">{INR(v.cgst)}</TD>
-                        <TD align="center">{v.sgstPct}%</TD>
-                        <TD align="right">{INR(v.sgst)}</TD>
-                        <TD align="right" sx={{ fontWeight: 700 }}>{INR(v.cgst + v.sgst)}</TD>
+            {/* 6 ── HSN-wise tax breakdown ──────────────────── */}
+            {hsnWiseTax.length > 0 && (
+              <>
+                <Box>
+                  <SectionTitle>HSN-wise Tax Breakdown</SectionTitle>
+                </Box>
+                <TableContainer component={Paper} elevation={0}
+                  sx={{ border: "1px solid #E2E8F0", borderRadius: "12px", overflow: "hidden" }}>
+                  <Table>
+                    <TableHead sx={{ bgcolor: "#F1F5F9" }}>
+                      <TableRow>
+                        <TH>HSN Code</TH>
+                        <TH align="right">Taxable Val</TH>
+                        <TH align="center">CGST %</TH>
+                        <TH align="right">CGST Amt</TH>
+                        <TH align="center">SGST %</TH>
+                        <TH align="right">SGST Amt</TH>
+                        <TH align="right">Total Tax</TH>
                       </TableRow>
-                    ))}
-                    {/* Totals row */}
-                    <TableRow sx={{ bgcolor: "#F1F5F9", "& td": { borderBottom: 0, fontWeight: 700 } }}>
-                      <TD>Total</TD>
-                      <TD align="right">{INR(hsnTotals.taxable)}</TD>
-                      <TD align="center" sx={{ color: "#94A3B8", fontWeight: 400 }}>—</TD>
-                      <TD align="right">{INR(hsnTotals.cgst)}</TD>
-                      <TD align="center" sx={{ color: "#94A3B8", fontWeight: 400 }}>—</TD>
-                      <TD align="right">{INR(hsnTotals.sgst)}</TD>
-                      <TD align="right">{INR(hsnTotals.cgst + hsnTotals.sgst)}</TD>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            
+                    </TableHead>
+                    <TableBody>
+                      {hsnWiseTax.map((row) => (
+                        <TableRow key={row.hsn_code}>
+                          <TD sx={{ fontWeight: 500 }}>{row.hsn_code}</TD>
+                          <TD align="right">{INR(row.taxable_value)}</TD>
+                          <TD align="center">{Number(row.cgst_percent).toFixed(2)}%</TD>
+                          <TD align="right">{INR(row.cgst_amount)}</TD>
+                          <TD align="center">{Number(row.sgst_percent).toFixed(2)}%</TD>
+                          <TD align="right">{INR(row.sgst_amount)}</TD>
+                          <TD align="right" sx={{ fontWeight: 700 }}>{INR(row.total_tax)}</TD>
+                        </TableRow>
+                      ))}
+                      {/* Totals row */}
+                      <TableRow sx={{ bgcolor: "#F1F5F9", "& td": { borderBottom: 0, fontWeight: 700 } }}>
+                        <TD>Total</TD>
+                        <TD align="right">{INR(hsnTotals.taxable)}</TD>
+                        <TD align="center" sx={{ color: "#94A3B8", fontWeight: 400 }}>—</TD>
+                        <TD align="right">{INR(hsnTotals.cgst)}</TD>
+                        <TD align="center" sx={{ color: "#94A3B8", fontWeight: 400 }}>—</TD>
+                        <TD align="right">{INR(hsnTotals.sgst)}</TD>
+                        <TD align="right">{INR(hsnTotals.cgst + hsnTotals.sgst)}</TD>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </>
+            )}
+
           </Box>
         )}
       </DialogContent>

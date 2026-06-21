@@ -8,7 +8,7 @@ import { useInfiniteQuery, useQuery, QueryClient, QueryClientProvider } from "@t
 import {
   Box, Typography, Button, Stack,
   Avatar, TextField, InputAdornment, Select, MenuItem,
-  FormControl, IconButton, Tooltip, alpha, Chip,
+  FormControl, IconButton, Tooltip, alpha, Chip, Tabs, Tab,
   Dialog, DialogTitle, DialogContent, DialogActions, CircularProgress,
   Grid,
 } from "@mui/material";
@@ -102,11 +102,7 @@ function isFullyReturnedSale(sale: Sale): boolean {
 
 function getPosEditUrl(sale: Sale): string {
   const params = new URLSearchParams({ saleId: sale.sale_id });
-
-  if (sale.sale_type) {
-    params.set("saleType", sale.sale_type);
-  }
-
+  if (sale.sale_type) params.set("saleType", sale.sale_type);
   return `/pos?${params.toString()}`;
 }
 
@@ -188,8 +184,10 @@ export default function SalesHistoryPage() {
 
   const { branchId, businessType } = useTenantContext();
   const isRestaurant = businessType?.toLowerCase() === "restaurant";
-  const [draftFilters,   setDraftFilters]   = useState<Filters>({ search: "", payment_status: "", from_date: "", to_date: "", order_type: "" });
-  const [appliedFilters, setAppliedFilters] = useState<Filters>({ search: "", payment_status: "", from_date: "", to_date: "", order_type: "" });
+  const [activeTab, setActiveTab] = useState<"orders" | "cancelled">("orders");
+
+  const [draftFilters,   setDraftFilters]   = useState<Filters>({ search: "", payment_status: "", from_date: "", to_date: "", order_type: "", cancelled_order: false });
+  const [appliedFilters, setAppliedFilters] = useState<Filters>({ search: "", payment_status: "", from_date: "", to_date: "", order_type: "", cancelled_order: false });
 
   const [invoiceDialog, setInvoiceDialog] = useState<string | null>(null);
   const [paymentDialog, setPaymentDialog] = useState<Sale   | null>(null);
@@ -222,7 +220,8 @@ export default function SalesHistoryPage() {
 
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef       = useInfiniteScroll(hasNextPage, fetchNextPage, isFetchingNextPage, tableContainerRef);
-  const allItems          = data?.pages.flatMap(p => p.data) ?? [];
+  const allItems       = data?.pages.flatMap(p => p.data) ?? [];
+  const isCancelledTab = isRestaurant && activeTab === "cancelled";
 
   // ── Column definitions ────────────────────────────────────────
   const columns = [
@@ -234,19 +233,9 @@ export default function SalesHistoryPage() {
         <Typography
           fontWeight={600} color="#1976d2"
           sx={{ cursor: "pointer", fontSize: BODY_FONT_SIZE }}
-          onClick={() => setInvoiceDialog(sale.sale_id)}
+          onClick={() => setInvoiceDialog(isRestaurant ? sale.api_order_id! : sale.sale_id)}
         >
           {isRestaurant ? (sale.public_order_no ?? sale.sale_id) : sale.sale_id}
-        </Typography>
-      ),
-    },
-    {
-      key: "date",
-      label: "Date",
-      width: 170,
-      render: (sale: Sale) => (
-        <Typography variant="body2" sx={{ fontSize: BODY_FONT_SIZE, color: TABLE_TEXT_COLOR }}>
-          {sale.sale_date_fmt}
         </Typography>
       ),
     },
@@ -276,6 +265,16 @@ export default function SalesHistoryPage() {
         );
       },
     }] : []),
+    {
+      key: "created at",
+      label: "Date",
+      width: 170,
+      render: (sale: Sale) => (
+        <Typography variant="body2" sx={{ fontSize: "12px", color: TABLE_TEXT_COLOR }}>
+          {sale.created_at_fmt}
+        </Typography>
+      ),
+    },
     {
       key: "total",
       label: "Total",
@@ -395,17 +394,6 @@ export default function SalesHistoryPage() {
       },
     }] : []),
     {
-      key:"created at",
-      label:"Created At",
-      width:170,
-      render:(sale:Sale)=>(
-        <Typography variant="body2" sx={{ fontSize: "12px", color: TABLE_TEXT_COLOR }}>
-          {sale.created_at_fmt}
-        </Typography>
-      )
-
-    },
-    {
       key: "actions",
       label: "Actions",
       align: "right" as const,
@@ -417,7 +405,7 @@ export default function SalesHistoryPage() {
         const isReturned = status === "Returned";
         return (
           <Stack direction="row" justifyContent="flex-end" gap={0.3}>
-            {!isQuotation && (
+            {!isQuotation && !isRestaurant && (
               <Tooltip title={isReturned ? "Fully returned" : "Sales Return"}>
                 <span>
                   <IconButton
@@ -437,6 +425,7 @@ export default function SalesHistoryPage() {
                 </span>
               </Tooltip>
             )}
+            {!isRestaurant && (
             <Tooltip title="Edit Invoice">
               <IconButton
                 size="small"
@@ -448,6 +437,7 @@ export default function SalesHistoryPage() {
                 </svg>
               </IconButton>
             </Tooltip>
+            )}
             <Tooltip title="Delete Invoice">
               <IconButton
                 size="small"
@@ -576,116 +566,136 @@ export default function SalesHistoryPage() {
         )}
       </Grid>
 
+      {/* Tabs — restaurant only */}
+      {isRestaurant && (
+        <Tabs
+          value={activeTab}
+          onChange={(_, v) => {
+            setActiveTab(v);
+            const isCancelled = v === "cancelled";
+            const reset: Filters = { search: "", payment_status: "", from_date: "", to_date: "", order_type: "", cancelled_order: isCancelled };
+            setDraftFilters(reset);
+            setAppliedFilters(reset);
+          }}
+          sx={{
+            minHeight: 36,
+            "& .MuiTabs-indicator": { backgroundColor: "#E53935" },
+            "& .MuiTab-root": { textTransform: "none", fontWeight: 600, fontSize: 13, minHeight: 36, py: 0.5 },
+            "& .Mui-selected": { color: "#E53935" },
+          }}
+        >
+          <Tab value="orders" label="Orders" />
+          <Tab value="cancelled" label="Cancelled Orders" />
+        </Tabs>
+      )}
+
       {/* Filter bar */}
-      <Box sx={{ mb: 1, px: 0.5, py: 0.25 }}>
-        <Stack direction={{ xs: "column", sm: "row" }} gap={2} alignItems="flex-end">
-          <Box sx={{ flex: 1.2 }}>
-            <Typography variant="caption" fontWeight={600} color="text.secondary" display="block" mb={0.6}>
-              {isRestaurant ? "Search" : "Search Customer"}
-            </Typography>
-            <TextField
-              placeholder={isRestaurant ? "Order ID" : "Invoice ID or Customer name or mobile"}
-              size="small" fullWidth
-              value={draftFilters.search}
-              sx={{ backgroundColor: "#fff" }}
-              onChange={e => setDraftFilters(f => ({ ...f, search: e.target.value }))}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ fontSize: 18, color: "text.secondary" }} />
-                  </InputAdornment>
-                ),
+      <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", flexWrap: "wrap", mb: 1 }}>
+        <TextField
+          placeholder={isRestaurant ? "Order ID" : "Invoice ID or Customer name or mobile"}
+          size="small"
+          value={draftFilters.search}
+          onChange={e => setDraftFilters(f => ({ ...f, search: e.target.value }))}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon sx={{ fontSize: 18, color: "text.disabled" }} />
+              </InputAdornment>
+            ),
+            sx: { borderRadius: 0.5, fontSize: 13 },
+          }}
+          sx={{ flex: 1, minWidth: 240, backgroundColor: "#fff" }}
+        />
+
+        <TextField
+          type="date"
+          size="small"
+          value={draftFilters.from_date}
+          onChange={e => setDraftFilters(f => ({ ...f, from_date: e.target.value }))}
+          inputProps={{ placeholder: "From Date" }}
+          InputProps={{ sx: { borderRadius: 0.5, fontSize: 13 } }}
+          sx={{ minWidth: 160, backgroundColor: "#fff" }}
+        />
+
+        <TextField
+          type="date"
+          size="small"
+          value={draftFilters.to_date}
+          onChange={e => setDraftFilters(f => ({ ...f, to_date: e.target.value }))}
+          InputProps={{ sx: { borderRadius: 0.5, fontSize: 13 } }}
+          sx={{ minWidth: 160, backgroundColor: "#fff" }}
+        />
+
+        <FormControl size="small" sx={{ minWidth: 160 }}>
+          {isRestaurant ? (
+            <Select
+              value={draftFilters.order_type ?? ""}
+              displayEmpty
+              renderValue={(selected) =>
+                selected
+                  ? selected
+                  : <Box component="span" sx={{ color: "text.disabled", fontSize: 13 }}>All Types</Box>
+              }
+              onChange={e => setDraftFilters(f => ({ ...f, order_type: e.target.value }))}
+              sx={{ borderRadius: 0.5, fontSize: 13, backgroundColor: "#fff" }}
+            >
+              <MenuItem value="">All Types</MenuItem>
+              <MenuItem value="Dine-In">Dine-In</MenuItem>
+              <MenuItem value="Delivery">Delivery</MenuItem>
+              <MenuItem value="Takeaway">Takeaway</MenuItem>
+            </Select>
+          ) : (
+            <Select
+              value={draftFilters.payment_status}
+              displayEmpty
+              renderValue={(selected) => {
+                if (!selected) return <Box component="span" sx={{ color: "text.disabled", fontSize: 13 }}>All Status</Box>;
+                if (selected === "fully_paid")     return "Paid";
+                if (selected === "partially_paid") return "Partial";
+                if (selected === "unpaid")         return "Unpaid";
+                if (selected === "returned")       return "Returned";
+                if (selected === "partial_return") return "Partial Return";
+                return selected;
               }}
-            />
-          </Box>
-          <Box sx={{ flex: 0.5, minWidth: 150 }}>
-            <Typography variant="caption" fontWeight={600} color="text.secondary" display="block" mb={0.6}>From Date</Typography>
-            <TextField type="date" size="small" fullWidth value={draftFilters.from_date}
-              sx={{ borderRadius: 0.5, backgroundColor: "#fff" }}
-              onChange={e => setDraftFilters(f => ({ ...f, from_date: e.target.value }))} />
-          </Box>
-          <Box sx={{ flex: 0.5, minWidth: 150 }}>
-            <Typography variant="caption" fontWeight={600} color="text.secondary" display="block" mb={0.6}>To Date</Typography>
-            <TextField type="date" size="small" fullWidth value={draftFilters.to_date}
-              sx={{ borderRadius: 0.5, backgroundColor: "#fff" }}
-              onChange={e => setDraftFilters(f => ({ ...f, to_date: e.target.value }))} />
-          </Box>
-          <Box sx={{ flex: 0.5, minWidth: 140 }}>
-            <Typography variant="caption" fontWeight={600} color="text.secondary" display="block" mb={0.6}>
-              {isRestaurant ? "Order Type" : "Status"}
-            </Typography>
-            <FormControl size="small" fullWidth>
-              {isRestaurant ? (
-                <Select
-                  value={draftFilters.order_type ?? ""}
-                  displayEmpty
-                  sx={{ borderRadius: 0.5, backgroundColor: "#fff" }}
-                  renderValue={(selected) => selected || "All Types"}
-                  onChange={e => setDraftFilters(f => ({ ...f, order_type: e.target.value }))}
-                >
-                  <MenuItem value="">All Types</MenuItem>
-                  <MenuItem value="Dine-In">Dine-In</MenuItem>
-                  <MenuItem value="Delivery">Delivery</MenuItem>
-                  <MenuItem value="Takeaway">Takeaway</MenuItem>
-                </Select>
-              ) : (
-                <Select
-                  value={draftFilters.payment_status}
-                  displayEmpty
-                  sx={{ borderRadius: 0.5, backgroundColor: "#fff" }}
-                  renderValue={(selected) => {
-                    if (!selected)                     return "All Status";
-                    if (selected === "fully_paid")     return "Paid";
-                    if (selected === "partially_paid") return "Partial";
-                    if (selected === "unpaid")         return "Unpaid";
-                    if (selected === "returned")       return "Returned";
-                    if (selected === "partial_return") return "Partial Return";
-                    return selected;
-                  }}
-                  onChange={e => setDraftFilters(f => ({ ...f, payment_status: e.target.value }))}
-                >
-                  <MenuItem value="">All Status</MenuItem>
-                  <MenuItem value="fully_paid">Paid</MenuItem>
-                  <MenuItem value="partially_paid">Partial</MenuItem>
-                  <MenuItem value="unpaid">Unpaid</MenuItem>
-                  <MenuItem value="returned">Returned</MenuItem>
-                  <MenuItem value="partial_return">Partial Return</MenuItem>
-                </Select>
-              )}
-            </FormControl>
-          </Box>
-          <Box>
-            <Typography variant="caption" color="transparent" display="block" mb={0.6} sx={{ userSelect: "none" }}>&nbsp;</Typography>
-            <Stack direction="row" gap={1}>
-              <Button
-                variant="contained" color="primary" disableElevation size="medium"
-                sx={{ px: 3.5, height: 40 }}
-                onClick={() => setAppliedFilters({ ...draftFilters })}
-              >
-                Apply
-              </Button>
-              <Button
-                variant="outlined" color="inherit" size="medium"
-                sx={{ px: 2, height: 40, borderColor: "#D1D5DB", color: "#6B7280", "&:hover": { borderColor: "#9CA3AF", bgcolor: "#F9FAFB" } }}
-                onClick={() => {
-                  const empty = { search: "", payment_status: "", from_date: "", to_date: "", order_type: "" };
-                  setDraftFilters(empty);
-                  setAppliedFilters(empty);
-                }}
-              >
-                Reset
-              </Button>
-            </Stack>
-          </Box>
-        </Stack>
+              onChange={e => setDraftFilters(f => ({ ...f, payment_status: e.target.value }))}
+              sx={{ borderRadius: 0.5, fontSize: 13, backgroundColor: "#fff" }}
+            >
+              <MenuItem value="">All Status</MenuItem>
+              <MenuItem value="fully_paid">Paid</MenuItem>
+              <MenuItem value="partially_paid">Partial</MenuItem>
+              <MenuItem value="unpaid">Unpaid</MenuItem>
+              <MenuItem value="returned">Returned</MenuItem>
+              <MenuItem value="partial_return">Partial Return</MenuItem>
+            </Select>
+          )}
+        </FormControl>
+
+        <Button
+          variant="contained" color="primary" disableElevation size="medium"
+          sx={{ px: 3.5, height: 40, borderRadius: 0.5, textTransform: "none", fontWeight: 700, fontSize: 13 }}
+          onClick={() => setAppliedFilters({ ...draftFilters })}
+        >
+          Apply
+        </Button>
+        <Button
+          variant="outlined" color="inherit" size="medium"
+          sx={{ px: 2, height: 40, borderRadius: 0.5, textTransform: "none", fontWeight: 700, fontSize: 13, borderColor: "#D1D5DB", color: "#6B7280", "&:hover": { borderColor: "#9CA3AF", bgcolor: "#F9FAFB" } }}
+          onClick={() => {
+            const empty = { search: "", payment_status: "", from_date: "", to_date: "", order_type: "", cancelled_order: activeTab === "cancelled" };
+            setDraftFilters(empty);
+            setAppliedFilters(empty);
+          }}
+        >
+          Reset
+        </Button>
       </Box>
 
       {/* Transactions table */}
       <Box sx={{ flex: 1, minHeight: 0 }}>
         <DataTable<Sale>
-          columns={columns}
+          columns={isCancelledTab ? columns.filter(c => c.key !== "actions") : columns}
           rows={allItems}
-          rowKey={(sale) => sale.sale_id}
+          rowKey={(sale) => sale.api_order_id ?? sale.sale_id}
           isLoading={isLoading}
           hasNextPage={hasNextPage}
           isFetchingNextPage={isFetchingNextPage}
@@ -698,7 +708,7 @@ export default function SalesHistoryPage() {
 
       {/* Dialogs */}
       {invoiceDialog && (
-        <InvoiceDetailDialog saleId={invoiceDialog} onClose={() => setInvoiceDialog(null)} />
+        <InvoiceDetailDialog saleId={invoiceDialog} onClose={() => setInvoiceDialog(null)} isRestaurant={isRestaurant} />
       )}
 
       {paymentDialog && (
@@ -720,11 +730,42 @@ export default function SalesHistoryPage() {
 
       {/* Delete confirmation dialog */}
       <Dialog open={!!deleteDialog} onClose={() => !isDeleting && setDeleteDialog(null)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>Delete Invoice</DialogTitle>
-        <DialogContent>
+        <DialogTitle sx={{ fontWeight: 700 }}>Delete {isRestaurant ? "Order" : "Invoice"}</DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
           <Typography>
-            Are you sure you want to delete invoice <strong>{deleteDialog?.sale_id}</strong>? This action cannot be undone.
+            Are you sure you want to delete {isRestaurant ? "order" : "invoice"}{" "}
+            <strong>
+              {isRestaurant
+                ? (deleteDialog?.public_order_no ?? deleteDialog?.api_order_id)
+                : deleteDialog?.sale_id}
+            </strong>?
+            This action cannot be undone.
           </Typography>
+          {isRestaurant && deleteDialog?.items && deleteDialog.items.length > 0 && (
+            <Box
+              sx={{
+                bgcolor: "#FFF8E1",
+                border: "1px solid #FFD54F",
+                borderRadius: 1.5,
+                px: 2,
+                py: 1.5,
+                display: "flex",
+                gap: 1,
+                alignItems: "flex-start",
+              }}
+            >
+              <Box sx={{ fontSize: 18, lineHeight: 1.4 }}>📦</Box>
+              <Box>
+                <Typography sx={{ fontWeight: 700, fontSize: 13, color: "#7B4F00" }}>
+                  Stock will be restored
+                </Typography>
+                <Typography sx={{ fontSize: 12, color: "#7B4F00", mt: 0.3 }}>
+                  The {deleteDialog.items.length} item{deleteDialog.items.length > 1 ? "s" : ""} from this
+                  order will be added back to your inventory once deleted.
+                </Typography>
+              </Box>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
           <Button
@@ -742,7 +783,10 @@ export default function SalesHistoryPage() {
               if (!deleteDialog) return;
               setIsDeleting(true);
               try {
-                await deleteSale(deleteDialog.sale_id);
+                const deleteId = isRestaurant
+                  ? (deleteDialog.api_order_id ?? deleteDialog.sale_id)
+                  : deleteDialog.sale_id;
+                await deleteSale(deleteId, isRestaurant, isRestaurant ? deleteDialog.items : undefined);
                 setDeleteDialog(null);
                 refetch();
               } finally {

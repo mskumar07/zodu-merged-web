@@ -123,6 +123,9 @@ export interface MenuItem {
   unit_name:        string | null;   // from tbl_units.name
   unit_short_name:  string | null;   // from tbl_units.short_name
   gst_rate:         string | null;   // from tbl_gst.gst_rate  e.g. "18"
+  // retail-only inventory fields (from detail endpoint)
+  available_qty:    string | null;
+  reorder_level:    string | null;
 }
 
 // Shape of paginated list response
@@ -360,6 +363,8 @@ async function fetchMenuItems(
       unit_name:       m.unit_name ?? null,
       unit_short_name: m.menu_unit ?? null,
       gst_rate:        m.gst_tax != null ? String(m.gst_tax) : null,
+      available_qty:   null,
+      reorder_level:   null,
     }));
     return { success: true, total, page: currentPage, limit: params.limit ?? 20, total_pages: totalPages, data: normalized };
   }

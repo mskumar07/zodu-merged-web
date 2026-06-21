@@ -388,6 +388,7 @@ export default function Setting() {
     setSubmitError(null);
     
     const editPayload: EditCompanyPayload = {
+      type: data.type,
       restaurant_name: data.restaurant_name,
       owner_admin_name: data.owner_admin_name,
       gst_no: data.gst_no,
@@ -418,6 +419,7 @@ export default function Setting() {
     } else {
       console.log("✓ Calling createCompanyMutation");
       await createCompanyMutation.mutateAsync({
+        type: data.type,
         restaurant_name: data.restaurant_name,
         owner_admin_name: data.owner_admin_name,
         gst_no: data.gst_no,

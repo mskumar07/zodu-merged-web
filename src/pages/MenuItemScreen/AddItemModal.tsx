@@ -110,8 +110,8 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
       taxInclusion:  editItem.tax_incl_type   ? 'Incl.' : 'Excl.' as 'Incl.' | 'Excl.',
       hsn:           editItem.hsn_code        ?? '',
       barcode:       editItem.barcode         ?? '',
-      openingStock:  '',
-      lowStockAlert: '',
+      openingStock:  editItem.available_qty ?? '',
+      lowStockAlert: editItem.reorder_level ?? '',
     };
   };
 

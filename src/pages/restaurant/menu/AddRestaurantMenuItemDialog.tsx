@@ -56,6 +56,8 @@ interface EditItemData {
   variants?: unknown;
   opening_stock?: string | number | null;
   alert_stock?: string | number | null;
+  stock_qty?: string | number | null;
+  stock_alert?: string | number | null;
 }
 
 interface AddRestaurantMenuItemDialogProps {
@@ -147,6 +149,7 @@ const AddRestaurantMenuItemDialog: React.FC<
   AddRestaurantMenuItemDialogProps
 > = ({ open, onClose, onSuccess, editItem }) => {
   const isEditMode = !!editItem;
+  const originalMenuType = editItem?.menu_type ?? null;
   // ── State ──────────────────────────────────────────────────────────────────
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [touched, setTouched] = useState<Partial<Record<keyof FormState, boolean>>>({});
@@ -237,8 +240,8 @@ const AddRestaurantMenuItemDialog: React.FC<
         taxType:       editItem.tax_include_or_exclude ? "include" : "exclude",
         gstTax:        String(editItem.gst_id ?? ""),
         hsnCode:       editItem.hsn_code ?? "",
-        openingStock:  editItem.opening_stock != null ? String(editItem.opening_stock) : "",
-        alertStock:    editItem.alert_stock != null ? String(editItem.alert_stock) : "",
+        openingStock:  editItem.stock_qty != null ? String(parseInt(String(editItem.stock_qty), 10)) : (editItem.opening_stock != null ? String(parseInt(String(editItem.opening_stock), 10)) : ""),
+        alertStock:    editItem.stock_alert != null ? String(parseInt(String(editItem.stock_alert), 10)) : (editItem.alert_stock != null ? String(parseInt(String(editItem.alert_stock), 10)) : ""),
       });
       setImagePreview(editItem.menu_image ?? null);
       setImageUrl(editItem.menu_image ?? null);
@@ -422,10 +425,10 @@ const AddRestaurantMenuItemDialog: React.FC<
     formData.append("menu_code", form.itemCode.trim());
     if (form.menuType === "Product") {
       if (form.openingStock) {
-        formData.append("opening_stock", form.openingStock);
+        formData.append("opening_stock", String(parseInt(form.openingStock, 10)));
       }
       if (form.alertStock) {
-        formData.append("alert_stock", form.alertStock);
+        formData.append("alert_stock", String(parseInt(form.alertStock, 10)));
       }
     }
     formData.append("variants", variants.length > 0 ? JSON.stringify(variants) : "null");
@@ -649,7 +652,12 @@ const AddRestaurantMenuItemDialog: React.FC<
                 <ToggleButtonGroup
                   value={form.menuType}
                   exclusive
-                  onChange={(_e, val) => { if (val) set("menuType", val as MenuType); }}
+                  onChange={(_e, val) => {
+                    if (val) {
+                      set("menuType", val as MenuType);
+                      if (val === "Product") setVariants([]);
+                    }
+                  }}
                   size="small"
                   sx={{ "& .MuiToggleButton-root": { textTransform: "none", fontWeight: 700, fontSize: 13, px: 3, py: 0.8, borderColor: "#E2E8F0", color: "#64748B", "&.Mui-selected": { bgcolor: PRIMARY, color: "#fff", borderColor: PRIMARY, "&:hover": { bgcolor: "#b71c34" } }, "&:hover": { bgcolor: "rgba(210,31,60,0.06)" } } }}
                 >
@@ -1023,6 +1031,7 @@ const AddRestaurantMenuItemDialog: React.FC<
                     placeholder="0"
                     value={form.openingStock}
                     onChange={(e) => set("openingStock", e.target.value)}
+                    disabled={isEditMode && originalMenuType === "Product"}
                     InputProps={{
                       sx: inputSx,
                       endAdornment: (
@@ -1058,6 +1067,7 @@ const AddRestaurantMenuItemDialog: React.FC<
                     placeholder="e.g. 10"
                     value={form.alertStock}
                     onChange={(e) => set("alertStock", e.target.value)}
+                    disabled={isEditMode && originalMenuType === "Product"}
                     InputProps={{
                       sx: inputSx,
                       endAdornment: (
