@@ -24,7 +24,7 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import React from "react";
-import { History, Person, Settings } from "@mui/icons-material";
+import { History, Person, Settings, AdminPanelSettings, Badge } from "@mui/icons-material";
 import { useAppDispatch, useAppSelector } from "@store/store";
 import { clearAuthData, BusinessType } from "@store/slices/userSlice";
 import { tokenStore } from "@pages/auth/Authapi";
@@ -43,6 +43,8 @@ const retailNavItems = [
   { label: "Purchase", icon: <CategoryIcon />, path: "/purchase" },
   { label: "Expense", icon: <PaymentsIcon />, path: "/expense" },
   { label: "Customer Management", icon: <Person />, path: "/customer-details" },
+  { label: "Employee Management", icon: <Badge />, path: "/employee-management" },
+  { label: "Role Management", icon: <AdminPanelSettings />, path: "/role-management" },
   { label: "Report", icon: <BarChartIcon />, path: "/reports" },
   { label: "Settings", icon: <Settings />, path: "/settings" },
 ];
@@ -56,6 +58,8 @@ const restaurantNavItems = [
   { label: "Purchase", icon: <CategoryIcon />, path: "/purchase" },
   { label: "Expense", icon: <PaymentsIcon />, path: "/expense" },
   { label: "Customer Management", icon: <Person />, path: "/customer-details" },
+  { label: "Employee Management", icon: <Badge />, path: "/employee-management" },
+  { label: "Role Management", icon: <AdminPanelSettings />, path: "/role-management" },
   { label: "Report", icon: <BarChartIcon />, path: "/reports" },
   { label: "Settings", icon: <Settings />, path: "/settings" },
 ];
