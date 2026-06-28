@@ -52,6 +52,7 @@ import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import SmartphoneIcon from "@mui/icons-material/Smartphone";
 import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import CloudDoneIcon from "@mui/icons-material/CloudDone";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import { useNavigate } from "react-router-dom";
 import heroImg from "../../assets/heroImg.png";
 import zlogo from "../../assets/zlogo.png";
@@ -66,6 +67,7 @@ import imgTaskManagement from "../../assets/modules/task-management.png";
 import imgBarcodeStock from "../../assets/modules/barcode-stock.png";
 import imgMobileApp from "../../assets/modules/mobile-app.png";
 import getAppImg from "../../assets/GetAPP.png";
+import gPlayLogo from "../../assets/g_play_logo.png";
 import showcaseBilling from "../../assets/wzd__1.png";
 import showcaseInventory from "../../assets/wzd_2.png";
 import showcaseReports from "../../assets/wzd__3.png";
@@ -582,7 +584,7 @@ const ZoduLandingPage: React.FC = () => {
               order: { xs: 2, md: 1 },
             }}>
               <Box sx={{
-                maxWidth: 530, width: "100%",
+                maxWidth: 600, width: "100%",
                 mx: { xs: "auto", md: 0 },
                 textAlign: { xs: "center", md: "left" },
               }}>
@@ -608,7 +610,7 @@ const ZoduLandingPage: React.FC = () => {
                   mb: 1.6,
                 }}>
                   Smart Billing &amp;<br />
-                  <Box component="span" sx={{ color: PRIMARY, position: "relative", display: "inline-block" }}>
+                  <Box component="span" sx={{ color: "#1E3A8A", position: "relative", display: "inline-block" }}>
                     Business Management
                     <Box component="span" sx={{
                       position: "absolute",
@@ -617,7 +619,7 @@ const ZoduLandingPage: React.FC = () => {
                       bottom: { xs: -4, md: -7 },
                       height: { xs: 4, md: 6 },
                       borderRadius: "999px",
-                      bgcolor: alpha(PRIMARY, 0.18),
+                      bgcolor: "rgba(30,58,138,0.15)",
                     }} />
                   </Box>
                 </Typography>
@@ -707,13 +709,13 @@ const ZoduLandingPage: React.FC = () => {
               justifyContent: "center",
               overflow: "hidden",
               order: { xs: 1, md: 2 },
-              minHeight: { xs: 280, sm: 390, md: "auto" },
+              minHeight: { xs: 340, sm: 480, md: "auto" },
               p: { xs: 2.5, md: 2 },
             }}>
               <Box sx={{
                 position: "relative",
                 width: "100%",
-                maxWidth: { xs: 440, sm: 700, md: 780 },
+                maxWidth: { xs: 520, sm: 820, md: 960 },
                 borderRadius: { xs: "22px", md: "32px" },
                 // background: "rgba(255,255,255,0.78)",
                 // border: "1px solid rgba(255,255,255,0.85)",
@@ -756,7 +758,7 @@ const ZoduLandingPage: React.FC = () => {
                   alt="Zodu business management platform"
                   sx={{
                     width: "100%",
-                    maxHeight: { xs: 320, sm: 560, md: "clamp(420px, calc(100vh - 210px), 570px)" },
+                    maxHeight: { xs: 400, sm: 680, md: "clamp(500px, calc(100vh - 180px), 680px)" },
                     objectFit: "contain",
                     objectPosition: "center",
                     display: "block",
@@ -836,26 +838,45 @@ const ZoduLandingPage: React.FC = () => {
               zIndex: 1,
               display: "grid",
               gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" },
-              gap: { xs: 1.5, md: 2 },
+              gap: { xs: 1.5, md: 0 },
+              bgcolor: "rgba(255,255,255,0.045)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: "16px",
+              boxShadow: "0 14px 32px rgba(0,0,0,0.12)",
+              overflow: "hidden",
             }}>
               {[
-                { value: "1 Lakh+",   label: "Active Businesses"  },
-                { value: "₹500 Cr+",  label: "Bills Generated"    },
-                { value: "4.9 / 5",   label: "Average Rating"     },
-                { value: "30 Min",    label: "Avg. Setup Time"    },
+                { icon: <GroupsIcon sx={{ fontSize: 28, color: PRIMARY }} />,       value: "1 Lakh+",  label: "Active Businesses" },
+                { icon: <ReceiptLongIcon sx={{ fontSize: 28, color: PRIMARY }} />,  value: "₹500 Cr+", label: "Bills Generated"   },
+                { icon: <StarIcon sx={{ fontSize: 28, color: PRIMARY }} />,         value: "4.9 / 5",  label: "Average Rating"    },
+                { icon: <AccessTimeIcon sx={{ fontSize: 28, color: PRIMARY }} />,   value: "30 Min",   label: "Avg. Setup Time"   },
               ].map((stat, i) => (
                 <Box key={stat.value} sx={{
-                  textAlign: "center",
-                  p: { xs: 2, md: 2.4 },
-                  borderRadius: "16px",
-                  bgcolor: "rgba(255,255,255,0.045)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  boxShadow: "0 14px 32px rgba(0,0,0,0.12)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: { xs: 1.5, md: 2 },
+                  p: { xs: 2, md: 2.8 },
+                  borderRight: { md: i < 3 ? "1px solid rgba(255,255,255,0.08)" : "none" },
+                  borderBottom: { xs: i < 2 ? "1px solid rgba(255,255,255,0.08)" : "none", md: "none" },
                 }}>
-                  <Typography sx={{ fontSize: { xs: "1.75rem", md: "2.45rem" }, fontWeight: 900, color: "#fff", letterSpacing: "-0.04em", lineHeight: 1 }}>
-                    {stat.value}
-                  </Typography>
-                  <Typography sx={{ fontSize: "0.82rem", color: "#A7B0C0", fontWeight: 600, mt: 1 }}>{stat.label}</Typography>
+                  <Box sx={{
+                    width: { xs: 44, md: 52 },
+                    height: { xs: 44, md: 52 },
+                    borderRadius: "50%",
+                    border: `1.5px solid ${alpha(PRIMARY, 0.5)}`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}>
+                    {stat.icon}
+                  </Box>
+                  <Box>
+                    <Typography sx={{ fontSize: { xs: "1.35rem", md: "1.75rem" }, fontWeight: 900, color: "#fff", letterSpacing: "-0.03em", lineHeight: 1 }}>
+                      {stat.value}
+                    </Typography>
+                    <Typography sx={{ fontSize: { xs: "0.72rem", md: "0.82rem" }, color: "#A7B0C0", fontWeight: 600, mt: 0.5 }}>{stat.label}</Typography>
+                  </Box>
                 </Box>
               ))}
             </Box>
@@ -1644,34 +1665,84 @@ const ZoduLandingPage: React.FC = () => {
                     ))}
                   </Stack> */}
 
-                  {/* Store badges */}
-                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1.4} mb={{ xs: 2.4, md: 2.6 }} sx={{ justifyContent: { xs: "center", md: "flex-start" } }}>
-                    {/* App Store — red */}
-                    <Box component="a" href="#" sx={{
-                      display: "inline-flex", alignItems: "center", gap: 1.3, textDecoration: "none",
-                      bgcolor: APP_RED, color: "#fff", px: { xs: 2.2, md: 2.4 }, py: { xs: 1.05, md: 1.08 }, borderRadius: "10px",
-                      minWidth: { xs: "100%", sm: 184, md: 188 },
-                      boxShadow: `0 8px 20px ${alpha(APP_RED, 0.35)}`, transition: "all 0.18s",
-                      "&:hover": { bgcolor: APP_RED_DARK, transform: "translateY(-2px)" },
-                    }}>
-                      <AppleIcon sx={{ fontSize: 30 }} />
-                      <Box sx={{ textAlign: "left", lineHeight: 1 }}>
-                        <Typography sx={{ fontFamily: POPPINS, fontSize: "0.6rem", opacity: 0.9 }}>Download on the</Typography>
-                        <Typography sx={{ fontFamily: POPPINS, fontSize: "1.05rem", fontWeight: 700, mt: "2px" }}>App Store</Typography>
+                  {/* Store badges + QR code */}
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={2} mb={{ xs: 2.4, md: 2.6 }} sx={{ justifyContent: { xs: "center", md: "flex-start" }, alignItems: { xs: "stretch", sm: "center" } }}>
+                    {/* Buttons column */}
+                    <Stack spacing={1.4} sx={{ flex: { sm: "0 0 auto" } }}>
+                      {/* Google Play — dark */}
+                      <Box component="a" href="#" sx={{
+                        display: "inline-flex", alignItems: "center", gap: 1.4, textDecoration: "none",
+                        bgcolor: "#000", color: "#fff",
+                        px: { xs: 2.2, md: 2.4 }, py: { xs: 1.05, md: 1.08 },
+                        borderRadius: "10px", border: "1px solid rgba(255,255,255,0.25)",
+                        minWidth: { xs: "100%", sm: 192, md: 200 },
+                        boxShadow: "0 6px 18px rgba(0,0,0,0.22)", transition: "all 0.18s",
+                        "&:hover": { transform: "translateY(-2px)", boxShadow: "0 10px 26px rgba(0,0,0,0.3)" },
+                      }}>
+                        <Box component="img" src={gPlayLogo} alt="Google Play" sx={{ width: 28, height: 28, objectFit: "contain", flexShrink: 0 }} />
+                        <Box sx={{ textAlign: "left", lineHeight: 1 }}>
+                          <Typography sx={{ fontFamily: POPPINS, fontSize: "0.58rem", color: "rgba(255,255,255,0.8)", letterSpacing: "0.04em" }}>GET IT ON</Typography>
+                          <Typography sx={{ fontFamily: POPPINS, fontSize: "1.05rem", fontWeight: 700, mt: "2px", color: "#fff" }}>Google Play</Typography>
+                        </Box>
                       </Box>
-                    </Box>
-                    {/* Google Play — white */}
-                    <Box component="a" href="#" sx={{
-                      display: "inline-flex", alignItems: "center", gap: 1.3, textDecoration: "none",
-                      bgcolor: "#fff", color: APP_NAVY, px: { xs: 2.2, md: 2.4 }, py: { xs: 1.05, md: 1.08 }, borderRadius: "10px",
-                      minWidth: { xs: "100%", sm: 184, md: 188 },
-                      border: `1px solid ${BORDER}`, boxShadow: "0 6px 18px rgba(0,0,0,0.06)", transition: "all 0.18s",
-                      "&:hover": { borderColor: alpha(APP_RED, 0.4), transform: "translateY(-2px)" },
+                      {/* App Store — dark */}
+                      <Box component="a" href="#" sx={{
+                        display: "inline-flex", alignItems: "center", gap: 1.4, textDecoration: "none",
+                        bgcolor: "#000", color: "#fff",
+                        px: { xs: 2.2, md: 2.4 }, py: { xs: 1.05, md: 1.08 },
+                        borderRadius: "10px", border: "1px solid rgba(255,255,255,0.25)",
+                        minWidth: { xs: "100%", sm: 192, md: 200 },
+                        boxShadow: "0 6px 18px rgba(0,0,0,0.22)", transition: "all 0.18s",
+                        "&:hover": { transform: "translateY(-2px)", boxShadow: "0 10px 26px rgba(0,0,0,0.3)" },
+                      }}>
+                        <AppleIcon sx={{ fontSize: 30, color: "#fff", flexShrink: 0 }} />
+                        <Box sx={{ textAlign: "left", lineHeight: 1 }}>
+                          <Typography sx={{ fontFamily: POPPINS, fontSize: "0.58rem", color: "rgba(255,255,255,0.8)", letterSpacing: "0.04em" }}>Download on the</Typography>
+                          <Typography sx={{ fontFamily: POPPINS, fontSize: "1.05rem", fontWeight: 700, mt: "2px", color: "#fff" }}>App Store</Typography>
+                        </Box>
+                      </Box>
+                    </Stack>
+
+                    {/* QR code — desktop only */}
+                    <Box sx={{
+                      display: { xs: "none", sm: "flex" }, alignItems: "center", gap: 1.5,
+                      bgcolor: "#fff", borderRadius: "14px", border: `1px solid ${BORDER}`,
+                      boxShadow: "0 6px 20px rgba(0,0,0,0.08)", p: 1.5,
                     }}>
-                      <PlayArrowIcon sx={{ fontSize: 30, fill: "url(#gplay)" }} />
-                      <Box sx={{ textAlign: "left", lineHeight: 1 }}>
-                        <Typography sx={{ fontFamily: POPPINS, fontSize: "0.6rem", color: APP_SLATE }}>GET IT ON</Typography>
-                        <Typography sx={{ fontFamily: POPPINS, fontSize: "1.05rem", fontWeight: 700, mt: "2px" }}>Google Play</Typography>
+                      {/* QR code SVG placeholder */}
+                      <Box sx={{ width: 82, height: 82, flexShrink: 0, bgcolor: "#fff", borderRadius: "8px", overflow: "hidden", p: "4px" }}>
+                        <Box component="svg" viewBox="0 0 21 21" width="74" height="74" sx={{ display: "block" }}>
+                          {/* Top-left finder */}
+                          <rect x="0" y="0" width="7" height="7" fill="#111" rx="0.5"/>
+                          <rect x="1" y="1" width="5" height="5" fill="#fff"/>
+                          <rect x="2" y="2" width="3" height="3" fill="#111"/>
+                          {/* Top-right finder */}
+                          <rect x="14" y="0" width="7" height="7" fill="#111" rx="0.5"/>
+                          <rect x="15" y="1" width="5" height="5" fill="#fff"/>
+                          <rect x="16" y="2" width="3" height="3" fill="#111"/>
+                          {/* Bottom-left finder */}
+                          <rect x="0" y="14" width="7" height="7" fill="#111" rx="0.5"/>
+                          <rect x="1" y="15" width="5" height="5" fill="#fff"/>
+                          <rect x="2" y="16" width="3" height="3" fill="#111"/>
+                          {/* Timing patterns */}
+                          <rect x="8" y="6" width="1" height="1" fill="#111"/><rect x="10" y="6" width="1" height="1" fill="#111"/><rect x="12" y="6" width="1" height="1" fill="#111"/>
+                          <rect x="6" y="8" width="1" height="1" fill="#111"/><rect x="6" y="10" width="1" height="1" fill="#111"/><rect x="6" y="12" width="1" height="1" fill="#111"/>
+                          {/* Data modules */}
+                          <rect x="8" y="0" width="1" height="1" fill="#111"/><rect x="10" y="0" width="2" height="1" fill="#111"/><rect x="13" y="0" width="1" height="1" fill="#111"/>
+                          <rect x="9" y="2" width="1" height="1" fill="#111"/><rect x="11" y="2" width="2" height="1" fill="#111"/>
+                          <rect x="8" y="4" width="2" height="1" fill="#111"/><rect x="12" y="4" width="2" height="1" fill="#111"/>
+                          <rect x="0" y="8" width="1" height="1" fill="#111"/><rect x="2" y="8" width="3" height="1" fill="#111"/><rect x="8" y="8" width="2" height="1" fill="#111"/><rect x="12" y="8" width="2" height="1" fill="#111"/><rect x="16" y="8" width="1" height="1" fill="#111"/><rect x="18" y="8" width="1" height="1" fill="#111"/><rect x="20" y="8" width="1" height="1" fill="#111"/>
+                          <rect x="0" y="10" width="1" height="1" fill="#111"/><rect x="3" y="10" width="2" height="1" fill="#111"/><rect x="8" y="10" width="1" height="1" fill="#111"/><rect x="11" y="10" width="2" height="1" fill="#111"/><rect x="15" y="10" width="3" height="1" fill="#111"/><rect x="20" y="10" width="1" height="1" fill="#111"/>
+                          <rect x="1" y="12" width="2" height="1" fill="#111"/><rect x="5" y="12" width="1" height="1" fill="#111"/><rect x="9" y="12" width="2" height="1" fill="#111"/><rect x="13" y="12" width="1" height="1" fill="#111"/><rect x="16" y="12" width="2" height="1" fill="#111"/>
+                          <rect x="8" y="14" width="1" height="1" fill="#111"/><rect x="10" y="14" width="2" height="1" fill="#111"/><rect x="14" y="14" width="1" height="1" fill="#111"/><rect x="17" y="14" width="2" height="1" fill="#111"/><rect x="20" y="14" width="1" height="1" fill="#111"/>
+                          <rect x="9" y="16" width="2" height="1" fill="#111"/><rect x="13" y="16" width="1" height="1" fill="#111"/><rect x="16" y="16" width="1" height="1" fill="#111"/><rect x="19" y="16" width="2" height="1" fill="#111"/>
+                          <rect x="8" y="18" width="1" height="1" fill="#111"/><rect x="11" y="18" width="2" height="1" fill="#111"/><rect x="15" y="18" width="1" height="1" fill="#111"/><rect x="18" y="18" width="2" height="1" fill="#111"/>
+                          <rect x="9" y="20" width="2" height="1" fill="#111"/><rect x="13" y="20" width="2" height="1" fill="#111"/><rect x="17" y="20" width="1" height="1" fill="#111"/><rect x="20" y="20" width="1" height="1" fill="#111"/>
+                        </Box>
+                      </Box>
+                      <Box>
+                        <Typography sx={{ fontFamily: POPPINS, fontWeight: 700, fontSize: "0.78rem", color: APP_NAVY, lineHeight: 1.3 }}>Scan to<br/>Download</Typography>
+                        <Typography sx={{ fontFamily: POPPINS, fontSize: "0.62rem", color: APP_SLATE, mt: 0.5, lineHeight: 1.4 }}>Point your camera<br/>at the QR code</Typography>
                       </Box>
                     </Box>
                   </Stack>
