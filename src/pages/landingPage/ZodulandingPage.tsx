@@ -3,6 +3,7 @@ import {
   Box, Button, Container, Typography, Stack, Divider,
   Link, IconButton, Accordion, AccordionSummary, AccordionDetails,
   Avatar,
+  Grid,
 } from "@mui/material";
 import { createTheme, ThemeProvider, alpha } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -103,7 +104,7 @@ const theme = createTheme({
 
 const features = [
   {
-    icon: <ReceiptLongIcon sx={{ fontSize: 28, color: PRIMARY }} />,
+    icon: imgPosBilling,
     bg: "#fff0f0",
     img: showcaseBilling,
     title: "Bill Customers 10× Faster",
@@ -116,7 +117,7 @@ const features = [
     ],
   },
   {
-    icon: <Inventory2Icon sx={{ fontSize: 28, color: "#16a34a" }} />,
+    icon: imgInventory,
     bg: "#f0fdf4",
     img: showcaseInventory,
     title: "Never Run Out of Stock Again",
@@ -129,7 +130,7 @@ const features = [
     ],
   },
   {
-    icon: <AnalyticsIcon sx={{ fontSize: 28, color: "#ea580c" }} />,
+    icon: imgReports,
     bg: "#fff7ed",
     img: showcaseReports,
     title: "Know Exactly Where Your Money Goes",
@@ -142,7 +143,20 @@ const features = [
     ],
   },
   {
-    icon: <GroupsIcon sx={{ fontSize: 28, color: "#2563eb" }} />,
+    icon: imgEmployee,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+    title: "Employee Management",
+    tagline: "Run your whole team without the headache.",
+    items: [
+      "Role-based access control",
+      "Track each staff's sales performance",
+      "Monthly payroll in minutes",
+      "Shift & duty scheduling",
+    ],
+  },
+  {
+    icon: imgEmployee,
     bg: "#eff6ff",
     img: showcaseTeam,
     title: "Manage Your Team Without the Headache",
@@ -152,6 +166,98 @@ const features = [
       "Process monthly payroll in under 10 minutes",
       "Set role-based access — staff see only what they need",
       "Monitor each employee's sales performance live",
+    ],
+  },
+  {
+    icon: imgGstTax,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+    title: "GST & Tax Reports",
+    tagline: "Stay compliant without the accountant stress.",
+    items: [
+      "Auto GST calculation on every bill",
+      "GSTR-ready exports for your CA",
+      "HSN / SAC code support",
+      "Tax summary dashboards",
+    ],
+  },
+  {
+    icon: imgGstTax,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+    title: "Customer Management",
+    tagline: "Turn one-time buyers into loyal regulars.",
+    items: [
+      "Customer profiles & purchase history",
+      "Loyalty points & reward offers",
+      "Loyalty points & reward offers",   
+      "Credit / khata management",
+      "Targeted offers & reminders"
+    ],
+  },
+  {
+    icon: imgMultiLocation,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+    title: "Multi Location",
+    tagline: "Run every branch from a single account.",
+    items: [
+      "Combined cross-branch reports",
+      "Per-outlet inventory control",
+      "Centralised staff management",
+      "Branch-wise performance",
+    ],
+  },
+  {
+    icon: imgDigitalPayments,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+    title: "Digital Payments",
+    tagline: "Accept every payment mode, auto-reconciled.",
+    items: [
+      "UPI, card & wallet support",
+      "QR-code payments at the counter",
+      "Automatic payment reminders",
+      "Reconciled transaction records",
+    ],
+  },
+  {
+    icon: imgTaskManagement,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+    title: "Task Management",
+    tagline: "Assign work and track it to completion.",
+    items: [
+      "Assign tasks to any staff member",
+      "Track progress in real time",
+      "Due-date reminders & alerts",
+      "Daily task checklists",
+    ],
+  },
+  {
+    icon: imgBarcodeStock,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+    title: "Barcode & Stock",
+    tagline: "Scan-to-bill speed at the counter.",
+    items: [
+      "Barcode scan billing",
+      "Automatic stock deduction",
+      "Label & barcode printing",
+      "Batch & expiry tracking",
+    ],
+  },
+  {
+    icon: imgMobileApp,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+    title: "Mobile App & Alerts",
+    tagline: "Run your business right from your pocket.",
+    items: [
+      "iOS, Android & tablet apps",
+      "Real-time sales alerts",
+      "Remote dashboard access",
+      "Smart push notifications",
     ],
   },
 ];
@@ -610,7 +716,7 @@ const ZoduLandingPage: React.FC = () => {
                   mb: 1.6,
                 }}>
                   Smart Billing &amp;<br />
-                  <Box component="span" sx={{ color: "#1E3A8A", position: "relative", display: "inline-block" }}>
+                  <Box component="span" sx={{ color: "#2563eb", position: "relative", display: "inline-block" }}>
                     Business Management
                     <Box component="span" sx={{
                       position: "absolute",
@@ -723,7 +829,7 @@ const ZoduLandingPage: React.FC = () => {
                 // p: { xs: 0.8, md: 0.7 },
                 // backdropFilter: "blur(12px)",
               }}>
-                {[
+                {/* {[
                   { label: "GST Ready", value: "Reports", top: "12%", left: "-4%", color: "#16a34a" },
                   // { label: "Live Sales", value: "4.9/5", top: "10%", right: "-3%", color: PRIMARY },
                   { label: "Inventory", value: "Real-time", bottom: "11%", left: "-5%", color: "#2563eb" },
@@ -751,7 +857,7 @@ const ZoduLandingPage: React.FC = () => {
                     <Typography sx={{ color: DARK, fontSize: "0.78rem", fontWeight: 800, mt: 0.4 }}>{chip.value}</Typography>
                   </Box>
                   );
-                })}
+                })} */}
                 <Box
                   component="img"
                   src={heroImg}
@@ -898,21 +1004,47 @@ const ZoduLandingPage: React.FC = () => {
               </Typography>
             </Box>
 
-            <Stack spacing={{ xs: 3, md: 3 }}>
-              {features.map((f, i) => {
-                const accent = f.icon.props.sx.color;
-                const flip = i % 2 === 1;
+           <Grid container spacing={3}>
+  {features.map((f, i) => {
+    const accent = PRIMARY;
+    const flip = i % 2 === 1;
                 return (
-                  <Box key={f.title} sx={{
-                    position: "relative",
-                    overflow: "hidden",
-                    minHeight: { xs: "auto", md: 285 },
-                    borderRadius: "14px",
-                    bgcolor: "#fff",
-                    backgroundImage: `linear-gradient(135deg, #fff 0%, #fff 42%, ${f.bg} 100%)`,
-                    boxShadow: { xs: "none", md: `0 12px 34px ${alpha(accent, 0.07)}` },
-                    border: `1px solid ${alpha(accent, 0.22)}`,
-                  }}>
+                  <Grid
+        key={f.title}
+        size={{ xs: 12, md: 6 }}
+      >
+        <Box
+          // sx={{
+          //   position: "relative",
+          //   overflow: "hidden",
+          //   minHeight: { xs: "auto", md: 285 },
+          //   height: "100%",
+          //   borderRadius: "14px",
+          //   bgcolor: "#fff",
+          //   backgroundImage: `linear-gradient(135deg, #fff 0%, #fff 42%, ${f.bg} 100%)`,
+          //   boxShadow: {
+          //     xs: "none",
+          //     md: `0 12px 34px ${alpha(accent, 0.07)}`,
+          //   },
+          //   border: `1px solid ${alpha(accent, 0.22)}`,
+          // }}
+        sx={{
+  position: "relative",
+  overflow: "hidden",
+  height: "100%",
+  borderRadius: "28px",
+  bgcolor: "#fff",
+  background: `linear-gradient(145deg,#ffffff 0%,${alpha(f.bg,0.18)} 100%)`,
+  border: `1px solid ${alpha(accent,0.15)}`,
+  boxShadow: "0 18px 45px rgba(15,23,42,.08)",
+  transition: "all .35s ease",
+  "&:hover": {
+    transform: "translateY(-12px)",
+    boxShadow: `0 35px 70px ${alpha(accent,.18)}`,
+    borderColor: accent,
+  },
+}}
+        >
                     <Box
                       component="svg"
                       viewBox="0 0 980 520"
@@ -952,6 +1084,92 @@ const ZoduLandingPage: React.FC = () => {
                       pointerEvents: "none",
                       zIndex: 0,
                     }} />
+                     <Box sx={{
+                      position: "relative",
+                      zIndex: 1,
+                      display: "flex",
+                      flexDirection: { xs: "column", md: flip ? "row-reverse" : "row" },
+                      alignItems: "center",
+                      gap: { xs: 2.5, md: 3.5 },
+                      px: { xs: 2, md: 3 },
+                      py: { xs: 3, md: 2.5 },
+                      width:"100%"
+                    }}>
+                    {/* TEXT */}
+                      <Box sx={{ flex: { md: "0 0 100%" }, width: "100%" }}>
+                         <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.7,width:"100%",
+                          //  bgcolor: alpha(accent, 0.09), borderRadius: "999px", 
+                           pl: 0.45, pr: 1, py: 0.35, mb: { xs: 2, md: 2.5 } }}>
+                            <Box sx={{ position: "relative",width:"100%"}}>
+                         <Box
+  sx={{
+     position: "absolute",
+      top: 0,
+      right: flip ? 0 : "auto",
+      left: flip ? "auto" : 0,
+      width: 90,
+      height: 90,
+      borderRadius: "16px",
+      bgcolor: "#fff",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      boxShadow: `0 12px 24px ${alpha(accent, 0.12)}`,
+      overflow: "hidden",
+  }}
+>
+ <Box
+  component="img"
+  src={f.icon}
+  alt={f.title}
+  sx={{
+    width: 100,
+    height: 100,
+    objectFit: "contain",
+    mixBlendMode: "multiply"
+    // filter: "brightness(0) invert(1)",
+  }}
+/>
+</Box>
+  <Typography
+  sx={{
+    width: "100%",
+      minHeight: 90,
+      pl: flip ? 0 : "110px",
+      pr: flip ? "110px" : 0,
+      // display: "flex",
+      alignItems: "center",
+      fontWeight: 900,
+      fontSize: { xs: "1.5rem", md: "2rem" },
+      lineHeight: 1.2,
+      color: DARK,
+      textAlign: "left",
+      display: "-webkit-box",
+      WebkitLineClamp: 2,
+      WebkitBoxOrient: "vertical",
+      overflow: "hidden",
+  }}
+>
+  {f.title}
+</Typography>
+
+ <Typography
+  sx={{
+    mt: 1,
+    // mb: 3,
+    color: "#0a0000",
+    fontSize: "1rem",
+    lineHeight: 1.7,
+  }}
+>
+  {f.tagline}
+</Typography>
+                          {/* <Typography sx={{ fontSize: "0.62rem", fontWeight: 800, color: accent, letterSpacing: "0.01em" }}>
+                          {`0${i + 1}`}
+                        </Typography> */}
+                      </Box>
+                     
+</Box></Box></Box>
                     <Box sx={{
                       position: "relative",
                       zIndex: 1,
@@ -964,31 +1182,50 @@ const ZoduLandingPage: React.FC = () => {
                     }}>
                     {/* TEXT */}
                       <Box sx={{ flex: { md: "0 0 36%" }, width: "100%" }}>
-                        <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.7, bgcolor: alpha(accent, 0.09), borderRadius: "999px", pl: 0.45, pr: 1, py: 0.35, mb: { xs: 2, md: 2.5 } }}>
-                          <Box sx={{ width: 22, height: 22, bgcolor: accent, borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 8px 18px ${alpha(accent, 0.18)}`, "& svg": { color: "#fff" } }}>
-                            {React.cloneElement(f.icon, { sx: { fontSize: 13, color: "#fff" } })}
-                        </Box>
-                          <Typography sx={{ fontSize: "0.62rem", fontWeight: 800, color: accent, letterSpacing: "0.01em" }}>
-                          {`0${i + 1}`}
-                        </Typography>
-                      </Box>
-                        <Typography sx={{ fontSize: { xs: "1.55rem", md: "2.5rem" }, fontWeight: 900, color: DARK, lineHeight: 1.08, letterSpacing: "-0.01em", mb: 1 }}>
-                        {f.title}
-                      </Typography>
-                        <Typography sx={{ fontSize: { xs: "0.78rem", md: "1.1rem" }, color: accent, fontWeight: 700, mb: { xs: 2, md: 1.8 } }}>
-                        {f.tagline}
-                      </Typography>
-                        <Stack mb={{ xs: 2, md: 2 }}>
-                          {f.items.map((item, itemIndex) => (
-                          <Box key={item} sx={{ display: "flex", alignItems: "flex-start", gap: 0.7 }}>
-                              <CheckCircleIcon sx={{ fontSize: 12, color: accent, flexShrink: 0, mt: "2px" }} />
-                              <Typography sx={{ flex: 1, fontSize: { xs: "0.74rem", md: "0.8rem" }, color: "#5b6475", lineHeight: 1.45, pb: 1, mb: 1, borderBottom: itemIndex < f.items.length - 1 ? `1px solid ${alpha(DARK, 0.10)}` : "none" }}>
-                                {item}
-                              </Typography>
-                          </Box>
-                        ))}
-                      </Stack>
-                      <Button
+      
+                       
+                       <Stack spacing={2.2}>
+  {f.items.map((item) => (
+    <Box
+      key={item}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1.5,
+      }}
+    >
+      <Box
+        sx={{
+          width: 28,
+          height: 28,
+          borderRadius: "50%",
+          bgcolor: alpha(accent, .12),
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <CheckCircleIcon
+          sx={{
+            color: accent,
+            fontSize: 18,
+          }}
+        />
+      </Box>
+
+      <Typography
+        sx={{
+          fontSize: ".92rem",
+          color: "#475569",
+          fontWeight: 500,
+        }}
+      >
+        {item}
+      </Typography>
+    </Box>
+  ))}
+</Stack>
+                    <Button
                         endIcon={<ArrowForwardIcon sx={{ fontSize: "20px !important" }} />}
                         onClick={() => navigate("/signup")}
                         sx={{ color: PRIMARY, fontWeight: 700, fontSize: "0.85rem", px: 0, minWidth: 0, "&:hover": { bgcolor: "transparent", gap: 0.5 } }}
@@ -998,30 +1235,42 @@ const ZoduLandingPage: React.FC = () => {
                     </Box>
 
                     {/* VISUAL */}
-                      <Box sx={{ flex: { md: "0 0 58%" }, width: "100%", display: "flex", justifyContent: "center", alignItems: "center" }}>
-                      <Box
-                        component="img"
-                        src={f.img}
-                        alt={f.title}
-                        sx={{
-                            width: { xs: "100%", md: "84%" },
-                            maxWidth: { xs: 520, md: 560 },
-                            display: "block",
-                            objectFit: "contain",
-                            filter: "drop-shadow(0 16px 28px rgba(15, 23, 42, 0.10))",
-                        }}
-                      />
-                      </Box>
+                    <Box
+  sx={{
+    p: 3,
+    borderRadius: "20px",
+    bgcolor: alpha(accent, .05),
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  }}
+>
+  <Box
+    component="img"
+    src={f.img}
+    alt={f.title}
+    sx={{
+      width: "100%",
+      maxWidth: 420,
+      transition: ".4s",
+      "&:hover": {
+        transform: "scale(1.05)",
+      },
+    }}
+  />
+</Box>
                     </Box>
-                  </Box>
+                  
+                   </Box>
+      </Grid>
                 );
               })}
-            </Stack>
+            </Grid>
           </Container>
         </Box>
 
         {/* ── MODULE SUITE ─────────────────────────────────────────────────── */}
-        <Box sx={{ bgcolor: LIGHT, py: SPY, px: SX, position: "relative", overflow: "hidden" }}>
+        {/* <Box sx={{ bgcolor: LIGHT, py: SPY, px: SX, position: "relative", overflow: "hidden" }}>
           <Box
             component="svg"
             viewBox="0 0 1200 520"
@@ -1157,10 +1406,10 @@ const ZoduLandingPage: React.FC = () => {
                     {m.desc}
                   </Typography>
 
-                  <Divider sx={{ borderColor: alpha(m.color, 0.16), mb: 1.7 }} />
+                  <Divider sx={{ borderColor: alpha(m.color, 0.16), mb: 1.7 }} /> */}
 
                   {/* Explanation points */}
-                  <Stack spacing={0.9}>
+                  {/* <Stack spacing={0.9}>
                     {m.points.slice(0, 3).map((pt) => (
                       <Box key={pt} sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
                         <CheckCircleIcon sx={{ fontSize: 15, color: m.color, flexShrink: 0, mt: "2px" }} />
@@ -1173,7 +1422,7 @@ const ZoduLandingPage: React.FC = () => {
               ))}
             </Box>
           </Container>
-        </Box>
+        </Box> */}
 
         {/* ── HOW IT WORKS ─────────────────────────────────────────────────── */}
         <Box sx={{ bgcolor: "#fff", py: SPY, px: SX, position: "relative", overflow: "hidden" }}>
