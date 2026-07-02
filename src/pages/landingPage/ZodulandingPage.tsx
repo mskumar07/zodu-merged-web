@@ -73,6 +73,16 @@ import showcaseBilling from "../../assets/wzd__1.png";
 import showcaseInventory from "../../assets/wzd_2.png";
 import showcaseReports from "../../assets/wzd__3.png";
 import showcaseTeam from "../../assets/wzd__4.png";
+import posShot1 from "../../assets/Feature/POS.png";
+import posShot2 from "../../assets/Feature/POS2.png";
+import posShot3 from "../../assets/Feature/POS3.png";
+import invShot1 from "../../assets/Feature/Inventory.png";
+import invShot2 from "../../assets/Feature/Inventory2.png";
+import invShot3 from "../../assets/Feature/Invenotry3.png";
+import reportShot1 from "../../assets/Feature/Report.png";
+import reportShot2 from "../../assets/Feature/Report2.png";
+import reportShot3 from "../../assets/Feature/Report3.png";
+import reportShot4 from "../../assets/Feature/Report4.png";
 
 // ── Design Tokens ─────────────────────────────────────────────────────────────
 const PRIMARY       = "#d32f2f";
@@ -102,44 +112,56 @@ const theme = createTheme({
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
-const features = [
+const features: {
+  icon: string;
+  bg: string;
+  img: string;
+  title: string;
+  tagline: string;
+  items: string[];
+  images?: string[];
+}[] = [
   {
     icon: imgPosBilling,
     bg: "#fff0f0",
     img: showcaseBilling,
-    title: "Bill Customers 10× Faster",
-    tagline: "No more long queues. No more billing errors.",
+    images: [posShot1, posShot2, posShot3],
+    title: "POS Billing",
+    tagline: "Bill in seconds — even during your busiest rush.",
     items: [
-      "Create GST-compliant invoices in under 10 seconds",
-      "Accept cash, card, UPI & all digital payment modes",
-      "Apply discounts, offers & loyalty points instantly",
-      "Print or WhatsApp bills directly from the app",
+      "Ring up a GST invoice in under 10 seconds",
+      "Accept cash, card, UPI & every wallet at one counter",
+      "Add discounts, combos & loyalty points on the fly",
+      "Share bills instantly on WhatsApp, SMS or print",
     ],
   },
   {
     icon: imgInventory,
     bg: "#f0fdf4",
     img: showcaseInventory,
-    title: "Never Run Out of Stock Again",
-    tagline: "Know exactly what you have before you need it.",
+    images: [invShot1, invShot2, invShot3],
+    title: "Inventory Management",
+    tagline: "Never run out of a best-seller again.",
     items: [
-      "Real-time stock tracking across all your products",
-      "Automatic low-stock alerts before you run out",
-      "Manage batches, expiry dates & multiple units",
-      "Purchase orders & supplier management built in",
+      "See live stock for every product, all in one view",
+      "Get alerts to reorder before an item runs dry",
+      "Track batches, expiry dates & multiple units with ease",
+      "Raise purchase orders & manage suppliers in a tap",
     ],
   },
   {
     icon: imgReports,
     bg: "#fff7ed",
     img: showcaseReports,
-    title: "Know Exactly Where Your Money Goes",
-    tagline: "Stop guessing. Start making data-driven decisions.",
+    // [base bar chart, top-left, bottom-right, top-right pie]
+    images: [reportShot2, reportShot4, reportShot3, reportShot1],
+    title: "Reports & Analytics",
+    tagline: "Know your numbers before your day even ends.",
     items: [
-      "Daily, weekly & monthly profit & loss reports",
-      "See your top-selling and slow-moving products",
-      "Track expenses by category and date range",
-      "Export GST-ready reports to share with your CA",
+      "Open daily, weekly & monthly profit at a glance",
+      "Spot your hero products and cut the dead stock",
+      "Track every expense by category and date",
+      "Send GST-ready reports straight to your CA",
     ],
   },
   {
@@ -147,25 +169,25 @@ const features = [
     bg: "#eff6ff",
     img: showcaseTeam,
     title: "Employee Management",
-    tagline: "Run your whole team without the headache.",
+    tagline: "Lead a bigger team with a lot less effort.",
     items: [
-      "Role-based access control",
-      "Track each staff's sales performance",
-      "Monthly payroll in minutes",
-      "Shift & duty scheduling",
+      "Give each role exactly the access it needs",
+      "See who's selling the most, in real time",
+      "Run accurate monthly payroll in minutes",
+      "Plan shifts & duties without the WhatsApp chaos",
     ],
   },
   {
     icon: imgEmployee,
     bg: "#eff6ff",
     img: showcaseTeam,
-    title: "Manage Your Team Without the Headache",
-    tagline: "Save 5+ hours every week on staff management.",
+    title: "Attendance Management",
+    tagline: "Say goodbye to the paper register for good.",
     items: [
-      "Track attendance automatically with login logs",
-      "Process monthly payroll in under 10 minutes",
-      "Set role-based access — staff see only what they need",
-      "Monitor each employee's sales performance live",
+      "Capture check-in & check-out automatically",
+      "Track late marks, early-outs & overtime with zero effort",
+      "Manage leaves & holidays from one calendar",
+      "Turn attendance into payroll with a single click",
     ],
   },
   {
@@ -173,12 +195,12 @@ const features = [
     bg: "#eff6ff",
     img: showcaseTeam,
     title: "GST & Tax Reports",
-    tagline: "Stay compliant without the accountant stress.",
+    tagline: "Be filing-ready every single month.",
     items: [
-      "Auto GST calculation on every bill",
-      "GSTR-ready exports for your CA",
-      "HSN / SAC code support",
-      "Tax summary dashboards",
+      "Auto-calculate GST on every bill you raise",
+      "Download GSTR-ready files your CA will love",
+      "Tag products with the right HSN / SAC codes",
+      "Read your full tax summary on one dashboard",
     ],
   },
   {
@@ -186,13 +208,12 @@ const features = [
     bg: "#eff6ff",
     img: showcaseTeam,
     title: "Customer Management",
-    tagline: "Turn one-time buyers into loyal regulars.",
+    tagline: "Turn a first visit into a lifelong regular.",
     items: [
-      "Customer profiles & purchase history",
-      "Loyalty points & reward offers",
-      "Loyalty points & reward offers",   
-      "Credit / khata management",
-      "Targeted offers & reminders"
+      "Keep every customer's profile & purchase history",
+      "Reward loyalty with points, offers & perks",
+      "Manage credit & khata without a single notebook",
+      "Win them back with timely offers & reminders",
     ],
   },
   {
@@ -200,12 +221,12 @@ const features = [
     bg: "#eff6ff",
     img: showcaseTeam,
     title: "Multi Location",
-    tagline: "Run every branch from a single account.",
+    tagline: "Run every outlet from one login.",
     items: [
-      "Combined cross-branch reports",
-      "Per-outlet inventory control",
-      "Centralised staff management",
-      "Branch-wise performance",
+      "Compare all branches in a single combined report",
+      "Control stock separately for each outlet",
+      "Manage staff across locations from one place",
+      "See which branch is winning, and which needs you",
     ],
   },
   {
@@ -213,12 +234,12 @@ const features = [
     bg: "#eff6ff",
     img: showcaseTeam,
     title: "Digital Payments",
-    tagline: "Accept every payment mode, auto-reconciled.",
+    tagline: "Get paid your way — and stay reconciled.",
     items: [
-      "UPI, card & wallet support",
-      "QR-code payments at the counter",
-      "Automatic payment reminders",
-      "Reconciled transaction records",
+      "Take UPI, cards & wallets at any counter",
+      "Show a QR and collect payment in seconds",
+      "Nudge customers automatically for pending dues",
+      "Match every transaction, no manual tallying",
     ],
   },
   {
@@ -226,12 +247,12 @@ const features = [
     bg: "#eff6ff",
     img: showcaseTeam,
     title: "Task Management",
-    tagline: "Assign work and track it to completion.",
+    tagline: "Nothing slips through the cracks anymore.",
     items: [
-      "Assign tasks to any staff member",
-      "Track progress in real time",
-      "Due-date reminders & alerts",
-      "Daily task checklists",
+      "Assign any task to any team member instantly",
+      "Watch progress update live as work gets done",
+      "Never miss a deadline with smart reminders",
+      "Run opening & closing checklists every day",
     ],
   },
   {
@@ -239,12 +260,12 @@ const features = [
     bg: "#eff6ff",
     img: showcaseTeam,
     title: "Barcode & Stock",
-    tagline: "Scan-to-bill speed at the counter.",
+    tagline: "Scan, bill, done — at counter speed.",
     items: [
-      "Barcode scan billing",
-      "Automatic stock deduction",
-      "Label & barcode printing",
-      "Batch & expiry tracking",
+      "Scan a barcode and add to the bill in a flash",
+      "Watch stock update the moment you sell",
+      "Print your own barcodes & shelf labels",
+      "Stay on top of batches & expiry dates",
     ],
   },
   {
@@ -252,12 +273,12 @@ const features = [
     bg: "#eff6ff",
     img: showcaseTeam,
     title: "Mobile App & Alerts",
-    tagline: "Run your business right from your pocket.",
+    tagline: "Your whole business, right in your pocket.",
     items: [
-      "iOS, Android & tablet apps",
-      "Real-time sales alerts",
-      "Remote dashboard access",
-      "Smart push notifications",
+      "Run it all on iOS, Android or tablet",
+      "Get pinged the second a sale happens",
+      "Check your dashboard from anywhere, anytime",
+      "Stay in the loop with smart push alerts",
     ],
   },
 ];
@@ -1005,9 +1026,8 @@ const ZoduLandingPage: React.FC = () => {
             </Box>
 
            <Grid container spacing={3}>
-  {features.map((f, i) => {
+  {features.map((f) => {
     const accent = PRIMARY;
-    const flip = i % 2 === 1;
                 return (
                   <Grid
         key={f.title}
@@ -1084,184 +1104,211 @@ const ZoduLandingPage: React.FC = () => {
                       pointerEvents: "none",
                       zIndex: 0,
                     }} />
-                     <Box sx={{
-                      position: "relative",
-                      zIndex: 1,
-                      display: "flex",
-                      flexDirection: { xs: "column", md: flip ? "row-reverse" : "row" },
-                      alignItems: "center",
-                      gap: { xs: 2.5, md: 3.5 },
-                      px: { xs: 2, md: 3 },
-                      py: { xs: 3, md: 2.5 },
-                      width:"100%"
-                    }}>
-                    {/* TEXT */}
-                      <Box sx={{ flex: { md: "0 0 100%" }, width: "100%" }}>
-                         <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.7,width:"100%",
-                          //  bgcolor: alpha(accent, 0.09), borderRadius: "999px", 
-                           pl: 0.45, pr: 1, py: 0.35, mb: { xs: 2, md: 2.5 } }}>
-                            <Box sx={{ position: "relative",width:"100%"}}>
-                         <Box
-  sx={{
-     position: "absolute",
-      top: 0,
-      right: flip ? 0 : "auto",
-      left: flip ? "auto" : 0,
-      width: 90,
-      height: 90,
-      borderRadius: "16px",
-      bgcolor: "#fff",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      boxShadow: `0 12px 24px ${alpha(accent, 0.12)}`,
-      overflow: "hidden",
-  }}
->
- <Box
-  component="img"
-  src={f.icon}
-  alt={f.title}
-  sx={{
-    width: 100,
-    height: 100,
-    objectFit: "contain",
-    mixBlendMode: "multiply"
-    // filter: "brightness(0) invert(1)",
-  }}
-/>
-</Box>
-  <Typography
-  sx={{
-    width: "100%",
-      minHeight: 90,
-      pl: flip ? 0 : "110px",
-      pr: flip ? "110px" : 0,
-      // display: "flex",
-      alignItems: "center",
-      fontWeight: 900,
-      fontSize: { xs: "1.5rem", md: "2rem" },
-      lineHeight: 1.2,
-      color: DARK,
-      textAlign: "left",
-      display: "-webkit-box",
-      WebkitLineClamp: 2,
-      WebkitBoxOrient: "vertical",
-      overflow: "hidden",
-  }}
->
-  {f.title}
-</Typography>
-
- <Typography
-  sx={{
-    mt: 1,
-    // mb: 3,
-    color: "#0a0000",
-    fontSize: "1rem",
-    lineHeight: 1.7,
-  }}
->
-  {f.tagline}
-</Typography>
-                          {/* <Typography sx={{ fontSize: "0.62rem", fontWeight: 800, color: accent, letterSpacing: "0.01em" }}>
-                          {`0${i + 1}`}
-                        </Typography> */}
-                      </Box>
-                     
-</Box></Box></Box>
                     <Box sx={{
                       position: "relative",
                       zIndex: 1,
                       display: "flex",
-                      flexDirection: { xs: "column", md: flip ? "row-reverse" : "row" },
-                      alignItems: "center",
-                      gap: { xs: 2.5, md: 3.5 },
-                      px: { xs: 2, md: 3 },
-                      py: { xs: 3, md: 2.5 },
+                      flexDirection: "column",
+                      height: "100%",
+                      p: { xs: 2.5, md: 3.5 },
                     }}>
-                    {/* TEXT */}
-                      <Box sx={{ flex: { md: "0 0 36%" }, width: "100%" }}>
-      
-                       
-                       <Stack spacing={2.2}>
-  {f.items.map((item) => (
-    <Box
-      key={item}
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        gap: 1.5,
-      }}
-    >
-      <Box
-        sx={{
-          width: 28,
-          height: 28,
-          borderRadius: "50%",
-          bgcolor: alpha(accent, .12),
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <CheckCircleIcon
-          sx={{
-            color: accent,
-            fontSize: 18,
-          }}
-        />
-      </Box>
+                      {/* HEADER — icon + title + tagline */}
+                      <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1.75, md: 2.25 }, mb: { xs: 2.5, md: 3 } }}>
+                        <Box sx={{
+                          flexShrink: 0,
+                          width: { xs: 64, md: 74 },
+                          height: { xs: 64, md: 74 },
+                          borderRadius: "18px",
+                          bgcolor: "#fff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          boxShadow: `0 12px 26px ${alpha(accent, 0.14)}`,
+                          overflow: "hidden",
+                        }}>
+                          <Box
+                            component="img"
+                            src={f.icon}
+                            alt={f.title}
+                            sx={{ width: { xs: 66, md: 78 }, height: { xs: 66, md: 78 }, objectFit: "contain", mixBlendMode: "multiply" }}
+                          />
+                        </Box>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography sx={{
+                            fontWeight: 900,
+                            fontSize: { xs: "1.35rem", md: "1.7rem" },
+                            lineHeight: 1.15,
+                            color: DARK,
+                            letterSpacing: "-0.02em",
+                          }}>
+                            {f.title}
+                          </Typography>
+                          <Typography sx={{
+                            mt: 0.6,
+                            color: "#64748B",
+                            fontSize: { xs: "0.9rem", md: "1rem" },
+                            lineHeight: 1.5,
+                          }}>
+                            {f.tagline}
+                          </Typography>
+                        </Box>
+                      </Box>
 
-      <Typography
-        sx={{
-          fontSize: ".92rem",
-          color: "#475569",
-          fontWeight: 500,
-        }}
-      >
-        {item}
-      </Typography>
-    </Box>
-  ))}
-</Stack>
-                    <Button
+                      {/* VISUAL — prominent product screenshot */}
+                      <Box sx={{
+                        position: "relative",
+                        width: "100%",
+                        p: { xs: 2, md: 3 },
+                        mb: { xs: 3, md: 2 },
+                        borderRadius: "20px",
+                        background: `linear-gradient(150deg, ${alpha(accent, .1)} 0%, ${alpha(accent, .02)} 100%)`,
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        minHeight: { xs: 210, md: 280 },
+                      }}>
+                        {f.images ? (
+                          // Layered product-screenshot collage (POS / Inventory / Reports)
+                          <Box sx={{
+                            position: "relative",
+                            width: "100%",
+                            maxWidth: 560,
+                            aspectRatio: { xs: "16 / 12", md: "16 / 10" },
+                            "&:hover .pos-front": { transform: "translateY(-8px)" },
+                          }}>
+                            {/* Base / main screenshot */}
+                            <Box
+                              component="img"
+                              src={f.images[0]}
+                              alt={`${f.title} dashboard`}
+                              sx={{
+                                position: "absolute",
+                                top: f.images[3] ? "8%" : "5%",
+                                left: "50%",
+                                transform: "translateX(-50%)",
+                                width: { xs: "80%", md: f.images[3] ? "70%" : "76%" },
+                                borderRadius: "14px",
+                                border: "1px solid rgba(15,23,42,0.06)",
+                                boxShadow: "0 24px 60px rgba(15,23,42,0.16)",
+                                bgcolor: "#fff",
+                              }}
+                            />
+                            {/* Floating card — top left */}
+                            <Box
+                              component="img"
+                              src={f.images[1]}
+                              alt={`${f.title} detail`}
+                              className="pos-front"
+                              sx={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                width: { xs: "42%", md: "37%" },
+                                borderRadius: "12px",
+                                // border: "3px solid #fff",
+                                // boxShadow: "0 18px 40px rgba(15,23,42,0.2)",
+                                // bgcolor: "#fff",
+                                transition: "transform .4s ease",
+                                zIndex: 3,
+                              }}
+                            />
+                            {/* Floating card — bottom right */}
+                            <Box
+                              component="img"
+                              src={f.images[2]}
+                              alt={`${f.title} detail`}
+                              className="pos-front"
+                              sx={{
+                                position: "absolute",
+                                bottom: 0,
+                                right: 0,
+                                width: { xs: "44%", md: "39%" },
+                                borderRadius: "12px",
+                                border: "3px solid #fff",
+                                boxShadow: "0 18px 40px rgba(15,23,42,0.2)",
+                                bgcolor: "#fff",
+                                transition: "transform .4s ease",
+                                zIndex: 3,
+                              }}
+                            />
+                            {/* Floating card — top right (only when a 4th image exists) */}
+                            {f.images[3] && (
+                              <Box
+                                component="img"
+                                src={f.images[3]}
+                                alt={`${f.title} detail`}
+                                className="pos-front"
+                                sx={{
+                                  position: "absolute",
+                                  top: 0,
+                                  right: 0,
+                                  width: { xs: "30%", md: "27%" },
+                                  borderRadius: "12px",
+                                  border: "3px solid #fff",
+                                  boxShadow: "0 18px 40px rgba(15,23,42,0.2)",
+                                  bgcolor: "#fff",
+                                  transition: "transform .4s ease",
+                                  zIndex: 4,
+                                }}
+                              />
+                            )}
+                          </Box>
+                        ) : (
+                          <Box
+                            component="img"
+                            src={f.img}
+                            alt={f.title}
+                            sx={{
+                              width: "100%",
+                              maxWidth: 460,
+                              borderRadius: "12px",
+                              transition: ".4s",
+                              "&:hover": { transform: "scale(1.04)" },
+                            }}
+                          />
+                        )}
+                      </Box>
+
+                      {/* ITEMS — 2×2 checklist */}
+                      <Box sx={{
+                        display: "grid",
+                        gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                        columnGap: { md: 3 },
+                        rowGap: { xs: 1.6, md: 2 },
+                        mb: 2.5,
+                      }}>
+                        {f.items.map((item) => (
+                          <Box key={item} sx={{ display: "flex", alignItems: "flex-start", gap: 1.25 }}>
+                            <Box sx={{
+                              flexShrink: 0,
+                              mt: "1px",
+                              width: 26,
+                              height: 26,
+                              borderRadius: "50%",
+                              bgcolor: alpha(accent, .12),
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}>
+                              <CheckCircleIcon sx={{ color: accent, fontSize: 17 }} />
+                            </Box>
+                            <Typography sx={{ fontSize: "0.92rem", color: "#475569", fontWeight: 500, lineHeight: 1.45 }}>
+                              {item}
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Box>
+
+                      {/* CTA */}
+                      <Button
                         endIcon={<ArrowForwardIcon sx={{ fontSize: "20px !important" }} />}
                         onClick={() => navigate("/signup")}
-                        sx={{ color: PRIMARY, fontWeight: 700, fontSize: "0.85rem", px: 0, minWidth: 0, "&:hover": { bgcolor: "transparent", gap: 0.5 } }}
+                        sx={{ mt: "auto", alignSelf: "flex-start", color: PRIMARY, fontWeight: 700, fontSize: "0.9rem", px: 0, minWidth: 0, "&:hover": { bgcolor: "transparent", gap: 0.5 } }}
                       >
                         Learn more
                       </Button>
                     </Box>
-
-                    {/* VISUAL */}
-                    <Box
-  sx={{
-    p: 3,
-    borderRadius: "20px",
-    bgcolor: alpha(accent, .05),
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-  }}
->
-  <Box
-    component="img"
-    src={f.img}
-    alt={f.title}
-    sx={{
-      width: "100%",
-      maxWidth: 420,
-      transition: ".4s",
-      "&:hover": {
-        transform: "scale(1.05)",
-      },
-    }}
-  />
-</Box>
-                    </Box>
-                  
-                   </Box>
+                  </Box>
       </Grid>
                 );
               })}
