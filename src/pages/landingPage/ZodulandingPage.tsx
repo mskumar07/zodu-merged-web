@@ -65,6 +65,7 @@ import imgMultiLocation from "../../assets/modules/multi-location.png";
 import imgDigitalPayments from "../../assets/modules/digital-payments.png";
 import imgTaskManagement from "../../assets/modules/task-management.png";
 import imgBarcodeStock from "../../assets/modules/barcode-stock.png";
+import imgPrint from "../../assets/modules/print.png";
 import imgMobileApp from "../../assets/modules/mobile-app.png";
 import getAppImg from "../../assets/GetAPP.png";
 import gPlayLogo from "../../assets/g_play_logo.png";
@@ -72,6 +73,49 @@ import showcaseBilling from "../../assets/wzd__1.png";
 import showcaseInventory from "../../assets/wzd_2.png";
 import showcaseReports from "../../assets/wzd__3.png";
 import showcaseTeam from "../../assets/wzd__4.png";
+<<<<<<< Updated upstream
+=======
+import posShot1 from "../../assets/Feature/POS.png";
+import posShot2 from "../../assets/Feature/POS2.png";
+import posShot3 from "../../assets/Feature/POS3.png";
+import invShot1 from "../../assets/Feature/Inventory.png";
+import invShot2 from "../../assets/Feature/Inventory2.png";
+import invShot3 from "../../assets/Feature/Invenotry3.png";
+import reportShot1 from "../../assets/Feature/Report.png";
+import reportShot2 from "../../assets/Feature/Report2.png";
+import reportShot3 from "../../assets/Feature/Report3.png";
+import reportShot4 from "../../assets/Feature/Report4.png";
+import barShot1 from "../../assets/Feature/bar1.png";
+import barShot2 from "../../assets/Feature/bar2.png";
+import barShot3 from "../../assets/Feature/bar3.png";
+import barShot4 from "../../assets/Feature/bar4.png";
+import mobileShot1 from "../../assets/Feature/mobile1.png";
+import mobileShot2 from "../../assets/Feature/mobile2.png";
+import mobileShot3 from "../../assets/Feature/mobile3.png";
+import employeeShot1 from "../../assets/Feature/employee1.png";
+import employeeShot2 from "../../assets/Feature/employee3.png";
+import employeeShot3 from "../../assets/Feature/employee4.png";
+import attendanceShot1 from "../../assets/Feature/attendance1.png";
+import attendanceShot2 from "../../assets/Feature/attendance2.png";
+import attendanceShot3 from "../../assets/Feature/attendance3.png";
+import gstShot1 from "../../assets/Feature/gst1.png";
+import gstShot2 from "../../assets/Feature/gst2.png";
+import gstShot3 from "../../assets/Feature/gst3.png";
+import gstShot4 from "../../assets/Feature/gst4.png";
+import cusShot1 from "../../assets/Feature/cus1.png";
+import cusShot2 from "../../assets/Feature/cus2.png";
+import cusShot3 from "../../assets/Feature/cus3.png";
+import cusShot4 from "../../assets/Feature/cus4.png";
+import locShot1 from "../../assets/Feature/loc1.png";
+import locShot2 from "../../assets/Feature/loc2.png";
+import locShot3 from "../../assets/Feature/loc3.png";
+import digiShot1 from "../../assets/Feature/digi1.png";
+import digiShot2 from "../../assets/Feature/digi2.png";
+import digiShot3 from "../../assets/Feature/digi3.png";
+import taskShot1 from "../../assets/Feature/task1.png";
+import taskShot2 from "../../assets/Feature/task2.png";
+import taskShot3 from "../../assets/Feature/task3.png";
+>>>>>>> Stashed changes
 
 // ── Design Tokens ─────────────────────────────────────────────────────────────
 const PRIMARY       = "#d32f2f";
@@ -132,8 +176,15 @@ const features = [
     icon: <AnalyticsIcon sx={{ fontSize: 28, color: "#ea580c" }} />,
     bg: "#fff7ed",
     img: showcaseReports,
+<<<<<<< Updated upstream
     title: "Know Exactly Where Your Money Goes",
     tagline: "Stop guessing. Start making data-driven decisions.",
+=======
+    // [base bar chart, top-left, bottom-right, top-right pie]
+    images: [reportShot2, reportShot4, reportShot1, reportShot3],
+    title: "Reports & Analytics",
+    tagline: "Know your numbers before your day even ends.",
+>>>>>>> Stashed changes
     items: [
       "Daily, weekly & monthly profit & loss reports",
       "See your top-selling and slow-moving products",
@@ -145,6 +196,7 @@ const features = [
     icon: <GroupsIcon sx={{ fontSize: 28, color: "#2563eb" }} />,
     bg: "#eff6ff",
     img: showcaseTeam,
+<<<<<<< Updated upstream
     title: "Manage Your Team Without the Headache",
     tagline: "Save 5+ hours every week on staff management.",
     items: [
@@ -152,6 +204,128 @@ const features = [
       "Process monthly payroll in under 10 minutes",
       "Set role-based access — staff see only what they need",
       "Monitor each employee's sales performance live",
+=======
+    images: [employeeShot1, employeeShot2, employeeShot3],
+    title: "Employee Management",
+    tagline: "Lead a bigger team with a lot less effort.",
+    items: [
+      "Give each role exactly the access it needs",
+      "See who's selling the most, in real time",
+      "Run accurate monthly payroll in minutes",
+      "Plan shifts & duties without the WhatsApp chaos",
+    ],
+  },
+  {
+    icon: imgPrint,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+    images: [attendanceShot1, attendanceShot2, attendanceShot3],
+    title: "Attendance Management",
+    tagline: "Say goodbye to the paper register for good.",
+    items: [
+      "Capture check-in & check-out automatically",
+      "Track late marks, early-outs & overtime with zero effort",
+      "Manage leaves & holidays from one calendar",
+      "Turn attendance into payroll with a single click",
+    ],
+  },
+  {
+    icon: imgGstTax,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+    images: [gstShot1, gstShot2, gstShot3, gstShot4],
+    title: "GST & Tax Reports",
+    tagline: "Be filing-ready every single month.",
+    items: [
+      "Auto-calculate GST on every bill you raise",
+      "Download GSTR-ready files your CA will love",
+      "Tag products with the right HSN / SAC codes",
+      "Read your full tax summary on one dashboard",
+    ],
+  },
+  {
+    icon: imgGstTax,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+    title: "Customer Management",
+    tagline: "Turn a first visit into a lifelong regular.",
+    images: [cusShot1, cusShot2, cusShot3, cusShot4],
+    items: [
+      "Keep every customer's profile & purchase history",
+      "Reward loyalty with points, offers & perks",
+      "Manage credit & khata without a single notebook",
+      "Win them back with timely offers & reminders",
+    ],
+  },
+  {
+    icon: imgMultiLocation,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+    images: [locShot1, locShot2, locShot3],
+    title: "Multi Location",
+    tagline: "Run every outlet from one login.",
+    items: [
+      "Compare all branches in a single combined report",
+      "Control stock separately for each outlet",
+      "Manage staff across locations from one place",
+      "See which branch is winning, and which needs you",
+    ],
+  },
+  {
+    icon: imgDigitalPayments,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+    images: [digiShot1, digiShot2, digiShot3],
+    title: "Digital Payments",
+    tagline: "Get paid your way — and stay reconciled.",
+    items: [
+      "Take UPI, cards & wallets at any counter",
+      "Show a QR and collect payment in seconds",
+      "Nudge customers automatically for pending dues",
+      "Match every transaction, no manual tallying",
+    ],
+  },
+  {
+    icon: imgTaskManagement,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+    images: [taskShot1, taskShot2, taskShot3],
+    title: "Task Management",
+    tagline: "Nothing slips through the cracks anymore.",
+    items: [
+      "Assign any task to any team member instantly",
+      "Watch progress update live as work gets done",
+      "Never miss a deadline with smart reminders",
+      "Run opening & closing checklists every day",
+    ],
+  },
+  {
+    icon: imgBarcodeStock,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+    images: [barShot1, barShot2, barShot3, barShot4],
+    title: "Barcode & Stock",
+    tagline: "Scan, bill, done — at counter speed.",
+    items: [
+      "Scan a barcode and add to the bill in a flash",
+      "Watch stock update the moment you sell",
+      "Print your own barcodes & shelf labels",
+      "Stay on top of batches & expiry dates",
+    ],
+  },
+  {
+    icon: imgMobileApp,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+    images: [mobileShot1, mobileShot2, mobileShot3],
+    title: "Mobile App & Alerts",
+    tagline: "Your whole business, right in your pocket.",
+    items: [
+      "Run it all on iOS, Android or tablet",
+      "Get pinged the second a sale happens",
+      "Check your dashboard from anywhere, anytime",
+      "Stay in the loop with smart push alerts",
+>>>>>>> Stashed changes
     ],
   },
 ];
@@ -972,6 +1146,7 @@ const ZoduLandingPage: React.FC = () => {
                           {`0${i + 1}`}
                         </Typography>
                       </Box>
+<<<<<<< Updated upstream
                         <Typography sx={{ fontSize: { xs: "1.55rem", md: "2.5rem" }, fontWeight: 900, color: DARK, lineHeight: 1.08, letterSpacing: "-0.01em", mb: 1 }}>
                         {f.title}
                       </Typography>
@@ -985,6 +1160,150 @@ const ZoduLandingPage: React.FC = () => {
                               <Typography sx={{ flex: 1, fontSize: { xs: "0.74rem", md: "0.8rem" }, color: "#5b6475", lineHeight: 1.45, pb: 1, mb: 1, borderBottom: itemIndex < f.items.length - 1 ? `1px solid ${alpha(DARK, 0.10)}` : "none" }}>
                                 {item}
                               </Typography>
+=======
+
+                      {/* VISUAL — prominent product screenshot */}
+                      <Box sx={{
+                        position: "relative",
+                        width: "100%",
+                        p: { xs: 2, md: 3 },
+                        mb: { xs: 3, md: 2 },
+                        borderRadius: "20px",
+                        background: `linear-gradient(150deg, ${alpha(accent, .1)} 0%, ${alpha(accent, .02)} 100%)`,
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        minHeight: { xs: 210, md: 280 },
+                      }}>
+                        {f.images ? (
+                          // Layered product-screenshot collage (POS / Inventory / Reports)
+                          <Box sx={{
+                            position: "relative",
+                            width: "100%",
+                            maxWidth: 560,
+                            aspectRatio: { xs: "16 / 12", md: "16 / 10" },
+                            "&:hover .pos-front": { transform: "translateY(-8px)" },
+                          }}>
+                            {/* Base / main screenshot */}
+                            <Box
+                              component="img"
+                              src={f.images[0]}
+                              alt={`${f.title} dashboard`}
+                              sx={{
+                                position: "absolute",
+                                top: f.images[3] ? "8%" : "5%",
+                                left: "50%",
+                                transform: "translateX(-50%)",
+                                width: { xs: "80%", md: f.images[3] ? "70%" : "76%" },
+                                borderRadius: "14px",
+                                border: "1px solid rgba(15,23,42,0.06)",
+                                boxShadow: "0 24px 60px rgba(15,23,42,0.16)",
+                                bgcolor: "#fff",
+                              }}
+                            />
+                            {/* Floating card — top left */}
+                            <Box
+                              component="img"
+                              src={f.images[1]}
+                              alt={`${f.title} detail`}
+                              className="pos-front"
+                              sx={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                width: { xs: "42%", md: "37%" },
+                                borderRadius: "12px",
+                                // border: "3px solid #fff",
+                                // boxShadow: "0 18px 40px rgba(15,23,42,0.2)",
+                                // bgcolor: "#fff",
+                                transition: "transform .4s ease",
+                                zIndex: 3,
+                              }}
+                            />
+                            {/* Floating card — bottom right */}
+                            <Box
+                              component="img"
+                              src={f.images[2]}
+                              alt={`${f.title} detail`}
+                              className="pos-front"
+                              sx={{
+                                position: "absolute",
+                                bottom: 0,
+                                right: 0,
+                                width: { xs: "44%", md: "33%" },
+                                borderRadius: "12px",
+                                // border: "3px solid #fff",
+                                // boxShadow: "0 18px 40px rgba(15,23,42,0.2)",
+                                // bgcolor: "#fff",
+                                transition: "transform .4s ease",
+                                zIndex: 3,
+                              }}
+                            />
+                            {/* Floating card — top right (only when a 4th image exists) */}
+                            {f.images[3] && (
+                              <Box
+                                component="img"
+                                src={f.images[3]}
+                                alt={`${f.title} detail`}
+                                className="pos-front"
+                                sx={{
+                                  position: "absolute",
+                                  top: 0,
+                                  right: 0,
+                                  width: { xs: "30%", md: "27%" },
+                                  borderRadius: "12px",
+                                  // border: "3px solid #fff",
+                                  // boxShadow: "0 18px 40px rgba(15,23,42,0.2)",
+                                  // bgcolor: "#fff",
+                                  transition: "transform .4s ease",
+                                  zIndex: 4,
+                                }}
+                              />
+                            )}
+                          </Box>
+                        ) : (
+                          <Box
+                            component="img"
+                            src={f.img}
+                            alt={f.title}
+                            sx={{
+                              width: "100%",
+                              maxWidth: 460,
+                              borderRadius: "12px",
+                              transition: ".4s",
+                              "&:hover": { transform: "scale(1.04)" },
+                            }}
+                          />
+                        )}
+                      </Box>
+
+                      {/* ITEMS — 2×2 checklist */}
+                      <Box sx={{
+                        display: "grid",
+                        gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                        columnGap: { md: 3 },
+                        rowGap: { xs: 1.6, md: 2 },
+                        mb: 2.5,
+                      }}>
+                        {f.items.map((item) => (
+                          <Box key={item} sx={{ display: "flex", alignItems: "flex-start", gap: 1.25 }}>
+                            <Box sx={{
+                              flexShrink: 0,
+                              mt: "1px",
+                              width: 26,
+                              height: 26,
+                              borderRadius: "50%",
+                              bgcolor: alpha(accent, .12),
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}>
+                              <CheckCircleIcon sx={{ color: accent, fontSize: 17 }} />
+                            </Box>
+                            <Typography sx={{ fontSize: "0.92rem", color: "#475569", fontWeight: 500, lineHeight: 1.45 }}>
+                              {item}
+                            </Typography>
+>>>>>>> Stashed changes
                           </Box>
                         ))}
                       </Stack>
