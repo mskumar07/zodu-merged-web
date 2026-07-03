@@ -66,6 +66,7 @@ import imgMultiLocation from "../../assets/modules/multi-location.png";
 import imgDigitalPayments from "../../assets/modules/digital-payments.png";
 import imgTaskManagement from "../../assets/modules/task-management.png";
 import imgBarcodeStock from "../../assets/modules/barcode-stock.png";
+import imgPrint from "../../assets/modules/print.png";
 import imgMobileApp from "../../assets/modules/mobile-app.png";
 import getAppImg from "../../assets/GetAPP.png";
 import gPlayLogo from "../../assets/g_play_logo.png";
@@ -83,6 +84,36 @@ import reportShot1 from "../../assets/Feature/Report.png";
 import reportShot2 from "../../assets/Feature/Report2.png";
 import reportShot3 from "../../assets/Feature/Report3.png";
 import reportShot4 from "../../assets/Feature/Report4.png";
+import barShot1 from "../../assets/Feature/bar1.png";
+import barShot2 from "../../assets/Feature/bar2.png";
+import barShot3 from "../../assets/Feature/bar3.png";
+import barShot4 from "../../assets/Feature/bar4.png";
+import mobileShot1 from "../../assets/Feature/mobile1.png";
+import mobileShot2 from "../../assets/Feature/mobile2.png";
+import mobileShot3 from "../../assets/Feature/mobile3.png";
+import employeeShot1 from "../../assets/Feature/employee1.png";
+import employeeShot2 from "../../assets/Feature/employee3.png";
+import employeeShot3 from "../../assets/Feature/employee4.png";
+import attendanceShot1 from "../../assets/Feature/attendance1.png";
+import attendanceShot2 from "../../assets/Feature/attendance2.png";
+import attendanceShot3 from "../../assets/Feature/attendance3.png";
+import gstShot1 from "../../assets/Feature/gst1.png";
+import gstShot2 from "../../assets/Feature/gst2.png";
+import gstShot3 from "../../assets/Feature/gst3.png";
+import gstShot4 from "../../assets/Feature/gst4.png";
+import cusShot1 from "../../assets/Feature/cus1.png";
+import cusShot2 from "../../assets/Feature/cus2.png";
+import cusShot3 from "../../assets/Feature/cus3.png";
+import cusShot4 from "../../assets/Feature/cus4.png";
+import locShot1 from "../../assets/Feature/loc1.png";
+import locShot2 from "../../assets/Feature/loc2.png";
+import locShot3 from "../../assets/Feature/loc3.png";
+import digiShot1 from "../../assets/Feature/digi1.png";
+import digiShot2 from "../../assets/Feature/digi2.png";
+import digiShot3 from "../../assets/Feature/digi3.png";
+import taskShot1 from "../../assets/Feature/task1.png";
+import taskShot2 from "../../assets/Feature/task2.png";
+import taskShot3 from "../../assets/Feature/task3.png";
 
 // ── Design Tokens ─────────────────────────────────────────────────────────────
 const PRIMARY       = "#d32f2f";
@@ -154,7 +185,7 @@ const features: {
     bg: "#fff7ed",
     img: showcaseReports,
     // [base bar chart, top-left, bottom-right, top-right pie]
-    images: [reportShot2, reportShot4, reportShot3, reportShot1],
+    images: [reportShot2, reportShot4, reportShot1, reportShot3],
     title: "Reports & Analytics",
     tagline: "Know your numbers before your day even ends.",
     items: [
@@ -168,6 +199,7 @@ const features: {
     icon: imgEmployee,
     bg: "#eff6ff",
     img: showcaseTeam,
+    images: [employeeShot1, employeeShot2, employeeShot3],
     title: "Employee Management",
     tagline: "Lead a bigger team with a lot less effort.",
     items: [
@@ -178,9 +210,10 @@ const features: {
     ],
   },
   {
-    icon: imgEmployee,
+    icon: imgPrint,
     bg: "#eff6ff",
     img: showcaseTeam,
+    images: [attendanceShot1, attendanceShot2, attendanceShot3],
     title: "Attendance Management",
     tagline: "Say goodbye to the paper register for good.",
     items: [
@@ -194,6 +227,7 @@ const features: {
     icon: imgGstTax,
     bg: "#eff6ff",
     img: showcaseTeam,
+    images: [gstShot1, gstShot2, gstShot3, gstShot4],
     title: "GST & Tax Reports",
     tagline: "Be filing-ready every single month.",
     items: [
@@ -209,6 +243,7 @@ const features: {
     img: showcaseTeam,
     title: "Customer Management",
     tagline: "Turn a first visit into a lifelong regular.",
+    images: [cusShot1, cusShot2, cusShot3, cusShot4],
     items: [
       "Keep every customer's profile & purchase history",
       "Reward loyalty with points, offers & perks",
@@ -220,6 +255,7 @@ const features: {
     icon: imgMultiLocation,
     bg: "#eff6ff",
     img: showcaseTeam,
+    images: [locShot1, locShot2, locShot3],
     title: "Multi Location",
     tagline: "Run every outlet from one login.",
     items: [
@@ -233,6 +269,7 @@ const features: {
     icon: imgDigitalPayments,
     bg: "#eff6ff",
     img: showcaseTeam,
+    images: [digiShot1, digiShot2, digiShot3],
     title: "Digital Payments",
     tagline: "Get paid your way — and stay reconciled.",
     items: [
@@ -246,6 +283,7 @@ const features: {
     icon: imgTaskManagement,
     bg: "#eff6ff",
     img: showcaseTeam,
+    images: [taskShot1, taskShot2, taskShot3],
     title: "Task Management",
     tagline: "Nothing slips through the cracks anymore.",
     items: [
@@ -259,6 +297,7 @@ const features: {
     icon: imgBarcodeStock,
     bg: "#eff6ff",
     img: showcaseTeam,
+    images: [barShot1, barShot2, barShot3, barShot4],
     title: "Barcode & Stock",
     tagline: "Scan, bill, done — at counter speed.",
     items: [
@@ -272,6 +311,7 @@ const features: {
     icon: imgMobileApp,
     bg: "#eff6ff",
     img: showcaseTeam,
+    images: [mobileShot1, mobileShot2, mobileShot3],
     title: "Mobile App & Alerts",
     tagline: "Your whole business, right in your pocket.",
     items: [
@@ -1222,11 +1262,11 @@ const ZoduLandingPage: React.FC = () => {
                                 position: "absolute",
                                 bottom: 0,
                                 right: 0,
-                                width: { xs: "44%", md: "39%" },
+                                width: { xs: "44%", md: "33%" },
                                 borderRadius: "12px",
-                                border: "3px solid #fff",
-                                boxShadow: "0 18px 40px rgba(15,23,42,0.2)",
-                                bgcolor: "#fff",
+                                // border: "3px solid #fff",
+                                // boxShadow: "0 18px 40px rgba(15,23,42,0.2)",
+                                // bgcolor: "#fff",
                                 transition: "transform .4s ease",
                                 zIndex: 3,
                               }}
@@ -1244,9 +1284,9 @@ const ZoduLandingPage: React.FC = () => {
                                   right: 0,
                                   width: { xs: "30%", md: "27%" },
                                   borderRadius: "12px",
-                                  border: "3px solid #fff",
-                                  boxShadow: "0 18px 40px rgba(15,23,42,0.2)",
-                                  bgcolor: "#fff",
+                                  // border: "3px solid #fff",
+                                  // boxShadow: "0 18px 40px rgba(15,23,42,0.2)",
+                                  // bgcolor: "#fff",
                                   transition: "transform .4s ease",
                                   zIndex: 4,
                                 }}
