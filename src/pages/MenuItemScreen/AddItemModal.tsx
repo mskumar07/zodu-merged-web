@@ -514,7 +514,9 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                             {categoriesLoading ? 'Loading…' : 'Select Category'}
                           </Box>
                         );
-                        return categories.find(c => c.value === selected)?.label ?? selected;
+                        return categories.find(c => c.value === selected)?.label
+                          ?? editItem?.category_name
+                          ?? selected;
                       }}
                       MenuProps={{ PaperProps: { sx: { maxHeight: 340 }, onScroll: handleCatScroll } }}
                       sx={inputSx}

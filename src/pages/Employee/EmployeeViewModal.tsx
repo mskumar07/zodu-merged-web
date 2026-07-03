@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  Box, CircularProgress, Dialog, DialogContent, DialogTitle,
+  Box, Dialog, DialogContent, DialogTitle,
   Divider, IconButton, Typography,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
@@ -94,7 +94,7 @@ export default function EmployeeViewModal({ open, onClose, employeeId }: Props) 
 
   const photoDocs  = (detail?.documents ?? []).filter((d) => d.document_type === "Profile Photo");
   const otherDocs  = (detail?.documents ?? []).filter((d) => d.document_type !== "Profile Photo");
-  const avatarUrl  = photoDocs[0]?.file_url ?? detail?.avatar_url ?? null;
+  const avatarUrl  = photoDocs[0]?.file_url ?? null;
 
   const address = [detail?.address_line1, detail?.address_line2].filter(Boolean).join(", ");
   const location = [detail?.city, detail?.state, detail?.pincode].filter(Boolean).join(", ");
@@ -253,16 +253,16 @@ export default function EmployeeViewModal({ open, onClose, employeeId }: Props) 
                     <SH icon={<AccountBalanceOutlinedIcon sx={{ fontSize: 14 }} />}
                       title="Salary Information" iconBg="#FFFBEB" iconColor="#D97706" />
                     <Row>
-                      <Field label="Basic Salary (₹)" value={sal.basic_salary} />
-                      <Field label="Allowances (₹)" value={sal.allowances} />
-                    </Row>
-                    <Row>
                       <Field label="Payment Type" value={sal.payment_type} />
-                      <Field label="Bank Name" value={sal.bank_name} />
+                      <Field label="Basic Salary (₹)" value={sal.basic_salary} />
                     </Row>
                     <Row>
+                      <Field label="Bank Name" value={sal.bank_name} />
                       <Field label="Account Number" value={sal.bank_account_number} />
+                    </Row>
+                    <Row>
                       <Field label="IFSC Code" value={sal.ifsc_code} />
+                      <Box />
                     </Row>
                   </Box>
                 </>

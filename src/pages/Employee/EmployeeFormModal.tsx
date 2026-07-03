@@ -26,6 +26,7 @@ import {
 } from "./useEmployeeApi";
 import { useRoles } from "@pages/auth/Role/useRoleApi";
 import LottieLoader from "@components/LottieLoader";
+import SuccessToast from "@components/Common/SuccessToast";
 
 // ─── Theme ───────────────────────────────────────────────────
 const theme = createTheme({
@@ -117,7 +118,7 @@ const EMPTY: FormData = {
   employment_type: "", date_of_joining: "",
   reporting_manager_id: "", reporting_manager_name: "",
   emergency_contact_name: "", emergency_relationship: "", emergency_mobile: "",
-  basic_salary: "", allowances: "", payment_type: "",
+  basic_salary: "", payment_type: "",
   bank_account_number: "", bank_name: "", ifsc_code: "",
   role_id: "", access_level: "", notes: "",
 };
@@ -133,10 +134,16 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
   const isEdit   = mode === "edit";
   const readOnly = false;
 
-  const [form, setForm]               = useState<FormData>({ ...EMPTY });
-  const [errors, setErrors]           = useState<Record<string, string>>({});
-  const [globalError, setGlobalError] = useState("");
+  const [form, setForm]       = useState<FormData>({ ...EMPTY });
+  const [errors, setErrors]   = useState<Record<string, string>>({});
   const [stateSearch, setStateSearch] = useState("");
+  const [toastMsg, setToastMsg]         = useState("");
+  const [toastSeverity, setToastSeverity] = useState<"success" | "error">("success");
+
+  const showToast = (msg: string, severity: "success" | "error" = "success") => {
+    setToastMsg(msg);
+    setToastSeverity(severity);
+  };
 
   // ── Profile photo state ──
   const [avatarUrl, setAvatarUrl]             = useState<string | null>(null);
@@ -160,6 +167,20 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
   );
   const { data: roles = [] }           = useRoles();
   const { data: activeEmployees = [] } = useActiveEmployees(open);
+
+  // Auto-select Admin as Reporting Manager on add mode
+  const adminAutoSetRef = useRef(false);
+  useEffect(() => {
+    if (!open) { adminAutoSetRef.current = false; return; }
+    if (isEdit || !activeEmployees.length || adminAutoSetRef.current) return;
+    const admin = activeEmployees.find((em) =>
+      em.name.toLowerCase().includes("admin")
+    );
+    if (admin) {
+      adminAutoSetRef.current = true;
+      setForm((p) => ({ ...p, reporting_manager_id: admin.employee_id, reporting_manager_name: admin.name }));
+    }
+  }, [activeEmployees, isEdit, open]);
 
   // Patch form from detail
   useEffect(() => {
@@ -272,7 +293,6 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
     if (!open) {
       setForm({ ...EMPTY });
       setErrors({});
-      setGlobalError("");
       setStateSearch("");
       setAvatarUrl(null);
       setAvatarUploading(false);
@@ -293,13 +313,8 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!String(form.name ?? "").trim())            e.name            = "Required";
-    if (!String(form.phone ?? "").trim())           e.phone           = "Required";
-    if (!String(form.email ?? "").trim())           e.email           = "Required";
-    if (!String(form.date_of_birth ?? "").trim())   e.date_of_birth   = "Required";
-    if (!String(form.gender ?? "").trim())          e.gender          = "Required";
-    if (!String(form.employment_type ?? "").trim()) e.employment_type = "Required";
-    if (!String(form.date_of_joining ?? "").trim()) e.date_of_joining = "Required";
+    if (!String(form.name ?? "").trim())  e.name  = "Required";
+    if (!String(form.phone ?? "").trim()) e.phone = "Required";
     // password required on add; optional on edit (only validate if filled)
     const pwd = String(form.password ?? "").trim();
     if (!isEdit && !pwd) {
@@ -308,16 +323,21 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
       e.password = "8–20 chars, at least 1 uppercase, 1 number, 1 special character";
     }
     setErrors(e);
+    if (Object.keys(e).length > 0) {
+      showToast("Please fill in all required fields marked with *", "error");
+    }
     return Object.keys(e).length === 0;
   };
 
-  const createEmp = useCreateEmployee({ onError: setGlobalError });
-  const updateEmp = useUpdateEmployee({ onSuccess: onClose, onError: setGlobalError });
+  const createEmp = useCreateEmployee({ onError: (msg) => showToast(msg, "error") });
+  const updateEmp = useUpdateEmployee({
+    onSuccess: () => { showToast(isEdit ? "Employee updated successfully!" : "Employee created successfully!"); onClose(); },
+    onError: (msg) => showToast(msg, "error"),
+  });
   const isSaving  = createEmp.isPending || updateEmp.isPending;
 
   const handleSubmit = async () => {
     if (!validate()) return;
-    setGlobalError("");
     const payload = buildEmployeePayload(form);
     if (isEdit && employeeId) {
       // only send fields that changed, plus required zodu_id & branch_id
@@ -362,6 +382,7 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
           });
           if (uploads.length) await Promise.all(uploads);
         }
+        showToast("Employee created successfully!");
         onClose();
       } catch {
         // error already handled by onError
@@ -503,12 +524,6 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
           ) : (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
 
-              {globalError && (
-                <Box sx={{ bgcolor: "#FFF1F2", border: "1px solid #FECDD3", borderRadius: 1.5, px: 2, py: 1 }}>
-                  <Typography sx={{ color: "#E11D48", fontSize: 13 }}>{globalError}</Typography>
-                </Box>
-              )}
-
               {/* ── Basic Information ── */}
               <Box>
                 <SH icon={<PersonOutlineIcon sx={{ fontSize: 15 }} />}
@@ -531,7 +546,7 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
 
                       {/* Row 2: Email | (empty) */}
                       <Grid size={{ xs: 12, sm: 6 }}>
-                        <FL req>Email Address</FL>
+                        <FL>Email Address</FL>
                         {tf("email", "Enter email address", "email")}
                       </Grid>
 
@@ -693,11 +708,11 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
                   title="Personal Details" iconBg="#FFF1F2" iconColor="#E11D48" />
                 <Grid container spacing={2}>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <FL req>Date of Birth</FL>
+                    <FL>Date of Birth</FL>
                     {tf("date_of_birth", "", "date")}
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <FL req>Gender</FL>
+                    <FL>Gender</FL>
                     {sel("gender", GENDERS, "Select gender")}
                   </Grid>
                   <Grid size={12}>
@@ -776,11 +791,11 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
                     </Select>
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <FL req>Employment Type</FL>
+                    <FL>Employment Type</FL>
                     {sel("employment_type", EMPLOYMENT_TYPES, "Select employment type")}
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <FL req>Date of Joining</FL>
+                    <FL>Date of Joining</FL>
                     {tf("date_of_joining", "", "date")}
                   </Grid>
                 </Grid>
@@ -816,16 +831,12 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
                   title="Salary Information" iconBg="#FFFBEB" iconColor="#D97706" />
                 <Grid container spacing={2}>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <FL>Basic Salary (₹)</FL>
-                    {tf("basic_salary", "Enter basic salary", "number")}
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <FL>Allowances (₹)</FL>
-                    {tf("allowances", "Enter allowances", "number")}
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 6 }}>
                     <FL>Payment Type</FL>
                     {sel("payment_type", PAYMENT_TYPES, "Select payment type")}
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <FL>Basic Salary (₹)</FL>
+                    {tf("basic_salary", "Enter basic salary", "number")}
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <FL>Bank Account Number</FL>
@@ -992,6 +1003,12 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
           </Button>
         </DialogActions>
       </Dialog>
+
+      <SuccessToast
+        message={toastMsg}
+        severity={toastSeverity}
+        onClose={() => setToastMsg("")}
+      />
     </ThemeProvider>
   );
 }
