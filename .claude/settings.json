@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Read(//c/Users/vigne/Downloads/**)",
+      "Bash(grep -iE \"^sharp$|^jimp$|^canvas$\")",
+      "Bash(node -e \"try{require\\('sharp'\\);console.log\\('sharp ok'\\)}catch\\(e\\){console.log\\('no sharp'\\)}\")",
+      "Bash(/c/Python314/python -m pip install --quiet Pillow)",
+      "Bash(/c/Python314/python -c \"from PIL import Image; print\\('PIL ready'\\)\")",
+      "Bash(/c/Python314/python -c \"import ast; ast.parse\\(open\\('scripts/slice-module-icons.py'\\).read\\(\\)\\); print\\('script OK - syntax valid'\\)\")",
+      "Bash(mv \"module \\(1\\).png\" inventory.png)",
+      "Bash(mv \"module \\(2\\).png\" reports-insights.png)",
+      "Bash(mv \"module \\(3\\).png\" multi-location.png)",
+      "Bash(mv \"module \\(4\\).png\" mobile-app.png)",
+      "Bash(mv \"module \\(5\\).png\" gst-tax.png)"
+    ]
+  }
+}
