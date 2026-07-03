@@ -3,6 +3,7 @@ import {
   Box, Button, Container, Typography, Stack, Divider,
   Link, IconButton, Accordion, AccordionSummary, AccordionDetails,
   Avatar,
+  Grid,
 } from "@mui/material";
 import { createTheme, ThemeProvider, alpha } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -73,8 +74,6 @@ import showcaseBilling from "../../assets/wzd__1.png";
 import showcaseInventory from "../../assets/wzd_2.png";
 import showcaseReports from "../../assets/wzd__3.png";
 import showcaseTeam from "../../assets/wzd__4.png";
-<<<<<<< Updated upstream
-=======
 import posShot1 from "../../assets/Feature/POS.png";
 import posShot2 from "../../assets/Feature/POS2.png";
 import posShot3 from "../../assets/Feature/POS3.png";
@@ -115,7 +114,6 @@ import digiShot3 from "../../assets/Feature/digi3.png";
 import taskShot1 from "../../assets/Feature/task1.png";
 import taskShot2 from "../../assets/Feature/task2.png";
 import taskShot3 from "../../assets/Feature/task3.png";
->>>>>>> Stashed changes
 
 // ── Design Tokens ─────────────────────────────────────────────────────────────
 const PRIMARY       = "#d32f2f";
@@ -145,66 +143,62 @@ const theme = createTheme({
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
-const features = [
+const features: {
+  icon: string;
+  bg: string;
+  img: string;
+  title: string;
+  tagline: string;
+  items: string[];
+  images?: string[];
+}[] = [
   {
-    icon: <ReceiptLongIcon sx={{ fontSize: 28, color: PRIMARY }} />,
+    icon: imgPosBilling,
     bg: "#fff0f0",
     img: showcaseBilling,
-    title: "Bill Customers 10× Faster",
-    tagline: "No more long queues. No more billing errors.",
+    images: [posShot1, posShot2, posShot3],
+    title: "POS Billing",
+    tagline: "Bill in seconds — even during your busiest rush.",
     items: [
-      "Create GST-compliant invoices in under 10 seconds",
-      "Accept cash, card, UPI & all digital payment modes",
-      "Apply discounts, offers & loyalty points instantly",
-      "Print or WhatsApp bills directly from the app",
+      "Ring up a GST invoice in under 10 seconds",
+      "Accept cash, card, UPI & every wallet at one counter",
+      "Add discounts, combos & loyalty points on the fly",
+      "Share bills instantly on WhatsApp, SMS or print",
     ],
   },
   {
-    icon: <Inventory2Icon sx={{ fontSize: 28, color: "#16a34a" }} />,
+    icon: imgInventory,
     bg: "#f0fdf4",
     img: showcaseInventory,
-    title: "Never Run Out of Stock Again",
-    tagline: "Know exactly what you have before you need it.",
+    images: [invShot1, invShot2, invShot3],
+    title: "Inventory Management",
+    tagline: "Never run out of a best-seller again.",
     items: [
-      "Real-time stock tracking across all your products",
-      "Automatic low-stock alerts before you run out",
-      "Manage batches, expiry dates & multiple units",
-      "Purchase orders & supplier management built in",
+      "See live stock for every product, all in one view",
+      "Get alerts to reorder before an item runs dry",
+      "Track batches, expiry dates & multiple units with ease",
+      "Raise purchase orders & manage suppliers in a tap",
     ],
   },
   {
-    icon: <AnalyticsIcon sx={{ fontSize: 28, color: "#ea580c" }} />,
+    icon: imgReports,
     bg: "#fff7ed",
     img: showcaseReports,
-<<<<<<< Updated upstream
-    title: "Know Exactly Where Your Money Goes",
-    tagline: "Stop guessing. Start making data-driven decisions.",
-=======
     // [base bar chart, top-left, bottom-right, top-right pie]
     images: [reportShot2, reportShot4, reportShot1, reportShot3],
     title: "Reports & Analytics",
     tagline: "Know your numbers before your day even ends.",
->>>>>>> Stashed changes
     items: [
-      "Daily, weekly & monthly profit & loss reports",
-      "See your top-selling and slow-moving products",
-      "Track expenses by category and date range",
-      "Export GST-ready reports to share with your CA",
+      "Open daily, weekly & monthly profit at a glance",
+      "Spot your hero products and cut the dead stock",
+      "Track every expense by category and date",
+      "Send GST-ready reports straight to your CA",
     ],
   },
   {
-    icon: <GroupsIcon sx={{ fontSize: 28, color: "#2563eb" }} />,
+    icon: imgEmployee,
     bg: "#eff6ff",
     img: showcaseTeam,
-<<<<<<< Updated upstream
-    title: "Manage Your Team Without the Headache",
-    tagline: "Save 5+ hours every week on staff management.",
-    items: [
-      "Track attendance automatically with login logs",
-      "Process monthly payroll in under 10 minutes",
-      "Set role-based access — staff see only what they need",
-      "Monitor each employee's sales performance live",
-=======
     images: [employeeShot1, employeeShot2, employeeShot3],
     title: "Employee Management",
     tagline: "Lead a bigger team with a lot less effort.",
@@ -325,7 +319,6 @@ const features = [
       "Get pinged the second a sale happens",
       "Check your dashboard from anywhere, anytime",
       "Stay in the loop with smart push alerts",
->>>>>>> Stashed changes
     ],
   },
 ];
@@ -784,7 +777,7 @@ const ZoduLandingPage: React.FC = () => {
                   mb: 1.6,
                 }}>
                   Smart Billing &amp;<br />
-                  <Box component="span" sx={{ color: "#1E3A8A", position: "relative", display: "inline-block" }}>
+                  <Box component="span" sx={{ color: "#2563eb", position: "relative", display: "inline-block" }}>
                     Business Management
                     <Box component="span" sx={{
                       position: "absolute",
@@ -897,7 +890,7 @@ const ZoduLandingPage: React.FC = () => {
                 // p: { xs: 0.8, md: 0.7 },
                 // backdropFilter: "blur(12px)",
               }}>
-                {[
+                {/* {[
                   { label: "GST Ready", value: "Reports", top: "12%", left: "-4%", color: "#16a34a" },
                   // { label: "Live Sales", value: "4.9/5", top: "10%", right: "-3%", color: PRIMARY },
                   { label: "Inventory", value: "Real-time", bottom: "11%", left: "-5%", color: "#2563eb" },
@@ -925,7 +918,7 @@ const ZoduLandingPage: React.FC = () => {
                     <Typography sx={{ color: DARK, fontSize: "0.78rem", fontWeight: 800, mt: 0.4 }}>{chip.value}</Typography>
                   </Box>
                   );
-                })}
+                })} */}
                 <Box
                   component="img"
                   src={heroImg}
@@ -1072,21 +1065,46 @@ const ZoduLandingPage: React.FC = () => {
               </Typography>
             </Box>
 
-            <Stack spacing={{ xs: 3, md: 3 }}>
-              {features.map((f, i) => {
-                const accent = f.icon.props.sx.color;
-                const flip = i % 2 === 1;
+           <Grid container spacing={3}>
+  {features.map((f) => {
+    const accent = PRIMARY;
                 return (
-                  <Box key={f.title} sx={{
-                    position: "relative",
-                    overflow: "hidden",
-                    minHeight: { xs: "auto", md: 285 },
-                    borderRadius: "14px",
-                    bgcolor: "#fff",
-                    backgroundImage: `linear-gradient(135deg, #fff 0%, #fff 42%, ${f.bg} 100%)`,
-                    boxShadow: { xs: "none", md: `0 12px 34px ${alpha(accent, 0.07)}` },
-                    border: `1px solid ${alpha(accent, 0.22)}`,
-                  }}>
+                  <Grid
+        key={f.title}
+        size={{ xs: 12, md: 6 }}
+      >
+        <Box
+          // sx={{
+          //   position: "relative",
+          //   overflow: "hidden",
+          //   minHeight: { xs: "auto", md: 285 },
+          //   height: "100%",
+          //   borderRadius: "14px",
+          //   bgcolor: "#fff",
+          //   backgroundImage: `linear-gradient(135deg, #fff 0%, #fff 42%, ${f.bg} 100%)`,
+          //   boxShadow: {
+          //     xs: "none",
+          //     md: `0 12px 34px ${alpha(accent, 0.07)}`,
+          //   },
+          //   border: `1px solid ${alpha(accent, 0.22)}`,
+          // }}
+        sx={{
+  position: "relative",
+  overflow: "hidden",
+  height: "100%",
+  borderRadius: "28px",
+  bgcolor: "#fff",
+  background: `linear-gradient(145deg,#ffffff 0%,${alpha(f.bg,0.18)} 100%)`,
+  border: `1px solid ${alpha(accent,0.15)}`,
+  boxShadow: "0 18px 45px rgba(15,23,42,.08)",
+  transition: "all .35s ease",
+  "&:hover": {
+    transform: "translateY(-12px)",
+    boxShadow: `0 35px 70px ${alpha(accent,.18)}`,
+    borderColor: accent,
+  },
+}}
+        >
                     <Box
                       component="svg"
                       viewBox="0 0 980 520"
@@ -1130,37 +1148,51 @@ const ZoduLandingPage: React.FC = () => {
                       position: "relative",
                       zIndex: 1,
                       display: "flex",
-                      flexDirection: { xs: "column", md: flip ? "row-reverse" : "row" },
-                      alignItems: "center",
-                      gap: { xs: 2.5, md: 3.5 },
-                      px: { xs: 2, md: 3 },
-                      py: { xs: 3, md: 2.5 },
+                      flexDirection: "column",
+                      height: "100%",
+                      p: { xs: 2.5, md: 3.5 },
                     }}>
-                    {/* TEXT */}
-                      <Box sx={{ flex: { md: "0 0 36%" }, width: "100%" }}>
-                        <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.7, bgcolor: alpha(accent, 0.09), borderRadius: "999px", pl: 0.45, pr: 1, py: 0.35, mb: { xs: 2, md: 2.5 } }}>
-                          <Box sx={{ width: 22, height: 22, bgcolor: accent, borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 8px 18px ${alpha(accent, 0.18)}`, "& svg": { color: "#fff" } }}>
-                            {React.cloneElement(f.icon, { sx: { fontSize: 13, color: "#fff" } })}
+                      {/* HEADER — icon + title + tagline */}
+                      <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1.75, md: 2.25 }, mb: { xs: 2.5, md: 3 } }}>
+                        <Box sx={{
+                          flexShrink: 0,
+                          width: { xs: 64, md: 74 },
+                          height: { xs: 64, md: 74 },
+                          borderRadius: "18px",
+                          bgcolor: "#fff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          boxShadow: `0 12px 26px ${alpha(accent, 0.14)}`,
+                          overflow: "hidden",
+                        }}>
+                          <Box
+                            component="img"
+                            src={f.icon}
+                            alt={f.title}
+                            sx={{ width: { xs: 66, md: 78 }, height: { xs: 66, md: 78 }, objectFit: "contain", mixBlendMode: "multiply" }}
+                          />
                         </Box>
-                          <Typography sx={{ fontSize: "0.62rem", fontWeight: 800, color: accent, letterSpacing: "0.01em" }}>
-                          {`0${i + 1}`}
-                        </Typography>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography sx={{
+                            fontWeight: 900,
+                            fontSize: { xs: "1.35rem", md: "1.7rem" },
+                            lineHeight: 1.15,
+                            color: DARK,
+                            letterSpacing: "-0.02em",
+                          }}>
+                            {f.title}
+                          </Typography>
+                          <Typography sx={{
+                            mt: 0.6,
+                            color: "#64748B",
+                            fontSize: { xs: "0.9rem", md: "1rem" },
+                            lineHeight: 1.5,
+                          }}>
+                            {f.tagline}
+                          </Typography>
+                        </Box>
                       </Box>
-<<<<<<< Updated upstream
-                        <Typography sx={{ fontSize: { xs: "1.55rem", md: "2.5rem" }, fontWeight: 900, color: DARK, lineHeight: 1.08, letterSpacing: "-0.01em", mb: 1 }}>
-                        {f.title}
-                      </Typography>
-                        <Typography sx={{ fontSize: { xs: "0.78rem", md: "1.1rem" }, color: accent, fontWeight: 700, mb: { xs: 2, md: 1.8 } }}>
-                        {f.tagline}
-                      </Typography>
-                        <Stack mb={{ xs: 2, md: 2 }}>
-                          {f.items.map((item, itemIndex) => (
-                          <Box key={item} sx={{ display: "flex", alignItems: "flex-start", gap: 0.7 }}>
-                              <CheckCircleIcon sx={{ fontSize: 12, color: accent, flexShrink: 0, mt: "2px" }} />
-                              <Typography sx={{ flex: 1, fontSize: { xs: "0.74rem", md: "0.8rem" }, color: "#5b6475", lineHeight: 1.45, pb: 1, mb: 1, borderBottom: itemIndex < f.items.length - 1 ? `1px solid ${alpha(DARK, 0.10)}` : "none" }}>
-                                {item}
-                              </Typography>
-=======
 
                       {/* VISUAL — prominent product screenshot */}
                       <Box sx={{
@@ -1303,44 +1335,29 @@ const ZoduLandingPage: React.FC = () => {
                             <Typography sx={{ fontSize: "0.92rem", color: "#475569", fontWeight: 500, lineHeight: 1.45 }}>
                               {item}
                             </Typography>
->>>>>>> Stashed changes
                           </Box>
                         ))}
-                      </Stack>
+                      </Box>
+
+                      {/* CTA */}
                       <Button
                         endIcon={<ArrowForwardIcon sx={{ fontSize: "20px !important" }} />}
                         onClick={() => navigate("/signup")}
-                        sx={{ color: PRIMARY, fontWeight: 700, fontSize: "0.85rem", px: 0, minWidth: 0, "&:hover": { bgcolor: "transparent", gap: 0.5 } }}
+                        sx={{ mt: "auto", alignSelf: "flex-start", color: PRIMARY, fontWeight: 700, fontSize: "0.9rem", px: 0, minWidth: 0, "&:hover": { bgcolor: "transparent", gap: 0.5 } }}
                       >
                         Learn more
                       </Button>
                     </Box>
-
-                    {/* VISUAL */}
-                      <Box sx={{ flex: { md: "0 0 58%" }, width: "100%", display: "flex", justifyContent: "center", alignItems: "center" }}>
-                      <Box
-                        component="img"
-                        src={f.img}
-                        alt={f.title}
-                        sx={{
-                            width: { xs: "100%", md: "84%" },
-                            maxWidth: { xs: 520, md: 560 },
-                            display: "block",
-                            objectFit: "contain",
-                            filter: "drop-shadow(0 16px 28px rgba(15, 23, 42, 0.10))",
-                        }}
-                      />
-                      </Box>
-                    </Box>
                   </Box>
+      </Grid>
                 );
               })}
-            </Stack>
+            </Grid>
           </Container>
         </Box>
 
         {/* ── MODULE SUITE ─────────────────────────────────────────────────── */}
-        <Box sx={{ bgcolor: LIGHT, py: SPY, px: SX, position: "relative", overflow: "hidden" }}>
+        {/* <Box sx={{ bgcolor: LIGHT, py: SPY, px: SX, position: "relative", overflow: "hidden" }}>
           <Box
             component="svg"
             viewBox="0 0 1200 520"
@@ -1476,10 +1493,10 @@ const ZoduLandingPage: React.FC = () => {
                     {m.desc}
                   </Typography>
 
-                  <Divider sx={{ borderColor: alpha(m.color, 0.16), mb: 1.7 }} />
+                  <Divider sx={{ borderColor: alpha(m.color, 0.16), mb: 1.7 }} /> */}
 
                   {/* Explanation points */}
-                  <Stack spacing={0.9}>
+                  {/* <Stack spacing={0.9}>
                     {m.points.slice(0, 3).map((pt) => (
                       <Box key={pt} sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
                         <CheckCircleIcon sx={{ fontSize: 15, color: m.color, flexShrink: 0, mt: "2px" }} />
@@ -1492,7 +1509,7 @@ const ZoduLandingPage: React.FC = () => {
               ))}
             </Box>
           </Container>
-        </Box>
+        </Box> */}
 
         {/* ── HOW IT WORKS ─────────────────────────────────────────────────── */}
         <Box sx={{ bgcolor: "#fff", py: SPY, px: SX, position: "relative", overflow: "hidden" }}>
