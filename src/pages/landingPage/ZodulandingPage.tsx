@@ -542,7 +542,7 @@ const faqs = [
 ];
 
 // ── Shared spacing tokens ──────────────────────────────────────────────────────
-const SX = { xs: 3, md: 6 };          // section horizontal padding
+const SX = { xs: 3, md: 10 };          // section horizontal padding
 const SPY = { xs: 6, md: 4 };         // section vertical padding
 const HMB = { xs: 4, md: 6 };         // section heading bottom margin
 const POPPINS = "'Poppins', sans-serif";
@@ -1065,13 +1065,21 @@ const ZoduLandingPage: React.FC = () => {
               </Typography>
             </Box>
 
-           <Grid container spacing={3}>
-  {features.map((f) => {
+           <Grid container spacing={{ xs: 2, md: 0.5 }} >
+  {features.map((f,i) => {
     const accent = PRIMARY;
+     const flip = i % 2 === 1;
                 return (
                   <Grid
         key={f.title}
-        size={{ xs: 12, md: 6 }}
+        size={{ xs: 12}}
+        width={{  md: "100%" }}
+        height={{ xs: "auto" }}
+        sx={{
+          display: "flex",
+          justifyContent:{md: flip ? "flex-end" : "flex-start"},
+          ml: flip ? "auto" : 0,
+        }}
       >
         <Box
           // sx={{
@@ -1091,13 +1099,17 @@ const ZoduLandingPage: React.FC = () => {
         sx={{
   position: "relative",
   overflow: "hidden",
-  height: "100%",
-  borderRadius: "28px",
+  height: { xs: "auto", md: "95%" },
+  minHeight: 0,
+  width: { xs: "100%", md: "100%" },
+  maxWidth: { xs: "100%", md: "100%" },
+  borderRadius: "24px",
   bgcolor: "#fff",
   background: `linear-gradient(145deg,#ffffff 0%,${alpha(f.bg,0.18)} 100%)`,
   border: `1px solid ${alpha(accent,0.15)}`,
   boxShadow: "0 18px 45px rgba(15,23,42,.08)",
   transition: "all .35s ease",
+  // mt: { xs: 0, md: flip ? 6 : 0 },
   "&:hover": {
     transform: "translateY(-12px)",
     boxShadow: `0 35px 70px ${alpha(accent,.18)}`,
@@ -1150,203 +1162,253 @@ const ZoduLandingPage: React.FC = () => {
                       display: "flex",
                       flexDirection: "column",
                       height: "100%",
-                      p: { xs: 2.5, md: 3.5 },
+                      background: "white",
+                      p: { xs: 2.5, md: 2.1 },
+                      //  position: "relative",
+                      // zIndex: 1,
+                      // display: "flex",
+                      // flexDirection: { xs: "column", md: flip ? "row-reverse" : "row" },
+                      // alignItems: "center",
+                      // gap: { xs: 2.5, md: 3.5 },
+                      // px: { xs: 2, md: 3 },
+                      // py: { xs: 3, md: 2.5 },
+                      // width:"100%"
                     }}>
                       {/* HEADER — icon + title + tagline */}
-                      <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1.75, md: 2.25 }, mb: { xs: 2.5, md: 3 } }}>
-                        <Box sx={{
-                          flexShrink: 0,
-                          width: { xs: 64, md: 74 },
-                          height: { xs: 64, md: 74 },
-                          borderRadius: "18px",
-                          bgcolor: "#fff",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          boxShadow: `0 12px 26px ${alpha(accent, 0.14)}`,
-                          overflow: "hidden",
-                        }}>
-                          <Box
-                            component="img"
-                            src={f.icon}
-                            alt={f.title}
-                            sx={{ width: { xs: 66, md: 78 }, height: { xs: 66, md: 78 }, objectFit: "contain", mixBlendMode: "multiply" }}
-                          />
-                        </Box>
-                        <Box sx={{ minWidth: 0 }}>
-                          <Typography sx={{
-                            fontWeight: 900,
-                            fontSize: { xs: "1.35rem", md: "1.7rem" },
-                            lineHeight: 1.15,
-                            color: DARK,
-                            letterSpacing: "-0.02em",
-                          }}>
-                            {f.title}
-                          </Typography>
-                          <Typography sx={{
-                            mt: 0.6,
-                            color: "#64748B",
-                            fontSize: { xs: "0.9rem", md: "1rem" },
-                            lineHeight: 1.5,
-                          }}>
-                            {f.tagline}
-                          </Typography>
-                        </Box>
+                    <Box >
+                         <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.7,width:"100%",
+                          //  bgcolor: alpha(accent, 0.09), borderRadius: "999px", 
+                           pl: 0.45, pr: 1, py: 0.2, mb: { xs:2, md: 1.5 } }}>
+                            <Box sx={{ position: "relative",width:"100%"}}>
+                         <Box
+  sx={{
+     position: "absolute",
+      top: 0,
+      right: { xs: "auto", md: flip ? 0 : "auto" },
+      left: { xs: 0, md: flip ? "auto" : 0 },
+      width: 72,
+      height: 72,
+      borderRadius: "16px",
+      bgcolor: "#fff",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      boxShadow: `0 12px 24px ${alpha(accent, 0.12)}`,
+      overflow: "hidden",
+  }}
+>
+ <Box
+  component="img"
+  src={f.icon}
+  alt={f.title}
+  sx={{
+    width: 80,
+    height: 80,
+    objectFit: "contain",
+    mixBlendMode: "multiply"
+    // filter: "brightness(0) invert(1)",
+  }}
+/>
+</Box>
+  <Box sx={{
+    display: "flex",
+    flexDirection: "column",
+    width: "100%",
+    minHeight: 68,
+    pl: { xs: "88px", md: flip ? 0 : "88px" },
+    pr: { xs: 0, md: flip ? "88px" : 0 },
+  }}>
+    <Typography
+      sx={{
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: { xs: "flex-start", md: flip ? "flex-end" : "flex-start" },
+        fontWeight: 900,
+        fontSize: { xs: "1.25rem", md: "1.65rem" },
+        lineHeight: 1.2,
+        color: DARK,
+        textAlign: "left",
+        WebkitLineClamp: 2,
+        WebkitBoxOrient: "vertical",
+        overflow: "hidden",
+      }}
+    >
+      {f.title}
+    </Typography>
+
+    <Typography
+      sx={{
+        mt: 0.6,
+        color: "#0a0000",
+        fontSize: "1rem",
+        lineHeight: 1.6,
+        display: "flex",
+        fontWeight: 500,
+        alignItems: "center",
+        justifyContent: flip ? "flex-end" : "flex-start",
+      }}
+    >
+      {f.tagline}
+    </Typography>
+  </Box>
+                          {/* <Typography sx={{ fontSize: "0.62rem", fontWeight: 800, color: accent, letterSpacing: "0.01em" }}>
+                          {`0${i + 1}`}
+                        </Typography> */}
                       </Box>
 
-                      {/* VISUAL — prominent product screenshot */}
+</Box></Box>
+
                       <Box sx={{
-                        position: "relative",
-                        width: "100%",
-                        p: { xs: 2, md: 3 },
-                        mb: { xs: 3, md: 2 },
-                        borderRadius: "20px",
-                        background: `linear-gradient(150deg, ${alpha(accent, .1)} 0%, ${alpha(accent, .02)} 100%)`,
                         display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        minHeight: { xs: 210, md: 280 },
+                        flexDirection: { xs: "column", md: flip ? "row-reverse" : "row" },
+                        gap: { xs: 2 },
+                        alignItems: {xs: "flex-start", md: "stretch"},
+                        justifyContent: {xs: "center", md: flip ? "flex-start" : "space-between"},
+                        mb: 1.8,
+                        height: "100%",
                       }}>
-                        {f.images ? (
-                          // Layered product-screenshot collage (POS / Inventory / Reports)
-                          <Box sx={{
-                            position: "relative",
-                            width: "100%",
-                            maxWidth: 560,
-                            aspectRatio: { xs: "16 / 12", md: "16 / 10" },
-                            "&:hover .pos-front": { transform: "translateY(-8px)" },
-                          }}>
-                            {/* Base / main screenshot */}
-                            <Box
-                              component="img"
-                              src={f.images[0]}
-                              alt={`${f.title} dashboard`}
-                              sx={{
-                                position: "absolute",
-                                top: f.images[3] ? "8%" : "5%",
-                                left: "50%",
-                                transform: "translateX(-50%)",
-                                width: { xs: "80%", md: f.images[3] ? "70%" : "76%" },
-                                borderRadius: "14px",
-                                border: "1px solid rgba(15,23,42,0.06)",
-                                boxShadow: "0 24px 60px rgba(15,23,42,0.16)",
-                                bgcolor: "#fff",
-                              }}
-                            />
-                            {/* Floating card — top left */}
-                            <Box
-                              component="img"
-                              src={f.images[1]}
-                              alt={`${f.title} detail`}
-                              className="pos-front"
-                              sx={{
-                                position: "absolute",
-                                top: 0,
-                                left: 0,
-                                width: { xs: "42%", md: "37%" },
-                                borderRadius: "12px",
-                                // border: "3px solid #fff",
-                                // boxShadow: "0 18px 40px rgba(15,23,42,0.2)",
-                                // bgcolor: "#fff",
-                                transition: "transform .4s ease",
-                                zIndex: 3,
-                              }}
-                            />
-                            {/* Floating card — bottom right */}
-                            <Box
-                              component="img"
-                              src={f.images[2]}
-                              alt={`${f.title} detail`}
-                              className="pos-front"
-                              sx={{
-                                position: "absolute",
-                                bottom: 0,
-                                right: 0,
-                                width: { xs: "44%", md: "33%" },
-                                borderRadius: "12px",
-                                // border: "3px solid #fff",
-                                // boxShadow: "0 18px 40px rgba(15,23,42,0.2)",
-                                // bgcolor: "#fff",
-                                transition: "transform .4s ease",
-                                zIndex: 3,
-                              }}
-                            />
-                            {/* Floating card — top right (only when a 4th image exists) */}
-                            {f.images[3] && (
+                        {/* VISUAL — prominent product screenshot */}
+                        <Box sx={{
+                          position: "relative",
+                          width: { xs: "100%", md: "42%" },
+                          p: { xs: 2, md: 0.6 },
+                          borderRadius: "20px",
+                          background: "rgb(47 120 211 / 6%)",
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          minHeight: { xs: 210, md: 112 },
+                        }}>
+                          {f.images ? (
+                            <Box sx={{
+                              position: "relative",
+                              width: "100%",
+                              maxWidth: 360,
+                              aspectRatio: { xs: "16 / 12", md: "16 / 10" },
+                              "&:hover .pos-front": { transform: "translateY(-8px)" },
+                            }}>
                               <Box
                                 component="img"
-                                src={f.images[3]}
+                                src={f.images[0]}
+                                alt={`${f.title} dashboard`}
+                                sx={{
+                                  position: "absolute",
+                                  top: f.images[3] ? "8%" : "5%",
+                                  left: "50%",
+                                  transform: "translateX(-50%)",
+                                  width: { xs: "80%", md: f.images[3] ? "65%" : "68%" },
+                                  borderRadius: "12px",
+                                  border: "1px solid rgba(15,23,42,0.06)",
+                                  boxShadow: "0 12px 32px rgba(15,23,42,0.12)",
+                                  bgcolor: "#fff",
+                                }}
+                              />
+                              <Box
+                                component="img"
+                                src={f.images[1]}
                                 alt={`${f.title} detail`}
                                 className="pos-front"
                                 sx={{
                                   position: "absolute",
                                   top: 0,
-                                  right: 0,
-                                  width: { xs: "30%", md: "27%" },
-                                  borderRadius: "12px",
-                                  // border: "3px solid #fff",
-                                  // boxShadow: "0 18px 40px rgba(15,23,42,0.2)",
-                                  // bgcolor: "#fff",
+                                  left: 0,
+                                  width: { xs: "42%", md: "28%" },
+                                  borderRadius: "8px",
                                   transition: "transform .4s ease",
-                                  zIndex: 4,
+                                  zIndex: 3,
                                 }}
                               />
-                            )}
-                          </Box>
-                        ) : (
-                          <Box
-                            component="img"
-                            src={f.img}
-                            alt={f.title}
-                            sx={{
-                              width: "100%",
-                              maxWidth: 460,
-                              borderRadius: "12px",
-                              transition: ".4s",
-                              "&:hover": { transform: "scale(1.04)" },
-                            }}
-                          />
-                        )}
-                      </Box>
-
-                      {/* ITEMS — 2×2 checklist */}
-                      <Box sx={{
-                        display: "grid",
-                        gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-                        columnGap: { md: 3 },
-                        rowGap: { xs: 1.6, md: 2 },
-                        mb: 2.5,
-                      }}>
-                        {f.items.map((item) => (
-                          <Box key={item} sx={{ display: "flex", alignItems: "flex-start", gap: 1.25 }}>
-                            <Box sx={{
-                              flexShrink: 0,
-                              mt: "1px",
-                              width: 26,
-                              height: 26,
-                              borderRadius: "50%",
-                              bgcolor: alpha(accent, .12),
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                            }}>
-                              <CheckCircleIcon sx={{ color: accent, fontSize: 17 }} />
+                              <Box
+                                component="img"
+                                src={f.images[2]}
+                                alt={`${f.title} detail`}
+                                className="pos-front"
+                                sx={{
+                                  position: "absolute",
+                                  bottom: 15,
+                                  right: 0,
+                                  width: { xs: "40%", md: "27%" },
+                                  borderRadius: "8px",
+                                  transition: "transform .4s ease",
+                                  zIndex: 3,
+                                }}
+                              />
+                              {f.images[3] && (
+                                <Box
+                                  component="img"
+                                  src={f.images[3]}
+                                  alt={`${f.title} detail`}
+                                  className="pos-front"
+                                  sx={{
+                                    position: "absolute",
+                                    top: 0,
+                                    right: 0,
+                                    width: { xs: "30%", md: "22%" },
+                                    borderRadius: "8px",
+                                    transition: "transform .4s ease",
+                                    zIndex: 4,
+                                  }}
+                                />
+                              )}
                             </Box>
-                            <Typography sx={{ fontSize: "0.92rem", color: "#475569", fontWeight: 500, lineHeight: 1.45 }}>
-                              {item}
-                            </Typography>
-                          </Box>
-                        ))}
-                      </Box>
+                          ) : (
+                            <Box
+                              component="img"
+                              src={f.img}
+                              alt={f.title}
+                              sx={{
+                                width: "100%",
+                                maxWidth: 320,
+                                borderRadius: "12px",
+                                transition: ".4s",
+                                "&:hover": { transform: "scale(1.02)" },
+                              }}
+                            />
+                          )}
+                        </Box>
 
-                      {/* CTA */}
-                      <Button
+                        {/* ITEMS — checklist */}
+                        <Box sx={{
+                          width: { xs: "100%", md: "50%" },
+                          display: "flex",
+                          flexDirection: "column",
+                          justifyContent: "space-between",
+                          height: "100%",
+                          gap: { xs: 0.9, md: 1.1 },
+                        }}>
+                          {f.items.map((item) => (
+                            <Box key={item} sx={{ display: "flex", alignItems: "flex-start", gap: 1.25 }}>
+                              <Box sx={{
+                                flexShrink: 0,
+                                mt: "1px",
+                                width: 26,
+                                height: 26,
+                                borderRadius: "50%",
+                                bgcolor: alpha(accent, .12),
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}>
+                                <CheckCircleIcon sx={{ color: accent, fontSize: 17 }} />
+                              </Box>
+                              <Typography sx={{ fontSize: "1rem", color: "#475569", fontWeight: 500, lineHeight: 1.50 }}>
+                                {item}
+                              </Typography>
+                            </Box>
+                          ))}
+                           <Button
                         endIcon={<ArrowForwardIcon sx={{ fontSize: "20px !important" }} />}
                         onClick={() => navigate("/signup")}
-                        sx={{ mt: "auto", alignSelf: "flex-start", color: PRIMARY, fontWeight: 700, fontSize: "0.9rem", px: 0, minWidth: 0, "&:hover": { bgcolor: "transparent", gap: 0.5 } }}
+                        sx={{ mt: 0, alignSelf: "flex-start", color: PRIMARY, fontWeight: 700, fontSize: "0.9rem", px: 0, minWidth: 0, "&:hover": { bgcolor: "transparent", gap: 0.5 } }}
                       >
                         Learn more
                       </Button>
+                        </Box>
+                      </Box>
+
+                      {/* CTA */}
+                     
                     </Box>
                   </Box>
       </Grid>
