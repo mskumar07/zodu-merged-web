@@ -276,6 +276,7 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
   function validate() {
     const e: Record<string, string> = {};
     if (!title.trim()) e.title = "Task title is required";
+    if (!startDate) e.startDate = "Start date is required";
     if (!dueDate) e.dueDate = "Due date is required";
     if (selectedAssignees.length === 0) e.assignees = "At least one employee must be selected";
     if (!items.some((i) => i.item_title.trim())) e.items = "At least one checklist item is required";
@@ -582,11 +583,13 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
                   </FormControl>
                 </Box>
                 <Box>
-                  <FieldLabel>Start Date</FieldLabel>
+                  <FieldLabel required>Start Date</FieldLabel>
                   <TextField
                     type="date" size="small" fullWidth
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
+                    onChange={(e) => { setStartDate(e.target.value); if (errors.startDate) setErrors((p) => ({ ...p, startDate: "" })); }}
+                    error={!!errors.startDate}
+                    helperText={errors.startDate}
                     slotProps={{ inputLabel: { shrink: true } }}
                   />
                 </Box>

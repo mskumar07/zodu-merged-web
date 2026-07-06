@@ -592,8 +592,6 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
     }
   };
 
-  const visibleAssignees = task.assignees.slice(0, 3);
-  const extraAssignees = task.assignees.length - visibleAssignees.length;
   const isOwner = !!loggedEmployeeId && !!task.assignedById && loggedEmployeeId === task.assignedById;
 
   // Attachment filter counts
@@ -662,6 +660,9 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
                 <ChecklistIcon sx={{ fontSize: 14 }} />
               </Box>
               <Typography sx={{ fontWeight: 700, fontSize: 14, color: "#0F172A" }}>Task Information</Typography>
+              <Chip label={task.taskId} size="small"
+                sx={{ bgcolor: "#F1F5F9", color: "#334155", fontWeight: 700, fontSize: 12, height: 24, borderRadius: 1.5 }}
+              />
             </Box>
 
             <Box sx={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 2 }}>
@@ -674,25 +675,6 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
                 </Box>
               </Box>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                <Box><FieldLabel>Task ID</FieldLabel>
-                  <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{task.taskId}</Typography>
-                </Box>
-                <Box><FieldLabel>Assigned By</FieldLabel>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                    <Avatar sx={{ width: 22, height: 22, fontSize: 10, fontWeight: 700, bgcolor: "#E11D48" }}>
-                      {task.assignedBy.slice(0, 2).toUpperCase()}
-                    </Avatar>
-                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{task.assignedBy}</Typography>
-                  </Box>
-                </Box>
-                <Box><FieldLabel>Assigned On</FieldLabel>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <CalendarMonthOutlinedIcon sx={{ fontSize: 14, color: "#9CA3AF" }} />
-                    <Typography sx={{ fontSize: 13, color: "#374151" }}>{task.assignedOn}</Typography>
-                  </Box>
-                </Box>
-              </Box>
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                 <Box><FieldLabel>Due Date</FieldLabel>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                     <CalendarMonthOutlinedIcon sx={{ fontSize: 14, color: "#9CA3AF" }} />
@@ -701,24 +683,23 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
                 </Box>
                 <Box><FieldLabel>Status</FieldLabel>
                   <Chip label={task.status} size="small"
-                    sx={{ bgcolor: "#DBEAFE", color: "#1D4ED8", fontWeight: 600, fontSize: 11, height: 22, borderRadius: 1.5 }}
+                    sx={{ bgcolor: "transparent", color: "#1D4ED8", fontWeight: 600, fontSize: 11, height: 22, borderRadius: 1.5, pl: 0 }}
                   />
                 </Box>
-                <Box><FieldLabel>Assigned To ({task.assignees.length})</FieldLabel>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                    {visibleAssignees.map((a) => (
-                      <Tooltip key={a.id} title={a.name}>
-                        <Avatar sx={{ width: 28, height: 28, fontSize: 11, fontWeight: 700, bgcolor: avatarColor(a.name), color: avatarTextColor(a.name) }}>
-                          {a.name.slice(0, 2).toUpperCase()}
-                        </Avatar>
-                      </Tooltip>
-                    ))}
-                    {extraAssignees > 0 && (
-                      <Box sx={{ bgcolor: "#F3F4F6", color: "#6B7280", fontSize: 12, fontWeight: 600, borderRadius: 5, px: 1.5, py: 0.5 }}>
-                        +{extraAssignees} More
-                      </Box>
-                    )}
+              </Box>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                <Box><FieldLabel>Assigned On</FieldLabel>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    <CalendarMonthOutlinedIcon sx={{ fontSize: 14, color: "#9CA3AF" }} />
+                    <Typography sx={{ fontSize: 13, color: "#374151" }}>{task.assignedOn}</Typography>
                   </Box>
+                </Box>
+                <Box><FieldLabel>Assigned To ({task.assignees.length})</FieldLabel>
+                  <Tooltip title={task.assignees.map((a) => a.name).join(", ")}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {task.assignees.map((a) => a.name).join(", ")}
+                    </Typography>
+                  </Tooltip>
                 </Box>
               </Box>
             </Box>
