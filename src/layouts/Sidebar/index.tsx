@@ -9,6 +9,7 @@ import ReceiptIcon from "@mui/icons-material/Receipt";
 import RestaurantMenuIcon from "@mui/icons-material/RestaurantMenu";
 import ChecklistIcon from "@mui/icons-material/Checklist";
 import GroupsIcon from '@mui/icons-material/Groups';
+import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import Logo from "@components/Common/Logo";
 import zlogo from "../../assets/zlogo.png";
 import {
@@ -44,6 +45,7 @@ const retailNavItems = [
   { label: "Expense", icon: <PaymentsIcon />, path: "/expense" },
   { label: "Customer Management", icon: <Person />, path: "/customer-details" },
   { label: "Employee Management", icon: <Badge />, path: "/employee-management" },
+  { label: "Attendance", icon: <EventAvailableIcon />, path: "/attendance" },
   { label: "Checklist / Tasklist", icon: <ChecklistIcon />, path: "/checklist" },
   { label: "Role Management", icon: <AdminPanelSettings />, path: "/role-management" },
   { label: "Report", icon: <BarChartIcon />, path: "/reports" },
@@ -60,6 +62,7 @@ const restaurantNavItems = [
   { label: "Expense", icon: <PaymentsIcon />, path: "/expense" },
   { label: "Customer Management", icon: <Person />, path: "/customer-details" },
   { label: "Employee Management", icon: <Badge />, path: "/employee-management" },
+  { label: "Attendance", icon: <EventAvailableIcon />, path: "/attendance" },
   { label: "Checklist / Tasklist", icon: <ChecklistIcon />, path: "/checklist" },
   { label: "Role Management", icon: <AdminPanelSettings />, path: "/role-management" },
   { label: "Report", icon: <BarChartIcon />, path: "/reports" },

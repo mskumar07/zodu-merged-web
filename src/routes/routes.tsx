@@ -33,6 +33,7 @@ import MonthWiseExpenseReport from "@pages/ReportsScreen/ExpenseReport/MonthWise
 import MonthWiseProfitReport from "@pages/ReportsScreen/ProfitReport/MonthWiseProfitReport";
 import YearWiseProfitReport  from "@pages/ReportsScreen/ProfitReport/YearWiseProfitReport";
 import ChecklistDashboard from "@pages/Checklist/ChecklistDashboard";
+import AttendanceDashboard from "@pages/Attendance/AttendanceDashboard";
 
 export const routes = [
   {
@@ -58,6 +59,7 @@ export const routes = [
       {path: "role-management", element: <RoleManagement/>},
       {path: "employee-management", element: <EmployeeManagement/>},
       {path: "checklist", element: <ChecklistDashboard/>},
+      {path: "attendance", element: <AttendanceDashboard/>},
    
       {
         path: "reports",

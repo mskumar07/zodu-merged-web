@@ -19,6 +19,7 @@ const Layout: React.FC = () => {
       <Box
         sx={{
           flexGrow: 1,
+          minWidth: 0,
           bgcolor: theme.palette.background.default,
           height: "100vh",
           display: "flex",
