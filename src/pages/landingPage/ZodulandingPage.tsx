@@ -77,9 +77,9 @@ import showcaseTeam from "../../assets/wzd__4.png";
 import posShot1 from "../../assets/Feature/POS.png";
 import posShot2 from "../../assets/Feature/POS2.png";
 import posShot3 from "../../assets/Feature/POS3.png";
-import pos4 from "../../assets/Feature/pos4.png";
-import pos7 from "../../assets/Feature/pos7.png";
-import pos6 from "../../assets/Feature/pos6.png";
+// import pos4 from "../../assets/Feature/pos4.png";
+// import pos7 from "../../assets/Feature/pos7.png";
+// import pos6 from "../../assets/Feature/pos6.png";
 import invShot1 from "../../assets/Feature/Inventory.png";
 import invShot2 from "../../assets/Feature/Inventory2.png";
 import invShot3 from "../../assets/Feature/Invenotry3.png";
@@ -161,7 +161,7 @@ const features: {
     bg: "#fff0f0",
     img: showcaseBilling,
      color: "#ef4444", 
-    images: [pos7,pos4,pos6],
+    images: [posShot1,posShot2,posShot3],
     title: "POS Billing",
     tagline: "Bill in seconds — even during your busiest rush.",
     items: [
