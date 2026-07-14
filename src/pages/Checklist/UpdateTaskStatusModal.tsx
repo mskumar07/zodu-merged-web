@@ -683,7 +683,15 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
                 </Box>
                 <Box><FieldLabel>Status</FieldLabel>
                   <Chip label={task.status} size="small"
-                    sx={{ bgcolor: "transparent", color: "#1D4ED8", fontWeight: 600, fontSize: 11, height: 22, borderRadius: 1.5, pl: 0 }}
+                    sx={{
+                      bgcolor: "transparent",
+                      color: "#1D4ED8",
+                      fontWeight: 600,
+                      fontSize: 13,
+                      height: 20,
+                      borderRadius: 1.5,
+                      "& .MuiChip-label": { pl: 0, pr: 0 },
+                    }}
                   />
                 </Box>
               </Box>

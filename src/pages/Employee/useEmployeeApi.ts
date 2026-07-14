@@ -419,7 +419,7 @@ export const INDIA_STATES = [
   "Daman and Diu","Delhi","Jammu and Kashmir","Ladakh","Lakshadweep","Puducherry",
 ];
 
-export const EMPLOYMENT_TYPES = ["Full Time", "Part Time", "Contract", "Internship"];
+export const EMPLOYMENT_TYPES = ["Full Time", "Part Time"];
 export const PAYMENT_TYPES    = ["Monthly", "Weekly", "Bi-Weekly", "Daily"];
 export const GENDERS          = ["Male", "Female", "Other"];
 export const ACCESS_LEVELS    = ["Full Access", "View Only", "Custom", "No Access"];

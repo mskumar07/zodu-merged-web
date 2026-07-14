@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import {
-  Box, Button, Chip, CircularProgress, Dialog, DialogActions,
+  Box, Button, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, IconButton, InputAdornment,
   Tab, Tabs, TextField, Tooltip, Typography, Avatar,
 } from "@mui/material";
@@ -10,6 +10,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import SearchIcon from "@mui/icons-material/Search";
+import Circle from "@mui/icons-material/Circle";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
 import { useInfiniteEmployees, useDeleteEmployee, type EmployeeListItem } from "./useEmployeeApi";
 import EmployeeFormModal from "./EmployeeFormModal";
@@ -30,6 +31,27 @@ const theme = createTheme({
 function formatDate(iso: string): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+const EMPLOYMENT_TYPE_COLORS: Record<string, string> = {
+  "full time": "#2E7D32",
+  "part time": "#F57C00",
+  "contract":  "#6D28D9",
+  "intern":    "#2563EB",
+};
+
+function EmploymentTypeBadge({ type }: { type: string }) {
+  if (!type) return <Typography sx={{ fontSize: 13, color: "#9CA3AF" }}>—</Typography>;
+  const color = EMPLOYMENT_TYPE_COLORS[type.toLowerCase()] ?? "#6B7280";
+  return (
+    <Typography
+      variant="body2"
+      sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, color, fontWeight: 600, fontSize: 13 }}
+    >
+      <Circle sx={{ fontSize: 8 }} />
+      {type}
+    </Typography>
+  );
 }
 
 // ─── Delete confirm dialog ────────────────────────────────────
@@ -121,16 +143,28 @@ export default function EmployeeManagement() {
       key: "employee_code",
       label: "Employee ID",
       width: 140,
-      render: (row) => <Typography sx={{ fontSize: 13, color: "#374151" }}>{row.employee_code || "—"}</Typography>,
+      render: (row) => (
+        row.employee_code ? (
+          <Typography
+            component="span"
+            onClick={(e) => { e.stopPropagation(); openView(row.employee_id); }}
+            sx={{
+              fontSize: 13, color: "#1976d2", fontWeight: 600,
+              cursor: "pointer", "&:hover": { textDecoration: "underline" },
+            }}
+          >
+            {row.employee_code}
+          </Typography>
+        ) : (
+          <Typography sx={{ fontSize: 13, color: "#374151" }}>—</Typography>
+        )
+      ),
     },
     {
       key: "employment_type",
       label: "Type",
       width: 110,
-      render: (row) => (
-        <Chip label={row.employment_type || "—"} size="small"
-          sx={{ bgcolor: "#EFF6FF", color: "#2563EB", fontWeight: 600, fontSize: 11, height: 20 }} />
-      ),
+      render: (row) => <EmploymentTypeBadge type={row.employment_type} />,
     },
     {
       key: "phone",

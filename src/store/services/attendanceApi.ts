@@ -44,6 +44,38 @@ export interface MarkAttendanceResponse {
   data: MarkAttendanceResponseRow[];
 }
 
+// ─── Mark Attendance (paginated employee list for a given date) ───────────
+
+export interface MarkAttendanceListRow {
+  employee_id: string;
+  employee_code: string;
+  employee_name: string;
+  check_in_time: string | null;
+  check_out_time: string | null;
+  status: AttendanceStatus | null;
+}
+
+export interface MarkAttendanceListPagination {
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
+}
+
+export interface MarkAttendanceListResponse {
+  success: boolean;
+  data: MarkAttendanceListRow[];
+  pagination: MarkAttendanceListPagination;
+}
+
+export interface MarkAttendanceListParams {
+  zodu_id: string;
+  branch_id: string;
+  attendance_date: string; // YYYY-MM-DD
+  page: number;
+  limit?: number;
+}
+
 // ─── Team Attendance (grid + summary) ──────────────────────────────────────
 
 export interface TeamAttendanceDayEntry {
@@ -136,6 +168,28 @@ export const attendanceApi = apiSlice.injectEndpoints({
       invalidatesTags: ["Attendance"],
     }),
 
+    // Mark Attendance — paginated employee list (+ existing marks) for one date, infinite-scroll
+    getMarkAttendanceList: builder.query<MarkAttendanceListResponse, MarkAttendanceListParams>({
+      query: ({ zodu_id, branch_id, attendance_date, page, limit = 10 }) => ({
+        url: `/employee/api/attendance/mark?${buildQuery({ zodu_id, branch_id, attendance_date, page, limit })}`,
+        method: "GET",
+      }),
+      serializeQueryArgs: ({ queryArgs }) => {
+        const { zodu_id, branch_id, attendance_date, limit = 10 } = queryArgs;
+        return `${zodu_id}|${branch_id}|${attendance_date}|${limit}`;
+      },
+      merge: (currentCache, incoming) => {
+        if (incoming.pagination.page === 1) {
+          currentCache.data = incoming.data;
+        } else {
+          currentCache.data.push(...incoming.data);
+        }
+        currentCache.pagination = incoming.pagination;
+      },
+      forceRefetch: ({ currentArg, previousArg }) => currentArg?.page !== previousArg?.page,
+      providesTags: ["Attendance"],
+    }),
+
     // Team Attendance — powers the grid + left summary cards
     getTeamAttendance: builder.query<TeamAttendanceResponse, TeamAttendanceParams>({
       query: ({ zodu_id, branch_id, employee_id, month, year }) => ({
@@ -222,6 +276,7 @@ getLeaveRequests: builder.query<
 
 export const {
   useMarkAttendanceMutation,
+  useGetMarkAttendanceListQuery,
   useGetTeamAttendanceQuery,
   useGetMyAttendanceQuery,
   useRequestLeaveMutation,

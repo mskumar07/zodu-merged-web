@@ -15,8 +15,8 @@ const ImageUploadBox = ({ values, setFieldValue }) => {
         alert("Please upload a valid image file (jpg/png).");
         return;
       }
-      if (file.size > 5 * 1024 * 1024) {
-        alert("Image size should be below 5MB.");
+      if (file.size > 2 * 1024 * 1024) {
+        alert("Image size should be below 2MB.");
         return;
       }
 
@@ -73,7 +73,7 @@ const ImageUploadBox = ({ values, setFieldValue }) => {
             Add Image
           </Typography>
           <Typography variant="caption" sx={{ mt: 0.5, color: "#999" }}>
-            (img/png should be below 5MB)
+            (img/png should be below 2MB)
           </Typography>
         </>
       )}

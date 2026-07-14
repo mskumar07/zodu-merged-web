@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Box, Button, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, IconButton, Tooltip, TextField, Typography,
@@ -10,7 +10,12 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
-import { useMarkAttendanceMutation, type AttendanceStatus, type MarkAttendanceRecord } from "@store/services/attendanceApi";
+import {
+  useMarkAttendanceMutation,
+  useGetMarkAttendanceListQuery,
+  type AttendanceStatus,
+  type MarkAttendanceRecord,
+} from "@store/services/attendanceApi";
 
 // ─── Theme ───────────────────────────────────────────────────
 
@@ -48,16 +53,27 @@ export interface MarkAttendanceEmployee {
   employee_id: string;
   name: string;
   code: string;
-  role: string;
   checkIn: string;
   checkOut: string;
   status: MarkStatus;
 }
 
+const STATUS_FROM_API: Record<AttendanceStatus, MarkStatus> = {
+  "Present": "present",
+  "Absent": "absent",
+  "Weekly Off": "weekly_off",
+};
+
+/** Extracts `HH:mm` from an ISO datetime string for the <input type="time"> value. */
+function toHm(iso: string | null): string {
+  if (!iso) return "";
+  const match = iso.match(/T(\d{2}:\d{2})/);
+  return match ? match[1] : "";
+}
+
 interface MarkAttendanceModalProps {
   open: boolean;
   onClose: () => void;
-  employees: MarkAttendanceEmployee[];
   zoduId: string;
   branchId: string;
   markedById: string;
@@ -114,23 +130,72 @@ function StatusToggle({ value, onChange }: { value: MarkStatus; onChange: (s: Ma
 // ─── Main ────────────────────────────────────────────────────
 
 export default function MarkAttendanceModal({
-  open, onClose, employees, zoduId, branchId, markedById, markedByName, onSuccess, onError,
+  open, onClose, zoduId, branchId, markedById, markedByName, onSuccess, onError,
 }: MarkAttendanceModalProps) {
   const today = new Date().toISOString().slice(0, 10);
   const [date, setDate] = useState(today);
-  const [rows, setRows] = useState<MarkAttendanceEmployee[]>(employees);
+  const [page, setPage] = useState(1);
   const [markAttendance, { isLoading: isSaving }] = useMarkAttendanceMutation();
+
+  const {
+    data, isFetching, isLoading: isLoadingEmployees,
+  } = useGetMarkAttendanceListQuery(
+    { zodu_id: zoduId, branch_id: branchId, attendance_date: date, page, limit: 10 },
+    { skip: !open || !zoduId || !branchId || !date }
+  );
+
+  const employees = useMemo<MarkAttendanceEmployee[]>(() => {
+    return (data?.data ?? []).map((emp) => ({
+      employee_id: emp.employee_id,
+      name: emp.employee_name,
+      code: emp.employee_code,
+      checkIn: toHm(emp.check_in_time),
+      checkOut: toHm(emp.check_out_time),
+      status: emp.status ? STATUS_FROM_API[emp.status] : "present",
+    }));
+  }, [data]);
+
+  const hasNextPage = data ? data.pagination.page < data.pagination.pages : false;
+  const isFetchingNextPage = isFetching && page > 1;
+
+  const [overrides, setOverrides] = useState<Record<string, Partial<MarkAttendanceEmployee>>>({});
+
+  const rows = useMemo<MarkAttendanceEmployee[]>(
+    () => employees.map((emp) => ({ ...emp, ...overrides[emp.employee_id] })),
+    [employees, overrides]
+  );
+
+  const sentinelRef = useRef<HTMLTableRowElement>(null) as React.RefObject<HTMLTableRowElement>;
+  const listContainerRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLDivElement>;
 
   useEffect(() => {
     if (open) {
-      setRows(employees);
       setDate(today);
+      setPage(1);
+      setOverrides({});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, employees]);
+  }, [open]);
+
+  // Changing the date starts a fresh list from page 1.
+  useEffect(() => {
+    setPage(1);
+  }, [date]);
+
+  useEffect(() => {
+    if (!open) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting && hasNextPage && !isFetching) setPage((p) => p + 1); },
+      { root: listContainerRef.current }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [open, hasNextPage, isFetching]);
 
   const updateRow = (employeeId: string, patch: Partial<MarkAttendanceEmployee>) => {
-    setRows((prev) => prev.map((r) => (r.employee_id === employeeId ? { ...r, ...patch } : r)));
+    setOverrides((prev) => ({ ...prev, [employeeId]: { ...prev[employeeId], ...patch } }));
   };
 
   const handleSave = async () => {
@@ -211,66 +276,80 @@ export default function MarkAttendanceModal({
 
           {/* Employee table */}
           <Box sx={{ border: "1px solid #F1F5F9", borderRadius: 2, overflow: "hidden" }}>
-            <Box component="table" sx={{ width: "100%", borderCollapse: "collapse" }}>
-              <Box component="thead">
-                <Box component="tr">
-                  <Box component="th" sx={theadSx({ textAlign: "left", minWidth: 180 })}>Employee</Box>
-                  <Box component="th" sx={theadSx({ textAlign: "left", minWidth: 130 })}>Check-in Time</Box>
-                  <Box component="th" sx={theadSx({ textAlign: "left", minWidth: 130 })}>Check-out Time</Box>
-                  <Box component="th" sx={theadSx({ textAlign: "center", minWidth: 130 })}>Status</Box>
+            <Box ref={listContainerRef} sx={{ maxHeight: 360, overflowY: "auto" }}>
+              <Box component="table" sx={{ width: "100%", borderCollapse: "collapse" }}>
+                <Box component="thead" sx={{ position: "sticky", top: 0, zIndex: 1 }}>
+                  <Box component="tr">
+                    <Box component="th" sx={theadSx({ textAlign: "left", minWidth: 180 })}>Employee</Box>
+                    <Box component="th" sx={theadSx({ textAlign: "left", minWidth: 130 })}>Check-in Time</Box>
+                    <Box component="th" sx={theadSx({ textAlign: "left", minWidth: 130 })}>Check-out Time</Box>
+                    <Box component="th" sx={theadSx({ textAlign: "center", minWidth: 130 })}>Status</Box>
+                  </Box>
                 </Box>
-              </Box>
-              <Box component="tbody">
-                {rows.map((row) => (
-                  <Box component="tr" key={row.employee_id} sx={{ "&:hover": { bgcolor: "#FAFAFA" } }}>
-                    <Box component="td" sx={tbodySx}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Box sx={{
-                          width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
-                          bgcolor: "#FFF1F2", color: "#E11D48",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: 11, fontWeight: 700,
-                        }}>
-                          {row.name.slice(0, 2).toUpperCase()}
-                        </Box>
-                        <Box sx={{ minWidth: 0 }}>
-                          <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: "#0F172A" }} noWrap>
-                            {row.name}
-                          </Typography>
-                          <Typography sx={{ fontSize: 11, color: "#9CA3AF" }} noWrap>
-                            {row.code}{row.role ? ` · ${row.role}` : ""}
-                          </Typography>
+                <Box component="tbody">
+                  {rows.map((row) => (
+                    <Box component="tr" key={row.employee_id} sx={{ "&:hover": { bgcolor: "#FAFAFA" } }}>
+                      <Box component="td" sx={tbodySx}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <Box sx={{
+                            width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
+                            bgcolor: "#FFF1F2", color: "#E11D48",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            fontSize: 11, fontWeight: 700,
+                          }}>
+                            {row.name.slice(0, 2).toUpperCase()}
+                          </Box>
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: "#0F172A" }} noWrap>
+                              {row.name}
+                            </Typography>
+                            <Typography sx={{ fontSize: 11, color: "#9CA3AF" }} noWrap>
+                              {row.code}
+                            </Typography>
+                          </Box>
                         </Box>
                       </Box>
+                      <Box component="td" sx={tbodySx}>
+                        <TextField
+                          size="small"
+                          type="time"
+                          value={row.checkIn}
+                          onChange={(e) => updateRow(row.employee_id, { checkIn: e.target.value })}
+                          disabled={row.status !== "present"}
+                          sx={{ ...inputSx, width: 120 }}
+                        />
+                      </Box>
+                      <Box component="td" sx={tbodySx}>
+                        <TextField
+                          size="small"
+                          type="time"
+                          value={row.checkOut}
+                          onChange={(e) => updateRow(row.employee_id, { checkOut: e.target.value })}
+                          disabled={row.status !== "present"}
+                          sx={{ ...inputSx, width: 120 }}
+                        />
+                      </Box>
+                      <Box component="td" sx={tbodySx}>
+                        <StatusToggle
+                          value={row.status}
+                          onChange={(status) => updateRow(row.employee_id, { status })}
+                        />
+                      </Box>
                     </Box>
-                    <Box component="td" sx={tbodySx}>
-                      <TextField
-                        size="small"
-                        type="time"
-                        value={row.checkIn}
-                        onChange={(e) => updateRow(row.employee_id, { checkIn: e.target.value })}
-                        disabled={row.status !== "present"}
-                        sx={{ ...inputSx, width: 120 }}
-                      />
+                  ))}
+                  {isLoadingEmployees && rows.length === 0 && (
+                    <Box component="tr">
+                      <Box component="td" colSpan={4} sx={{ ...tbodySx, textAlign: "center", py: 3 }}>
+                        <CircularProgress size={20} sx={{ color: "#E11D48" }} />
+                      </Box>
                     </Box>
-                    <Box component="td" sx={tbodySx}>
-                      <TextField
-                        size="small"
-                        type="time"
-                        value={row.checkOut}
-                        onChange={(e) => updateRow(row.employee_id, { checkOut: e.target.value })}
-                        disabled={row.status !== "present"}
-                        sx={{ ...inputSx, width: 120 }}
-                      />
-                    </Box>
-                    <Box component="td" sx={tbodySx}>
-                      <StatusToggle
-                        value={row.status}
-                        onChange={(status) => updateRow(row.employee_id, { status })}
-                      />
+                  )}
+                  <Box component="tr" ref={sentinelRef}>
+                    <Box component="td" colSpan={4} sx={{ p: isFetchingNextPage ? 1.5 : 0, textAlign: "center", border: "none" }}>
+                      {isFetchingNextPage && <CircularProgress size={16} sx={{ color: "#E11D48" }} />}
                     </Box>
                   </Box>
-                ))}
+                </Box>
               </Box>
             </Box>
           </Box>

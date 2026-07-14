@@ -20,7 +20,7 @@ const FOOD_COLOR: Record<string, string> = {
 const CartItem: React.FC<Props> = ({ item, onIncrement, onDecrement, onRemove }) => {
   const price     = getItemPrice(item.product);
   const lineTotal = price * item.quantity;
-  const dotColor  = FOOD_COLOR[item.product.food_type?.toLowerCase()] ?? "#16a34a";
+  const dotColor  = FOOD_COLOR[item.product.food_type?.toLowerCase() ?? ""] ?? "#16a34a";
   const initials  = (item.product.menu_name ?? "").slice(0, 2).toUpperCase();
   const variant   = (item.product as any).variant_name as string | undefined;
 
@@ -69,13 +69,14 @@ const CartItem: React.FC<Props> = ({ item, onIncrement, onDecrement, onRemove })
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography
           sx={{
-            fontSize: "0.76rem",
+            fontSize: "0.77rem",
             fontWeight: 600,
             color: "#111827",
             lineHeight: 1.25,
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
+            textTransform: "uppercase",
           }}
         >
           {item.product.menu_name ?? ""}
@@ -97,25 +98,27 @@ const CartItem: React.FC<Props> = ({ item, onIncrement, onDecrement, onRemove })
           sx={{
             display: "flex",
             alignItems: "center",
-            border: "1px solid #e5e7eb",
+            border: "1.5px solid #d32f2f",
             borderRadius: "7px",
             overflow: "hidden",
-            height: 26,
+            height: 30,
           }}
         >
           <Box
             onClick={onDecrement}
             sx={{
-              width: 26,
+              width: 34,
               height: "100%",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               cursor: "pointer",
-              color: "#374151",
+              color: "#d32f2f",
               fontWeight: 700,
-              fontSize: "0.9rem",
-              "&:hover": { bgcolor: "#f3f4f6" },
+              fontSize: "1rem",
+              bgcolor: "#fff",
+              flexShrink: 0,
+              "&:hover": { bgcolor: "#fef2f2" },
             }}
           >
             −
@@ -123,12 +126,17 @@ const CartItem: React.FC<Props> = ({ item, onIncrement, onDecrement, onRemove })
           <Typography
             sx={{
               fontSize: "0.78rem",
-              fontWeight: 700,
+              fontWeight: 800,
               px: 0.8,
-              minWidth: 22,
+              minWidth: 24,
               textAlign: "center",
-              color: "#111827",
+              color: "#fff",
+              bgcolor: "#d32f2f",
               lineHeight: 1,
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
             {item.quantity}
@@ -136,16 +144,18 @@ const CartItem: React.FC<Props> = ({ item, onIncrement, onDecrement, onRemove })
           <Box
             onClick={onIncrement}
             sx={{
-              width: 26,
+              width: 34,
               height: "100%",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               cursor: "pointer",
-              color: "#374151",
+              color: "#d32f2f",
               fontWeight: 700,
-              fontSize: "0.9rem",
-              "&:hover": { bgcolor: "#f3f4f6" },
+              fontSize: "1rem",
+              bgcolor: "#fff",
+              flexShrink: 0,
+              "&:hover": { bgcolor: "#fef2f2" },
             }}
           >
             +

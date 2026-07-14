@@ -14,7 +14,8 @@ import type { HoldOrder, RunningOrder, RunningOrderOrderedItem } from "./api/res
 import TableBarIcon from "@mui/icons-material/TableBar";
 import DeliveryDiningIcon from "@mui/icons-material/DeliveryDining";
 import ShoppingBagIcon from "@mui/icons-material/ShoppingBag";
-import { toast } from "react-toastify";
+import SuccessToast from "@components/Common/SuccessToast";
+import zoduLogo from "@assets/zlogo.png";
 
 import { useAppSelector } from "../../../store/store";
 import { BranchId, ZoduId } from "@store/slices/userSlice";
@@ -26,6 +27,7 @@ import {
   useAddOrderMutation,
   useCompleteOrderMutation,
   useHoldOrderMutation,
+  useUpdateHoldOrderMutation,
   useDeleteHoldOrderMutation,
   calcSubtotal,
   calcTax,
@@ -109,6 +111,7 @@ const RestaurantPOS: React.FC = () => {
   const { mutateAsync: addOrder,      isPending: addingOrder      } = useAddOrderMutation();
   const { mutateAsync: completeOrder, isPending: completingOrder  } = useCompleteOrderMutation();
   const { mutateAsync: holdOrder,     isPending: holdingOrder     } = useHoldOrderMutation();
+  const { mutateAsync: updateHoldOrder                            } = useUpdateHoldOrderMutation();
   const { mutateAsync: deleteHoldOrder                            } = useDeleteHoldOrderMutation();
 
   const isBusy = addingOrder || completingOrder || holdingOrder;
@@ -127,6 +130,11 @@ const RestaurantPOS: React.FC = () => {
   const [runningOrderSummary, setRunningOrderSummary] = useState<RunningOrderOrderedItem[]>([]);
   const [runningOrderTotal,   setRunningOrderTotal  ] = useState<number>(0);
   const [variantItem,  setVariantItem ] = useState<RestaurantMenuItem | null>(null);
+  const [successMsg,   setSuccessMsg  ] = useState("");
+  const [errorMsg,     setErrorMsg    ] = useState("");
+  // hold_id of the hold order currently loaded into the cart (restored but not yet sent/paid) —
+  // only deleted from the server once the order is actually sent to KDS, paid, or re-held
+  const [activeHoldId, setActiveHoldId] = useState<string | null>(null);
 
 
   // ── Auto-scroll refs ─────────────────────────────────────────────────────
@@ -368,6 +376,7 @@ const RestaurantPOS: React.FC = () => {
     setRunningOrderSummary([]);
     setRunningOrderTotal(0);
     setOrder(buildInitialOrder());
+    setActiveHoldId(null);
   }, []);
 
   // ── Build items payload ───────────────────────────────────────────────────
@@ -434,8 +443,8 @@ const RestaurantPOS: React.FC = () => {
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const handleSendToKDS = async () => {
-    if (!cartItems.length)        
-     { toast.error("Add items first"); return; }
+    if (!cartItems.length)
+     { setErrorMsg("Add items first"); return; }
     if (order.orderType === "DineIn" && !order.tableNumber) { setShowTable(true); return; }
     console.log("Sending to KDS with payload:", order);
 
@@ -466,17 +475,21 @@ const RestaurantPOS: React.FC = () => {
         orderId: res?.Data?.api_order_id ?? p.orderId,
         kotNo:   res?.Data?.kot_no        ?? p.kotNo,
       }));
-      toast.success("Order sent to KDS!");
+      setSuccessMsg("Order sent to KDS!");
       setCartItems([]);
+      if (activeHoldId) {
+        try { await deleteHoldOrder(activeHoldId); } catch { /* ignore */ }
+        setActiveHoldId(null);
+      }
     } catch {
-      toast.error("Failed to send to KDS");
+      setErrorMsg("Failed to send to KDS");
     }
   };
 
   const handlePay = async (payMethod: "Card" | "QR" | "Cash") => {
     try {
       if (order.orderType === "DineIn") {
-        if (!order.tableNumber) { toast.error("Select a table first"); return; }
+        if (!order.tableNumber) { setErrorMsg("Select a table first"); return; }
         const discType = order.discountType === "Amount" ? "FLAT" : "PERCENT";
         const t = cartItems.length > 0
           ? totals
@@ -521,37 +534,62 @@ const RestaurantPOS: React.FC = () => {
           customer_phone:  order.customerPhone,
         });
       }
-      toast.success("Payment successful!");
+      if (activeHoldId) {
+        try { await deleteHoldOrder(activeHoldId); } catch { /* ignore */ }
+      }
+      setSuccessMsg("Payment successful!");
       resetOrder();
     } catch {
-      toast.error("Payment failed. Please try again.");
+      setErrorMsg("Payment failed. Please try again.");
     }
   };
 
   const handleHold = async () => {
-    if (!cartItems.length) { toast.error("No items to hold"); return; }
+    if (!cartItems.length) { setErrorMsg("No items to hold"); return; }
+    const items = cartItems.map((ci) => ({
+      item_id:      ci.product.menu_id,
+      item_name:    ci.product.menu_name,
+      item_unit:    ci.product.menu_unit || null,
+      qty:          ci.quantity,
+      price:        getItemPrice(ci.product),
+      variant_name: ci.product.variant_name ?? null,
+      variant_id:   ci.product.variant_id ?? null,
+    }));
     try {
-      await holdOrder({
-        zodu_id:       zoduId,
-        branch_id:     branchId,
-        orderType:     HOLD_ORDER_TYPE_MAP[order.orderType],
-        table_no:      order.tableNumber != null ? String(order.tableNumber) : null,
-        customerName:  order.customerName || null,
-        customerPhone: order.customerPhone || null,
-        items: cartItems.map((ci) => ({
-          item_id:      ci.product.menu_id,
-          item_name:    ci.product.menu_name,
-          item_unit:    ci.product.menu_unit || null,
-          qty:          ci.quantity,
-          price:        getItemPrice(ci.product),
-          variant_name: ci.product.variant_name ?? null,
-          variant_id:   ci.product.variant_id ?? null,
-        })),
-      });
-      toast.success("Order placed on hold");
+      if (activeHoldId) {
+        // Already-held order restored into the cart — update it in place instead of
+        // creating a new hold record + deleting the old one.
+        // Items that came from the original hold carry their row `id` so the backend
+        // updates them in place; newly added items are sent without `id` so they're inserted.
+        const updateItems = cartItems.map((ci, idx) => ({
+          ...items[idx],
+          ...(ci.product.hold_item_id != null ? { id: ci.product.hold_item_id } : {}),
+        }));
+        await updateHoldOrder({
+          hold_id:       activeHoldId,
+          zodu_id:       zoduId,
+          branch_id:     branchId,
+          orderType:     HOLD_ORDER_TYPE_MAP[order.orderType],
+          table_no:      order.tableNumber != null ? String(order.tableNumber) : null,
+          customerName:  order.customerName || null,
+          customerPhone: order.customerPhone || null,
+          items: updateItems,
+        });
+      } else {
+        await holdOrder({
+          zodu_id:       zoduId,
+          branch_id:     branchId,
+          orderType:     HOLD_ORDER_TYPE_MAP[order.orderType],
+          table_no:      order.tableNumber != null ? String(order.tableNumber) : null,
+          customerName:  order.customerName || null,
+          customerPhone: order.customerPhone || null,
+          items,
+        });
+      }
+      setSuccessMsg("Order placed on hold");
       resetOrder();
     } catch {
-      toast.error("Failed to hold order");
+      setErrorMsg("Failed to hold order");
     }
   };
 
@@ -586,16 +624,15 @@ const RestaurantPOS: React.FC = () => {
       discountType:  "Percent",
       discountValue: 0,
     }));
-    toast.info(`Table ${ro.table_no} selected — add items for next KOT`);
   };
 
   const handleDeleteHold = async (holdId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
       await deleteHoldOrder(holdId);
-      toast.success("Hold order removed");
+      setSuccessMsg("Hold order removed");
     } catch {
-      toast.error("Failed to remove hold order");
+      setErrorMsg("Failed to remove hold order");
     }
   };
 
@@ -620,6 +657,7 @@ const RestaurantPOS: React.FC = () => {
         menu_type:              "",
         variant_id:             i.variant_id ?? undefined,
         variant_name:           i.variant_name ?? undefined,
+        hold_item_id:           i.id,
       } as RestaurantMenuItem,
       quantity: i.qty,
     }));
@@ -636,12 +674,10 @@ const RestaurantPOS: React.FC = () => {
       discountType:  "Percent",
       discountValue: 0,
     }));
-    try {
-      await deleteHoldOrder(held.hold_id);
-    } catch {
-      // restore succeeded even if delete fails — don't block the user
-    }
-    toast.info("Hold order restored");
+    // Don't delete the hold record yet — only remove it once this order is actually
+    // sent to KDS, paid, or re-held. Track it so those flows can clean it up.
+    setActiveHoldId(held.hold_id);
+    setSuccessMsg("Hold order restored");
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -673,24 +709,22 @@ const RestaurantPOS: React.FC = () => {
         }}
       >
         {/* Logo */}
-        <Typography
+        <Box
+          component="img"
+          src={zoduLogo}
+          alt="zodu"
           sx={{
-            fontWeight: 900,
-            fontSize: "1.2rem",
-            color: "#d32f2f",
-            fontStyle: "italic",
-            letterSpacing: "-0.02em",
-            whiteSpace: "nowrap",
+            height: 40,
+            width: "auto",
+            ml: 4,
           }}
-        >
-          zodu
-        </Typography>
-        <Divider orientation="vertical" flexItem sx={{ borderColor: "#e5e7eb" }} />
+        />
+        <Divider orientation="vertical" flexItem sx={{ borderColor: "#e5e7eb", ml: 8  }} />
 
         {/* Back + Title */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Box
-            onClick={() => navigate("/sales-history")}
+            onClick={() => navigate("/restaurant-menu")}
             sx={{
               display: "flex",
               alignItems: "center",
@@ -705,9 +739,6 @@ const RestaurantPOS: React.FC = () => {
           >
             <ArrowBackIcon sx={{ fontSize: 18 }} />
           </Box>
-          <Typography variant="body2" fontWeight={600} sx={{ whiteSpace: "nowrap", fontSize: "1rem", color: "#111" }}>
-            Restaurant POS
-          </Typography>
         </Box>
 
         <Box sx={{ flex: 1 }} />
@@ -754,6 +785,7 @@ const RestaurantPOS: React.FC = () => {
             cursor: "pointer",
             whiteSpace: "nowrap",
             transition: "all 0.15s",
+            flexShrink: 0,
             "&:hover": { border: "1.5px solid #f59e0b", color: "#d97706" },
           }}
         >
@@ -763,9 +795,8 @@ const RestaurantPOS: React.FC = () => {
           </Typography>
         </Box>
 
-        <Divider orientation="vertical" flexItem sx={{ borderColor: "#e5e7eb" }} />
-
-        {/* Order type tabs */}
+        <Box sx={{ width: 420, minWidth: 420, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", pl: 2.5, pr: 1.5, height: "100%" }}>
+          {/* Order type tabs */}
         {ORDER_TYPES.map((t) => {
           const active = order.orderType === t.key;
           return (
@@ -777,7 +808,7 @@ const RestaurantPOS: React.FC = () => {
               sx={{
                 display: "flex",
                 alignItems: "center",
-                gap: 0.5,
+                gap: 0.75,
                 px: 1,
                 height: "100%",
                 cursor: "pointer",
@@ -787,18 +818,19 @@ const RestaurantPOS: React.FC = () => {
                 "&:hover": { color: "#d32f2f" },
               }}
             >
-              {t.icon}
-              <Typography sx={{ fontSize: "0.78rem", fontWeight: active ? 700 : 500, lineHeight: 1 }}>
+              {React.cloneElement(t.icon, { sx: { fontSize: 19 } })}
+              <Typography sx={{ fontSize: "0.92rem", fontWeight: active ? 700 : 500, lineHeight: 1 }}>
                 {t.label}
               </Typography>
             </Box>
           );
         })}
+        </Box>
 
       </Box>
 
       {/* ════ Body ════ */}
-      <Box sx={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <Box sx={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
 
         {/* ── Category sidebar ── */}
         <CategoryNav
@@ -809,7 +841,7 @@ const RestaurantPOS: React.FC = () => {
         />
 
         {/* ── Center: search + product grid ── */}
-        <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0, minWidth: 0 }}>
 
           {/* Scrollable product grid */}
           <Box
@@ -901,13 +933,7 @@ const RestaurantPOS: React.FC = () => {
                   <Box
                     sx={{
                       display: "grid",
-                      gridTemplateColumns: {
-                        xs: "repeat(auto-fill, minmax(160px, 1fr))",
-                        sm: "repeat(auto-fill, minmax(185px, 1fr))",
-                        md: "repeat(auto-fill, minmax(200px, 1fr))",
-                        lg: "repeat(auto-fill, minmax(210px, 1fr))",
-                        xl: "repeat(auto-fill, minmax(220px, 1fr))",
-                      },
+                      gridTemplateColumns: "repeat(3, 1fr)",
                       gap: 1.5,
                     }}
                   >
@@ -937,16 +963,18 @@ const RestaurantPOS: React.FC = () => {
                 alignItems: "center",
                 gap: 1,
                 px: 2,
-                py: 0.9,
-                bgcolor: "#eff6ff",
-                borderTop: "1px solid #bfdbfe",
+                py: 1.2,
+                bgcolor: "#ffffff",
+                borderTop: "1px solid #fecaca",
                 overflowX: "auto",
-                scrollbarWidth: "none",
-                "&::-webkit-scrollbar": { display: "none" },
+                scrollbarWidth: "thin",
+                "&::-webkit-scrollbar": { height: 6 },
+                "&::-webkit-scrollbar-track": { bgcolor: "transparent" },
+                "&::-webkit-scrollbar-thumb": { bgcolor: "#fca5a5", borderRadius: 3 },
               }}
             >
-              <TableBarIcon sx={{ fontSize: 15, color: "#2563eb", flexShrink: 0 }} />
-              <Typography sx={{ fontSize: "0.72rem", fontWeight: 700, color: "#1e3a8a", whiteSpace: "nowrap", flexShrink: 0 }}>
+              <TableBarIcon sx={{ fontSize: 18, color: "#d32f2f", flexShrink: 0 }} />
+              <Typography sx={{ fontSize: "0.85rem", fontWeight: 700, color: "#991b1b", whiteSpace: "nowrap", flexShrink: 0 }}>
                 Running:
               </Typography>
               {runningOrders.map((ro) => {
@@ -959,19 +987,20 @@ const RestaurantPOS: React.FC = () => {
                     key={ro.api_order_id}
                     label={`T${ro.table_no}${latestKot ? ` · ${latestKot}` : ""} · ${itemCount} item${itemCount !== 1 ? "s" : ""}`}
                     size="small"
-                    icon={<TableBarIcon sx={{ fontSize: "12px !important" }} />}
+                    icon={<TableBarIcon sx={{ fontSize: "16px !important" }} />}
                     onClick={() => handleRestoreRunningOrder(ro)}
                     sx={{
-                      height: 26,
-                      fontSize: "0.7rem",
+                      height: 34,
+                      fontSize: "0.85rem",
                       fontWeight: 600,
-                      bgcolor: isActive ? "#bfdbfe" : "#dbeafe",
-                      color: "#1e3a8a",
-                      border: isActive ? "1.5px solid #2563eb" : "1px solid #bfdbfe",
+                      bgcolor: isActive ? "#fecaca" : "#fee2e2",
+                      color: "#dc2626",
+                      border: isActive ? "2px solid #dc2626" : "2px solid #ef4444",
                       cursor: "pointer",
                       flexShrink: 0,
-                      "& .MuiChip-icon": { color: "#2563eb" },
-                      "&:hover": { bgcolor: "#bfdbfe" },
+                      "& .MuiChip-label": { px: 1.5 },
+                      "& .MuiChip-icon": { color: "#ef4444" },
+                      "&:hover": { bgcolor: "#fee2e2" },
                     }}
                   />
                 );
@@ -988,16 +1017,18 @@ const RestaurantPOS: React.FC = () => {
                 alignItems: "center",
                 gap: 1,
                 px: 2,
-                py: 0.9,
-                bgcolor: "#fffbeb",
+                py: 1.2,
+                bgcolor: "#ffffff",
                 borderTop: "1px solid #fcd34d",
                 overflowX: "auto",
-                scrollbarWidth: "none",
-                "&::-webkit-scrollbar": { display: "none" },
+                scrollbarWidth: "thin",
+                "&::-webkit-scrollbar": { height: 6 },
+                "&::-webkit-scrollbar-track": { bgcolor: "transparent" },
+                "&::-webkit-scrollbar-thumb": { bgcolor: "#fcd34d", borderRadius: 3 },
               }}
             >
-              <PauseCircleOutlineIcon sx={{ fontSize: 15, color: "#d97706", flexShrink: 0 }} />
-              <Typography sx={{ fontSize: "0.72rem", fontWeight: 700, color: "#92400e", whiteSpace: "nowrap", flexShrink: 0 }}>
+              <PauseCircleOutlineIcon sx={{ fontSize: 18, color: "#d97706", flexShrink: 0 }} />
+              <Typography sx={{ fontSize: "0.85rem", fontWeight: 700, color: "#92400e", whiteSpace: "nowrap", flexShrink: 0 }}>
                 On Hold:
               </Typography>
               {heldOrders.map((ho, idx) => {
@@ -1012,19 +1043,20 @@ const RestaurantPOS: React.FC = () => {
                     key={ho.hold_id ?? idx}
                     label={`${ho.hold_id} · ${itemCount} item${itemCount !== 1 ? "s" : ""}`}
                     size="small"
-                    icon={<RestoreIcon sx={{ fontSize: "12px !important" }} />}
+                    icon={<RestoreIcon sx={{ fontSize: "16px !important" }} />}
                     onClick={() => handleRestoreHold(ho)}
                     onDelete={(e) => handleDeleteHold(ho.hold_id, e)}
                     sx={{
-                      height: 26,
-                      fontSize: "0.7rem",
+                      height: 34,
+                      fontSize: "0.85rem",
                       fontWeight: 600,
                       bgcolor: "#fef3c7",
-                      color: "#92400e",
-                      border: "1px solid #fcd34d",
+                      color: "#b45309",
+                      border: "2px solid #f59e0b",
                       cursor: "pointer",
                       flexShrink: 0,
-                      "& .MuiChip-icon": { color: "#d97706" },
+                      "& .MuiChip-label": { px: 1.5 },
+                      "& .MuiChip-icon": { color: "#f59e0b" },
                       "&:hover": { bgcolor: "#fde68a" },
                     }}
                   />
@@ -1099,6 +1131,9 @@ const RestaurantPOS: React.FC = () => {
         }}
         onClose={() => setVariantItem(null)}
       />
+
+      <SuccessToast message={successMsg} onClose={() => setSuccessMsg("")} />
+      <SuccessToast message={errorMsg} severity="error" onClose={() => setErrorMsg("")} />
 
     </Box>
   );

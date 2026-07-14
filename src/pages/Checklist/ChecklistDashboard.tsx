@@ -190,7 +190,15 @@ function buildTaskColumns(onView: (id: string) => void): ColumnDef<MyTaskItem>[]
       label: "Checklist ID",
       width: 120,
       render: (task) => (
-        <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#374151", whiteSpace: "nowrap" }} noWrap>
+        <Typography
+          onClick={() => onView(task.id)}
+          sx={{
+            fontSize: 13, fontWeight: 700, color: "#1976d2", whiteSpace: "nowrap",
+            cursor: "pointer", textDecoration: "none",
+            "&:hover": { textDecoration: "underline" },
+          }}
+          noWrap
+        >
           {task.checklist_code ?? "—"}
         </Typography>
       ),
@@ -342,7 +350,15 @@ function buildChecklistColumns(
       label: "Checklist ID",
       width: 120,
       render: (item) => (
-        <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#374151", whiteSpace: "nowrap" }} noWrap>
+        <Typography
+          onClick={() => onView(item.checklist_id)}
+          sx={{
+            fontSize: 13, fontWeight: 700, color: "#2563EB", whiteSpace: "nowrap",
+            cursor: "pointer", textDecoration: "none",
+            "&:hover": { textDecoration: "underline" },
+          }}
+          noWrap
+        >
           {item.checklist_code ?? "—"}
         </Typography>
       ),

@@ -392,6 +392,14 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
 
   // ── Photo handlers ────────────────────────────────────────────
   const handlePhotoSelect = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setAvatarError("Please select a valid image file (JPG, PNG, GIF, etc.)");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setAvatarError("Image size should be below 2MB");
+      return;
+    }
     // preview immediately
     const reader = new FileReader();
     reader.onload = (ev) => setAvatarUrl(ev.target?.result as string);

@@ -15,7 +15,6 @@ import {
   InputAdornment,
   CircularProgress,
   ListSubheader,
-  Alert,
 } from "@mui/material";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
@@ -26,6 +25,7 @@ import AddAPhotoIcon from "@mui/icons-material/AddAPhoto";
 import QrCode2Icon from "@mui/icons-material/QrCode2";
 import SearchIcon from "@mui/icons-material/Search";
 import axios from "axios";
+import SuccessToast from "@components/Common/SuccessToast";
 import { getTenantContext, getAccessToken } from "@store/tenantContext";
 import {
   useGstList,
@@ -166,29 +166,34 @@ const AddRestaurantMenuItemDialog: React.FC<
   const [gstSearch, setGstSearch] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [imageDeleting, setImageDeleting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [itemCodeChecking, setItemCodeChecking] = useState(false);
   const [itemCodeExistsError, setItemCodeExistsError] = useState<string | null>(null);
+  const [toastMsg, setToastMsg] = useState("");
+  const [toastSeverity, setToastSeverity] = useState<"success" | "error">("error");
 
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const categoryByType = useRef<Partial<Record<MenuType, string>>>({});
+  const foodVariants = useRef<Variant[]>([]);
 
   // ── Hooks ──────────────────────────────────────────────────────────────────
   const { data: gstOptions = [], isLoading: gstLoading } = useGstList();
   const { data: unitOptions = [], isLoading: unitsLoading } = useUnitList();
 
-  // ── Fetch categories when dialog opens ─────────────────────────────────────
+  // ── Fetch categories when dialog opens or Menu Type changes ────────────────
   useEffect(() => {
     if (!open) return;
     const { zoduId, branchId } = getTenantContext();
     const token = getAccessToken();
     if (!zoduId || !branchId) return;
 
+    const typeParam = form.menuType === "Product" ? "P" : "F";
+
     setCategoriesLoading(true);
     axios
       .get<{ Data?: RestaurantCategory[]; data?: RestaurantCategory[] }>(
         `${API_BASE}/restaurant/get/category/${zoduId}/${branchId}`,
         {
-          params: { "type[]": ["F", "P"], page: 1, limit: 100 },
+          params: { "type[]": [typeParam], page: 1, limit: 100 },
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         }
       )
@@ -198,7 +203,7 @@ const AddRestaurantMenuItemDialog: React.FC<
       })
       .catch(() => setCategories([]))
       .finally(() => setCategoriesLoading(false));
-  }, [open]);
+  }, [open, form.menuType]);
 
   // ── Reset on close ─────────────────────────────────────────────────────────
   const handleReset = () => {
@@ -213,7 +218,6 @@ const AddRestaurantMenuItemDialog: React.FC<
     setCategorySearch("");
     setUnitSearch("");
     setGstSearch("");
-    setErrorMsg(null);
     setItemCodeChecking(false);
     setItemCodeExistsError(null);
   };
@@ -221,6 +225,8 @@ const AddRestaurantMenuItemDialog: React.FC<
   // ── Pre-fill form when editItem changes ───────────────────────────────────
   useEffect(() => {
     if (!open) return;
+    categoryByType.current = {};
+    foodVariants.current = [];
     if (editItem) {
       let parsedVariants: Variant[] = [];
       try {
@@ -228,11 +234,16 @@ const AddRestaurantMenuItemDialog: React.FC<
         if (Array.isArray(raw)) parsedVariants = raw;
       } catch { parsedVariants = []; }
 
+      const editMenuType = (editItem.menu_type as MenuType) ?? "Food";
+      const editCategoryId = String(editItem.category_id ?? editItem.menu_category_id ?? "");
+      categoryByType.current[editMenuType] = editCategoryId;
+      if (editMenuType === "Food") foodVariants.current = parsedVariants;
+
       setForm({
-        menuType:      (editItem.menu_type as MenuType) ?? "Food",
+        menuType:      editMenuType,
         foodType:      (editItem.food_type as FoodType) ?? "Veg",
         itemCode:      editItem.menu_code ?? "",
-        categoryId:    String(editItem.category_id ?? editItem.menu_category_id ?? ""),
+        categoryId:    editCategoryId,
         menuName:      editItem.menu_name ?? "",
         menuUnit:      String(editItem.unit_id ?? ""),
         sellPrice:     editItem.sell_price ?? "",
@@ -304,6 +315,18 @@ const AddRestaurantMenuItemDialog: React.FC<
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setToastSeverity("error");
+      setToastMsg("Please select a valid image file (JPG, PNG, GIF, etc.)");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setToastSeverity("error");
+      setToastMsg("Image size should be below 2MB");
+      e.target.value = "";
+      return;
+    }
     setImageUrl(null);
 
     // Show local preview instantly
@@ -388,8 +411,17 @@ const AddRestaurantMenuItemDialog: React.FC<
     });
 
     const errors = validate();
-    if (Object.keys(errors).length > 0) return;
-    if (itemCodeExistsError) return;
+    if (Object.keys(errors).length > 0) {
+      const firstError = Object.values(errors)[0];
+      setToastSeverity("error");
+      setToastMsg(firstError ?? "Please fill all required fields");
+      return;
+    }
+    if (itemCodeExistsError) {
+      setToastSeverity("error");
+      setToastMsg(itemCodeExistsError);
+      return;
+    }
 
     const { zoduId, branchId } = getTenantContext();
     const token = getAccessToken();
@@ -437,7 +469,6 @@ const AddRestaurantMenuItemDialog: React.FC<
     }
 
     setSubmitting(true);
-    setErrorMsg(null);
     try {
       const headers = { "Content-Type": "multipart/form-data", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
       if (isEditMode && editItem) {
@@ -460,7 +491,8 @@ const AddRestaurantMenuItemDialog: React.FC<
       const msg = axios.isAxiosError(err)
         ? err.response?.data?.message ?? err.message
         : "Failed to add menu item. Please try again.";
-      setErrorMsg(msg);
+      setToastSeverity("error");
+      setToastMsg(msg);
     } finally {
       setSubmitting(false);
     }
@@ -488,6 +520,7 @@ const AddRestaurantMenuItemDialog: React.FC<
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
+    <>
     <Dialog
       open={open}
       onClose={handleClose}
@@ -576,12 +609,6 @@ const AddRestaurantMenuItemDialog: React.FC<
           },
         }}
       >
-        {errorMsg && (
-          <Alert severity="error" sx={{ mb: 2.5, borderRadius: 1.5 }}>
-            {errorMsg}
-          </Alert>
-        )}
-
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
 
           {/* ── Row 1: Image + Menu Type toggle + Food Type ─────────────── */}
@@ -653,9 +680,16 @@ const AddRestaurantMenuItemDialog: React.FC<
                   value={form.menuType}
                   exclusive
                   onChange={(_e, val) => {
-                    if (val) {
+                    if (val && val !== form.menuType) {
+                      categoryByType.current[form.menuType] = form.categoryId;
                       set("menuType", val as MenuType);
-                      if (val === "Product") setVariants([]);
+                      set("categoryId", categoryByType.current[val as MenuType] ?? "");
+                      if (val === "Product") {
+                        foodVariants.current = variants;
+                        setVariants([]);
+                      } else {
+                        setVariants(foodVariants.current);
+                      }
                     }
                   }}
                   size="small"
@@ -798,27 +832,40 @@ const AddRestaurantMenuItemDialog: React.FC<
 
           {/* ── Variants button — Food only ──────────────────────────────────── */}
           {form.menuType === "Food" ? (
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>Variants</Typography>
-                {variants.length > 0 && (
-                  <Box sx={{ px: 1, py: 0.2, bgcolor: PRIMARY, borderRadius: 5 }}>
-                    <Typography sx={{ fontSize: 10, fontWeight: 800, color: "#fff" }}>{variants.length}</Typography>
-                  </Box>
-                )}
+                <Button
+                  size="small"
+                  startIcon={<AddCircleIcon sx={{ fontSize: 15 }} />}
+                  onClick={() => {
+                    const draft = variants.length > 0 ? variants.map(v => ({ ...v })) : [{ id: String(Date.now()), name: "", price: "" }];
+                    setVariantDraft(draft);
+                    setVariantModalOpen(true);
+                  }}
+                  sx={{ fontSize: 12, fontWeight: 700, color: PRIMARY, bgcolor: "rgba(210,31,60,0.07)", px: 1.5, py: 0.6, borderRadius: 1.5, textTransform: "none", "&:hover": { bgcolor: "rgba(210,31,60,0.14)" } }}
+                >
+                  {variants.length > 0 ? "Edit Variants" : "Add Variants"}
+                </Button>
               </Box>
-              <Button
-                size="small"
-                startIcon={<AddCircleIcon sx={{ fontSize: 15 }} />}
-                onClick={() => {
-                  const draft = variants.length > 0 ? variants.map(v => ({ ...v })) : [{ id: String(Date.now()), name: "", price: "" }];
-                  setVariantDraft(draft);
-                  setVariantModalOpen(true);
-                }}
-                sx={{ fontSize: 12, fontWeight: 700, color: PRIMARY, bgcolor: "rgba(210,31,60,0.07)", px: 1.5, py: 0.6, borderRadius: 1.5, textTransform: "none", "&:hover": { bgcolor: "rgba(210,31,60,0.14)" } }}
-              >
-                {variants.length > 0 ? "Edit Variants" : "Add Variants"}
-              </Button>
+              {variants.length > 0 && (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1.25 }}>
+                  {variants.map((v) => (
+                    <Box
+                      key={v.id}
+                      sx={{
+                        display: "flex", alignItems: "center", gap: 0.75,
+                        px: 1.25, py: 0.5, borderRadius: 1.5,
+                        bgcolor: "rgba(210,31,60,0.06)",
+                        border: "1px solid rgba(210,31,60,0.15)",
+                      }}
+                    >
+                      <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: "#374151" }}>{v.name}</Typography>
+                      <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: PRIMARY }}>₹{v.price}</Typography>
+                    </Box>
+                  ))}
+                </Box>
+              )}
             </Box>
           ) : null}
 
@@ -862,6 +909,19 @@ const AddRestaurantMenuItemDialog: React.FC<
                   <ToggleButton value="include">Include Tax</ToggleButton>
                   <ToggleButton value="exclude">Exclude Tax</ToggleButton>
                 </ToggleButtonGroup>
+              </Box>
+
+              {/* HSN Code */}
+              <Box>
+                <FieldLabel text="HSN Code" />
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Enter HSN/SAC code"
+                  value={form.hsnCode}
+                  onChange={(e) => set("hsnCode", e.target.value)}
+                  InputProps={{ sx: { ...inputSx, bgcolor: "background.paper" } }}
+                />
               </Box>
 
               {/* Tax Rate Dropdown */}
@@ -945,19 +1005,6 @@ const AddRestaurantMenuItemDialog: React.FC<
                 </FormControl>
               </Box>
             </Box>
-          </Box>
-
-          {/* ── HSN Code ────────────────────────────────────────────────────── */}
-          <Box>
-            <FieldLabel text="HSN Code" />
-            <TextField
-              fullWidth
-              size="small"
-              placeholder="Enter HSN/SAC code"
-              value={form.hsnCode}
-              onChange={(e) => set("hsnCode", e.target.value)}
-              InputProps={{ sx: inputSx }}
-            />
           </Box>
 
           {/* ── Stock fields (Product only) ─────────────────────────────────── */}
@@ -1198,6 +1245,8 @@ const AddRestaurantMenuItemDialog: React.FC<
         </DialogActions>
       </Dialog>
     </Dialog>
+    <SuccessToast message={toastMsg} onClose={() => setToastMsg("")} severity={toastSeverity} />
+    </>
   );
 };
 

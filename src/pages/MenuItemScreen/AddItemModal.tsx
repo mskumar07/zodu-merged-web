@@ -83,7 +83,16 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
   const [itemIdError,      setItemIdError]      = useState<string | null>(null);
   const [itemIdChecking,   setItemIdChecking]   = useState(false);
   const [successMsg,       setSuccessMsg]       = useState("");
+  const [toastSeverity,    setToastSeverity]    = useState<'success' | 'error'>('success');
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const stockCacheRef = useRef<{ openingStock: string | number; lowStockAlert: string | number }>({
+    openingStock: '',
+    lowStockAlert: '',
+  });
+  const categoryCacheRef = useRef<{ product: string; service: string }>({
+    product: '',
+    service: '',
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -91,6 +100,14 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
     setImagePreview(editItem?.item_img ?? null);
     setImageFile(null);
     setImageDeleting(false);
+    const loadedType: 'product' | 'service' = editItem?.item_type === 'S' ? 'product' : 'service';
+    const loadedCategory = editItem?.category_id ? String(editItem.category_id) : '';
+    categoryCacheRef.current = { product: '', service: '' };
+    categoryCacheRef.current[loadedType] = loadedCategory;
+    stockCacheRef.current = {
+      openingStock: editItem?.available_qty ?? '',
+      lowStockAlert: editItem?.reorder_level ?? '',
+    };
   }, [open, editItem]);
 
   // ── 2. getInitialValues — itemId pre-filled in edit mode ────
@@ -122,7 +139,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
     onSubmit: (values) => {
       // ── 3. payload — item_id included ───────────────────────
       const payload = {
-        item_id:        values.itemId.trim() || undefined,   // optional on create, present on edit
+        item_id:        values.itemId.trim(),
         item_type:      values.serviceType === 'product' ? 'S' as const : 'P' as const,
         item_name:      values.name.trim(),
         category_id:    values.category     ? Number(values.category)     : null,
@@ -148,7 +165,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
     },
   });
 
-  const catType = 'S,M';
+  const catType = formik.values.serviceType === 'service' ? 'M' : 'S';
   const catIsFetchingRef = React.useRef(false);
   const {
     data:                catPages,
@@ -156,7 +173,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
     hasNextPage:         catHasNextPage,
     isFetchingNextPage:  catIsFetchingNextPage,
     fetchNextPage:       catFetchNextPage,
-  } = useInfiniteCategoryList(open, catType);
+  } = useInfiniteCategoryList(open, catType, true);
 
   const categories: Category[] = catPages?.pages.flatMap((p) =>
     p.Data.map((c) => ({ value: String(c.id), label: c.name }))
@@ -176,10 +193,10 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
   const { data: unitOptions = [], isLoading: unitsLoading }      = useUnitList();
 
   const { mutate: saveItem,  isPending: saving,  isError: saveError, error: saveErr, reset: resetSave } = useAddMenuItem({
-    onSuccess: (data) => { setSuccessMsg("Item added successfully!"); onSave?.(data); handleReset(); },
+    onSuccess: (data) => { setToastSeverity('success'); setSuccessMsg("Item added successfully!"); onSave?.(data); handleReset(); },
   });
   const { mutate: editItem_, isPending: editing, isError: editError, error: editErr, reset: resetEdit } = useEditMenuItem({
-    onSuccess: (data) => { setSuccessMsg("Item updated successfully!"); onSave?.(data); handleReset(); },
+    onSuccess: (data) => { setToastSeverity('success'); setSuccessMsg("Item updated successfully!"); onSave?.(data); handleReset(); },
   });
 
   const isSaving = saving || editing;
@@ -203,15 +220,42 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
 
   const handleClose = () => { if (isSaving) return; handleReset(); };
 
+  const isService = formik.values.serviceType === 'service';
+
   const handleServiceTypeChange = (_e: unknown, val: 'product' | 'service') => {
     if (!val) return;
+    const prevType = formik.values.serviceType;
+    categoryCacheRef.current[prevType] = formik.values.category;
     formik.setFieldValue('serviceType', val);
-    formik.setFieldValue('category', '');
+    formik.setFieldValue('category', categoryCacheRef.current[val]);
+    if (val === 'service') {
+      stockCacheRef.current = {
+        openingStock: formik.values.openingStock,
+        lowStockAlert: formik.values.lowStockAlert,
+      };
+      formik.setFieldValue('openingStock', '');
+      formik.setFieldValue('lowStockAlert', '');
+    } else {
+      formik.setFieldValue('openingStock', stockCacheRef.current.openingStock);
+      formik.setFieldValue('lowStockAlert', stockCacheRef.current.lowStockAlert);
+    }
   };
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setToastSeverity('error');
+      setSuccessMsg('Please select a valid image file (JPG, PNG, GIF, etc.)');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setToastSeverity('error');
+      setSuccessMsg('Image size should be below 2MB');
+      e.target.value = '';
+      return;
+    }
     setImageFile(file);
     const reader = new FileReader();
     reader.onloadend = () => setImagePreview(reader.result as string);
@@ -435,7 +479,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                       <ToggleButton value="service" sx={getToggleSx(true)}>Service</ToggleButton>
                     </ToggleButtonGroup>
                   </Box>
-                  <Box>
+                  <Box sx={{ visibility: isService ? 'hidden' : 'visible' }}>
                     <Label text="Inventory" />
                     <ToggleButtonGroup exclusive value={formik.values.inventoryType}
                       onChange={(_e, v) => v && formik.setFieldValue('inventoryType', v)} sx={toggleGroupSx}>
@@ -699,37 +743,41 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
               </Box>
             </Box>
 
-            <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, px: 2.5, py: 1.5, bgcolor: 'action.hover' }}>
-                <InventoryIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                <Typography variant="body2" fontWeight={700} color="text.secondary" textTransform="uppercase" letterSpacing="0.06em" fontSize={11}>
-                  Inventory
-                </Typography>
-                <Box sx={{ ml: 1, px: 1, py: 0.2, bgcolor: 'action.selected', borderRadius: 5 }}>
-                  <Typography sx={{ fontSize: 9, fontWeight: 700, color: 'text.secondary', letterSpacing: '0.04em' }}>OPTIONAL</Typography>
+            {!isService && (
+              <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, px: 2.5, py: 1.5, bgcolor: 'action.hover' }}>
+                  <InventoryIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                  <Typography variant="body2" fontWeight={700} color="text.secondary" textTransform="uppercase" letterSpacing="0.06em" fontSize={11}>
+                    Inventory
+                  </Typography>
+                  <Box sx={{ ml: 1, px: 1, py: 0.2, bgcolor: 'action.selected', borderRadius: 5 }}>
+                    <Typography sx={{ fontSize: 9, fontWeight: 700, color: 'text.secondary', letterSpacing: '0.04em' }}>OPTIONAL</Typography>
+                  </Box>
+                </Box>
+                <Box sx={{ px: 2.5, py: 2.5, borderTop: '1px solid', borderColor: 'divider', display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5 }}>
+                  <Box>
+                    <Label text="Opening Stock" />
+                    <TextField fullWidth size="small" type="number" placeholder="0"
+                      {...formik.getFieldProps('openingStock')}
+                      disabled={isEditMode}
+                      InputProps={{ endAdornment: <InputAdornment position="end"><Typography variant="caption" color="text.disabled" fontWeight={600}>{unitOptions.find(u => String(u.value) === formik.values.unit)?.shortName ?? 'UNIT'}</Typography></InputAdornment>, sx: inputSx }} />
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                      Current stock quantity at the time of adding this item
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Label text="Low Stock Alert" />
+                    <TextField fullWidth size="small" type="number" placeholder="e.g. 10"
+                      {...formik.getFieldProps('lowStockAlert')}
+                      disabled={isEditMode}
+                      InputProps={{ endAdornment: <InputAdornment position="end"><Typography variant="caption" color="text.disabled" fontWeight={600}>{unitOptions.find(u => String(u.value) === formik.values.unit)?.shortName ?? 'UNIT'}</Typography></InputAdornment>, sx: inputSx }} />
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                      Alert when stock falls below this quantity
+                    </Typography>
+                  </Box>
                 </Box>
               </Box>
-              <Box sx={{ px: 2.5, py: 2.5, borderTop: '1px solid', borderColor: 'divider', display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5 }}>
-                <Box>
-                  <Label text="Opening Stock" />
-                  <TextField fullWidth size="small" type="number" placeholder="0"
-                    {...formik.getFieldProps('openingStock')}
-                    InputProps={{ endAdornment: <InputAdornment position="end"><Typography variant="caption" color="text.disabled" fontWeight={600}>{unitOptions.find(u => String(u.value) === formik.values.unit)?.shortName ?? 'UNIT'}</Typography></InputAdornment>, sx: inputSx }} />
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                    Current stock quantity at the time of adding this item
-                  </Typography>
-                </Box>
-                <Box>
-                  <Label text="Low Stock Alert" />
-                  <TextField fullWidth size="small" type="number" placeholder="e.g. 10"
-                    {...formik.getFieldProps('lowStockAlert')}
-                    InputProps={{ endAdornment: <InputAdornment position="end"><Typography variant="caption" color="text.disabled" fontWeight={600}>{unitOptions.find(u => String(u.value) === formik.values.unit)?.shortName ?? 'UNIT'}</Typography></InputAdornment>, sx: inputSx }} />
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                    Alert when stock falls below this quantity
-                  </Typography>
-                </Box>
-              </Box>
-            </Box>
+            )}
 
           </Box>
         </DialogContent>
@@ -742,12 +790,19 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
           </Button>
           <Button
             onClick={async () => {
-              if (itemIdError) return;
+              if (itemIdError) {
+                setToastSeverity('error');
+                setSuccessMsg(itemIdError);
+                return;
+              }
               const errors = await formik.validateForm();
               if (Object.keys(errors).length > 0) {
                 formik.setTouched(
                   Object.keys(INITIAL_VALUES).reduce((acc, k) => ({ ...acc, [k]: true }), {})
                 );
+                const firstError = Object.values(errors)[0];
+                setToastSeverity('error');
+                setSuccessMsg(typeof firstError === 'string' ? firstError : 'Please fill all required fields');
                 return;
               }
               formik.submitForm();
@@ -768,7 +823,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
         onAdded={handleCategoryAdded}
       />
 
-      <SuccessToast message={successMsg} onClose={() => setSuccessMsg("")} />
+      <SuccessToast message={successMsg} onClose={() => setSuccessMsg("")} severity={toastSeverity} />
     </>
   );
 };

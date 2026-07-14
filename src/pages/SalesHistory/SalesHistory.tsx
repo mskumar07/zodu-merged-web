@@ -278,12 +278,12 @@ export default function SalesHistoryPage() {
     {
       key: "total",
       label: "Total",
-      align: "right" as const,
-      width: 170,
+      align: "left" as const,
+      width: 110,
       render: (sale: Sale) => {
         if (isRestaurant) {
           return (
-            <Box textAlign="right">
+            <Box textAlign="left">
               <Typography variant="body2" fontWeight={700} sx={{ fontSize: BODY_FONT_SIZE, color: "#1976d2" }}>
                 {INR(Number(sale.total_amt ?? 0))}
               </Typography>
@@ -297,11 +297,11 @@ export default function SalesHistoryPage() {
         const totalAmount   = Number(sale.total_amount);
         const adjustedTotal = totalAmount - totalReturned;
         return (
-          <Box textAlign="right">
+          <Box textAlign="left">
             <Typography variant="body2" fontWeight={700} sx={{ fontSize: BODY_FONT_SIZE, color: "#1976d2" }}>
               {INR(adjustedTotal)}
             </Typography>
-            <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 0.5 }}>
+            <Box sx={{ display: "flex", justifyContent: "flex-start", gap: 2, mt: 0.5 }}>
               {balance > 0 && !fullyReturned && !isQuotation && (
                 <Typography variant="caption" color="error.main" sx={{ fontSize: "11px" }}>
                   Balance: {INR(balance)}
@@ -365,31 +365,28 @@ export default function SalesHistoryPage() {
       width: 130,
       render: (sale: Sale) => {
         const type = sale.order_type ?? "";
-        const styleMap: Record<string, { color: string; bg: string }> = {
-          "Dine-In":  { color: "#166534", bg: "#DCFCE7" },
-          "Takeaway": { color: "#155E75", bg: "#CFFAFE" },
-          "Delivery": { color: "#92400E", bg: "#FEF3C7" },
+        const colorMap: Record<string, string> = {
+          "Dine-In":  "#2E7D32",
+          "Takeaway": "#0369A1",
+          "Delivery": "#F57C00",
         };
-        const style = styleMap[type];
-        if (!type || !style) {
+        const color = colorMap[type];
+        if (!type || !color) {
           return (
             <Typography variant="body2" sx={{ fontSize: BODY_FONT_SIZE, color: TABLE_TEXT_COLOR }}>—</Typography>
           );
         }
         return (
-          <Box
+          <Typography
+            variant="body2"
             sx={{
-              display: "inline-block",
-              px: 1.2, py: 0.3,
-              borderRadius: "6px",
-              bgcolor: style.bg,
-              color: style.color,
-              fontWeight: 600,
-              fontSize: "12px",
+              display: "inline-flex", alignItems: "center", gap: 0.5,
+              color, fontWeight: 600, fontSize: BODY_FONT_SIZE,
             }}
           >
+            <Circle sx={{ fontSize: 8 }} />
             {type}
-          </Box>
+          </Typography>
         );
       },
     }] : []),

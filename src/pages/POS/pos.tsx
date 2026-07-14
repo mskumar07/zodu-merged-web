@@ -203,7 +203,7 @@ function RetailPOSInner() {
   const [receivedAmount, setReceivedAmount] = useState("");
   const [paymentType,    setPaymentType]    = useState<PaymentType>("Cash");
   const [printEnabled,   setPrintEnabled]   = useState(true);
-  const [thermalPaperSize, setThermalPaperSize] = useState<ThermalPaperSize>("3");
+  const thermalPaperSize: ThermalPaperSize = "3";
   const [invoiceDate,    setInvoiceDate]    = useState(todayStr());
   const [dueDate,        setDueDate]        = useState("");
   const [orderNote,      setOrderNote]      = useState("");
@@ -1580,35 +1580,6 @@ onChange={e => {
                   <Box sx={{ display: "flex", justifyContent: "space-between", bgcolor: "#DBEAFE", borderRadius: 1.5, px: 1.5, py: 0.8, mt: 0.5 }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#1D4ED8" }}>💵 Return Change</Typography>
                     <Typography sx={{ fontSize: 14, fontWeight: 800, color: "#1D4ED8" }}>{INR(saveResult.change ?? 0)}</Typography>
-                  </Box>
-                )}
-
-                {/* Paper size selector — only visible when print is enabled */}
-                {printEnabled && (
-                  <Box sx={{ mt: 1.5, pt: 1.5, borderTop: "1px solid #F1F5F9" }}>
-                    <Typography sx={{ fontSize: 11, color: "#6B7280", mb: 0.8, fontWeight: 600, letterSpacing: "0.04em" }}>
-                      THERMAL PAPER SIZE
-                    </Typography>
-                    <Box sx={{ display: "flex", gap: 1 }}>
-                      {(["3", "4", "5"] as ThermalPaperSize[]).map((size) => (
-                        <Box
-                          key={size}
-                          onClick={() => setThermalPaperSize(size)}
-                          sx={{
-                            px: 1.5, py: 0.5, borderRadius: 1.5, cursor: "pointer",
-                            fontSize: 12, fontWeight: 700,
-                            border: "1.5px solid",
-                            borderColor: thermalPaperSize === size ? "#C8102E" : "#E5E7EB",
-                            bgcolor: thermalPaperSize === size ? "#FFF1F3" : "#fff",
-                            color: thermalPaperSize === size ? "#C8102E" : "#6B7280",
-                            transition: "all 0.15s",
-                            userSelect: "none",
-                          }}
-                        >
-                          {size}&quot;
-                        </Box>
-                      ))}
-                    </Box>
                   </Box>
                 )}
 

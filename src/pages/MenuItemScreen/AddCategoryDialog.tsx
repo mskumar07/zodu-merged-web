@@ -21,7 +21,7 @@ import CloseIcon     from '@mui/icons-material/Close';
 import { useFormik } from 'formik';
 import * as Yup      from 'yup';
 import {
-  useAddCategory, useUpdateCategory,
+  useAddCategory, useUpdateCategory, useCheckCategoryName,
   type Category, type CategoryRow,
 } from './useMenuItemApi';
 import SuccessToast from '@components/Common/SuccessToast';
@@ -94,6 +94,7 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
 
   const [apiError,   setApiError]   = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
+  const [errorToast, setErrorToast] = useState('');
 
   // ── Add mutation ──────────────────────────────────────────
   const { mutate: addCategory, isPending: isAdding, reset: resetAdd } = useAddCategory({
@@ -121,12 +122,23 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
 
   const isPending = isAdding || isUpdating;
 
+  // ── Category name duplicate check ──────────────────────────
+  const [nameExistsError, setNameExistsError] = useState<string | null>(null);
+
+  const { mutate: checkCategoryName, isPending: isCheckingName } = useCheckCategoryName({
+    onSuccess: (data) => {
+      setNameExistsError(data.exists ? data.message : null);
+    },
+    onError: (msg) => setErrorToast(msg),
+  });
+
   // ── Form ──────────────────────────────────────────────────
   const f = useFormik({
     initialValues: { name: editRow?.name ?? '', type: defaultType },
     enableReinitialize: true,
     validationSchema:   schema,
     onSubmit: (values) => {
+      if (nameExistsError) return;
       setApiError(null);
       // always use fixedType if provided, otherwise use form value
       const typeToSend = (fixedType ?? values.type) as TypeCode;
@@ -138,6 +150,17 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
     },
   });
 
+  const handleNameBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    f.handleBlur(e);
+    const trimmed = e.target.value.trim();
+    // Skip check in edit mode when name hasn't changed
+    if (!trimmed || (isEditMode && trimmed === editRow?.name)) {
+      setNameExistsError(null);
+      return;
+    }
+    checkCategoryName(trimmed);
+  };
+
   // Re-fill whenever dialog opens or editRow changes
   useEffect(() => {
     if (open) {
@@ -148,6 +171,7 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
         },
       });
       setApiError(null);
+      setNameExistsError(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editRow, fixedType]);
@@ -158,6 +182,7 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
     resetAdd();
     resetUpdate();
     setApiError(null);
+    setNameExistsError(null);
     onClose();
   };
 
@@ -239,8 +264,10 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
               <TextField
                 fullWidth size="small" placeholder="e.g. Winterwear" autoFocus
                 {...f.getFieldProps('name')}
-                error={f.touched.name && Boolean(f.errors.name)}
-                helperText={f.touched.name && f.errors.name}
+                onChange={(e) => { f.handleChange(e); setNameExistsError(null); }}
+                onBlur={handleNameBlur}
+                error={(f.touched.name && Boolean(f.errors.name)) || Boolean(nameExistsError)}
+                helperText={(f.touched.name && f.errors.name) || nameExistsError || (isCheckingName ? 'Checking availability…' : '')}
                 InputProps={{ sx: { borderRadius: 1, fontSize: 14 } }}
               />
             </Box>
@@ -287,7 +314,7 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
           <Button
             onClick={() => f.submitForm()}
             variant="contained"
-            disabled={isPending}
+            disabled={isPending || isCheckingName || Boolean(nameExistsError)}
             startIcon={
               isPending
                 ? <CircularProgress size={15} color="inherit" />
@@ -308,6 +335,13 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
         message={successMsg}
         severity="success"
         onClose={() => setSuccessMsg('')}
+      />
+
+      {/* ── Error toast (category-name check failures) ── */}
+      <SuccessToast
+        message={errorToast}
+        severity="error"
+        onClose={() => setErrorToast('')}
       />
     </>
   );

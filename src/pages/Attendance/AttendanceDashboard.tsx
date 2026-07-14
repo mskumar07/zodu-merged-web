@@ -1,9 +1,8 @@
 import React, { useMemo, useState, useCallback } from "react";
 import {
-  Box, Button, Tooltip, Typography, CircularProgress, Select, MenuItem, FormControl,
+  Box, Button, Typography, CircularProgress, Select, MenuItem, FormControl,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
@@ -22,7 +21,7 @@ import {
 } from "@store/services/attendanceApi";
 import LottieLoader from "@components/LottieLoader";
 import SuccessToast from "@components/Common/SuccessToast";
-import MarkAttendanceModal, { type MarkAttendanceEmployee } from "./MarkAttendanceModal";
+import MarkAttendanceModal from "./MarkAttendanceModal";
 
 // ─── Theme ─────────────────────────────────────────────────────────────────
 
@@ -162,12 +161,21 @@ export default function AttendanceDashboard() {
   const employeeId: string = (profile as any)?.employee_id ?? (profile as any)?.id ?? "";
 
   const today = useMemo(() => new Date(), []);
-  const [year, setYear] = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth() + 1); // 1-12, matches API contract
 
-  const monthLabel = `${MONTH_NAMES[month - 1]} ${year}`;
-  const totalDays = daysInMonth(year, month);
-  const dateColumns = useMemo(() => Array.from({ length: totalDays }, (_, i) => i + 1), [totalDays]);
+  // Each table owns its own month/year filter so changing one never refetches the other.
+  const [teamYear, setTeamYear] = useState(today.getFullYear());
+  const [teamMonth, setTeamMonth] = useState(today.getMonth() + 1); // 1-12, matches API contract
+  const [myYear, setMyYear] = useState(today.getFullYear());
+  const [myMonth, setMyMonth] = useState(today.getMonth() + 1);
+
+  const teamMonthLabel = `${MONTH_NAMES[teamMonth - 1]} ${teamYear}`;
+  const teamTotalDays = daysInMonth(teamYear, teamMonth);
+  const teamDateColumns = useMemo(() => Array.from({ length: teamTotalDays }, (_, i) => i + 1), [teamTotalDays]);
+
+  const myMonthLabel = `${MONTH_NAMES[myMonth - 1]} ${myYear}`;
+  const myTotalDays = daysInMonth(myYear, myMonth);
+  const myDateColumns = useMemo(() => Array.from({ length: myTotalDays }, (_, i) => i + 1), [myTotalDays]);
+
   const yearOptions = useMemo(() => {
     const current = today.getFullYear();
     return Array.from({ length: 6 }, (_, i) => current - 4 + i);
@@ -181,7 +189,7 @@ export default function AttendanceDashboard() {
     isFetching: teamFetching,
     isLoading: teamLoading,
   } = useGetTeamAttendanceQuery(
-    { zodu_id: zoduId, branch_id: branchId, employee_id: employeeId, month, year },
+    { zodu_id: zoduId, branch_id: branchId, employee_id: employeeId, month: teamMonth, year: teamYear },
     { skip: !canQueryTeam }
   );
 
@@ -190,7 +198,7 @@ export default function AttendanceDashboard() {
     isFetching: myFetching,
     isLoading: myLoading,
   } = useGetMyAttendanceQuery(
-    { zodu_id: zoduId, branch_id: branchId, employee_id: employeeId, month, year },
+    { zodu_id: zoduId, branch_id: branchId, employee_id: employeeId, month: myMonth, year: myYear },
     { skip: !canQueryMine }
   );
 
@@ -206,8 +214,8 @@ export default function AttendanceDashboard() {
   const teamRows = useMemo(() => {
     return teamEmployees.map((emp) => {
       const statusByDay = new Map<number, UiStatus>();
-      for (const day of dateColumns) {
-        const entry = emp.days[isoDate(year, month, day)];
+      for (const day of teamDateColumns) {
+        const entry = emp.days[isoDate(teamYear, teamMonth, day)];
         if (entry) statusByDay.set(day, STATUS_API_MAP[entry.status]);
       }
       return {
@@ -220,7 +228,7 @@ export default function AttendanceDashboard() {
         absentCount: emp.absent_days,
       };
     });
-  }, [teamEmployees, dateColumns, year, month]);
+  }, [teamEmployees, teamDateColumns, teamYear, teamMonth]);
 
   // ── My summary (top-right cards) ──
   const mySummary = myData?.data?.summary;
@@ -245,18 +253,6 @@ export default function AttendanceDashboard() {
   const [markModalOpen, setMarkModalOpen] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-
-  const markAttendanceEmployees: MarkAttendanceEmployee[] = useMemo(() => {
-    return teamEmployees.map((emp) => ({
-      employee_id: emp.employee_id,
-      name: emp.employee_name,
-      code: emp.employee_code,
-      role: emp.designation ?? "",
-      checkIn: "",
-      checkOut: "",
-      status: "present",
-    }));
-  }, [teamEmployees]);
 
   const handleMarkSuccess = useCallback(() => {
     setSuccessMsg("Attendance saved successfully!");
@@ -352,34 +348,6 @@ export default function AttendanceDashboard() {
           </Box>
         </Box>
 
-        {/* ── Title + Mark Attendance ───────────────────────────────────── */}
-        <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 2.5, flexWrap: "wrap", gap: 1.5 }}>
-          <Box>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-              <Typography sx={{ fontSize: 19, fontWeight: 700, color: "#0F172A" }}>
-                My Team Attendance
-              </Typography>
-              <Tooltip title="Overview of your team's attendance for the current month">
-                <InfoOutlinedIcon sx={{ fontSize: 16, color: "#9CA3AF" }} />
-              </Tooltip>
-            </Box>
-            <Typography sx={{ fontSize: 13, color: "#6B7280" }}>
-              View and manage attendance for your team members.
-            </Typography>
-          </Box>
-
-          <Button
-            variant="contained"
-            startIcon={<EditOutlinedIcon sx={{ fontSize: 16 }} />}
-            disableElevation
-            onClick={() => setMarkModalOpen(true)}
-            disabled={markAttendanceEmployees.length === 0}
-            sx={{ bgcolor: "#E11D48", color: "#fff", px: 2.5, "&:hover": { bgcolor: "#BE123C" } }}
-          >
-            Mark Attendance
-          </Button>
-        </Box>
-
         {/* ── Team Attendance Grid ───────────────────────────────────────── */}
         <Box sx={{ border: "1px solid #F1F5F9", borderRadius: 2.5, overflow: "hidden", mb: 3, width: "100%", minWidth: 0 }}>
           <Box sx={{
@@ -387,11 +355,19 @@ export default function AttendanceDashboard() {
             px: 2.5, py: 2, flexWrap: "wrap", gap: 1.5,
           }}>
             <Typography sx={{ fontSize: 15, fontWeight: 700, color: "#0F172A" }}>
-              Team Attendance — {monthLabel}
+              Team Attendance — {teamMonthLabel}
             </Typography>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
-              <MonthYearFilter month={month} year={year} years={yearOptions} onMonthChange={setMonth} onYearChange={setYear} />
-              <Legend />
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+              <MonthYearFilter month={teamMonth} year={teamYear} years={yearOptions} onMonthChange={setTeamMonth} onYearChange={setTeamYear} />
+              <Button
+                variant="contained"
+                startIcon={<EditOutlinedIcon sx={{ fontSize: 16 }} />}
+                disableElevation
+                onClick={() => setMarkModalOpen(true)}
+                sx={{ bgcolor: "#E11D48", color: "#fff", px: 2.5, "&:hover": { bgcolor: "#BE123C" } }}
+              >
+                Mark Attendance
+              </Button>
             </Box>
           </Box>
 
@@ -412,12 +388,12 @@ export default function AttendanceDashboard() {
                 sx={{
                   borderCollapse: "collapse",
                   tableLayout: "fixed",
-                  width: 180 + totalDays * 32 + 90,
+                  width: 180 + teamTotalDays * 32 + 90,
                 }}
               >
                 <Box component="colgroup">
                   <Box component="col" sx={{ width: 180 }} />
-                  {dateColumns.map((d) => (
+                  {teamDateColumns.map((d) => (
                     <Box component="col" key={d} sx={{ width: 32 }} />
                   ))}
                   <Box component="col" sx={{ width: 90 }} />
@@ -427,11 +403,11 @@ export default function AttendanceDashboard() {
                     <Box component="th" sx={theadCellSx({ position: "sticky", left: 0, zIndex: 2 })}>
                       Employee / Date
                     </Box>
-                    {dateColumns.map((d) => (
-                      <Box component="th" key={d} sx={theadCellSx({ textAlign: "center", px: 0.25 })}>
-                        <Box sx={{ fontWeight: 700 }}>{d}</Box>
+                    {teamDateColumns.map((d) => (
+                      <Box component="th" key={d} sx={theadCellSx({ textAlign: "center", px: 0.25, textTransform: "none" })}>
+                        <Box sx={{ fontWeight: 700, fontSize: 11, color: "#374151" }}>{d}</Box>
                         <Box sx={{ fontSize: 9.5, color: "#9CA3AF", fontWeight: 500 }}>
-                          {weekdayLabel(year, month, d)}
+                          {weekdayLabel(teamYear, teamMonth, d)}
                         </Box>
                       </Box>
                     ))}
@@ -443,7 +419,7 @@ export default function AttendanceDashboard() {
                 <Box component="tbody">
                   {teamRows.length === 0 ? (
                     <Box component="tr">
-                      <Box component="td" colSpan={dateColumns.length + 2} sx={{ textAlign: "center", py: 4, color: "#9CA3AF", fontSize: 13 }}>
+                      <Box component="td" colSpan={teamDateColumns.length + 2} sx={{ textAlign: "center", py: 4, color: "#9CA3AF", fontSize: 13 }}>
                         No team attendance records found.
                       </Box>
                     </Box>
@@ -470,13 +446,13 @@ export default function AttendanceDashboard() {
                                   {row.name}
                                 </Typography>
                                 <Typography sx={{ fontSize: 11, color: "#9CA3AF" }} noWrap>
-                                  {row.code}{row.role ? ` · ${row.role}` : ""}
+                                  {row.code}
                                 </Typography>
                               </Box>
                             </Box>
                           </Box>
 
-                          {dateColumns.map((day) => (
+                          {teamDateColumns.map((day) => (
                             <Box component="td" key={day} sx={{ ...tbodyCellSx, textAlign: "center", px: 0.25 }}>
                               <StatusDot status={row.statusByDay.get(day) ?? null} />
                             </Box>
@@ -486,9 +462,14 @@ export default function AttendanceDashboard() {
                             ...tbodyCellSx, position: "sticky", right: 0, bgcolor: "#fff", zIndex: 1,
                             borderLeft: "1px solid #F1F5F9",
                           }}>
-                            <Typography sx={{ fontSize: 11, color: "#374151", lineHeight: 1.5 }}>
-                              {row.presentCount} Present
-                              {row.absentCount > 0 && <><br />{row.absentCount} Absent</>}
+                            <Typography sx={{ fontSize: 11, lineHeight: 1.5 }}>
+                              <Box component="span" sx={{ color: "#16A34A", fontWeight: 600 }}>{row.presentCount} Present</Box>
+                              {row.absentCount > 0 && (
+                                <>
+                                  <br />
+                                  <Box component="span" sx={{ color: "#DC2626", fontWeight: 600 }}>{row.absentCount} Absent</Box>
+                                </>
+                              )}
                             </Typography>
                           </Box>
                         </Box>
@@ -499,6 +480,10 @@ export default function AttendanceDashboard() {
               </Box>
             </Box>
           )}
+
+          <Box sx={{ px: 2.5, py: 1.5, borderTop: "1px solid #F1F5F9" }}>
+            <Legend />
+          </Box>
         </Box>
 
         {/* ── My Attendance ──────────────────────────────────────────────── */}
@@ -509,22 +494,14 @@ export default function AttendanceDashboard() {
           }}>
             <Box>
               <Typography sx={{ fontSize: 15, fontWeight: 700, color: "#0F172A" }}>
-                My Attendance — {monthLabel}
+                My Attendance — {myMonthLabel}
               </Typography>
               <Typography sx={{ fontSize: 12.5, color: "#6B7280" }}>
                 Your personal attendance summary for this month.
               </Typography>
             </Box>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-              <MonthYearFilter month={month} year={year} years={yearOptions} onMonthChange={setMonth} onYearChange={setYear} />
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<EventAvailableOutlinedIcon sx={{ fontSize: 15 }} />}
-                sx={{ borderColor: "#E5E7EB", color: "#374151", "&:hover": { borderColor: "#9CA3AF" } }}
-              >
-                Daily View
-              </Button>
+              <MonthYearFilter month={myMonth} year={myYear} years={yearOptions} onMonthChange={setMyMonth} onYearChange={setMyYear} />
             </Box>
           </Box>
 
@@ -545,15 +522,33 @@ export default function AttendanceDashboard() {
                 sx={{
                   borderCollapse: "collapse",
                   tableLayout: "fixed",
-                  width: 90 + totalDays * 32 + 90,
+                  width: 90 + myTotalDays * 32 + 90,
                 }}
               >
                 <Box component="colgroup">
                   <Box component="col" sx={{ width: 90 }} />
-                  {dateColumns.map((d) => (
+                  {myDateColumns.map((d) => (
                     <Box component="col" key={d} sx={{ width: 32 }} />
                   ))}
                   <Box component="col" sx={{ width: 90 }} />
+                </Box>
+                <Box component="thead">
+                  <Box component="tr">
+                    <Box component="th" sx={theadCellSx({ position: "sticky", left: 0, zIndex: 2 })}>
+                      Date
+                    </Box>
+                    {myDateColumns.map((d) => (
+                      <Box component="th" key={d} sx={theadCellSx({ textAlign: "center", px: 0.25, textTransform: "none" })}>
+                        <Box sx={{ fontWeight: 700, fontSize: 11, color: "#374151" }}>{d}</Box>
+                        <Box sx={{ fontSize: 9.5, color: "#9CA3AF", fontWeight: 500 }}>
+                          {weekdayLabel(myYear, myMonth, d)}
+                        </Box>
+                      </Box>
+                    ))}
+                    <Box component="th" sx={theadCellSx({ position: "sticky", right: 0, zIndex: 2 })}>
+                      Summary
+                    </Box>
+                  </Box>
                 </Box>
                 <Box component="tbody">
                   <Box component="tr">
@@ -562,39 +557,27 @@ export default function AttendanceDashboard() {
                       borderRight: "1px solid #F1F5F9",
                       fontSize: 10.5, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.04em",
                     }}>
-                      Date
-                    </Box>
-                    {dateColumns.map((d) => (
-                      <Box component="td" key={d} sx={{ ...tbodyCellSx, textAlign: "center", px: 0.25 }}>
-                        <Box sx={{ fontWeight: 700, fontSize: 11, color: "#374151" }}>{d}</Box>
-                        <Box sx={{ fontSize: 9.5, color: "#9CA3AF", fontWeight: 500 }}>
-                          {weekdayLabel(year, month, d)}
-                        </Box>
-                      </Box>
-                    ))}
-                    <Box component="td" rowSpan={2} sx={{
-                      ...tbodyCellSx, position: "sticky", right: 0, bgcolor: "#fff", zIndex: 1,
-                      borderLeft: "1px solid #F1F5F9",
-                    }}>
-                      <Typography sx={{ fontSize: 11, color: "#374151", lineHeight: 1.5 }}>
-                        {myPresentDays} Present
-                        {myAbsentDays > 0 && <><br />{myAbsentDays} Absent</>}
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <Box component="tr">
-                    <Box component="td" sx={{
-                      ...tbodyCellSx, position: "sticky", left: 0, bgcolor: "#fff", zIndex: 1,
-                      borderRight: "1px solid #F1F5F9",
-                      fontSize: 10.5, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.04em",
-                    }}>
                       Status
                     </Box>
-                    {dateColumns.map((day) => (
+                    {myDateColumns.map((day) => (
                       <Box component="td" key={day} sx={{ ...tbodyCellSx, textAlign: "center", px: 0.25 }}>
                         <StatusDot status={myStatusByDay.get(day) ?? null} />
                       </Box>
                     ))}
+                    <Box component="td" sx={{
+                      ...tbodyCellSx, position: "sticky", right: 0, bgcolor: "#fff", zIndex: 1,
+                      borderLeft: "1px solid #F1F5F9",
+                    }}>
+                      <Typography sx={{ fontSize: 11, lineHeight: 1.5 }}>
+                        <Box component="span" sx={{ color: "#16A34A", fontWeight: 600 }}>{myPresentDays} Present</Box>
+                        {myAbsentDays > 0 && (
+                          <>
+                            <br />
+                            <Box component="span" sx={{ color: "#DC2626", fontWeight: 600 }}>{myAbsentDays} Absent</Box>
+                          </>
+                        )}
+                      </Typography>
+                    </Box>
                   </Box>
                 </Box>
               </Box>
@@ -605,7 +588,6 @@ export default function AttendanceDashboard() {
         <MarkAttendanceModal
           open={markModalOpen}
           onClose={() => setMarkModalOpen(false)}
-          employees={markAttendanceEmployees}
           zoduId={zoduId}
           branchId={branchId}
           markedById={employeeId}

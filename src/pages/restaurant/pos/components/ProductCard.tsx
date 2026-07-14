@@ -90,7 +90,7 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
           flexShrink: 0,
           position:   "relative",
           overflow:   "hidden",
-          bgcolor:    item.menu_image ? "#f5f5f5" : "#fdf2f2",
+          // bgcolor:    "#f5f5f5",
         }}
       >
         {item.menu_image ? (
@@ -114,8 +114,9 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
               height:         "100%",
               display:        "flex",
               alignItems:     "center",
-              justifyContent: "center",
-              background:     "linear-gradient(145deg, #fff5f5 0%, #fde8e8 100%)",
+                justifyContent: "center",
+                             background:     "linear-gradient(145deg, #f9fafb 0%, #f1f2f4 100%)",
+
             }}
           >
             <Box
@@ -123,8 +124,8 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
                 width:          50,
                 height:         50,
                 borderRadius:   "50%",
-                bgcolor:        "rgba(211,47,47,0.09)",
-                border:         "1.5px solid rgba(211,47,47,0.2)",
+                bgcolor:        "#fff",
+                border:         "1.5px solid rgba(107,114,128,0.2)",
                 display:        "flex",
                 alignItems:     "center",
                 justifyContent: "center",
@@ -134,7 +135,7 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
                 sx={{
                   fontSize:      "1rem",
                   fontWeight:    700,
-                  color:         "#c62828",
+                   color:         "#6b7280",
                   letterSpacing: "0.04em",
                   lineHeight:    1,
                 }}

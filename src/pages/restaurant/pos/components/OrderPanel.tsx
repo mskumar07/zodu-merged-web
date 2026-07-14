@@ -87,8 +87,8 @@ const OrderPanel: React.FC<Props> = ({
   return (
     <Box
       sx={{
-        width: 340,
-        minWidth: 340,
+        width: 440,
+        minWidth: 440,
         height: "100%",
         display: "flex",
         flexDirection: "column",
@@ -352,34 +352,17 @@ const OrderPanel: React.FC<Props> = ({
                     "&:last-child": { borderBottom: "none" },
                   }}
                 >
-                  {/* Qty badge */}
-                  <Box
-                    sx={{
-                      minWidth: 24,
-                      height: 24,
-                      borderRadius: "6px",
-                      bgcolor: "#f3f4f6",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Typography sx={{ fontSize: "0.7rem", fontWeight: 700, color: "#374151" }}>
-                      {item.qty}
-                    </Typography>
-                  </Box>
-
                   {/* Name + unit */}
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography
                       sx={{
-                        fontSize: "0.76rem",
+                        fontSize: "0.77rem",
                         fontWeight: 600,
                         color: "#111827",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
+                        textTransform: "uppercase",
                       }}
                     >
                       {item.item_name}
@@ -394,7 +377,7 @@ const OrderPanel: React.FC<Props> = ({
                   {/* Price */}
                   <Box sx={{ textAlign: "right", flexShrink: 0 }}>
                     <Typography sx={{ fontSize: "0.72rem", color: "#6b7280" }}>
-                      ₹{item.price.toFixed(2)} × {item.qty}
+                      {item.qty} × ₹{item.price.toFixed(2)}
                     </Typography>
                     <Typography sx={{ fontSize: "0.76rem", fontWeight: 700, color: "#111827" }}>
                       ₹{(item.price * item.qty).toFixed(2)}
@@ -524,19 +507,19 @@ const OrderPanel: React.FC<Props> = ({
           <Button
             onClick={onSendToKDS}
             disabled={isLoading || cartItems.length === 0}
-            variant="outlined"
+            variant="contained"
             startIcon={<KitchenIcon sx={{ fontSize: 15 }} />}
             sx={{
               flex: 1,
               height: 40,
-              borderColor: "#1d4ed8",
-              color: "#1d4ed8",
+              bgcolor: "#d32f2f",
+              color: "#fff",
               fontSize: "0.76rem",
               fontWeight: 700,
               textTransform: "none",
               borderRadius: "8px",
-              "&:hover": { borderColor: "#1e40af", bgcolor: "#eff6ff" },
-              "&:disabled": { borderColor: "#bfdbfe", color: "#93c5fd" },
+              "&:hover": { bgcolor: "#b71c1c" },
+              "&:disabled": { bgcolor: "#fca5a5", color: "#fff" },
             }}
           >
             {isLoading ? "…" : "Send KDS"}

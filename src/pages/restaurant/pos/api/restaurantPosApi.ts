@@ -60,6 +60,8 @@ export interface RestaurantCartItem {
     variant_id?: string;
     variant_name?: string;
     productTotal?: number;
+    /** Row id from the hold order this item came from (restore flow) — used to update, not re-add, on the next hold call */
+    hold_item_id?: number;
   };
   quantity: number;
   note?: string;
@@ -212,6 +214,7 @@ export interface HoldOrderPayload {
 }
 
 export interface HoldOrderItem {
+  id?: number;
   item_id: string;
   item_name: string;
   item_unit: string | null;
@@ -219,6 +222,26 @@ export interface HoldOrderItem {
   price: number;
   variant_name: string | null;
   variant_id: string | null;
+}
+
+export interface UpdateHoldOrderPayload {
+  hold_id: string;
+  zodu_id: string;
+  branch_id: string;
+  orderType: string;
+  table_no: string | null;
+  customerName: string | null;
+  customerPhone: string | null;
+  items: {
+    id?: number;
+    item_id: string;
+    item_name: string;
+    item_unit: string | null;
+    qty: number;
+    price: number;
+    variant_name: string | null;
+    variant_id: string | null;
+  }[];
 }
 
 export interface HoldOrder {
@@ -335,6 +358,15 @@ async function postHoldOrder(payload: HoldOrderPayload) {
   return data;
 }
 
+async function putUpdateHoldOrder(payload: UpdateHoldOrderPayload) {
+  const { data } = await axios.put(
+    `${API_BASE}${apiConfig.menu.updateHoldMenu()}`,
+    payload,
+    { headers: authHeaders() }
+  );
+  return data;
+}
+
 async function deleteHoldOrder(holdUuid: string) {
   const { data } = await axios.delete(
     `${API_BASE}${apiConfig.menu.deleteHoldMenu(holdUuid)}`,
@@ -410,6 +442,14 @@ export function useHoldOrderMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: postHoldOrder,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["restaurant", "holdOrders"] }),
+  });
+}
+
+export function useUpdateHoldOrderMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: putUpdateHoldOrder,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["restaurant", "holdOrders"] }),
   });
 }

@@ -433,6 +433,46 @@ async function postAddMenuItem(
   return data;
 }
 
+// ─── Check Category Name ──────────────────────────────────────
+
+export interface CheckCategoryNameResponse {
+  exists:  boolean;
+  message: string;
+}
+
+/**
+ * POST /retail/check/category-name
+ * Checks whether a category name already exists for the current zodu/branch.
+ */
+export async function checkCategoryName(category_name: string): Promise<CheckCategoryNameResponse> {
+  const { zoduId, branchId } = getTenantContext();
+  const token = getAccessToken();
+  const { data } = await axios.post<CheckCategoryNameResponse>(
+    `${API_BASE}/${getRoute()}/check/category-name`,
+    { zodu_id: zoduId, branch_id: branchId, category_name: category_name.trim() },
+    { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
+  );
+  return data;
+}
+
+export function useCheckCategoryName(options?: {
+  onSuccess?: (data: CheckCategoryNameResponse) => void;
+  onError?:   (message: string) => void;
+}): UseMutationResult<CheckCategoryNameResponse, unknown, string> {
+  return useMutation({
+    mutationFn: checkCategoryName,
+    onSuccess: (data) => {
+      options?.onSuccess?.(data);
+    },
+    onError: (err: unknown) => {
+      const msg = axios.isAxiosError(err)
+        ? err.response?.data?.error ?? err.response?.data?.errors?.[0] ?? err.message
+        : "Failed to check category name";
+      options?.onError?.(msg);
+    },
+  });
+}
+
 // ─── Check Item ID ────────────────────────────────────────────
 
 export interface CheckItemIdResponse {
@@ -769,29 +809,34 @@ export interface CategoryListPage {
  * type = comma-separated codes split into repeated query params, e.g. "S,M" → type=S&type=M
  */
 async function fetchCategoryPage(
-  page:  number,
-  type:  string,
-  limit = 10
+  page:       number,
+  type:       string,
+  limit = 10,
+  activeOnly = false
 ): Promise<CategoryListPage> {
   const { zoduId, branchId } = getTenantContext();
   const types = type.split(",").map((t) => t.trim()).filter(Boolean);
   const token = getAccessToken();
   const { data } = await axios.get<CategoryListPage>(
     `${API_BASE}/${getRoute()}/get/category/${zoduId}/${branchId}`,
-    { params: { type: types, page, limit }, headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
+    {
+      params:  { type: types, page, limit, ...(activeOnly ? { active: true } : {}) },
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    }
   );
   return data;
 }
 
 /**
- * Infinite-scroll hook for the Category management tab.
- * @param type  comma-separated type codes: "S,M" (menu) | "E" (expense)
+ * Infinite-scroll hook for the Category management tab and the item dropdown.
+ * @param type       comma-separated type codes: "S,M" (menu) | "E" (expense)
+ * @param activeOnly pass true to only fetch active categories (item Add/Edit dropdown)
  */
-export function useInfiniteCategoryList(enabled = true, type = "S,M") {
+export function useInfiniteCategoryList(enabled = true, type = "S,M", activeOnly = false) {
   const { zoduId, branchId } = useTenantContext();
   return useInfiniteQuery({
-    queryKey:         ["menu", "categoryList", zoduId, branchId, type],
-    queryFn:          ({ pageParam = 1 }) => fetchCategoryPage(pageParam as number, type, 10),
+    queryKey:         ["menu", "categoryList", zoduId, branchId, type, activeOnly],
+    queryFn:          ({ pageParam = 1 }) => fetchCategoryPage(pageParam as number, type, 10, activeOnly),
     initialPageParam: 1,
     getNextPageParam: (lastPage) => {
       const { current_page, total_pages } = lastPage.pagination;
