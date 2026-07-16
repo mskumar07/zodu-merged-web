@@ -34,14 +34,17 @@ if (typeof document !== "undefined" && !document.getElementById("qty-spin-qty-st
 
 const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecrement, onSetQty }) => {
   const price         = getItemPrice(item);
-  const foodKey       = item.food_type?.toLowerCase() ?? "veg";
+  const foodKey       = item.food_type?.toLowerCase().replace(/[\s-]+/g, "_") ?? "veg";
   const { dot, bg }   = FOOD_TYPE[foodKey] ?? FOOD_TYPE.veg;
   const initials      = item.menu_name.slice(0, 2).toUpperCase();
   const isUnavailable = !item.active;
   const hasVariant    = !!(item.variants && item.variants.length > 0);
   const inCart        = qty > 0;
+  const tracksStock   = item.stock_qty != null;
+  const remainingStock = tracksStock ? Math.max(0, (item.stock_qty as number) - qty) : null;
 
   const [inputVal, setInputVal] = useState(String(qty));
+  const [attemptedAdd, setAttemptedAdd] = useState(false);
 
   useEffect(() => {
     setInputVal(String(qty));
@@ -58,7 +61,7 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
 
   return (
     <Box
-      onClick={() => !isUnavailable && onAdd()}
+      onClick={() => { if (!isUnavailable) { setAttemptedAdd(true); onAdd(); } }}
       sx={{
         bgcolor:       "#fff",
         borderRadius:  "12px",
@@ -165,8 +168,9 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
           <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: dot }} />
         </Box>
 
-        {/* Cart count badge — top-right */}
-        {inCart && (
+        {/* Remaining-stock badge — top-right. Only shown for items with a real stock_qty,
+            and only after the first add attempt on that item. */}
+        {tracksStock && attemptedAdd && (
           <Box
             sx={{
               position:       "absolute",
@@ -187,7 +191,7 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
               pointerEvents:  "none",
             }}
           >
-            {qty}
+            {remainingStock}
           </Box>
         )}
 
@@ -339,7 +343,7 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
             ) : (
               /* Add button — same width as stepper */
               <Box
-                onClick={e => { e.stopPropagation(); onAdd(); }}
+                onClick={e => { e.stopPropagation(); setAttemptedAdd(true); onAdd(); }}
                 sx={{
                   display:        "flex",
                   alignItems:     "center",

@@ -154,7 +154,7 @@ const toDatewiseExpenseBreakdownPage = (payload: unknown): DatewiseExpenseBreakd
 };
 
 const swapBase = (url: string, isRestaurant: boolean) =>
-  isRestaurant ? url : url.replace(/^\/restaurant/, "/retail");
+  isRestaurant ? url.replace(/^\/retail/, "/restaurant") : url;
 
 export const useExpenseSummary = (params: ExpenseSummaryParams) => {
   return useQuery<ExpenseSummary>({

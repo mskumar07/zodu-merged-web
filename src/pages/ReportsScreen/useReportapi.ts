@@ -599,6 +599,7 @@ export interface RestaurantDatewiseReportPage {
   data: RestaurantDatewiseSummaryRow[];
   totalAmount: number;
   totalItems: number;
+  totalOrders: number;
   total: number;
   page: number;
   limit: number;
@@ -639,6 +640,7 @@ const toRestaurantDatewisePage = (payload: unknown): RestaurantDatewiseReportPag
     data,
     totalAmount: toNumber(source.totalAmount),
     totalItems: toNumber(source.totalItems),
+    totalOrders: toNumber(source.totalOrders),
     total,
     page,
     limit,

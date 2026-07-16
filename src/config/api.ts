@@ -20,6 +20,7 @@ interface MenuEndPoints {
   menustatus: (menu_status: boolean, menuId: string) => string;
   menufav: (favorite: boolean, menuId: string) => string;
   addTableKOT: () => string;
+  updateTableKOT: () => string;
   completeKOT: () => string; //zodu-hotfix-01
   getTableKOT: (branchId: string, zoduId: string) => string; // Z-T77
   holdMenu: () => string; //Z-T97
@@ -28,7 +29,7 @@ interface MenuEndPoints {
   getUnitsList: (branchId: string) => string; //Z-T97
   getGstList: (branchId: string) => string; //Z-T97
   getHoldMenu: (branchId: string, zoduId: string) => string;
-  getPosData: (branchId: string, zoduId: string) => string; //Z-T97
+  getPosData: (branchId: string, zoduId: string, search?: string) => string; //Z-T97
   deleteMenuItem: (menuId: string) => string; //Z-T97
   updateMenuItem: (menuId: string) => string; //Z-T97
 }
@@ -123,6 +124,7 @@ export const apiConfig: ApiConstants = {
     menufav: (favorite: boolean, menuId: string) =>
       `${RESTAURANT_BASE}/update/favorite/${favorite}/${menuId}`,
     addTableKOT: () => `/restaurant/api/orders/add/orders`, // Z-T77
+    updateTableKOT: () => `/restaurant/api/orders/update/orders`,
     completeKOT: () => `/restaurant/api/completeorder`, //zodu-hotfix-01
     getTableKOT: (branchId: string, zoduId: string) =>
       `/restaurant/api/orders/get/orders/${branchId}/${zoduId}`, // Z-T77
@@ -155,8 +157,10 @@ export const apiConfig: ApiConstants = {
     getUnitsList: (branchId: string) =>
       `${RESTAURANT_BASE}/get/units/${branchId}`, //Z-T97
     getGstList: (branchId: string) => `${RESTAURANT_BASE}/get/gst/${branchId}`, //Z-T97,
-    getPosData: (branchId: string, zoduId: string) =>
-      `/restaurant/get/pos_data/${branchId}/${zoduId}`,
+    getPosData: (branchId: string, zoduId: string, search?: string) => {
+      const url = `/restaurant/get/pos_data/${branchId}/${zoduId}`;
+      return search?.trim() ? `${url}?search=${encodeURIComponent(search.trim())}` : url;
+    },
     getMenuItemsByType: (branchId, type, search, page, pageSize, categoryIds) => {
       const url = type
         ? `${RESTAURANT_BASE}/api/menu/get/menu_item/${branchId}/${type}`

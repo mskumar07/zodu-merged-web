@@ -45,7 +45,7 @@ const StyledDialog = styled(Dialog, {
   shouldForwardProp: (prop) => prop !== "isRestaurant",
 })<{ isRestaurant?: boolean }>(({ isRestaurant }) => ({
   "& .MuiDialog-paper": {
-    maxWidth: isRestaurant ? 820 : 1100,
+    maxWidth: isRestaurant ? 960 : 1100,
     width: "100%",
     maxHeight: "92vh",
     borderRadius: 16,
