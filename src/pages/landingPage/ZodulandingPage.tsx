@@ -107,39 +107,39 @@ const features = [
     icon: imgPosBilling,
     bg: "#fff0f0",
     img: showcaseBilling,
-    title: "Bill Customers 10× Faster",
-    tagline: "No more long queues. No more billing errors.",
+    title: "Billing",
+    tagline: "Turn every sale into a fast, error-free transaction.",
     items: [
-      "Create GST-compliant invoices in under 10 seconds",
-      "Accept cash, card, UPI & all digital payment modes",
+      "Generate GST-compliant invoices in under 10 seconds",
+      "Accept cash, card, UPI & every digital payment mode",
       "Apply discounts, offers & loyalty points instantly",
-      "Print or WhatsApp bills directly from the app",
+      "Print or send bills via WhatsApp straight from the app",
     ],
   },
   {
     icon: imgInventory,
     bg: "#f0fdf4",
     img: showcaseInventory,
-    title: "Never Run Out of Stock Again",
-    tagline: "Know exactly what you have before you need it.",
+    title: "Inventory",
+    tagline: "Always know what's in stock — and what's running low.",
     items: [
-      "Real-time stock tracking across all your products",
-      "Automatic low-stock alerts before you run out",
-      "Manage batches, expiry dates & multiple units",
-      "Purchase orders & supplier management built in",
+      "Real-time stock tracking across every product and outlet",
+      "Automatic low-stock alerts before shelves go empty",
+      "Manage batches, expiry dates & multiple units with ease",
+      "Built-in purchase orders & supplier management",
     ],
   },
   {
     icon: imgReports,
     bg: "#fff7ed",
     img: showcaseReports,
-    title: "Know Exactly Where Your Money Goes",
-    tagline: "Stop guessing. Start making data-driven decisions.",
+    title: "Reports & Analytics",
+    tagline: "Turn everyday sales data into decisions that grow your business.",
     items: [
-      "Daily, weekly & monthly profit & loss reports",
-      "See your top-selling and slow-moving products",
-      "Track expenses by category and date range",
-      "Export GST-ready reports to share with your CA",
+      "Daily, weekly & monthly profit and loss reports",
+      "Spot your top-sellers and slow-moving stock instantly",
+      "Track expenses by category and custom date ranges",
+      "Export GST-ready reports your CA can use directly",
     ],
   },
   {
@@ -147,38 +147,38 @@ const features = [
     bg: "#eff6ff",
     img: showcaseTeam,
     title: "Employee Management",
-    tagline: "Run your whole team without the headache.",
+    tagline: "Give every teammate exactly the access they need — no more, no less.",
     items: [
-      "Role-based access control",
-      "Track each staff's sales performance",
-      "Monthly payroll in minutes",
-      "Shift & duty scheduling",
+      "Role-based access control for every staff member",
+      "Track individual sales performance in real time",
+      "Run monthly payroll in minutes, not hours",
+      "Plan shifts and duty schedules with a few taps",
     ],
   },
   {
     icon: imgEmployee,
     bg: "#eff6ff",
     img: showcaseTeam,
-    title: "Manage Your Team Without the Headache",
-    tagline: "Save 5+ hours every week on staff management.",
+    title: "Attendance & Payroll",
+    tagline: "Save hours every week on staff admin.",
     items: [
-      "Track attendance automatically with login logs",
+      "Auto-capture attendance with secure login logs",
       "Process monthly payroll in under 10 minutes",
-      "Set role-based access — staff see only what they need",
-      "Monitor each employee's sales performance live",
+      "Staff see only what's relevant to their role",
+      "Monitor live sales performance, employee by employee",
     ],
   },
   {
     icon: imgGstTax,
     bg: "#eff6ff",
     img: showcaseTeam,
-    title: "GST & Tax Reports",
-    tagline: "Stay compliant without the accountant stress.",
+    title: "GST & Tax",
+    tagline: "Stay fully compliant without hiring an accountant.",
     items: [
-      "Auto GST calculation on every bill",
-      "GSTR-ready exports for your CA",
-      "HSN / SAC code support",
-      "Tax summary dashboards",
+      "Automatic GST calculation on every single bill",
+      "GSTR-ready exports, filing-ready for your CA",
+      "Full HSN / SAC code support",
+      "At-a-glance tax summary dashboards",
     ],
   },
   {
@@ -186,26 +186,25 @@ const features = [
     bg: "#eff6ff",
     img: showcaseTeam,
     title: "Customer Management",
-    tagline: "Turn one-time buyers into loyal regulars.",
+    tagline: "Turn first-time buyers into loyal, repeat customers.",
     items: [
-      "Customer profiles & purchase history",
-      "Loyalty points & reward offers",
-      "Loyalty points & reward offers",   
-      "Credit / khata management",
-      "Targeted offers & reminders"
+      "Detailed customer profiles & purchase history",
+      "Loyalty points and reward-based offers",
+      "Built-in credit / khata management",
+      "Targeted offers & automated reminders",
     ],
   },
   {
     icon: imgMultiLocation,
     bg: "#eff6ff",
     img: showcaseTeam,
-    title: "Multi Location",
-    tagline: "Run every branch from a single account.",
+    title: "Multi-Location",
+    tagline: "Run every outlet from a single, unified account.",
     items: [
-      "Combined cross-branch reports",
+      "Combined, cross-branch performance reports",
       "Per-outlet inventory control",
-      "Centralised staff management",
-      "Branch-wise performance",
+      "Centralised staff management across locations",
+      "Branch-wise performance comparisons",
     ],
   },
   {
@@ -213,12 +212,12 @@ const features = [
     bg: "#eff6ff",
     img: showcaseTeam,
     title: "Digital Payments",
-    tagline: "Accept every payment mode, auto-reconciled.",
+    tagline: "Accept every payment mode — and reconcile automatically.",
     items: [
-      "UPI, card & wallet support",
-      "QR-code payments at the counter",
-      "Automatic payment reminders",
-      "Reconciled transaction records",
+      "UPI, card & digital wallet support",
+      "QR-code payments right at the counter",
+      "Automatic payment reminders for dues",
+      "Fully reconciled transaction records",
     ],
   },
   {
@@ -226,12 +225,12 @@ const features = [
     bg: "#eff6ff",
     img: showcaseTeam,
     title: "Task Management",
-    tagline: "Assign work and track it to completion.",
+    tagline: "Assign the work. Track it through to done.",
     items: [
-      "Assign tasks to any staff member",
-      "Track progress in real time",
-      "Due-date reminders & alerts",
-      "Daily task checklists",
+      "Assign tasks to any staff member in seconds",
+      "Track progress on every task in real time",
+      "Due-date reminders keep work on schedule",
+      "Daily checklists for consistent execution",
     ],
   },
   {
@@ -239,12 +238,12 @@ const features = [
     bg: "#eff6ff",
     img: showcaseTeam,
     title: "Barcode & Stock",
-    tagline: "Scan-to-bill speed at the counter.",
+    tagline: "Scan-to-bill speed, right at the counter.",
     items: [
-      "Barcode scan billing",
-      "Automatic stock deduction",
-      "Label & barcode printing",
-      "Batch & expiry tracking",
+      "Fast barcode-scan billing",
+      "Automatic stock deduction on every sale",
+      "Print labels and barcodes on demand",
+      "Batch and expiry tracking built in",
     ],
   },
   {
@@ -252,12 +251,12 @@ const features = [
     bg: "#eff6ff",
     img: showcaseTeam,
     title: "Mobile App & Alerts",
-    tagline: "Run your business right from your pocket.",
+    tagline: "Your entire business, right in your pocket.",
     items: [
-      "iOS, Android & tablet apps",
-      "Real-time sales alerts",
-      "Remote dashboard access",
-      "Smart push notifications",
+      "Native apps for iOS, Android & tablet",
+      "Real-time sales alerts wherever you are",
+      "Remote dashboard access from anywhere",
+      "Smart push notifications for what matters",
     ],
   },
 ];
@@ -991,7 +990,7 @@ const ZoduLandingPage: React.FC = () => {
 
         {/* ── FEATURE SHOWCASE (alternating rows) ──────────────────────────── */}
         <Box sx={{ bgcolor: "#fff", py: { xs: 5, md: 7 }, px: SX }}>
-          <Container maxWidth="lg" disableGutters>
+          <Container maxWidth="xl" disableGutters>
             <Box textAlign="center" mb={HMB}>
               <Typography sx={{ color: PRIMARY, fontWeight: 700, fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", mb: 1 }}>
                 WHAT ZODU DOES FOR YOU
@@ -1134,11 +1133,9 @@ const ZoduLandingPage: React.FC = () => {
   <Typography
   sx={{
     width: "100%",
-      minHeight: 90,
       pl: flip ? 0 : "110px",
       pr: flip ? "110px" : 0,
-      // display: "flex",
-      alignItems: "center",
+      mb:1,
       fontWeight: 900,
       fontSize: { xs: "1.5rem", md: "2rem" },
       lineHeight: 1.2,
@@ -1147,6 +1144,7 @@ const ZoduLandingPage: React.FC = () => {
       display: "-webkit-box",
       WebkitLineClamp: 2,
       WebkitBoxOrient: "vertical",
+      WebkitBoxAlign: "center",
       overflow: "hidden",
   }}
 >
@@ -1155,8 +1153,9 @@ const ZoduLandingPage: React.FC = () => {
 
  <Typography
   sx={{
-    mt: 1,
-    // mb: 3,
+    mt: -1,
+    pl: flip ? 0 : "110px",
+    pr: flip ? "110px" : 0,
     color: "#0a0000",
     fontSize: "1rem",
     lineHeight: 1.7,
@@ -1178,7 +1177,7 @@ const ZoduLandingPage: React.FC = () => {
                       alignItems: "center",
                       gap: { xs: 2.5, md: 3.5 },
                       px: { xs: 2, md: 3 },
-                      py: { xs: 3, md: 2.5 },
+                      // py: { xs: 3, md: 2.5 },
                     }}>
                     {/* TEXT */}
                       <Box sx={{ flex: { md: "0 0 36%" }, width: "100%" }}>
