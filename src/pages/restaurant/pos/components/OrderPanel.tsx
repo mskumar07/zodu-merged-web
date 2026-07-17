@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from "react";
 import {
-  Box, Typography, Button, Chip, Divider, Tooltip,
+  Box, Typography, Button, Chip, Divider, Tooltip, IconButton,
 } from "@mui/material";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import TableBarIcon from "@mui/icons-material/TableBar";
+import DeliveryDiningIcon from "@mui/icons-material/DeliveryDining";
+import ShoppingBagIcon from "@mui/icons-material/ShoppingBag";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import PauseCircleOutlineIcon from "@mui/icons-material/PauseCircleOutline";
@@ -10,6 +13,9 @@ import CreditCardIcon from "@mui/icons-material/CreditCard";
 import QrCode2Icon from "@mui/icons-material/QrCode2";
 import MoneyIcon from "@mui/icons-material/Money";
 import KitchenIcon from "@mui/icons-material/Kitchen";
+import EditIcon from "@mui/icons-material/Edit";
+import CloseIcon from "@mui/icons-material/Close";
+import DeleteSweepOutlinedIcon from "@mui/icons-material/DeleteSweepOutlined";
 import type {
   RestaurantCartItem,
   RestaurantOrder,
@@ -34,6 +40,7 @@ interface Props {
   runningOrderTotals: Totals;
   onTableClick: () => void;
   onCustomerClick: () => void;
+  onOrderTypeChange: (key: "DineIn" | "Delivery" | "PickUp") => void;
   onDiscountClick: () => void;
   onPaymentMethodChange: (method: "Card" | "QR" | "Cash") => void;
   onSendToKDS: () => void;
@@ -42,6 +49,14 @@ interface Props {
   onDecrement: (item: RestaurantCartItem) => void;
   onRemove: (item: RestaurantCartItem) => void;
   onHold: () => void;
+  isEditingSummary: boolean;
+  onEditSummary: () => void;
+  onCancelEditSummary: () => void;
+  onSummaryIncrement: (idx: number) => void;
+  onSummaryDecrement: (idx: number) => void;
+  onSummaryRemove: (idx: number) => void;
+  onSendEditedKDS: () => void;
+  onClearCart: () => void;
 }
 
 const PAYMENT_METHODS: Array<{
@@ -54,11 +69,24 @@ const PAYMENT_METHODS: Array<{
   { key: "Cash", label: "Cash", icon: <MoneyIcon sx={{ fontSize: 15 }} /> },
 ];
 
+const ORDER_TYPES: Array<{
+  key: "DineIn" | "Delivery" | "PickUp";
+  label: string;
+  icon: React.ReactNode;
+}> = [
+  { key: "DineIn",   label: "Dine In",  icon: <TableBarIcon sx={{ fontSize: 15 }} /> },
+  { key: "Delivery", label: "Delivery", icon: <DeliveryDiningIcon sx={{ fontSize: 15 }} /> },
+  { key: "PickUp",   label: "Pick Up",  icon: <ShoppingBagIcon sx={{ fontSize: 15 }} /> },
+];
+
 const OrderPanel: React.FC<Props> = ({
   order, cartItems, totals, isLoading, orderSummary, runningOrderTotal, runningOrderTotals,
-  onTableClick, onCustomerClick, onDiscountClick,
+  onTableClick, onCustomerClick, onOrderTypeChange, onDiscountClick,
   onPaymentMethodChange, onSendToKDS, onPaid,
   onIncrement, onDecrement, onRemove, onHold,
+  isEditingSummary, onEditSummary, onCancelEditSummary,
+  onSummaryIncrement, onSummaryDecrement, onSummaryRemove, onSendEditedKDS,
+  onClearCart,
 }) => {
   const isDineIn = order.orderType === "DineIn";
   const totalQty = cartItems.reduce((s, i) => s + i.quantity, 0);
@@ -87,8 +115,8 @@ const OrderPanel: React.FC<Props> = ({
   return (
     <Box
       sx={{
-        width: 340,
-        minWidth: 340,
+        width: 440,
+        minWidth: 440,
         height: "100%",
         display: "flex",
         flexDirection: "column",
@@ -96,6 +124,43 @@ const OrderPanel: React.FC<Props> = ({
         borderLeft: "1px solid #e5e7eb",
       }}
     >
+      {/* ── Order type tabs: Dine In / Delivery / Pick Up ── */}
+      <Box
+        sx={{
+          display: "flex",
+          borderBottom: "1px solid #f3f4f6",
+          flexShrink: 0,
+        }}
+      >
+        {ORDER_TYPES.map((t) => {
+          const active = order.orderType === t.key;
+          return (
+            <Box
+              key={t.key}
+              onClick={() => onOrderTypeChange(t.key)}
+              sx={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 0.8,
+                py: 1.6,
+                cursor: "pointer",
+                borderBottom: active ? "2.5px solid #d32f2f" : "2.5px solid transparent",
+                color: active ? "#d32f2f" : "#6b7280",
+                transition: "all 0.15s",
+                "&:hover": { color: "#d32f2f" },
+              }}
+            >
+              {React.cloneElement(t.icon as React.ReactElement, { sx: { fontSize: 19 } })}
+              <Typography sx={{ fontSize: "0.92rem", fontWeight: active ? 700 : 500, lineHeight: 1 }}>
+                {t.label}
+              </Typography>
+            </Box>
+          );
+        })}
+      </Box>
+
       {/* ── Context row: table / customer ── */}
       <Box
         sx={{
@@ -177,19 +242,67 @@ const OrderPanel: React.FC<Props> = ({
           </Box>
         )}
 
-        {totalQty > 0 && (
-          <Chip
-            label={`${totalQty} item${totalQty > 1 ? "s" : ""}`}
-            size="small"
-            sx={{
-              bgcolor: "#fee2e2",
-              color: "#d32f2f",
-              fontWeight: 700,
-              fontSize: "0.65rem",
-              height: 20,
-            }}
-          />
-        )}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+          {totalQty > 0 && (
+            <Chip
+              label={`${totalQty} item${totalQty > 1 ? "s" : ""}`}
+              size="small"
+              sx={{
+                bgcolor: "#fee2e2",
+                color: "#d32f2f",
+                fontWeight: 700,
+                fontSize: "0.65rem",
+                height: 20,
+              }}
+            />
+          )}
+
+          {isDineIn && orderSummary.length > 0 && !isEditingSummary && (
+            <Tooltip title="Edit order" placement="top">
+              <Box
+                onClick={() => { setActiveTab("summary"); onEditSummary(); }}
+                sx={{
+                  width: 26,
+                  height: 26,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "7px",
+                  border: "1.5px solid #d1d5db",
+                  cursor: "pointer",
+                  color: "#6b7280",
+                  flexShrink: 0,
+                  "&:hover": { bgcolor: "#fef2f2", border: "1.5px solid #d32f2f", color: "#d32f2f" },
+                }}
+              >
+                <EditIcon sx={{ fontSize: 14 }} />
+              </Box>
+            </Tooltip>
+          )}
+
+          {isDineIn && isEditingSummary && (
+            <Tooltip title="Cancel editing" placement="top">
+              <Box
+                onClick={onCancelEditSummary}
+                sx={{
+                  width: 26,
+                  height: 26,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "7px",
+                  border: "1.5px solid #d1d5db",
+                  cursor: "pointer",
+                  color: "#6b7280",
+                  flexShrink: 0,
+                  "&:hover": { bgcolor: "#f3f4f6", border: "1.5px solid #9ca3af", color: "#374151" },
+                }}
+              >
+                <CloseIcon sx={{ fontSize: 15 }} />
+              </Box>
+            </Tooltip>
+          )}
+        </Box>
       </Box>
 
       {/* ── Tabs (Dine-In only) ── */}
@@ -204,7 +317,7 @@ const OrderPanel: React.FC<Props> = ({
           {(["order", "summary"] as const).map((tab) => {
             const active  = activeTab === tab;
             const badge   = tab === "order" ? cartItems.length : orderSummary.length;
-            const label   = tab === "order" ? "Order" : "Summary";
+            const label   = tab === "order" ? "Order" : "Bill Summary";
             return (
               <Box
                 key={tab}
@@ -260,6 +373,37 @@ const OrderPanel: React.FC<Props> = ({
       {/* ── Content: Order tab (new cart items) ── */}
       {(!isDineIn || activeTab === "order") && (
         <Box sx={{ flex: 1, overflowY: "auto", px: 1.5, "&::-webkit-scrollbar": { width: 3 } }}>
+          {cartItems.length > 0 && (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "flex-end",
+                pt: 1,
+                pb: 0.3,
+              }}
+            >
+              <Box
+                onClick={onClearCart}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.4,
+                  cursor: "pointer",
+                  color: "#9ca3af",
+                  py: 0.3,
+                  px: 0.6,
+                  borderRadius: "6px",
+                  "&:hover": { color: "#d32f2f", bgcolor: "#fef2f2" },
+                }}
+              >
+                <DeleteSweepOutlinedIcon sx={{ fontSize: 15 }} />
+                <Typography sx={{ fontSize: "0.7rem", fontWeight: 600 }}>
+                  Clear All
+                </Typography>
+              </Box>
+            </Box>
+          )}
           {cartItems.length === 0 ? (
             <Box
               sx={{
@@ -317,28 +461,6 @@ const OrderPanel: React.FC<Props> = ({
             </Box>
           ) : (
             <Box>
-              {/* KOT reference */}
-              {order.kotNo && (
-                <Box
-                  sx={{
-                    mt: 1.2,
-                    mb: 0.8,
-                    px: 1,
-                    py: 0.5,
-                    bgcolor: "#eff6ff",
-                    borderRadius: "6px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 0.6,
-                  }}
-                >
-                  <KitchenIcon sx={{ fontSize: 13, color: "#2563eb" }} />
-                  <Typography sx={{ fontSize: "0.7rem", fontWeight: 700, color: "#1e3a8a" }}>
-                    {order.kotNo} — Previously ordered
-                  </Typography>
-                </Box>
-              )}
-
               {/* Item rows */}
               {orderSummary.map((item, idx) => (
                 <Box
@@ -352,34 +474,17 @@ const OrderPanel: React.FC<Props> = ({
                     "&:last-child": { borderBottom: "none" },
                   }}
                 >
-                  {/* Qty badge */}
-                  <Box
-                    sx={{
-                      minWidth: 24,
-                      height: 24,
-                      borderRadius: "6px",
-                      bgcolor: "#f3f4f6",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Typography sx={{ fontSize: "0.7rem", fontWeight: 700, color: "#374151" }}>
-                      {item.qty}
-                    </Typography>
-                  </Box>
-
                   {/* Name + unit */}
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography
                       sx={{
-                        fontSize: "0.76rem",
+                        fontSize: "0.77rem",
                         fontWeight: 600,
                         color: "#111827",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
+                        textTransform: "uppercase",
                       }}
                     >
                       {item.item_name}
@@ -391,15 +496,74 @@ const OrderPanel: React.FC<Props> = ({
                     )}
                   </Box>
 
-                  {/* Price */}
-                  <Box sx={{ textAlign: "right", flexShrink: 0 }}>
-                    <Typography sx={{ fontSize: "0.72rem", color: "#6b7280" }}>
-                      ₹{item.price.toFixed(2)} × {item.qty}
-                    </Typography>
-                    <Typography sx={{ fontSize: "0.76rem", fontWeight: 700, color: "#111827" }}>
-                      ₹{(item.price * item.qty).toFixed(2)}
-                    </Typography>
-                  </Box>
+                  {isEditingSummary ? (
+                    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 0.5, flexShrink: 0 }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          border: "1.5px solid #d32f2f",
+                          borderRadius: "7px",
+                          overflow: "hidden",
+                          height: 26,
+                        }}
+                      >
+                        <Box
+                          onClick={() => onSummaryDecrement(idx)}
+                          sx={{
+                            width: 28, height: "100%", display: "flex", alignItems: "center",
+                            justifyContent: "center", cursor: "pointer", color: "#d32f2f",
+                            fontWeight: 700, fontSize: "0.9rem", bgcolor: "#fff", flexShrink: 0,
+                            "&:hover": { bgcolor: "#fef2f2" },
+                          }}
+                        >
+                          −
+                        </Box>
+                        <Typography
+                          sx={{
+                            fontSize: "0.72rem", fontWeight: 800, px: 0.7, minWidth: 20,
+                            textAlign: "center", color: "#fff", bgcolor: "#d32f2f", lineHeight: 1,
+                            height: "100%", display: "flex", alignItems: "center", justifyContent: "center",
+                          }}
+                        >
+                          {item.qty}
+                        </Typography>
+                        <Box
+                          onClick={() => onSummaryIncrement(idx)}
+                          sx={{
+                            width: 28, height: "100%", display: "flex", alignItems: "center",
+                            justifyContent: "center", cursor: "pointer", color: "#d32f2f",
+                            fontWeight: 700, fontSize: "0.9rem", bgcolor: "#fff", flexShrink: 0,
+                            "&:hover": { bgcolor: "#fef2f2" },
+                          }}
+                        >
+                          +
+                        </Box>
+                      </Box>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.3 }}>
+                        <Typography sx={{ fontSize: "0.72rem", fontWeight: 700, color: "#111827" }}>
+                          ₹{(item.price * item.qty).toFixed(2)}
+                        </Typography>
+                        <IconButton
+                          size="small"
+                          onClick={() => onSummaryRemove(idx)}
+                          sx={{ color: "#ef4444", p: 0.2, "&:hover": { bgcolor: "#fff1f2" } }}
+                        >
+                          <DeleteOutlineIcon sx={{ fontSize: 14 }} />
+                        </IconButton>
+                      </Box>
+                    </Box>
+                  ) : (
+                    /* Price */
+                    <Box sx={{ textAlign: "right", flexShrink: 0 }}>
+                      <Typography sx={{ fontSize: "0.72rem", color: "#6b7280" }}>
+                        {item.qty} × ₹{item.price.toFixed(2)}
+                      </Typography>
+                      <Typography sx={{ fontSize: "0.76rem", fontWeight: 700, color: "#111827" }}>
+                        ₹{(item.price * item.qty).toFixed(2)}
+                      </Typography>
+                    </Box>
+                  )}
                 </Box>
               ))}
 
@@ -408,8 +572,8 @@ const OrderPanel: React.FC<Props> = ({
         </Box>
       )}
 
-      {/* ── Totals: non-DineIn OR DineIn Summary tab with KOT data ── */}
-      {(!isDineIn && cartItems.length > 0) || (isDineIn && activeTab === "summary" && orderSummary.length > 0) ? (
+      {/* ── Totals: non-DineIn OR DineIn Summary tab with KOT data (hidden while editing) ── */}
+      {!isEditingSummary && ((!isDineIn && cartItems.length > 0) || (isDineIn && activeTab === "summary" && orderSummary.length > 0)) ? (
         <Box sx={{ px: 1.5, py: 1.2, borderTop: "1px solid #f3f4f6", flexShrink: 0 }}>
           {(() => {
             const t = isDineIn ? runningOrderTotals : totals;
@@ -460,8 +624,8 @@ const OrderPanel: React.FC<Props> = ({
         </Box>
       ) : null}
 
-      {/* ── Payment method: non-DineIn always, DineIn only on Summary tab with KOT data ── */}
-      {(!isDineIn || (isDineIn && activeTab === "summary" && orderSummary.length > 0)) && (
+      {/* ── Payment method: non-DineIn always, DineIn only on Summary tab with KOT data (hidden while editing) ── */}
+      {!isEditingSummary && (!isDineIn || (isDineIn && activeTab === "summary" && orderSummary.length > 0)) && (
         <Box sx={{ px: 1.5, py: 1, borderTop: "1px solid #f3f4f6", display: "flex", gap: 0.8, flexShrink: 0 }}>
           {PAYMENT_METHODS.map((pm) => {
             const active = order.paymentMethod === pm.key;
@@ -519,24 +683,45 @@ const OrderPanel: React.FC<Props> = ({
           </Box>
         </Tooltip>
 
-        {/* DineIn Order tab → Send KDS only; DineIn Summary tab → Pay only; non-DineIn → Pay only */}
-        {isDineIn && activeTab === "order" ? (
+        {/* DineIn Order tab → Send KDS only; DineIn Summary tab (editing) → Send Edited KDS; DineIn Summary tab → Pay only; non-DineIn → Pay only */}
+        {isDineIn && isEditingSummary ? (
           <Button
-            onClick={onSendToKDS}
-            disabled={isLoading || cartItems.length === 0}
-            variant="outlined"
+            onClick={onSendEditedKDS}
+            disabled={isLoading || orderSummary.length === 0}
+            variant="contained"
             startIcon={<KitchenIcon sx={{ fontSize: 15 }} />}
             sx={{
               flex: 1,
               height: 40,
-              borderColor: "#1d4ed8",
-              color: "#1d4ed8",
+              bgcolor: "#d32f2f",
+              color: "#fff",
               fontSize: "0.76rem",
               fontWeight: 700,
               textTransform: "none",
               borderRadius: "8px",
-              "&:hover": { borderColor: "#1e40af", bgcolor: "#eff6ff" },
-              "&:disabled": { borderColor: "#bfdbfe", color: "#93c5fd" },
+              "&:hover": { bgcolor: "#b71c1c" },
+              "&:disabled": { bgcolor: "#fca5a5", color: "#fff" },
+            }}
+          >
+            {isLoading ? "…" : "Send To Edited KDS"}
+          </Button>
+        ) : isDineIn && activeTab === "order" ? (
+          <Button
+            onClick={onSendToKDS}
+            disabled={isLoading || cartItems.length === 0}
+            variant="contained"
+            startIcon={<KitchenIcon sx={{ fontSize: 15 }} />}
+            sx={{
+              flex: 1,
+              height: 40,
+              bgcolor: "#d32f2f",
+              color: "#fff",
+              fontSize: "0.76rem",
+              fontWeight: 700,
+              textTransform: "none",
+              borderRadius: "8px",
+              "&:hover": { bgcolor: "#b71c1c" },
+              "&:disabled": { bgcolor: "#fca5a5", color: "#fff" },
             }}
           >
             {isLoading ? "…" : "Send KDS"}

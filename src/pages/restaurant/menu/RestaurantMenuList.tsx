@@ -841,7 +841,7 @@ const RestaurantMenuList: React.FC = () => {
               <Tooltip title="Edit">
                 <IconButton
                   size="small"
-                  onClick={(e) => { e.stopPropagation(); setDetailItem(row); }}
+                  onClick={(e) => { e.stopPropagation(); setEditItem(row); setAddMenuOpen(true); }}
                   sx={{ color: "text.disabled", "&:hover": { color: "primary.main", bgcolor: "primary.light" + "22" }, borderRadius: 1.5 }}
                 >
                   <EditIcon fontSize="small" />

@@ -110,12 +110,12 @@ const CategoryNav: React.FC<Props> = ({
 }) => (
   <Box
     sx={{
-      width: 220,
-      minWidth: 220,
+      width: 260,
+      minWidth: 260,
       height: "100%",
+      minHeight: 0,
       overflowY: "auto",
       overflowX: "hidden",
-      flexWrap: "wrap",
       bgcolor: "#fff",
       borderRight: "1px solid #e5e7eb",
       display: "flex",

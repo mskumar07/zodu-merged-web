@@ -214,6 +214,11 @@ function MenuItemScreen() {
     setModalOpen(true);
   };
 
+  const handleEditFromDialog = (itemUuid: string) => {
+    setEditItem({ item_uuid: itemUuid } as MenuItemData);
+    setModalOpen(true);
+  };
+
   const handleSave = (_data: AddMenuItemResponse) => {
     qc.invalidateQueries({ queryKey: ['menu', 'items'] });
     setModalOpen(false);
@@ -310,7 +315,7 @@ function MenuItemScreen() {
               </Box>
             )}
 
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setModalOpen(true)}
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setEditItem(null); setModalOpen(true); }}
               sx={{ borderRadius: 0.5, fontWeight: 700, px: 2.5, height: 40, textTransform: 'none', fontSize: 13, whiteSpace: 'nowrap', boxShadow: '0 4px 14px rgba(210,18,46,0.25)' }}>
               Add Item
             </Button>
@@ -322,6 +327,7 @@ function MenuItemScreen() {
             <ProductTable
               products={products}
               onEdit={(p) => handleEditClick((p as any)._raw)}
+              onEditFromDialog={handleEditFromDialog}
               onDelete={(p) => openDeleteDialog((p as any).item_uuid)}
               onToggleStatus={(p, newStatus) => updateStatus({ item_uuid: p.item_uuid, status: newStatus })}
               hasNextPage={hasNextPage}

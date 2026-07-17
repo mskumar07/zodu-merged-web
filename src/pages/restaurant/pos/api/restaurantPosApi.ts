@@ -40,6 +40,8 @@ export interface RestaurantMenuItem {
   zodu_id?: string;
   branch_id?: string;
   qr_code?: string | null;
+  stock_qty?: number | null;
+  stock_alert?: number | null;
 }
 
 export interface RestaurantVariant {
@@ -60,6 +62,8 @@ export interface RestaurantCartItem {
     variant_id?: string;
     variant_name?: string;
     productTotal?: number;
+    /** Row id from the hold order this item came from (restore flow) — used to update, not re-add, on the next hold call */
+    hold_item_id?: number;
   };
   quantity: number;
   note?: string;
@@ -164,6 +168,42 @@ export interface AddOrderPayload {
   customer_phone: string;
 }
 
+export interface UpdateOrderPayload {
+  zodu_id: string;
+  branch_id: string;
+  api_order_id: string;
+  table_no: number | null;
+  kot_no: string;
+  no_of_items: number;
+  order_type: string;
+  payment_type: string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  subtotal: number;
+  tax_amount: number;
+  total_amt: number;
+  discount_type: string | null;
+  discount_value: number | null;
+  discount_amount: number;
+  final_payment: boolean;
+  order_date: string;
+  order_time: string;
+  items: {
+    menu_id: string;
+    name: string;
+    qty: number;
+    price: number;
+    tax: number;
+    cgst: number;
+    sgst: number;
+    tax_inclusive: boolean;
+    menu_unit: string;
+    variant_name: string | null;
+    variant_id: string | null;
+    gst_percentage: number;
+  }[];
+}
+
 export interface CompleteOrderPayload {
   api_order_id: string;
   zodu_id: string;
@@ -212,6 +252,7 @@ export interface HoldOrderPayload {
 }
 
 export interface HoldOrderItem {
+  id?: number;
   item_id: string;
   item_name: string;
   item_unit: string | null;
@@ -219,6 +260,26 @@ export interface HoldOrderItem {
   price: number;
   variant_name: string | null;
   variant_id: string | null;
+}
+
+export interface UpdateHoldOrderPayload {
+  hold_id: string;
+  zodu_id: string;
+  branch_id: string;
+  orderType: string;
+  table_no: string | null;
+  customerName: string | null;
+  customerPhone: string | null;
+  items: {
+    id?: number;
+    item_id: string;
+    item_name: string;
+    item_unit: string | null;
+    qty: number;
+    price: number;
+    variant_name: string | null;
+    variant_id: string | null;
+  }[];
 }
 
 export interface HoldOrder {
@@ -274,22 +335,33 @@ function normalizeItem(raw: any, categoryName: string): RestaurantMenuItem {
     active:               true,
     category:             categoryName,
     variants:             normalizeVariants(raw.variants),
+    stock_qty:            raw.stock_qty ?? null,
+    stock_alert:          raw.stock_alert ?? null,
   };
 }
 
 // ─── API functions ────────────────────────────────────────────────
 
-async function fetchMenuData(branchId: string, zoduId: string): Promise<RestaurantCategory[]> {
+async function fetchMenuData(branchId: string, zoduId: string, search?: string): Promise<RestaurantCategory[]> {
   const { data } = await axios.get(
-    `${API_BASE}${apiConfig.menu.getPosData(branchId, zoduId)}`,
+    `${API_BASE}${apiConfig.menu.getPosData(branchId, zoduId, search)}`,
     { headers: authHeaders() }
   );
   const raw: any[] = data?.Data ?? [];
-  return raw.map((cat) => ({
-    id:    cat.id,
-    name:  cat.name,
-    items: (cat.items ?? []).map((item: any) => normalizeItem(item, cat.name)),
-  }));
+
+  // Backend can return multiple category rows sharing the same name (different ids) —
+  // merge them so the UI never renders two sidebar/grid sections with the same key.
+  const byName = new Map<string, RestaurantCategory>();
+  for (const cat of raw) {
+    const items = (cat.items ?? []).map((item: any) => normalizeItem(item, cat.name));
+    const existing = byName.get(cat.name);
+    if (existing) {
+      existing.items.push(...items);
+    } else {
+      byName.set(cat.name, { id: cat.id, name: cat.name, items });
+    }
+  }
+  return Array.from(byName.values());
 }
 
 async function fetchTableOrders(branchId: string, zoduId: string): Promise<RunningOrder[]> {
@@ -317,6 +389,15 @@ async function postAddOrder(payload: AddOrderPayload) {
   return data;
 }
 
+async function putUpdateOrder(payload: UpdateOrderPayload) {
+  const { data } = await axios.put(
+    `${API_BASE}${apiConfig.menu.updateTableKOT()}`,
+    payload,
+    { headers: authHeaders() }
+  );
+  return data;
+}
+
 async function postCompleteOrder(payload: CompleteOrderPayload) {
   const { data } = await axios.post(
     `${API_BASE}${apiConfig.menu.completeKOT()}`,
@@ -329,6 +410,15 @@ async function postCompleteOrder(payload: CompleteOrderPayload) {
 async function postHoldOrder(payload: HoldOrderPayload) {
   const { data } = await axios.post(
     `${API_BASE}${apiConfig.menu.holdMenu()}`,
+    payload,
+    { headers: authHeaders() }
+  );
+  return data;
+}
+
+async function putUpdateHoldOrder(payload: UpdateHoldOrderPayload) {
+  const { data } = await axios.put(
+    `${API_BASE}${apiConfig.menu.updateHoldMenu()}`,
     payload,
     { headers: authHeaders() }
   );
@@ -362,12 +452,13 @@ async function searchCustomers(zoduId: string, branchId: string, query: string) 
 
 // ─── React Query hooks ────────────────────────────────────────────
 
-export function useRestaurantMenuQuery(branchId: string, zoduId: string) {
+export function useRestaurantMenuQuery(branchId: string, zoduId: string, search?: string) {
   return useQuery({
-    queryKey: ["restaurant", "menu", branchId, zoduId],
-    queryFn: () => fetchMenuData(branchId, zoduId),
+    queryKey: ["restaurant", "menu", branchId, zoduId, search ?? ""],
+    queryFn: () => fetchMenuData(branchId, zoduId, search),
     enabled: !!branchId && !!zoduId,
     staleTime: 5 * 60 * 1000,
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -396,6 +487,14 @@ export function useAddOrderMutation() {
   });
 }
 
+export function useUpdateOrderMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: putUpdateOrder,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["restaurant", "tableOrders"] }),
+  });
+}
+
 export function useCompleteOrderMutation() {
   const qc = useQueryClient();
   return useMutation({
@@ -410,6 +509,14 @@ export function useHoldOrderMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: postHoldOrder,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["restaurant", "holdOrders"] }),
+  });
+}
+
+export function useUpdateHoldOrderMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: putUpdateHoldOrder,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["restaurant", "holdOrders"] }),
   });
 }

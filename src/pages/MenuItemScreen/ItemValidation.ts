@@ -6,6 +6,7 @@ export const addItemSchema = Yup.object({
   serviceType:   Yup.string().oneOf(['product', 'service']).required(),
   inventoryType: Yup.string().oneOf(['sellable', 'raw']).required(),
 
+  itemId:   Yup.string().trim().required('Item ID is required'),
   name:     Yup.string().trim().required('Item name is required'),
   category: Yup.string().required('Category is required'),
 

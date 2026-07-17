@@ -61,7 +61,7 @@ const RestaurantDatewiseReport = ({
   const summary = pages?.pages[0];
   const totalAmount = summary?.totalAmount ?? 0;
   const totalItems = summary?.totalItems ?? 0;
-  const totalOrders = rows.reduce((acc, r) => acc + Number(r.total_orders), 0);
+  const totalOrders = summary?.totalOrders ?? 0;
 
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
   const sentinelRef = useRef<HTMLTableRowElement | null>(null);

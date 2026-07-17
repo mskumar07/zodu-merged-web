@@ -66,6 +66,7 @@ import imgMultiLocation from "../../assets/modules/multi-location.png";
 import imgDigitalPayments from "../../assets/modules/digital-payments.png";
 import imgTaskManagement from "../../assets/modules/task-management.png";
 import imgBarcodeStock from "../../assets/modules/barcode-stock.png";
+import imgPrint from "../../assets/modules/print.png";
 import imgMobileApp from "../../assets/modules/mobile-app.png";
 import getAppImg from "../../assets/GetAPP.png";
 import gPlayLogo from "../../assets/g_play_logo.png";
@@ -73,6 +74,49 @@ import showcaseBilling from "../../assets/wzd__1.png";
 import showcaseInventory from "../../assets/wzd_2.png";
 import showcaseReports from "../../assets/wzd__3.png";
 import showcaseTeam from "../../assets/wzd__4.png";
+import posShot1 from "../../assets/Feature/POS.png";
+import posShot2 from "../../assets/Feature/POS2.png";
+import posShot3 from "../../assets/Feature/POS3.png";
+// import pos4 from "../../assets/Feature/pos4.png";
+// import pos7 from "../../assets/Feature/pos7.png";
+// import pos6 from "../../assets/Feature/pos6.png";
+import invShot1 from "../../assets/Feature/Inventory.png";
+import invShot2 from "../../assets/Feature/Inventory2.png";
+import invShot3 from "../../assets/Feature/Invenotry3.png";
+import reportShot1 from "../../assets/Feature/Report.png";
+import reportShot2 from "../../assets/Feature/Report2.png";
+import reportShot3 from "../../assets/Feature/Report3.png";
+import reportShot4 from "../../assets/Feature/Report4.png";
+import barShot1 from "../../assets/Feature/bar1.png";
+import barShot2 from "../../assets/Feature/bar2.png";
+import barShot3 from "../../assets/Feature/bar3.png";
+import barShot4 from "../../assets/Feature/bar4.png";
+import mobileShot1 from "../../assets/Feature/mobile1.png";
+import mobileShot2 from "../../assets/Feature/mobile2.png";
+import mobileShot3 from "../../assets/Feature/mobile3.png";
+import employeeShot1 from "../../assets/Feature/employee1.png";
+import employeeShot2 from "../../assets/Feature/employee3.png";
+import employeeShot3 from "../../assets/Feature/employee4.png";
+import attendanceShot1 from "../../assets/Feature/attendance1.png";
+import attendanceShot2 from "../../assets/Feature/attendance2.png";
+import attendanceShot3 from "../../assets/Feature/attendance3.png";
+import gstShot1 from "../../assets/Feature/gst1.png";
+import gstShot2 from "../../assets/Feature/gst2.png";
+import gstShot3 from "../../assets/Feature/gst3.png";
+import gstShot4 from "../../assets/Feature/gst4.png";
+import cusShot1 from "../../assets/Feature/cus1.png";
+import cusShot2 from "../../assets/Feature/cus2.png";
+import cusShot3 from "../../assets/Feature/cus3.png";
+import cusShot4 from "../../assets/Feature/cus4.png";
+import locShot1 from "../../assets/Feature/loc1.png";
+import locShot2 from "../../assets/Feature/loc2.png";
+import locShot3 from "../../assets/Feature/loc3.png";
+import digiShot1 from "../../assets/Feature/digi1.png";
+import digiShot2 from "../../assets/Feature/digi2.png";
+import digiShot3 from "../../assets/Feature/digi3.png";
+import taskShot1 from "../../assets/Feature/task1.png";
+import taskShot2 from "../../assets/Feature/task2.png";
+import taskShot3 from "../../assets/Feature/task3.png";
 
 // ── Design Tokens ─────────────────────────────────────────────────────────────
 const PRIMARY       = "#d32f2f";
@@ -102,7 +146,16 @@ const theme = createTheme({
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
-const features = [
+const features: {
+  icon: string;
+  bg: string;
+  img: string;
+  color:string;
+  title: string;
+  tagline: string;
+  items: string[];
+  images?: string[];
+}[] = [
   {
     icon: imgPosBilling,
     bg: "#fff0f0",
@@ -110,153 +163,165 @@ const features = [
     title: "Billing",
     tagline: "Turn every sale into a fast, error-free transaction.",
     items: [
-      "Generate GST-compliant invoices in under 10 seconds",
-      "Accept cash, card, UPI & every digital payment mode",
+      "Create GST-compliant invoices in under 10 seconds",
+      "Accept cash, card, UPI & all digital payment modes",
       "Apply discounts, offers & loyalty points instantly",
-      "Print or send bills via WhatsApp straight from the app",
+      "Print or WhatsApp bills directly from the app",
     ],
   },
   {
     icon: imgInventory,
     bg: "#f0fdf4",
     img: showcaseInventory,
-    title: "Inventory",
-    tagline: "Always know what's in stock — and what's running low.",
+    title: "Never Run Out of Stock Again",
+    tagline: "Know exactly what you have before you need it.",
     items: [
-      "Real-time stock tracking across every product and outlet",
-      "Automatic low-stock alerts before shelves go empty",
-      "Manage batches, expiry dates & multiple units with ease",
-      "Built-in purchase orders & supplier management",
+      "Real-time stock tracking across all your products",
+      "Automatic low-stock alerts before you run out",
+      "Manage batches, expiry dates & multiple units",
+      "Purchase orders & supplier management built in",
     ],
   },
   {
     icon: imgReports,
     bg: "#fff7ed",
     img: showcaseReports,
-    title: "Reports & Analytics",
-    tagline: "Turn everyday sales data into decisions that grow your business.",
+    title: "Know Exactly Where Your Money Goes",
+    tagline: "Stop guessing. Start making data-driven decisions.",
     items: [
-      "Daily, weekly & monthly profit and loss reports",
-      "Spot your top-sellers and slow-moving stock instantly",
-      "Track expenses by category and custom date ranges",
-      "Export GST-ready reports your CA can use directly",
+      "Daily, weekly & monthly profit & loss reports",
+      "See your top-selling and slow-moving products",
+      "Track expenses by category and date range",
+      "Export GST-ready reports to share with your CA",
     ],
   },
   {
     icon: imgEmployee,
     bg: "#eff6ff",
     img: showcaseTeam,
+     color: "#0a99eb", 
+    images: [employeeShot1, employeeShot2, employeeShot3],
     title: "Employee Management",
-    tagline: "Give every teammate exactly the access they need — no more, no less.",
+    tagline: "Run your whole team without the headache.",
     items: [
-      "Role-based access control for every staff member",
-      "Track individual sales performance in real time",
-      "Run monthly payroll in minutes, not hours",
-      "Plan shifts and duty schedules with a few taps",
+      "Role-based access control",
+      "Track each staff's sales performance",
+      "Monthly payroll in minutes",
+      "Shift & duty scheduling",
     ],
   },
   {
-    icon: imgEmployee,
+    icon: imgPrint,
     bg: "#eff6ff",
     img: showcaseTeam,
-    title: "Attendance & Payroll",
-    tagline: "Save hours every week on staff admin.",
+    title: "Manage Your Team Without the Headache",
+    tagline: "Save 5+ hours every week on staff management.",
     items: [
-      "Auto-capture attendance with secure login logs",
+      "Track attendance automatically with login logs",
       "Process monthly payroll in under 10 minutes",
-      "Staff see only what's relevant to their role",
-      "Monitor live sales performance, employee by employee",
+      "Set role-based access — staff see only what they need",
+      "Monitor each employee's sales performance live",
     ],
   },
   {
     icon: imgGstTax,
     bg: "#eff6ff",
     img: showcaseTeam,
-    title: "GST & Tax",
-    tagline: "Stay fully compliant without hiring an accountant.",
+    title: "GST & Tax Reports",
+    tagline: "Stay compliant without the accountant stress.",
     items: [
-      "Automatic GST calculation on every single bill",
-      "GSTR-ready exports, filing-ready for your CA",
-      "Full HSN / SAC code support",
-      "At-a-glance tax summary dashboards",
+      "Auto GST calculation on every bill",
+      "GSTR-ready exports for your CA",
+      "HSN / SAC code support",
+      "Tax summary dashboards",
     ],
   },
   {
     icon: imgGstTax,
     bg: "#eff6ff",
     img: showcaseTeam,
+     color: "#19bbd4", 
     title: "Customer Management",
-    tagline: "Turn first-time buyers into loyal, repeat customers.",
+    tagline: "Turn one-time buyers into loyal regulars.",
     items: [
-      "Detailed customer profiles & purchase history",
-      "Loyalty points and reward-based offers",
-      "Built-in credit / khata management",
-      "Targeted offers & automated reminders",
+      "Customer profiles & purchase history",
+      "Loyalty points & reward offers",
+      "Loyalty points & reward offers",   
+      "Credit / khata management",
+      "Targeted offers & reminders"
     ],
   },
   {
     icon: imgMultiLocation,
     bg: "#eff6ff",
     img: showcaseTeam,
-    title: "Multi-Location",
-    tagline: "Run every outlet from a single, unified account.",
+    title: "Multi Location",
+    tagline: "Run every branch from a single account.",
     items: [
-      "Combined, cross-branch performance reports",
+      "Combined cross-branch reports",
       "Per-outlet inventory control",
-      "Centralised staff management across locations",
-      "Branch-wise performance comparisons",
+      "Centralised staff management",
+      "Branch-wise performance",
     ],
   },
   {
     icon: imgDigitalPayments,
     bg: "#eff6ff",
     img: showcaseTeam,
+     color: "#d70fac", 
+    images: [digiShot1, digiShot2, digiShot3],
     title: "Digital Payments",
-    tagline: "Accept every payment mode — and reconcile automatically.",
+    tagline: "Accept every payment mode, auto-reconciled.",
     items: [
-      "UPI, card & digital wallet support",
-      "QR-code payments right at the counter",
-      "Automatic payment reminders for dues",
-      "Fully reconciled transaction records",
+      "UPI, card & wallet support",
+      "QR-code payments at the counter",
+      "Automatic payment reminders",
+      "Reconciled transaction records",
     ],
   },
   {
     icon: imgTaskManagement,
     bg: "#eff6ff",
     img: showcaseTeam,
+     color: "#03e13b", 
+    images: [taskShot1, taskShot2, taskShot3],
     title: "Task Management",
-    tagline: "Assign the work. Track it through to done.",
+    tagline: "Assign work and track it to completion.",
     items: [
-      "Assign tasks to any staff member in seconds",
-      "Track progress on every task in real time",
-      "Due-date reminders keep work on schedule",
-      "Daily checklists for consistent execution",
+      "Assign tasks to any staff member",
+      "Track progress in real time",
+      "Due-date reminders & alerts",
+      "Daily task checklists",
     ],
   },
   {
     icon: imgBarcodeStock,
     bg: "#eff6ff",
     img: showcaseTeam,
+     color: "#19bbd4", 
+    images: [barShot1, barShot2, barShot3, barShot4],
     title: "Barcode & Stock",
-    tagline: "Scan-to-bill speed, right at the counter.",
+    tagline: "Scan-to-bill speed at the counter.",
     items: [
-      "Fast barcode-scan billing",
-      "Automatic stock deduction on every sale",
-      "Print labels and barcodes on demand",
-      "Batch and expiry tracking built in",
+      "Barcode scan billing",
+      "Automatic stock deduction",
+      "Label & barcode printing",
+      "Batch & expiry tracking",
     ],
   },
   {
     icon: imgMobileApp,
     bg: "#eff6ff",
     img: showcaseTeam,
+     color: "#4b06ba", 
+    images: [mobileShot1, mobileShot2, mobileShot3],
     title: "Mobile App & Alerts",
-    tagline: "Your entire business, right in your pocket.",
+    tagline: "Run your business right from your pocket.",
     items: [
-      "Native apps for iOS, Android & tablet",
-      "Real-time sales alerts wherever you are",
-      "Remote dashboard access from anywhere",
-      "Smart push notifications for what matters",
+      "iOS, Android & tablet apps",
+      "Real-time sales alerts",
+      "Remote dashboard access",
+      "Smart push notifications",
     ],
   },
 ];
@@ -480,7 +545,7 @@ const faqs = [
 ];
 
 // ── Shared spacing tokens ──────────────────────────────────────────────────────
-const SX = { xs: 3, md: 6 };          // section horizontal padding
+const SX = { xs: 3, md: 10 };          // section horizontal padding
 const SPY = { xs: 6, md: 4 };         // section vertical padding
 const HMB = { xs: 4, md: 6 };         // section heading bottom margin
 const POPPINS = "'Poppins', sans-serif";
@@ -990,7 +1055,7 @@ const ZoduLandingPage: React.FC = () => {
 
         {/* ── FEATURE SHOWCASE (alternating rows) ──────────────────────────── */}
         <Box sx={{ bgcolor: "#fff", py: { xs: 5, md: 7 }, px: SX }}>
-          <Container maxWidth="xl" disableGutters>
+          <Container maxWidth="lg" disableGutters>
             <Box textAlign="center" mb={HMB}>
               <Typography sx={{ color: PRIMARY, fontWeight: 700, fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", mb: 1 }}>
                 WHAT ZODU DOES FOR YOU
@@ -1133,9 +1198,11 @@ const ZoduLandingPage: React.FC = () => {
   <Typography
   sx={{
     width: "100%",
+      minHeight: 90,
       pl: flip ? 0 : "110px",
       pr: flip ? "110px" : 0,
-      mb:1,
+      // display: "flex",
+      alignItems: "center",
       fontWeight: 900,
       fontSize: { xs: "1.5rem", md: "2rem" },
       lineHeight: 1.2,
@@ -1144,7 +1211,6 @@ const ZoduLandingPage: React.FC = () => {
       display: "-webkit-box",
       WebkitLineClamp: 2,
       WebkitBoxOrient: "vertical",
-      WebkitBoxAlign: "center",
       overflow: "hidden",
   }}
 >
@@ -1153,9 +1219,8 @@ const ZoduLandingPage: React.FC = () => {
 
  <Typography
   sx={{
-    mt: -1,
-    pl: flip ? 0 : "110px",
-    pr: flip ? "110px" : 0,
+    mt: 1,
+    // mb: 3,
     color: "#0a0000",
     fontSize: "1rem",
     lineHeight: 1.7,
@@ -1177,7 +1242,7 @@ const ZoduLandingPage: React.FC = () => {
                       alignItems: "center",
                       gap: { xs: 2.5, md: 3.5 },
                       px: { xs: 2, md: 3 },
-                      // py: { xs: 3, md: 2.5 },
+                      py: { xs: 3, md: 2.5 },
                     }}>
                     {/* TEXT */}
                       <Box sx={{ flex: { md: "0 0 36%" }, width: "100%" }}>
@@ -1233,40 +1298,118 @@ const ZoduLandingPage: React.FC = () => {
                       </Button>
                     </Box>
 
-                    {/* VISUAL */}
+              {/* RIGHT: product image — full width on mobile (below content), 57% on desktop */}
+              <Box
+                sx={{
+                  position: "relative",
+                  width: { xs: "100%", md: "52%" },
+                  p: { xs: 2, md: 0.6 },
+                  borderRadius: "20px",
+                  background: alpha(accent, 0.08),
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  minHeight: { xs: 210, md: "100%" },
+                }}
+              >
+                {f.images ? (
+                  <Box
+                    sx={{
+                      position: "relative",
+                      width: "100%",
+                      maxWidth: 360,
+                      aspectRatio: { xs: "16 / 12", md: "16 / 10" },
+                      "&:hover .pos-front": { transform: "translateY(-8px)" },
+                    }}
+                  >
                     <Box
-  sx={{
-    p: 3,
-    borderRadius: "20px",
-    bgcolor: alpha(accent, .05),
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-  }}
->
-  <Box
-    component="img"
-    src={f.img}
-    alt={f.title}
-    sx={{
-      width: "100%",
-      maxWidth: 420,
-      transition: ".4s",
-      "&:hover": {
-        transform: "scale(1.05)",
-      },
-    }}
-  />
+                      component="img"
+                      src={f.images[0]}
+                      alt={`${f.title} dashboard`}
+                      sx={{
+                        position: "absolute",
+                        top: f.images[3] ? "8%" : "2%",
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        width: { xs: "80%", md: f.images[3] ? "90%" : "90%" },
+                        // borderRadius: "12px",
+                        // border: "1px solid rgba(15,23,42,0.06)",
+                        // boxShadow: "0 12px 32px rgba(15,23,42,0.12)",
+                        // bgcolor: "#fff",
+                      }}
+                    />
+                    <Box
+                      component="img"
+                      src={f.images[1]}
+                      alt={`${f.title} detail`}
+                      className="pos-front"
+                      sx={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        bottom:20,
+                        width: { xs: "42%", md: "28%" },
+                        borderRadius: "8px",
+                        transition: "transform .4s ease",
+                        zIndex: 3,
+                      }}
+                    />
+                    <Box
+                      component="img"
+                      src={f.images[2]}
+                      alt={`${f.title} detail`}
+                      className="pos-front"
+                      sx={{
+                        position: "absolute",
+                        bottom: 0,
+                        right: 30,
+                        width: { xs: "40%", md: "40%" },
+                        borderRadius: "8px",
+                        transition: "transform .4s ease",
+                        zIndex: 3,
+                      }}
+                    />
+                    {f.images[3] && (
+                      <Box
+                        component="img"
+                        src={f.images[3]}
+                        alt={`${f.title} detail`}
+                        className="pos-front"
+                        sx={{
+                          position: "absolute",
+                          top: 0,
+                          right: 0,
+                          width: { xs: "30%", md: "22%" },
+                          borderRadius: "8px",
+                          transition: "transform .4s ease",
+                          zIndex: 4,
+                        }}
+                      />
+                    )}
+                  </Box>
+                ) : (
+                  <Box
+                    component="img"
+                    src={f.img}
+                    alt={f.title}
+                    sx={{
+                      width: "100%",
+                      maxWidth: 320,
+                      borderRadius: "12px",
+                      transition: ".4s",
+                      "&:hover": { transform: "scale(1.02)" },
+                    }}
+                  />
+                )}
+              </Box>
+            </Box>
+          </Grid>
+        );
+      })}
+    </Grid>
+  </Container>
 </Box>
-                    </Box>
-                  
-                   </Box>
-      </Grid>
-                );
-              })}
-            </Grid>
-          </Container>
-        </Box>
+
 
         {/* ── MODULE SUITE ─────────────────────────────────────────────────── */}
         {/* <Box sx={{ bgcolor: LIGHT, py: SPY, px: SX, position: "relative", overflow: "hidden" }}>

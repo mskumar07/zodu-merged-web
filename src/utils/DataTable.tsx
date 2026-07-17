@@ -158,7 +158,6 @@ function DataTable<T>({
         display: "flex",
         flexDirection: "column",
         minHeight: 0,
-        height: tableHeight,
         maxHeight: tableHeight,
         overflow: "hidden",
       }}

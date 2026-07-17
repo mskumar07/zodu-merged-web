@@ -111,6 +111,12 @@ function countSelected(perms: Record<string, PermState>) {
   return { selected, total };
 }
 
+function visibleCols(moduleName: string): PermCol[] {
+  return moduleName.toLowerCase().split(" ")[0] === "dashboard"
+    ? PERM_COLS.filter((c) => c.key === "can_read")
+    : PERM_COLS;
+}
+
 function moduleCount(module: ModuleItem, perms: Record<string, PermState>) {
   const ids: string[] = [];
   const walk = (m: ModuleItem) => { ids.push(m.module_id); m.sub_modules?.forEach(walk); };
@@ -130,7 +136,7 @@ function fmtDate(iso?: string) {
   });
 }
 
-// ─── Permission card: bordered box + icon + label + green dot ─
+// ─── Permission card: bordered box + icon + label + checkbox ─
 function PermItem({
   label, icon, checked, onClick, readOnly,
 }: {
@@ -139,18 +145,13 @@ function PermItem({
 }) {
   return (
     <Box
-      onClick={readOnly ? undefined : onClick}
       sx={{
-        position: "relative",
         display: "inline-flex", alignItems: "center", gap: 1,
-        pl: 1.2, pr: 5, py: 0.75,
+        pl: 1.2, pr: 1.2, py: 0.75,
         border: "1.5px solid #E5E7EB",
         borderRadius: 1.5,
         bgcolor: "#fff",
-        cursor: readOnly ? "default" : "pointer",
         userSelect: "none",
-        transition: "border-color 0.15s",
-        "&:hover": readOnly ? {} : { borderColor: "#E11D48" },
       }}
     >
       {/* Red rounded-square icon */}
@@ -165,19 +166,27 @@ function PermItem({
       <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", whiteSpace: "nowrap" }}>
         {label}
       </Typography>
-      {checked && (
-        <Box sx={{
-          position: "relative", top: 1, right: -30,
-          width: 13, height: 13, bgcolor: "#16A34A", borderRadius: 0.75,
+      {/* Checkbox */}
+      <Box
+        onClick={readOnly ? undefined : onClick}
+        sx={{
+          width: 11, height: 11, border: "1.5px solid",
+          borderColor:  "#D1D5DB",
+          borderRadius: 0.4,
+          bgcolor: checked ? "#039c10" : "#fff",
           display: "flex", alignItems: "center", justifyContent: "center",
-          border: "2px solid #fff", zIndex: 1,
-        }}>
+          flexShrink: 0, cursor: readOnly ? "default" : "pointer",
+          transition: "border-color 0.15s, background-color 0.15s",
+          "&:hover": readOnly ? {} : { borderColor: "#E11D48" },
+        }}
+      >
+        {checked && (
           <svg width="7" height="7" viewBox="0 0 10 10" fill="none">
             <polyline points="1.5,5 4,7.5 8.5,2.5" stroke="white" strokeWidth="2"
               strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-        </Box>
-      )}
+        )}
+      </Box>
     </Box>
   );
 }
@@ -252,16 +261,30 @@ const ModuleCard = React.memo(function ModuleCard({
   return (
     <Box sx={{ bgcolor: "#fff", border: "1px solid #E5E7EB", borderRadius: 2, mb: 1.5, overflow: "hidden" }}>
 
-      {/* ── Row 1: [icon + Name] ←space-between→ [x/x selected | ☑ Select All | chevron] ── */}
+      {/* ── Single row: [icon + Name] [permission cards] ←space-between→ [x/x selected | ☑ Select All | chevron] ── */}
       <Box sx={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        px: 2.5, pt: 1.4, pb: 1, gap: 2,
+        px: 2.5, py: 1.4, gap: 2,
+        borderBottom: hasSubs && expanded ? "1px solid #F0F0F0" : "none",
       }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, width: 170, flexShrink: 0 }}>
           <ModuleBadge name={module.module_name} size={30} />
           <Typography sx={{ fontWeight: 700, fontSize: 14, color: "#1E293B" }}>
             {module.module_name}
           </Typography>
+        </Box>
+
+        <Box sx={{ flex: 1, display: "flex", alignItems: "center", gap: 1.5 }}>
+          {visibleCols(module.module_name).map((c) => (
+            <PermItem
+              key={c.key}
+              label={c.label}
+              icon={c.icon}
+              checked={perm[c.key]}
+              onClick={() => onSetPerm(module.module_id, c.key, !perm[c.key])}
+              readOnly={readOnly}
+            />
+          ))}
         </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexShrink: 0 }}>
@@ -285,24 +308,6 @@ const ModuleCard = React.memo(function ModuleCard({
             <Box sx={{ width: 26 }} />
           )}
         </Box>
-      </Box>
-
-      {/* ── Row 2: permission cards ── */}
-      <Box sx={{
-        display: "flex", alignItems: "center", gap: 1.5,
-        px: 2.5, pb: 1.4,
-        borderBottom: hasSubs && expanded ? "1px solid #F0F0F0" : "none",
-      }}>
-        {PERM_COLS.map((c) => (
-          <PermItem
-            key={c.key}
-            label={c.label}
-            icon={c.icon}
-            checked={perm[c.key]}
-            onClick={() => onSetPerm(module.module_id, c.key, !perm[c.key])}
-            readOnly={readOnly}
-          />
-        ))}
       </Box>
 
       {/* ── Sub-modules ── */}
@@ -346,7 +351,7 @@ const ModuleCard = React.memo(function ModuleCard({
 
                     {/* permission cards */}
                     <Box sx={{ flex: 1, display: "flex", alignItems: "center", gap: 1.5 }}>
-                      {PERM_COLS.map((c) => (
+                      {visibleCols(sub.module_name).map((c) => (
                         <PermItem
                           key={c.key}
                           label={c.label}

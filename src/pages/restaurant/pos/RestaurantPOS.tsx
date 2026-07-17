@@ -12,9 +12,8 @@ import PauseCircleOutlineIcon from "@mui/icons-material/PauseCircleOutline";
 import RestoreIcon from "@mui/icons-material/Restore";
 import type { HoldOrder, RunningOrder, RunningOrderOrderedItem } from "./api/restaurantPosApi";
 import TableBarIcon from "@mui/icons-material/TableBar";
-import DeliveryDiningIcon from "@mui/icons-material/DeliveryDining";
-import ShoppingBagIcon from "@mui/icons-material/ShoppingBag";
-import { toast } from "react-toastify";
+import SuccessToast from "@components/Common/SuccessToast";
+import zoduLogo from "@assets/zlogo.png";
 
 import { useAppSelector } from "../../../store/store";
 import { BranchId, ZoduId } from "@store/slices/userSlice";
@@ -24,8 +23,10 @@ import {
   useTableOrdersQuery,
   useHoldOrdersQuery,
   useAddOrderMutation,
+  useUpdateOrderMutation,
   useCompleteOrderMutation,
   useHoldOrderMutation,
+  useUpdateHoldOrderMutation,
   useDeleteHoldOrderMutation,
   calcSubtotal,
   calcTax,
@@ -64,16 +65,6 @@ const ADD_ORDER_TYPE_MAP: Record<string, string> = {
   PickUp:   "Takeaway",
 };
 
-const ORDER_TYPES: Array<{
-  key: "DineIn" | "Delivery" | "PickUp";
-  label: string;
-  icon: React.ReactNode;
-}> = [
-  { key: "DineIn",   label: "Dine In",  icon: <TableBarIcon sx={{ fontSize: 15 }} /> },
-  { key: "Delivery", label: "Delivery", icon: <DeliveryDiningIcon sx={{ fontSize: 15 }} /> },
-  { key: "PickUp",   label: "Pick Up",  icon: <ShoppingBagIcon sx={{ fontSize: 15 }} /> },
-];
-
 function buildInitialOrder(): RestaurantOrder {
   return {
     orderId:       `ORD-${Date.now()}`,
@@ -102,21 +93,30 @@ const RestaurantPOS: React.FC = () => {
   const zoduId   = useAppSelector(ZoduId)   ?? "";
 
   // ── API ─────────────────────────────────────────────────────────────────
-  const { data: menuData,        isLoading: menuLoading } = useRestaurantMenuQuery(branchId, zoduId);
+  const [searchQuery,       setSearchQuery      ] = useState("");
+  const [debouncedSearch,   setDebouncedSearch  ] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 350);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  const { data: menuData,        isLoading: menuLoading } = useRestaurantMenuQuery(branchId, zoduId, debouncedSearch);
   const { data: tableOrdersData                         } = useTableOrdersQuery(branchId, zoduId);
   const { data: holdOrdersData                          } = useHoldOrdersQuery(branchId, zoduId);
 
   const { mutateAsync: addOrder,      isPending: addingOrder      } = useAddOrderMutation();
+  const { mutateAsync: updateOrder,   isPending: updatingOrder    } = useUpdateOrderMutation();
   const { mutateAsync: completeOrder, isPending: completingOrder  } = useCompleteOrderMutation();
   const { mutateAsync: holdOrder,     isPending: holdingOrder     } = useHoldOrderMutation();
+  const { mutateAsync: updateHoldOrder                            } = useUpdateHoldOrderMutation();
   const { mutateAsync: deleteHoldOrder                            } = useDeleteHoldOrderMutation();
 
-  const isBusy = addingOrder || completingOrder || holdingOrder;
+  const isBusy = addingOrder || updatingOrder || completingOrder || holdingOrder;
 
   // ── State ────────────────────────────────────────────────────────────────
   const [order,        setOrder       ] = useState<RestaurantOrder>(buildInitialOrder());
   const [cartItems,    setCartItems   ] = useState<RestaurantCartItem[]>([]);
-  const [searchQuery,  setSearchQuery ] = useState("");
   const [filterMode,   setFilterMode  ] = useState<"All" | "Favourites">("All");
   const [activeCategory, setActiveCategory] = useState("All");
 
@@ -126,7 +126,15 @@ const RestaurantPOS: React.FC = () => {
   const [showCustomer, setShowCustomer] = useState(false);
   const [runningOrderSummary, setRunningOrderSummary] = useState<RunningOrderOrderedItem[]>([]);
   const [runningOrderTotal,   setRunningOrderTotal  ] = useState<number>(0);
+  const [isEditingSummary,    setIsEditingSummary   ] = useState(false);
+  // Snapshot of runningOrderSummary taken when edit mode starts, restored if the edit is cancelled.
+  const [summaryBeforeEdit,   setSummaryBeforeEdit  ] = useState<RunningOrderOrderedItem[]>([]);
   const [variantItem,  setVariantItem ] = useState<RestaurantMenuItem | null>(null);
+  const [successMsg,   setSuccessMsg  ] = useState("");
+  const [errorMsg,     setErrorMsg    ] = useState("");
+  // hold_id of the hold order currently loaded into the cart (restored but not yet sent/paid) —
+  // only deleted from the server once the order is actually sent to KDS, paid, or re-held
+  const [activeHoldId, setActiveHoldId] = useState<string | null>(null);
 
 
   // ── Auto-scroll refs ─────────────────────────────────────────────────────
@@ -146,22 +154,8 @@ const RestaurantPOS: React.FC = () => {
         .filter((c) => c.items.length > 0);
     }
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      cats = cats
-        .map((c) => ({
-          ...c,
-          items: c.items.filter(
-            (i) =>
-              i.menu_name.toLowerCase().includes(q) ||
-              i.category.toLowerCase().includes(q)
-          ),
-        }))
-        .filter((c) => c.items.length > 0);
-    }
-
     return cats;
-  }, [categories, searchQuery, filterMode]);
+  }, [categories, filterMode]);
 
   const runningOrders: RunningOrder[] = useMemo(
     () => tableOrdersData ?? [],
@@ -289,29 +283,92 @@ const RestaurantPOS: React.FC = () => {
     []
   );
 
+  // Total qty in cart for a given menu item (all variants combined).
+  // While editing a running KOT, reads/writes go to runningOrderSummary instead of cartItems.
+  const getCartQty = useCallback(
+    (menuId: string) =>
+      isEditingSummary
+        ? runningOrderSummary
+            .filter((it) => it.item_id === menuId)
+            .reduce((s, it) => s + it.qty, 0)
+        : cartItems
+            .filter((c) => c.product.menu_id === menuId)
+            .reduce((s, c) => s + c.quantity, 0),
+    [cartItems, isEditingSummary, runningOrderSummary]
+  );
+
+  // Adds a menu item into the running KOT summary (edit mode), or bumps its qty if already present.
+  const addToSummary = useCallback((product: RestaurantMenuItem) => {
+    setRunningOrderSummary((prev) => {
+      const found = prev.find((it) => it.item_id === product.menu_id);
+      if (found) {
+        return prev.map((it) => (it === found ? { ...it, qty: it.qty + 1 } : it));
+      }
+      return [
+        ...prev,
+        {
+          item_id:   product.menu_id,
+          item_name: product.menu_name,
+          item_unit: product.menu_unit,
+          qty:       1,
+          price:     getItemPrice(product),
+          gst_tax:   product.gst_tax,
+          tax_include_or_exclude: product.tax_include_or_exclude ?? false,
+        },
+      ];
+    });
+  }, []);
+
+  const decrementSummaryByProduct = useCallback((product: RestaurantMenuItem) => {
+    setRunningOrderSummary((prev) => {
+      const found = prev.find((it) => it.item_id === product.menu_id);
+      if (!found) return prev;
+      const updated = prev.map((it) =>
+        it === found ? { ...it, qty: it.qty - 1 } : it
+      );
+      return updated.filter((it) => it.qty > 0);
+    });
+  }, []);
+
+  const setSummaryQtyByProduct = useCallback((product: RestaurantMenuItem, newQty: number) => {
+    setRunningOrderSummary((prev) => {
+      const found = prev.find((it) => it.item_id === product.menu_id);
+      if (!found) return prev;
+      return prev.map((it) => (it === found ? { ...it, qty: Math.max(1, newQty) } : it));
+    });
+  }, []);
+
+  // Returns true (and shows a toast) when the requested qty would exceed available stock.
+  // Items without a stock_qty are not stock-tracked and are never blocked.
+  const isOutOfStock = useCallback(
+    (product: RestaurantMenuItem, requestedQty: number) => {
+      if (product.stock_qty == null) return false;
+      if (requestedQty > product.stock_qty) {
+        setErrorMsg(`${product.menu_name} is out of stock`);
+        return true;
+      }
+      return false;
+    },
+    []
+  );
+
   const handleProductClick = useCallback(
     (product: RestaurantMenuItem) => {
       if (product.variants && product.variants.length > 0) {
         setVariantItem(product);
         return;
       }
-      addToCart(product);
+      if (isOutOfStock(product, getCartQty(product.menu_id) + 1)) return;
+      if (isEditingSummary) addToSummary(product);
+      else addToCart(product);
     },
-    [addToCart]
-  );
-
-  // Total qty in cart for a given menu item (all variants combined)
-  const getCartQty = useCallback(
-    (menuId: string) =>
-      cartItems
-        .filter((c) => c.product.menu_id === menuId)
-        .reduce((s, c) => s + c.quantity, 0),
-    [cartItems]
+    [addToCart, addToSummary, isEditingSummary, isOutOfStock, getCartQty]
   );
 
   const incrementCart = useCallback((ci: RestaurantCartItem) => {
+    if (isOutOfStock(ci.product, ci.quantity + 1)) return;
     setCartItems((prev) => prev.map((c) => (c === ci ? { ...c, quantity: c.quantity + 1 } : c)));
-  }, []);
+  }, [isOutOfStock]);
 
   const decrementCart = useCallback((ci: RestaurantCartItem) => {
     setCartItems((prev) => {
@@ -328,27 +385,32 @@ const RestaurantPOS: React.FC = () => {
 
   const incrementByProduct = useCallback(
     (product: RestaurantMenuItem) => {
+      if (isOutOfStock(product, getCartQty(product.menu_id) + 1)) return;
+      if (isEditingSummary) { addToSummary(product); return; }
       const found = cartItems.find(
         (c) => c.product.menu_id === product.menu_id && !(c.product as any).variant_id
       );
       if (found) incrementCart(found);
       else addToCart(product);
     },
-    [cartItems, incrementCart, addToCart]
+    [cartItems, incrementCart, addToCart, addToSummary, isEditingSummary, isOutOfStock, getCartQty]
   );
 
   const decrementByProduct = useCallback(
     (product: RestaurantMenuItem) => {
+      if (isEditingSummary) { decrementSummaryByProduct(product); return; }
       const found = cartItems.find(
         (c) => c.product.menu_id === product.menu_id && !(c.product as any).variant_id
       );
       if (found) decrementCart(found);
     },
-    [cartItems, decrementCart]
+    [cartItems, decrementCart, decrementSummaryByProduct, isEditingSummary]
   );
 
   const setQtyByProduct = useCallback(
     (product: RestaurantMenuItem, newQty: number) => {
+      if (isOutOfStock(product, newQty)) return;
+      if (isEditingSummary) { setSummaryQtyByProduct(product, newQty); return; }
       setCartItems((prev) => {
         const found = prev.find(
           (c) => c.product.menu_id === product.menu_id && !("variant_id" in c.product)
@@ -360,7 +422,7 @@ const RestaurantPOS: React.FC = () => {
         return updated;
       });
     },
-    []
+    [isOutOfStock, isEditingSummary, setSummaryQtyByProduct]
   );
 
   const resetOrder = useCallback(() => {
@@ -368,7 +430,38 @@ const RestaurantPOS: React.FC = () => {
     setRunningOrderSummary([]);
     setRunningOrderTotal(0);
     setOrder(buildInitialOrder());
+    setActiveHoldId(null);
+    setIsEditingSummary(false);
   }, []);
+
+  // ── Edit-mode handlers for already-sent KOT items (runningOrderSummary) ────
+  const incrementSummaryItem = useCallback((idx: number) => {
+    setRunningOrderSummary((prev) =>
+      prev.map((it, i) => (i === idx ? { ...it, qty: it.qty + 1 } : it))
+    );
+  }, []);
+
+  const decrementSummaryItem = useCallback((idx: number) => {
+    setRunningOrderSummary((prev) =>
+      prev.map((it, i) => (i === idx ? { ...it, qty: Math.max(1, it.qty - 1) } : it))
+    );
+  }, []);
+
+  const removeSummaryItem = useCallback((idx: number) => {
+    setRunningOrderSummary((prev) => prev.filter((_, i) => i !== idx));
+  }, []);
+
+  const handleEditSummary = useCallback(() => {
+    setSummaryBeforeEdit(runningOrderSummary);
+    setIsEditingSummary(true);
+  }, [runningOrderSummary]);
+
+  // Discards any qty/delete/add changes made during this edit session and
+  // restores the KOT items to how they were when Edit was clicked.
+  const handleCancelEditSummary = useCallback(() => {
+    setRunningOrderSummary(summaryBeforeEdit);
+    setIsEditingSummary(false);
+  }, [summaryBeforeEdit]);
 
   // ── Build items payload ───────────────────────────────────────────────────
   const buildPayloadItems = (items: RestaurantCartItem[]) =>
@@ -432,15 +525,49 @@ const RestaurantPOS: React.FC = () => {
     return { subtotal, taxAmount, discount, grandTotal };
   };
 
+  const handleSendEditedKDS = async () => {
+    if (!order.orderId || !runningOrderSummary.length) { setErrorMsg("No items to update"); return; }
+    const discType = order.discountType === "Amount" ? "FLAT" : "PERCENT";
+    const t = calcSummaryTotals(runningOrderSummary, discType, order.discountValue);
+    try {
+      await updateOrder({
+        zodu_id:         zoduId,
+        branch_id:       branchId,
+        api_order_id:    order.orderId,
+        table_no:        order.tableNumber,
+        kot_no:          order.kotNo ?? "KOT-1",
+        no_of_items:     runningOrderSummary.length,
+        order_type:      ADD_ORDER_TYPE_MAP[order.orderType],
+        payment_type:    order.paymentMethod,
+        customer_name:   order.customerName || null,
+        customer_phone:  order.customerPhone || null,
+        subtotal:        t.subtotal,
+        tax_amount:      t.taxAmount,
+        total_amt:       t.grandTotal,
+        discount_type:   discType,
+        discount_value:  order.discountValue,
+        discount_amount: t.discount,
+        final_payment:   false,
+        order_date:      new Date().toISOString().split("T")[0],
+        order_time:      new Date().toLocaleTimeString("en-GB"),
+        items:           buildSummaryPayloadItems(runningOrderSummary),
+      });
+      setSuccessMsg("Order updated");
+      setIsEditingSummary(false);
+    } catch {
+      setErrorMsg("Failed to update order");
+    }
+  };
+
   // ── Actions ───────────────────────────────────────────────────────────────
   const handleSendToKDS = async () => {
-    if (!cartItems.length)        
-     { toast.error("Add items first"); return; }
+    if (!cartItems.length)
+     { setErrorMsg("Add items first"); return; }
     if (order.orderType === "DineIn" && !order.tableNumber) { setShowTable(true); return; }
     console.log("Sending to KDS with payload:", order);
 
     try {
-      const res = await addOrder({
+      await addOrder({
         zodu_id:         zoduId,
         branch_id:       branchId,
         table_no:        order.tableNumber ?? null,
@@ -461,22 +588,20 @@ const RestaurantPOS: React.FC = () => {
         customer_name:   order.customerName,
         customer_phone:  order.customerPhone,
       });
-      setOrder((p) => ({
-        ...p,
-        orderId: res?.Data?.api_order_id ?? p.orderId,
-        kotNo:   res?.Data?.kot_no        ?? p.kotNo,
-      }));
-      toast.success("Order sent to KDS!");
-      setCartItems([]);
+      setSuccessMsg("Order sent to KDS!");
+      if (activeHoldId) {
+        try { await deleteHoldOrder(activeHoldId); } catch { /* ignore */ }
+      }
+      resetOrder();
     } catch {
-      toast.error("Failed to send to KDS");
+      setErrorMsg("Failed to send to KDS");
     }
   };
 
   const handlePay = async (payMethod: "Card" | "QR" | "Cash") => {
     try {
       if (order.orderType === "DineIn") {
-        if (!order.tableNumber) { toast.error("Select a table first"); return; }
+        if (!order.tableNumber) { setErrorMsg("Select a table first"); return; }
         const discType = order.discountType === "Amount" ? "FLAT" : "PERCENT";
         const t = cartItems.length > 0
           ? totals
@@ -521,43 +646,75 @@ const RestaurantPOS: React.FC = () => {
           customer_phone:  order.customerPhone,
         });
       }
-      toast.success("Payment successful!");
+      if (activeHoldId) {
+        try { await deleteHoldOrder(activeHoldId); } catch { /* ignore */ }
+      }
+      setSuccessMsg("Payment successful!");
       resetOrder();
     } catch {
-      toast.error("Payment failed. Please try again.");
+      setErrorMsg("Payment failed. Please try again.");
     }
   };
 
   const handleHold = async () => {
-    if (!cartItems.length) { toast.error("No items to hold"); return; }
+    if (!cartItems.length) { setErrorMsg("No items to hold"); return; }
+    // Holding abandons any restored running-order view immediately, before the API call resolves.
+    setRunningOrderSummary([]);
+    setRunningOrderTotal(0);
+    setIsEditingSummary(false);
+    const items = cartItems.map((ci) => ({
+      item_id:      ci.product.menu_id,
+      item_name:    ci.product.menu_name,
+      item_unit:    ci.product.menu_unit || null,
+      qty:          ci.quantity,
+      price:        getItemPrice(ci.product),
+      variant_name: ci.product.variant_name ?? null,
+      variant_id:   ci.product.variant_id ?? null,
+    }));
     try {
-      await holdOrder({
-        zodu_id:       zoduId,
-        branch_id:     branchId,
-        orderType:     HOLD_ORDER_TYPE_MAP[order.orderType],
-        table_no:      order.tableNumber != null ? String(order.tableNumber) : null,
-        customerName:  order.customerName || null,
-        customerPhone: order.customerPhone || null,
-        items: cartItems.map((ci) => ({
-          item_id:      ci.product.menu_id,
-          item_name:    ci.product.menu_name,
-          item_unit:    ci.product.menu_unit || null,
-          qty:          ci.quantity,
-          price:        getItemPrice(ci.product),
-          variant_name: ci.product.variant_name ?? null,
-          variant_id:   ci.product.variant_id ?? null,
-        })),
-      });
-      toast.success("Order placed on hold");
+      if (activeHoldId) {
+        // Already-held order restored into the cart — update it in place instead of
+        // creating a new hold record + deleting the old one.
+        // Items that came from the original hold carry their row `id` so the backend
+        // updates them in place; newly added items are sent without `id` so they're inserted.
+        const updateItems = cartItems.map((ci, idx) => ({
+          ...items[idx],
+          ...(ci.product.hold_item_id != null ? { id: ci.product.hold_item_id } : {}),
+        }));
+        await updateHoldOrder({
+          hold_id:       activeHoldId,
+          zodu_id:       zoduId,
+          branch_id:     branchId,
+          orderType:     HOLD_ORDER_TYPE_MAP[order.orderType],
+          table_no:      order.tableNumber != null ? String(order.tableNumber) : null,
+          customerName:  order.customerName || null,
+          customerPhone: order.customerPhone || null,
+          items: updateItems,
+        });
+      } else {
+        await holdOrder({
+          zodu_id:       zoduId,
+          branch_id:     branchId,
+          orderType:     HOLD_ORDER_TYPE_MAP[order.orderType],
+          table_no:      order.tableNumber != null ? String(order.tableNumber) : null,
+          customerName:  order.customerName || null,
+          customerPhone: order.customerPhone || null,
+          items,
+        });
+      }
+      setSuccessMsg("Order placed on hold");
       resetOrder();
     } catch {
-      toast.error("Failed to hold order");
+      setErrorMsg("Failed to hold order");
     }
   };
 
   const handleRestoreRunningOrder = (ro: RunningOrder) => {
     const tableNum    = parseInt(ro.table_no, 10) || null;
     const latestKotNo = ro.kot_items[ro.kot_items.length - 1]?.kot_no ?? null;
+
+    // Switching to a different running order always exits edit mode for the previous one.
+    setIsEditingSummary(false);
 
     // Build a flat menu lookup so we can enrich ordered_items with tax data
     const menuItemMap = new Map(
@@ -586,16 +743,15 @@ const RestaurantPOS: React.FC = () => {
       discountType:  "Percent",
       discountValue: 0,
     }));
-    toast.info(`Table ${ro.table_no} selected — add items for next KOT`);
   };
 
   const handleDeleteHold = async (holdId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
       await deleteHoldOrder(holdId);
-      toast.success("Hold order removed");
+      setSuccessMsg("Hold order removed");
     } catch {
-      toast.error("Failed to remove hold order");
+      setErrorMsg("Failed to remove hold order");
     }
   };
 
@@ -620,10 +776,14 @@ const RestaurantPOS: React.FC = () => {
         menu_type:              "",
         variant_id:             i.variant_id ?? undefined,
         variant_name:           i.variant_name ?? undefined,
+        hold_item_id:           i.id,
       } as RestaurantMenuItem,
       quantity: i.qty,
     }));
     setCartItems(restoredItems);
+    setRunningOrderSummary([]);
+    setRunningOrderTotal(0);
+    setIsEditingSummary(false);
     setOrder((p) => ({
       ...p,
       tableNumber:   held.table_no ? Number(held.table_no) : null,
@@ -636,12 +796,10 @@ const RestaurantPOS: React.FC = () => {
       discountType:  "Percent",
       discountValue: 0,
     }));
-    try {
-      await deleteHoldOrder(held.hold_id);
-    } catch {
-      // restore succeeded even if delete fails — don't block the user
-    }
-    toast.info("Hold order restored");
+    // Don't delete the hold record yet — only remove it once this order is actually
+    // sent to KDS, paid, or re-held. Track it so those flows can clean it up.
+    setActiveHoldId(held.hold_id);
+    setSuccessMsg("Hold order restored");
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -673,24 +831,22 @@ const RestaurantPOS: React.FC = () => {
         }}
       >
         {/* Logo */}
-        <Typography
+        <Box
+          component="img"
+          src={zoduLogo}
+          alt="zodu"
           sx={{
-            fontWeight: 900,
-            fontSize: "1.2rem",
-            color: "#d32f2f",
-            fontStyle: "italic",
-            letterSpacing: "-0.02em",
-            whiteSpace: "nowrap",
+            height: 40,
+            width: "auto",
+            ml: 4,
           }}
-        >
-          zodu
-        </Typography>
-        <Divider orientation="vertical" flexItem sx={{ borderColor: "#e5e7eb" }} />
+        />
+        <Divider orientation="vertical" flexItem sx={{ borderColor: "#e5e7eb", ml: 10.2  }} />
 
         {/* Back + Title */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Box
-            onClick={() => navigate("/sales-history")}
+            onClick={() => navigate("/restaurant-menu")}
             sx={{
               display: "flex",
               alignItems: "center",
@@ -705,9 +861,6 @@ const RestaurantPOS: React.FC = () => {
           >
             <ArrowBackIcon sx={{ fontSize: 18 }} />
           </Box>
-          <Typography variant="body2" fontWeight={600} sx={{ whiteSpace: "nowrap", fontSize: "1rem", color: "#111" }}>
-            Restaurant POS
-          </Typography>
         </Box>
 
         <Box sx={{ flex: 1 }} />
@@ -754,6 +907,7 @@ const RestaurantPOS: React.FC = () => {
             cursor: "pointer",
             whiteSpace: "nowrap",
             transition: "all 0.15s",
+            flexShrink: 0,
             "&:hover": { border: "1.5px solid #f59e0b", color: "#d97706" },
           }}
         >
@@ -763,42 +917,10 @@ const RestaurantPOS: React.FC = () => {
           </Typography>
         </Box>
 
-        <Divider orientation="vertical" flexItem sx={{ borderColor: "#e5e7eb" }} />
-
-        {/* Order type tabs */}
-        {ORDER_TYPES.map((t) => {
-          const active = order.orderType === t.key;
-          return (
-            <Box
-              key={t.key}
-              onClick={() =>
-                setOrder((p) => ({ ...p, orderType: t.key, customerName: "", customerPhone: "" }))
-              }
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 0.5,
-                px: 1,
-                height: "100%",
-                cursor: "pointer",
-                borderBottom: active ? "2.5px solid #d32f2f" : "2.5px solid transparent",
-                color: active ? "#d32f2f" : "#6b7280",
-                transition: "all 0.15s",
-                "&:hover": { color: "#d32f2f" },
-              }}
-            >
-              {t.icon}
-              <Typography sx={{ fontSize: "0.78rem", fontWeight: active ? 700 : 500, lineHeight: 1 }}>
-                {t.label}
-              </Typography>
-            </Box>
-          );
-        })}
-
       </Box>
 
       {/* ════ Body ════ */}
-      <Box sx={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <Box sx={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
 
         {/* ── Category sidebar ── */}
         <CategoryNav
@@ -809,7 +931,7 @@ const RestaurantPOS: React.FC = () => {
         />
 
         {/* ── Center: search + product grid ── */}
-        <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0, minWidth: 0 }}>
 
           {/* Scrollable product grid */}
           <Box
@@ -901,13 +1023,7 @@ const RestaurantPOS: React.FC = () => {
                   <Box
                     sx={{
                       display: "grid",
-                      gridTemplateColumns: {
-                        xs: "repeat(auto-fill, minmax(160px, 1fr))",
-                        sm: "repeat(auto-fill, minmax(185px, 1fr))",
-                        md: "repeat(auto-fill, minmax(200px, 1fr))",
-                        lg: "repeat(auto-fill, minmax(210px, 1fr))",
-                        xl: "repeat(auto-fill, minmax(220px, 1fr))",
-                      },
+                      gridTemplateColumns: "repeat(3, 1fr)",
                       gap: 1.5,
                     }}
                   >
@@ -937,41 +1053,43 @@ const RestaurantPOS: React.FC = () => {
                 alignItems: "center",
                 gap: 1,
                 px: 2,
-                py: 0.9,
-                bgcolor: "#eff6ff",
-                borderTop: "1px solid #bfdbfe",
+                py: 1.2,
+                bgcolor: "#ffffff",
+                borderTop: "1px solid #fecaca",
                 overflowX: "auto",
-                scrollbarWidth: "none",
-                "&::-webkit-scrollbar": { display: "none" },
+                scrollbarWidth: "thin",
+                "&::-webkit-scrollbar": { height: 6 },
+                "&::-webkit-scrollbar-track": { bgcolor: "transparent" },
+                "&::-webkit-scrollbar-thumb": { bgcolor: "#fca5a5", borderRadius: 3 },
               }}
             >
-              <TableBarIcon sx={{ fontSize: 15, color: "#2563eb", flexShrink: 0 }} />
-              <Typography sx={{ fontSize: "0.72rem", fontWeight: 700, color: "#1e3a8a", whiteSpace: "nowrap", flexShrink: 0 }}>
+              <TableBarIcon sx={{ fontSize: 18, color: "#d32f2f", flexShrink: 0 }} />
+              <Typography sx={{ fontSize: "0.85rem", fontWeight: 700, color: "#991b1b", whiteSpace: "nowrap", flexShrink: 0 }}>
                 Running:
               </Typography>
               {runningOrders.map((ro) => {
                 const tableNum  = parseInt(ro.table_no, 10);
-                const latestKot = ro.kot_items[ro.kot_items.length - 1]?.kot_no;
                 const itemCount = ro.ordered_items.reduce((s, i) => s + i.qty, 0);
                 const isActive  = order.tableNumber === tableNum && order.orderId === ro.api_order_id;
                 return (
                   <Chip
                     key={ro.api_order_id}
-                    label={`T${ro.table_no}${latestKot ? ` · ${latestKot}` : ""} · ${itemCount} item${itemCount !== 1 ? "s" : ""}`}
+                    label={`T${ro.table_no} · ${itemCount} item${itemCount !== 1 ? "s" : ""}`}
                     size="small"
-                    icon={<TableBarIcon sx={{ fontSize: "12px !important" }} />}
+                    icon={<TableBarIcon sx={{ fontSize: "16px !important" }} />}
                     onClick={() => handleRestoreRunningOrder(ro)}
                     sx={{
-                      height: 26,
-                      fontSize: "0.7rem",
+                      height: 34,
+                      fontSize: "0.85rem",
                       fontWeight: 600,
-                      bgcolor: isActive ? "#bfdbfe" : "#dbeafe",
-                      color: "#1e3a8a",
-                      border: isActive ? "1.5px solid #2563eb" : "1px solid #bfdbfe",
+                      bgcolor: isActive ? "#fecaca" : "#fee2e2",
+                      color: "#dc2626",
+                      border: isActive ? "2px solid #dc2626" : "2px solid #ef4444",
                       cursor: "pointer",
                       flexShrink: 0,
-                      "& .MuiChip-icon": { color: "#2563eb" },
-                      "&:hover": { bgcolor: "#bfdbfe" },
+                      "& .MuiChip-label": { px: 1.5 },
+                      "& .MuiChip-icon": { color: "#ef4444" },
+                      "&:hover": { bgcolor: "#fee2e2" },
                     }}
                   />
                 );
@@ -988,16 +1106,18 @@ const RestaurantPOS: React.FC = () => {
                 alignItems: "center",
                 gap: 1,
                 px: 2,
-                py: 0.9,
-                bgcolor: "#fffbeb",
+                py: 1.2,
+                bgcolor: "#ffffff",
                 borderTop: "1px solid #fcd34d",
                 overflowX: "auto",
-                scrollbarWidth: "none",
-                "&::-webkit-scrollbar": { display: "none" },
+                scrollbarWidth: "thin",
+                "&::-webkit-scrollbar": { height: 6 },
+                "&::-webkit-scrollbar-track": { bgcolor: "transparent" },
+                "&::-webkit-scrollbar-thumb": { bgcolor: "#fcd34d", borderRadius: 3 },
               }}
             >
-              <PauseCircleOutlineIcon sx={{ fontSize: 15, color: "#d97706", flexShrink: 0 }} />
-              <Typography sx={{ fontSize: "0.72rem", fontWeight: 700, color: "#92400e", whiteSpace: "nowrap", flexShrink: 0 }}>
+              <PauseCircleOutlineIcon sx={{ fontSize: 18, color: "#d97706", flexShrink: 0 }} />
+              <Typography sx={{ fontSize: "0.85rem", fontWeight: 700, color: "#92400e", whiteSpace: "nowrap", flexShrink: 0 }}>
                 On Hold:
               </Typography>
               {heldOrders.map((ho, idx) => {
@@ -1012,19 +1132,20 @@ const RestaurantPOS: React.FC = () => {
                     key={ho.hold_id ?? idx}
                     label={`${ho.hold_id} · ${itemCount} item${itemCount !== 1 ? "s" : ""}`}
                     size="small"
-                    icon={<RestoreIcon sx={{ fontSize: "12px !important" }} />}
+                    icon={<RestoreIcon sx={{ fontSize: "16px !important" }} />}
                     onClick={() => handleRestoreHold(ho)}
                     onDelete={(e) => handleDeleteHold(ho.hold_id, e)}
                     sx={{
-                      height: 26,
-                      fontSize: "0.7rem",
+                      height: 34,
+                      fontSize: "0.85rem",
                       fontWeight: 600,
                       bgcolor: "#fef3c7",
-                      color: "#92400e",
-                      border: "1px solid #fcd34d",
+                      color: "#b45309",
+                      border: "2px solid #f59e0b",
                       cursor: "pointer",
                       flexShrink: 0,
-                      "& .MuiChip-icon": { color: "#d97706" },
+                      "& .MuiChip-label": { px: 1.5 },
+                      "& .MuiChip-icon": { color: "#f59e0b" },
                       "&:hover": { bgcolor: "#fde68a" },
                     }}
                   />
@@ -1045,6 +1166,9 @@ const RestaurantPOS: React.FC = () => {
           runningOrderTotals={runningOrderTotals}
           onTableClick={() => setShowTable(true)}
           onCustomerClick={() => setShowCustomer(true)}
+          onOrderTypeChange={(key) =>
+            setOrder((p) => ({ ...p, orderType: key, customerName: "", customerPhone: "" }))
+          }
           onDiscountClick={() => setShowDiscount(true)}
           onPaymentMethodChange={(m) => setOrder((p) => ({ ...p, paymentMethod: m }))}
           onSendToKDS={handleSendToKDS}
@@ -1053,6 +1177,14 @@ const RestaurantPOS: React.FC = () => {
           onDecrement={decrementCart}
           onRemove={removeFromCart}
           onHold={handleHold}
+          isEditingSummary={isEditingSummary}
+          onEditSummary={handleEditSummary}
+          onCancelEditSummary={handleCancelEditSummary}
+          onSummaryIncrement={incrementSummaryItem}
+          onSummaryDecrement={decrementSummaryItem}
+          onSummaryRemove={removeSummaryItem}
+          onSendEditedKDS={handleSendEditedKDS}
+          onClearCart={() => setCartItems([])}
         />
       </Box>
 
@@ -1064,6 +1196,7 @@ const RestaurantPOS: React.FC = () => {
         onSelect={(n) => {
           setRunningOrderSummary([]);
           setRunningOrderTotal(0);
+          setIsEditingSummary(false);
           setOrder((p) => ({ ...p, tableNumber: n, orderType: "DineIn", discountType: "Percent", discountValue: 0 }));
           setShowTable(false);
         }}
@@ -1099,6 +1232,9 @@ const RestaurantPOS: React.FC = () => {
         }}
         onClose={() => setVariantItem(null)}
       />
+
+      <SuccessToast message={successMsg} onClose={() => setSuccessMsg("")} />
+      <SuccessToast message={errorMsg} severity="error" onClose={() => setErrorMsg("")} />
 
     </Box>
   );

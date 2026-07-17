@@ -369,6 +369,16 @@ const AddMenuDrawer: React.FC<AddMenuDrawerProps> = ({
                               onChange={(event) => {
                                 const file = event.currentTarget.files?.[0];
                                 if (file) {
+                                  if (!file.type.startsWith("image/")) {
+                                    alert("Please select a valid image file (JPG, PNG, GIF, etc.)");
+                                    event.currentTarget.value = "";
+                                    return;
+                                  }
+                                  if (file.size > 2 * 1024 * 1024) {
+                                    alert("Image size should be below 2MB");
+                                    event.currentTarget.value = "";
+                                    return;
+                                  }
                                   const reader = new FileReader();
                                   reader.onload = () => {
                                     setFieldValue("menu_image", file); // base64

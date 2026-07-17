@@ -41,9 +41,11 @@ const PDF_ROW_WHITE_THRESHOLD = 245;
 // ─────────────────────────────────────────────────────────────
 // Styled helpers
 // ─────────────────────────────────────────────────────────────
-const StyledDialog = styled(Dialog)(() => ({
+const StyledDialog = styled(Dialog, {
+  shouldForwardProp: (prop) => prop !== "isRestaurant",
+})<{ isRestaurant?: boolean }>(({ isRestaurant }) => ({
   "& .MuiDialog-paper": {
-    maxWidth: 1100,
+    maxWidth: isRestaurant ? 960 : 1100,
     width: "100%",
     maxHeight: "92vh",
     borderRadius: 16,
@@ -677,7 +679,7 @@ export default function InvoiceDetailsModal({
 
   // ─────────────────────────────────────────────────────────
   return (
-    <StyledDialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+    <StyledDialog open={open} onClose={onClose} maxWidth="lg" fullWidth isRestaurant={isRestaurant}>
 
       {/* ── Sticky header ─────────────────────────────────── */}
       <Box sx={{
@@ -785,11 +787,11 @@ export default function InvoiceDetailsModal({
                     <TableRow>
                       <TH >Item Id</TH>
                       <TH>Item Name</TH>
-                      <TH align="center">HSN</TH>
+                      {!isRestaurant && <TH align="center">HSN</TH>}
                       <TH align="right">Price</TH>
                       <TH align="center">Qty</TH>
                       {/* <TH align="center">Returned</TH> */}
-                      <TH align="center">GST%</TH>
+                      {!isRestaurant && <TH align="center">GST%</TH>}
                       <TH align="right">Total</TH>
                     </TableRow>
                   </TableHead>
@@ -811,9 +813,11 @@ export default function InvoiceDetailsModal({
                               </Typography>
                             )}
                           </TD>
-                          <TD align="center" sx={{ borderBottom: isLast ? "none" : undefined, color: "#64748B" }}>
-                            {item.hsn_code ?? "—"}
-                          </TD>
+                          {!isRestaurant && (
+                            <TD align="center" sx={{ borderBottom: isLast ? "none" : undefined, color: "#64748B" }}>
+                              {item.hsn_code ?? "—"}
+                            </TD>
+                          )}
                           <TD align="right" sx={{ borderBottom: isLast ? "none" : undefined, fontWeight: 600 }}>
                             {INR(item.price)}
                           </TD>
@@ -829,9 +833,11 @@ export default function InvoiceDetailsModal({
                               <Typography sx={{ fontSize: 12, color: "#CBD5E1" }}>—</Typography>
                             )}
                           </TD> */}
-                          <TD align="center" sx={{ borderBottom: isLast ? "none" : undefined }}>
-                            {Number(item.gst_percentage) === 0 ? "—" : `${Number(item.gst_percentage)}%`}
-                          </TD>
+                          {!isRestaurant && (
+                            <TD align="center" sx={{ borderBottom: isLast ? "none" : undefined }}>
+                              {Number(item.gst_percentage) === 0 ? "—" : `${Number(item.gst_percentage)}%`}
+                            </TD>
+                          )}
                           <TD align="right" sx={{ borderBottom: isLast ? "none" : undefined, fontWeight: 700 }}>
                             {INR(item.total_amount)}
                           </TD>
