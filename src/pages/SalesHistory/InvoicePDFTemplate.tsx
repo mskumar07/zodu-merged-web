@@ -62,7 +62,8 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: "24px",
+    marginTop: "18px",
+    marginBottom: "26px",
     border: "1px solid #E2E8F0",
   },
   billLabel: { fontSize: "9px", fontWeight: 700, color: "#94A3B8", letterSpacing: "1px", marginBottom: "4px" },
@@ -81,7 +82,7 @@ const styles = {
   paymentMode: { fontSize: "11px", color: "#64748B", textAlign: "right" as const },
 
   // Items table
-  table: { width: "100%", borderCollapse: "collapse" as const, marginBottom: "20px" },
+  table: { width: "100%", tableLayout: "fixed" as const, borderCollapse: "collapse" as const, marginBottom: "32px" },
   thead: { background: "#111827" },
   theadTh: {
     padding: "10px 8px",
@@ -137,7 +138,7 @@ const styles = {
   itemSub: { fontSize: "10px", color: "#6B7280", marginTop: "2px" },
 
   // Summary
-  summaryWrap: { display: "flex", justifyContent: "flex-end", marginTop: "4px" },
+  summaryWrap: { display: "flex", justifyContent: "flex-end", marginTop: "16px", paddingTop: "12px" },
   summaryBox: { width: "300px" },
   summaryRow: {
     display: "flex",
@@ -153,7 +154,7 @@ const styles = {
   amountWords: { fontSize: "10px", color: "#64748B", marginTop: "8px", textAlign: "right" as const, fontStyle: "italic" },
 
   // GST breakdown
-  gstSection: { marginTop: "28px" },
+  gstSection: { marginTop: "36px" },
   gstLabel: {
     fontSize: "9px",
     fontWeight: 700,
@@ -289,6 +290,10 @@ function fmt(v: number | string) {
   return `₹${Number(v).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+function hasValue(v: unknown): v is string {
+  return typeof v === "string" && v.trim() !== "" && v.trim() !== "-" && v.trim() !== "—";
+}
+
 // ── Main template ─────────────────────────────────────────────
 export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => {
   const {
@@ -356,7 +361,7 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
             <span style={styles.invoiceMetaLabel}>Date:</span>
             <span style={styles.invoiceMetaValue}>{date}</span>
           </div>
-          {due_date && due_date !== "-" && (
+          {hasValue(due_date) && (
             <div style={styles.invoiceMetaRow}>
               <span style={styles.invoiceMetaLabel}>Due Date:</span>
               <span style={styles.invoiceMetaValue}>{due_date}</span>
@@ -373,13 +378,13 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
         <div>
           <p style={styles.billLabel}>BILL TO</p>
           <h3 style={styles.billName}>{customer_name}</h3>
-          {customer_gstin && customer_gstin !== "—" && (
+          {hasValue(customer_gstin) && (
             <p style={styles.billMeta}>GSTIN: {customer_gstin}</p>
           )}
-          {customer_address && customer_address !== "—" && (
+          {hasValue(customer_address) && (
             <p style={styles.billMeta}>{customer_address}</p>
           )}
-          {customer_mobile && customer_mobile !== "—" && (
+          {hasValue(customer_mobile) && (
             <p style={styles.billMeta}>Mobile: {customer_mobile}</p>
           )}
         </div>
@@ -401,17 +406,28 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
 
       {/* ── ITEMS TABLE ──────────────────────────────────────── */}
       <table style={styles.table}>
+        <colgroup>
+          <col style={{ width: "24px" }} />
+          <col style={{ width: "95px" }} />
+          <col />
+          <col style={{ width: "64px" }} />
+          <col style={{ width: "42px" }} />
+          <col style={{ width: "40px" }} />
+          <col style={{ width: "78px" }} />
+          <col style={{ width: "78px" }} />
+          <col style={{ width: "88px" }} />
+        </colgroup>
         <thead style={styles.thead}>
           <tr>
-            <th style={{ ...styles.theadTh, width: "18px" }}>SL</th>
+            <th style={styles.theadTh}>SL</th>
             <th style={styles.theadTh}>Item ID</th>
-            <th style={styles.theadTh}>Item Name </th>
-            <th style={{ ...styles.theadThCenter, width: "60px" }}>HSN</th>
-            <th style={{ ...styles.theadThCenter, width: "30px" }}>Tax</th>
-            <th style={{ ...styles.theadThCenter, width: "48px" }}>QTY</th>
-            <th style={{ ...styles.theadThRight, width: "80px" }}>MRP</th>
-            <th style={{ ...styles.theadThRight, width: "80px" }}>Rate</th>
-            <th style={{ ...styles.theadThRight, width: "90px" }}>Amount</th>
+            <th style={styles.theadTh}>Item Name</th>
+            <th style={styles.theadThCenter}>HSN</th>
+            <th style={styles.theadThCenter}>Tax</th>
+            <th style={styles.theadThCenter}>QTY</th>
+            <th style={styles.theadThRight}>MRP</th>
+            <th style={styles.theadThRight}>Rate</th>
+            <th style={styles.theadThRight}>Amount</th>
           </tr>
         </thead>
         <tbody>
@@ -420,15 +436,13 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
               <td style={styles.tdBase}>{String(i + 1).padStart(2, "0")}</td>
               <td style={styles.tdBase}>{item.item_id}</td>
               <td style={styles.tdBase}>
-                
                 <div style={styles.itemName}>{item.name}</div>
                 {/* {item.category && (
                   <div style={styles.itemSub}>{item.category}</div>
                 )} */}
               </td>
               <td style={styles.tdCenter}>{item.hsn || "—"}</td>
-                            <td style={styles.tdCenter}>{Number(item.tax).toFixed(0)}%</td>
-
+              <td style={styles.tdCenter}>{Number(item.tax).toFixed(0)}%</td>
               <td style={styles.tdCenter}>{item.qty}</td>
               <td style={styles.tdRight}>{fmt(item.mrp ?? item.rate)}</td>
               <td style={styles.tdRight}>{fmt(item.rate)}</td>
@@ -438,8 +452,8 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
         </tbody>
       </table>
 
-      {/* ── SUMMARY ──────────────────────────────────────────── */}
-      <div style={styles.summaryWrap}>
+      {/* ── SUMMARY (kept together across pages) ─────────────── */}
+      <div data-pdf-keep-together style={styles.summaryWrap}>
         <div style={styles.summaryBox}>
           <SummaryRow label="Subtotal:" value={fmt(subtotal)} />
 

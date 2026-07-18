@@ -117,27 +117,26 @@ export function usePosSearch(branchId: string, query: string, zoduId: string) {
     // Empty query → no suggestions (don't show anything until user types)
     if (!q) return [];
 
-    const ql        = q.toLowerCase();
-    const isNumeric = /^\d+$/.test(q);
+    const ql = q.toLowerCase();
 
-    if (isNumeric) {
-      // Priority 1: exact item_id match
-      const exact = products.filter(p => p.item_id === q);
+    // Priority: item_id match — works for numeric and alphanumeric codes
+    // (e.g. "01210KTEA02"), matched case-insensitively.
+    const exact = products.filter(p => p.item_id?.toLowerCase() === ql);
 
-      // Priority 2: item_id starts with query
-      const prefix = products
-        .filter(p => p.item_id?.startsWith(q) && p.item_id !== q)
-        .sort(itemCompare);
+    const prefix = products
+      .filter(p => p.item_id?.toLowerCase().startsWith(ql) && p.item_id?.toLowerCase() !== ql)
+      .sort(itemCompare);
 
-      // Priority 3: item_id contains query
-      const contains = products
-        .filter(p => p.item_id?.includes(q) && !p.item_id?.startsWith(q))
-        .sort(itemCompare);
+    const contains = products
+      .filter(p => p.item_id?.toLowerCase().includes(ql) && !p.item_id?.toLowerCase().startsWith(ql))
+      .sort(itemCompare);
 
-      return [...exact, ...prefix, ...contains].slice(0, 20);
+    const idMatches = [...exact, ...prefix, ...contains];
+    if (idMatches.length > 0) {
+      return idMatches.slice(0, 20);
     }
 
-    // Text search → Fuse fuzzy on item_name / category_name
+    // No item_id match → fall back to fuzzy search on item_name / category_name
     if (!fuseRef.current) {
       return products
         .filter(p => p.item_name?.toLowerCase().includes(ql))

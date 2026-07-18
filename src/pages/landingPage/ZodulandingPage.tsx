@@ -1403,6 +1403,7 @@ const ZoduLandingPage: React.FC = () => {
                 )}
               </Box>
             </Box>
+          </Box>
           </Grid>
         );
       })}
