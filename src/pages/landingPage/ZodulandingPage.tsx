@@ -160,46 +160,39 @@ const features: {
     icon: imgPosBilling,
     bg: "#fff0f0",
     img: showcaseBilling,
-     color: "#ef4444", 
-    images: [posShot1,posShot2,posShot3],
-    title: "POS Billing",
-    tagline: "Bill in seconds — even during your busiest rush.",
+    title: "Billing",
+    tagline: "Turn every sale into a fast, error-free transaction.",
     items: [
-      "Fast invoice in under 10s",
-      "Accept cash, card, UPI & wallets",
-      "Discounts, combos & loyalty",
-      "Share on WhatsApp, SMS or print",
+      "Create GST-compliant invoices in under 10 seconds",
+      "Accept cash, card, UPI & all digital payment modes",
+      "Apply discounts, offers & loyalty points instantly",
+      "Print or WhatsApp bills directly from the app",
     ],
   },
   {
     icon: imgInventory,
     bg: "#f0fdf4",
     img: showcaseInventory,
-     color: "#01950d", 
-    images: [invShot1, invShot2, invShot3],
-    title: "Inventory Management",
-    tagline: "Never run out of a best-seller again.",
+    title: "Never Run Out of Stock Again",
+    tagline: "Know exactly what you have before you need it.",
     items: [
-      "See live stock for every product",
-      "Get alerts before items run dry",
-      "Track batches, expiry & variants",
-      "Manage suppliers in a tap",
+      "Real-time stock tracking across all your products",
+      "Automatic low-stock alerts before you run out",
+      "Manage batches, expiry dates & multiple units",
+      "Purchase orders & supplier management built in",
     ],
   },
   {
     icon: imgReports,
     bg: "#fff7ed",
     img: showcaseReports,
-     color: "#4b06ba", 
-    // [base bar chart, top-left, bottom-right, top-right pie]
-    images: [reportShot2, reportShot4, reportShot1, reportShot3],
-    title: "Reports & Analytics",
-    tagline: "Know your numbers before your day even ends.",
+    title: "Know Exactly Where Your Money Goes",
+    tagline: "Stop guessing. Start making data-driven decisions.",
     items: [
-      "Daily, weekly & monthly profit",
-      "Spot dead stock & top sellers",
-      "Track expenses by category",
-      "GST-ready reports in one click",
+      "Daily, weekly & monthly profit & loss reports",
+      "See your top-selling and slow-moving products",
+      "Track expenses by category and date range",
+      "Export GST-ready reports to share with your CA",
     ],
   },
   {
@@ -209,42 +202,38 @@ const features: {
      color: "#0a99eb", 
     images: [employeeShot1, employeeShot2, employeeShot3],
     title: "Employee Management",
-    tagline: "Lead a bigger team with a lot less effort.",
+    tagline: "Run your whole team without the headache.",
     items: [
-      "Access controls & user roles",
-      "Real-time activity tracking",
-      "Payroll in minutes",
-      "Shifts & duties without chaos",
+      "Role-based access control",
+      "Track each staff's sales performance",
+      "Monthly payroll in minutes",
+      "Shift & duty scheduling",
     ],
   },
   {
     icon: imgPrint,
     bg: "#eff6ff",
     img: showcaseTeam,
-     color: "#f0a709", 
-    images: [attendanceShot1, attendanceShot2, attendanceShot3],
-    title: "Attendance Management",
-    tagline: "Say goodbye to the paper register for good.",
+    title: "Manage Your Team Without the Headache",
+    tagline: "Save 5+ hours every week on staff management.",
     items: [
-      "Check-in & check-out automatically",
-      "Track late marks & early-outs",
-      "Manage leaves & holidays",
-      "Single-click payroll sync",
+      "Track attendance automatically with login logs",
+      "Process monthly payroll in under 10 minutes",
+      "Set role-based access — staff see only what they need",
+      "Monitor each employee's sales performance live",
     ],
   },
   {
     icon: imgGstTax,
     bg: "#eff6ff",
     img: showcaseTeam,
-     color: "#0ed2ae", 
-    images: [gstShot1, gstShot2, gstShot3, gstShot4],
     title: "GST & Tax Reports",
-    tagline: "Be filing-ready every single month.",
+    tagline: "Stay compliant without the accountant stress.",
     items: [
-      "Auto-calculate GST & tax",
-      "Download GSTR-ready files",
-      "HSN / SAC tagging",
-      "View tax summaries easily",
+      "Auto GST calculation on every bill",
+      "GSTR-ready exports for your CA",
+      "HSN / SAC code support",
+      "Tax summary dashboards",
     ],
   },
   {
@@ -253,28 +242,26 @@ const features: {
     img: showcaseTeam,
      color: "#19bbd4", 
     title: "Customer Management",
-    tagline: "Turn a first visit into a lifelong regular.",
-    images: [cusShot1, cusShot2, cusShot3, cusShot4],
+    tagline: "Turn one-time buyers into loyal regulars.",
     items: [
       "Customer profiles & purchase history",
-      "Loyalty points, offers & rewards",
-      "Credit & khata management",
-      "Reminders for offers & dues",
+      "Loyalty points & reward offers",
+      "Loyalty points & reward offers",   
+      "Credit / khata management",
+      "Targeted offers & reminders"
     ],
   },
   {
     icon: imgMultiLocation,
     bg: "#eff6ff",
     img: showcaseTeam,
-     color: "#1868e9", 
-    images: [locShot1, locShot2, locShot3],
     title: "Multi Location",
-    tagline: "Run every outlet from one login.",
+    tagline: "Run every branch from a single account.",
     items: [
-      "Compare branches in one report",
-      "Separate stock for each outlet",
-      "Manage staff across locations",
-      "See what's winning, and where",
+      "Combined cross-branch reports",
+      "Per-outlet inventory control",
+      "Centralised staff management",
+      "Branch-wise performance",
     ],
   },
   {
@@ -284,12 +271,12 @@ const features: {
      color: "#d70fac", 
     images: [digiShot1, digiShot2, digiShot3],
     title: "Digital Payments",
-    tagline: "Get paid your way — and stay reconciled.",
+    tagline: "Accept every payment mode, auto-reconciled.",
     items: [
-      "UPI, cards & wallets at counter",
-      "QR & collect payment in seconds",
-      "Auto reconcile & pending dues",
-      "Match every transaction",
+      "UPI, card & wallet support",
+      "QR-code payments at the counter",
+      "Automatic payment reminders",
+      "Reconciled transaction records",
     ],
   },
   {
@@ -299,12 +286,12 @@ const features: {
      color: "#03e13b", 
     images: [taskShot1, taskShot2, taskShot3],
     title: "Task Management",
-    tagline: "Nothing slips through the cracks anymore.",
+    tagline: "Assign work and track it to completion.",
     items: [
-      "Match every transaction",
-      "Live task updates",
-      "Never miss deadlines",
-      "Daily opening & closing checklists",
+      "Assign tasks to any staff member",
+      "Track progress in real time",
+      "Due-date reminders & alerts",
+      "Daily task checklists",
     ],
   },
   {
@@ -314,11 +301,11 @@ const features: {
      color: "#19bbd4", 
     images: [barShot1, barShot2, barShot3, barShot4],
     title: "Barcode & Stock",
-    tagline: "Scan, bill, done — at counter speed.",
+    tagline: "Scan-to-bill speed at the counter.",
     items: [
-      "Scan barcode & add to bill",
-      "Live stock update as you sell",
-      "Print barcodes & shelf labels",
+      "Barcode scan billing",
+      "Automatic stock deduction",
+      "Label & barcode printing",
       "Batch & expiry tracking",
     ],
   },
@@ -329,12 +316,12 @@ const features: {
      color: "#4b06ba", 
     images: [mobileShot1, mobileShot2, mobileShot3],
     title: "Mobile App & Alerts",
-    tagline: "Your whole business, right in your pocket.",
+    tagline: "Run your business right from your pocket.",
     items: [
-      "Run it all on iOS, Android or both",
-      "Get pinged on sales & alerts",
-      "Check dashboard anytime",
-      "Stay in the loop with push alerts",
+      "iOS, Android & tablet apps",
+      "Real-time sales alerts",
+      "Remote dashboard access",
+      "Smart push notifications",
     ],
   },
 ];
@@ -1068,148 +1055,248 @@ const ZoduLandingPage: React.FC = () => {
 
         {/* ── FEATURE SHOWCASE (alternating rows) ──────────────────────────── */}
         <Box sx={{ bgcolor: "#fff", py: { xs: 5, md: 7 }, px: SX }}>
-  <Container maxWidth="lg" disableGutters>
-    <Box textAlign="center" mb={HMB}>
-      <Typography
+          <Container maxWidth="lg" disableGutters>
+            <Box textAlign="center" mb={HMB}>
+              <Typography sx={{ color: PRIMARY, fontWeight: 700, fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", mb: 1 }}>
+                WHAT ZODU DOES FOR YOU
+              </Typography>
+              <Typography sx={{ fontSize: { xs: "1.8rem", md: "2.4rem" }, fontWeight: 800, color: DARK, letterSpacing: "-0.025em", mb: 1.5 }}>
+                Stop Working Harder. Start Working Smarter.
+              </Typography>
+              <Typography sx={{ fontSize: "1rem", color: GRAY, maxWidth: 520, mx: "auto", lineHeight: 1.7 }}>
+                Every feature is built to save you time, eliminate errors, and grow your business faster.
+              </Typography>
+            </Box>
+
+           <Grid container spacing={3}>
+  {features.map((f, i) => {
+    const accent = PRIMARY;
+    const flip = i % 2 === 1;
+                return (
+                  <Grid
+        key={f.title}
+        size={{ xs: 12, md: 6 }}
+      >
+        <Box
+          // sx={{
+          //   position: "relative",
+          //   overflow: "hidden",
+          //   minHeight: { xs: "auto", md: 285 },
+          //   height: "100%",
+          //   borderRadius: "14px",
+          //   bgcolor: "#fff",
+          //   backgroundImage: `linear-gradient(135deg, #fff 0%, #fff 42%, ${f.bg} 100%)`,
+          //   boxShadow: {
+          //     xs: "none",
+          //     md: `0 12px 34px ${alpha(accent, 0.07)}`,
+          //   },
+          //   border: `1px solid ${alpha(accent, 0.22)}`,
+          // }}
         sx={{
-          color: PRIMARY,
-          fontWeight: 700,
-          fontSize: "0.75rem",
-          letterSpacing: "0.18em",
-          textTransform: "uppercase",
-          mb: 1,
+  position: "relative",
+  overflow: "hidden",
+  height: "100%",
+  borderRadius: "28px",
+  bgcolor: "#fff",
+  background: `linear-gradient(145deg,#ffffff 0%,${alpha(f.bg,0.18)} 100%)`,
+  border: `1px solid ${alpha(accent,0.15)}`,
+  boxShadow: "0 18px 45px rgba(15,23,42,.08)",
+  transition: "all .35s ease",
+  "&:hover": {
+    transform: "translateY(-12px)",
+    boxShadow: `0 35px 70px ${alpha(accent,.18)}`,
+    borderColor: accent,
+  },
+}}
+        >
+                    <Box
+                      component="svg"
+                      viewBox="0 0 980 520"
+                      preserveAspectRatio="none"
+                      sx={{
+                        position: "absolute",
+                        inset: 0,
+                        width: "100%",
+                        height: "100%",
+                        color: accent,
+                        opacity: 0.42,
+                        pointerEvents: "none",
+                        zIndex: 0,
+                      }}
+                    >
+                      <path
+                        d="M0 392 C150 352 188 448 338 406 C474 368 454 248 590 232 C740 214 760 92 980 112 L980 520 L0 520 Z"
+                        fill="currentColor"
+                        fillOpacity="0.08"
+                      />
+                      <path
+                        d="M190 520 C308 438 382 454 498 438 C632 420 642 338 746 292 C836 252 902 268 980 214 L980 520 Z"
+                        fill="currentColor"
+                        fillOpacity="0.06"
+                      />
+                    </Box>
+                    <Box sx={{
+                      position: "absolute",
+                      left: { xs: "auto", md: "33%" },
+                      right: { xs: 14, md: "auto" },
+                      bottom: { xs: 10, md: 18 },
+                      width: { xs: 110, md: 150 },
+                      height: { xs: 90, md: 120 },
+                      opacity: 0.24,
+                      backgroundImage: `radial-gradient(${alpha(accent, 0.42)} 1.6px, transparent 1.6px)`,
+                      backgroundSize: { xs: "13px 13px", md: "15px 15px" },
+                      pointerEvents: "none",
+                      zIndex: 0,
+                    }} />
+                     <Box sx={{
+                      position: "relative",
+                      zIndex: 1,
+                      display: "flex",
+                      flexDirection: { xs: "column", md: flip ? "row-reverse" : "row" },
+                      alignItems: "center",
+                      gap: { xs: 2.5, md: 3.5 },
+                      px: { xs: 2, md: 3 },
+                      py: { xs: 3, md: 2.5 },
+                      width:"100%"
+                    }}>
+                    {/* TEXT */}
+                      <Box sx={{ flex: { md: "0 0 100%" }, width: "100%" }}>
+                         <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.7,width:"100%",
+                          //  bgcolor: alpha(accent, 0.09), borderRadius: "999px", 
+                           pl: 0.45, pr: 1, py: 0.35, mb: { xs: 2, md: 2.5 } }}>
+                            <Box sx={{ position: "relative",width:"100%"}}>
+                         <Box
+  sx={{
+     position: "absolute",
+      top: 0,
+      right: flip ? 0 : "auto",
+      left: flip ? "auto" : 0,
+      width: 90,
+      height: 90,
+      borderRadius: "16px",
+      bgcolor: "#fff",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      boxShadow: `0 12px 24px ${alpha(accent, 0.12)}`,
+      overflow: "hidden",
+  }}
+>
+ <Box
+  component="img"
+  src={f.icon}
+  alt={f.title}
+  sx={{
+    width: 100,
+    height: 100,
+    objectFit: "contain",
+    mixBlendMode: "multiply"
+    // filter: "brightness(0) invert(1)",
+  }}
+/>
+</Box>
+  <Typography
+  sx={{
+    width: "100%",
+      minHeight: 90,
+      pl: flip ? 0 : "110px",
+      pr: flip ? "110px" : 0,
+      // display: "flex",
+      alignItems: "center",
+      fontWeight: 900,
+      fontSize: { xs: "1.5rem", md: "2rem" },
+      lineHeight: 1.2,
+      color: DARK,
+      textAlign: "left",
+      display: "-webkit-box",
+      WebkitLineClamp: 2,
+      WebkitBoxOrient: "vertical",
+      overflow: "hidden",
+  }}
+>
+  {f.title}
+</Typography>
+
+ <Typography
+  sx={{
+    mt: 1,
+    // mb: 3,
+    color: "#0a0000",
+    fontSize: "1rem",
+    lineHeight: 1.7,
+  }}
+>
+  {f.tagline}
+</Typography>
+                          {/* <Typography sx={{ fontSize: "0.62rem", fontWeight: 800, color: accent, letterSpacing: "0.01em" }}>
+                          {`0${i + 1}`}
+                        </Typography> */}
+                      </Box>
+                     
+</Box></Box></Box>
+                    <Box sx={{
+                      position: "relative",
+                      zIndex: 1,
+                      display: "flex",
+                      flexDirection: { xs: "column", md: flip ? "row-reverse" : "row" },
+                      alignItems: "center",
+                      gap: { xs: 2.5, md: 3.5 },
+                      px: { xs: 2, md: 3 },
+                      py: { xs: 3, md: 2.5 },
+                    }}>
+                    {/* TEXT */}
+                      <Box sx={{ flex: { md: "0 0 36%" }, width: "100%" }}>
+      
+                       
+                       <Stack spacing={2.2}>
+  {f.items.map((item) => (
+    <Box
+      key={item}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1.5,
+      }}
+    >
+      <Box
+        sx={{
+          width: 28,
+          height: 28,
+          borderRadius: "50%",
+          bgcolor: alpha(accent, .12),
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
-        WHAT ZODU DOES FOR YOU
-      </Typography>
+        <CheckCircleIcon
+          sx={{
+            color: accent,
+            fontSize: 18,
+          }}
+        />
+      </Box>
+
       <Typography
         sx={{
-          fontSize: { xs: "1.8rem", md: "2.4rem" },
-          fontWeight: 800,
-          color: DARK,
-          letterSpacing: "-0.025em",
-          mb: 1.5,
+          fontSize: ".92rem",
+          color: "#475569",
+          fontWeight: 500,
         }}
       >
-        Stop Working Harder. Start Working{" "}
-        <Box component="span" sx={{ color: "#ef4444" }}>
-          Smarter.
-        </Box>
-      </Typography>
-      <Typography sx={{ fontSize: "1rem", color: GRAY, maxWidth: 520, mx: "auto", lineHeight: 1.7 }}>
-        Every feature is built to save you time, eliminate errors, and grow your business faster.
+        {item}
       </Typography>
     </Box>
-
-    <Grid container spacing={2.5}>
-      {features.map((f) => {
-        const accent = f.color || PRIMARY;
-        return (
-          <Grid key={f.title} size={{ xs: 12, md: 6 }}>
-            {/* height={{ xs: "auto" }}  */}
-
-            <Box
-              sx={{
-                position: "relative",
-                overflow: "hidden",
-                height: { xs: "auto", md: "100%" },
-                width: { xs: "100%" },
-                maxWidth: { xs: "100%" },
-
-                borderRadius: "18px",
-                bgcolor: "#fff",
-                border: "1px solid rgba(15,23,42,0.06)",
-                boxShadow: "0 10px 28px rgba(15,23,42,0.05)",
-                p: { xs: 2, md: 2.25 },
-                display: "flex",
-                /* MOBILE CHANGE: stack content + image vertically on mobile, keep row layout on desktop */
-                flexDirection: { xs: "column", md: "row" },
-                gap: 2,
-                alignItems: { xs: "stretch", md: "flex-start" },
-                justifyContent: "space-between",
-                // transition: "all .3s ease",
-                "&:hover": {
-                  transform: "translateY(-4px)",
-                  boxShadow: `0 20px 40px ${alpha(accent, 0.15)}`,
-                  borderColor: alpha(accent, 0.3),
-                },
-              }}
-            >
-              {/* LEFT: icon + title + tagline + checklist + CTA — full width on mobile, 40% on desktop */}
-              <Box sx={{ flex: { xs: "1 1 auto", md: "0 0 40%" }, width: { xs: "100%", md: "48%" }, minWidth: 0 }}>
-                {/* Icon */}
-                <Box
-                  sx={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: "12px",
-                    bgcolor: alpha(accent, 0.1),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    mb: 0.75,
-                  }}
-                >
-                  <Box
-                    component="img"
-                    src={f.icon}
-                    alt={f.title}
-                    sx={{ width: 40, height: 40, objectFit: "contain" }}
-                  />
-
-                    <Typography
-                  sx={{
-                    fontWeight: 800,
-                    fontSize: "1rem",
-                    color: DARK,
-                    lineHeight: 1.25,
-                    mb: 0.4,
-                  }}
-                >
-                  {f.title}
-                </Typography>
-
-                </Box>
-
-              
-                <Typography
-                  sx={{
-                    fontSize: "0.8rem",
-                    color: "#000000",
-                    lineHeight: 1.15,
-                    fontWeight: 500,
-                    mb: 1.5,
-                  }}
-                >
-                  {f.tagline}
-                </Typography>
-
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, mb: 1 }}>
-                  {f.items.map((item) => (
-                    <Box key={item} sx={{ display: "flex", alignItems: "flex-start", gap: 0.75 }}>
-                      <CheckCircleIcon sx={{ color: accent, fontSize: 14, mt: "2px", flexShrink: 0 }} />
-                      <Typography sx={{ fontSize: "0.75rem", color: "#010101", lineHeight: 1.35 }}>
-                        {item}
-                      </Typography>
+  ))}
+</Stack>
+                    <Button
+                        endIcon={<ArrowForwardIcon sx={{ fontSize: "20px !important" }} />}
+                        onClick={() => navigate("/signup")}
+                        sx={{ color: PRIMARY, fontWeight: 700, fontSize: "0.85rem", px: 0, minWidth: 0, "&:hover": { bgcolor: "transparent", gap: 0.5 } }}
+                      >
+                        Learn more
+                      </Button>
                     </Box>
-                  ))}
-                </Box>
-
-                <Button
-                  endIcon={<ArrowForwardIcon sx={{ fontSize: "15px !important" }} />}
-                  onClick={() => navigate("/signup")}
-                  sx={{
-                    color: accent,
-                    fontWeight: 700,
-                    fontSize: "0.78rem",
-                    px: 0,
-                    minWidth: 0,
-                    "&:hover": { bgcolor: "transparent", gap: 0.5 },
-                  }}
-                >
-                  Learn more
-                </Button>
-              </Box>
 
               {/* RIGHT: product image — full width on mobile (below content), 57% on desktop */}
               <Box
@@ -1316,6 +1403,7 @@ const ZoduLandingPage: React.FC = () => {
                 )}
               </Box>
             </Box>
+          </Box>
           </Grid>
         );
       })}

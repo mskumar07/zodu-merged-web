@@ -409,15 +409,19 @@ export default function InvoiceDetailsModal({
 
     const headerEl = pdfRef.current.querySelector("[data-pdf-header]") as HTMLElement | null;
     const headerDividerEl = pdfRef.current.querySelector("[data-pdf-header-divider]") as HTMLElement | null;
-    const keepTogetherEl = pdfRef.current.querySelector("[data-pdf-keep-together]") as HTMLElement | null;
+    const keepTogetherEls = Array.from(
+      pdfRef.current.querySelectorAll("[data-pdf-keep-together]"),
+    ) as HTMLElement[];
 
     // Measure positions BEFORE html2canvas — DOM layout must still be intact
     const containerRect = pdfRef.current.getBoundingClientRect();
-    let keepTogetherStartPx = -1;
-    if (keepTogetherEl) {
-      const elRect = keepTogetherEl.getBoundingClientRect();
-      keepTogetherStartPx = Math.round((elRect.top - containerRect.top) * PDF_CAPTURE_SCALE);
-    }
+    const keepTogetherRanges = keepTogetherEls.map((el) => {
+      const elRect = el.getBoundingClientRect();
+      return {
+        start: Math.round((elRect.top - containerRect.top) * PDF_CAPTURE_SCALE),
+        end: Math.round((elRect.bottom - containerRect.top) * PDF_CAPTURE_SCALE),
+      };
+    });
 
     const capturedCanvas = await html2canvas(pdfRef.current, {
       scale: PDF_CAPTURE_SCALE,
@@ -495,17 +499,20 @@ export default function InvoiceDetailsModal({
         Math.min(PDF_MIN_SLICE_HEIGHT_PX, targetSliceHeight),
       );
 
-      // If the keep-together section (declaration + bank + footer) would be
-      // split across pages, end the current page just before it starts so the
-      // whole block lands on the next page together.
-      // Only trigger when the section does NOT fully fit in the space remaining
-      // after its start point — if it fits, let it stay on this page as-is.
-      if (keepTogetherStartPx > sourceY + PDF_MIN_SLICE_HEIGHT_PX &&
-          keepTogetherStartPx < sourceY + sliceHeight) {
-        const sectionHeight = canvas.height - keepTogetherStartPx;
-        const spaceAfterStart = sourceY + sliceHeight - keepTogetherStartPx;
-        if (sectionHeight > spaceAfterStart) {
-          sliceHeight = keepTogetherStartPx - sourceY;
+      // If a keep-together section (e.g. the summary block, or the
+      // declaration + bank + footer block) would be split across pages, end
+      // the current page just before it starts so the whole block lands on
+      // the next page together.
+      // Only trigger when the section does NOT fully fit in the space
+      // remaining after its start point — if it fits, let it stay as-is.
+      for (const range of keepTogetherRanges) {
+        if (range.start > sourceY + PDF_MIN_SLICE_HEIGHT_PX &&
+            range.start < sourceY + sliceHeight) {
+          const sectionHeight = range.end - range.start;
+          const spaceAfterStart = sourceY + sliceHeight - range.start;
+          if (sectionHeight > spaceAfterStart) {
+            sliceHeight = range.start - sourceY;
+          }
         }
       }
 
