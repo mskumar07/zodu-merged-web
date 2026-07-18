@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Box, Typography, TextField, Button, IconButton,
   ToggleButtonGroup, ToggleButton, FormControl,
-  Select, MenuItem, InputAdornment, Tooltip, CircularProgress, ListSubheader,
+  MenuItem, InputAdornment, Tooltip, CircularProgress,
+  Autocomplete,
 } from '@mui/material';
 import SuccessToast from '@components/Common/SuccessToast';
 import { useFormik } from 'formik';
@@ -18,7 +20,7 @@ import InventoryIcon        from '@mui/icons-material/Inventory2Outlined';
 import SearchIcon           from '@mui/icons-material/Search';
 import axiosInstance from '@store/services/axiosInstance';
 import { apiConfig } from '@config/api';
-import { addItemSchema } from './ItemValidation';
+import { addItemSchema, ITEM_ID_MAX_LENGTH, ITEM_NAME_MAX_LENGTH, HSN_CODE_MAX_LENGTH, BARCODE_MAX_LENGTH, sanitizeAmountInput } from './ItemValidation';
 import {
   useInfiniteCategoryList,
   useAddMenuItem,
@@ -29,8 +31,6 @@ import {
   type Category,
   type MenuItem as MenuItemData,
   type AddMenuItemResponse,
-  type GstOption,
-  type UnitOption,
 } from './useMenuItemApi';
 import AddCategoryDialog from './AddCategoryDialog';
 
@@ -70,6 +70,7 @@ const Label: React.FC<{ text: string; required?: boolean }> = ({ text, required 
 // ─── Main AddItemModal ────────────────────────────────────────
 const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, editItem }) => {
   const isEditMode = Boolean(editItem);
+  const qc = useQueryClient();
 
   const [catDialogOpen,    setCatDialogOpen]    = useState(false);
   const [imagePreview,     setImagePreview]     = useState<string | null>(null);
@@ -77,9 +78,6 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(editItem?.item_img ?? null);
   const [imageUploading,   setImageUploading]   = useState(false);
   const [imageDeleting,    setImageDeleting]    = useState(false);
-  const [categorySearch,   setCategorySearch]   = useState('');
-  const [unitSearch,       setUnitSearch]       = useState('');
-  const [gstSearch,        setGstSearch]        = useState('');
   const [itemIdError,      setItemIdError]      = useState<string | null>(null);
   const [itemIdChecking,   setItemIdChecking]   = useState(false);
   const [successMsg,       setSuccessMsg]       = useState("");
@@ -211,9 +209,6 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
     setImageFile(null);
     setUploadedImageUrl(null);
     setImageDeleting(false);
-    setCategorySearch('');
-    setUnitSearch('');
-    setGstSearch('');
     setItemIdError(null);
     onClose();
   };
@@ -305,6 +300,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
 
   const handleCategoryAdded = (cat: Category) => {
     formik.setFieldValue('category', cat.value);
+    qc.invalidateQueries({ queryKey: ['menu', 'categoryList'] });
   };
 
   const handleItemIdBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
@@ -328,18 +324,6 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
   const err   = formik.errors;
   const touch = formik.touched;
 
-  const filteredCategories = categories.filter(c =>
-    c.label.toLowerCase().includes(categorySearch.trim().toLowerCase())
-  );
-  const filteredUnits = unitOptions.filter(u =>
-    u.label.toLowerCase().includes(unitSearch.trim().toLowerCase()) ||
-    u.shortName.toLowerCase().includes(unitSearch.trim().toLowerCase())
-  );
-  const filteredGstOptions = gstOptions.filter(g =>
-    g.label.toLowerCase().includes(gstSearch.trim().toLowerCase()) ||
-    String(g.percentage).includes(gstSearch.trim())
-  );
-
   const toggleGroupSx = {
     bgcolor: 'action.hover', borderRadius: 1.5, p: '4px', gap: '3px', width: '100%',
     '& .MuiToggleButtonGroup-grouped': { margin: 0 },
@@ -359,6 +343,10 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
   });
 
   const inputSx = { borderRadius: 1, fontSize: 14 };
+
+  const handleAmountChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    formik.setFieldValue(field, sanitizeAmountInput(e.target.value));
+  };
 
   return (
     <>
@@ -390,7 +378,15 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
         </DialogTitle>
 
         {/* ── Body ── */}
-        <DialogContent sx={{ px: 3, py: 3, overflowY: 'auto', '&::-webkit-scrollbar': { width: 5 }, '&::-webkit-scrollbar-thumb': { bgcolor: 'divider', borderRadius: 10 } }}>
+        <DialogContent sx={{
+          px: 3, py: 3, overflowY: 'scroll',
+          scrollbarWidth: 'auto',
+          scrollbarColor: (theme) => `${theme.palette.text.disabled} ${theme.palette.action.hover}`,
+          '&::-webkit-scrollbar': { width: 10 },
+          '&::-webkit-scrollbar-track': { bgcolor: 'action.hover' },
+          '&::-webkit-scrollbar-thumb': { bgcolor: 'text.disabled', borderRadius: 10, border: '2px solid transparent', backgroundClip: 'padding-box' },
+          '&::-webkit-scrollbar-thumb:hover': { bgcolor: 'text.secondary' },
+        }}>
 
           {hasError && (
             <Box sx={{ mb: 2.5, p: 1.5, bgcolor: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 1.5 }}>
@@ -508,6 +504,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                           ? itemIdError
                           : (touch.itemId && err.itemId)
                       }
+                      inputProps={{ maxLength: ITEM_ID_MAX_LENGTH }}
                       InputProps={{
                         sx: inputSx,
                         endAdornment: itemIdChecking
@@ -524,6 +521,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                       {...formik.getFieldProps('name')}
                       error={touch.name && Boolean(err.name)}
                       helperText={touch.name && err.name}
+                      inputProps={{ maxLength: ITEM_NAME_MAX_LENGTH }}
                       InputProps={{ sx: inputSx }}
                     />
                   </Box>
@@ -547,44 +545,45 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                     </Button>
                   </Box>
                   <FormControl fullWidth size="small" error={touch.category && Boolean(err.category)}>
-                    <Select
-                      value={formik.values.category}
-                      displayEmpty
-                      onChange={(e) => formik.setFieldValue('category', e.target.value)}
-                      onOpen={() => setCategorySearch('')}
-                      renderValue={(selected) => {
-                        if (!selected) return (
-                          <Box component="span" sx={{ color: 'text.disabled' }}>
-                            {categoriesLoading ? 'Loading…' : 'Select Category'}
-                          </Box>
-                        );
-                        return categories.find(c => c.value === selected)?.label
-                          ?? editItem?.category_name
-                          ?? selected;
+                    <Autocomplete
+                      options={categories}
+                      getOptionLabel={(c) => c.label}
+                      isOptionEqualToValue={(a, b) => a.value === b.value}
+                      value={categories.find(c => c.value === formik.values.category) ?? null}
+                      onChange={(_e, newValue) => formik.setFieldValue('category', newValue?.value ?? '')}
+                      loading={categoriesLoading}
+                      noOptionsText="No categories found"
+                      ListboxProps={{
+                        onScroll: handleCatScroll,
+                        sx: { maxHeight: 300 },
                       }}
-                      MenuProps={{ PaperProps: { sx: { maxHeight: 340 }, onScroll: handleCatScroll } }}
-                      sx={inputSx}
-                      startAdornment={categoriesLoading
-                        ? <InputAdornment position="start"><CircularProgress size={14} /></InputAdornment>
-                        : null
-                      }>
-                      <ListSubheader sx={{ bgcolor: '#fff', py: 1, px: 1, borderBottom: '1px solid', borderColor: 'divider' }} onKeyDown={(e) => e.stopPropagation()}>
-                        <TextField
-                          size="small" fullWidth placeholder="Search category..."
-                          value={categorySearch}
-                          onChange={(e) => setCategorySearch(e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: 'text.disabled' }} /></InputAdornment> }}
-                        />
-                      </ListSubheader>
-                      <MenuItem value="" disabled sx={{ fontSize: 14, color: 'text.disabled' }}>Select Category</MenuItem>
-                      {filteredCategories.map(c => (
-                        <MenuItem key={c.value} value={c.value} sx={{ fontSize: 14 }}>{c.label}</MenuItem>
-                      ))}
-                      {catIsFetchingNextPage && (
-                        <MenuItem disabled sx={{ fontSize: 12, color: 'text.disabled', justifyContent: 'center' }}>Loading...</MenuItem>
+                      renderOption={(props, option) => (
+                        <MenuItem {...props} key={option.value} sx={{ fontSize: 14 }}>{option.label}</MenuItem>
                       )}
-                    </Select>
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          size="small"
+                          placeholder="Select Category"
+                          sx={inputSx}
+                          InputProps={{
+                            ...params.InputProps,
+                            startAdornment: (
+                              <>
+                                <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: 'text.disabled' }} /></InputAdornment>
+                                {params.InputProps.startAdornment}
+                              </>
+                            ),
+                            endAdornment: (
+                              <>
+                                {categoriesLoading ? <CircularProgress size={14} /> : null}
+                                {params.InputProps.endAdornment}
+                              </>
+                            ),
+                          }}
+                        />
+                      )}
+                    />
                     {touch.category && err.category && (
                       <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>{err.category}</Typography>
                     )}
@@ -603,55 +602,66 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                 <Box>
                   <Label text="Item Unit" />
                   <FormControl fullWidth size="small">
-                    <Select
-                      value={formik.values.unit}
-                      onChange={(e) => formik.setFieldValue('unit', e.target.value)}
-                      onOpen={() => setUnitSearch('')}
-                      displayEmpty
-                      renderValue={(v) => {
-                        if (!v) return <Box component="span" sx={{ color: 'text.disabled' }}>{unitsLoading ? 'Loading…' : 'Select Unit'}</Box>;
-                        return unitOptions.find(u => String(u.value) === v)?.label ?? v;
-                      }}
-                      startAdornment={unitsLoading ? <InputAdornment position="start"><CircularProgress size={14} /></InputAdornment> : null}
-                      MenuProps={{ PaperProps: { sx: { maxHeight: 340 } } }}
-                      sx={inputSx}>
-                      <ListSubheader sx={{ bgcolor: '#fff', py: 1, px: 1, borderBottom: '1px solid', borderColor: 'divider' }} onKeyDown={(e) => e.stopPropagation()}>
-                        <TextField size="small" fullWidth placeholder="Search unit..."
-                          value={unitSearch}
-                          onChange={(e) => setUnitSearch(e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: 'text.disabled' }} /></InputAdornment> }}
+                    <Autocomplete
+                      options={unitOptions}
+                      getOptionLabel={(u) => u.label}
+                      isOptionEqualToValue={(a, b) => String(a.value) === String(b.value)}
+                      value={unitOptions.find(u => String(u.value) === formik.values.unit) ?? null}
+                      onChange={(_e, newValue) => formik.setFieldValue('unit', newValue ? String(newValue.value) : '')}
+                      loading={unitsLoading}
+                      noOptionsText="No units found"
+                      ListboxProps={{ sx: { maxHeight: 300 } }}
+                      renderOption={(props, option) => (
+                        <MenuItem {...props} key={option.value} sx={{ fontSize: 14 }}>{option.label}</MenuItem>
+                      )}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          size="small"
+                          placeholder="Select Unit"
+                          sx={inputSx}
+                          InputProps={{
+                            ...params.InputProps,
+                            endAdornment: (
+                              <>
+                                {unitsLoading ? <CircularProgress size={14} /> : null}
+                                {params.InputProps.endAdornment}
+                              </>
+                            ),
+                          }}
                         />
-                      </ListSubheader>
-                      <MenuItem value="" disabled sx={{ fontSize: 14, color: 'text.disabled' }}>Select Unit</MenuItem>
-                      {filteredUnits.map((u: UnitOption) => (
-                        <MenuItem key={u.value} value={String(u.value)} sx={{ fontSize: 14 }}>{u.label}</MenuItem>
-                      ))}
-                    </Select>
+                      )}
+                    />
                   </FormControl>
                 </Box>
                 <Box>
                   <Label text="Purchase Price" required />
-                  <TextField fullWidth size="small" type="number" placeholder="0.00"
+                  <TextField fullWidth size="small" type="text" inputMode="decimal" placeholder="0.00"
                     {...formik.getFieldProps('purchasePrice')}
+                    onChange={handleAmountChange('purchasePrice')}
                     error={touch.purchasePrice && Boolean(err.purchasePrice)}
                     helperText={touch.purchasePrice && err.purchasePrice}
+                    inputProps={{ inputMode: 'decimal', maxLength: 17 }}
                     InputProps={{ startAdornment: <InputAdornment position="start"><Typography variant="body2" color="text.disabled" fontWeight={600}>₹</Typography></InputAdornment>, sx: inputSx }} />
                 </Box>
                 <Box>
                   <Label text="MRP" required />
-                  <TextField fullWidth size="small" type="number" placeholder="0.00"
+                  <TextField fullWidth size="small" type="text" inputMode="decimal" placeholder="0.00"
                     {...formik.getFieldProps('mrp')}
+                    onChange={handleAmountChange('mrp')}
                     error={touch.mrp && Boolean(err.mrp)}
                     helperText={touch.mrp && err.mrp}
+                    inputProps={{ inputMode: 'decimal', maxLength: 17 }}
                     InputProps={{ startAdornment: <InputAdornment position="start"><Typography variant="body2" color="text.disabled" fontWeight={600}>₹</Typography></InputAdornment>, sx: inputSx }} />
                 </Box>
                 <Box>
                   <Label text="Selling Rate" required />
-                  <TextField fullWidth size="small" type="number" placeholder="0.00"
+                  <TextField fullWidth size="small" type="text" inputMode="decimal" placeholder="0.00"
                     {...formik.getFieldProps('rate')}
+                    onChange={handleAmountChange('rate')}
                     error={touch.rate && Boolean(err.rate)}
                     helperText={touch.rate && err.rate}
+                    inputProps={{ inputMode: 'decimal', maxLength: 17 }}
                     InputProps={{ startAdornment: <InputAdornment position="start"><Typography variant="body2" color="primary.main" fontWeight={700}>₹</Typography></InputAdornment>, sx: { ...inputSx, fontWeight: 700 } }} />
                 </Box>
               </Box>
@@ -665,80 +675,86 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
               <Typography variant="body2" fontWeight={700} color="text.secondary" textTransform="uppercase" letterSpacing="0.06em" fontSize={11} mb={2}>
                 Tax Information
               </Typography>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <Box>
-                    <Label text="Tax Type" required />
-                    <FormControl fullWidth size="small" error={touch.gstId && Boolean(err.gstId)}>
-                      <Select value={formik.values.gstId}
-                        onChange={(e) => formik.setFieldValue('gstId', e.target.value)}
-                        onOpen={() => setGstSearch('')}
-                        displayEmpty
-                        renderValue={(v) => {
-                          if (!v) return <Box component="span" sx={{ color: 'text.disabled' }}>{gstLoading ? 'Loading…' : 'Select Tax'}</Box>;
-                          return gstOptions.find(g => String(g.value) === v)?.label ?? v;
-                        }}
-                        startAdornment={gstLoading ? <InputAdornment position="start"><CircularProgress size={14} /></InputAdornment> : null}
-                        MenuProps={{ PaperProps: { sx: { maxHeight: 340 } } }}
-                        sx={{ ...inputSx, bgcolor: 'background.paper' }}>
-                        <ListSubheader sx={{ bgcolor: '#fff', py: 1, px: 1, borderBottom: '1px solid', borderColor: 'divider' }} onKeyDown={(e) => e.stopPropagation()}>
-                          <TextField size="small" fullWidth placeholder="Search tax..."
-                            value={gstSearch}
-                            onChange={(e) => setGstSearch(e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: 'text.disabled' }} /></InputAdornment> }}
-                          />
-                        </ListSubheader>
-                        <MenuItem value="" disabled sx={{ fontSize: 14, color: 'text.disabled' }}>Select Tax</MenuItem>
-                        {filteredGstOptions.map((g: GstOption) => (
-                          <MenuItem key={g.value} value={String(g.value)} sx={{ fontSize: 14 }}>{g.label}</MenuItem>
-                        ))}
-                      </Select>
-                      {touch.gstId && err.gstId && (
-                        <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>{err.gstId}</Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2.5 }}>
+                <Box>
+                  <Label text="Tax Type" required />
+                  <FormControl fullWidth size="small" error={touch.gstId && Boolean(err.gstId)}>
+                    <Autocomplete
+                      options={gstOptions}
+                      getOptionLabel={(g) => g.label}
+                      isOptionEqualToValue={(a, b) => String(a.value) === String(b.value)}
+                      value={gstOptions.find(g => String(g.value) === formik.values.gstId) ?? null}
+                      onChange={(_e, newValue) => formik.setFieldValue('gstId', newValue ? String(newValue.value) : '')}
+                      loading={gstLoading}
+                      noOptionsText="No tax types found"
+                      ListboxProps={{ sx: { maxHeight: 300 } }}
+                      renderOption={(props, option) => (
+                        <MenuItem {...props} key={option.value} sx={{ fontSize: 14 }}>{option.label}</MenuItem>
                       )}
-                    </FormControl>
-                  </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Typography variant="body2" fontWeight={600} whiteSpace="nowrap">Tax Inclusion</Typography>
-                    <ToggleButtonGroup exclusive value={formik.values.taxInclusion}
-                      onChange={(_e, v) => v && formik.setFieldValue('taxInclusion', v)}
-                      sx={{ bgcolor: 'rgba(0,0,0,0.08)', borderRadius: '999px', p: '3px', gap: '3px', '& .MuiToggleButtonGroup-grouped': { margin: 0 } }}>
-                      {(['Incl.', 'Excl.'] as const).map(v => (
-                        <ToggleButton key={v} value={v}
-                          sx={{ border: 'none !important', borderRadius: '999px !important', textTransform: 'none', fontSize: 12, fontWeight: 600, px: 1.8, height: 28, color: 'text.secondary', '&.Mui-selected': { bgcolor: 'background.paper', color: 'text.primary', boxShadow: '0 1px 3px rgba(0,0,0,0.15)', '&:hover': { bgcolor: 'background.paper' } }, '&:hover': { bgcolor: 'transparent' } }}>
-                          {v}
-                        </ToggleButton>
-                      ))}
-                    </ToggleButtonGroup>
-                  </Box>
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          size="small"
+                          placeholder="Select Tax"
+                          sx={{ ...inputSx, bgcolor: 'background.paper' }}
+                          InputProps={{
+                            ...params.InputProps,
+                            endAdornment: (
+                              <>
+                                {gstLoading ? <CircularProgress size={14} /> : null}
+                                {params.InputProps.endAdornment}
+                              </>
+                            ),
+                          }}
+                        />
+                      )}
+                    />
+                    {touch.gstId && err.gstId && (
+                      <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>{err.gstId}</Typography>
+                    )}
+                  </FormControl>
                 </Box>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <Box>
-                    <Label text="HSN Code" required />
-                    <TextField fullWidth size="small" placeholder="Enter HSN/SAC"
-                      {...formik.getFieldProps('hsn')}
-                      error={touch.hsn && Boolean(err.hsn)}
-                      helperText={touch.hsn && err.hsn}
-                      InputProps={{ sx: { ...inputSx, bgcolor: 'background.paper' } }} />
-                  </Box>
-                  <Box>
-                    <Label text="Barcode / QR" />
-                    <TextField fullWidth size="small" placeholder="Scan or enter code"
-                      {...formik.getFieldProps('barcode')}
-                      InputProps={{
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <Tooltip title="Scan barcode">
-                              <IconButton size="small" edge="end" sx={{ color: 'text.disabled' }}>
-                                <QrCodeScannerIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          </InputAdornment>
-                        ),
-                        sx: { ...inputSx, bgcolor: 'background.paper' },
-                      }} />
-                  </Box>
+                <Box>
+                  <Label text="HSN Code" />
+                  <TextField fullWidth size="small" placeholder="Enter HSN/SAC"
+                    {...formik.getFieldProps('hsn')}
+                    error={touch.hsn && Boolean(err.hsn)}
+                    helperText={touch.hsn && err.hsn}
+                    inputProps={{ maxLength: HSN_CODE_MAX_LENGTH }}
+                    InputProps={{ sx: { ...inputSx, bgcolor: 'background.paper' } }} />
+                </Box>
+                <Box>
+                  <Label text="Barcode / QR" />
+                  <TextField fullWidth size="small" placeholder="Scan or enter code"
+                    {...formik.getFieldProps('barcode')}
+                    error={touch.barcode && Boolean(err.barcode)}
+                    helperText={touch.barcode && err.barcode}
+                    inputProps={{ maxLength: BARCODE_MAX_LENGTH }}
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <Tooltip title="Scan barcode">
+                            <IconButton size="small" edge="end" sx={{ color: 'text.disabled' }}>
+                              <QrCodeScannerIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </InputAdornment>
+                      ),
+                      sx: { ...inputSx, bgcolor: 'background.paper' },
+                    }} />
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, gridColumn: { md: '1 / -1' } }}>
+                  <Typography variant="body2" fontWeight={600} whiteSpace="nowrap">Tax Inclusion</Typography>
+                  <ToggleButtonGroup exclusive value={formik.values.taxInclusion}
+                    onChange={(_e, v) => v && formik.setFieldValue('taxInclusion', v)}
+                    sx={{ bgcolor: 'rgba(0,0,0,0.08)', borderRadius: '999px', p: '3px', gap: '3px', '& .MuiToggleButtonGroup-grouped': { margin: 0 } }}>
+                    {(['Incl.', 'Excl.'] as const).map(v => (
+                      <ToggleButton key={v} value={v}
+                        sx={{ border: 'none !important', borderRadius: '999px !important', textTransform: 'none', fontSize: 12, fontWeight: 600, px: 1.8, height: 28, color: 'text.secondary', '&.Mui-selected': { bgcolor: 'background.paper', color: 'text.primary', boxShadow: '0 1px 3px rgba(0,0,0,0.15)', '&:hover': { bgcolor: 'background.paper' } }, '&:hover': { bgcolor: 'transparent' } }}>
+                        {v}
+                      </ToggleButton>
+                    ))}
+                  </ToggleButtonGroup>
                 </Box>
               </Box>
             </Box>
@@ -757,9 +773,13 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                 <Box sx={{ px: 2.5, py: 2.5, borderTop: '1px solid', borderColor: 'divider', display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5 }}>
                   <Box>
                     <Label text="Opening Stock" />
-                    <TextField fullWidth size="small" type="number" placeholder="0"
+                    <TextField fullWidth size="small" type="text" inputMode="decimal" placeholder="0"
                       {...formik.getFieldProps('openingStock')}
+                      onChange={handleAmountChange('openingStock')}
                       disabled={isEditMode}
+                      error={touch.openingStock && Boolean(err.openingStock)}
+                      helperText={touch.openingStock && err.openingStock}
+                      inputProps={{ inputMode: 'decimal', maxLength: 17 }}
                       InputProps={{ endAdornment: <InputAdornment position="end"><Typography variant="caption" color="text.disabled" fontWeight={600}>{unitOptions.find(u => String(u.value) === formik.values.unit)?.shortName ?? 'UNIT'}</Typography></InputAdornment>, sx: inputSx }} />
                     <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
                       Current stock quantity at the time of adding this item
@@ -767,9 +787,13 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                   </Box>
                   <Box>
                     <Label text="Low Stock Alert" />
-                    <TextField fullWidth size="small" type="number" placeholder="e.g. 10"
+                    <TextField fullWidth size="small" type="text" inputMode="decimal" placeholder="e.g. 10"
                       {...formik.getFieldProps('lowStockAlert')}
+                      onChange={handleAmountChange('lowStockAlert')}
                       disabled={isEditMode}
+                      error={touch.lowStockAlert && Boolean(err.lowStockAlert)}
+                      helperText={touch.lowStockAlert && err.lowStockAlert}
+                      inputProps={{ inputMode: 'decimal', maxLength: 17 }}
                       InputProps={{ endAdornment: <InputAdornment position="end"><Typography variant="caption" color="text.disabled" fontWeight={600}>{unitOptions.find(u => String(u.value) === formik.values.unit)?.shortName ?? 'UNIT'}</Typography></InputAdornment>, sx: inputSx }} />
                     <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
                       Alert when stock falls below this quantity

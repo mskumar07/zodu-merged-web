@@ -200,79 +200,69 @@ export default function StockHistoryModal({ open, onClose, item }: any) {
               </Box>
             </Box>
 
-            <Box
-              sx={{
-                border: "1px solid #E5E7EB",
-                borderRadius: "12px",
-                px: 3,
-                py: 1
-              }}
-            >
-              <Typography sx={{ fontSize: 10 }}>
-                CURRENT STOCK
-              </Typography>
-              <Typography sx={{ fontSize: 22, fontWeight: 800 }}>
-                {Number(currentStock).toFixed(2)}
-              </Typography>
-            </Box>
-          </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+              <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                {/* <Select
+                  value={selectedType}
+                  onChange={(e) => setSelectedType(e.target.value)}
+                  displayEmpty
+                  size="small"
+                >
+                  <MenuItem value="">All Types</MenuItem>
+                  <MenuItem value="purchase">Purchase</MenuItem>
+                  <MenuItem value="sale">Sale</MenuItem>
+                  <MenuItem value="wastage">Wastage</MenuItem>
+                  <MenuItem value="return">Return</MenuItem>
+                </Select> */}
 
-          {/* FILTER */}
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              mb: 1.5,
-              alignItems: "center"
-            }}
-          >
-            <Box />
+                {/* <Typography>From</Typography> */}
+                <TextField
+                  type="date"
+                  size="small"
+                  value={fromDate}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (toDate && val > toDate) setToDate("");
+                    setFromDate(val);
+                  }}
+                  inputProps={{ max: toDate || undefined }}
+                />
 
-            <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
-              {/* <Select
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-                displayEmpty
-                size="small"
+                <Typography>to</Typography>
+                <TextField
+                  type="date"
+                  size="small"
+                  value={toDate}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (fromDate && val < fromDate) return;
+                    setToDate(val);
+                  }}
+                  inputProps={{ min: fromDate || undefined }}
+                />
+
+                {hasActiveFilters && (
+                  <Box onClick={handleResetFilters} sx={{ cursor: "pointer" }}>
+                  <CloseIcon fontSize="small"  color="primary"/>
+                  </Box>
+                )}
+              </Box>
+
+              <Box
+                sx={{
+                  border: "1px solid #E5E7EB",
+                  borderRadius: "12px",
+                  px: 3,
+                  py: 1
+                }}
               >
-                <MenuItem value="">All Types</MenuItem>
-                <MenuItem value="purchase">Purchase</MenuItem>
-                <MenuItem value="sale">Sale</MenuItem>
-                <MenuItem value="wastage">Wastage</MenuItem>
-                <MenuItem value="return">Return</MenuItem>
-              </Select> */}
-
-              {/* <Typography>From</Typography> */}
-              <TextField
-                type="date"
-                size="small"
-                value={fromDate}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (toDate && val > toDate) setToDate("");
-                  setFromDate(val);
-                }}
-                inputProps={{ max: toDate || undefined }}
-              />
-
-              <Typography>to</Typography>
-              <TextField
-                type="date"
-                size="small"
-                value={toDate}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (fromDate && val < fromDate) return;
-                  setToDate(val);
-                }}
-                inputProps={{ min: fromDate || undefined }}
-              />
-
-              {hasActiveFilters && (
-                <Box onClick={handleResetFilters} sx={{ cursor: "pointer" }}>
-                <CloseIcon fontSize="small"  color="primary"/>
-                </Box>
-              )}
+                <Typography sx={{ fontSize: 10 }}>
+                  CURRENT STOCK
+                </Typography>
+                <Typography sx={{ fontSize: 22, fontWeight: 800 }}>
+                  {Number(currentStock).toFixed(2)}
+                </Typography>
+              </Box>
             </Box>
           </Box>
 

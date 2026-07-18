@@ -10,11 +10,10 @@ import {
   Button,
   IconButton,
   FormControl,
-  Select,
   MenuItem,
   InputAdornment,
   CircularProgress,
-  ListSubheader,
+  Autocomplete,
 } from "@mui/material";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
@@ -33,6 +32,7 @@ import {
   type GstOption,
   type UnitOption,
 } from "@pages/MenuItemScreen/useMenuItemApi";
+import { sanitizeAmountInput } from "@pages/MenuItemScreen/ItemValidation";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -105,6 +105,11 @@ interface FormState {
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 const PRIMARY = "#D21F3C";
 
+const ITEM_ID_MAX_LENGTH   = 35;
+const ITEM_NAME_MAX_LENGTH = 200;
+const HSN_CODE_MAX_LENGTH  = 20;
+const MAX_AMOUNT           = 99999999999.99;
+
 const INITIAL_FORM: FormState = {
   menuType: "Food",
   foodType: "Veg",
@@ -161,9 +166,6 @@ const AddRestaurantMenuItemDialog: React.FC<
   const [variantDraft, setVariantDraft] = useState<Variant[]>([]);
   const [categories, setCategories] = useState<RestaurantCategory[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
-  const [categorySearch, setCategorySearch] = useState("");
-  const [unitSearch, setUnitSearch] = useState("");
-  const [gstSearch, setGstSearch] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [imageDeleting, setImageDeleting] = useState(false);
   const [itemCodeChecking, setItemCodeChecking] = useState(false);
@@ -215,9 +217,6 @@ const AddRestaurantMenuItemDialog: React.FC<
     setVariants([]);
     setVariantDraft([]);
     setVariantModalOpen(false);
-    setCategorySearch("");
-    setUnitSearch("");
-    setGstSearch("");
     setItemCodeChecking(false);
     setItemCodeExistsError(null);
   };
@@ -251,8 +250,8 @@ const AddRestaurantMenuItemDialog: React.FC<
         taxType:       editItem.tax_include_or_exclude ? "include" : "exclude",
         gstTax:        String(editItem.gst_id ?? ""),
         hsnCode:       editItem.hsn_code ?? "",
-        openingStock:  editItem.stock_qty != null ? String(parseInt(String(editItem.stock_qty), 10)) : (editItem.opening_stock != null ? String(parseInt(String(editItem.opening_stock), 10)) : ""),
-        alertStock:    editItem.stock_alert != null ? String(parseInt(String(editItem.stock_alert), 10)) : (editItem.alert_stock != null ? String(parseInt(String(editItem.alert_stock), 10)) : ""),
+        openingStock:  editItem.stock_qty != null ? String(Number(editItem.stock_qty)) : (editItem.opening_stock != null ? String(Number(editItem.opening_stock)) : ""),
+        alertStock:    editItem.stock_alert != null ? String(Number(editItem.stock_alert)) : (editItem.alert_stock != null ? String(Number(editItem.alert_stock)) : ""),
       });
       setImagePreview(editItem.menu_image ?? null);
       setImageUrl(editItem.menu_image ?? null);
@@ -278,6 +277,9 @@ const AddRestaurantMenuItemDialog: React.FC<
 
   const touch = (key: keyof FormState) =>
     setTouched((prev) => ({ ...prev, [key]: true }));
+
+  const setAmount = (key: "sellPrice" | "purchasePrice" | "openingStock" | "alertStock") =>
+    (e: React.ChangeEvent<HTMLInputElement>) => set(key, sanitizeAmountInput(e.target.value));
 
   // ── Item code existence check on blur ─────────────────────────────────────
   const checkItemCodeExists = async () => {
@@ -386,11 +388,25 @@ const AddRestaurantMenuItemDialog: React.FC<
   const validate = (): Partial<Record<keyof FormState, string>> => {
     const errors: Partial<Record<keyof FormState, string>> = {};
     if (!form.menuName.trim()) errors.menuName = "Menu name is required";
+    else if (form.menuName.trim().length > ITEM_NAME_MAX_LENGTH)
+      errors.menuName = `Menu name cannot exceed ${ITEM_NAME_MAX_LENGTH} characters`;
     if (!form.categoryId) errors.categoryId = "Category is required";
     if (!form.sellPrice || Number(form.sellPrice) <= 0)
       errors.sellPrice = "Sell price must be greater than 0";
+    else if (Number(form.sellPrice) > MAX_AMOUNT)
+      errors.sellPrice = `Sell price cannot exceed ${MAX_AMOUNT.toLocaleString("en-IN")}`;
+    if (form.purchasePrice && Number(form.purchasePrice) > MAX_AMOUNT)
+      errors.purchasePrice = `Purchase price cannot exceed ${MAX_AMOUNT.toLocaleString("en-IN")}`;
+    if (form.openingStock && Number(form.openingStock) > MAX_AMOUNT)
+      errors.openingStock = `Opening stock cannot exceed ${MAX_AMOUNT.toLocaleString("en-IN")}`;
+    if (form.alertStock && Number(form.alertStock) > MAX_AMOUNT)
+      errors.alertStock = `Low stock alert cannot exceed ${MAX_AMOUNT.toLocaleString("en-IN")}`;
     if (!form.menuUnit) errors.menuUnit = "Menu unit is required";
     if (!form.itemCode.trim()) errors.itemCode = "Item code is required";
+    else if (form.itemCode.trim().length > ITEM_ID_MAX_LENGTH)
+      errors.itemCode = `Item code cannot exceed ${ITEM_ID_MAX_LENGTH} characters`;
+    if (form.hsnCode.trim().length > HSN_CODE_MAX_LENGTH)
+      errors.hsnCode = `HSN code cannot exceed ${HSN_CODE_MAX_LENGTH} characters`;
     return errors;
   };
 
@@ -457,10 +473,10 @@ const AddRestaurantMenuItemDialog: React.FC<
     formData.append("menu_code", form.itemCode.trim());
     if (form.menuType === "Product") {
       if (form.openingStock) {
-        formData.append("opening_stock", String(parseInt(form.openingStock, 10)));
+        formData.append("opening_stock", String(Number(form.openingStock)));
       }
       if (form.alertStock) {
-        formData.append("alert_stock", String(parseInt(form.alertStock, 10)));
+        formData.append("alert_stock", String(Number(form.alertStock)));
       }
     }
     formData.append("variants", variants.length > 0 ? JSON.stringify(variants) : "null");
@@ -497,23 +513,6 @@ const AddRestaurantMenuItemDialog: React.FC<
       setSubmitting(false);
     }
   };
-
-  // ── Filtered dropdown options ──────────────────────────────────────────────
-  const filteredCategories = categories.filter((c) =>
-    c.name.toLowerCase().includes(categorySearch.trim().toLowerCase())
-  );
-
-  const filteredUnits = unitOptions.filter(
-    (u: UnitOption) =>
-      u.label.toLowerCase().includes(unitSearch.trim().toLowerCase()) ||
-      u.shortName.toLowerCase().includes(unitSearch.trim().toLowerCase())
-  );
-
-  const filteredGstOptions = gstOptions.filter(
-    (g: GstOption) =>
-      g.label.toLowerCase().includes(gstSearch.trim().toLowerCase()) ||
-      String(g.percentage).includes(gstSearch.trim())
-  );
 
   // ── Shared sx ─────────────────────────────────────────────────────────────
   const inputSx = { borderRadius: 1, fontSize: 14 };
@@ -601,12 +600,13 @@ const AddRestaurantMenuItemDialog: React.FC<
         sx={{
           px: 3,
           py: 3,
-          overflowY: "auto",
-          "&::-webkit-scrollbar": { width: 5 },
-          "&::-webkit-scrollbar-thumb": {
-            bgcolor: "divider",
-            borderRadius: 10,
-          },
+          overflowY: "scroll",
+          scrollbarWidth: "auto",
+          scrollbarColor: (theme) => `${theme.palette.text.disabled} ${theme.palette.action.hover}`,
+          "&::-webkit-scrollbar": { width: 10 },
+          "&::-webkit-scrollbar-track": { bgcolor: "action.hover" },
+          "&::-webkit-scrollbar-thumb": { bgcolor: "text.disabled", borderRadius: 10, border: "2px solid transparent", backgroundClip: "padding-box" },
+          "&::-webkit-scrollbar-thumb:hover": { bgcolor: "text.secondary" },
         }}
       >
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
@@ -732,6 +732,7 @@ const AddRestaurantMenuItemDialog: React.FC<
                 onBlur={checkItemCodeExists}
                 error={Boolean(fieldError("itemCode")) || Boolean(itemCodeExistsError)}
                 helperText={fieldError("itemCode") || itemCodeExistsError || undefined}
+                inputProps={{ maxLength: ITEM_ID_MAX_LENGTH }}
                 InputProps={{
                   sx: inputSx,
                   endAdornment: (
@@ -748,28 +749,43 @@ const AddRestaurantMenuItemDialog: React.FC<
             <Box>
               <FieldLabel text="Category" required />
               <FormControl fullWidth size="small" error={Boolean(fieldError("categoryId"))}>
-                <Select
-                  value={form.categoryId} displayEmpty
-                  onChange={(e) => set("categoryId", e.target.value)}
-                  onOpen={() => setCategorySearch("")}
+                <Autocomplete
+                  options={categories}
+                  getOptionLabel={(c) => c.name}
+                  isOptionEqualToValue={(a, b) => a.id === b.id}
+                  value={categories.find((c) => String(c.id) === form.categoryId) ?? null}
+                  onChange={(_e, newValue) => set("categoryId", newValue ? String(newValue.id) : "")}
                   onClose={() => touch("categoryId")}
-                  renderValue={(selected) => {
-                    if (!selected) return <Box component="span" sx={{ color: "text.disabled" }}>{categoriesLoading ? "Loading…" : "Select Category"}</Box>;
-                    return categories.find((c) => String(c.id) === selected)?.name ?? selected;
-                  }}
-                  startAdornment={categoriesLoading ? <InputAdornment position="start"><CircularProgress size={14} /></InputAdornment> : null}
-                  MenuProps={{ PaperProps: { sx: { maxHeight: 300 } } }}
-                  sx={inputSx}
-                >
-                  <ListSubheader sx={{ bgcolor: "#fff", py: 1, px: 1, borderBottom: "1px solid", borderColor: "divider" }} onKeyDown={(e) => e.stopPropagation()}>
-                    <TextField size="small" fullWidth placeholder="Search category..." value={categorySearch}
-                      onChange={(e) => setCategorySearch(e.target.value)} onClick={(e) => e.stopPropagation()}
-                      InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: "text.disabled" }} /></InputAdornment> }} />
-                  </ListSubheader>
-                  <MenuItem value="" disabled sx={{ fontSize: 14, color: "text.disabled" }}>Select Category</MenuItem>
-                  {filteredCategories.map((c) => <MenuItem key={c.id} value={String(c.id)} sx={{ fontSize: 14 }}>{c.name}</MenuItem>)}
-                  {filteredCategories.length === 0 && !categoriesLoading && <MenuItem disabled sx={{ fontSize: 13, color: "text.disabled" }}>No categories found</MenuItem>}
-                </Select>
+                  loading={categoriesLoading}
+                  noOptionsText="No categories found"
+                  ListboxProps={{ sx: { maxHeight: 300 } }}
+                  renderOption={(props, option) => (
+                    <MenuItem {...props} key={option.id} sx={{ fontSize: 14 }}>{option.name}</MenuItem>
+                  )}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      size="small"
+                      placeholder="Select Category"
+                      sx={inputSx}
+                      InputProps={{
+                        ...params.InputProps,
+                        startAdornment: (
+                          <>
+                            <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: "text.disabled" }} /></InputAdornment>
+                            {params.InputProps.startAdornment}
+                          </>
+                        ),
+                        endAdornment: (
+                          <>
+                            {categoriesLoading ? <CircularProgress size={14} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
+                />
                 {fieldError("categoryId") && <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>{fieldError("categoryId")}</Typography>}
               </FormControl>
             </Box>
@@ -782,31 +798,50 @@ const AddRestaurantMenuItemDialog: React.FC<
               <TextField fullWidth size="small" placeholder="e.g. Chicken Biryani"
                 value={form.menuName} onChange={(e) => set("menuName", e.target.value)}
                 onBlur={() => touch("menuName")} error={Boolean(fieldError("menuName"))}
-                helperText={fieldError("menuName")} InputProps={{ sx: inputSx }} />
+                helperText={fieldError("menuName")}
+                inputProps={{ maxLength: ITEM_NAME_MAX_LENGTH }}
+                InputProps={{ sx: inputSx }} />
             </Box>
             <Box>
               <FieldLabel text="Menu Unit" required />
               <FormControl fullWidth size="small" error={Boolean(fieldError("menuUnit"))}>
-                <Select
-                  value={form.menuUnit} displayEmpty
-                  onChange={(e) => set("menuUnit", e.target.value)}
-                  onOpen={() => setUnitSearch("")} onClose={() => touch("menuUnit")}
-                  renderValue={(v) => {
-                    if (!v) return <Box component="span" sx={{ color: "text.disabled" }}>{unitsLoading ? "Loading…" : "Select Unit"}</Box>;
-                    return unitOptions.find((u: UnitOption) => String(u.value) === v)?.label ?? v;
-                  }}
-                  startAdornment={unitsLoading ? <InputAdornment position="start"><CircularProgress size={14} /></InputAdornment> : null}
-                  MenuProps={{ PaperProps: { sx: { maxHeight: 300 } } }}
-                  sx={inputSx}
-                >
-                  <ListSubheader sx={{ bgcolor: "#fff", py: 1, px: 1, borderBottom: "1px solid", borderColor: "divider" }} onKeyDown={(e) => e.stopPropagation()}>
-                    <TextField size="small" fullWidth placeholder="Search unit..." value={unitSearch}
-                      onChange={(e) => setUnitSearch(e.target.value)} onClick={(e) => e.stopPropagation()}
-                      InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: "text.disabled" }} /></InputAdornment> }} />
-                  </ListSubheader>
-                  <MenuItem value="" disabled sx={{ fontSize: 14, color: "text.disabled" }}>Select Unit</MenuItem>
-                  {filteredUnits.map((u: UnitOption) => <MenuItem key={u.value} value={String(u.value)} sx={{ fontSize: 14 }}>{u.label}</MenuItem>)}
-                </Select>
+                <Autocomplete
+                  options={unitOptions}
+                  getOptionLabel={(u) => u.label}
+                  isOptionEqualToValue={(a, b) => String(a.value) === String(b.value)}
+                  value={unitOptions.find((u: UnitOption) => String(u.value) === form.menuUnit) ?? null}
+                  onChange={(_e, newValue) => set("menuUnit", newValue ? String(newValue.value) : "")}
+                  onClose={() => touch("menuUnit")}
+                  loading={unitsLoading}
+                  noOptionsText="No units found"
+                  ListboxProps={{ sx: { maxHeight: 300 } }}
+                  renderOption={(props, option) => (
+                    <MenuItem {...props} key={option.value} sx={{ fontSize: 14 }}>{option.label}</MenuItem>
+                  )}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      size="small"
+                      placeholder="Select Unit"
+                      sx={inputSx}
+                      InputProps={{
+                        ...params.InputProps,
+                        startAdornment: (
+                          <>
+                            <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: "text.disabled" }} /></InputAdornment>
+                            {params.InputProps.startAdornment}
+                          </>
+                        ),
+                        endAdornment: (
+                          <>
+                            {unitsLoading ? <CircularProgress size={14} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
+                />
                 {fieldError("menuUnit") && <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>{fieldError("menuUnit")}</Typography>}
               </FormControl>
             </Box>
@@ -816,16 +851,20 @@ const AddRestaurantMenuItemDialog: React.FC<
           <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
             <Box>
               <FieldLabel text="Sell Price" required />
-              <TextField fullWidth size="small" type="number" placeholder="0.00"
-                value={form.sellPrice} onChange={(e) => set("sellPrice", e.target.value)}
+              <TextField fullWidth size="small" type="text" inputMode="decimal" placeholder="0.00"
+                value={form.sellPrice} onChange={setAmount("sellPrice")}
                 onBlur={() => touch("sellPrice")} error={Boolean(fieldError("sellPrice"))}
                 helperText={fieldError("sellPrice")}
+                inputProps={{ inputMode: "decimal", maxLength: 17 }}
                 InputProps={{ sx: inputSx, startAdornment: <InputAdornment position="start"><Typography variant="body2" fontWeight={700} sx={{ color: PRIMARY }}>₹</Typography></InputAdornment> }} />
             </Box>
             <Box>
               <FieldLabel text={form.menuType === "Food" ? "Base Price" : "Purchase Price"} />
-              <TextField fullWidth size="small" type="number" placeholder="0.00"
-                value={form.purchasePrice} onChange={(e) => set("purchasePrice", e.target.value)}
+              <TextField fullWidth size="small" type="text" inputMode="decimal" placeholder="0.00"
+                value={form.purchasePrice} onChange={setAmount("purchasePrice")}
+                onBlur={() => touch("purchasePrice")} error={Boolean(fieldError("purchasePrice"))}
+                helperText={fieldError("purchasePrice")}
+                inputProps={{ inputMode: "decimal", maxLength: 17 }}
                 InputProps={{ sx: inputSx, startAdornment: <InputAdornment position="start"><Typography variant="body2" fontWeight={600} color="text.disabled">₹</Typography></InputAdornment> }} />
             </Box>
           </Box>
@@ -920,6 +959,10 @@ const AddRestaurantMenuItemDialog: React.FC<
                   placeholder="Enter HSN/SAC code"
                   value={form.hsnCode}
                   onChange={(e) => set("hsnCode", e.target.value)}
+                  onBlur={() => touch("hsnCode")}
+                  error={Boolean(fieldError("hsnCode"))}
+                  helperText={fieldError("hsnCode")}
+                  inputProps={{ maxLength: HSN_CODE_MAX_LENGTH }}
                   InputProps={{ sx: { ...inputSx, bgcolor: "background.paper" } }}
                 />
               </Box>
@@ -928,80 +971,42 @@ const AddRestaurantMenuItemDialog: React.FC<
               <Box>
                 <FieldLabel text="Tax Rate (GST)" />
                 <FormControl fullWidth size="small">
-                  <Select
-                    value={form.gstTax}
-                    displayEmpty
-                    onChange={(e) => set("gstTax", e.target.value)}
-                    onOpen={() => setGstSearch("")}
-                    renderValue={(v) => {
-                      if (!v)
-                        return (
-                          <Box component="span" sx={{ color: "text.disabled" }}>
-                            {gstLoading ? "Loading…" : "Select Tax Rate"}
-                          </Box>
-                        );
-                      return (
-                        gstOptions.find(
-                          (g: GstOption) => String(g.value) === v
-                        )?.label ?? v
-                      );
-                    }}
-                    startAdornment={
-                      gstLoading ? (
-                        <InputAdornment position="start">
-                          <CircularProgress size={14} />
-                        </InputAdornment>
-                      ) : null
-                    }
-                    MenuProps={{
-                      PaperProps: { sx: { maxHeight: 300 } },
-                    }}
-                    sx={{ ...inputSx, bgcolor: "background.paper" }}
-                  >
-                    <ListSubheader
-                      sx={{
-                        bgcolor: "#fff",
-                        py: 1,
-                        px: 1,
-                        borderBottom: "1px solid",
-                        borderColor: "divider",
-                      }}
-                      onKeyDown={(e) => e.stopPropagation()}
-                    >
+                  <Autocomplete
+                    options={gstOptions}
+                    getOptionLabel={(g) => g.label}
+                    isOptionEqualToValue={(a, b) => String(a.value) === String(b.value)}
+                    value={gstOptions.find((g: GstOption) => String(g.value) === form.gstTax) ?? null}
+                    onChange={(_e, newValue) => set("gstTax", newValue ? String(newValue.value) : "")}
+                    loading={gstLoading}
+                    noOptionsText="No tax rates found"
+                    ListboxProps={{ sx: { maxHeight: 300 } }}
+                    renderOption={(props, option) => (
+                      <MenuItem {...props} key={option.value} sx={{ fontSize: 14 }}>{option.label}</MenuItem>
+                    )}
+                    renderInput={(params) => (
                       <TextField
+                        {...params}
                         size="small"
-                        fullWidth
-                        placeholder="Search tax..."
-                        value={gstSearch}
-                        onChange={(e) => setGstSearch(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
+                        placeholder="Select Tax Rate"
+                        sx={{ ...inputSx, bgcolor: "background.paper" }}
                         InputProps={{
+                          ...params.InputProps,
                           startAdornment: (
-                            <InputAdornment position="start">
-                              <SearchIcon
-                                sx={{ fontSize: 16, color: "text.disabled" }}
-                              />
-                            </InputAdornment>
+                            <>
+                              <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: "text.disabled" }} /></InputAdornment>
+                              {params.InputProps.startAdornment}
+                            </>
+                          ),
+                          endAdornment: (
+                            <>
+                              {gstLoading ? <CircularProgress size={14} /> : null}
+                              {params.InputProps.endAdornment}
+                            </>
                           ),
                         }}
                       />
-                    </ListSubheader>
-                    <MenuItem
-                      value=""
-                      sx={{ fontSize: 14, color: "text.disabled" }}
-                    >
-                      None
-                    </MenuItem>
-                    {filteredGstOptions.map((g: GstOption) => (
-                      <MenuItem
-                        key={g.value}
-                        value={String(g.value)}
-                        sx={{ fontSize: 14 }}
-                      >
-                        {g.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
+                    )}
+                  />
                 </FormControl>
               </Box>
             </Box>
@@ -1074,11 +1079,16 @@ const AddRestaurantMenuItemDialog: React.FC<
                   <TextField
                     fullWidth
                     size="small"
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     placeholder="0"
                     value={form.openingStock}
-                    onChange={(e) => set("openingStock", e.target.value)}
+                    onChange={setAmount("openingStock")}
+                    onBlur={() => touch("openingStock")}
+                    error={Boolean(fieldError("openingStock"))}
+                    helperText={fieldError("openingStock")}
                     disabled={isEditMode && originalMenuType === "Product"}
+                    inputProps={{ inputMode: "decimal", maxLength: 17 }}
                     InputProps={{
                       sx: inputSx,
                       endAdornment: (
@@ -1110,11 +1120,16 @@ const AddRestaurantMenuItemDialog: React.FC<
                   <TextField
                     fullWidth
                     size="small"
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     placeholder="e.g. 10"
                     value={form.alertStock}
-                    onChange={(e) => set("alertStock", e.target.value)}
+                    onChange={setAmount("alertStock")}
+                    onBlur={() => touch("alertStock")}
+                    error={Boolean(fieldError("alertStock"))}
+                    helperText={fieldError("alertStock")}
                     disabled={isEditMode && originalMenuType === "Product"}
+                    inputProps={{ inputMode: "decimal", maxLength: 17 }}
                     InputProps={{
                       sx: inputSx,
                       endAdornment: (

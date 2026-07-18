@@ -388,13 +388,14 @@ export default function AttendanceDashboard() {
                 sx={{
                   borderCollapse: "collapse",
                   tableLayout: "fixed",
-                  width: 180 + teamTotalDays * 32 + 90,
+                  width: "100%",
+                  minWidth: 180 + teamTotalDays * 32 + 90,
                 }}
               >
                 <Box component="colgroup">
                   <Box component="col" sx={{ width: 180 }} />
                   {teamDateColumns.map((d) => (
-                    <Box component="col" key={d} sx={{ width: 32 }} />
+                    <Box component="col" key={d} sx={{ width: "auto" }} />
                   ))}
                   <Box component="col" sx={{ width: 90 }} />
                 </Box>
@@ -522,13 +523,14 @@ export default function AttendanceDashboard() {
                 sx={{
                   borderCollapse: "collapse",
                   tableLayout: "fixed",
-                  width: 90 + myTotalDays * 32 + 90,
+                  width: "100%",
+                  minWidth: 90 + myTotalDays * 32 + 90,
                 }}
               >
                 <Box component="colgroup">
                   <Box component="col" sx={{ width: 90 }} />
                   {myDateColumns.map((d) => (
-                    <Box component="col" key={d} sx={{ width: 32 }} />
+                    <Box component="col" key={d} sx={{ width: "auto" }} />
                   ))}
                   <Box component="col" sx={{ width: 90 }} />
                 </Box>

@@ -314,6 +314,7 @@ interface Props {
   saleId: string;
   onClose: () => void;
   isRestaurant?: boolean;
+  isCancelledTab?: boolean;
 }
 
 function getPosEditUrl(saleId: string | undefined, saleType: string | null | undefined): string {
@@ -333,7 +334,7 @@ function getPosEditUrl(saleId: string | undefined, saleType: string | null | und
 // Component
 // ─────────────────────────────────────────────────────────────
 export default function InvoiceDetailsModal({
-  open = true, saleId, onClose, isRestaurant = false,
+  open = true, saleId, onClose, isRestaurant = false, isCancelledTab = false,
 }: Props) {
   const navigate = useNavigate();
   const pdfRef   = useRef<HTMLDivElement | null>(null);
@@ -713,7 +714,7 @@ export default function InvoiceDetailsModal({
           )}
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          {!isRestaurant && (
+          {!isRestaurant && !isCancelledTab && (
             <Tooltip title="Edit in POS">
               <IconButton size="small" onClick={() => navigate(getPosEditUrl(sale?.sale_id, sale?.sale_type))}
                 sx={{ color: "#2563EB", bgcolor: "#EFF6FF", "&:hover": { bgcolor: "#DBEAFE" }, borderRadius: "50%", width: 32, height: 32 }}>

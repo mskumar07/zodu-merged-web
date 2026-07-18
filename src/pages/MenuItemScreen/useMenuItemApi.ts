@@ -441,16 +441,32 @@ export interface CheckCategoryNameResponse {
 }
 
 /**
- * POST /retail/check/category-name
- * Checks whether a category name already exists for the current zodu/branch.
+ * Restaurant: GET /restaurant/category-name?zodu_id&branch_id&name&type
+ * Retail:     POST /retail/check/category-name  { zodu_id, branch_id, category_name }
+ * Checks whether a category name already exists for the current zodu/branch(/type).
  */
-export async function checkCategoryName(category_name: string): Promise<CheckCategoryNameResponse> {
+export interface CheckCategoryNameParams {
+  name: string;
+  type: string;
+}
+
+export async function checkCategoryName({ name, type }: CheckCategoryNameParams): Promise<CheckCategoryNameResponse> {
   const { zoduId, branchId } = getTenantContext();
   const token = getAccessToken();
+  const headers = { ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+
+  if (getRoute() === "restaurant") {
+    const { data } = await axios.get<CheckCategoryNameResponse>(
+      `${API_BASE}/restaurant/category-name`,
+      { params: { zodu_id: zoduId, branch_id: branchId, name: name.trim(), type }, headers }
+    );
+    return data;
+  }
+
   const { data } = await axios.post<CheckCategoryNameResponse>(
-    `${API_BASE}/${getRoute()}/check/category-name`,
-    { zodu_id: zoduId, branch_id: branchId, category_name: category_name.trim() },
-    { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
+    `${API_BASE}/retail/check/category-name`,
+    { zodu_id: zoduId, branch_id: branchId, category_name: name.trim() },
+    { headers }
   );
   return data;
 }
@@ -458,7 +474,7 @@ export async function checkCategoryName(category_name: string): Promise<CheckCat
 export function useCheckCategoryName(options?: {
   onSuccess?: (data: CheckCategoryNameResponse) => void;
   onError?:   (message: string) => void;
-}): UseMutationResult<CheckCategoryNameResponse, unknown, string> {
+}): UseMutationResult<CheckCategoryNameResponse, unknown, CheckCategoryNameParams> {
   return useMutation({
     mutationFn: checkCategoryName,
     onSuccess: (data) => {
@@ -466,7 +482,7 @@ export function useCheckCategoryName(options?: {
     },
     onError: (err: unknown) => {
       const msg = axios.isAxiosError(err)
-        ? err.response?.data?.error ?? err.response?.data?.errors?.[0] ?? err.message
+        ? err.response?.data?.errors ?? err.response?.data?.message ?? err.response?.data?.error ?? err.message
         : "Failed to check category name";
       options?.onError?.(msg);
     },

@@ -22,7 +22,7 @@ import {
   useActiveEmployees,
   buildEmployeePayload, uploadEmployeeDocument, deleteEmployeeDocument,
   INDIA_STATES, EMPLOYMENT_TYPES,
-  PAYMENT_TYPES, GENDERS, ACCESS_LEVELS,
+  PAYMENT_TYPES, GENDERS,
 } from "./useEmployeeApi";
 import { useRoles } from "@pages/auth/Role/useRoleApi";
 import LottieLoader from "@components/LottieLoader";
@@ -315,11 +315,9 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
     const e: Record<string, string> = {};
     if (!String(form.name ?? "").trim())  e.name  = "Required";
     if (!String(form.phone ?? "").trim()) e.phone = "Required";
-    // password required on add; optional on edit (only validate if filled)
+    // password optional on both add and edit (only validate if filled)
     const pwd = String(form.password ?? "").trim();
-    if (!isEdit && !pwd) {
-      e.password = "Required";
-    } else if (pwd && !PWD_RULES.test(pwd)) {
+    if (pwd && !PWD_RULES.test(pwd)) {
       e.password = "8–20 chars, at least 1 uppercase, 1 number, 1 special character";
     }
     setErrors(e);
@@ -351,13 +349,6 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
           (changed as any)[k] = (payload as any)[k] ?? cur;
         }
       });
-      // if role changed, always include access_level too (and vice versa)
-      if ("role_id" in changed && !("access_level" in changed)) {
-        changed.access_level = String(form.access_level ?? "");
-      }
-      if ("access_level" in changed && !("role_id" in changed)) {
-        changed.role_id = String(form.role_id ?? "");
-      }
       // always include password if filled
       if (String(form.password ?? "").trim()) changed.password = String(form.password);
       updateEmp.mutate({ employeeId, payload: changed as any });
@@ -558,39 +549,12 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
                         {tf("email", "Enter email address", "email")}
                       </Grid>
 
-                      {/* Row 3: Role | Access Level */}
+                      {/* Row 3: Password | Role */}
                       <Grid size={{ xs: 12, sm: 6 }}>
-                        <FL>Role</FL>
-                        <Select fullWidth size="small" displayEmpty
-                          value={String(form.role_id ?? "")}
-                          onChange={(e) => set("role_id", e.target.value)}
-                          inputProps={{ readOnly }} sx={selectSx}
-                          renderValue={(v) => {
-                            const r = roles.find((r) => r.role_id === v);
-                            return r ? r.role_name : <span style={{ color: "#9CA3AF" }}>Select role</span>;
-                          }}
-                        >
-                          {roles.map((r) => (
-                            <MenuItem key={r.role_id} value={r.role_id} sx={{ fontSize: 13 }}>{r.role_name}</MenuItem>
-                          ))}
-                        </Select>
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <FL>Access Level</FL>
-                        {sel("access_level", ACCESS_LEVELS, "Select access level")}
-                      </Grid>
-
-                      {/* Row 4: Status | Password */}
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <FL>Status</FL>
-                        {sel("status", ["active", "inactive"], "Select status")}
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <FL req={!isEdit}>
+                        <FL>
                           Password
                           {isEdit && (
                             <Box component="span" sx={{ fontWeight: 400, color: "#9CA3AF", ml: 0.5, fontSize: 11 }}>
-                              (leave blank to keep)
                             </Box>
                           )}
                         </FL>
@@ -604,8 +568,8 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
                           helperText={
                             errors.password
                               ? errors.password
-                              : <Box component="span" sx={{ fontSize: 10.5, color: "#9CA3AF" }}>
-                                  8–20 chars · 1 uppercase · 1 number · 1 special char
+                              : <Box component="span" sx={{ fontSize: 10.5, color: "#9CA3AF", whiteSpace: "nowrap" }}>
+                                  8–20 chars, mixed case + number + symbol
                                 </Box>
                           }
                           slotProps={{
@@ -624,6 +588,28 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
                           }}
                           sx={inputSx}
                         />
+                      </Grid>
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <FL>Role</FL>
+                        <Select fullWidth size="small" displayEmpty
+                          value={String(form.role_id ?? "")}
+                          onChange={(e) => set("role_id", e.target.value)}
+                          inputProps={{ readOnly }} sx={selectSx}
+                          renderValue={(v) => {
+                            const r = roles.find((r) => r.role_id === v);
+                            return r ? r.role_name : <span style={{ color: "#9CA3AF" }}>Select role</span>;
+                          }}
+                        >
+                          {roles.map((r) => (
+                            <MenuItem key={r.role_id} value={r.role_id} sx={{ fontSize: 13 }}>{r.role_name}</MenuItem>
+                          ))}
+                        </Select>
+                      </Grid>
+
+                      {/* Row 4: Status */}
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <FL>Status</FL>
+                        {sel("status", ["active", "inactive"], "Select status")}
                       </Grid>
                     </Grid>
                   </Box>

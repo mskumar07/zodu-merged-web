@@ -45,6 +45,7 @@ export interface Sale {
   payment_status:  "fully_paid" | "partially_paid" | "unpaid" | boolean;
   notes:           string | null;
   round_off?:      string | number | null;
+  due_date?:       string | null;
 
   // formatted dates from TO_CHAR
   sale_date_fmt:   string;
@@ -216,7 +217,7 @@ export interface Filters {
   from_date:        string;
   to_date:          string;
   order_type?:      string;   // restaurant only: Dine-In | Delivery | Takeaway
-  cancelled_order?: boolean;  // restaurant only: true = cancelled tab, false = orders tab
+  cancelled_order?: boolean;  // true = cancelled tab, false = orders/invoice tab
 }
 
 /** Payload for POST /api/sales/:sale_id/payment */
@@ -286,6 +287,7 @@ export async function fetchHistory(page: number, filters: Filters): Promise<Hist
   if (filters.to_date)        params.to_date           = filters.to_date;
   // ✅ search — backend searches sale_id, cust_name, cpy_name, mobile_no
   if (filters.search)         params.search   = filters.search;
+  if (filters.cancelled_order !== undefined) params.cancelled_order = String(filters.cancelled_order);
 
   const { data } = await axios.get<HistoryPage>(
     `${API_BASE}/retail/api/sales/history`,
@@ -376,6 +378,7 @@ export async function fetchSummary(filters: Filters): Promise<SalesSummary> {
   if (filters.from_date)      params.from_date       = filters.from_date;
   if (filters.to_date)        params.to_date         = filters.to_date;
   if (filters.search)         params.search          = filters.search;
+  if (filters.cancelled_order !== undefined) params.cancelled_order = String(filters.cancelled_order);
 
   const { data } = await axios.get<SalesSummary>(
     `${API_BASE}/retail/api/sales/history/summary`,

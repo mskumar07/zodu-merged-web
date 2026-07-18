@@ -481,9 +481,11 @@ const OrderPanel: React.FC<Props> = ({
                         fontSize: "0.77rem",
                         fontWeight: 600,
                         color: "#111827",
+                        lineHeight: 1.3,
                         overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
                         textTransform: "uppercase",
                       }}
                     >
@@ -574,7 +576,19 @@ const OrderPanel: React.FC<Props> = ({
 
       {/* ── Totals: non-DineIn OR DineIn Summary tab with KOT data (hidden while editing) ── */}
       {!isEditingSummary && ((!isDineIn && cartItems.length > 0) || (isDineIn && activeTab === "summary" && orderSummary.length > 0)) ? (
-        <Box sx={{ px: 1.5, py: 1.2, borderTop: "1px solid #f3f4f6", flexShrink: 0 }}>
+        <Box
+          sx={{
+            mx: 1.5,
+            mb: 1.2,
+            mt: 1,
+            px: 1.5,
+            py: 1.2,
+            borderRadius: "10px",
+            bgcolor: "#f9fafb",
+            border: "1px solid #eef0f2",
+            flexShrink: 0,
+          }}
+        >
           {(() => {
             const t = isDineIn ? runningOrderTotals : totals;
             return (
@@ -601,7 +615,7 @@ const OrderPanel: React.FC<Props> = ({
                       onClick={onDiscountClick}
                       sx={{
                         height: 17, fontSize: "0.6rem", cursor: "pointer",
-                        bgcolor: t.discount > 0 ? "#dcfce7" : "#f3f4f6",
+                        bgcolor: t.discount > 0 ? "#dcfce7" : "#eef0f2",
                         color:   t.discount > 0 ? "#16a34a" : "#6b7280",
                         "& .MuiChip-label": { px: 0.5 },
                       }}
@@ -611,7 +625,7 @@ const OrderPanel: React.FC<Props> = ({
                     {t.discount > 0 ? `−₹${t.discount.toFixed(2)}` : "₹0.00"}
                   </Typography>
                 </Box>
-                <Divider sx={{ my: 0.8 }} />
+                <Divider sx={{ my: 0.8, borderColor: "#e5e7eb" }} />
                 <Box sx={{ display: "flex", justifyContent: "space-between" }}>
                   <Typography sx={{ fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>Grand Total</Typography>
                   <Typography sx={{ fontSize: "0.9rem", fontWeight: 800, color: "#d32f2f" }}>

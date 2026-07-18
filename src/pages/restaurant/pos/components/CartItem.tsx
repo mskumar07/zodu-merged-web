@@ -74,8 +74,9 @@ const CartItem: React.FC<Props> = ({ item, onIncrement, onDecrement, onRemove })
             color: "#111827",
             lineHeight: 1.25,
             overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
             textTransform: "uppercase",
           }}
         >

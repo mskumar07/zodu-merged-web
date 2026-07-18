@@ -1528,6 +1528,12 @@ onChange={e => {
             <span>HOLD ID</span><span>DATE & TIME</span><span>CUSTOMER</span><span>ITEMS</span><span>TOTAL</span><span style={{ textAlign: "center" }}>ACTION</span>
           </Box>
           <Box sx={{ maxHeight: 360, overflowY: "auto" }}>
+            {heldOrders.length === 0 && (
+              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", py: 6, gap: 1 }}>
+                <Typography sx={{ fontSize: 14, fontWeight: 700, color: "#6B7280" }}>No hold items</Typography>
+                <Typography sx={{ fontSize: 12, color: "#9CA3AF" }}>Orders you hold will appear here.</Typography>
+              </Box>
+            )}
             {heldOrders.map((order, index) => {
               const totalAmount = order.items.reduce((sum, i) => sum + i.qty * i.sellPrice, 0);
               return (

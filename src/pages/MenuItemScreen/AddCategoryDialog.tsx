@@ -55,11 +55,12 @@ const TYPE_OPTIONS_RESTAURANT: { value: TypeCode; label: string }[] = [
 ];
 
 const RED = '#D2122E';
+const NAME_MAX_LENGTH = 60;
 
 // ── Validation ────────────────────────────────────────────────
 
 const schema = Yup.object({
-  name: Yup.string().trim().required('Category name is required'),
+  name: Yup.string().trim().max(NAME_MAX_LENGTH, `Category name cannot exceed ${NAME_MAX_LENGTH} characters`).required('Category name is required'),
   type: Yup.string().oneOf(['S', 'M', 'E', 'F', 'P']).required('Type is required'),
 });
 
@@ -89,7 +90,10 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
   const defaultCode: TypeCode = isRestaurant ? 'F' : 'S';
 
   const isEditMode  = Boolean(editRow);
-  const showToggle  = !fixedType;
+  // TEMP: Type toggle disabled for retail only — always submit the default type.
+  // Restaurant keeps its Food/Product toggle. To restore retail's toggle,
+  // remove the `&& isRestaurant` condition below.
+  const showToggle  = !fixedType && isRestaurant;
   const defaultType = fixedType ?? ((editRow?.type_code as TypeCode) ?? defaultCode);
 
   const [apiError,   setApiError]   = useState<string | null>(null);
@@ -158,7 +162,8 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
       setNameExistsError(null);
       return;
     }
-    checkCategoryName(trimmed);
+    const typeToCheck = (fixedType ?? f.values.type) as TypeCode;
+    checkCategoryName({ name: trimmed, type: typeToCheck });
   };
 
   // Re-fill whenever dialog opens or editRow changes
@@ -268,6 +273,7 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
                 onBlur={handleNameBlur}
                 error={(f.touched.name && Boolean(f.errors.name)) || Boolean(nameExistsError)}
                 helperText={(f.touched.name && f.errors.name) || nameExistsError || (isCheckingName ? 'Checking availability…' : '')}
+                inputProps={{ maxLength: NAME_MAX_LENGTH }}
                 InputProps={{ sx: { borderRadius: 1, fontSize: 14 } }}
               />
             </Box>

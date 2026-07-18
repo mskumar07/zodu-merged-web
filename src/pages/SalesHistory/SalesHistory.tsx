@@ -221,7 +221,7 @@ export default function SalesHistoryPage() {
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef       = useInfiniteScroll(hasNextPage, fetchNextPage, isFetchingNextPage, tableContainerRef);
   const allItems       = data?.pages.flatMap(p => p.data) ?? [];
-  const isCancelledTab = isRestaurant && activeTab === "cancelled";
+  const isCancelledTab = activeTab === "cancelled";
 
   // ── Column definitions ────────────────────────────────────────
   const columns = [
@@ -290,9 +290,6 @@ export default function SalesHistoryPage() {
             </Box>
           );
         }
-        const fullyReturned = isFullyReturnedSale(sale);
-        const isQuotation = isQuotationSale(sale);
-        const balance       = Number(sale.balance_amount);
         const totalReturned = Number(sale.total_returned ?? 0);
         const totalAmount   = Number(sale.total_amount);
         const adjustedTotal = totalAmount - totalReturned;
@@ -301,22 +298,71 @@ export default function SalesHistoryPage() {
             <Typography variant="body2" fontWeight={700} sx={{ fontSize: BODY_FONT_SIZE, color: "#1976d2" }}>
               {INR(adjustedTotal)}
             </Typography>
-            <Box sx={{ display: "flex", justifyContent: "flex-start", gap: 2, mt: 0.5 }}>
-              {balance > 0 && !fullyReturned && !isQuotation && (
-                <Typography variant="caption" color="error.main" sx={{ fontSize: "11px" }}>
-                  Balance: {INR(balance)}
-                </Typography>
-              )}
-              {totalReturned > 0 && (
-                <Typography variant="caption" sx={{ fontSize: "11px", color: "#7C3AED" }}>
-                  Returned: {INR(totalReturned)}
-                </Typography>
-              )}
-            </Box>
+            {totalReturned > 0 && (
+              <Typography variant="caption" sx={{ fontSize: "11px", color: "#7C3AED" }}>
+                Returned: {INR(totalReturned)}
+              </Typography>
+            )}
           </Box>
         );
       },
     },
+    ...(isRestaurant ? [{
+      key: "no_of_items",
+      label: "Items",
+      align: "left" as const,
+      width: 90,
+      render: (sale: Sale) => (
+        <Typography variant="body2" sx={{ fontSize: BODY_FONT_SIZE, color: TABLE_TEXT_COLOR, fontWeight: 600 }}>
+          {sale.no_of_items ?? "—"}
+        </Typography>
+      ),
+    }] : []),
+    ...(!isRestaurant ? [{
+      key: "paid_amount",
+      label: "Paid",
+      align: "left" as const,
+      width: 110,
+      render: (sale: Sale) => (
+        <Typography
+          variant="body2"
+          sx={{
+            fontSize: BODY_FONT_SIZE, fontWeight: 600,
+            color: Number(sale.paid_amount) > 0 ? "#16A34A" : TABLE_TEXT_COLOR,
+          }}
+        >
+          {INR(Number(sale.paid_amount))}
+        </Typography>
+      ),
+    }] : []),
+    ...(!isRestaurant ? [{
+      key: "balance_amount",
+      label: "Balance",
+      align: "left" as const,
+      width: 120,
+      render: (sale: Sale) => {
+        const fullyReturned = isFullyReturnedSale(sale);
+        const isQuotation   = isQuotationSale(sale);
+        const balance       = Number(sale.balance_amount);
+        const hasBalance    = balance > 0 && !fullyReturned && !isQuotation;
+        const dueDate       = sale.due_date;
+        return (
+          <Box>
+            <Typography
+              variant="body2"
+              sx={{ fontSize: BODY_FONT_SIZE, fontWeight: 700, color: hasBalance ? "#D32F2F" : TABLE_TEXT_COLOR }}
+            >
+              {INR(hasBalance ? balance : 0)}
+            </Typography>
+            {hasBalance && dueDate && (
+              <Typography sx={{ fontSize: 12, fontWeight: 700, color: TABLE_TEXT_COLOR, mt: 0.3, whiteSpace: "nowrap" }}>
+                Due: {dueDate}
+              </Typography>
+            )}
+          </Box>
+        );
+      },
+    }] : []),
     {
       key: "payment",
       label: "Payment",
@@ -563,28 +609,26 @@ export default function SalesHistoryPage() {
         )}
       </Grid>
 
-      {/* Tabs — restaurant only */}
-      {isRestaurant && (
-        <Tabs
-          value={activeTab}
-          onChange={(_, v) => {
-            setActiveTab(v);
-            const isCancelled = v === "cancelled";
-            const reset: Filters = { search: "", payment_status: "", from_date: "", to_date: "", order_type: "", cancelled_order: isCancelled };
-            setDraftFilters(reset);
-            setAppliedFilters(reset);
-          }}
-          sx={{
-            minHeight: 36,
-            "& .MuiTabs-indicator": { backgroundColor: "#E53935" },
-            "& .MuiTab-root": { textTransform: "none", fontWeight: 600, fontSize: 13, minHeight: 36, py: 0.5 },
-            "& .Mui-selected": { color: "#E53935" },
-          }}
-        >
-          <Tab value="orders" label="Orders" />
-          <Tab value="cancelled" label="Cancelled Orders" />
-        </Tabs>
-      )}
+      {/* Tabs */}
+      <Tabs
+        value={activeTab}
+        onChange={(_, v) => {
+          setActiveTab(v);
+          const isCancelled = v === "cancelled";
+          const reset: Filters = { search: "", payment_status: "", from_date: "", to_date: "", order_type: "", cancelled_order: isCancelled };
+          setDraftFilters(reset);
+          setAppliedFilters(reset);
+        }}
+        sx={{
+          minHeight: 36,
+          "& .MuiTabs-indicator": { backgroundColor: "#E53935" },
+          "& .MuiTab-root": { textTransform: "none", fontWeight: 600, fontSize: 13, minHeight: 36, py: 0.5 },
+          "& .Mui-selected": { color: "#E53935" },
+        }}
+      >
+        <Tab value="orders" label={isRestaurant ? "Orders" : "Invoice"} />
+        <Tab value="cancelled" label={isRestaurant ? "Cancelled Orders" : "Cancelled Invoice"} />
+      </Tabs>
 
       {/* Filter bar */}
       <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", flexWrap: "wrap", mb: 1 }}>
@@ -705,7 +749,7 @@ export default function SalesHistoryPage() {
 
       {/* Dialogs */}
       {invoiceDialog && (
-        <InvoiceDetailDialog saleId={invoiceDialog} onClose={() => setInvoiceDialog(null)} isRestaurant={isRestaurant} />
+        <InvoiceDetailDialog saleId={invoiceDialog} onClose={() => setInvoiceDialog(null)} isRestaurant={isRestaurant} isCancelledTab={isCancelledTab} />
       )}
 
       {paymentDialog && (

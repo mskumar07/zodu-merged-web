@@ -227,7 +227,10 @@ function MenuItemScreen() {
 
   const activeEditItem = freshEditItem ?? editItem;
 
-  if (isLoading) return <LottieLoader />;
+  const hasLoadedOnceRef = useRef(false);
+  if (!isLoading) hasLoadedOnceRef.current = true;
+
+  if (isLoading && !hasLoadedOnceRef.current) return <LottieLoader />;
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 2 }}>

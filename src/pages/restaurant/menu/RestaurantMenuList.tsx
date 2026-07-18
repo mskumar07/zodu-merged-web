@@ -596,6 +596,9 @@ const RestaurantMenuList: React.FC = () => {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError, refetch } =
     useInfiniteRestaurantMenu(zoduId, branchId, debouncedSearch, menuType, categoryIdsParam);
 
+  const hasLoadedOnceRef = useRef(false);
+  if (!isLoading) hasLoadedOnceRef.current = true;
+
   const categoryTypes =
     activeTab === "food" ? ["F"] :
     activeTab === "product" ? ["P"] :
@@ -864,7 +867,7 @@ const RestaurantMenuList: React.FC = () => {
     [handleToggleFav, handleToggleActive, favOverrides, activeOverrides, isMobile, isTablet, theme]
   );
 
-  if (isLoading) return <LottieLoader />;
+  if (isLoading && !hasLoadedOnceRef.current) return <LottieLoader />;
 
   return (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column", p: 2 }}>

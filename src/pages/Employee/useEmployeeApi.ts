@@ -111,7 +111,6 @@ export interface CreateEmployeePayload {
   bank_name: string;
   ifsc_code: string;
   role_id: string;
-  access_level: string;
   notes: string | null;
   password?: string;
 }
@@ -403,7 +402,6 @@ export function buildEmployeePayload(
     bank_name: String(form.bank_name ?? ""),
     ifsc_code: String(form.ifsc_code ?? ""),
     role_id: String(form.role_id ?? ""),
-    access_level: String(form.access_level ?? ""),
     notes: form.notes ? String(form.notes) : null,
     password: form.password ? String(form.password) : undefined,
   };

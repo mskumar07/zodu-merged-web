@@ -69,8 +69,8 @@ const NavItem: React.FC<ItemProps> = ({
     <Typography
       sx={{
         flex: 1,
-        fontSize: "0.78rem",
-        fontWeight: isActive ? 600 : 400,
+        fontSize: "0.75rem",
+        fontWeight: isActive ? 750 : 650,
         color: isActive ? "#111827" : "#4b5563",
         overflow: "hidden",
         textOverflow: "ellipsis",

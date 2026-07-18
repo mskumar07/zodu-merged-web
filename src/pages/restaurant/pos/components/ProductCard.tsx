@@ -69,7 +69,7 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
         overflow:      "hidden",
         cursor:        isUnavailable ? "not-allowed" : "pointer",
         opacity:       isUnavailable ? 0.5 : 1,
-        transition:    "box-shadow 0.18s, border-color 0.18s, transform 0.18s",
+        transition:    "box-shadow 0.18s, border-color 0.18s",
         display:       "flex",
         flexDirection: "row",
         height:        { xs: 96, sm: 100, md: 110 },
@@ -79,7 +79,6 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
         "&:hover": isUnavailable ? {} : {
           boxShadow:   "0 4px 14px rgba(211,47,47,0.17)",
           borderColor: "#d32f2f",
-          transform:   "translateY(-1px)",
         },
         userSelect: "none",
         position:   "relative",
@@ -106,8 +105,6 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
               height:     "100%",
               objectFit:  "cover",
               display:    "block",
-              transition: "transform 0.25s ease",
-              ".MuiBox-root:hover &": { transform: "scale(1.06)" },
             }}
           />
         ) : (

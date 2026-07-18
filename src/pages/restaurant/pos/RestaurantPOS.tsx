@@ -16,7 +16,10 @@ import SuccessToast from "@components/Common/SuccessToast";
 import zoduLogo from "@assets/zlogo.png";
 
 import { useAppSelector } from "../../../store/store";
-import { BranchId, ZoduId } from "@store/slices/userSlice";
+import { BranchId, ZoduId, BranchName, AllCompanies, UserProfile, addUserData } from "@store/slices/userSlice";
+import { useAppDispatch } from "@store/store";
+import { MenuItem, Select, IconButton, Avatar, Badge } from "@mui/material";
+import NotificationsIcon from "@mui/icons-material/Notifications";
 
 import {
   useRestaurantMenuQuery,
@@ -89,8 +92,27 @@ function buildInitialOrder(): RestaurantOrder {
 
 const RestaurantPOS: React.FC = () => {
   const navigate  = useNavigate();
-  const branchId = useAppSelector(BranchId) ?? "";
-  const zoduId   = useAppSelector(ZoduId)   ?? "";
+  const dispatch  = useAppDispatch();
+  const branchId  = useAppSelector(BranchId) ?? "";
+  const zoduId    = useAppSelector(ZoduId)   ?? "";
+  const branchName = useAppSelector(BranchName);
+  const companies  = useAppSelector(AllCompanies);
+  const profile    = useAppSelector(UserProfile);
+
+  const selectedCompany = companies.find((company) => company.zodu_id === zoduId) ?? null;
+  const companyBranches = selectedCompany?.branches ?? [];
+
+  const handleBranchChange = (selectedBranchId: string) => {
+    const found = companyBranches.find((branch) => branch.branch_id === selectedBranchId);
+    if (!found || !selectedCompany) return;
+    dispatch(
+      addUserData({
+        branchId:   found.branch_id,
+        branchName: found.branch_name,
+        zoduId:     selectedCompany.zodu_id,
+      })
+    );
+  };
 
   // ── API ─────────────────────────────────────────────────────────────────
   const [searchQuery,       setSearchQuery      ] = useState("");
@@ -898,6 +920,7 @@ const RestaurantPOS: React.FC = () => {
             gap: 0.5,
             px: 1.2,
             py: 0.55,
+            mr: 2,
             borderRadius: "20px",
             border: filterMode === "Favourites" ? "1.5px solid #f59e0b" : "1.5px solid #e5e7eb",
             bgcolor: filterMode === "Favourites" ? "#fffbeb" : "#fff",
@@ -914,6 +937,46 @@ const RestaurantPOS: React.FC = () => {
           <StarIcon sx={{ fontSize: 14 }} />
           <Typography sx={{ fontSize: "0.75rem", fontWeight: "inherit", lineHeight: 1 }}>
             Favourites
+          </Typography>
+        </Box>
+
+        {/* Branch dropdown */}
+        <Select
+          size="small"
+          value={branchId}
+          onChange={(e) => handleBranchChange(e.target.value)}
+          sx={{
+            minWidth: 150,
+            height: 34,
+            fontSize: "0.8rem",
+            "& .MuiOutlinedInput-notchedOutline": { borderColor: "#e5e7eb" },
+          }}
+        >
+          {companyBranches.length > 0
+            ? companyBranches.map((b) => (
+                <MenuItem key={b.branch_id} value={b.branch_id}>
+                  {b.branch_name}
+                </MenuItem>
+              ))
+            : <MenuItem value={branchId}>{branchName || branchId}</MenuItem>
+          }
+        </Select>
+
+        {/* Notifications */}
+        <IconButton size="small">
+          <Badge color="error" variant="dot">
+            <NotificationsIcon sx={{ fontSize: 20 }} />
+          </Badge>
+        </IconButton>
+
+        {/* User avatar + name */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Avatar
+            src="https://randomuser.me/api/portraits/women/65.jpg"
+            sx={{ width: 32, height: 32 }}
+          />
+          <Typography sx={{ display: { xs: "none", sm: "block" }, color: "#111827", fontWeight: 600, fontSize: "0.8rem" }}>
+            {profile?.user_type === "super_admin" ? "Super Admin" : "Manager"}
           </Typography>
         </Box>
 
