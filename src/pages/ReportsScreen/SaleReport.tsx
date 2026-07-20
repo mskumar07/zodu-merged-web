@@ -24,6 +24,8 @@ const fmt = (val: number | undefined) =>
   val != null
     ? `₹ ${val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     : "₹ 0.00";
+const fmtSummary = (val: number | undefined) =>
+  `₹ ${(val ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
 interface StatCardProps {
   title: string;
@@ -188,7 +190,7 @@ const RestaurantMonthwiseReport = ({
           <StatCard
             loading={isLoading}
             title="Total Amount"
-            value={fmt(totalAmount)}
+            value={fmtSummary(totalAmount)}
             iconBg="#e8f5e9"
             icon={<CalendarTodayOutlinedIcon sx={{ color: "#388e3c", fontSize: 18 }} />}
           />
@@ -379,7 +381,7 @@ const SalesReport = () => {
           <StatCard
             loading={summaryLoading}
             title="Total Monthly Sales"
-            value={fmt(summary?.totalMonthlySales)}
+            value={fmtSummary(summary?.totalMonthlySales)}
             iconBg="#fff3e0"
             icon={<ShoppingBagOutlinedIcon sx={{ color: "#f57c00", fontSize: 18 }} />}
           />
@@ -388,7 +390,7 @@ const SalesReport = () => {
           <StatCard
             loading={summaryLoading}
             title="Total Yearly Sales"
-            value={fmt(summary?.totalYearlySales)}
+            value={fmtSummary(summary?.totalYearlySales)}
             iconBg="#e8f5e9"
             icon={<CalendarTodayOutlinedIcon sx={{ color: "#388e3c", fontSize: 18 }} />}
           />
@@ -555,7 +557,7 @@ const SalesReport = () => {
                   Peak Annual Revenue
                 </Typography>
                 <Typography fontWeight="bold" fontSize="0.9rem">
-                  {historicalLoading ? <Skeleton width={70} /> : fmt(peakRevenue)}
+                  {historicalLoading ? <Skeleton width={70} /> : fmtSummary(peakRevenue)}
                 </Typography>
               </Box>
               <Box textAlign="right">

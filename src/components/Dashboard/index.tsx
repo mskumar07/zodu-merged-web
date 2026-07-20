@@ -301,6 +301,15 @@ function SummaryCard({ label, value, icon, loading, iconBg, iconColor }: {
 const fmt = (n: number) =>
   "₹" + Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+const fmtTrim = (n: number) => {
+  const num = Number(n);
+  const hasDecimal = !Number.isInteger(num);
+  return "₹" + num.toLocaleString("en-IN", {
+    minimumFractionDigits: hasDecimal ? 2 : 0,
+    maximumFractionDigits: 2,
+  });
+};
+
 function flatPages(query: { data?: { pages: Array<{ data: any[] }> } }) {
   return query.data?.pages.flatMap(p => p.data) ?? [];
 }
@@ -358,12 +367,10 @@ function stockStatusBadge(status: string) {
   const map: Record<string, { label: string; color: string; dot: string }> = {
     in_stock: { label: "In Stock", color: "#16A34A", dot: "#22C55E" },
     low_stock: { label: "Low Stock", color: "#D97706", dot: "#F59E0B" },
-    out_of_stock: { label: "Out Stock", color: "#DC2626", dot: "#EF4444" },
-    low: { label: "Low Stock", color: "#D97706", dot: "#F59E0B" },
-    critical: { label: "Out Stock", color: "#DC2626", dot: "#EF4444" },
-    out: { label: "Out Stock", color: "#DC2626", dot: "#EF4444" },
+    out_of_stock: { label: "Out of Stock", color: "#DC2626", dot: "#EF4444" },
   };
-  const cfg = map[status?.toLowerCase()] ?? map.in_stock;
+  const key = status?.toLowerCase().trim().replace(/\s+/g, "_");
+  const cfg = map[key] ?? map.in_stock;
 
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 0.6, justifyContent: "center" }}>
@@ -551,7 +558,7 @@ const salesCols: ColDef<SaleRow>[] = [
     ? [
         {
           label: "Total Sales",
-          value: stats ? fmt(stats.total_sales) : undefined,
+          value: stats ? fmtTrim(stats.total_sales) : undefined,
           icon: <PaymentsIcon sx={{ fontSize: 18 }} />,
         },
         {
@@ -566,7 +573,7 @@ const salesCols: ColDef<SaleRow>[] = [
         },
         {
           label: "Due Payable",
-          value: stats?.total_due != null ? fmt(stats.total_due) : undefined,
+          value: stats?.total_due != null ? fmtTrim(stats.total_due) : undefined,
           icon:     <MoneyOffIcon sx={{ fontSize: 18 }} />,
           iconBg:   "rgba(220,38,38,0.08)",
           iconColor: "#DC2626",
@@ -575,7 +582,7 @@ const salesCols: ColDef<SaleRow>[] = [
     : [
         {
           label: "Total Sales",
-          value: stats ? fmt(stats.total_sales) : undefined,
+          value: stats ? fmtTrim(stats.total_sales) : undefined,
           icon: <PaymentsIcon sx={{ fontSize: 18 }} />,
         },
         {
@@ -590,13 +597,13 @@ const salesCols: ColDef<SaleRow>[] = [
         },
         {
           label: "Today's Revenue",
-          value: stats ? fmt(stats.todays_revenue) : undefined,
+          value: stats ? fmtTrim(stats.todays_revenue) : undefined,
           icon: <InsightsIcon sx={{ fontSize: 18 }} />,
         },
         {
           label: "Due Receivable",
           value: stats?.total_due_to_receivable_amount != null
-            ? fmt(stats.total_due_to_receivable_amount)
+            ? fmtTrim(stats.total_due_to_receivable_amount)
             : undefined,
           icon:     <AccountBalanceWalletIcon sx={{ fontSize: 18 }} />,
           iconBg:   "rgba(22,163,74,0.08)",
@@ -605,7 +612,7 @@ const salesCols: ColDef<SaleRow>[] = [
         {
           label: "Due Payable",
           value: stats?.total_due_to_payable_amount != null
-            ? fmt(stats.total_due_to_payable_amount)
+            ? fmtTrim(stats.total_due_to_payable_amount)
             : undefined,
           icon:     <MoneyOffIcon sx={{ fontSize: 18 }} />,
           iconBg:   "rgba(220,38,38,0.08)",

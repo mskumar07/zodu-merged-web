@@ -43,6 +43,9 @@ const money = (val: number | undefined) =>
 const numberFmt = (value: number | undefined) =>
   value != null ? value.toLocaleString("en-IN") : "0";
 
+const moneySummary = (val: number | undefined) =>
+  `₹ ${(val ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+
 
 interface StatCardProps {
   label: string;
@@ -337,7 +340,7 @@ const CategoryItemSalesReport = () => {
             <StatCard
               loading={restaurantLoading}
               label="Total Amount"
-              value={money(restaurantSummary?.totalAmount)}
+              value={moneySummary(restaurantSummary?.totalAmount)}
               icon={<AssessmentOutlinedIcon sx={{ color: "#388E3C", fontSize: 18 }} />}
               iconBg="#E8F5E9"
             />
@@ -541,7 +544,7 @@ const CategoryItemSalesReport = () => {
           <StatCard
             loading={summaryLoading}
             label="Total Sales"
-            value={money(summary?.totalSales)}
+            value={moneySummary(summary?.totalSales)}
             icon={<AssessmentOutlinedIcon sx={{ color: "#F57C00", fontSize: 18 }} />}
             iconBg="#FFF3E0"
           />
@@ -568,7 +571,7 @@ const CategoryItemSalesReport = () => {
           <StatCard
             loading={summaryLoading}
             label="Total Tax Collected"
-            value={money(summary?.totalTaxCollected)}
+            value={moneySummary(summary?.totalTaxCollected)}
             icon={<PaymentsOutlinedIcon sx={{ color: "#D32F2F", fontSize: 18 }} />}
             iconBg="#FCE4EC"
           />

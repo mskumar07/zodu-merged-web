@@ -130,7 +130,7 @@ const RestaurantDatewiseReport = ({
           <StatCard
             loading={isLoading}
             title="Total Amount"
-            value={fmt(totalAmount)}
+            value={fmtSummary(totalAmount)}
             iconBg="#e8f5e9"
             icon={<CalendarTodayOutlinedIcon sx={{ color: "#388e3c", fontSize: 18 }} />}
           />
@@ -195,6 +195,8 @@ const fmt = (val: number | undefined) =>
   val != null
     ? `₹ ${val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     : "₹ 0.00";
+const fmtSummary = (val: number | undefined) =>
+  `₹ ${(val ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
 const formatDate = (value: string) => {
   if (!value) return "—";
@@ -440,7 +442,7 @@ const DatewiseSaleReport = () => {
           <StatCard
             loading={summaryLoading}
             title="Total Amount"
-            value={fmt(summary?.totalSales)}
+            value={fmtSummary(summary?.totalSales)}
             iconBg="#e8f5e9"
             icon={<CalendarTodayOutlinedIcon sx={{ color: "#388e3c", fontSize: 18 }} />}
           />
@@ -449,7 +451,7 @@ const DatewiseSaleReport = () => {
           <StatCard
             loading={summaryLoading}
             title="Tax Amount"
-            value={fmt(summary?.totalTax)}
+            value={fmtSummary(summary?.totalTax)}
             iconBg="#fce4ec"
             icon={<PaymentsOutlinedIcon sx={{ color: "#c62828", fontSize: 18 }} />}
           />
@@ -458,7 +460,7 @@ const DatewiseSaleReport = () => {
           <StatCard
             loading={summaryLoading}
             title="Net Sales"
-            value={fmt(summary?.netSales)}
+            value={fmtSummary(summary?.netSales)}
             valueColor="#2e7d32"
             iconBg="#e3f2fd"
             icon={<TrendingUpOutlinedIcon sx={{ color: "#1976d2", fontSize: 18 }} />}

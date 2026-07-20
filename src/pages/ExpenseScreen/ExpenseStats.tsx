@@ -5,13 +5,11 @@ import PaidIcon from "@mui/icons-material/Paid";
 import MoneyOffIcon from "@mui/icons-material/MoneyOff";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import type { ExpenseSummary } from "./useExpenseApi";
+import { fmtMoneyRaw as fmtMoney } from "@utils/formatMoney";
 
 interface ExpenseStatsProps {
   data: ExpenseSummary;
 }
-
-const fmtMoney = (v: string) =>
-  (parseFloat(v) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const ExpenseStats = ({ data }: ExpenseStatsProps) => (
   <Grid container spacing={2}>

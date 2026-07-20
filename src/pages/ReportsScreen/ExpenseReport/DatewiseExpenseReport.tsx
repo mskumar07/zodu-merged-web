@@ -31,6 +31,8 @@ const fmt = (val: number | undefined) =>
   val != null
     ? `₹ ${val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     : "₹ 0.00";
+const fmtSummary = (val: number | undefined) =>
+  `₹ ${(val ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
 const formatDate = (value: string) => {
   if (!value) return "—";
@@ -216,7 +218,7 @@ const DatewiseExpenseReport = () => {
           <StatCard
             loading={summaryLoading}
             title="Total Amount"
-            value={fmt(summary?.totalAmount)}
+            value={fmtSummary(summary?.totalAmount)}
             iconBg="#e8f5e9"
             icon={<CalendarTodayOutlinedIcon sx={{ color: "#388e3c", fontSize: 18 }} />}
           />
@@ -225,7 +227,7 @@ const DatewiseExpenseReport = () => {
           <StatCard
             loading={summaryLoading}
             title="Pending Amount"
-            value={fmt(summary?.pendingAmount)}
+            value={fmtSummary(summary?.pendingAmount)}
             iconBg="#fff3e0"
             icon={<AccountBalanceWalletOutlinedIcon sx={{ color: "#f57c00", fontSize: 18 }} />}
           />
@@ -234,7 +236,7 @@ const DatewiseExpenseReport = () => {
           <StatCard
             loading={summaryLoading}
             title="Paid Amount"
-            value={fmt(summary?.paidAmount)}
+            value={fmtSummary(summary?.paidAmount)}
             valueColor="#2e7d32"
             iconBg="#fce4ec"
             icon={<PaymentsOutlinedIcon sx={{ color: "#c62828", fontSize: 18 }} />}

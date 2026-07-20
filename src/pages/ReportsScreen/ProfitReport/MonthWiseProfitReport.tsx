@@ -20,6 +20,8 @@ const fmt = (val: number) =>
   val != null
     ? `₹ ${val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     : "₹ 0.00";
+const fmtSummary = (val: number) =>
+  `₹ ${(val ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
 // ── Types ─────────────────────────────────────────────────────
 interface MonthRow {
@@ -211,7 +213,7 @@ const MonthWiseProfitReport: React.FC = () => {
           <StatCard
             loading={isLoading}
             title={isRestaurant ? "Total Orders" : "Total Sales"}
-            value={fmt(summary?.total_sales ?? 0)}
+            value={fmtSummary(summary?.total_sales ?? 0)}
             iconBg="#e8f5e9"
             icon={<ShoppingBagOutlinedIcon sx={{ color: "#2e7d32", fontSize: 18 }} />}
             valueColor="#0F172A"
@@ -221,7 +223,7 @@ const MonthWiseProfitReport: React.FC = () => {
           <StatCard
             loading={isLoading}
             title="Total Purchase"
-            value={fmt(summary?.total_purchase ?? 0)}
+            value={fmtSummary(summary?.total_purchase ?? 0)}
             iconBg="#e3f2fd"
             icon={<ShoppingCartOutlinedIcon sx={{ color: "#1565c0", fontSize: 18 }} />}
             valueColor="#0F172A"
@@ -231,7 +233,7 @@ const MonthWiseProfitReport: React.FC = () => {
           <StatCard
             loading={isLoading}
             title="Total Expense"
-            value={fmt(summary?.total_expense ?? 0)}
+            value={fmtSummary(summary?.total_expense ?? 0)}
             iconBg="#fff3e0"
             icon={<MoneyOffOutlinedIcon sx={{ color: "#e65100", fontSize: 18 }} />}
             valueColor="#0F172A"
@@ -241,7 +243,7 @@ const MonthWiseProfitReport: React.FC = () => {
           <StatCard
             loading={isLoading}
             title="Total Profit"
-            value={fmt(summary?.profit ?? 0)}
+            value={fmtSummary(summary?.profit ?? 0)}
             iconBg="#f3e5f5"
             icon={<TrendingUpOutlinedIcon sx={{ color: "#7b1fa2", fontSize: 18 }} />}
             valueColor={(summary?.profit ?? 0) >= 0 ? "#2e7d32" : "#c62828"}

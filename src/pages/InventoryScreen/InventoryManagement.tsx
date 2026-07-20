@@ -36,6 +36,11 @@ const formatINR = (v: number) =>
     style: 'currency', currency: 'INR',
     minimumFractionDigits: 2, maximumFractionDigits: 2,
   }).format(Number(v));
+const formatINRRaw = (v: number) =>
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency', currency: 'INR',
+    minimumFractionDigits: 0, maximumFractionDigits: 2,
+  }).format(Number(v));
 const TABLE_TEXT_COLOR = '#374151';
 
 
@@ -321,7 +326,7 @@ const handleCloseHistory = () => {
             iconBgColor="#DBEAFE"
             iconColor="#2563EB"
             label="Total Stock Value"
-            value={summary ? formatINR(summary.total_stock_value) : '—'}
+            value={summary ? formatINRRaw(summary.total_stock_value) : '—'}
             valuePrefix=""
             radius={2}
           />

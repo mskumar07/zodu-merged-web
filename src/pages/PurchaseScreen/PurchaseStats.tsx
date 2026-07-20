@@ -5,6 +5,7 @@ import ShoppingCartIcon    from "@mui/icons-material/ShoppingCart";
 import ReceiptOutlinedIcon from "@mui/icons-material/ReceiptOutlined";
 import PaidIcon            from "@mui/icons-material/Paid";
 import MoneyOffIcon        from "@mui/icons-material/MoneyOff";
+import { fmtMoneyRaw } from "@utils/formatMoney";
 
 interface PurchaseStatsData {
   total_purchase_count: string;
@@ -19,8 +20,7 @@ interface PurchaseStatsProps {
   data: PurchaseStatsData;
 }
 
-const fmtMoney = (v: string) =>
-  (parseFloat(v) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtMoney = fmtMoneyRaw;
 
 const PurchaseStats = ({ data }: PurchaseStatsProps) => (
   <Grid container spacing={2}>
