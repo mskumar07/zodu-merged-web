@@ -508,7 +508,7 @@ const emptyForm = (): PurchaseForm => ({
 function detailToForm(detail: PurchaseDetail): PurchaseForm {
   return {
     supplier:      detail.vendor_id ?? "",
-    purchaseDate:  detail.purchase_date?.split("T")[0] ?? todayStr(),
+    purchaseDate:  detail.purchase_date_formatted ?? detail.purchase_date?.split("T")[0] ?? todayStr(),
     invoiceNo:     detail.purchase_id ?? "",
     paymentMethod: (detail.payments?.[0]?.transaction_type as PaymentMethod) ?? "Bank Transfer",
     paymentRef:    detail.payments?.[0]?.transaction_id ?? "",

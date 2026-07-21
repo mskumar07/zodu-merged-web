@@ -97,6 +97,7 @@ export interface PurchaseRow {
   id: string;
   purchase_id: string;
   purchase_date: string;
+  purchase_date_formatted?: string | null;
   total_amount: string;
   paid_amount: string;
   balance_amount: string;

@@ -26,7 +26,7 @@ const StatCard = ({
   const displayValue =
     valuePrefix === ""
       ? value
-      : typeof value === "number" || !isNaN(Number(value))
+      : typeof value === "number" || (value !== "" && !isNaN(Number(String(value).replace(/,/g, ""))))
       ? `${valuePrefix}${value}`
       : value;
 

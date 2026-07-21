@@ -83,10 +83,13 @@ const [historyOpen, setHistoryOpen] = useState(false);
   // ── Sentinel ───────────────────────────────────────────────
   const sentinelRef = useRef<HTMLTableRowElement>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const wasSearchFocusedRef = useRef(false);
   // ── Debounced search ───────────────────────────────────────
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleSearchChange = useCallback((val: string) => {
     setSearchInput(val);
+    wasSearchFocusedRef.current = true;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => setSearchQuery(val), 400);
   }, []);
@@ -130,9 +133,24 @@ const [historyOpen, setHistoryOpen] = useState(false);
   }), [searchQuery, stockFilter, selectedCategories]);
 
   const {
-    data, isLoading, isFetchingNextPage,
+    data, isLoading, isFetching, isFetchingNextPage,
     hasNextPage, fetchNextPage, isError, refetch: refetchInventory,
   } = useInfiniteInventory(queryParams);
+
+  // Re-fetching (e.g. after a debounced search) re-renders the table and can
+  // steal focus/caret from the search box — restore it once the fetch settles,
+  // but only if the user was still typing there when the fetch kicked off.
+  useEffect(() => {
+    if (!isFetching && wasSearchFocusedRef.current && document.activeElement !== searchInputRef.current) {
+      const el = searchInputRef.current;
+      if (el) {
+        const pos = el.value.length;
+        el.focus();
+        el.setSelectionRange(pos, pos);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFetching]);
 
   // ── IntersectionObserver ───────────────────────────────────
 
@@ -370,10 +388,12 @@ const handleCloseHistory = () => {
       <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
         <TextField
           size="small"
+          inputRef={searchInputRef}
           placeholder="Search by Item Name, ID, or Barcode…"
           value={searchInput}
-          
+
           onChange={e => handleSearchChange(e.target.value)}
+          onBlur={() => { wasSearchFocusedRef.current = false; }}
           onKeyDown={e => {
             if (e.key === 'Enter') {
               if (debounceRef.current) clearTimeout(debounceRef.current);
