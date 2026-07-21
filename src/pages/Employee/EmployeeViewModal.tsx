@@ -153,10 +153,6 @@ export default function EmployeeViewModal({ open, onClose, employeeId }: Props) 
                       <Field label="Email Address" value={detail.email} />
                     </Row>
                     <Row>
-                      <Field label="Role" value={role?.role_name} />
-                      <Field label="Access Level" value={role?.access_level} />
-                    </Row>
-                    <Row>
                       <Field label="Status" value={detail.status ? detail.status.charAt(0).toUpperCase() + detail.status.slice(1) : null} />
                     </Row>
                   </Box>

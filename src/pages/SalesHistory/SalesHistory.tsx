@@ -278,12 +278,12 @@ export default function SalesHistoryPage() {
     {
       key: "total",
       label: "Total",
-      align: "left" as const,
+      align: "right" as const,
       width: 110,
       render: (sale: Sale) => {
         if (isRestaurant) {
           return (
-            <Box textAlign="left">
+            <Box textAlign="right">
               <Typography variant="body2" fontWeight={700} sx={{ fontSize: BODY_FONT_SIZE, color: "#1976d2" }}>
                 {INR(Number(sale.total_amt ?? 0))}
               </Typography>
@@ -294,7 +294,7 @@ export default function SalesHistoryPage() {
         const totalAmount   = Number(sale.total_amount);
         const adjustedTotal = totalAmount - totalReturned;
         return (
-          <Box textAlign="left">
+          <Box textAlign="right">
             <Typography variant="body2" fontWeight={700} sx={{ fontSize: BODY_FONT_SIZE, color: "#1976d2" }}>
               {INR(adjustedTotal)}
             </Typography>
@@ -321,7 +321,7 @@ export default function SalesHistoryPage() {
     ...(!isRestaurant ? [{
       key: "paid_amount",
       label: "Paid",
-      align: "left" as const,
+      align: "right" as const,
       width: 110,
       render: (sale: Sale) => (
         <Typography
@@ -338,7 +338,7 @@ export default function SalesHistoryPage() {
     ...(!isRestaurant ? [{
       key: "balance_amount",
       label: "Balance",
-      align: "left" as const,
+      align: "right" as const,
       width: 120,
       render: (sale: Sale) => {
         const fullyReturned = isFullyReturnedSale(sale);

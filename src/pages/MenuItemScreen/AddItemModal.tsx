@@ -20,6 +20,7 @@ import InventoryIcon        from '@mui/icons-material/Inventory2Outlined';
 import SearchIcon           from '@mui/icons-material/Search';
 import axiosInstance from '@store/services/axiosInstance';
 import { apiConfig } from '@config/api';
+import { getTenantContext } from '@store/tenantContext';
 import { addItemSchema, ITEM_ID_MAX_LENGTH, ITEM_NAME_MAX_LENGTH, HSN_CODE_MAX_LENGTH, BARCODE_MAX_LENGTH, sanitizeAmountInput } from './ItemValidation';
 import {
   useInfiniteCategoryList,
@@ -135,11 +136,13 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
     enableReinitialize: true,
     validationSchema:   addItemSchema,
     onSubmit: (values) => {
-      // ── 3. payload — item_id included ───────────────────────
+      const itemId   = values.itemId.trim();
+      const itemName = values.name.trim();
+
       const payload = {
-        item_id:        values.itemId.trim(),
+        item_id:        itemId,
         item_type:      values.serviceType === 'product' ? 'S' as const : 'P' as const,
-        item_name:      values.name.trim(),
+        item_name:      itemName,
         category_id:    values.category     ? Number(values.category)     : null,
         unit:           values.unit         ? Number(values.unit)         : null,
         purchase_price: values.purchasePrice ? Number(values.purchasePrice) : null,
@@ -156,7 +159,17 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
       };
 
       if (isEditMode && editItem) {
-        editItem_({ item_uuid: editItem.item_uuid, ...payload });
+        const { businessType } = getTenantContext();
+        const editPayload: Omit<typeof payload, 'item_id' | 'item_name'> & { item_id?: string; item_name?: string } = { ...payload };
+
+        // Retail only: item_id / item_name are edit-locked — only send them
+        // to the edit API when the user actually changed the value.
+        if (businessType !== 'Restaurant') {
+          if (itemId === (editItem.item_id ?? '')) delete editPayload.item_id;
+          if (itemName === (editItem.item_name ?? '')) delete editPayload.item_name;
+        }
+
+        editItem_({ item_uuid: editItem.item_uuid, ...editPayload });
       } else {
         saveItem(payload);
       }
