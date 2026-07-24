@@ -4,7 +4,7 @@ import {
   Box, Typography, TextField, Button, IconButton,
   InputAdornment, Chip, Tooltip, Fab, CircularProgress, Skeleton,
   Dialog, DialogTitle, DialogContent, DialogActions,
-  FormControl, Select, MenuItem, Stack,
+  FormControl, Select, MenuItem, Stack, Tabs, Tab,
 } from "@mui/material";
 import { Circle } from "@mui/icons-material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
@@ -92,6 +92,7 @@ export default function PurchaseScreen() {
   const [paymentTarget, setPayment]       = useState<PurchaseRow | null>(null);
   const [deleteTarget, setDeleteTarget]   = useState<PurchaseRow | null>(null);
   const [detailId, setDetailId]           = useState<string | null>(null); // ← NEW: UUID for detail dialog
+  const [tab, setTab]                     = useState<"active" | "cancelled">("active");
 
   const {
     data: purchases = [],
@@ -100,6 +101,7 @@ export default function PurchaseScreen() {
   } = usePurchases({
     ...(search ? { search } : {}),
     ...(paymentStatusFilter ? { payment_status: paymentStatusFilter } : {}),
+    cancelled_purchase: tab === "cancelled" ? "true" : "false",
   });
 
   const {
@@ -266,7 +268,7 @@ export default function PurchaseScreen() {
               <StatusBadge status={p.payment_status} />
             </Box>
             <Box sx={{ width: 110 }}>
-              {Number(p.balance_amount) > 0 && (
+              {tab !== "cancelled" && Number(p.balance_amount) > 0 && (
                 <Button
                   size="small"
                   variant="contained"
@@ -289,12 +291,12 @@ export default function PurchaseScreen() {
           </Stack>
         ),
       },
-      {
+      ...(tab === "cancelled" ? [] : [{
         key: "actions",
         label: "Actions",
-        align: "center",
+        align: "center" as const,
         width: 90,
-        render: (p) => (
+        render: (p: PurchaseRow) => (
           <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
             <Tooltip title="Edit" placement="top">
               <IconButton
@@ -325,9 +327,9 @@ export default function PurchaseScreen() {
             </Tooltip>
           </Box>
         ),
-      },
+      }] as ColumnDef<PurchaseRow>[]),
     ],
-    [isDeleting]
+    [isDeleting, tab]
   );
 
   if (listLoading && statsLoading) return <LottieLoader />;
@@ -339,6 +341,23 @@ export default function PurchaseScreen() {
 
           {/* Stats */}
           {statsLoading || !stats ? <StatsSkeleton /> : <PurchaseStats data={stats} />}
+
+          {/* Tabs */}
+          <Box sx={{ px: 1, borderBottom: 1, borderColor: "divider", flexShrink: 0 }}>
+            <Tabs
+              value={tab}
+              onChange={(_, v) => setTab(v)}
+              sx={{
+                minHeight: 40,
+                "& .MuiTab-root": { textTransform: "none", fontWeight: 700, fontSize: 14, minHeight: 40, px: 2 },
+                "& .Mui-selected": { color: "#D32F2F !important" },
+                "& .MuiTabs-indicator": { bgcolor: "#D32F2F" },
+              }}
+            >
+              <Tab label="Purchase" value="active" />
+              <Tab label="Cancelled Purchase" value="cancelled" />
+            </Tabs>
+          </Box>
 
           {/* Toolbar */}
           <Box sx={{ px: 1, display: "flex", alignItems: "center", justifyContent: "space-between",  flexShrink: 0, gap: 2 }}>

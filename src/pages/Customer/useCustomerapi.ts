@@ -409,3 +409,121 @@ export function formatCurrency(amount: number): string {
   const abs = Math.abs(amount);
   return amount < 0 ? `(${abs.toFixed(2)})` : abs.toFixed(2);
 }
+
+// ─── Outstanding Bills ─────────────────────────────────────────
+export interface OutstandingBill {
+  sale_id:        string;
+  sale_uuid:      string;
+  invoice_date:   string;
+  due_date:       string | null;
+  total_amount:   number | string;
+  paid_amount:    number | string;
+  balance_amount: number | string;
+  payment_status: string;
+}
+
+export interface OutstandingBillsData {
+  bills:            OutstandingBill[];
+  total_outstanding: number;
+}
+
+async function getOutstandingBills(custUuid: string): Promise<OutstandingBillsData> {
+  const token = getAccessToken();
+  const { zoduId, branchId } = getTenantContext();
+
+  const { data } = await axios.get(
+    `${API_BASE}/retail/api/customers/${custUuid}/outstanding-bills`,
+    {
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      params: { zodu_id: zoduId, branch_id: branchId },
+    }
+  );
+
+  if (!data?.success) throw new Error("Failed to fetch outstanding bills");
+  return data.data;
+}
+
+export function useOutstandingBills(custUuid: string | null | undefined) {
+  return useQuery({
+    queryKey: ["outstanding-bills", custUuid],
+    queryFn:  () => getOutstandingBills(custUuid!),
+    enabled:  !!custUuid,
+  });
+}
+
+// ─── Mark Payment ──────────────────────────────────────────────
+export interface MarkPaymentPayload {
+  custUuid:     string;
+  paymentDate:  string;
+  paymentMode:  string;
+  referenceNo?: string;
+  totalPayment: number;
+  bills:        { sale_id: string }[];
+  attachments?: File[];
+}
+
+export interface MarkPaymentResponse {
+  success: boolean;
+  message: string;
+  data: {
+    group_id:           string;
+    unallocated_amount: number;
+    bills:   Array<Record<string, unknown>>;
+    payments: Array<Record<string, unknown>>;
+  };
+}
+
+async function postMarkPayment(payload: MarkPaymentPayload): Promise<MarkPaymentResponse> {
+  const token = getAccessToken();
+  const { zoduId, branchId } = getTenantContext();
+
+  const formData = new FormData();
+  formData.append("payment_date", payload.paymentDate);
+  formData.append("payment_mode", payload.paymentMode);
+  if (payload.referenceNo) formData.append("reference_no", payload.referenceNo);
+  formData.append("total_payment", String(payload.totalPayment));
+  formData.append("bills", JSON.stringify(payload.bills));
+  formData.append("zodu_id", zoduId);
+  formData.append("branch_id", branchId);
+  (payload.attachments ?? []).forEach((file) => formData.append("attachments", file));
+
+  const { data } = await axios.post<MarkPaymentResponse>(
+    `${API_BASE}/retail/api/customers/${payload.custUuid}/mark-payment`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    }
+  );
+
+  return data;
+}
+
+export function useMarkPayment(options?: {
+  onSuccess?: (response: MarkPaymentResponse) => void;
+  onError?:   (message: string) => void;
+}) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: postMarkPayment,
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: customerQueryKeys.all });
+      // Invalidate outstanding bills and the customers-infinite list so
+      // the UI (customer list) shows updated outstanding amounts.
+      queryClient.invalidateQueries({ queryKey: ["outstanding-bills"] });
+      queryClient.invalidateQueries({ queryKey: ["customers-infinite"] });
+      options?.onSuccess?.(response);
+    },
+    onError: (err: unknown) => {
+      const msg = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string; errors?: string[] } | undefined)?.message
+          ?? (err.response?.data as { errors?: string[] } | undefined)?.errors?.join(", ")
+          ?? err.message
+        : "Failed to record payment";
+      options?.onError?.(msg);
+    },
+  });
+}

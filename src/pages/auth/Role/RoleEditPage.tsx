@@ -145,6 +145,7 @@ function PermItem({
 }) {
   return (
     <Box
+      onClick={readOnly ? undefined : onClick}
       sx={{
         display: "inline-flex", alignItems: "center", gap: 1,
         pl: 1.2, pr: 1.2, py: 0.75,
@@ -152,6 +153,7 @@ function PermItem({
         borderRadius: 1.5,
         bgcolor: "#fff",
         userSelect: "none",
+        cursor: readOnly ? "default" : "pointer",
       }}
     >
       {/* Red rounded-square icon */}
@@ -168,7 +170,7 @@ function PermItem({
       </Typography>
       {/* Checkbox */}
       <Box
-        onClick={readOnly ? undefined : onClick}
+        onClick={readOnly ? undefined : (e: React.MouseEvent) => { e.stopPropagation(); onClick(); }}
         sx={{
           width: 11, height: 11, border: "1.5px solid",
           borderColor:  "#D1D5DB",

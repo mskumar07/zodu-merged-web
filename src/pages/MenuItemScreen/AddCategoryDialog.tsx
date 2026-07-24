@@ -21,7 +21,7 @@ import CloseIcon     from '@mui/icons-material/Close';
 import { useFormik } from 'formik';
 import * as Yup      from 'yup';
 import {
-  useAddCategory, useUpdateCategory, useCheckCategoryName,
+  useAddCategory, useUpdateCategory,
   type Category, type CategoryRow,
 } from './useMenuItemApi';
 import SuccessToast from '@components/Common/SuccessToast';
@@ -56,6 +56,10 @@ const TYPE_OPTIONS_RESTAURANT: { value: TypeCode; label: string }[] = [
 
 const RED = '#D2122E';
 const NAME_MAX_LENGTH = 60;
+
+// Backend prefixes messages with "Unable to create/update Category: " — strip it for display.
+const stripErrorPrefix = (msg: string) =>
+  msg.replace(/^Unable to (create|update) Category:\s*/i, '');
 
 // ── Validation ────────────────────────────────────────────────
 
@@ -98,7 +102,6 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
 
   const [apiError,   setApiError]   = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
-  const [errorToast, setErrorToast] = useState('');
 
   // ── Add mutation ──────────────────────────────────────────
   const { mutate: addCategory, isPending: isAdding, reset: resetAdd } = useAddCategory({
@@ -109,7 +112,7 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
       setSuccessMsg(apiMessage);
       onClose();
     },
-    onError: (msg) => setApiError(msg),
+    onError: (msg) => setApiError(stripErrorPrefix(msg)),
   });
 
   // ── Edit mutation ─────────────────────────────────────────
@@ -121,20 +124,10 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
       setSuccessMsg(apiMessage);
       onClose();
     },
-    onError: (msg) => setApiError(msg),
+    onError: (msg) => setApiError(stripErrorPrefix(msg)),
   });
 
   const isPending = isAdding || isUpdating;
-
-  // ── Category name duplicate check ──────────────────────────
-  const [nameExistsError, setNameExistsError] = useState<string | null>(null);
-
-  const { mutate: checkCategoryName, isPending: isCheckingName } = useCheckCategoryName({
-    onSuccess: (data) => {
-      setNameExistsError(data.exists ? data.message : null);
-    },
-    onError: (msg) => setErrorToast(msg),
-  });
 
   // ── Form ──────────────────────────────────────────────────
   const f = useFormik({
@@ -142,7 +135,6 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
     enableReinitialize: true,
     validationSchema:   schema,
     onSubmit: (values) => {
-      if (nameExistsError) return;
       setApiError(null);
       // always use fixedType if provided, otherwise use form value
       const typeToSend = (fixedType ?? values.type) as TypeCode;
@@ -154,18 +146,6 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
     },
   });
 
-  const handleNameBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    f.handleBlur(e);
-    const trimmed = e.target.value.trim();
-    // Skip check in edit mode when name hasn't changed
-    if (!trimmed || (isEditMode && trimmed === editRow?.name)) {
-      setNameExistsError(null);
-      return;
-    }
-    const typeToCheck = (fixedType ?? f.values.type) as TypeCode;
-    checkCategoryName({ name: trimmed, type: typeToCheck });
-  };
-
   // Re-fill whenever dialog opens or editRow changes
   useEffect(() => {
     if (open) {
@@ -176,7 +156,6 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
         },
       });
       setApiError(null);
-      setNameExistsError(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editRow, fixedType]);
@@ -187,7 +166,6 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
     resetAdd();
     resetUpdate();
     setApiError(null);
-    setNameExistsError(null);
     onClose();
   };
 
@@ -255,12 +233,6 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
 
         {/* ── Body ── */}
         <DialogContent sx={{ px: 3, py: 3 }}>
-          {apiError && (
-            <Box sx={{ mb: 2, p: 1.5, bgcolor: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 1 }}>
-              <Typography variant="caption" color="error" fontWeight={600}>{apiError}</Typography>
-            </Box>
-          )}
-
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
 
             {/* Category Name */}
@@ -269,10 +241,10 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
               <TextField
                 fullWidth size="small" placeholder="e.g. Winterwear" autoFocus
                 {...f.getFieldProps('name')}
-                onChange={(e) => { f.handleChange(e); setNameExistsError(null); }}
-                onBlur={handleNameBlur}
-                error={(f.touched.name && Boolean(f.errors.name)) || Boolean(nameExistsError)}
-                helperText={(f.touched.name && f.errors.name) || nameExistsError || (isCheckingName ? 'Checking availability…' : '')}
+                onChange={(e) => { f.handleChange(e); if (apiError) setApiError(null); }}
+                onBlur={f.handleBlur}
+                error={(f.touched.name && Boolean(f.errors.name)) || Boolean(apiError)}
+                helperText={(f.touched.name && f.errors.name) || apiError}
                 inputProps={{ maxLength: NAME_MAX_LENGTH }}
                 InputProps={{ sx: { borderRadius: 1, fontSize: 14 } }}
               />
@@ -320,7 +292,7 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
           <Button
             onClick={() => f.submitForm()}
             variant="contained"
-            disabled={isPending || isCheckingName || Boolean(nameExistsError)}
+            disabled={isPending}
             startIcon={
               isPending
                 ? <CircularProgress size={15} color="inherit" />
@@ -341,13 +313,6 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
         message={successMsg}
         severity="success"
         onClose={() => setSuccessMsg('')}
-      />
-
-      {/* ── Error toast (category-name check failures) ── */}
-      <SuccessToast
-        message={errorToast}
-        severity="error"
-        onClose={() => setErrorToast('')}
       />
     </>
   );
