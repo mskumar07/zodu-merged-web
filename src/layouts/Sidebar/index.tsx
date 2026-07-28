@@ -24,7 +24,7 @@ import {
   Toolbar,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { History, Person, Settings, AdminPanelSettings, Badge } from "@mui/icons-material";
 import { useAppDispatch, useAppSelector } from "@store/store";
 import { clearAuthData, BusinessType } from "@store/slices/userSlice";
@@ -34,6 +34,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "react-router-dom";
 
 export const drawerWidth = 240;
+export const collapsedDrawerWidth = 68;
 
 const retailNavItems = [
   { label: "Dashboard", icon: <DashboardIcon />, path: "/dashboard" },
@@ -85,6 +86,29 @@ export default function Sidebar() {
       location.pathname.startsWith(item.path + "/")
   );
 
+  // Billing screen (retail POS) gets a hover-expandable icon rail; every other
+  // route keeps the sidebar at its normal fixed width.
+  const isBillingRoute = location.pathname.startsWith("/pos");
+  const [isHovered, setIsHovered] = useState(false);
+  // A stale "hovered" flag can survive a route change when the click that navigated
+  // here (e.g. from Sales History) left the cursor sitting over the sidebar's screen
+  // position without firing a fresh mouseenter/mouseleave — reset on every navigation
+  // so the rail always starts collapsed on the billing route until the user actually
+  // moves the mouse over it.
+  useEffect(() => { setIsHovered(false); }, [location.pathname]);
+  const expanded = !isBillingRoute || isHovered;
+  const currentWidth = expanded ? drawerWidth : collapsedDrawerWidth;
+  // On the billing route the reserved layout width always stays at the collapsed
+  // rail size — hovering overlays the expanded panel on TOP of the page content
+  // (position: fixed) instead of growing the flex box, so the table/content next
+  // to it never reflows while the sidebar is expanding.
+  const reservedWidth = isBillingRoute ? collapsedDrawerWidth : currentWidth;
+
+  const widthTransition = theme.transitions.create("width", {
+    easing: theme.transitions.easing.sharp,
+    duration: theme.transitions.duration.enteringScreen,
+  });
+
   const handleLogout = async () => {
     await db.products.clear();
     await db.meta.clear();
@@ -97,19 +121,30 @@ export default function Sidebar() {
   return (
     <Drawer
       sx={{
-        width: drawerWidth,
+        width: reservedWidth,
         flexShrink: 0,
+        whiteSpace: "nowrap",
+        transition: widthTransition,
         "& .MuiDrawer-paper": {
-          width: drawerWidth,
+          width: currentWidth,
+          overflowX: "hidden",
           boxSizing: "border-box",
+          transition: widthTransition,
           // borderRight: 1,
           borderColor: theme.palette.divider,
           bgcolor: theme.palette.background.default,
+          ...(isBillingRoute && {
+            position: "fixed",
+            zIndex: theme.zIndex.drawer + 1,
+            boxShadow: isHovered ? "4px 0 20px rgba(15,23,42,0.12)" : "none",
+          }),
         },
       }}
       variant="permanent"
       anchor="left"
       aria-label="Sidebar navigation"
+      onMouseEnter={() => { if (isBillingRoute) setIsHovered(true); }}
+      onMouseLeave={() => { if (isBillingRoute) setIsHovered(false); }}
     >
       <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
    <Toolbar
@@ -119,11 +154,12 @@ export default function Sidebar() {
           alignItems: "center",
           justifyContent: "center",
           minHeight: "64px !important",
+          px: expanded ? undefined : 1,
         }}
       >
         <Box
           onClick={() => navigate("/")}
-          sx={{ cursor: "pointer", height: 40, display: "flex", alignItems: "center" }}
+          sx={{ cursor: "pointer", height: 40, display: "flex", alignItems: "center", overflow: "hidden" }}
         >
           <img src={zlogo} alt="Zodu" style={{ height: "100%", width: "auto", objectFit: "contain" }} />
         </Box>
@@ -158,6 +194,7 @@ export default function Sidebar() {
                 px: 1.25,
                 my: 0,
                 mx: 0,
+                justifyContent: expanded ? "flex-start" : "center",
                 bgcolor:
                   i === activeIndex
                     ? theme.palette.primary.main
@@ -175,6 +212,7 @@ export default function Sidebar() {
               <ListItemIcon
                 sx={{
                   minWidth: 28,
+                  justifyContent: "center",
                   color:
                     i === activeIndex ? "#fff" : theme.palette.text.secondary,
                 }}
@@ -186,11 +224,18 @@ export default function Sidebar() {
                 primary={item.label}
                 sx={{
                   ml: 0.5,
+                  opacity: expanded ? 1 : 0,
+                  width: expanded ? "auto" : 0,
+                  transition: theme.transitions.create(["opacity", "width"], {
+                    easing: theme.transitions.easing.sharp,
+                    duration: theme.transitions.duration.enteringScreen,
+                  }),
                   "& .MuiTypography-root": {
                     fontWeight: i === activeIndex ? 500 : 400,
                     fontSize: "13px",
                     lineHeight: 1.25,
                     color: i === activeIndex ? "#fff" : "#888",
+                    whiteSpace: "nowrap",
                   },
                 }}
               />
@@ -198,7 +243,7 @@ export default function Sidebar() {
           </ListItem>
         ))}
       </List>
-      <Box sx={{ px: 2, pb: 1, pt: 1 }}>
+      <Box sx={{ px: expanded ? 2 : 1, pb: 1, pt: 1 }}>
         <Divider sx={{ mb: 1 }} />
         <ListItem disablePadding disableGutters>
           <ListItemButton
@@ -206,6 +251,7 @@ export default function Sidebar() {
             onClick={handleLogout}
             sx={{
               borderRadius: 1,
+              justifyContent: expanded ? "flex-start" : "center",
               color: theme.palette.error.main,
               "&:hover": {
                 bgcolor: "rgba(220, 20, 60, 0.08)",
@@ -215,6 +261,7 @@ export default function Sidebar() {
             <ListItemIcon
               sx={{
                 minWidth: 30,
+                justifyContent: "center",
                 color: theme.palette.error.main,
               }}
               aria-hidden="true"
@@ -224,10 +271,17 @@ export default function Sidebar() {
             <ListItemText
               primary="Logout"
               sx={{
+                opacity: expanded ? 1 : 0,
+                width: expanded ? "auto" : 0,
+                transition: theme.transitions.create(["opacity", "width"], {
+                  easing: theme.transitions.easing.sharp,
+                  duration: theme.transitions.duration.enteringScreen,
+                }),
                 "& .MuiTypography-root": {
                   fontWeight: 600,
                   fontSize: "14px",
                   color: theme.palette.error.main,
+                  whiteSpace: "nowrap",
                 },
               }}
             />

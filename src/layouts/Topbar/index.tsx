@@ -12,7 +12,7 @@ import SwitchAccountIcon from "@mui/icons-material/SwitchAccount";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import styles from "./index.module.css";
 import { useTheme } from "@mui/material/styles";
-import { drawerWidth } from "../Sidebar/index";
+import { drawerWidth, collapsedDrawerWidth } from "../Sidebar/index";
 import { MenuItem, Select } from "@mui/material";
 import { useAppDispatch, useAppSelector } from "@store/store";
 import {
@@ -35,6 +35,11 @@ const TopBar: React.FC = () => {
   const isReportSubPage =
     location.pathname.startsWith("/reports") &&
     location.pathname !== "/reports";
+  // Sidebar reserves only the collapsed rail width on the billing route (it hover-
+  // expands as an overlay without affecting layout there) — match that here so the
+  // top bar / company name don't sit under a phantom 240px gap.
+  const isBillingRoute = location.pathname.startsWith("/pos");
+  const reservedSidebarWidth = isBillingRoute ? collapsedDrawerWidth : drawerWidth;
   const zoduId = useAppSelector(ZoduId);
   const branchId = useAppSelector(BranchId);
   const branchName = useAppSelector(BranchName);
@@ -64,8 +69,12 @@ const TopBar: React.FC = () => {
       className={styles.appBar}
       sx={{
         backgroundColor: "#fff",
-        width: { sm: `calc(100% - ${drawerWidth}px)` },
-        ml: { sm: drawerWidth },
+        width: { sm: `calc(100% - ${reservedSidebarWidth}px)` },
+        ml: { sm: reservedSidebarWidth },
+        transition: theme.transitions.create(["width", "margin"], {
+          easing: theme.transitions.easing.sharp,
+          duration: theme.transitions.duration.enteringScreen,
+        }),
         borderBottom: "1px solid " + theme.palette.divider,
       }}
       elevation={0}

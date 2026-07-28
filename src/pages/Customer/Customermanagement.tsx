@@ -68,6 +68,7 @@ interface Customer {
   address: string;
   gstin: string;
   totalSale: number;
+  totalInvoice: number;
   outstandingBalance: number;
   placeOfSupply: string;
 }
@@ -85,7 +86,10 @@ interface ApiCustomer {
   city: string | null;
   state: string | null;
   pincode: string | null;
+  shipping_address?: string | null;
+  same_as_billing_address?: boolean;
   total_sale?: number | string | null;
+  total_invoice?: number | string | null;
   outstanding_balance?: number | string | null;
 }
 
@@ -165,6 +169,7 @@ export default function CustomerManagement({
       address: [c.address_line1, c.city, c.state, c.pincode].filter(Boolean).join(", "),
       gstin: c.gst || "",
       totalSale: Number(c.total_sale) || 0,
+      totalInvoice: Number(c.total_invoice) || 0,
       outstandingBalance: Number(c.outstanding_balance) || 0,
       placeOfSupply: c.state || "",
     }));
@@ -259,6 +264,24 @@ export default function CustomerManagement({
           ) : (
             <Typography sx={{ fontSize: 13, color: "#D1D5DB" }}>--</Typography>
           ),
+      },
+      {
+        key: "totalInvoice",
+        label: "Total Invoice",
+        align: "right",
+        width: 110,
+        render: (customer) => (
+          <Typography
+            sx={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: TABLE_TEXT_COLOR,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {customer.totalInvoice}
+          </Typography>
+        ),
       },
       {
         key: "totalSale",

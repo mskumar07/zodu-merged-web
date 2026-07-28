@@ -23,6 +23,11 @@ export interface AddCustomerPayload {
   city?:          string | null;
   state?:         string | null;
   pincode?:       string | null;
+  // Shipping address — single comma-joined string built from whichever of
+  // line1/line2/city/state/pincode are present. Mirrors the billing address
+  // when "Same as Billing Address" is checked.
+  shipping_address?: string | null;
+  same_as_billing_address: boolean;
 }
 
 // ─── Response ─────────────────────────────────────────────────
@@ -44,6 +49,7 @@ export interface AddCustomerResponse {
     city:          string | null;
     state:         string | null;
     pincode:       string | null;
+    shipping_address?: string | null;
     created_at:    string;
   };
 }
@@ -166,6 +172,7 @@ export function useAddCustomer(options?: {
 
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: customerQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["customers-infinite"] });
       options?.onSuccess?.(response.customer);
     },
 
@@ -190,6 +197,7 @@ export function useUpdateCustomer(options?: {
 
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: customerQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["customers-infinite"] });
       if (response.customer?.cust_uuid) {
         queryClient.invalidateQueries({ queryKey: customerQueryKeys.detail(response.customer.cust_uuid) });
       }
@@ -286,8 +294,24 @@ export function buildCustomerPayload(form: {
   city:         string;
   pincode:      string;
   state:        string;
+  shipSameAsBilling?: boolean;
+  shippingAddressLine1?: string;
+  shippingAddressLine2?: string;
+  shippingCity?:         string;
+  shippingPincode?:      string;
+  shippingState?:        string;
 }): AddCustomerPayload {
   const { zoduId, branchId } = getTenantContext();
+  const sameAsBilling = form.shipSameAsBilling ?? true;
+
+  // Shipping address — when "same as billing" is on, mirror the billing address;
+  // otherwise use the independently entered shipping fields. Whichever parts
+  // are present get joined into a single comma-separated string.
+  const shipParts = sameAsBilling
+    ? [form.addressLine1, form.addressLine2, form.city, form.state, form.pincode]
+    : [form.shippingAddressLine1, form.shippingAddressLine2, form.shippingCity, form.shippingState, form.shippingPincode];
+  const shippingAddress = shipParts.map(p => p?.trim()).filter(Boolean).join(", ") || null;
+
   return {
     zodu_id:   zoduId,
     branch_id: branchId,
@@ -304,6 +328,9 @@ export function buildCustomerPayload(form: {
     city:          form.city.trim()         || null,
     state:         form.state               || null,
     pincode:       form.pincode.trim()      || null,
+
+    shipping_address: shippingAddress,
+    same_as_billing_address: sameAsBilling,
   };
 }
 
@@ -320,6 +347,12 @@ export function buildUpdateCustomerPayload(
     city:         string;
     pincode:      string;
     state:        string;
+    shipSameAsBilling?: boolean;
+    shippingAddressLine1?: string;
+    shippingAddressLine2?: string;
+    shippingCity?:         string;
+    shippingPincode?:      string;
+    shippingState?:        string;
   },
   cust_uuid: string
 ): UpdateCustomerPayload {

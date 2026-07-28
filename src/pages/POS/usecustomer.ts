@@ -26,6 +26,8 @@ export interface ApiCustomer {
   state:         string | null;
   pincode:       string | null;
   created_at:    string;
+  shipping_address:         string | null;
+  same_as_billing_address:  boolean;
 }
 
 interface CustomerSearchResult {
@@ -49,11 +51,17 @@ export function customerLabel(c: ApiCustomer): string {
   return c.cust_name ?? c.cpy_name ?? "Unknown";
 }
 
-/** Formatted address string from individual columns */
+/** Formatted billing address string from individual columns */
 export function customerAddress(c: ApiCustomer): string {
   return [c.address_line1, c.address_line2, c.city, c.state, c.pincode]
     .filter(Boolean)
     .join(", ");
+}
+
+/** Shipping address: same as billing, explicit shipping_address, or empty if none on file */
+export function customerShippingAddress(c: ApiCustomer): string {
+  if (c.same_as_billing_address) return customerAddress(c);
+  return c.shipping_address ?? "";
 }
 
 // ─────────────────────────────────────────────────────────────

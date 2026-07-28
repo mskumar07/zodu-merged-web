@@ -246,6 +246,8 @@ function CompanyCard({
           >
             {company.gst_no
               ? `GSTIN ${company.gst_no}`
+              : company.business_type === "Restaurant"
+              ? "Main restaurant network for dining and food services."
               : "Main retail distribution network for lifestyle products."}
           </Typography>
         </Box>
@@ -357,15 +359,15 @@ const SelectBranch: React.FC = () => {
   return (
     <Box
       sx={{
-        minHeight: "100vh",
+        height: "100%",
+        overflowY: "auto",
         bgcolor: "#fff",
-      
+
         display: "flex",
 
-        flexDirection:"column",
-        
+        flexDirection: "column",
+
         alignItems: "center",
-        justifyContent: "center",
         px: { xs: 2, sm: 3, md: 4 },
         py: { xs: 3, md: 5 },
       }}

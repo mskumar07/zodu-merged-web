@@ -121,10 +121,12 @@ function moduleCount(module: ModuleItem, perms: Record<string, PermState>) {
   const ids: string[] = [];
   const walk = (m: ModuleItem) => { ids.push(m.module_id); m.sub_modules?.forEach(walk); };
   walk(module);
-  const total    = ids.length * 4;
+  const colCount = visibleCols(module.module_name).length;
+  const total    = ids.length * colCount;
   const selected = ids.reduce((acc, id) => {
     const p = perms[id];
-    return p ? acc + [p.can_read, p.can_create, p.can_edit, p.can_delete].filter(Boolean).length : acc;
+    if (!p) return acc;
+    return acc + visibleCols(module.module_name).filter((c) => p[c.key]).length;
   }, 0);
   return { selected, total };
 }

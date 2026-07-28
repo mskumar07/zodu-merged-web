@@ -186,6 +186,8 @@ export interface Customer {
   mobile:  string;
   address: string;
   gstin:   string;
+  shippingAddress?:      string;   // empty string = no shipping address on file
+  sameAsBillingAddress?: boolean;
 }
 
 export interface SaveOrderParams {
