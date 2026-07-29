@@ -23,6 +23,7 @@ import {
   type Sale, type Filters,
 } from "./useSaleshistory";
 import { useTenantContext } from "@store/tenantContext";
+import { DateRangeChip } from "@components/Reports/utils/DateRangeChip";
 
 import InvoiceDetailDialog from "./Invoicedetaildialog";
 import MarkPaymentDialog   from "./MarkPaymentDialog";
@@ -271,7 +272,7 @@ export default function SalesHistoryPage() {
       width: 170,
       render: (sale: Sale) => (
         <Typography variant="body2" sx={{ fontSize: "12px", color: TABLE_TEXT_COLOR }}>
-          {sale.created_at_fmt}
+          {isRestaurant ? sale.created_at_fmt : sale.sale_date_fmt}
         </Typography>
       ),
     },
@@ -387,7 +388,7 @@ export default function SalesHistoryPage() {
                 <StatusBadge status={status} />
               </Box>
               <Box sx={{ width: 110 }}>
-                {status !== "Paid" && !isReturned && !isQuotation && (
+                {status !== "Paid" && !isReturned && !isQuotation && !isCancelledTab && (
                   <Button
                     size="small" variant="contained" color="primary" disableElevation
                     onClick={() => setPaymentDialog(sale)}
@@ -648,23 +649,11 @@ export default function SalesHistoryPage() {
           sx={{ flex: 1, minWidth: 240, backgroundColor: "#fff" }}
         />
 
-        <TextField
-          type="date"
-          size="small"
-          value={draftFilters.from_date}
-          onChange={e => setDraftFilters(f => ({ ...f, from_date: e.target.value }))}
-          inputProps={{ placeholder: "From Date" }}
-          InputProps={{ sx: { borderRadius: 0.5, fontSize: 13 } }}
-          sx={{ minWidth: 160, backgroundColor: "#fff" }}
-        />
-
-        <TextField
-          type="date"
-          size="small"
-          value={draftFilters.to_date}
-          onChange={e => setDraftFilters(f => ({ ...f, to_date: e.target.value }))}
-          InputProps={{ sx: { borderRadius: 0.5, fontSize: 13 } }}
-          sx={{ minWidth: 160, backgroundColor: "#fff" }}
+        <DateRangeChip
+          fromDate={draftFilters.from_date}
+          toDate={draftFilters.to_date}
+          onFromDateChange={(value) => setDraftFilters(f => ({ ...f, from_date: value }))}
+          onToDateChange={(value) => setDraftFilters(f => ({ ...f, to_date: value }))}
         />
 
         <FormControl size="small" sx={{ minWidth: 160 }}>

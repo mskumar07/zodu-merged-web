@@ -10,6 +10,7 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
+import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import {
   useMarkAttendanceMutation,
   useGetMarkAttendanceListQuery,
@@ -344,6 +345,18 @@ export default function MarkAttendanceModal({
                       </Box>
                     </Box>
                   )}
+                  {!isLoadingEmployees && rows.length === 0 && (
+                    <Box component="tr">
+                      <Box component="td" colSpan={4} sx={{ ...tbodySx, textAlign: "center", py: 5, border: "none" }}>
+                        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                          <PeopleOutlineIcon sx={{ fontSize: 32, color: "#CBD5E1" }} />
+                          <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>
+                            No employees found
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+                  )}
                   <Box component="tr" ref={sentinelRef}>
                     <Box component="td" colSpan={4} sx={{ p: isFetchingNextPage ? 1.5 : 0, textAlign: "center", border: "none" }}>
                       {isFetchingNextPage && <CircularProgress size={16} sx={{ color: "#E11D48" }} />}
@@ -364,7 +377,7 @@ export default function MarkAttendanceModal({
             sx={{ color: "#6B7280", fontWeight: 600, "&:hover": { bgcolor: "#F3F4F6" } }}>
             Cancel
           </Button>
-          <Button variant="contained" onClick={handleSave} disabled={isSaving} disableElevation
+          <Button variant="contained" onClick={handleSave} disabled={isSaving || rows.length === 0} disableElevation
             sx={{ bgcolor: "#E11D48", color: "#fff", px: 3, "&:hover": { bgcolor: "#BE123C" } }}>
             {isSaving ? <CircularProgress size={16} sx={{ color: "#fff" }} /> : "Save Attendance"}
           </Button>

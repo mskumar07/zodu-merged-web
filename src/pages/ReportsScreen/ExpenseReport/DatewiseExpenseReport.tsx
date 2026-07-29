@@ -15,6 +15,7 @@ import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalance
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
 import { useTenantContext } from "@store/tenantContext";
+import { DateRangeChip } from "@components/Reports/utils/DateRangeChip";
 import {
   useDatewiseExpenseSummary,
   useDatewiseExpenseBreakdown,
@@ -254,28 +255,7 @@ const DatewiseExpenseReport = () => {
         >
           Clear Filters
         </Button>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1.1, py: 0.65, borderRadius: 1, border: "1px solid #eee", bgcolor: "#fff" }}>
-          <CalendarTodayOutlinedIcon sx={{ fontSize: 15, color: "#D92D20" }} />
-          <TextField
-            type="date"
-            value={fromDate}
-            onChange={(e) => setFromDate(e.target.value)}
-            variant="standard"
-            InputProps={{ disableUnderline: true }}
-            inputProps={{ max: toDate, style: { fontSize: 11, fontWeight: 700 } }}
-            sx={{ minWidth: 126 }}
-          />
-          <Typography sx={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700 }}>-</Typography>
-          <TextField
-            type="date"
-            value={toDate}
-            onChange={(e) => setToDate(e.target.value)}
-            variant="standard"
-            InputProps={{ disableUnderline: true }}
-            inputProps={{ min: fromDate, style: { fontSize: 11, fontWeight: 700 } }}
-            sx={{ minWidth: 126 }}
-          />
-        </Box>
+        <DateRangeChip fromDate={fromDate} toDate={toDate} onFromDateChange={setFromDate} onToDateChange={setToDate} />
       </Box>
 
       {/* TABLE */}

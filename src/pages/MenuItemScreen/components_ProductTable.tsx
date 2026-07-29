@@ -248,6 +248,10 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
             setOpenDialog(false);
             onEditFromDialog?.(uuid);
           }}
+          onDelete={(uuid) => {
+            setOpenDialog(false);
+            onDelete?.({ item_uuid: uuid } as Product);
+          }}
         />
       </>
     );

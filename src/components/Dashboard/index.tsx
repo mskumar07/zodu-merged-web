@@ -3,7 +3,6 @@ import LottieLoader from "@components/LottieLoader";
 import { createTheme, ThemeProvider, CssBaseline } from "@mui/material";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import IconButton from "@mui/material/IconButton";
 import Skeleton from "@mui/material/Skeleton";
 import { Circle } from "@mui/icons-material";
 
@@ -11,11 +10,11 @@ import PaymentsIcon              from "@mui/icons-material/Payments";
 import DescriptionIcon           from "@mui/icons-material/Description";
 import Inventory2Icon            from "@mui/icons-material/Inventory2";
 import InsightsIcon              from "@mui/icons-material/Insights";
-import ShoppingCartCheckoutIcon  from "@mui/icons-material/ShoppingCartCheckout";
 import TrendingUpIcon            from "@mui/icons-material/TrendingUp";
 import WarningAmberIcon          from "@mui/icons-material/WarningAmber";
 import AccountBalanceWalletIcon  from "@mui/icons-material/AccountBalanceWallet";
 import MoneyOffIcon              from "@mui/icons-material/MoneyOff";
+import HistoryIcon               from "@mui/icons-material/History";
 
 import {
   useStats,
@@ -426,7 +425,7 @@ type ReminderRow = {
 };
 const reminderCols: ColDef<ReminderRow>[] = [
   { key: "due",  label: "Due Date", minWidth: 70,
-    render: r => <Typography sx={{ fontSize: 12, color: "#64748B" }}>{r.due_date ? new Date(r.due_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) : "—"}</Typography> },
+    render: r => <Typography sx={{ fontSize: 12, color: "#64748B" }}>{r.due_date ? new Date(r.due_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</Typography> },
   { key: "inv",  label: "Invoice / PO", minWidth: 100,
     render: r => (
       <Box>
@@ -500,12 +499,6 @@ const alertCols: ColDef<AlertItem>[] = [
     render: r => <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{r.available_qty}</Typography> },
   { key: "status", label: "Status", align: "center",
     render: r => stockStatusBadge(r.stock_status) },
-  { key: "action", label: "", align: "center", width: 40,
-    render: _r => (
-      <IconButton size="small" sx={{ color: RED, p: 0.5, borderRadius: "6px", "&:hover": { bgcolor: "rgba(211,47,47,0.08)" } }}>
-        <ShoppingCartCheckoutIcon sx={{ fontSize: 16 }} />
-      </IconButton>
-    ) },
 ];
 
 // ── Main Dashboard ────────────────────────────────────────────
@@ -647,7 +640,10 @@ const salesCols: ColDef<SaleRow>[] = [
             <Box sx={{ flex: "0 0 60%", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", gap: 2 }}>
 
               {isRestaurant ? (
-                <SectionCard title="Recent Orders" sx={{ flex: 1, minHeight: 0 }}>
+                <SectionCard
+                  title={<Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}><HistoryIcon sx={{ fontSize: 16, color: RED }} />Recent Orders</Box>}
+                  sx={{ flex: 1, minHeight: 0 }}
+                >
                   {ordersQuery.isLoading
                     ? <SkeletonTable cols={5} />
                     : <MiniTable
@@ -661,7 +657,10 @@ const salesCols: ColDef<SaleRow>[] = [
                   }
                 </SectionCard>
               ) : (
-                <SectionCard title="Recent Sales Activity" sx={{ flex: 1, minHeight: 0 }}>
+                <SectionCard
+                  title={<Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}><HistoryIcon sx={{ fontSize: 16, color: RED }} />Recent Sales Activity</Box>}
+                  sx={{ flex: 1, minHeight: 0 }}
+                >
                   {salesQuery.isLoading
                     ? <SkeletonTable cols={5} />
                     : <MiniTable
@@ -677,7 +676,7 @@ const salesCols: ColDef<SaleRow>[] = [
               )}
 
               <SectionCard
-                title="Payment Reminders"
+                title={<Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}><PaymentsIcon sx={{ fontSize: 16, color: RED }} />Payment Reminders</Box>}
                 sx={{ flex: 1, minHeight: 0 }}
               >
                 {remindQuery.isLoading

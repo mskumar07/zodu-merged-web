@@ -965,7 +965,7 @@ export default function InvoiceDetailsModal({
                       {isRestaurant ? (
                         <TableRow sx={{ "&:hover": { bgcolor: "#FAFBFC" } }}>
                           <TD sx={{ borderBottom: "none", color: "#334155" }}>
-                            {sale?.sale_date_fmt ?? "—"}
+                            {sale?.created_at_fmt ?? "—"}
                           </TD>
                           <TD sx={{ borderBottom: "none" }}>
                             <Box sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
@@ -998,7 +998,7 @@ export default function InvoiceDetailsModal({
                           <TableRow key={h.payment_row_id ?? idx}
                             sx={{ "&:hover": { bgcolor: "#FAFBFC" } }}>
                             <TD sx={{ borderBottom: isLast ? "none" : undefined, color: "#334155" }}>
-                              {h.created_at_fmt ?? h.payment_date_fmt ?? "—"}
+                              {h.payment_date_fmt ?? h.created_at_fmt ?? "—"}
                             </TD>
                             <TD sx={{ borderBottom: isLast ? "none" : undefined }}>
                               <Box sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}>

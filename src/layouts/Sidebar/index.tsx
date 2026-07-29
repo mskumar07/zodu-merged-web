@@ -12,6 +12,7 @@ import GroupsIcon from '@mui/icons-material/Groups';
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import Logo from "@components/Common/Logo";
 import zlogo from "../../assets/zlogo.png";
+import zIcon from "../../assets/image.png";
 import {
   Box,
   Divider,
@@ -159,9 +160,25 @@ export default function Sidebar() {
       >
         <Box
           onClick={() => navigate("/")}
-          sx={{ cursor: "pointer", height: 40, display: "flex", alignItems: "center", overflow: "hidden" }}
+          sx={{
+            cursor: "pointer",
+            height: expanded ? 40 : 50,
+            width: expanded ? "auto" : 50,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            overflow: "hidden",
+          }}
         >
-          <img src={zlogo} alt="Zodu" style={{ height: "100%", width: "auto", objectFit: "contain" }} />
+          <img
+            src={expanded ? zlogo : zIcon}
+            alt="Zodu"
+            style={
+              expanded
+                ? { height: "100%", width: "auto", objectFit: "contain" }
+                : { height: "30px", width: "30px", objectFit: "contain" }
+            }
+          />
         </Box>
       </Toolbar>
 

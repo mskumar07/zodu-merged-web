@@ -4,7 +4,7 @@
  */
 
 import axios from "axios";
-import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, useInfiniteQuery, keepPreviousData } from "@tanstack/react-query";
 import { getTenantContext, useTenantContext, getAccessToken } from "@store/tenantContext";
 
 const API_BASE  = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
@@ -279,6 +279,7 @@ export function useInfiniteCustomers(search: string) {
     queryFn:          ({ pageParam = 1 }) => getCustomersPage(pageParam as number, search),
     initialPageParam: 1,
     getNextPageParam: (last) => last.page < last.total_pages ? last.page + 1 : undefined,
+    placeholderData: keepPreviousData,
   });
 }
 
