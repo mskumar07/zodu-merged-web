@@ -452,6 +452,9 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
   const [vendorSearch, setVendorSearch] = useState("");
   const [isSaving, setIsSaving]       = useState(false);
   const [successMsg, setSuccessMsg]   = useState("");
+  const expenseDateInputRef = useRef<HTMLInputElement>(null);
+  const paymentDateInputRef = useRef<HTMLInputElement>(null);
+  const dueDateInputRef     = useRef<HTMLInputElement>(null);
 
   const { data: vendorsResponse = [], isLoading: vendorsLoading } = useVendors("Expense");
   const { data: categories = [] } = useCategories("expense");
@@ -632,6 +635,15 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
     },
   };
 
+  // Format YYYY-MM-DD -> "29-JUL-2026"
+  const formatDateDisplay = (dateString: string | undefined): string => {
+    if (!dateString) return "";
+    const [year, month, day] = dateString.split("-");
+    if (!year || !month || !day) return "";
+    const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+    return `${day}-${monthNames[Number(month) - 1]}-${year}`;
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <ItemPickerDialog open={pickerOpen} onClose={() => setPickerOpen(false)} alreadyAdded={alreadyAdded} onConfirm={handlePickerConfirm} categoryId={form.categoryId} />
@@ -704,7 +716,32 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
                 <Box sx={{ minHeight: 30, display: "flex", alignItems: "center", mb: 0.5 }}>
                   <FieldLabel sx={{ mb: 0, lineHeight: 1.2 }}>Expense Date</FieldLabel>
                 </Box>
-                <TextField type="date" size="small" fullWidth value={form.expenseDate} onChange={e => setField("expenseDate", e.target.value)} sx={inputSx} inputProps={{ style: { fontSize: 13 } }} />
+                <Box
+                  onClick={() => { expenseDateInputRef.current?.showPicker?.(); expenseDateInputRef.current?.focus(); }}
+                  sx={{
+                    position: "relative",
+                    display: "flex", alignItems: "center", gap: 0.6,
+                    height: 40,
+                    px: 1.25,
+                    borderRadius: "8px",
+                    border: "1px solid #E2E8F0",
+                    bgcolor: "#F8FAFC",
+                    cursor: "pointer",
+                    "&:hover": { borderColor: "#D21F3C" },
+                  }}
+                >
+                  <CalendarTodayIcon sx={{ fontSize: 14, color: "#6B7280" }} />
+                  <Typography sx={{ fontSize: 13, fontWeight: 600, color: form.expenseDate ? "#111827" : "#94A3B8" }}>
+                    {form.expenseDate ? formatDateDisplay(form.expenseDate) : "Select date"}
+                  </Typography>
+                  <input
+                    ref={expenseDateInputRef}
+                    type="date"
+                    value={form.expenseDate}
+                    onChange={e => setField("expenseDate", e.target.value)}
+                    style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
+                  />
+                </Box>
               </Box>
 
               {/* Category */}
@@ -827,7 +864,32 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
                 </Box>
                 <Box>
                   <FieldLabel>Payment Date</FieldLabel>
-                  <TextField type="date" size="small" fullWidth value={form.paymentDate} onChange={e => setField("paymentDate", e.target.value)} sx={{ ...inputSx, "& .MuiOutlinedInput-root": { ...inputSx["& .MuiOutlinedInput-root"], bgcolor: "#fff" } }} inputProps={{ style: { fontSize: 13 } }} />
+                  <Box
+                    onClick={() => { paymentDateInputRef.current?.showPicker?.(); paymentDateInputRef.current?.focus(); }}
+                    sx={{
+                      position: "relative",
+                      display: "flex", alignItems: "center", gap: 0.6,
+                      height: 40,
+                      px: 1.25,
+                      borderRadius: "8px",
+                      border: "1px solid #E2E8F0",
+                      bgcolor: "#fff",
+                      cursor: "pointer",
+                      "&:hover": { borderColor: "#D21F3C" },
+                    }}
+                  >
+                    <CalendarTodayIcon sx={{ fontSize: 14, color: "#6B7280" }} />
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: form.paymentDate ? "#111827" : "#94A3B8" }}>
+                      {form.paymentDate ? formatDateDisplay(form.paymentDate) : "Select date"}
+                    </Typography>
+                    <input
+                      ref={paymentDateInputRef}
+                      type="date"
+                      value={form.paymentDate}
+                      onChange={e => setField("paymentDate", e.target.value)}
+                      style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
+                    />
+                  </Box>
                 </Box>
                 <Box>
                   <FieldLabel>Payment Reference</FieldLabel>
@@ -862,12 +924,32 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
                     <CalendarTodayIcon sx={{ fontSize: 13, color: "#D21F3C" }} />
                     <FieldLabel>Due Date</FieldLabel>
                   </Box>
-                  <TextField type="date" size="small" fullWidth value={form.dueDate ?? ""} onChange={e => setField("dueDate", e.target.value)} sx={inputSx} inputProps={{ style: { fontSize: 13 } }} />
-                  {form.dueDate && (
-                    <Typography sx={{ fontSize: 10, color: "#6B7280", fontWeight: 500, mt: 0.5 }}>
-                      {new Date(form.dueDate).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" })}
+                  <Box
+                    onClick={() => { dueDateInputRef.current?.showPicker?.(); dueDateInputRef.current?.focus(); }}
+                    sx={{
+                      position: "relative",
+                      display: "flex", alignItems: "center", gap: 0.6,
+                      height: 40,
+                      px: 1.25,
+                      borderRadius: "8px",
+                      border: "1px solid #E2E8F0",
+                      bgcolor: "#F8FAFC",
+                      cursor: "pointer",
+                      "&:hover": { borderColor: "#D21F3C" },
+                    }}
+                  >
+                    <CalendarTodayIcon sx={{ fontSize: 14, color: "#6B7280" }} />
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: form.dueDate ? "#111827" : "#94A3B8" }}>
+                      {form.dueDate ? formatDateDisplay(form.dueDate) : "Select date"}
                     </Typography>
-                  )}
+                    <input
+                      ref={dueDateInputRef}
+                      type="date"
+                      value={form.dueDate ?? ""}
+                      onChange={e => setField("dueDate", e.target.value)}
+                      style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
+                    />
+                  </Box>
                 </Box>
               </Paper>
             </Box>

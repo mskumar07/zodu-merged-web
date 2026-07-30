@@ -75,6 +75,9 @@ import CurrencyRupeeIcon      from "@mui/icons-material/CurrencyRupee";
 
 const INR = (v: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(v);
+// Round-half-up to 2 decimals — matches the value the user sees per row, so totals summed
+// from these match the sum of the displayed rows instead of drifting from unrounded sums.
+const round2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
 const todayStr = () => new Date().toISOString().split("T")[0];
 
 // Format YYYY-MM-DD -> "29-JUL-2026"
@@ -153,6 +156,7 @@ function toLineItem(p: PosProduct): LineItem {
   const gstPct = Number(p.gst_tax) || 0;
   const taxInclusive = p.tax_inclusive === true || (p.tax_inclusive as unknown) === 1;
   const unitPrice = taxInclusive && gstPct > 0 ? grossPrice / (1 + gstPct / 100) : grossPrice;
+  console.log
   return {
     uuid: p.item_uuid, code: p.item_id, description: p.item_name,
     qty: 1, unitPrice, sellPrice: grossPrice, taxInclusive,
@@ -273,11 +277,25 @@ const {
   const { saveOrder, saving, updateOrder }                   = useSaveOrder();
 
   // ─── ALL computed totals — declared BEFORE any useCallback that uses them ───
-  const subtotal          = useMemo(() => items.reduce((s, i) => s + i.qty * i.unitPrice, 0), [items]);
+  const subtotal          = useMemo(() => items.reduce((s, i) => s + round2(i.qty * i.unitPrice), 0), [items]);
   const itemDiscountTotal = useMemo(() => items.reduce((s, i) => s + (i.discount ?? 0), 0), [items]);
-  const discountPctAmt    = subtotal * (parseFloat(discountPct) || 0) / 100;
-  const discountFlatAmt   = parseFloat(discount) || 0;
-  const orderDiscountAmt  = discountPctAmt + discountFlatAmt;
+
+  // Undiscounted GST — the tax on the full taxable value, before any order-level discount is applied.
+  // Each item's GST is rounded to 2dp first (matching its displayed value), then summed.
+  const grossGstAmount = useMemo(() => {
+    if (subtotal === 0) return 0;
+    return items.reduce((s, i) => s + round2(i.qty * i.unitPrice * i.gstPct / 100), 0);
+  }, [items, subtotal]);
+
+  const discountFlatAmt = parseFloat(discount) || 0;
+  const discountPctVal  = parseFloat(discountPct) || 0;
+
+  // "Before GST": % is taken on the taxable value, so GST is recomputed on the discounted base.
+  // "After GST": % is taken on the GST-inclusive total (subtotal + GST), matching how the discount reads on the bill.
+  const discountPctAmt = gstMode === "before"
+    ? subtotal * discountPctVal / 100
+    : (subtotal + grossGstAmount) * discountPctVal / 100;
+  const orderDiscountAmt = discountPctAmt + discountFlatAmt;
 
   const gstAmount = useMemo(() => {
     if (subtotal === 0) return 0;
@@ -285,15 +303,11 @@ const {
       return items.reduce((s, i) => {
         const itemBase     = i.qty * i.unitPrice;
         const itemDiscount = orderDiscountAmt * (itemBase / subtotal);
-        return s + Math.max(0, itemBase - itemDiscount) * i.gstPct / 100;
-      }, 0);
-    } else {
-      return items.reduce((s, i) => {
-        const itemBase = i.qty * i.unitPrice;
-        return s + itemBase * i.gstPct / 100;
+        return s + round2(Math.max(0, itemBase - itemDiscount) * i.gstPct / 100);
       }, 0);
     }
-  }, [items, orderDiscountAmt, gstMode, subtotal]);
+    return grossGstAmount;
+  }, [items, orderDiscountAmt, gstMode, subtotal, grossGstAmount]);
 
   const grandTotalRaw = useMemo(() => {
     if (gstMode === "before") {
@@ -436,7 +450,7 @@ useEffect(() => {
         const gstPct       = Number(i.gst_percentage) || 0;
         const taxInclusive = Boolean(i.tax_inclusive);
         const unitPrice    = taxInclusive && gstPct > 0 ? grossPrice / (1 + gstPct / 100) : grossPrice;
-        return { code: i.item_id, description: i.item_name, qty: Number(i.quantity), unitPrice, sellPrice: grossPrice, gstPct, taxInclusive, uuid: i.item_uuid, hsn: i.hsn_code ?? "", mrp: Number(i.mrp || 0), unit: i.unit || "NOS", discount: Number(i.discount || 0) };
+        return { code: i.item_id, description: i.item_name, qty: Number(i.quantity), unitPrice, sellPrice: grossPrice, gstPct, taxInclusive, uuid: i.item_uuid, hsn: i.hsn_code ?? "", mrp: Number(i.mrp || 0), unit: i.unit || "NOS", discount: Number(i.discount || 0), discountPct: Number(i.discount_percentage || 0) };
       }));
       if (data.customer) {
         const c = data.customer;
@@ -448,6 +462,7 @@ useEffect(() => {
       }
       if (sale.discount_type === "percentage") { setDiscountPct(String(sale.discount_value || 0)); setDiscount("0"); }
       else { setDiscount(String(sale.discount_amount || 0)); setDiscountPct("0"); }
+      setGstMode(sale.discount_gst_mode === "before" ? "before" : "after");
       setReceivedAmount(String(sale.paid_amount || 0));
       if (data.payment_history.length > 0) {
         const last = data.payment_history[data.payment_history.length - 1];
@@ -633,7 +648,12 @@ console.log("test",serverHolds)
   };
 
   const updateQty  = (code: string, delta: number) =>
-    setItems(prev => prev.map(i => i.code === code ? { ...i, qty: Math.max(1, i.qty + delta) } : i));
+    setItems(prev => prev.map(i => {
+      if (i.code !== code) return i;
+      const qty = Math.max(1, i.qty + delta);
+      const discount = i.discountPct ? parseFloat(((i.discountPct * qty * i.sellPrice) / 100).toFixed(2)) : i.discount;
+      return { ...i, qty, discount };
+    }));
 
   const removeItem = (code: string) => {
     setItems(prev => {
@@ -828,8 +848,13 @@ console.log("test",serverHolds)
     return parts.join(" + ") || null;
   })();
 
-  const totalGstRow = items.reduce((s, i) => s + (i.qty * i.unitPrice * i.gstPct) / 100, 0);
-  const totalAmtRow = items.reduce((s, i) => s + i.qty * i.sellPrice - (i.discount ?? 0), 0);
+  const totalGstRow = items.reduce((s, i) => s + round2((i.qty * i.unitPrice * i.gstPct) / 100), 0);
+  // Built from unitPrice + rounded item GST (same basis as the sidebar's Sub Total/Tax), not sellPrice —
+  // keeps this footer reconciled with Sub Total + Tax + Round Off on the right.
+  const totalAmtRow = items.reduce((s, i) => {
+    const itemGst = round2((i.qty * i.unitPrice * i.gstPct) / 100);
+    return s + round2(i.qty * i.unitPrice + itemGst - (i.discount ?? 0));
+  }, 0);
   const empty       = items.length === 0;
 
   const savedHsnBreakdown = useMemo(() => {
@@ -1171,8 +1196,8 @@ console.log("test",serverHolds)
                   )}
                   {items.map((item, rowIdx) => {
                     const isActive  = zone === "TABLE" && activeRowIdx === rowIdx;
-                    const itemGst   = (item.qty * item.unitPrice * item.gstPct) / 100;
-                    const itemTotal = item.qty * item.sellPrice - (item.discount ?? 0);
+                    const itemGst   = round2((item.qty * item.unitPrice * item.gstPct) / 100);
+                    const itemTotal = round2(item.qty * item.unitPrice + itemGst - (item.discount ?? 0));
                     return (
                       <Fade in key={item.code}>
                         <TableRow data-rowcode={item.code} onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); }}
@@ -1207,8 +1232,8 @@ console.log("test",serverHolds)
                               {item.editingQty ? (
                                 <TextField inputRef={el => { qtyRefs.current[item.code] = el; }} value={item.qtyDraft ?? ""}
                                   onChange={e => setItems(prev => prev.map(i => i.code === item.code ? { ...i, qtyDraft: e.target.value.replace(/[^0-9.]/g, "") } : i))}
-                                  onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = qtyRefs.current[item.code]; const newQty = Math.max(1, parseFloat(el?.value ?? "") || 1); setItems(prev => prev.map(i => i.code === item.code ? { ...i, qty: newQty, editingQty: false, qtyDraft: undefined } : i)); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
-                                  onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); const newQty = Math.max(1, parseFloat((e.target as HTMLInputElement).value) || 1); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, qty: newQty, editingQty: false, qtyDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingQty: false, qtyDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
+                                  onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = qtyRefs.current[item.code]; const newQty = Math.max(1, parseFloat(el?.value ?? "") || 1); setItems(prev => prev.map(i => { if (i.code !== item.code) return i; const discount = i.discountPct ? parseFloat(((i.discountPct * newQty * i.sellPrice) / 100).toFixed(2)) : i.discount; return { ...i, qty: newQty, discount, editingQty: false, qtyDraft: undefined }; })); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
+                                  onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); const newQty = Math.max(1, parseFloat((e.target as HTMLInputElement).value) || 1); editCancelledRef.current = true; setItems(prev => prev.map(i => { if (i.code !== item.code) return i; const discount = i.discountPct ? parseFloat(((i.discountPct * newQty * i.sellPrice) / 100).toFixed(2)) : i.discount; return { ...i, qty: newQty, discount, editingQty: false, qtyDraft: undefined }; })); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingQty: false, qtyDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
                                   size="small" inputProps={{ step: "any", style: { textAlign: "center", fontWeight: 800, fontSize: 14, padding: "2px 2px", width: 48 } }}
                                   sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#1976D2", borderWidth: 2 } }, width: 64 }} />
                               ) : (
@@ -1226,8 +1251,8 @@ console.log("test",serverHolds)
                                 <Typography sx={{ fontSize: 13, color: "#9CA3AF", fontWeight: 700 }}>₹</Typography>
                                 <TextField inputRef={el => { priceRefs.current[item.code] = el; }} value={item.priceDraft ?? ""}
                                   onChange={e => setItems(prev => prev.map(i => i.code === item.code ? { ...i, priceDraft: e.target.value.replace(/[^0-9.]/g, "") } : i))}
-                                  onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = priceRefs.current[item.code]; const newSell = Math.max(0, parseFloat(el?.value ?? "") || item.sellPrice); const newBase = item.taxInclusive && item.gstPct > 0 ? newSell / (1 + item.gstPct / 100) : newSell; setItems(prev => prev.map(i => i.code === item.code ? { ...i, sellPrice: newSell, unitPrice: newBase, editingPrice: false, priceDraft: undefined } : i)); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
-                                  onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); const newSell = Math.max(0, parseFloat((e.target as HTMLInputElement).value) || item.sellPrice); const newBase = item.taxInclusive && item.gstPct > 0 ? newSell / (1 + item.gstPct / 100) : newSell; editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, sellPrice: newSell, unitPrice: newBase, editingPrice: false, priceDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingPrice: false, priceDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
+                                  onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = priceRefs.current[item.code]; const newSell = Math.max(0, parseFloat(el?.value ?? "") || item.sellPrice); const newBase = item.taxInclusive && item.gstPct > 0 ? newSell / (1 + item.gstPct / 100) : newSell; setItems(prev => prev.map(i => { if (i.code !== item.code) return i; const discount = i.discountPct ? parseFloat(((i.discountPct * i.qty * newSell) / 100).toFixed(2)) : i.discount; return { ...i, sellPrice: newSell, unitPrice: newBase, discount, editingPrice: false, priceDraft: undefined }; })); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
+                                  onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); const newSell = Math.max(0, parseFloat((e.target as HTMLInputElement).value) || item.sellPrice); const newBase = item.taxInclusive && item.gstPct > 0 ? newSell / (1 + item.gstPct / 100) : newSell; editCancelledRef.current = true; setItems(prev => prev.map(i => { if (i.code !== item.code) return i; const discount = i.discountPct ? parseFloat(((i.discountPct * i.qty * newSell) / 100).toFixed(2)) : i.discount; return { ...i, sellPrice: newSell, unitPrice: newBase, discount, editingPrice: false, priceDraft: undefined }; })); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingPrice: false, priceDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
                                   size="small" inputProps={{ style: { textAlign: "right", fontWeight: 700, fontSize: 13, padding: "2px 4px", width: 60 } }}
                                   sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#1976D2", borderWidth: 2 } }, width: 80 }} />
                               </Box>

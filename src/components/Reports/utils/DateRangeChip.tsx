@@ -49,6 +49,14 @@ const boxSx = {
   bgcolor: "#fff",
 };
 
+// MUI's default fieldMonthPlaceholder always shows "MMMM" for letter-month
+// sections, regardless of the DD-MMM-YYYY format we render — override it so
+// the empty-field placeholder matches the 3-letter month format we actually use.
+const localeText = {
+  fieldMonthPlaceholder: (params: { contentType: string }) =>
+    params.contentType === "letter" ? "MMM" : "MM",
+};
+
 // Compact "DD-MMM-YYYY" date-range chip shared by all date-wise report screens.
 export const DateRangeChip: React.FC<DateRangeChipProps> = ({
   fromDate,
@@ -56,7 +64,7 @@ export const DateRangeChip: React.FC<DateRangeChipProps> = ({
   onFromDateChange,
   onToDateChange,
 }) => (
-  <LocalizationProvider dateAdapter={AdapterDayjs}>
+  <LocalizationProvider dateAdapter={AdapterDayjs} localeText={localeText}>
     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
       <Box sx={boxSx}>
         {/* <CalendarTodayOutlinedIcon sx={{ fontSize: 13, color: "#D92D20" }} /> */}
