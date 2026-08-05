@@ -38,6 +38,13 @@ interface CategoryTabProps {
   /** when provided, Add/Edit dialog hides the Type toggle and always uses this value */
   fixedType?:   "S" | "M" | "E";
   businessType?: string;
+  /** when true, the component's own search+Add toolbar is not rendered — the parent
+   *  is expected to render an equivalent toolbar and drive search/add via the props below */
+  hideToolbar?: boolean;
+  /** controlled search value, used together with hideToolbar */
+  searchValue?: string;
+  /** exposes the "open Add Category dialog" trigger to the parent, used together with hideToolbar */
+  onRequestAdd?: (openAdd: () => void) => void;
 }
 
 // ─── CategoryTab ──────────────────────────────────────────────────────────────
@@ -46,6 +53,9 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
   typeFilter = "S,M",
   fixedType,
   businessType,
+  hideToolbar = false,
+  searchValue,
+  onRequestAdd,
 }) => {
   const qc = useQueryClient();
 
@@ -56,16 +66,28 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
   const openAdd  = useCallback(() => { setEditRow(null); setCatDialogOpen(true); }, []);
   const openEdit = useCallback((row: CategoryRow) => { setEditRow(row); setCatDialogOpen(true); }, []);
 
+  useEffect(() => { onRequestAdd?.(openAdd); }, [onRequestAdd, openAdd]);
+
   // ── Search ────────────────────────────────────────────────────────────────
-  const [search,          setSearch]    = useState("");
-  const [debouncedSearch, setDebSearch] = useState("");
+  const [searchInternal,  setSearchInternal] = useState("");
+  const [debouncedSearch, setDebSearch]      = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const search = searchValue !== undefined ? searchValue : searchInternal;
 
   const handleSearchChange = (val: string) => {
-    setSearch(val);
+    setSearchInternal(val);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => setDebSearch(val), 300);
   };
+
+  // When search is controlled by the parent (hideToolbar mode), debounce it here too —
+  // handleSearchChange is never called since the parent owns the TextField's onChange.
+  useEffect(() => {
+    if (searchValue === undefined) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebSearch(searchValue), 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchValue]);
 
   // ── Toast ─────────────────────────────────────────────────────────────────
   const [toastMsg,      setToastMsg]      = useState("");
@@ -111,18 +133,14 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const {
     data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage,
-  } = useInfiniteCategoryList(true, typeFilter);
+  } = useInfiniteCategoryList(true, typeFilter, false, debouncedSearch.trim());
 
   const allCategories = useMemo<CategoryRow[]>(() => {
     if (!data?.pages) return [];
     return data.pages.flatMap((page) => page.Data);
   }, [data]);
 
-  const filtered = useMemo(() => {
-    const q = debouncedSearch.trim().toLowerCase();
-    if (!q) return allCategories;
-    return allCategories.filter((c) => c.name.toLowerCase().includes(q));
-  }, [allCategories, debouncedSearch]);
+  const filtered = allCategories;
 
   // ── Infinite scroll observer ──────────────────────────────────────────────
   useEffect(() => {
@@ -233,29 +251,31 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2, height: "100%" }}>
 
       {/* ── Toolbar ── */}
-      <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", flexWrap: "wrap" }}>
-        <TextField
-          size="small" placeholder="Search..." value={search}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          sx={{ flex: 1, minWidth: 200, bgcolor: "#fff" }}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ fontSize: 18, color: "text.disabled" }} />
-                </InputAdornment>
-              ),
-              sx: { borderRadius: 0.5, fontSize: 13 },
-            },
-          }}
-        />
-        <Button
-          variant="contained" startIcon={<AddIcon />} onClick={openAdd}
-          sx={{ borderRadius: 0.5, fontWeight: 700, px: 2.5, height: 40, textTransform: "none", fontSize: 13, whiteSpace: "nowrap", boxShadow: "0 4px 14px rgba(210,18,46,0.25)" }}
-        >
-          Add Category
-        </Button>
-      </Box>
+      {!hideToolbar && (
+        <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", flexWrap: "wrap" }}>
+          <TextField
+            size="small" placeholder="Search by category name..." value={search}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            sx={{ flex: 1, minWidth: 200, bgcolor: "#fff" }}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ fontSize: 18, color: "text.disabled" }} />
+                  </InputAdornment>
+                ),
+                sx: { borderRadius: 0.5, fontSize: 13 },
+              },
+            }}
+          />
+          <Button
+            variant="contained" startIcon={<AddIcon />} onClick={openAdd}
+            sx={{ borderRadius: 0.5, fontWeight: 700, px: 2.5, height: 40, textTransform: "none", fontSize: 13, whiteSpace: "nowrap", boxShadow: "0 4px 14px rgba(210,18,46,0.25)" }}
+          >
+            Add Category
+          </Button>
+        </Box>
+      )}
 
       {/* ── Table ── */}
       <Box sx={{ flex: 1, overflow: "hidden" }}>

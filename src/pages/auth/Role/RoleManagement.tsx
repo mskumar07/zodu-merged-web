@@ -194,7 +194,7 @@ export default function RoleManagement() {
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{
-        display: "flex", height: "100%", bgcolor: "#F1F5F9",
+        display: "flex", height: "100%", bgcolor: "#ffffff",
         overflow: "hidden", gap: 2, p: 2,
       }}>
 

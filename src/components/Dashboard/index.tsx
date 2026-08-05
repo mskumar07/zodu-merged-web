@@ -34,7 +34,7 @@ import InvoiceDetailsModal from "@pages/SalesHistory/Invoicedetaildialog";
 const theme = createTheme({
   palette: {
     primary:    { main: "#D32F2F" },
-    background: { default: "#F8FAFC", paper: "#FFFFFF" },
+    background: { default: "#FFFFFF", paper: "#FFFFFF" },
     text:       { primary: "#0F172A", secondary: "#64748B" },
   },
   typography: { fontFamily: "'Inter', sans-serif" },
@@ -114,18 +114,35 @@ function MiniTable<T>({
   hasNextPage?:        boolean;
 }) {
   const sentinelRef = useRef<HTMLTableRowElement>(null);
+  const stateRef = useRef({ onLoadMore, hasNextPage, isFetchingNextPage });
+  stateRef.current = { onLoadMore, hasNextPage, isFetchingNextPage };
 
   useEffect(() => {
     if (!onLoadMore) return;
     const el = sentinelRef.current;
     if (!el) return;
+
+    // Find the nearest scrollable ancestor (SectionCard's overflowY:auto box)
+    // so the observer's root matches what actually scrolls — the viewport
+    // is not it, since these tables live in fixed-height scrolling cards.
+    let root: Element | null = el.parentElement;
+    while (root && root !== document.body) {
+      const style = getComputedStyle(root);
+      if (style.overflowY === "auto" || style.overflowY === "scroll") break;
+      root = root.parentElement;
+    }
+
     const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) onLoadMore(); },
-      { threshold: 0.1 }
+      ([entry]) => {
+        const { onLoadMore: load, hasNextPage: hasNext, isFetchingNextPage: fetching } = stateRef.current;
+        if (entry.isIntersecting && hasNext && !fetching) load?.();
+      },
+      { root: root && root !== document.body ? root : null, threshold: 0.1 }
     );
     obs.observe(el);
     return () => obs.disconnect();
-  }, [onLoadMore, hasNextPage, isFetchingNextPage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!onLoadMore]);
 
   return (
     <Box component="table" sx={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
@@ -510,7 +527,7 @@ export default function DashboardLayout() {
   const salesQuery   = useSales(zoduId, branchId, businessType ?? "");
   const topQuery          = useTopItems(zoduId, branchId, businessType ?? "");
   const restTopQuery      = useRestaurantTopItems(zoduId, branchId, isRestaurant);
-  const remindQuery       = useReminders(zoduId, branchId, businessType ?? "");
+  const remindQuery       = useReminders(zoduId, branchId, businessType ?? "", 20);
   const alertQuery        = useInventoryAlerts(zoduId, branchId, businessType ?? "");
   const ordersQuery       = useOrders(zoduId, branchId, isRestaurant);
   const [invoiceDialog, setInvoiceDialog] = useState<string | null>(null);
@@ -620,7 +637,7 @@ const salesCols: ColDef<SaleRow>[] = [
       <CssBaseline />
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap'); *, *::before, *::after { font-family: 'Inter', sans-serif !important; box-sizing: border-box; }`}</style>
 
-      <Box sx={{ bgcolor: "#F8FAFC", height: "100%", minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <Box sx={{ bgcolor: "#ffffff", height: "100%", minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <Box component="main" sx={{
           flex: 1, minHeight: 0, px: { xs: 1.5, md: 2 }, py: { xs: 1.5, md: 2 },
           width: "100%", overflow: "hidden", display: "flex", flexDirection: "column", gap: 2,

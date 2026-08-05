@@ -584,6 +584,8 @@ const RestaurantMenuList: React.FC = () => {
   const [editItem, setEditItem]               = useState<RestaurantMenuListItem | null>(null);
   const [favOverrides, setFavOverrides]       = useState<Record<string, boolean>>({});
   const [activeOverrides, setActiveOverrides] = useState<Record<string, boolean>>({});
+  const [categorySearch, setCategorySearch]   = useState("");
+  const requestAddCategoryRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
@@ -871,8 +873,12 @@ const RestaurantMenuList: React.FC = () => {
 
   return (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column", p: 2 }}>
-      {/* ── Tabs ── */}
-      <Box sx={{ borderBottom: `1px solid ${theme.palette.divider}`, mb: 2 }}>
+      {/* ── Tabs + Toolbar ── */}
+      <Box sx={{
+        borderBottom: `1px solid ${theme.palette.divider}`, mb: 2,
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        gap: 1.5, flexWrap: "wrap",
+      }}>
         <Tabs
           value={activeTab}
           onChange={handleTabChange}
@@ -896,19 +902,9 @@ const RestaurantMenuList: React.FC = () => {
             <Tab key={tab.value} label={tab.label} value={tab.value} disableRipple />
           ))}
         </Tabs>
-      </Box>
 
-      {/* ── Category Tab view ── */}
-      {activeTab === "Category" && (
-        <Box sx={{ flex: 1, overflow: "hidden" }}>
-          <CategoryTab typeFilter="F,P" businessType="Restaurant" />
-        </Box>
-      )}
-
-      {/* ── Toolbar + Table (hidden on Category tab) ── */}
-      {activeTab !== "Category" && (
-        <>
-          <Box sx={{ display: "flex", gap: 1.5, mb: 2, alignItems: "center", flexWrap: "wrap" }}>
+        {activeTab !== "Category" && (
+          <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", flexWrap: "wrap", pb: 1 }}>
             {/* Title + count */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: "0 0 auto" }}>
               <RestaurantMenuIcon sx={{ color: "#d32f2f", fontSize: 20 }} />
@@ -1050,29 +1046,72 @@ const RestaurantMenuList: React.FC = () => {
               {isMobile ? "Add" : "Create Menu Item"}
             </Button>
           </Box>
+        )}
 
-          {/* ── Table ── */}
-          <Box sx={{ flex: 1, overflow: "hidden" }}>
-            {isError ? (
-              <Box sx={{ textAlign: "center", pt: 8, color: "#6b7280" }}>
-                <Typography>Failed to load menu items. Please try again.</Typography>
-              </Box>
-            ) : (
-              <DataTable
-                columns={columns}
-                rows={allItems}
-                rowKey={(row) => row.menu_id}
-                isLoading={isLoading}
-                hasNextPage={hasNextPage}
-                isFetchingNextPage={isFetchingNextPage}
-                loadMoreRef={loadMoreRef}
-                tableContainerRef={containerRef}
-                maxHeight="100%"
-                emptyMessage="No menu items found."
-              />
-            )}
+        {activeTab === "Category" && (
+          <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", flexWrap: "wrap", pb: 1 }}>
+            <TextField
+              size="small"
+              placeholder="Search by category name..."
+              value={categorySearch}
+              onChange={(e) => setCategorySearch(e.target.value)}
+              sx={{ width: isMobile ? "100%" : 260, bgcolor: "#fff" }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ fontSize: 18, color: "text.disabled" }} />
+                  </InputAdornment>
+                ),
+                sx: { borderRadius: 0.5, fontSize: 13 },
+              }}
+            />
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => requestAddCategoryRef.current?.()}
+              sx={{ borderRadius: 0.5, fontWeight: 700, px: 2.5, height: 40, textTransform: "none", fontSize: 13, whiteSpace: "nowrap", boxShadow: "0 4px 14px rgba(210,18,46,0.25)" }}
+            >
+              Add Category
+            </Button>
           </Box>
-        </>
+        )}
+      </Box>
+
+      {/* ── Category Tab view ── */}
+      {activeTab === "Category" && (
+        <Box sx={{ flex: 1, overflow: "hidden" }}>
+          <CategoryTab
+            typeFilter="F,P"
+            businessType="Restaurant"
+            hideToolbar
+            searchValue={categorySearch}
+            onRequestAdd={(openAdd) => { requestAddCategoryRef.current = openAdd; }}
+          />
+        </Box>
+      )}
+
+      {/* ── Table (hidden on Category tab) ── */}
+      {activeTab !== "Category" && (
+        <Box sx={{ flex: 1, overflow: "hidden" }}>
+          {isError ? (
+            <Box sx={{ textAlign: "center", pt: 8, color: "#6b7280" }}>
+              <Typography>Failed to load menu items. Please try again.</Typography>
+            </Box>
+          ) : (
+            <DataTable
+              columns={columns}
+              rows={allItems}
+              rowKey={(row) => row.menu_id}
+              isLoading={isLoading}
+              hasNextPage={hasNextPage}
+              isFetchingNextPage={isFetchingNextPage}
+              loadMoreRef={loadMoreRef}
+              tableContainerRef={containerRef}
+              maxHeight="100%"
+              emptyMessage="No menu items found."
+            />
+          )}
+        </Box>
       )}
 
       <ItemDetailDialog

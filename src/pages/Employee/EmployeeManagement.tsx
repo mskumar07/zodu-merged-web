@@ -20,7 +20,7 @@ import LottieLoader from "@components/LottieLoader";
 const theme = createTheme({
   palette: {
     primary: { main: "#E11D48" },
-    background: { default: "#F9FAFB", paper: "#FFFFFF" },
+    background: { default: "#FFFFFF", paper: "#FFFFFF" },
     text: { primary: "#0F172A", secondary: "#6B7280" },
   },
   components: {
@@ -125,21 +125,6 @@ export default function EmployeeManagement() {
 
   const columns = useMemo<ColumnDef<EmployeeListItem>[]>(() => [
     {
-      key: "name",
-      label: "Employee",
-      width: 220,
-      render: (row) => (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          <Avatar sx={{ width: 32, height: 32, bgcolor: "#FFF1F2", color: "#E11D48", fontSize: 13, fontWeight: 700 }}>
-            {row.name?.[0]?.toUpperCase() ?? "E"}
-          </Avatar>
-          <Box>
-            <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{row.name}</Typography>
-          </Box>
-        </Box>
-      ),
-    },
-    {
       key: "employee_code",
       label: "Employee ID",
       width: 140,
@@ -158,6 +143,21 @@ export default function EmployeeManagement() {
         ) : (
           <Typography sx={{ fontSize: 13, color: "#374151" }}>—</Typography>
         )
+      ),
+    },
+    {
+      key: "name",
+      label: "Employee",
+      width: 220,
+      render: (row) => (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Avatar sx={{ width: 32, height: 32, bgcolor: "#FFF1F2", color: "#E11D48", fontSize: 13, fontWeight: 700 }}>
+            {row.name?.[0]?.toUpperCase() ?? "E"}
+          </Avatar>
+          <Box>
+            <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{row.name}</Typography>
+          </Box>
+        </Box>
       ),
     },
     {
@@ -218,7 +218,7 @@ export default function EmployeeManagement() {
 
   return (
     <ThemeProvider theme={theme}>
-      <Box sx={{ height: "100%", display: "flex", flexDirection: "column", bgcolor: "#F9FAFB", overflow: "hidden", minHeight: 0 }}>
+      <Box sx={{ height: "100%", display: "flex", flexDirection: "column", bgcolor: "#ffffff", overflow: "hidden", minHeight: 0 }}>
 
         {/* Toolbar */}
         <Box sx={{ px: 1, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, gap: 2 }}>

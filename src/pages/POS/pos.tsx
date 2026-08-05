@@ -102,7 +102,7 @@ const formatDateForInput = (dateString: string | undefined): string => {
 const theme = createTheme({
   palette: {
     primary: { main: "#C8102E" },
-    background: { default: "#F5F6FA", paper: "#FFFFFF" },
+    background: { default: "#FFFFFF", paper: "#FFFFFF" },
     text: { primary: "#1A1A2E", secondary: "#6B7280" },
   },
   components: {

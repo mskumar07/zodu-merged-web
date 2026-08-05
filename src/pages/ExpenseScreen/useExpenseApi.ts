@@ -4,13 +4,18 @@ import { getTenantContext } from "@store/tenantContext";
 import { getAccessToken } from "@store/tenantContext";
 
 export interface ExpenseCatalogItem {
-  id: number;
-  item_name: string;
-  category_id: number | null;
-  category_name: string | null;
+  item_uuid: string;
   zodu_id: string;
   branch_id: string;
-  active: boolean;
+  item_id: string;
+  expense_item_name: string;
+  category_id: number | null;
+  category_name: string | null;
+  amount: string;
+  qty: string;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
@@ -85,23 +90,24 @@ export const useExpenseSummary = () => {
   });
 };
 
-export const useExpenseCatalog = (categoryId: string) => {
+export const useExpenseCatalog = (categoryId?: string, search?: string, enabled = true) => {
   const { zoduId, branchId, businessType } = getTenantContext();
   return useQuery({
-    queryKey: ["expense", "catalog", zoduId, branchId, businessType, categoryId],
+    queryKey: ["expense", "catalog", zoduId, branchId, businessType, categoryId, search],
+    enabled: enabled && !!zoduId && !!branchId,
     queryFn: async () => {
       const res = await getApi().get("/expense/catalog", {
         params: {
           zodu_id: zoduId,
           branch_id: branchId,
           ...(categoryId ? { category_id: Number(categoryId) } : {}),
+          ...(search ? { search } : {}),
         },
       });
       const rows = res.data?.data ?? res.data ?? [];
       return rows as ExpenseCatalogItem[];
     },
-    enabled: !!categoryId,
-    staleTime: 2 * 60 * 1000,
+    staleTime: 30 * 1000,
   });
 };
 

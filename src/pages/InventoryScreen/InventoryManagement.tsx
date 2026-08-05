@@ -385,96 +385,102 @@ const handleCloseHistory = () => {
       </Grid>
 
       {/* ── Filter bar ── */}
-      <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
-        <TextField
-          size="small"
-          inputRef={searchInputRef}
-          placeholder="Search by Item Name, ID, or Barcode…"
-          value={searchInput}
+      <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <Typography sx={{ fontSize: 16, fontWeight: 700, color: 'text.primary', flexShrink: 0 }}>
+          Inventory List
+        </Typography>
 
-          onChange={e => handleSearchChange(e.target.value)}
-          onBlur={() => { wasSearchFocusedRef.current = false; }}
-          onKeyDown={e => {
-            if (e.key === 'Enter') {
-              if (debounceRef.current) clearTimeout(debounceRef.current);
-              setSearchQuery(searchInput);
-            }
-          }}
-          InputProps={{
-            startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 18, color: 'text.disabled' }} /></InputAdornment>,
-            sx: { borderRadius: 0.5, fontSize: 13 },
-          }}
-          sx={{ flex: 1, minWidth: 260,backgroundColor:"#fff" }}
-        />
+        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
+          <TextField
+            size="small"
+            inputRef={searchInputRef}
+            placeholder="Search by Item Name, ID, or Barcode…"
+            value={searchInput}
 
-        {/* Stock status filter */}
-        <FormControl size="small" sx={{ minWidth: 180 }}>
-          <Select
-            value={stockFilter}
-            onChange={e => setStockFilter(e.target.value as StockStatus | '')}
-            displayEmpty
-            renderValue={v => v
-              ? STATUS_MAP[v as StockStatus]?.label
-              : <Box component="span" sx={{ color: 'text.disabled' }}>All Status</Box>
-            }
-            sx={{ borderRadius: 0.5, fontSize: 13, backgroundColor: '#fff' }}
-          >
-            <MenuItem value="">All Status</MenuItem>
-            <MenuItem value="in_stock">In Stock</MenuItem>
-            <MenuItem value="low_stock">Low Stock</MenuItem>
-            <MenuItem value="out_of_stock">Out of Stock</MenuItem>
-          </Select>
-        </FormControl>
-
-        {/* Category multi-select */}
-        <FormControl size="small" sx={{ minWidth: 220 }}>
-          <Select
-            multiple
-            displayEmpty
-            value={selectedCategories}
-            onChange={e => setSelectedCategories(e.target.value as number[])}
-            input={<OutlinedInput sx={{ borderRadius: 0.5, fontSize: 13, backgroundColor: '#fff' }} />}
-            renderValue={selected => {
-              if (!(selected as number[]).length)
-                return <Box component="span" sx={{ color: 'text.disabled', fontSize: 13 }}>All Categories</Box>;
-              return (
-                <Box component="span" sx={{ fontSize: 13, color: 'text.primary', fontWeight: 600 }}>
-                  {(selected as number[]).length} {(selected as number[]).length === 1 ? 'Category' : 'Categories'}
-                </Box>
-              );
+            onChange={e => handleSearchChange(e.target.value)}
+            onBlur={() => { wasSearchFocusedRef.current = false; }}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                if (debounceRef.current) clearTimeout(debounceRef.current);
+                setSearchQuery(searchInput);
+              }
             }}
-            MenuProps={{ PaperProps: { sx: { maxHeight: 300 }, onScroll: handleCatMenuScroll } }}
-          >
-            {categories.map(cat => (
-              <MenuItem key={cat.value} value={Number(cat.value)} sx={{ fontSize: 13 }}>
-                <Checkbox checked={selectedCategories.includes(Number(cat.value))} size="small" sx={{ py: 0 }} />
-                <ListItemText primary={cat.label} slotProps={{ primary: { fontSize: 13 } }} />
-              </MenuItem>
-            ))}
-            {catFetchingNext && (
-              <MenuItem disabled sx={{ justifyContent: 'center', py: 1 }}>
-                <CircularProgress size={16} />
-              </MenuItem>
-            )}
-          </Select>
-        </FormControl>
-
-        {/* Reset Filters */}
-        {hasActiveFilters && (
-          <Box
-            onClick={handleResetFilters}
-            title="Reset Filters"
-            sx={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 36, height: 36, borderRadius: 1, cursor: 'pointer',
-              bgcolor: '#F97316', color: '#fff',
-              '&:hover': { bgcolor: '#ea6c0a' },
-              flexShrink: 0,
+            InputProps={{
+              startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 18, color: 'text.disabled' }} /></InputAdornment>,
+              sx: { borderRadius: 0.5, fontSize: 13 },
             }}
-          >
-            <FilterListOffIcon sx={{ fontSize: 20 }} />
-          </Box>
-        )}
+            sx={{ width: 280, backgroundColor:"#fff" }}
+          />
+
+          {/* Stock status filter */}
+          <FormControl size="small" sx={{ minWidth: 180 }}>
+            <Select
+              value={stockFilter}
+              onChange={e => setStockFilter(e.target.value as StockStatus | '')}
+              displayEmpty
+              renderValue={v => v
+                ? STATUS_MAP[v as StockStatus]?.label
+                : <Box component="span" sx={{ color: 'text.disabled' }}>All Status</Box>
+              }
+              sx={{ borderRadius: 0.5, fontSize: 13, backgroundColor: '#fff' }}
+            >
+              <MenuItem value="">All Status</MenuItem>
+              <MenuItem value="in_stock">In Stock</MenuItem>
+              <MenuItem value="low_stock">Low Stock</MenuItem>
+              <MenuItem value="out_of_stock">Out of Stock</MenuItem>
+            </Select>
+          </FormControl>
+
+          {/* Category multi-select */}
+          <FormControl size="small" sx={{ minWidth: 220 }}>
+            <Select
+              multiple
+              displayEmpty
+              value={selectedCategories}
+              onChange={e => setSelectedCategories(e.target.value as number[])}
+              input={<OutlinedInput sx={{ borderRadius: 0.5, fontSize: 13, backgroundColor: '#fff' }} />}
+              renderValue={selected => {
+                if (!(selected as number[]).length)
+                  return <Box component="span" sx={{ color: 'text.disabled', fontSize: 13 }}>All Categories</Box>;
+                return (
+                  <Box component="span" sx={{ fontSize: 13, color: 'text.primary', fontWeight: 600 }}>
+                    {(selected as number[]).length} {(selected as number[]).length === 1 ? 'Category' : 'Categories'}
+                  </Box>
+                );
+              }}
+              MenuProps={{ PaperProps: { sx: { maxHeight: 300 }, onScroll: handleCatMenuScroll } }}
+            >
+              {categories.map(cat => (
+                <MenuItem key={cat.value} value={Number(cat.value)} sx={{ fontSize: 13 }}>
+                  <Checkbox checked={selectedCategories.includes(Number(cat.value))} size="small" sx={{ py: 0 }} />
+                  <ListItemText primary={cat.label} slotProps={{ primary: { fontSize: 13 } }} />
+                </MenuItem>
+              ))}
+              {catFetchingNext && (
+                <MenuItem disabled sx={{ justifyContent: 'center', py: 1 }}>
+                  <CircularProgress size={16} />
+                </MenuItem>
+              )}
+            </Select>
+          </FormControl>
+
+          {/* Reset Filters */}
+          {hasActiveFilters && (
+            <Box
+              onClick={handleResetFilters}
+              title="Reset Filters"
+              sx={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 36, height: 36, borderRadius: 1, cursor: 'pointer',
+                bgcolor: '#F97316', color: '#fff',
+                '&:hover': { bgcolor: '#ea6c0a' },
+                flexShrink: 0,
+              }}
+            >
+              <FilterListOffIcon sx={{ fontSize: 20 }} />
+            </Box>
+          )}
+        </Box>
       </Box>
 
       {/* ── Error ── */}

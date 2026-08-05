@@ -5,6 +5,7 @@ import type { TabValue } from "./types";
 interface ProductTabsProps {
   value: TabValue;
   onChange: (value: TabValue) => void;
+  rightSlot?: React.ReactNode;
 }
 
 const TAB_CONFIG: { label: string; value: TabValue }[] = [
@@ -14,7 +15,7 @@ const TAB_CONFIG: { label: string; value: TabValue }[] = [
   { label: "Raw Materials", value: "raw" },
 ];
 
-const ProductTabs: React.FC<ProductTabsProps> = ({ value, onChange }) => {
+const ProductTabs: React.FC<ProductTabsProps> = ({ value, onChange, rightSlot }) => {
   const theme = useTheme();
 
   return (
@@ -22,6 +23,11 @@ const ProductTabs: React.FC<ProductTabsProps> = ({ value, onChange }) => {
       sx={{
         borderBottom: `1px solid ${theme.palette.divider}`,
         mb: 2,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 1.5,
+        flexWrap: "wrap",
       }}
     >
       <Tabs
@@ -57,6 +63,12 @@ const ProductTabs: React.FC<ProductTabsProps> = ({ value, onChange }) => {
           />
         ))}
       </Tabs>
+
+      {rightSlot && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap", pb: 1 }}>
+          {rightSlot}
+        </Box>
+      )}
     </Box>
   );
 };

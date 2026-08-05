@@ -85,10 +85,19 @@ export function useTopItems(zodu_id: string, branch_id: string, businessType: st
   });
 }
 
-export function useReminders(zodu_id: string, branch_id: string, businessType: string) {
+export function useReminders(zodu_id: string, branch_id: string, businessType: string, limit = 5) {
+  const segment = getBusinessSegment(businessType);
   return useInfiniteQuery({
     queryKey: dashboardKeys.reminders(zodu_id, branch_id),
-    ...makeInfiniteQuery("reminders", zodu_id, branch_id, businessType),
+    queryFn: ({ pageParam }: { pageParam: number }) =>
+      fetchJSON(
+        `${API_BASE}/${segment}/api/dashboard/reminders?zodu_id=${zodu_id}&branch_id=${branch_id}&page=${pageParam}&limit=${limit}`
+      ),
+    initialPageParam: 1,
+    getNextPageParam: (last: any) =>
+      last.pagination.hasMore ? last.pagination.page + 1 : undefined,
+    staleTime: 30_000,
+    enabled: !!zodu_id && !!branch_id,
   });
 }
 

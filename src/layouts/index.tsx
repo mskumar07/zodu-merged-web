@@ -32,7 +32,7 @@ const Layout: React.FC = () => {
         <Box
           sx={{
             flex: 1,
-            backgroundColor: "#fafafa",
+            backgroundColor: "#ffffff",
             overflow: "auto",
             minHeight: 0,
           }}

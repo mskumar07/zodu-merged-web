@@ -23,7 +23,7 @@ import { useInfiniteCustomers } from "./useCustomerapi";
 const theme = createTheme({
   palette: {
     primary: { main: "#D32F2F" },
-    background: { default: "#F9FAFB", paper: "#FFFFFF" },
+    background: { default: "#FFFFFF", paper: "#FFFFFF" },
     text: { primary: "#0F172A", secondary: "#6B7280" },
   },
  
@@ -413,7 +413,7 @@ export default function CustomerManagement({
           height: "100%",
           display: "flex",
           flexDirection: "column",
-          bgcolor: "#F9FAFB",
+          bgcolor: "#ffffff",
           overflow: "hidden",
           minHeight: 0,
         }}

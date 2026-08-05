@@ -75,6 +75,14 @@ function Row({ children }: { children: React.ReactNode }) {
   );
 }
 
+function Row3({ children }: { children: React.ReactNode }) {
+  return (
+    <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2, mb: 1.2 }}>
+      {children}
+    </Box>
+  );
+}
+
 function fmt(iso?: string | null) {
   if (!iso) return null;
   return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
@@ -196,18 +204,10 @@ export default function EmployeeViewModal({ open, onClose, employeeId }: Props) 
                   <Field label="Gender" value={detail.gender} />
                 </Row>
                 {(address || location) && (
-                  <>
-                    {address && (
-                      <Box sx={{ mb: 1.2 }}>
-                        <Field label="Address" value={address} />
-                      </Box>
-                    )}
-                    {location && (
-                      <Box sx={{ mb: 1.2 }}>
-                        <Field label="City / State / Pincode" value={location} />
-                      </Box>
-                    )}
-                  </>
+                  <Row>
+                    {address && <Field label="Address" value={address} />}
+                    {location && <Field label="City / State / Pincode" value={location} />}
+                  </Row>
                 )}
               </Box>
 
@@ -217,13 +217,11 @@ export default function EmployeeViewModal({ open, onClose, employeeId }: Props) 
               <Box>
                 <SH icon={<WorkOutlineIcon sx={{ fontSize: 14 }} />}
                   title="Employment Information" iconBg="#EFF6FF" iconColor="#2563EB" />
-                <Row>
+                <Row3>
                   <Field label="Employment Type" value={detail.employment_type} />
                   <Field label="Date of Joining" value={fmt(detail.date_of_joining)} />
-                </Row>
-                <Row>
                   <Field label="Reporting Manager" value={detail.reporting_manager_name} />
-                </Row>
+                </Row3>
               </Box>
 
               <Divider sx={{ borderColor: "#F1F5F9" }} />
@@ -232,13 +230,11 @@ export default function EmployeeViewModal({ open, onClose, employeeId }: Props) 
               <Box>
                 <SH icon={<PhoneInTalkOutlinedIcon sx={{ fontSize: 14 }} />}
                   title="Emergency Contact" iconBg="#F0FDF4" iconColor="#16A34A" />
-                <Row>
+                <Row3>
                   <Field label="Contact Name" value={detail.emergency_contact_name} />
                   <Field label="Mobile Number" value={detail.emergency_mobile} />
-                </Row>
-                <Row>
                   <Field label="Relationship" value={detail.emergency_relationship} />
-                </Row>
+                </Row3>
               </Box>
 
               {sal && (sal.basic_salary || sal.payment_type || sal.bank_name) && (

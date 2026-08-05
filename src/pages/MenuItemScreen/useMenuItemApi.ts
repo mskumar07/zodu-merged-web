@@ -828,7 +828,8 @@ async function fetchCategoryPage(
   page:       number,
   type:       string,
   limit = 10,
-  activeOnly = false
+  activeOnly = false,
+  categoryName = ""
 ): Promise<CategoryListPage> {
   const { zoduId, branchId } = getTenantContext();
   const types = type.split(",").map((t) => t.trim()).filter(Boolean);
@@ -836,7 +837,7 @@ async function fetchCategoryPage(
   const { data } = await axios.get<CategoryListPage>(
     `${API_BASE}/${getRoute()}/get/category/${zoduId}/${branchId}`,
     {
-      params:  { type: types, page, limit, ...(activeOnly ? { active: true } : {}) },
+      params:  { type: types, page, limit, ...(activeOnly ? { active: true } : {}), ...(categoryName ? { category_name: categoryName } : {}) },
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     }
   );
@@ -845,14 +846,15 @@ async function fetchCategoryPage(
 
 /**
  * Infinite-scroll hook for the Category management tab and the item dropdown.
- * @param type       comma-separated type codes: "S,M" (menu) | "E" (expense)
- * @param activeOnly pass true to only fetch active categories (item Add/Edit dropdown)
+ * @param type         comma-separated type codes: "S,M" (menu) | "E" (expense)
+ * @param activeOnly   pass true to only fetch active categories (item Add/Edit dropdown)
+ * @param categoryName server-side name filter, sent as `category_name` query param
  */
-export function useInfiniteCategoryList(enabled = true, type = "S,M", activeOnly = false) {
+export function useInfiniteCategoryList(enabled = true, type = "S,M", activeOnly = false, categoryName = "") {
   const { zoduId, branchId } = useTenantContext();
   return useInfiniteQuery({
-    queryKey:         ["menu", "categoryList", zoduId, branchId, type, activeOnly],
-    queryFn:          ({ pageParam = 1 }) => fetchCategoryPage(pageParam as number, type, 10, activeOnly),
+    queryKey:         ["menu", "categoryList", zoduId, branchId, type, activeOnly, categoryName],
+    queryFn:          ({ pageParam = 1 }) => fetchCategoryPage(pageParam as number, type, 10, activeOnly, categoryName),
     initialPageParam: 1,
     getNextPageParam: (lastPage) => {
       const { current_page, total_pages } = lastPage.pagination;
