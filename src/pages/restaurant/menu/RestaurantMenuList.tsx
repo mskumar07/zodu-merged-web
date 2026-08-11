@@ -59,6 +59,7 @@ import {
 import AddRestaurantMenuItemDialog from "./AddRestaurantMenuItemDialog";
 import CategoryTab from "@pages/MenuItemScreen/CategoryTab";
 import { BranchId, ZoduId } from "@store/slices/userSlice";
+import { useModulePermission } from "@hooks/useModulePermission";
 
 type MenuTab = "all" | "food" | "product" | "Category";
 
@@ -133,7 +134,9 @@ const ItemDetailDialog: React.FC<{
   onClose: () => void;
   onEdit: (item: RestaurantMenuListItem) => void;
   onDelete: (item: RestaurantMenuListItem) => void;
-}> = ({ item, onClose, onEdit, onDelete }) => {
+  canEdit?: boolean;
+  canDelete?: boolean;
+}> = ({ item, onClose, onEdit, onDelete, canEdit = true, canDelete = true }) => {
   const [showAdditional, setShowAdditional] = useState(true);
 
   useEffect(() => {
@@ -496,6 +499,7 @@ const ItemDetailDialog: React.FC<{
         <Button
           fullWidth
           variant="outlined"
+          disabled={!canDelete}
           startIcon={<DeleteIcon sx={{ fontSize: 17 }} />}
           onClick={() => { onClose(); onDelete(item); }}
           sx={{
@@ -514,6 +518,7 @@ const ItemDetailDialog: React.FC<{
         <Button
           fullWidth
           variant="contained"
+          disabled={!canEdit}
           startIcon={<EditIcon sx={{ fontSize: 17 }} />}
           onClick={() => { onClose(); onEdit(item); }}
           sx={{
@@ -573,6 +578,7 @@ const RestaurantMenuList: React.FC = () => {
 
   const branchId = useSelector(BranchId) ?? "";
   const zoduId   = useSelector(ZoduId)   ?? "";
+  const { canCreate, canEdit, canDelete } = useModulePermission("Menu Items");
 
   const [activeTab, setActiveTab]                   = useState<MenuTab>("all");
   const [search, setSearch]                         = useState("");
@@ -817,6 +823,7 @@ const RestaurantMenuList: React.FC = () => {
               checked={isActive}
               size="small"
               color="primary"
+              disabled={!canEdit}
               onClick={(e) => e.stopPropagation()}
               onChange={() => handleToggleActive(row)}
             />
@@ -834,39 +841,48 @@ const RestaurantMenuList: React.FC = () => {
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5 }}>
               {!isMobile && (
                 <Tooltip title={isFav ? "Remove from favorites" : "Add to favorites"}>
-                  <IconButton
-                    size="small"
-                    onClick={(e) => { e.stopPropagation(); handleToggleFav(row); }}
-                    sx={{ color: isFav ? "#f59e0b" : "text.disabled", "&:hover": { color: "#f59e0b", bgcolor: "#fef9c3" }, borderRadius: 1.5 }}
-                  >
-                    {isFav ? <StarIcon sx={{ fontSize: 18 }} /> : <StarBorderIcon sx={{ fontSize: 18 }} />}
-                  </IconButton>
+                  <span>
+                    <IconButton
+                      size="small"
+                      disabled={!canEdit}
+                      onClick={(e) => { e.stopPropagation(); handleToggleFav(row); }}
+                      sx={{ color: isFav ? "#f59e0b" : "text.disabled", "&:hover": { color: "#f59e0b", bgcolor: "#fef9c3" }, borderRadius: 1.5 }}
+                    >
+                      {isFav ? <StarIcon sx={{ fontSize: 18 }} /> : <StarBorderIcon sx={{ fontSize: 18 }} />}
+                    </IconButton>
+                  </span>
                 </Tooltip>
               )}
-              <Tooltip title="Edit">
-                <IconButton
-                  size="small"
-                  onClick={(e) => { e.stopPropagation(); setEditItem(row); setAddMenuOpen(true); }}
-                  sx={{ color: "text.disabled", "&:hover": { color: "primary.main", bgcolor: "primary.light" + "22" }, borderRadius: 1.5 }}
-                >
-                  <EditIcon fontSize="small" />
-                </IconButton>
+              <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"}>
+                <span>
+                  <IconButton
+                    size="small"
+                    disabled={!canEdit}
+                    onClick={(e) => { e.stopPropagation(); setEditItem(row); setAddMenuOpen(true); }}
+                    sx={{ color: "text.disabled", "&:hover": { color: "primary.main", bgcolor: "primary.light" + "22" }, borderRadius: 1.5 }}
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                </span>
               </Tooltip>
-              <Tooltip title="Delete">
-                <IconButton
-                  size="small"
-                  onClick={(e) => { e.stopPropagation(); setDeleteItem(row); }}
-                  sx={{ color: "primary.main", "&:hover": { bgcolor: "primary.light" + "22" }, borderRadius: 1.5 }}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
+              <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"}>
+                <span>
+                  <IconButton
+                    size="small"
+                    disabled={!canDelete}
+                    onClick={(e) => { e.stopPropagation(); setDeleteItem(row); }}
+                    sx={{ color: "primary.main", "&:hover": { bgcolor: "primary.light" + "22" }, borderRadius: 1.5 }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </span>
               </Tooltip>
             </Box>
           );
         },
       },
     ],
-    [handleToggleFav, handleToggleActive, favOverrides, activeOverrides, isMobile, isTablet, theme]
+    [handleToggleFav, handleToggleActive, favOverrides, activeOverrides, isMobile, isTablet, theme, canEdit, canDelete]
   );
 
   if (isLoading && !hasLoadedOnceRef.current) return <LottieLoader />;
@@ -1031,6 +1047,7 @@ const RestaurantMenuList: React.FC = () => {
             <Button
               variant="contained"
               startIcon={<AddIcon />}
+              disabled={!canCreate}
               onClick={() => setAddMenuOpen(true)}
               sx={{
                 borderRadius: 0.5,
@@ -1068,6 +1085,7 @@ const RestaurantMenuList: React.FC = () => {
             <Button
               variant="contained"
               startIcon={<AddIcon />}
+              disabled={!canCreate}
               onClick={() => requestAddCategoryRef.current?.()}
               sx={{ borderRadius: 0.5, fontWeight: 700, px: 2.5, height: 40, textTransform: "none", fontSize: 13, whiteSpace: "nowrap", boxShadow: "0 4px 14px rgba(210,18,46,0.25)" }}
             >
@@ -1086,6 +1104,8 @@ const RestaurantMenuList: React.FC = () => {
             hideToolbar
             searchValue={categorySearch}
             onRequestAdd={(openAdd) => { requestAddCategoryRef.current = openAdd; }}
+            canEdit={canEdit}
+            canDelete={canDelete}
           />
         </Box>
       )}
@@ -1119,6 +1139,8 @@ const RestaurantMenuList: React.FC = () => {
         onClose={() => setDetailItem(null)}
         onEdit={(item) => { setDetailItem(null); setEditItem(item); setAddMenuOpen(true); }}
         onDelete={(item) => setDeleteItem(item)}
+        canEdit={canEdit}
+        canDelete={canDelete}
       />
 
       <DeleteConfirmDialog

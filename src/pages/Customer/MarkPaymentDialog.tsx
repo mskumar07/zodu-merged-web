@@ -244,7 +244,7 @@ export default function MarkPaymentDialog({ customer, onClose, onSuccess }: Prop
                       <TableCell
                         key={h}
                         align={h === "Select" ? "center" : h === "Bill Amount" || h === "Outstanding" ? "right" : "left"}
-                        sx={{ fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em", bgcolor: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}
+                        sx={{ fontSize: 12, fontWeight: 700, color: "#6B7280", letterSpacing: "0.02em", bgcolor: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}
                       >
                         {h}
                       </TableCell>

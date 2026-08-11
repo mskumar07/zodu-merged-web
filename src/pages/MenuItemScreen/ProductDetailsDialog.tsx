@@ -29,6 +29,8 @@ interface Props {
   onClose: () => void;
   onEdit: (itemUuid: string) => void;
   onDelete?: (itemUuid: string) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 const INR = (v: any) =>
@@ -116,7 +118,7 @@ const DetailRow: React.FC<{ label: string; value: React.ReactNode; copyValue?: s
   </Box>
 );
 
-export default function ProductDetailsDialog({ open, itemUuid, onClose, onEdit, onDelete }: Props) {
+export default function ProductDetailsDialog({ open, itemUuid, onClose, onEdit, onDelete, canEdit = true, canDelete = true }: Props) {
   const { data: item, isLoading } = useMenuItemDetail(itemUuid);
   const [showAdditional, setShowAdditional] = useState(true);
 
@@ -288,6 +290,7 @@ export default function ProductDetailsDialog({ open, itemUuid, onClose, onEdit, 
         <Button
           fullWidth
           variant="outlined"
+          disabled={!canDelete}
           startIcon={<DeleteIcon sx={{ fontSize: 17 }} />}
           onClick={() => { onClose(); onDelete?.(item.item_uuid); }}
           sx={{
@@ -306,6 +309,7 @@ export default function ProductDetailsDialog({ open, itemUuid, onClose, onEdit, 
         <Button
           fullWidth
           variant="contained"
+          disabled={!canEdit}
           startIcon={<EditIcon sx={{ fontSize: 17 }} />}
           onClick={() => { onClose(); onEdit(item.item_uuid); }}
           sx={{

@@ -16,7 +16,8 @@ import SuccessToast from "@components/Common/SuccessToast";
 import zoduLogo from "@assets/zlogo.png";
 
 import { useAppSelector } from "../../../store/store";
-import { BranchId, ZoduId, BranchName, AllCompanies, UserProfile, addUserData } from "@store/slices/userSlice";
+import { BranchId, ZoduId, BranchName, AllCompanies, UserProfile, addUserData, setRoleAccess } from "@store/slices/userSlice";
+import { authApis } from "@pages/auth/Authapi";
 import { useAppDispatch } from "@store/store";
 import { MenuItem, Select, IconButton, Avatar, Badge } from "@mui/material";
 import NotificationsIcon from "@mui/icons-material/Notifications";
@@ -102,7 +103,7 @@ const RestaurantPOS: React.FC = () => {
   const selectedCompany = companies.find((company) => company.zodu_id === zoduId) ?? null;
   const companyBranches = selectedCompany?.branches ?? [];
 
-  const handleBranchChange = (selectedBranchId: string) => {
+  const handleBranchChange = async (selectedBranchId: string) => {
     const found = companyBranches.find((branch) => branch.branch_id === selectedBranchId);
     if (!found || !selectedCompany) return;
     dispatch(
@@ -112,6 +113,12 @@ const RestaurantPOS: React.FC = () => {
         zoduId:     selectedCompany.zodu_id,
       })
     );
+    try {
+      const roleAccess = await authApis.getRoleAccess(selectedCompany.zodu_id, found.branch_id);
+      dispatch(setRoleAccess(roleAccess));
+    } catch {
+      dispatch(setRoleAccess([]));
+    }
   };
 
   // ── API ─────────────────────────────────────────────────────────────────

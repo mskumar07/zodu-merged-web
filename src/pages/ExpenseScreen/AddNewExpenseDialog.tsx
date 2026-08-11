@@ -27,11 +27,10 @@ import DownloadOutlinedIcon    from "@mui/icons-material/DownloadOutlined";
 import CalendarTodayIcon       from "@mui/icons-material/CalendarToday";
 import PostAddOutlinedIcon     from "@mui/icons-material/PostAddOutlined";
 import LocalOfferOutlinedIcon  from "@mui/icons-material/LocalOfferOutlined";
-import TagOutlinedIcon         from "@mui/icons-material/TagOutlined";
-import CategoryOutlinedIcon    from "@mui/icons-material/CategoryOutlined";
 import InfoOutlinedIcon        from "@mui/icons-material/InfoOutlined";
 import CheckCircleOutlineIcon  from "@mui/icons-material/CheckCircleOutline";
 import MoreVertIcon            from "@mui/icons-material/MoreVert";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCategories } from "../MenuItemScreen/useMenuItemApi";
 import { useExpenseDetail, useExpenseCatalog, type ExpenseCatalogItem } from "./useExpenseApi";
 import {
@@ -77,7 +76,7 @@ const theme = createTheme({
     MuiTableCell: {
       styleOverrides: {
         root: { borderBottom: "1px solid #F3F4F6", padding: "8px 12px", fontSize: 13 },
-        head: { fontSize: 10, fontWeight: 700, letterSpacing: "0.07em", color: "#6B7280", textTransform: "uppercase" as const, backgroundColor: "#F9FAFB", borderBottom: "1px solid #E5E7EB", padding: "10px 12px" },
+        head: { fontSize: 12, fontWeight: 700, letterSpacing: "0.02em", color: "#6B7280", backgroundColor: "#F9FAFB", borderBottom: "1px solid #E5E7EB", padding: "10px 12px" },
       },
     },
     MuiOutlinedInput: {
@@ -97,9 +96,9 @@ interface CatalogueItem {
 
 const expenseCatalogItemToCatalogue = (item: ExpenseCatalogItem): CatalogueItem => ({
   id: item.item_uuid,
-  itemId: item.item_id,
-  name: item.expense_item_name,
-  sku: item.item_id,
+  itemId: item.item_id ?? "",
+  name: item.expense_item_name ?? "",
+  sku: item.item_id ?? "",
   category: item.category_name || "Uncategorized",
   categoryId: item.category_id ?? null,
   unitPrice: Number(item.amount) || 0,
@@ -326,12 +325,15 @@ const emptyForm = (): ExpenseForm => ({
 
 // ─── Item Picker Dialog ───────────────────────────────────────
 interface ItemPickerDialogProps {
-  open: boolean; onClose: () => void; alreadyAdded: string[];
-  categoryId?: string;
+  open: boolean; onClose: () => void; alreadyAdded: string[]; alreadyAddedNames: string[];
   onConfirm: (items: Array<CatalogueItem & { qty: number }>) => void;
+  onEditCatalogItem: (item: CatalogueItem) => void;
+  onDeleteCatalogItem: (item: CatalogueItem) => void;
 }
 
-function ItemPickerDialog({ open, onClose, alreadyAdded, categoryId, onConfirm }: ItemPickerDialogProps) {
+function ItemPickerDialog({ open, onClose, alreadyAdded, alreadyAddedNames, onConfirm, onEditCatalogItem, onDeleteCatalogItem }: ItemPickerDialogProps) {
+  const [rowMenuAnchor, setRowMenuAnchor] = useState<HTMLElement | null>(null);
+  const [rowMenuCat, setRowMenuCat]       = useState<CatalogueItem | null>(null);
   const [qtys, setQtys]           = useState<Record<string, number>>({});
   const [prices, setPrices]       = useState<Record<string, number>>({});
   const [search, setSearch]       = useState("");
@@ -343,27 +345,32 @@ function ItemPickerDialog({ open, onClose, alreadyAdded, categoryId, onConfirm }
     return () => window.clearTimeout(t);
   }, [search]);
 
-  const { data: catalogRows = [], isLoading } = useExpenseCatalog(open && categoryId ? categoryId : undefined, debSearch || undefined, !!categoryId);
-  const catalogue = useMemo(() => categoryId ? catalogRows.map(expenseCatalogItemToCatalogue) : [], [catalogRows, categoryId]);
+  const { data: catalogRows = [], isLoading } = useExpenseCatalog(undefined, debSearch || undefined, open);
+  const catalogue = useMemo(() => catalogRows.map(expenseCatalogItemToCatalogue), [catalogRows]);
+  const isCatAdded = (cat: CatalogueItem) =>
+    alreadyAdded.includes(cat.id) ||
+    (!!cat.itemId && alreadyAdded.includes(cat.itemId)) ||
+    (!!cat.name && alreadyAddedNames.includes(cat.name.trim().toLowerCase()));
 
   const toggleItem = (id: string) => {
-    if (alreadyAdded.includes(id)) return;
+    const item = catalogue.find(c => c.id === id);
+    if (item && isCatAdded(item)) return;
     setQtys(prev => {
       const cur = prev[id] ?? 0;
       if (cur > 0) { setPrices(p => { const n = { ...p }; delete n[id]; return n; }); return { ...prev, [id]: 0 }; }
-      const item = catalogue.find(c => c.id === id);
       if (item) setPrices(p => ({ ...p, [id]: item.unitPrice }));
       return { ...prev, [id]: 1 };
     });
   };
 
   const setQty = (id: string, val: number) => {
-    if (alreadyAdded.includes(id)) return;
+    const item = catalogue.find(c => c.id === id);
+    if (item && isCatAdded(item)) return;
     const next = Math.max(0, val);
     setQtys(prev => {
       const was = prev[id] ?? 0;
       if (next === 0) { setPrices(p => { const n = { ...p }; delete n[id]; return n; }); }
-      else if (was === 0 && next > 0) { const item = catalogue.find(c => c.id === id); if (item) setPrices(p => ({ ...p, [id]: item.unitPrice })); }
+      else if (was === 0 && next > 0) { if (item) setPrices(p => ({ ...p, [id]: item.unitPrice })); }
       return { ...prev, [id]: next };
     });
   };
@@ -386,7 +393,7 @@ function ItemPickerDialog({ open, onClose, alreadyAdded, categoryId, onConfirm }
           <Box>
             <Typography sx={{ fontSize: 16, fontWeight: 800, color: "#0F172A" }}>Select Items</Typography>
             <Typography sx={{ fontSize: 11, color: "#9CA3AF" }}>
-              {categoryId ? "Showing items in the selected category — use +/− to set quantity" : "Select a category on the expense form to see items"}
+              Use +/− to set quantity
             </Typography>
           </Box>
         </Box>
@@ -396,45 +403,57 @@ function ItemPickerDialog({ open, onClose, alreadyAdded, categoryId, onConfirm }
         </Box>
       </DialogTitle>
       <Box sx={{ px: 3, pt: 2, pb: 1.5, flexShrink: 0, borderBottom: "1px solid #F1F5F9" }}>
-        <TextField value={search} onChange={e => setSearch(e.target.value)} disabled={!categoryId} placeholder="Search by name or item ID…" size="small" fullWidth InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 17, color: "#9CA3AF" }} /></InputAdornment> }} sx={{ "& .MuiOutlinedInput-root": { bgcolor: "#F8FAFC", borderRadius: 2, fontSize: 13, "& fieldset": { borderColor: "#E2E8F0" }, "&:hover fieldset": { borderColor: "#D21F3C" }, "&.Mui-focused fieldset": { borderColor: "#D21F3C", borderWidth: 2 } } }} />
+        <TextField value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or item ID…" size="small" fullWidth InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 17, color: "#9CA3AF" }} /></InputAdornment> }} sx={{ "& .MuiOutlinedInput-root": { bgcolor: "#F8FAFC", borderRadius: 2, fontSize: 13, "& fieldset": { borderColor: "#E2E8F0" }, "&:hover fieldset": { borderColor: "#D21F3C" }, "&.Mui-focused fieldset": { borderColor: "#D21F3C", borderWidth: 2 } } }} />
       </Box>
       <DialogContent sx={{ p: 0, overflowY: "auto", flex: 1, overscrollBehavior: "contain" }}>
-        {!categoryId ? (
-          <Box sx={{ py: 6, textAlign: "center" }}>
-            <CategoryOutlinedIcon sx={{ fontSize: 30, color: "#E2E8F0", mb: 1 }} />
-            <Typography sx={{ fontSize: 13, color: "#9CA3AF" }}>Select a category on the expense form first</Typography>
-          </Box>
-        ) : isLoading ? (
+        {isLoading ? (
           <Box sx={{ py: 6, textAlign: "center" }}><CircularProgress size={24} sx={{ color: "#D21F3C" }} /></Box>
         ) : catalogue.length === 0 ? (
           <Box sx={{ py: 6, textAlign: "center" }}>
-            <Typography sx={{ fontSize: 13, color: "#9CA3AF" }}>No expense items found in this category</Typography>
+            <Typography sx={{ fontSize: 13, color: "#9CA3AF" }}>No expense items found</Typography>
           </Box>
         ) : (
           <Table size="small" stickyHeader>
             <TableHead>
               <TableRow>
                 <TableCell sx={{ width: 44, bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important" }} />
-                <TableCell sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "10px !important", fontWeight: "700 !important", color: "#6B7280 !important", letterSpacing: "0.07em", textTransform: "uppercase" as const }}>Item</TableCell>
-                <TableCell align="center" sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "10px !important", fontWeight: "700 !important", color: "#6B7280 !important", width: 122 }}>Qty</TableCell>
-                <TableCell align="right" sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "10px !important", fontWeight: "700 !important", color: "#6B7280 !important", width: 148 }}>Unit Price</TableCell>
+                <TableCell sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "12px !important", fontWeight: "700 !important", color: "#6B7280 !important", letterSpacing: "0.02em" }}>Item</TableCell>
+                <TableCell align="center" sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "12px !important", fontWeight: "700 !important", color: "#6B7280 !important", width: 122 }}>Qty</TableCell>
+                <TableCell align="right" sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "12px !important", fontWeight: "700 !important", color: "#6B7280 !important", width: 148 }}>Unit Price</TableCell>
+                <TableCell sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", width: 44 }} />
               </TableRow>
             </TableHead>
             <TableBody>
               {catalogue.map(cat => {
                 const qty = qtys[cat.id] ?? 0;
                 const isSelected = qty > 0;
-                const isAdded = alreadyAdded.includes(cat.id);
+                const isAdded = isCatAdded(cat);
                 const price = prices[cat.id] ?? cat.unitPrice;
                 return (
-                  <TableRow key={cat.id} onClick={() => !isAdded && toggleItem(cat.id)} sx={{ cursor: isAdded ? "not-allowed" : "pointer", bgcolor: isSelected ? "#FFF9F9" : "transparent", opacity: isAdded ? 0.4 : 1, borderLeft: `3px solid ${isSelected ? "#D21F3C" : "transparent"}`, "&:hover": { bgcolor: isAdded ? "transparent" : isSelected ? "#FFF1F2" : "#FAFAFA" }, transition: "all 0.1s" }}>
-                    <TableCell sx={{ borderBottom: "1px solid #F3F4F6" }}><Checkbox checked={isSelected} disabled={isAdded} size="small" sx={{ color: "#D1D5DB", "&.Mui-checked": { color: "#D21F3C" }, p: 0.5 }} /></TableCell>
-                    <TableCell sx={{ borderBottom: "1px solid #F3F4F6" }}>
+                  <TableRow key={cat.id} onClick={() => !isAdded && toggleItem(cat.id)} sx={{ cursor: isAdded ? "not-allowed" : "pointer", bgcolor: isSelected ? "#FFF9F9" : "transparent", borderLeft: `3px solid ${isSelected ? "#D21F3C" : "transparent"}`, "&:hover": { bgcolor: isAdded ? "transparent" : isSelected ? "#FFF1F2" : "#FAFAFA" }, transition: "all 0.1s" }}>
+                    <TableCell sx={{ borderBottom: "1px solid #F3F4F6", opacity: isAdded ? 0.4 : 1 }}><Checkbox checked={isSelected} disabled={isAdded} size="small" sx={{ color: "#D1D5DB", "&.Mui-checked": { color: "#D21F3C" }, p: 0.5 }} /></TableCell>
+                    <TableCell sx={{ borderBottom: "1px solid #F3F4F6", opacity: isAdded ? 0.4 : 1 }}>
                       <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{cat.name}</Typography>
                       <Typography sx={{ fontSize: 10, color: "#9CA3AF", fontFamily: "monospace" }}>{cat.sku} · {cat.category}</Typography>
                     </TableCell>
-                    <TableCell align="center" sx={{ borderBottom: "1px solid #F3F4F6" }} onClick={e => e.stopPropagation()}><QtyCounter value={qty} onChange={v => setQty(cat.id, v)} disabled={isAdded} min={0} size="compact" /></TableCell>
-                    <TableCell align="right" sx={{ borderBottom: "1px solid #F3F4F6" }} onClick={e => e.stopPropagation()}><PriceInput value={isSelected ? price : cat.unitPrice} onChange={v => setPrice(cat.id, v, cat.unitPrice)} disabled={isAdded || !isSelected} size="compact" /></TableCell>
+                    <TableCell align="center" sx={{ borderBottom: "1px solid #F3F4F6", opacity: isAdded ? 0.4 : 1 }} onClick={e => e.stopPropagation()}><QtyCounter value={qty} onChange={v => setQty(cat.id, v)} disabled={isAdded} min={0} size="compact" /></TableCell>
+                    <TableCell align="right" sx={{ borderBottom: "1px solid #F3F4F6", opacity: isAdded ? 0.4 : 1 }} onClick={e => e.stopPropagation()}><PriceInput value={isSelected ? price : cat.unitPrice} onChange={v => setPrice(cat.id, v, cat.unitPrice)} disabled={isAdded || !isSelected} size="compact" /></TableCell>
+                    <TableCell sx={{ borderBottom: "1px solid #F3F4F6" }} onClick={e => e.stopPropagation()}>
+                      <IconButton
+                        size="small"
+                        onClick={e => { setRowMenuAnchor(e.currentTarget); setRowMenuCat(cat); }}
+                        sx={{
+                          color: "#D21F3C",
+                          bgcolor: "rgba(210,31,60,0.1)",
+                          p: 0.6,
+                          borderRadius: "10px",
+                          "&:hover": { color: "#fff", bgcolor: "#D21F3C" },
+                          transition: "all 0.15s",
+                        }}
+                      >
+                        <MoreVertIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -451,6 +470,21 @@ function ItemPickerDialog({ open, onClose, alreadyAdded, categoryId, onConfirm }
           </Button>
         </Box>
       </DialogActions>
+      <Menu
+        anchorEl={rowMenuAnchor}
+        open={!!rowMenuAnchor}
+        onClose={() => setRowMenuAnchor(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        PaperProps={{ sx: { borderRadius: 2, minWidth: 140, boxShadow: "0 12px 32px rgba(15,23,42,0.14)" } }}
+      >
+        <MenuItem onClick={() => { if (rowMenuCat) onEditCatalogItem(rowMenuCat); setRowMenuAnchor(null); }} sx={{ fontSize: 13, gap: 1 }}>
+          <EditOutlinedIcon sx={{ fontSize: 16, color: "#6B7280" }} /> Edit
+        </MenuItem>
+        <MenuItem onClick={() => { if (rowMenuCat) onDeleteCatalogItem(rowMenuCat); setRowMenuAnchor(null); }} sx={{ fontSize: 13, gap: 1, color: "#EF4444" }}>
+          <DeleteOutlineIcon sx={{ fontSize: 16 }} /> Delete
+        </MenuItem>
+      </Menu>
     </Dialog>
   );
 }
@@ -468,26 +502,34 @@ const emptyNewItemForm = (): NewExpenseItemForm => ({ name: "", itemId: "", cate
 interface CreateExpenseItemDialogProps {
   open: boolean;
   onClose: () => void;
-  categories: { value: string | number; label: string }[];
   onSave: (item: NewExpenseItemForm) => Promise<void>;
   initialValue?: NewExpenseItemForm | null;
 }
 
-function CreateExpenseItemDialog({ open, onClose, categories, onSave, initialValue = null }: CreateExpenseItemDialogProps) {
+const genItemId = () => `EI-${Date.now().toString(36).toUpperCase()}`;
+
+function CreateExpenseItemDialog({ open, onClose, onSave, initialValue = null }: CreateExpenseItemDialogProps) {
   const isEditMode = !!initialValue;
   const [form, setForm]   = useState<NewExpenseItemForm>(emptyNewItemForm);
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState("");
 
-  useEffect(() => { if (open) { setForm(initialValue ?? emptyNewItemForm()); setError(""); setSaving(false); } }, [open, initialValue]);
+  useEffect(() => {
+    if (open) {
+      const base = initialValue ? { ...emptyNewItemForm(), ...initialValue } : emptyNewItemForm();
+      setForm({ ...base, itemId: base.itemId?.trim() ? base.itemId : genItemId() });
+      setError("");
+      setSaving(false);
+    }
+  }, [open, initialValue]);
 
   const setField = <K extends keyof NewExpenseItemForm>(key: K, val: NewExpenseItemForm[K]) =>
     setForm(prev => ({ ...prev, [key]: val }));
 
   const amountNum = parseFloat(form.amount) || 0;
-  const qtyNum    = form.qty.trim() ? (parseFloat(form.qty) || 0) : 1;
+  const qtyNum    = (form.qty ?? "").trim() ? (parseFloat(form.qty) || 0) : 1;
   const totalCost = amountNum * qtyNum;
-  const isValid   = form.name.trim() && form.itemId.trim() && form.categoryId && amountNum > 0 && qtyNum > 0;
+  const isValid   = (form.name ?? "").trim() && (form.itemId ?? "").trim() && amountNum > 0 && qtyNum > 0;
 
   const inputSx = {
     "& .MuiOutlinedInput-root": {
@@ -534,53 +576,22 @@ function CreateExpenseItemDialog({ open, onClose, categories, onSave, initialVal
       <DialogContent sx={{ px: 3, py: 3 }}>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
 
-          {/* Name / Item ID */}
-          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-            <Box>
-              <FieldLabel>Expense Item Name *</FieldLabel>
-              <TextField size="small" fullWidth value={form.name} onChange={e => setField("name", e.target.value)}
-                placeholder="Enter expense item name"
-                InputProps={{ startAdornment: <InputAdornment position="start"><LocalOfferOutlinedIcon sx={{ fontSize: 16, color: "#D21F3C" }} /></InputAdornment> }}
-                sx={inputSx} />
-              <Typography sx={{ fontSize: 11, color: "#9CA3AF", mt: 0.5 }}>Enter a descriptive name for this expense item</Typography>
-            </Box>
-            <Box>
-              <FieldLabel>Item ID *</FieldLabel>
-              <TextField size="small" fullWidth value={form.itemId} onChange={e => setField("itemId", e.target.value)}
-                placeholder="Enter item ID"
-                InputProps={{ startAdornment: <InputAdornment position="start"><TagOutlinedIcon sx={{ fontSize: 16, color: "#D21F3C" }} /></InputAdornment> }}
-                sx={inputSx} />
-              <Typography sx={{ fontSize: 11, color: "#9CA3AF", mt: 0.5 }}>Unique ID or code for this item</Typography>
-            </Box>
-          </Box>
-
-          {/* Category */}
+          {/* Name */}
           <Box>
-            <FieldLabel>Category *</FieldLabel>
-            <FormControl size="small" fullWidth sx={inputSx}>
-              <Select value={form.categoryId} onChange={e => setField("categoryId", e.target.value)} displayEmpty
-                renderValue={v => {
-                  if (!v) return <Typography sx={{ color: "#9CA3AF", fontSize: 13 }}>Select category</Typography>;
-                  return categories.find(c => String(c.value) === String(v))?.label ?? String(v);
-                }}
-                startAdornment={<InputAdornment position="start"><CategoryOutlinedIcon sx={{ fontSize: 16, color: "#D21F3C", ml: 0.5 }} /></InputAdornment>}
-                sx={{ bgcolor: "#F8FAFC", fontSize: 13, borderRadius: "8px" }}
-                MenuProps={{ PaperProps: { sx: { mt: 0.5, maxHeight: 300, borderRadius: 2, boxShadow: "0 18px 40px rgba(15,23,42,0.12)" } } }}>
-                {categories.length === 0
-                  ? <MenuItem disabled sx={{ fontSize: 13 }}>No categories found</MenuItem>
-                  : categories.map(c => <MenuItem key={c.value} value={c.value} sx={{ fontSize: 13 }}>{c.label}</MenuItem>)}
-              </Select>
-            </FormControl>
-            <Typography sx={{ fontSize: 11, color: "#9CA3AF", mt: 0.5 }}>Choose the appropriate category</Typography>
+            <FieldLabel>Expense Item Name *</FieldLabel>
+            <TextField size="small" fullWidth value={form.name} onChange={e => setField("name", e.target.value)}
+              placeholder="Enter expense item name"
+              InputProps={{ startAdornment: <InputAdornment position="start"><LocalOfferOutlinedIcon sx={{ fontSize: 16, color: "#D21F3C" }} /></InputAdornment> }}
+              sx={inputSx} />
+            <Typography sx={{ fontSize: 11, color: "#9CA3AF", mt: 0.5 }}>Enter a descriptive name for this expense item</Typography>
           </Box>
 
           {/* Qty / Amount */}
           <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
             <Box>
-              <FieldLabel>Qty (Quantity)</FieldLabel>
+              <FieldLabel>Unit</FieldLabel>
               <TextField size="small" fullWidth type="number" value={form.qty} onChange={e => setField("qty", e.target.value)}
                 placeholder="Defaults to 1"
-                InputProps={{ startAdornment: <InputAdornment position="start"><CalendarTodayIcon sx={{ fontSize: 14, color: "#D21F3C" }} /></InputAdornment> }}
                 sx={inputSx} />
               <Typography sx={{ fontSize: 11, color: "#9CA3AF", mt: 0.5 }}>Optional — defaults to 1 if left blank</Typography>
             </Box>
@@ -666,6 +677,7 @@ interface AddNewExpenseDialogProps {
 
 export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpenseId }: AddNewExpenseDialogProps) {
   const isEditMode = !!editExpenseId;
+  const queryClient = useQueryClient();
 
   const [form, setForm]               = useState<ExpenseForm>(emptyForm);
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
@@ -673,8 +685,7 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
   const [createItemOpen, setCreateItemOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ExpenseItem | null>(null);
   const [deletingItem, setDeletingItem] = useState<ExpenseItem | null>(null);
-  const [rowMenuAnchor, setRowMenuAnchor] = useState<HTMLElement | null>(null);
-  const [rowMenuItem, setRowMenuItem]     = useState<ExpenseItem | null>(null);
+  const [reopenPickerAfter, setReopenPickerAfter] = useState(false);
   const [saveError, setSaveError]     = useState("");
   const [vendorOpen, setVendorOpen]   = useState(false);
   const [vendorSearch, setVendorSearch] = useState("");
@@ -728,13 +739,13 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
       notes: expenseDetail.notes ?? "",
       dueDate: expenseDetail.due_date ? formatDateForInput(expenseDetail.due_date) : "",
       items: expenseDetail.items.map(item => {
-        const itemId = item.item_id ?? item.id;
+        const itemId = item.item_id || (item.id != null ? String(item.id) : "");
         return {
-          id: `ei-${item.expense_item_id ?? itemId}-${Date.now()}-${Math.random()}`,
-          itemUuid: String(itemId),
-          itemId: String(itemId),
+          id: `ei-${item.expense_item_id ?? itemId ?? Math.random()}-${Date.now()}-${Math.random()}`,
+          itemUuid: itemId,
+          itemId,
           itemName: item.item_name,
-          sku: String(itemId),
+          sku: itemId,
           qty: Math.round(parseFloat(String(item.qty))) || 1,
           unitPrice: parseFloat(String(item.price)) || 0,
           taxPct: 0,
@@ -753,27 +764,37 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
     setForm(prev => ({ ...prev, items: [...prev.items, ...items.map(catalogueToItem)] }));
   }, []);
 
+  const closeCatalogFlyout = useCallback(() => {
+    setEditingItem(null);
+    setDeletingItem(null);
+    setReopenPickerAfter(reopen => {
+      if (reopen) setPickerOpen(true);
+      return false;
+    });
+  }, []);
+
   const handleSaveCatalogItem = useCallback(async (item: NewExpenseItemForm) => {
     const { zoduId, branchId } = getTenantContext();
-    const categoryId = item.categoryId ? Number(item.categoryId) : undefined;
-    const categoryName = categories.find(c => String(c.value) === String(item.categoryId))?.label;
 
     if (editingItem) {
       const payload = {
         expense_item_name: item.name,
-        item_id: item.itemId,
-        category_id: categoryId,
-        category_name: categoryName,
         amount: parseFloat(item.amount) || 0,
-        qty: parseFloat(item.qty) || 1,
+        unit: parseFloat(item.qty) || 1,
       };
       const res = editingItem.catalogUuid
         ? await getApi().put(`/expense/catalog/${editingItem.catalogUuid}`, payload)
         : null;
       const data = res?.data?.data;
+      const editingNameLower = editingItem.itemName.trim().toLowerCase();
+      const matchesEditingItem = (i: ExpenseItem) =>
+        i.id === editingItem.id ||
+        (!!editingItem.catalogUuid && i.catalogUuid === editingItem.catalogUuid) ||
+        (!!editingItem.itemId && i.itemId === editingItem.itemId) ||
+        (!!editingNameLower && i.itemName.trim().toLowerCase() === editingNameLower);
       setForm(prev => ({
         ...prev,
-        items: prev.items.map(i => i.id === editingItem.id ? {
+        items: prev.items.map(i => matchesEditingItem(i) ? {
           ...i,
           itemUuid: data?.item_uuid ?? i.itemUuid,
           catalogUuid: data?.item_uuid ?? i.catalogUuid,
@@ -782,22 +803,19 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
           sku: item.itemId,
           qty: parseFloat(item.qty) || 1,
           unitPrice: parseFloat(item.amount) || 0,
-          categoryId: categoryId ?? null,
         } : i),
       }));
-      setEditingItem(null);
+      queryClient.invalidateQueries({ queryKey: ["expense", "catalog"] });
+      closeCatalogFlyout();
       return;
     }
 
     const res = await getApi().post(`/expense/catalog`, {
       zodu_id: zoduId,
       branch_id: branchId,
-      item_id: item.itemId,
       expense_item_name: item.name,
-      category_id: categoryId,
-      category_name: categoryName,
       amount: parseFloat(item.amount) || 0,
-      qty: parseFloat(item.qty) || 1,
+      unit: parseFloat(item.qty) || 1,
     });
     const data = res.data.data;
     const newItem: ExpenseItem = {
@@ -807,26 +825,36 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
       itemId: data.item_id,
       itemName: data.expense_item_name,
       sku: data.item_id,
-      qty: parseFloat(data.qty) || 1,
+      qty: parseFloat(data.unit ?? data.qty) || 1,
       unitPrice: parseFloat(data.amount) || 0,
       taxPct: 0,
       unit: "NOS",
       categoryId: data.category_id ?? null,
     };
     setForm(prev => ({ ...prev, items: [...prev.items, newItem] }));
+    queryClient.invalidateQueries({ queryKey: ["expense", "catalog"] });
     setCreateItemOpen(false);
-  }, [editingItem, categories]);
+  }, [editingItem, queryClient, closeCatalogFlyout]);
 
-  const openEditItem = useCallback((item: ExpenseItem) => { setEditingItem(item); setRowMenuAnchor(null); }, []);
   const confirmDeleteItem = useCallback(async () => {
     if (!deletingItem) return;
     if (deletingItem.catalogUuid) {
       try { await getApi().delete(`/expense/catalog/${deletingItem.catalogUuid}`); }
       catch { /* item still removed from this expense's line items below */ }
     }
-    setForm(prev => ({ ...prev, items: prev.items.filter(i => i.id !== deletingItem.id) }));
-    setDeletingItem(null);
-  }, [deletingItem]);
+    const deletingNameLower = deletingItem.itemName.trim().toLowerCase();
+    const matchesDeletingItem = (i: ExpenseItem) =>
+      i.id === deletingItem.id ||
+      (!!deletingItem.catalogUuid && i.catalogUuid === deletingItem.catalogUuid) ||
+      (!!deletingItem.itemId && i.itemId === deletingItem.itemId) ||
+      (!!deletingNameLower && i.itemName.trim().toLowerCase() === deletingNameLower);
+    setForm(prev => ({
+      ...prev,
+      items: prev.items.filter(i => !matchesDeletingItem(i)),
+    }));
+    queryClient.invalidateQueries({ queryKey: ["expense", "catalog"] });
+    closeCatalogFlyout();
+  }, [deletingItem, queryClient, closeCatalogFlyout]);
 
   const removeItemFromRow = useCallback((id: string) => setForm(prev => ({ ...prev, items: prev.items.filter(i => i.id !== id) })), []);
 
@@ -856,17 +884,13 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
     }
   }, []);
 
-  const visibleItems = useMemo(
-    () => form.categoryId
-      ? form.items.filter(i => String(i.categoryId ?? "") === String(form.categoryId))
-      : [],
-    [form.items, form.categoryId]
-  );
+  const visibleItems = form.items;
 
   const grandTotal = parseFloat(visibleItems.reduce((s, i) => s + i.qty * i.unitPrice, 0).toFixed(2));
   const paid       = parseFloat(form.paidAmount) || 0;
   const balanceDue = Math.max(0, grandTotal - paid);
-  const alreadyAdded = visibleItems.map(i => i.itemUuid);
+  const alreadyAdded = Array.from(new Set(visibleItems.flatMap(i => [i.itemUuid, i.itemId].filter(Boolean))));
+  const alreadyAddedNames = Array.from(new Set(visibleItems.map(i => i.itemName.trim().toLowerCase()).filter(Boolean)));
 
   const paymentStatus = (): "paid" | "partial" | "pending" => {
     const roundedTotal = parseFloat(grandTotal.toFixed(2));
@@ -957,12 +981,19 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
 
   return (
     <ThemeProvider theme={theme}>
-      <ItemPickerDialog open={pickerOpen} onClose={() => setPickerOpen(false)} alreadyAdded={alreadyAdded} categoryId={form.categoryId} onConfirm={handlePickerConfirm} />
-      <CreateExpenseItemDialog open={createItemOpen} onClose={() => setCreateItemOpen(false)} categories={categories} onSave={handleSaveCatalogItem} />
+      <ItemPickerDialog
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        alreadyAdded={alreadyAdded}
+        alreadyAddedNames={alreadyAddedNames}
+        onConfirm={handlePickerConfirm}
+        onEditCatalogItem={cat => { setPickerOpen(false); setReopenPickerAfter(true); setEditingItem(catalogueToItem(cat)); }}
+        onDeleteCatalogItem={cat => { setPickerOpen(false); setReopenPickerAfter(true); setDeletingItem(catalogueToItem(cat)); }}
+      />
+      <CreateExpenseItemDialog open={createItemOpen} onClose={() => setCreateItemOpen(false)} onSave={handleSaveCatalogItem} />
       <CreateExpenseItemDialog
         open={!!editingItem}
-        onClose={() => setEditingItem(null)}
-        categories={categories}
+        onClose={closeCatalogFlyout}
         onSave={handleSaveCatalogItem}
         initialValue={editingItem ? {
           name: editingItem.itemName,
@@ -975,25 +1006,9 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
       <DeleteItemConfirmDialog
         open={!!deletingItem}
         itemName={deletingItem?.itemName}
-        onClose={() => setDeletingItem(null)}
+        onClose={closeCatalogFlyout}
         onConfirm={confirmDeleteItem}
       />
-      <Menu
-        anchorEl={rowMenuAnchor}
-        open={!!rowMenuAnchor}
-        onClose={() => setRowMenuAnchor(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
-        PaperProps={{ sx: { borderRadius: 2, minWidth: 140, boxShadow: "0 12px 32px rgba(15,23,42,0.14)" } }}
-      >
-        <MenuItem onClick={() => rowMenuItem && openEditItem(rowMenuItem)} sx={{ fontSize: 13, gap: 1 }}>
-          <EditOutlinedIcon sx={{ fontSize: 16, color: "#6B7280" }} /> Edit
-        </MenuItem>
-        <MenuItem onClick={() => { setDeletingItem(rowMenuItem); setRowMenuAnchor(null); }} sx={{ fontSize: 13, gap: 1, color: "#EF4444" }}>
-          <DeleteOutlineIcon sx={{ fontSize: 16 }} /> Delete
-        </MenuItem>
-      </Menu>
-
       <Dialog open={open} onClose={handleDiscard} fullWidth maxWidth="lg" PaperProps={{ sx: { borderRadius: 3, maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 25px 60px rgba(15,23,42,0.2)" } }}>
 
         {/* Header */}
@@ -1145,7 +1160,7 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
                           <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
                             <InventoryOutlinedIcon sx={{ fontSize: 34, color: "#E2E8F0" }} />
                             <Typography sx={{ fontSize: 13, color: "#9CA3AF" }}>
-                              {!form.categoryId ? "Select a category to see items in this expense" : form.items.length > 0 ? "No items in the selected category" : "No items added yet"}
+                              No items added yet
                             </Typography>
                             <Button size="small" startIcon={<AddIcon sx={{ fontSize: 14 }} />} onClick={() => setPickerOpen(true)} sx={{ fontSize: 11, fontWeight: 700, mt: 0.5, color: "#D21F3C", bgcolor: "rgba(210,31,60,0.07)", px: 1.5, py: 0.5, borderRadius: 1.5, "&:hover": { bgcolor: "rgba(210,31,60,0.14)" } }}>
                               Browse &amp; Add Items
@@ -1166,9 +1181,6 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
                           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.25 }}>
                             <IconButton size="small" onClick={() => removeItemFromRow(item.id)} sx={{ color: "#D1D5DB", p: 0.5, borderRadius: 1, "&:hover": { color: "#EF4444", bgcolor: "#FEF2F2" }, transition: "all 0.12s" }}>
                               <DeleteOutlineIcon sx={{ fontSize: 16 }} />
-                            </IconButton>
-                            <IconButton size="small" onClick={e => { setRowMenuAnchor(e.currentTarget); setRowMenuItem(item); }} sx={{ color: "#9CA3AF", p: 0.5, borderRadius: 1, "&:hover": { color: "#374151", bgcolor: "#F3F4F6" }, transition: "all 0.12s" }}>
-                              <MoreVertIcon sx={{ fontSize: 17 }} />
                             </IconButton>
                           </Box>
                         </TableCell>

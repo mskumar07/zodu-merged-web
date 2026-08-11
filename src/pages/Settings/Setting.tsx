@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import LottieLoader from "@components/LottieLoader";
+import SuccessToast from "@components/Common/SuccessToast";
 import {
-  Alert,
   Avatar,
   Box,
   Button,
@@ -35,6 +35,10 @@ import StoreRoundedIcon from "@mui/icons-material/StoreRounded";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import CloseIcon from "@mui/icons-material/Close";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import CallOutlinedIcon from "@mui/icons-material/CallOutlined";
+import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
+import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlined";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   authApis,
@@ -48,8 +52,29 @@ import {
 import BranchFormModal, { type BranchFormData } from "./BranchFormModal";
 import BusinessFormModal, { type BusinessFormData } from "./CompanyFormModal";
 import InvoiceSetting from "./InvoiceSetting";
+import RoleManagement from "@pages/auth/Role/RoleManagement";
 import { useAppDispatch } from "@store/store";
+import { useModulePermission } from "@hooks/useModulePermission";
 import { setCompanies } from "@store/slices/userSlice";
+
+const PHONE_REGEX = /^[0-9]{10}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function validateContactFields(params: {
+  name?: string;
+  nameLabel: string;
+  phone?: string;
+  email?: string;
+}): string | null {
+  const { name, nameLabel, phone, email } = params;
+
+  if (!name?.trim()) return `${nameLabel} is required.`;
+  if (!phone?.trim()) return "Phone number is required.";
+  if (!PHONE_REGEX.test(phone.trim())) return "Phone number must be exactly 10 digits.";
+  if (!email?.trim()) return "Email ID is required.";
+  if (!EMAIL_REGEX.test(email.trim())) return "Enter a valid email address.";
+  return null;
+}
 
 const pageBackground = "#f7f7fa";
 const cardBorder = "#ececf2";
@@ -57,7 +82,7 @@ const subtleText = "#8e95a3";
 const headingText = "#1d2533";
 const redTint = "#ca0022";
 
-type SettingsTab = "company" | "invoice" | "user";
+type SettingsTab = "company" | "invoice" | "user" | "role";
 
 const getCompanyAddressLine1 = (company?: CompanyWithBranches | null) => {
   if (!company) return "";
@@ -138,6 +163,71 @@ const getBranchIfscCode = (branch?: Branch | null) => {
   return branch.branch_ifsc || branch.ifsc_code || "";
 };
 
+function SectionHeading({
+  icon,
+  title,
+  iconBg,
+  iconColor,
+}: {
+  icon: ReactNode;
+  title: string;
+  iconBg: string;
+  iconColor: string;
+}) {
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.25 }}>
+      <Box
+        sx={{
+          width: 26,
+          height: 26,
+          bgcolor: iconBg,
+          borderRadius: 1.5,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          color: iconColor,
+        }}
+      >
+        {icon}
+      </Box>
+      <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#1F2937", letterSpacing: 0.3 }}>
+        {title}
+      </Typography>
+    </Box>
+  );
+}
+
+function DetailField({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <Box>
+      <Typography
+        sx={{
+          fontSize: 10.5,
+          fontWeight: 700,
+          color: "#9CA3AF",
+          letterSpacing: 0.6,
+          textTransform: "uppercase",
+          mb: 0.3,
+        }}
+      >
+        {label}
+      </Typography>
+      <Typography sx={{ fontSize: 13, fontWeight: 700, color: value ? headingText : "#D1D5DB" }}>
+        {value || "—"}
+      </Typography>
+    </Box>
+  );
+}
+
+function DetailRow3({ children }: { children: ReactNode }) {
+  return (
+    <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2, mb: 1.2 }}>
+      {children}
+    </Box>
+  );
+}
+
 const formatLocation = (branch?: Branch) => {
   if (!branch) return "-";
 
@@ -157,6 +247,7 @@ const getCompanyIcon = (index: number) => {
 };
 
 export default function Setting() {
+  const { canCreate, canEdit, canDelete } = useModulePermission("Settings");
   const queryClient = useQueryClient();
   const dispatch = useAppDispatch();
   const [activeTab, setActiveTab] = useState<SettingsTab>("company");
@@ -167,6 +258,7 @@ export default function Setting() {
   const [branchCompanyId, setBranchCompanyId] = useState<string>("");
   const [editingCompany, setEditingCompany] = useState<CompanyWithBranches | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [viewingCompany, setViewingCompany] = useState<CompanyWithBranches | null>(null);
   const [viewingBranch, setViewingBranch] = useState<Branch | null>(null);
 // Find the company object when opening the branch modal
@@ -215,6 +307,7 @@ export default function Setting() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["settings", "companies"] });
       closeCompanyModal();
+      setSuccessMessage("Company created successfully.");
     },
     onError: (error: Error) => {
       setSubmitError(error.message || "Unable to create company.");
@@ -231,6 +324,15 @@ export default function Setting() {
   }, [companies, dispatch]);
 
   useEffect(() => {
+    if (companiesQuery.isError) {
+      setSubmitError(
+        (companiesQuery.error as Error | null)?.message ||
+          "Unable to load company details."
+      );
+    }
+  }, [companiesQuery.isError, companiesQuery.error]);
+
+  useEffect(() => {
     if (companies.length > 0 && expandedCompanyIds.length === 0) {
       setExpandedCompanyIds(companies.map((company) => company.zodu_id));
     }
@@ -243,6 +345,7 @@ export default function Setting() {
         queryClient.invalidateQueries({ queryKey: ["settings", "companies"] }),
       ]);
       closeBranchModal();
+      setSuccessMessage("Branch created successfully.");
     },
     onError: (error: Error) => {
       setSubmitError(error.message || "Unable to create branch.");
@@ -257,6 +360,7 @@ export default function Setting() {
         queryClient.invalidateQueries({ queryKey: ["settings", "companies"] }),
       ]);
       closeBranchModal();
+      setSuccessMessage("Branch updated successfully.");
     },
     onError: (error: Error) => {
       setSubmitError(error.message || "Unable to update branch.");
@@ -273,6 +377,7 @@ export default function Setting() {
       console.log("✓ editCompanyMutation onSuccess - invalidating queries");
       await queryClient.invalidateQueries({ queryKey: ["settings", "companies"] });
       closeCompanyModal();
+      setSuccessMessage("Company updated successfully.");
     },
     onError: (error: Error) => {
       console.error("✗ editCompanyMutation onError:", error);
@@ -290,6 +395,18 @@ export default function Setting() {
 
   const handleBranchSubmit = async (data: BranchFormData, isEdit: boolean) => {
     setSubmitError(null);
+
+    const validationError = validateContactFields({
+      name: data.branch_name,
+      nameLabel: "Branch name",
+      phone: data.branch_mobile_no,
+      email: data.branch_mail_id,
+    });
+    if (validationError) {
+      setSubmitError(validationError);
+      return;
+    }
+
     const zoduId = branchCompanyId;
     if (!zoduId) {
       setSubmitError("Company context is missing. Please refresh and try again.");
@@ -386,7 +503,18 @@ export default function Setting() {
     console.log("editingCompany:", editingCompany);
     
     setSubmitError(null);
-    
+
+    const validationError = validateContactFields({
+      name: data.restaurant_name,
+      nameLabel: "Business name",
+      phone: data.phone_number,
+      email: data.email,
+    });
+    if (validationError) {
+      setSubmitError(validationError);
+      return;
+    }
+
     const editPayload: EditCompanyPayload = {
       type: data.type,
       restaurant_name: data.restaurant_name,
@@ -456,7 +584,14 @@ export default function Setting() {
       <Box>
         <Stack spacing={2}>
           <Box
-           
+            sx={{
+              position: "sticky",
+              top: 0,
+              zIndex: 10,
+              bgcolor: "#fff",
+              borderBottom: "1px solid",
+              borderColor: cardBorder,
+            }}
           >
             <Tabs
               value={activeTab}
@@ -502,6 +637,16 @@ export default function Setting() {
                   fontWeight: 700,
                 }}
               />
+              <Tab
+                label="Role Management"
+                value="role"
+                sx={{
+                  minHeight: 48,
+                  textTransform: "none",
+                  fontSize: 14,
+                  fontWeight: 700,
+                }}
+              />
             </Tabs>
           </Box>
 
@@ -538,6 +683,7 @@ export default function Setting() {
               variant="contained"
               startIcon={<DomainAddRoundedIcon />}
               onClick={openAddCompany}
+              disabled={!canCreate}
               sx={{
                 alignSelf: { xs: "stretch", sm: "center" },
                 px: 2.5,
@@ -556,18 +702,6 @@ export default function Setting() {
           </Stack>
           )}
 
-          {activeTab === "company" && companiesQuery.isError && (
-            <Alert severity="error" sx={{ borderRadius: 3 }}>
-              {(companiesQuery.error as Error | null)?.message ||
-                "Unable to load company details."}
-            </Alert>
-          )}
-
-          {submitError && activeTab === "company" && (
-            <Alert severity="error" sx={{ borderRadius: 3 }}>
-              {submitError}
-            </Alert>
-          )}
 
           {activeTab === "company" &&
           (companiesQuery.isLoading && companies.length === 0 ? (
@@ -750,17 +884,20 @@ export default function Setting() {
                           </Box>
                         </Stack>
 
-                        <Tooltip title="Edit">
-                          <IconButton
-                            size="small"
-                            sx={{ color: "#7a8392", flexShrink: 0 }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openEditCompany(company);
-                            }}
-                          >
-                            <EditOutlinedIcon fontSize="small" />
-                          </IconButton>
+                        <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"}>
+                          <span>
+                            <IconButton
+                              size="small"
+                              disabled={!canEdit}
+                              sx={{ color: "#1976d2", flexShrink: 0, "&:hover": { color: "#1565C0", bgcolor: "#EFF6FF" } }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEditCompany(company);
+                              }}
+                            >
+                              <EditOutlinedIcon fontSize="small" />
+                            </IconButton>
+                          </span>
                         </Tooltip>
 
                         <IconButton
@@ -928,19 +1065,24 @@ export default function Setting() {
                                             <VisibilityOutlinedIcon fontSize="small" />
                                           </IconButton>
                                         </Tooltip> */}
-                                        <Tooltip title="Edit">
-                                          <IconButton
-                                            size="small"
-                                            sx={{ color: "#7a8392" }}
-                                            onClick={() => openEditBranch(branch, company.zodu_id)}
-                                          >
-                                            <EditOutlinedIcon fontSize="small" />
-                                          </IconButton>
+                                        <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"}>
+                                          <span>
+                                            <IconButton
+                                              size="small"
+                                              disabled={!canEdit}
+                                              sx={{ color: "#1976d2", "&:hover": { color: "#1565C0", bgcolor: "#EFF6FF" } }}
+                                              onClick={() => openEditBranch(branch, company.zodu_id)}
+                                            >
+                                              <EditOutlinedIcon fontSize="small" />
+                                            </IconButton>
+                                          </span>
                                         </Tooltip>
-                                        <Tooltip title="Delete">
-                                          <IconButton size="small" sx={{ color: "#7a8392" }}>
-                                            <DeleteOutlineRoundedIcon fontSize="small" />
-                                          </IconButton>
+                                        <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"}>
+                                          <span>
+                                            <IconButton size="small" disabled={!canDelete} sx={{ color: "#D2122E", "&:hover": { bgcolor: "#D2122E22" } }}>
+                                              <DeleteOutlineRoundedIcon fontSize="small" />
+                                            </IconButton>
+                                          </span>
                                         </Tooltip>
                                       </TableCell>
                                     </TableRow>
@@ -966,6 +1108,7 @@ export default function Setting() {
                               size="small"
                               startIcon={<AddRoundedIcon />}
                               onClick={() => openAddBranch(company.zodu_id)}
+                              disabled={!canCreate}
                               sx={{
                                 borderRadius: 0.8,
                                 bgcolor: redTint,
@@ -1071,6 +1214,12 @@ export default function Setting() {
               </Typography>
             </Paper>
           )}
+
+          {activeTab === "role" && (
+            <Box sx={{ height: "calc(100vh - 220px)", minHeight: 550, mx: -3 }}>
+              <RoleManagement />
+            </Box>
+          )}
         </Stack>
       </Box>
 
@@ -1117,189 +1266,119 @@ export default function Setting() {
       <Dialog
         open={Boolean(viewingCompany)}
         onClose={() => setViewingCompany(null)}
-        maxWidth="sm"
+        maxWidth="md"
         fullWidth
       >
         <DialogTitle
           sx={{
+            px: 3,
+            py: 2,
+            borderBottom: "1px solid #F1F5F9",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            fontWeight: 800,
-            fontSize: 18,
-            bgcolor: "#fafbfc",
-            borderBottom: "1px solid #f0f1f5",
           }}
         >
-          <span>Company Details</span>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Box sx={{ p: 0.8, bgcolor: "rgba(175,16,26,0.08)", borderRadius: 2, display: "flex" }}>
+              <BusinessRoundedIcon sx={{ color: redTint, fontSize: 20 }} />
+            </Box>
+            <Box>
+              <Typography sx={{ fontSize: 17, fontWeight: 800, color: "#0F172A" }}>
+                Company Details
+              </Typography>
+              <Typography sx={{ fontSize: 11, color: "#6B7280" }}>
+                Company information
+              </Typography>
+            </Box>
+          </Box>
           <IconButton
             size="small"
             onClick={() => setViewingCompany(null)}
-            sx={{ color: "#6B7280" }}
+            sx={{ color: "#6B7280", bgcolor: "#F9FAFB", "&:hover": { bgcolor: "#F3F4F6" }, borderRadius: "50%" }}
           >
-            <CloseIcon />
+            <CloseIcon sx={{ fontSize: 17 }} />
           </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ py: 3 }}>
+        <DialogContent sx={{ px: 3, py: 3, bgcolor: "#fff", maxHeight: "76vh", overflowY: "auto" }}>
           {viewingCompany && (
-            <Stack spacing={2}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+              {/* Basic Details */}
               <Box>
-                <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                  Company Name
-                </Typography>
-                <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                  {viewingCompany.restaurant_name}
-                </Typography>
+                <SectionHeading
+                  icon={<InfoOutlinedIcon sx={{ fontSize: 14 }} />}
+                  title="Basic Details"
+                  iconBg="#FFF1F2"
+                  iconColor={redTint}
+                />
+                <DetailRow3>
+                  <DetailField label="Company Name" value={viewingCompany.restaurant_name} />
+                  <DetailField label="Owner / Admin Name" value={viewingCompany.owner_admin_name} />
+                  <DetailField label="GSTIN" value={viewingCompany.gst_no} />
+                </DetailRow3>
               </Box>
 
-              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    Owner / Admin Name
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.owner_admin_name || "-"}
-                  </Typography>
-                </Box>
+              <Divider sx={{ borderColor: "#F1F5F9" }} />
 
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    GSTIN
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.gst_no || "-"}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    Phone Number
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.phone_number || viewingCompany.mobile_no || "-"}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    Email ID
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.email || viewingCompany.mail_id || "-"}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    City
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.city || "-"}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    State
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.state || "-"}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    District
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.district || "-"}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    Pincode
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.pincode || "-"}
-                  </Typography>
-                </Box>
-              </Box>
-
+              {/* Contact Information */}
               <Box>
-                <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                  Address
-                </Typography>
-                <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                  {getCompanyAddressLine1(viewingCompany) || "-"}
-                </Typography>
+                <SectionHeading
+                  icon={<CallOutlinedIcon sx={{ fontSize: 14 }} />}
+                  title="Contact Information"
+                  iconBg="#EFF6FF"
+                  iconColor="#2563EB"
+                />
+                <DetailRow3>
+                  <DetailField label="Phone Number" value={viewingCompany.phone_number || viewingCompany.mobile_no} />
+                  <DetailField label="Email ID" value={viewingCompany.email || viewingCompany.mail_id} />
+                  <Box />
+                </DetailRow3>
               </Box>
 
-              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    Address Line 2
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {getCompanyAddressLine2(viewingCompany) || "-"}
-                  </Typography>
-                </Box>
+              <Divider sx={{ borderColor: "#F1F5F9" }} />
 
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    Bank Name
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.bank_name || "-"}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    Bank Branch
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.bank_branch || "-"}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    Account Holder Name
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.holder_name || "-"}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    Account Number
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.account_number || "-"}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    Account Type
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.account_type || "-"}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    IFSC Code
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingCompany.ifsc_code || "-"}
-                  </Typography>
-                </Box>
+              {/* Location Details */}
+              <Box>
+                <SectionHeading
+                  icon={<LocationOnOutlinedIcon sx={{ fontSize: 14 }} />}
+                  title="Location Details"
+                  iconBg="#F0FDF4"
+                  iconColor="#16A34A"
+                />
+                <DetailRow3>
+                  <DetailField label="Address Line 1" value={getCompanyAddressLine1(viewingCompany)} />
+                  <DetailField label="Address Line 2" value={getCompanyAddressLine2(viewingCompany)} />
+                  <DetailField label="City" value={viewingCompany.city} />
+                </DetailRow3>
+                <DetailRow3>
+                  <DetailField label="District" value={viewingCompany.district} />
+                  <DetailField label="State" value={viewingCompany.state} />
+                  <DetailField label="Pincode" value={viewingCompany.pincode} />
+                </DetailRow3>
               </Box>
-            </Stack>
+
+              <Divider sx={{ borderColor: "#F1F5F9" }} />
+
+              {/* Bank Details */}
+              <Box>
+                <SectionHeading
+                  icon={<AccountBalanceOutlinedIcon sx={{ fontSize: 14 }} />}
+                  title="Bank Details"
+                  iconBg="#FFFBEB"
+                  iconColor="#D97706"
+                />
+                <DetailRow3>
+                  <DetailField label="Bank Name" value={viewingCompany.bank_name} />
+                  <DetailField label="Bank Branch" value={viewingCompany.bank_branch} />
+                  <DetailField label="Account Holder Name" value={viewingCompany.holder_name} />
+                </DetailRow3>
+                <DetailRow3>
+                  <DetailField label="Account Type" value={viewingCompany.account_type} />
+                  <DetailField label="Account Number" value={viewingCompany.account_number} />
+                  <DetailField label="IFSC Code" value={viewingCompany.ifsc_code} />
+                </DetailRow3>
+              </Box>
+            </Box>
           )}
         </DialogContent>
       </Dialog>
@@ -1308,187 +1387,141 @@ export default function Setting() {
       <Dialog
         open={Boolean(viewingBranch)}
         onClose={() => setViewingBranch(null)}
-        maxWidth="sm"
+        maxWidth="md"
         fullWidth
       >
         <DialogTitle
           sx={{
+            px: 3,
+            py: 2,
+            borderBottom: "1px solid #F1F5F9",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            fontWeight: 800,
-            fontSize: 18,
-            bgcolor: "#fafbfc",
-            borderBottom: "1px solid #f0f1f5",
           }}
         >
-          <span>Branch Details</span>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Box sx={{ p: 0.8, bgcolor: "rgba(175,16,26,0.08)", borderRadius: 2, display: "flex" }}>
+              <StoreRoundedIcon sx={{ color: redTint, fontSize: 20 }} />
+            </Box>
+            <Box>
+              <Typography sx={{ fontSize: 17, fontWeight: 800, color: "#0F172A" }}>
+                Branch Details
+              </Typography>
+              <Typography sx={{ fontSize: 11, color: "#6B7280" }}>
+                Branch information (read-only)
+              </Typography>
+            </Box>
+          </Box>
           <IconButton
             size="small"
             onClick={() => setViewingBranch(null)}
-            sx={{ color: "#6B7280" }}
+            sx={{ color: "#6B7280", bgcolor: "#F9FAFB", "&:hover": { bgcolor: "#F3F4F6" }, borderRadius: "50%" }}
           >
-            <CloseIcon />
+            <CloseIcon sx={{ fontSize: 17 }} />
           </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ py: 3 }}>
+        <DialogContent sx={{ px: 3, py: 3, bgcolor: "#fff", maxHeight: "76vh", overflowY: "auto" }}>
           {viewingBranch && (
-            <Stack spacing={2}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+              {/* Basic Details */}
               <Box>
-                <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                  Branch Name
-                </Typography>
-                <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                  {viewingBranch.branch_name}
-                </Typography>
+                <SectionHeading
+                  icon={<InfoOutlinedIcon sx={{ fontSize: 14 }} />}
+                  title="Basic Details"
+                  iconBg="#FFF1F2"
+                  iconColor={redTint}
+                />
+                <DetailRow3>
+                  <DetailField label="Branch Name" value={viewingBranch.branch_name} />
+                  <DetailField label="Manager / Admin" value={getBranchManager(viewingBranch)} />
+                  <Box />
+                </DetailRow3>
               </Box>
 
-              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    Mobile Number
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingBranch.branch_mobile_no || "-"}
-                  </Typography>
-                </Box>
+              <Divider sx={{ borderColor: "#F1F5F9" }} />
 
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    Email ID
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingBranch.branch_mail_id || "-"}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    City
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {getBranchCity(viewingBranch) || "-"}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    State
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {getBranchState(viewingBranch) || "-"}
-                  </Typography>
-                </Box>
-              </Box>
-
-              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    Address Line 1
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {getBranchAddressLine1(viewingBranch) || "-"}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    Address Line 2
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {getBranchAddressLine2(viewingBranch) || "-"}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    District
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {getBranchDistrict(viewingBranch) || "-"}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    Pincode
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {getBranchPincode(viewingBranch) || "-"}
-                  </Typography>
-                </Box>
-              </Box>
-
+              {/* Contact Information */}
               <Box>
-                <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                  Manager / Admin
-                </Typography>
-                <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                  {getBranchManager(viewingBranch) || "-"}
-                </Typography>
+                <SectionHeading
+                  icon={<CallOutlinedIcon sx={{ fontSize: 14 }} />}
+                  title="Contact Information"
+                  iconBg="#EFF6FF"
+                  iconColor="#2563EB"
+                />
+                <DetailRow3>
+                  <DetailField label="Mobile Number" value={viewingBranch.branch_mobile_no} />
+                  <DetailField label="Email ID" value={viewingBranch.branch_mail_id} />
+                  <Box />
+                </DetailRow3>
               </Box>
 
-              <Divider />
+              <Divider sx={{ borderColor: "#F1F5F9" }} />
 
-              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    Bank Name
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingBranch.bank_name || "-"}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    Bank Branch
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingBranch.bank_branch || "-"}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    Account Holder Name
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {viewingBranch.holder_name || "-"}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    Account Number
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {getBranchAccountNumber(viewingBranch) || "-"}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    Account Type
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5, textTransform: "capitalize" }}>
-                    {getBranchAccountType(viewingBranch) || "-"}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#b0b7c4", textTransform: "uppercase" }}>
-                    IFSC Code
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText, mt: 0.5 }}>
-                    {getBranchIfscCode(viewingBranch) || "-"}
-                  </Typography>
-                </Box>
+              {/* Location Details */}
+              <Box>
+                <SectionHeading
+                  icon={<LocationOnOutlinedIcon sx={{ fontSize: 14 }} />}
+                  title="Location Details"
+                  iconBg="#F0FDF4"
+                  iconColor="#16A34A"
+                />
+                <DetailRow3>
+                  <DetailField label="Address Line 1" value={getBranchAddressLine1(viewingBranch)} />
+                  <DetailField label="Address Line 2" value={getBranchAddressLine2(viewingBranch)} />
+                  <DetailField label="City" value={getBranchCity(viewingBranch)} />
+                </DetailRow3>
+                <DetailRow3>
+                  <DetailField label="District" value={getBranchDistrict(viewingBranch)} />
+                  <DetailField label="State" value={getBranchState(viewingBranch)} />
+                  <DetailField label="Pincode" value={getBranchPincode(viewingBranch)} />
+                </DetailRow3>
               </Box>
-            </Stack>
+
+              <Divider sx={{ borderColor: "#F1F5F9" }} />
+
+              {/* Bank Details */}
+              <Box>
+                <SectionHeading
+                  icon={<AccountBalanceOutlinedIcon sx={{ fontSize: 14 }} />}
+                  title="Bank Details"
+                  iconBg="#FFFBEB"
+                  iconColor="#D97706"
+                />
+                <DetailRow3>
+                  <DetailField label="Bank Name" value={viewingBranch.bank_name} />
+                  <DetailField label="Bank Branch" value={viewingBranch.bank_branch} />
+                  <DetailField label="Account Holder Name" value={viewingBranch.holder_name} />
+                </DetailRow3>
+                <DetailRow3>
+                  <DetailField label="Account Number" value={getBranchAccountNumber(viewingBranch)} />
+                  <DetailField
+                    label="Account Type"
+                    value={
+                      getBranchAccountType(viewingBranch)
+                        ? getBranchAccountType(viewingBranch).charAt(0).toUpperCase() +
+                          getBranchAccountType(viewingBranch).slice(1)
+                        : null
+                    }
+                  />
+                  <DetailField label="IFSC Code" value={getBranchIfscCode(viewingBranch)} />
+                </DetailRow3>
+              </Box>
+            </Box>
           )}
         </DialogContent>
       </Dialog>
+
+      <SuccessToast
+        message={successMessage || ""}
+        severity="success"
+        onClose={() => setSuccessMessage(null)}
+      />
+      <SuccessToast
+        message={submitError || ""}
+        severity="error"
+        onClose={() => setSubmitError(null)}
+      />
     </Box>
   );
 }

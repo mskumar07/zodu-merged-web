@@ -55,8 +55,8 @@ function TH({ children, align = "left" }: { children: React.ReactNode; align?: "
   return (
     <TableCell align={align} sx={{
       bgcolor: "#F8FAFC",
-      fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.08em",
-      color: "#64748B", textTransform: "uppercase",
+      fontSize: "0.78rem", fontWeight: 700, letterSpacing: "0.02em",
+      color: "#64748B",
       borderBottom: "1px solid #E2E8F0",
       py: 1.75, px: 2,
     }}>

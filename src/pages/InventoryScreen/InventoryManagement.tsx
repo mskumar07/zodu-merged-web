@@ -25,6 +25,7 @@ import {
   type StockStatus,
 } from './useInventoryApi';
 import StockHistoryModal from './StockHistoryModal';
+import { useModulePermission } from '@hooks/useModulePermission';
 
 export default function InventoryScreenRoot() {
   return <InventoryScreen />;
@@ -68,6 +69,7 @@ function toRow(item: InventoryItem) {
 
 // ─────────────────────────────────────────────────────────────
 function InventoryScreen() {
+  const { canEdit } = useModulePermission('Inventory');
   const [searchInput,         setSearchInput]         = useState('');
   const [searchQuery,         setSearchQuery]         = useState('');
   const [stockFilter,         setStockFilter]         = useState<StockStatus | ''>('');
@@ -312,6 +314,7 @@ const handleCloseHistory = () => {
           </Tooltip> */}
           <Button
             size="small" variant="outlined" color="primary"
+            disabled={!canEdit}
             onClick={() => handleAdjustClick(r._raw)}
             sx={{ textTransform: 'none', fontWeight: 700, fontSize: 12, borderRadius: 1, px: 1 }}
           >
@@ -320,7 +323,7 @@ const handleCloseHistory = () => {
         </Box>
       ),
     },
-  ], [handleAdjustClick]);
+  ], [handleAdjustClick, canEdit]);
 
   if (isLoading) return <LottieLoader />;
 

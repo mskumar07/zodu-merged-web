@@ -18,6 +18,7 @@ import ProductTabs from './components_ProductTabs';
 import ProductTable from './components_ProductTable';
 import AddItemModal from './AddItemModal';
 import CategoryTab from './CategoryTab';
+import { useModulePermission } from '@hooks/useModulePermission';
 
 import {
   useInfiniteMenuItems,
@@ -64,6 +65,7 @@ function toProduct(item: MenuItemData) {
 
 function MenuItemScreen() {
   const qc = useQueryClient();
+  const { canCreate, canEdit, canDelete } = useModulePermission('Menu Items');
 
   const [activeTab, setActiveTab] = useState<TabValue>('all');
   const [searchInput, setSearchInput] = useState('');
@@ -308,7 +310,7 @@ function MenuItemScreen() {
         </Box>
       )}
 
-      <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setEditItem(null); setModalOpen(true); }}
+      <Button variant="contained" startIcon={<AddIcon />} disabled={!canCreate} onClick={() => { setEditItem(null); setModalOpen(true); }}
         sx={{ borderRadius: 0.5, fontWeight: 700, px: 2.5, height: 40, textTransform: 'none', fontSize: 13, whiteSpace: 'nowrap', boxShadow: '0 4px 14px rgba(210,18,46,0.25)' }}>
         Add Item
       </Button>
@@ -332,7 +334,7 @@ function MenuItemScreen() {
           sx: { borderRadius: 0.5, fontSize: 13 },
         }}
       />
-      <Button variant="contained" startIcon={<AddIcon />} onClick={() => requestAddCategoryRef.current?.()}
+      <Button variant="contained" startIcon={<AddIcon />} disabled={!canCreate} onClick={() => requestAddCategoryRef.current?.()}
         sx={{ borderRadius: 0.5, fontWeight: 700, px: 2.5, height: 40, textTransform: 'none', fontSize: 13, whiteSpace: 'nowrap', boxShadow: '0 4px 14px rgba(210,18,46,0.25)' }}>
         Add Category
       </Button>
@@ -354,6 +356,8 @@ function MenuItemScreen() {
             hideToolbar
             searchValue={categorySearch}
             onRequestAdd={(openAdd) => { requestAddCategoryRef.current = openAdd; }}
+            canEdit={canEdit}
+            canDelete={canDelete}
           />
         </Box>
       )}
@@ -374,6 +378,8 @@ function MenuItemScreen() {
               isFetchingNextPage={isFetchingNextPage}
               loadMoreRef={sentinelRef}
               tableContainerRef={tableContainerRef}
+              canEdit={canEdit}
+              canDelete={canDelete}
             />
           </Box>
 

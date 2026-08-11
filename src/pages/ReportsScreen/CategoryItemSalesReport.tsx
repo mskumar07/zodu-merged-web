@@ -207,7 +207,7 @@ const CategoryItemSalesReport = () => {
   const restaurantCategoryColumns = useMemo<ColumnDef<RestaurantCategoryRow>[]>(() => [
     {
       key: "category_name",
-      label: "CATEGORY NAME",
+      label: "Category Name",
       minWidth: 150,
       render: (row) => (
         <Typography sx={{ fontSize: "0.8rem", color: "#111827", fontWeight: 600, whiteSpace: "nowrap" }}>
@@ -217,14 +217,14 @@ const CategoryItemSalesReport = () => {
     },
     {
       key: "total_qty",
-      label: "ITEMS",
+      label: "Items",
       align: "right",
       minWidth: 80,
       render: (row) => numberFmt(row.total_qty),
     },
     {
       key: "total_amount",
-      label: "TOTAL (₹)",
+      label: "Total (₹)",
       align: "right",
       minWidth: 120,
       render: (row) => (
@@ -240,7 +240,7 @@ const CategoryItemSalesReport = () => {
   const restaurantItemColumns = useMemo<ColumnDef<RestaurantItemWithCategory>[]>(() => [
     {
       key: "item_name",
-      label: "ITEM NAME",
+      label: "Item Name",
       minWidth: 160,
       render: (row) => (
         <Box>
@@ -255,21 +255,21 @@ const CategoryItemSalesReport = () => {
     },
     {
       key: "total_qty",
-      label: "QTY",
+      label: "Qty",
       align: "right",
       minWidth: 70,
       render: (row) => numberFmt(row.total_qty),
     },
     {
       key: "price",
-      label: "PRICE (₹)",
+      label: "Price (₹)",
       align: "right",
       minWidth: 90,
       render: (row) => money(row.price),
     },
     {
       key: "total_amount",
-      label: "TOTAL (₹)",
+      label: "Total (₹)",
       align: "right",
       minWidth: 110,
       render: (row) => (
@@ -404,7 +404,7 @@ const CategoryItemSalesReport = () => {
   const categoryColumns = useMemo<ColumnDef<CategoryWiseSalesRow>[]>(() => [
     {
       key: "categoryName",
-      label: "CATEGORY NAME",
+      label: "Category Name",
       minWidth: 150,
       render: (row) => (
         <Typography sx={{ fontSize: "0.8rem", color: "#111827", fontWeight: 600, whiteSpace: "nowrap" }}>
@@ -414,14 +414,14 @@ const CategoryItemSalesReport = () => {
     },
     {
       key: "quantity",
-      label: "ITEMS",
+      label: "Items",
       align: "right",
       minWidth: 70,
       render: (row) => numberFmt(row.quantity),
     },
     {
       key: "sales",
-      label: "TOTAL (₹)",
+      label: "Total (₹)",
       align: "right",
       minWidth: 110,
       render: (row) => (
@@ -457,7 +457,7 @@ const CategoryItemSalesReport = () => {
   const itemColumns = useMemo<ColumnDef<ItemWiseSalesRow>[]>(() => [
     {
       key: "itemName",
-      label: "ITEM NAME",
+      label: "Item Name",
       minWidth: 160,
       render: (row) => (
         <Typography sx={{ fontSize: "0.8rem", color: "#111827", fontWeight: 600, whiteSpace: "nowrap" }}>
@@ -480,21 +480,21 @@ const CategoryItemSalesReport = () => {
     // },
     {
       key: "quantity",
-      label: "QTY",
+      label: "Qty",
       align: "right",
       minWidth: 62,
       render: (row) => numberFmt(row.quantity),
     },
     {
       key: "avgPrice",
-      label: "PRICE (₹)",
+      label: "Price (₹)",
       align: "right",
       minWidth: 80,
       render: (row) => money(row.quantity > 0 ? row.sales / row.quantity : 0),
     },
     {
       key: "sales",
-      label: "TOTAL (₹)",
+      label: "Total (₹)",
       align: "right",
       minWidth: 100,
       render: (row) => (

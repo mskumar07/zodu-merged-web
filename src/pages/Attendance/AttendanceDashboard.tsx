@@ -22,6 +22,7 @@ import {
 import LottieLoader from "@components/LottieLoader";
 import SuccessToast from "@components/Common/SuccessToast";
 import MarkAttendanceModal from "./MarkAttendanceModal";
+import { useModulePermission } from "@hooks/useModulePermission";
 
 // ─── Theme ─────────────────────────────────────────────────────────────────
 
@@ -155,6 +156,7 @@ function round1(n: number): number {
 // ─── Main Component ────────────────────────────────────────────────────────
 
 export default function AttendanceDashboard() {
+  const { canEdit } = useModulePermission("Attendance");
   const zoduId = useAppSelector(ZoduId);
   const branchId = useAppSelector(BranchId);
   const profile = useAppSelector(UserProfile);
@@ -369,6 +371,7 @@ export default function AttendanceDashboard() {
                 variant="contained"
                 startIcon={<EditOutlinedIcon sx={{ fontSize: 16 }} />}
                 disableElevation
+                disabled={!canEdit}
                 onClick={() => setMarkModalOpen(true)}
                 sx={{ bgcolor: "#E11D48", color: "#fff", px: 2.5, "&:hover": { bgcolor: "#BE123C" } }}
               >
@@ -621,8 +624,8 @@ export default function AttendanceDashboard() {
 function theadCellSx(extra: Record<string, unknown> = {}) {
   return {
     px: 1.25, py: 1,
-    fontSize: 10.5, fontWeight: 700, color: "#6B7280",
-    textTransform: "uppercase" as const, letterSpacing: "0.04em",
+    fontSize: 12.5, fontWeight: 700, color: "#6B7280",
+    letterSpacing: "0.02em",
     bgcolor: "#F9FAFB", borderBottom: "1px solid #E5E7EB",
     textAlign: "left" as const, whiteSpace: "nowrap" as const,
     ...extra,

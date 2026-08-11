@@ -25,6 +25,7 @@ import SuccessToast from "@components/Common/SuccessToast";
 import StatCard from "@components/StatCard";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
 import { useAppSelector } from "@store/store";
+import { useModulePermission } from "@hooks/useModulePermission";
 import { ZoduId, BranchId, UserProfile } from "@store/slices/userSlice";
 import {
   useGetMyChecklistSummaryQuery,
@@ -183,7 +184,7 @@ function ProgressRing({ value, color }: { value: number; color: string }) {
   );
 }
 
-function buildTaskColumns(onView: (id: string) => void): ColumnDef<MyTaskItem>[] {
+function buildTaskColumns(onView: (id: string) => void, canEdit: boolean): ColumnDef<MyTaskItem>[] {
   return [
     {
       key: "checklist_code",
@@ -282,6 +283,7 @@ function buildTaskColumns(onView: (id: string) => void): ColumnDef<MyTaskItem>[]
         <Button
           variant="outlined"
           size="small"
+          disabled={!canEdit}
           onClick={() => onView(task.id)}
           sx={{
             fontSize: 12, fontWeight: 700, py: 0.5, px: 1.75, borderColor: "#E11D48", color: "#E11D48",
@@ -342,7 +344,8 @@ function AssigneesCell({ assignees }: { assignees?: AssignedChecklistAssignee[] 
 
 function buildChecklistColumns(
   onView: (id: string) => void,
-  onEdit: (id: string) => void
+  onEdit: (id: string) => void,
+  canEdit: boolean
 ): ColumnDef<AssignedChecklistSummary>[] {
   return [
     {
@@ -443,14 +446,16 @@ function buildChecklistColumns(
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, py: 0.5 }}>
           <IconButton
             size="small"
+            disabled={!canEdit}
             onClick={() => onEdit(item.checklist_id)}
-            sx={{ color: "#9CA3AF", p: 0.6, borderRadius: 1, "&:hover": { color: "#2563EB", bgcolor: "#EFF6FF" }, transition: "all 0.12s" }}
+            sx={{ color: "#1976d2", p: 0.6, borderRadius: 1, "&:hover": { color: "#1565C0", bgcolor: "#EFF6FF" }, transition: "all 0.12s" }}
           >
             <EditOutlinedIcon sx={{ fontSize: 15 }} />
           </IconButton>
           <Button
             variant="outlined"
             size="small"
+            disabled={!canEdit}
             onClick={() => onView(item.checklist_id)}
             sx={{
               fontSize: 12, fontWeight: 700, py: 0.5, px: 1.75, borderColor: "#E11D48", color: "#E11D48",
@@ -469,6 +474,7 @@ function buildChecklistColumns(
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ChecklistDashboard() {
+  const { canCreate, canEdit } = useModulePermission("Checklist / Tasklist");
   const zoduId = useAppSelector(ZoduId);
   const branchId = useAppSelector(BranchId);
   const profile = useAppSelector(UserProfile);
@@ -686,8 +692,8 @@ export default function ChecklistDashboard() {
     setIsEditingTask(true);
   }, []);
 
-  const checklistColumns = useMemo(() => buildChecklistColumns(handleView, handleEdit), [handleView, handleEdit]);
-  const taskColumns = useMemo(() => buildTaskColumns(handleView), [handleView]);
+  const checklistColumns = useMemo(() => buildChecklistColumns(handleView, handleEdit, canEdit), [handleView, handleEdit, canEdit]);
+  const taskColumns = useMemo(() => buildTaskColumns(handleView, canEdit), [handleView, canEdit]);
 
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
@@ -821,6 +827,7 @@ export default function ChecklistDashboard() {
               startIcon={<AddIcon />}
               onClick={() => setCreateOpen(true)}
               disableElevation
+              disabled={!canCreate}
               sx={{ bgcolor: "#E11D48", color: "#fff", px: 3, "&:hover": { bgcolor: "#BE123C" } }}
             >
               Assign Task
@@ -956,6 +963,7 @@ export default function ChecklistDashboard() {
           onClose={() => setViewTaskId(null)}
           task={viewTask}
           loggedEmployeeId={employeeId}
+          canEdit={canEdit}
           onEdit={() => setIsEditingTask(true)}
           onSuccess={() => {
             setSuccessMsg("Task status updated successfully!");

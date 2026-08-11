@@ -484,9 +484,9 @@ import {
   Login as LoginIcon,
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { useLoginMutation, type LoginResponse } from './Authapi';
+import { authApis, useLoginMutation, type LoginResponse } from './Authapi';
 import { useAppDispatch, useAppSelector } from '@store/store';
-import { IsAuthenticated, addUserData, setAuthData } from '@store/slices/userSlice';
+import { IsAuthenticated, addUserData, setAuthData, setRoleAccess } from '@store/slices/userSlice';
 
 // ─── Theme ────────────────────────────────────────────────────
 const theme = createTheme({
@@ -717,6 +717,45 @@ const ZoduLoginPage: React.FC = () => {
         })
       );
 
+      // Permissions are scoped per zodu_id + branch_id and fetched separately from
+      // login, once a branch is actually resolved (auto-picked here, or chosen on
+      // the /select-branch screen).
+      const loadRoleAccess = async (zoduId: string, branchId: string) => {
+        try {
+          const roleAccess = await authApis.getRoleAccess(zoduId, branchId);
+          dispatch(setRoleAccess(roleAccess));
+        } catch {
+          dispatch(setRoleAccess([]));
+        }
+      };
+
+      // Employees are pinned to the branch returned on their user record —
+      // skip the business/branch picker and go straight to the dashboard.
+      const isEmployee = data.user.user_type?.toLowerCase() === 'employee';
+      const employeeBranchId = data.user.branch_id || data.user.employee_branch;
+      if (isEmployee && employeeBranchId) {
+        const employeeCompany =
+          companies.find((c) =>
+            c.branches?.some((b) => b.branch_id === employeeBranchId)
+          ) ?? companies[0] ?? null;
+        const employeeBranch = employeeCompany?.branches?.find(
+          (b) => b.branch_id === employeeBranchId
+        );
+        const employeeZoduId = employeeCompany?.zodu_id ?? data.user.zodu_id;
+
+        dispatch(
+          addUserData({
+            zoduId: employeeZoduId,
+            branchId: employeeBranchId,
+            branchName: employeeBranch?.branch_name ?? employeeBranchId,
+            businessType: employeeCompany?.business_type ?? "",
+          })
+        );
+        await loadRoleAccess(employeeZoduId, employeeBranchId);
+        navigate('/dashboard', { replace: true });
+        return;
+      }
+
       const hasSingleCompany = companies.length === 1;
       const singleCompany = hasSingleCompany ? companies[0] : null;
       const singleCompanyBranches = singleCompany?.branches ?? [];
@@ -732,6 +771,7 @@ const ZoduLoginPage: React.FC = () => {
             businessType: singleCompany.business_type ?? "",
           })
         );
+        await loadRoleAccess(singleCompany.zodu_id, onlyBranch.branch_id);
         navigate('/dashboard', { replace: true });
         return;
       }

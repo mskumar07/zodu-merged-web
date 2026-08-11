@@ -85,7 +85,7 @@ const RestaurantDatewiseReport = ({
     () => [
       {
         key: "date",
-        label: "DATE",
+        label: "Date",
         minWidth: 180,
         render: (row) => (
           <Typography sx={{ fontSize: "0.8rem", fontWeight: 500, color: "#111827", whiteSpace: "nowrap" }}>
@@ -95,14 +95,14 @@ const RestaurantDatewiseReport = ({
       },
       {
         key: "total_orders",
-        label: "TOTAL BILLS",
+        label: "Total Bills",
         align: "center",
         minWidth: 120,
         render: (row) => row.total_orders,
       },
       {
         key: "total_amt",
-        label: "TOTAL AMOUNT",
+        label: "Total Amount",
         align: "right",
         minWidth: 140,
         render: (row) => (
@@ -327,7 +327,7 @@ const DatewiseSaleReport = () => {
     () => [
       {
         key: "saleDate",
-        label: "DATE",
+        label: "Date",
         minWidth: 120,
         render: (row) => (
           <Typography sx={{ fontSize: "0.8rem", color: "#111827", fontWeight: 500, whiteSpace: "nowrap" }}>
@@ -337,14 +337,14 @@ const DatewiseSaleReport = () => {
       },
       {
         key: "billCount",
-        label: "BILL COUNT",
+        label: "Bill Count",
         align: "center",
         minWidth: 90,
         render: (row) => row.billCount ?? "—",
       },
       {
         key: "totalAmount",
-        label: "TOTAL AMOUNT",
+        label: "Total Amount",
         align: "right",
         minWidth: 130,
         render: (row) => (
@@ -355,14 +355,14 @@ const DatewiseSaleReport = () => {
       },
       {
         key: "taxAmount",
-        label: "TAX AMOUNT",
+        label: "Tax Amount",
         align: "right",
         minWidth: 120,
         render: (row) => fmt(row.taxAmount),
       },
       {
         key: "netSales",
-        label: "NET SALES",
+        label: "Net Sales",
         align: "right",
         minWidth: 130,
         render: (row) => (

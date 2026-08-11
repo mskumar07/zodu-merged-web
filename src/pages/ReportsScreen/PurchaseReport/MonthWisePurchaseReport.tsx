@@ -119,7 +119,7 @@ const MonthWisePurchaseReport = () => {
     () => [
       {
         key: "month",
-        label: "MONTH",
+        label: "Month",
         minWidth: 120,
         render: (row) => (
           <Typography sx={{ fontSize: "0.8rem", color: "#000", fontWeight: 500, whiteSpace: "nowrap" }}>
@@ -129,14 +129,14 @@ const MonthWisePurchaseReport = () => {
       },
       {
         key: "purchaseCount",
-        label: "PURCHASE COUNT",
+        label: "Purchase Count",
         align: "center",
         minWidth: 130,
         render: (row) => row.purchaseCount ?? "—",
       },
       {
         key: "totalAmount",
-        label: "TOTAL AMOUNT",
+        label: "Total Amount",
         align: "right",
         minWidth: 130,
         render: (row) => (
@@ -147,7 +147,7 @@ const MonthWisePurchaseReport = () => {
       },
       {
         key: "pendingAmount",
-        label: "PENDING AMOUNT",
+        label: "Pending Amount",
         align: "right",
         minWidth: 140,
         render: (row) => (
@@ -158,7 +158,7 @@ const MonthWisePurchaseReport = () => {
       },
       {
         key: "paidAmount",
-        label: "PAID AMOUNT",
+        label: "Paid Amount",
         align: "right",
         minWidth: 130,
         render: (row) => (

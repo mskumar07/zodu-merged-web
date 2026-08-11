@@ -392,8 +392,8 @@ export default function MarkAttendanceModal({
 function theadSx(extra: Record<string, unknown> = {}) {
   return {
     px: 1.5, py: 1,
-    fontSize: 10.5, fontWeight: 700, color: "#6B7280",
-    textTransform: "uppercase" as const, letterSpacing: "0.04em",
+    fontSize: 12.5, fontWeight: 700, color: "#6B7280",
+    letterSpacing: "0.02em",
     bgcolor: "#F9FAFB", borderBottom: "1px solid #E5E7EB",
     ...extra,
   };

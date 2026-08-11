@@ -145,7 +145,7 @@ const MonthWiseProfitReport: React.FC = () => {
   const columns = useMemo<ColumnDef<MonthRow>[]>(() => [
     {
       key:      "month_name",
-      label:    "MONTH",
+      label:    "Month",
       minWidth: 120,
       render:   (row) => (
         <Typography sx={{ fontSize: "0.8rem", color: "#0F172A", fontWeight: 600, whiteSpace: "nowrap" }}>
@@ -155,7 +155,7 @@ const MonthWiseProfitReport: React.FC = () => {
     },
     {
       key:      "total_sales",
-      label:    isRestaurant ? "TOTAL ORDERS" : "TOTAL SALES",
+      label:    isRestaurant ? "Total Orders" : "Total Sales",
       align:    "right",
       minWidth: 140,
       render:   (row) => (
@@ -166,7 +166,7 @@ const MonthWiseProfitReport: React.FC = () => {
     },
     {
       key:      "total_purchase",
-      label:    "TOTAL PURCHASE",
+      label:    "Total Purchase",
       align:    "right",
       minWidth: 150,
       render:   (row) => (
@@ -177,7 +177,7 @@ const MonthWiseProfitReport: React.FC = () => {
     },
     {
       key:      "total_expense",
-      label:    "TOTAL EXPENSE",
+      label:    "Total Expense",
       align:    "right",
       minWidth: 150,
       render:   (row) => (
@@ -188,7 +188,7 @@ const MonthWiseProfitReport: React.FC = () => {
     },
     {
       key:      "profit",
-      label:    "TOTAL PROFIT",
+      label:    "Total Profit",
       align:    "right",
       minWidth: 140,
       render:   (row) => (

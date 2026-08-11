@@ -148,7 +148,7 @@ const DatewiseExpenseReport = () => {
     () => [
       {
         key: "expenseDate",
-        label: "DATE",
+        label: "Date",
         minWidth: 120,
         render: (row) => (
           <Typography sx={{ fontSize: "0.8rem", color: "#000", fontWeight: 500, whiteSpace: "nowrap" }}>
@@ -158,14 +158,14 @@ const DatewiseExpenseReport = () => {
       },
       {
         key: "expenseCount",
-        label: "EXPENSE COUNT",
+        label: "Expense Count",
         align: "center",
         minWidth: 130,
         render: (row) => row.expenseCount ?? "—",
       },
       {
         key: "totalAmount",
-        label: "TOTAL AMOUNT",
+        label: "Total Amount",
         align: "right",
         minWidth: 130,
         render: (row) => (
@@ -176,7 +176,7 @@ const DatewiseExpenseReport = () => {
       },
       {
         key: "pendingAmount",
-        label: "PENDING AMOUNT",
+        label: "Pending Amount",
         align: "right",
         minWidth: 140,
         render: (row) => (
@@ -187,7 +187,7 @@ const DatewiseExpenseReport = () => {
       },
       {
         key: "paidAmount",
-        label: "PAID AMOUNT",
+        label: "Paid Amount",
         align: "right",
         minWidth: 130,
         render: (row) => (

@@ -111,8 +111,8 @@ const theme = createTheme({
       styleOverrides: {
         root: { borderBottom: "1px solid #F0F0F0", padding: "6px 8px" },
         head: {
-          fontSize: 10, fontWeight: 700, letterSpacing: "0.07em", color: "#6B7280",
-          textTransform: "uppercase", backgroundColor: "#FAFAFA",
+          fontSize: 12, fontWeight: 700, letterSpacing: "0.02em", color: "#6B7280",
+          backgroundColor: "#FAFAFA",
           whiteSpace: "normal", wordBreak: "break-word", overflowWrap: "anywhere", lineHeight: 1.35,
         },
       },
@@ -1536,8 +1536,8 @@ console.log("test",serverHolds)
                     </IconButton>
                   </Box>
                 ) : (
-                  <Button onClick={() => setDiscountModalOpen(true)} size="small" startIcon={<AddCircleOutlineIcon sx={{ fontSize: 15 }} />}
-                    sx={{ minWidth: 0, px: 1.25, py: 0.35, fontSize: 10.5, fontWeight: 500, color: modeAccent, borderRadius: 999, bgcolor: modeBg, "&:hover": { bgcolor: "#FEE2E2" } }}>
+                  <Button onClick={() => setDiscountModalOpen(true)} disabled={items.length === 0} size="small" startIcon={<AddCircleOutlineIcon sx={{ fontSize: 15 }} />}
+                    sx={{ minWidth: 0, px: 1.25, py: 0.35, fontSize: 10.5, fontWeight: 500, color: modeAccent, borderRadius: 999, bgcolor: modeBg, "&:hover": { bgcolor: "#FEE2E2" }, "&.Mui-disabled": { color: "#B0B7C4", bgcolor: "#F3F4F6" } }}>
                     Add Discount
                   </Button>
                 )}
