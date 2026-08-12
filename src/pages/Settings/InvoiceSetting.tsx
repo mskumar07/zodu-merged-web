@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Box,
   Button,
+  CircularProgress,
   Divider,
   FormControl,
   MenuItem,
@@ -12,20 +13,22 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import AttachMoneyRoundedIcon from "@mui/icons-material/AttachMoneyRounded";
 import TagRoundedIcon from "@mui/icons-material/TagRounded";
-import CalendarTodayRoundedIcon from "@mui/icons-material/CalendarTodayRounded";
-import PercentRoundedIcon from "@mui/icons-material/PercentRounded";
 import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
 import Pin from "@mui/icons-material/Pin";
-import LoopRoundedIcon from "@mui/icons-material/LoopRounded";
 import GradingRoundedIcon from "@mui/icons-material/GradingRounded";
 import FavoriteOutlinedIcon from "@mui/icons-material/FavoriteOutlined";
 import CreditCardRoundedIcon from "@mui/icons-material/CreditCardRounded";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import EventRoundedIcon from "@mui/icons-material/EventRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import SuccessToast from "@components/Common/SuccessToast";
+import {
+  useInvoiceSettings,
+  useUpdateInvoiceSettings,
+  type InvoiceSettingsResponse,
+  type UpdateInvoiceSettingsPayload,
+} from "./useInvoiceSettingApi";
 
 const redTint = "#ca0022";
 const headingText = "#1d2533";
@@ -33,20 +36,15 @@ const subtleText = "#8e95a3";
 const cardBorder = "#ececf2";
 
 interface InvoiceSettings {
-  amountFormat: string;
-  currency: string;
-  dateFormat: string;
   invoicePrefix: string;
   numberOfDigits: string;
-  dailySequenceReset: boolean;
   invoiceStartNumber: string;
-  taxCalculationType: string;
   defaultTax: string;
-  roundOff: string;
   invoiceDueDays: string;
   showCompanyLogo: boolean;
   printThankYouMessage: boolean;
   defaultPaymentMethod: string;
+  printInch: string;
 }
 
 interface SettingRowProps {
@@ -162,25 +160,91 @@ const textFieldSx = {
   },
 };
 
-export default function InvoiceSetting() {
-  const [settings, setSettings] = useState<InvoiceSettings>({
-    amountFormat: "1234.56",
-    currency: "INR",
-    dateFormat: "DD-MM-YYYY",
-    invoicePrefix: "INV",
-    numberOfDigits: "4",
-    dailySequenceReset: true,
-    invoiceStartNumber: "1",
-    taxCalculationType: "on_grand_total",
-    defaultTax: "GST18",
-    roundOff: "2decimal",
-    invoiceDueDays: "0",
-    showCompanyLogo: true,
-    printThankYouMessage: true,
-    defaultPaymentMethod: "cash",
-  });
+const TAX_LABEL_TO_CODE: Record<string, string> = {
+  "GST 5%": "GST5",
+  "GST 12%": "GST12",
+  "GST 18%": "GST18",
+  "GST 28%": "GST28",
+  "None": "none",
+};
+const TAX_CODE_TO_LABEL: Record<string, string> = Object.fromEntries(
+  Object.entries(TAX_LABEL_TO_CODE).map(([label, code]) => [code, label])
+);
 
+const PAYMENT_METHOD_TO_CODE: Record<string, string> = {
+  Cash: "cash",
+  Card: "card",
+  UPI: "upi",
+  "Bank Transfer": "bank_transfer",
+};
+const PAYMENT_CODE_TO_METHOD: Record<string, string> = Object.fromEntries(
+  Object.entries(PAYMENT_METHOD_TO_CODE).map(([label, code]) => [code, label])
+);
+
+function toUiSettings(api: InvoiceSettingsResponse): InvoiceSettings {
+  return {
+    invoicePrefix: api.invoice_prefix,
+    numberOfDigits: String(api.invoice_digit_count),
+    invoiceStartNumber: String(api.invoice_start_number),
+    defaultTax: TAX_LABEL_TO_CODE[api.default_tax_label] ?? "GST18",
+    invoiceDueDays: String(api.invoice_due_days),
+    showCompanyLogo: api.show_company_logo,
+    printThankYouMessage: api.print_thank_you_message,
+    defaultPaymentMethod: PAYMENT_METHOD_TO_CODE[api.default_payment_method] ?? "cash",
+    printInch: api.printer_inch.startsWith("5") ? "5" : "3",
+  };
+}
+
+function toApiPayload(ui: InvoiceSettings): UpdateInvoiceSettingsPayload {
+  return {
+    invoice_prefix: ui.invoicePrefix,
+    invoice_digit_count: parseInt(ui.numberOfDigits, 10) || 4,
+    invoice_start_number: parseInt(ui.invoiceStartNumber, 10) || 1,
+    default_tax_label: TAX_CODE_TO_LABEL[ui.defaultTax] ?? ui.defaultTax,
+    invoice_due_days: parseInt(ui.invoiceDueDays, 10) || 0,
+    default_payment_method: PAYMENT_CODE_TO_METHOD[ui.defaultPaymentMethod] ?? ui.defaultPaymentMethod,
+    printer_inch: `${ui.printInch} Inch`,
+    show_company_logo: ui.showCompanyLogo,
+    print_thank_you_message: ui.printThankYouMessage,
+  };
+}
+
+const DEFAULT_SETTINGS: InvoiceSettings = {
+  invoicePrefix: "INV",
+  numberOfDigits: "4",
+  invoiceStartNumber: "1",
+  defaultTax: "GST18",
+  invoiceDueDays: "15",
+  showCompanyLogo: true,
+  printThankYouMessage: true,
+  defaultPaymentMethod: "cash",
+  printInch: "3",
+};
+
+export default function InvoiceSetting() {
+  const [settings, setSettings] = useState<InvoiceSettings>(DEFAULT_SETTINGS);
   const [saved, setSaved] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const { data, isLoading, isError } = useInvoiceSettings();
+
+  useEffect(() => {
+    if (data) setSettings(toUiSettings(data));
+  }, [data]);
+
+  useEffect(() => {
+    if (isError) setErrorMsg("Failed to load invoice settings. Please refresh the page.");
+  }, [isError]);
+
+  const { mutate: saveSettings, isPending: isSaving } = useUpdateInvoiceSettings({
+    onSuccess: () => {
+      setSaved(true);
+      setSuccessMsg("Invoice settings updated successfully");
+      setTimeout(() => setSaved(false), 2000);
+    },
+    onError: (msg) => setErrorMsg(msg),
+  });
 
   const update = <K extends keyof InvoiceSettings>(key: K, value: InvoiceSettings[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
@@ -188,8 +252,7 @@ export default function InvoiceSetting() {
   };
 
   const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    saveSettings(toApiPayload(settings));
   };
 
   const previewInvoiceNumber = () => {
@@ -197,6 +260,14 @@ export default function InvoiceSetting() {
     const num = parseInt(settings.invoiceStartNumber) || 1;
     return `${settings.invoicePrefix}-${String(num).padStart(digits, "0")}`;
   };
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+        <CircularProgress size={28} sx={{ color: redTint }} />
+      </Box>
+    );
+  }
 
   return (
     <Box>
@@ -218,73 +289,6 @@ export default function InvoiceSetting() {
       >
         {/* Left Column */}
         <Stack spacing={2}>
-          {/* Format & Currency */}
-          <Section title="Format & Currency" subtitle="Control how amounts and dates appear on invoices">
-            <SettingRow
-              icon={<AttachMoneyRoundedIcon fontSize="small" />}
-              label="Amount Format"
-              description="Select how amounts are displayed"
-            >
-              <FormControl fullWidth size="small">
-                <Select
-                  value={settings.amountFormat}
-                  onChange={(e) => update("amountFormat", e.target.value)}
-                  sx={selectSx}
-                >
-                  <MenuItem value="1234.56">1,234.56 (1234.56)</MenuItem>
-                  <MenuItem value="1234.56_dot">1.234,56 (European)</MenuItem>
-                  <MenuItem value="1234">1,234 (No decimals)</MenuItem>
-                </Select>
-              </FormControl>
-            </SettingRow>
-
-            <Divider sx={{ borderColor: "#f4f5f8" }} />
-
-            <SettingRow
-              icon={<AttachMoneyRoundedIcon fontSize="small" />}
-              iconBg="#eef4ff"
-              iconColor="#2563eb"
-              label="Currency"
-              description="Select the currency for invoices"
-            >
-              <FormControl fullWidth size="small">
-                <Select
-                  value={settings.currency}
-                  onChange={(e) => update("currency", e.target.value)}
-                  sx={selectSx}
-                >
-                  <MenuItem value="INR">INR (₹) - Indian Rupee</MenuItem>
-                  <MenuItem value="USD">USD ($) - US Dollar</MenuItem>
-                  <MenuItem value="EUR">EUR (€) - Euro</MenuItem>
-                  <MenuItem value="GBP">GBP (£) - British Pound</MenuItem>
-                </Select>
-              </FormControl>
-            </SettingRow>
-
-            <Divider sx={{ borderColor: "#f4f5f8" }} />
-
-            <SettingRow
-              icon={<CalendarTodayRoundedIcon fontSize="small" />}
-              iconBg="#fff7ed"
-              iconColor="#ea7a00"
-              label="Date Format"
-              description="Select the date format"
-            >
-              <FormControl fullWidth size="small">
-                <Select
-                  value={settings.dateFormat}
-                  onChange={(e) => update("dateFormat", e.target.value)}
-                  sx={selectSx}
-                >
-                  <MenuItem value="DD-MM-YYYY">DD-MM-YYYY (31-05-2025)</MenuItem>
-                  <MenuItem value="MM-DD-YYYY">MM-DD-YYYY (05-31-2025)</MenuItem>
-                  <MenuItem value="YYYY-MM-DD">YYYY-MM-DD (2025-05-31)</MenuItem>
-                  <MenuItem value="DD/MM/YYYY">DD/MM/YYYY (31/05/2025)</MenuItem>
-                </Select>
-              </FormControl>
-            </SettingRow>
-          </Section>
-
           {/* Invoice Numbering */}
           <Section title="Invoice Numbering" subtitle="Configure the invoice ID format and sequence">
             <SettingRow
@@ -319,55 +323,12 @@ export default function InvoiceSetting() {
                   onChange={(e) => update("numberOfDigits", e.target.value)}
                   sx={selectSx}
                 >
-                  <MenuItem value="3">3 (INV-001)</MenuItem>
-                  <MenuItem value="4">4 (INV-0001)</MenuItem>
-                  <MenuItem value="5">5 (INV-00001)</MenuItem>
-                  <MenuItem value="6">6 (INV-000001)</MenuItem>
+                  <MenuItem value="3">3 ({settings.invoicePrefix || "INV"}-001)</MenuItem>
+                  <MenuItem value="4">4 ({settings.invoicePrefix || "INV"}-0001)</MenuItem>
+                  <MenuItem value="5">5 ({settings.invoicePrefix || "INV"}-00001)</MenuItem>
                 </Select>
               </FormControl>
             </SettingRow>
-
-            <Divider sx={{ borderColor: "#f4f5f8" }} />
-
-            <SettingRow
-              icon={<LoopRoundedIcon fontSize="small" />}
-              iconBg="#fff1f2"
-              iconColor={redTint}
-              label="Daily Invoice ID Sequence Reset"
-              description="Reset invoice sequence to 1 every day"
-            >
-              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                <Switch
-                  checked={settings.dailySequenceReset}
-                  onChange={(e) => update("dailySequenceReset", e.target.checked)}
-                  sx={{
-                    "& .MuiSwitch-switchBase.Mui-checked": { color: redTint },
-                    "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: redTint },
-                  }}
-                />
-              </Box>
-            </SettingRow>
-
-            {settings.dailySequenceReset && (
-              <Box
-                sx={{
-                  mx: -2.5,
-                  px: 2.5,
-                  py: 1.5,
-                  bgcolor: "#eff6ff",
-                  borderTop: "1px solid #dbeafe",
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 1,
-                }}
-              >
-                <InfoOutlinedIcon sx={{ fontSize: 16, color: "#2563eb", mt: 0.2, flexShrink: 0 }} />
-                <Typography sx={{ fontSize: 12, color: "#1e40af", lineHeight: 1.6 }}>
-                  If enabled, the invoice ID will start from 1 every day.<br />
-                  If disabled, it will continue as a running sequence.
-                </Typography>
-              </Box>
-            )}
 
             <Divider sx={{ borderColor: "#f4f5f8" }} />
 
@@ -426,35 +387,9 @@ export default function InvoiceSetting() {
               </Box>
             </Box>
           </Section>
-        </Stack>
 
-        {/* Right Column */}
-        <Stack spacing={2}>
           {/* Tax Settings */}
           <Section title="Tax Settings" subtitle="Define how taxes are computed and applied">
-            <SettingRow
-              icon={<PercentRoundedIcon fontSize="small" />}
-              iconBg="#fff7ed"
-              iconColor="#ea7a00"
-              label="Tax Calculation Type"
-              description="Select how tax will be calculated"
-            >
-              <FormControl fullWidth size="small">
-                <Select
-                  value={settings.taxCalculationType}
-                  onChange={(e) => update("taxCalculationType", e.target.value)}
-                  sx={selectSx}
-                >
-                  <MenuItem value="on_grand_total">On Grand Total</MenuItem>
-                  <MenuItem value="on_each_item">On Each Item</MenuItem>
-                  <MenuItem value="exclusive">Tax Exclusive</MenuItem>
-                  <MenuItem value="inclusive">Tax Inclusive</MenuItem>
-                </Select>
-              </FormControl>
-            </SettingRow>
-
-            <Divider sx={{ borderColor: "#f4f5f8" }} />
-
             <SettingRow
               icon={<GradingRoundedIcon fontSize="small" />}
               iconBg="#fdecef"
@@ -477,32 +412,12 @@ export default function InvoiceSetting() {
               </FormControl>
             </SettingRow>
           </Section>
+        </Stack>
 
+        {/* Right Column */}
+        <Stack spacing={2}>
           {/* Payment & Rounding */}
-          <Section title="Payment & Rounding" subtitle="Set rounding and default payment preferences">
-            <SettingRow
-              icon={<TagRoundedIcon fontSize="small" />}
-              iconBg="#f0fdf4"
-              iconColor="#16a34a"
-              label="Round Off"
-              description="Round off invoice total"
-            >
-              <FormControl fullWidth size="small">
-                <Select
-                  value={settings.roundOff}
-                  onChange={(e) => update("roundOff", e.target.value)}
-                  sx={selectSx}
-                >
-                  <MenuItem value="none">No Rounding</MenuItem>
-                  <MenuItem value="2decimal">Round to 2 decimal places</MenuItem>
-                  <MenuItem value="nearest_rupee">Round to nearest rupee</MenuItem>
-                  <MenuItem value="nearest_10">Round to nearest 10</MenuItem>
-                </Select>
-              </FormControl>
-            </SettingRow>
-
-            <Divider sx={{ borderColor: "#f4f5f8" }} />
-
+          <Section title="Payment Settings" subtitle="Default payment preferences and invoice due days">
             <SettingRow
               icon={<EventRoundedIcon fontSize="small" />}
               iconBg="#eef4ff"
@@ -547,7 +462,6 @@ export default function InvoiceSetting() {
                   <MenuItem value="card">Card</MenuItem>
                   <MenuItem value="upi">UPI</MenuItem>
                   <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
-                  <MenuItem value="cheque">Cheque</MenuItem>
                 </Select>
               </FormControl>
             </SettingRow>
@@ -555,6 +469,27 @@ export default function InvoiceSetting() {
 
           {/* Print Layout */}
           <Section title="Print Layout" subtitle="Customize what appears on printed invoices">
+            <SettingRow
+              icon={<TagRoundedIcon fontSize="small" />}
+              iconBg="#f0fdf4"
+              iconColor="#16a34a"
+              label="Printer Inch"
+              description="Select the print paper width"
+            >
+              <FormControl fullWidth size="small">
+                <Select
+                  value={settings.printInch}
+                  onChange={(e) => update("printInch", e.target.value)}
+                  sx={selectSx}
+                >
+                  <MenuItem value="3">3 Inch</MenuItem>
+                  <MenuItem value="5">5 Inch</MenuItem>
+                </Select>
+              </FormControl>
+            </SettingRow>
+
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
+
             <SettingRow
               icon={<ImageOutlinedIcon fontSize="small" />}
               iconBg="#fff7ed"
@@ -620,8 +555,9 @@ export default function InvoiceSetting() {
         </Typography>
         <Button
           variant="contained"
-          startIcon={<SaveRoundedIcon />}
+          startIcon={isSaving ? <CircularProgress size={16} sx={{ color: "#fff" }} /> : <SaveRoundedIcon />}
           onClick={handleSave}
+          disabled={isSaving}
           sx={{
             px: 3,
             py: 1,
@@ -632,11 +568,23 @@ export default function InvoiceSetting() {
             boxShadow: "none",
             transition: "background-color 0.3s",
             "&:hover": { bgcolor: saved ? "#1a7a3c" : "#b1001d", boxShadow: "none" },
+            "&.Mui-disabled": { bgcolor: redTint, opacity: 0.7, color: "#fff" },
           }}
         >
-          {saved ? "Saved!" : "Save Changes"}
+          {isSaving ? "Saving..." : saved ? "Saved!" : "Save Changes"}
         </Button>
       </Box>
+
+      <SuccessToast
+        message={successMsg || ""}
+        severity="success"
+        onClose={() => setSuccessMsg(null)}
+      />
+      <SuccessToast
+        message={errorMsg || ""}
+        severity="error"
+        onClose={() => setErrorMsg(null)}
+      />
     </Box>
   );
 }
