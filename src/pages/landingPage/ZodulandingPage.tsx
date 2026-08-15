@@ -1181,22 +1181,22 @@ const ZoduLandingPage: React.FC = () => {
 
                       {/* Taller Box Image Container */}
                       {/* Taller Box Image Container */}
+{/* Taller Box Image Container */}
 <Box sx={{ flex: 1.3, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
   <Box 
     component="img" 
     src={boxImage} 
     alt="Box Mockup" 
     sx={{ 
-      width: "110%", 
-      maxHeight: "120px", 
+      width: "115%", 
+      maxHeight: "105px", 
       objectFit: "contain",
-      position: "absolute",
-      right: "-5px",
-      bottom: "-10px"
+      position: "relative",
+      bottom: "2px",
+      right: "-2px"
     }} 
   />
-</Box>
-                    </Box>
+</Box>             </Box>
 
                   </Box>
 
