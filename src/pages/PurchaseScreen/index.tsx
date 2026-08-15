@@ -24,6 +24,7 @@ import {
   type PurchaseRow,
 } from "./usePuchaseapi";
 import PurchasePaymentDialog from "./purchasePaymentDialog";
+import { useModulePermission } from "@hooks/useModulePermission";
 
 const theme = createTheme({
   palette: {
@@ -85,6 +86,7 @@ function StatsSkeleton() {
 }
 
 export default function PurchaseScreen() {
+  const { canCreate, canEdit, canDelete } = useModulePermission("Purchase");
   const [search, setSearch]               = useState("");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<PurchaseStatus | "">("");
   const [addDialogOpen, setAddDialog]     = useState(false);
@@ -274,6 +276,7 @@ export default function PurchaseScreen() {
                   variant="contained"
                   color="primary"
                   disableElevation
+                  disabled={!canEdit}
                   onClick={() => setPayment(p)}
                   sx={{
                     fontSize: "0.65rem",
@@ -298,38 +301,43 @@ export default function PurchaseScreen() {
         width: 90,
         render: (p: PurchaseRow) => (
           <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
-            <Tooltip title="Edit" placement="top">
-              <IconButton
-                size="small"
-                onClick={() => handleEdit(p.purchase_id)}
-                sx={{
-                  color: "#9CA3AF", p: 0.6, borderRadius: 1,
-                  "&:hover": { color: "#2563EB", bgcolor: "#EFF6FF" },
-                  transition: "all 0.12s",
-                }}
-              >
-                <EditOutlinedIcon sx={{ fontSize: 16 }} />
-              </IconButton>
+            <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"} placement="top">
+              <span>
+                <IconButton
+                  size="small"
+                  disabled={!canEdit}
+                  onClick={() => handleEdit(p.purchase_id)}
+                  sx={{
+                    color: "#1976d2", p: 0.6, borderRadius: 1,
+                    "&:hover": { color: "#1565C0", bgcolor: "#EFF6FF" },
+                    transition: "all 0.12s",
+                  }}
+                >
+                  <EditOutlinedIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </span>
             </Tooltip>
-            <Tooltip title="Delete" placement="top">
-              <IconButton
-                size="small"
-                onClick={() => setDeleteTarget(p)}
-                disabled={isDeleting}
-                sx={{
-                  color: "#9CA3AF", p: 0.6, borderRadius: 1,
-                  "&:hover": { color: "#DC2626", bgcolor: "#FEE2E2" },
-                  transition: "all 0.12s",
-                }}
-              >
-                <DeleteOutlineIcon sx={{ fontSize: 16 }} />
-              </IconButton>
+            <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"} placement="top">
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={() => setDeleteTarget(p)}
+                  disabled={isDeleting || !canDelete}
+                  sx={{
+                    color: "#D2122E", p: 0.6, borderRadius: 1.5,
+                    "&:hover": { bgcolor: "#D2122E22" },
+                    transition: "all 0.12s",
+                  }}
+                >
+                  <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </span>
             </Tooltip>
           </Box>
         ),
       }] as ColumnDef<PurchaseRow>[]),
     ],
-    [isDeleting, tab]
+    [isDeleting, tab, canEdit, canDelete]
   );
 
   if (listLoading && statsLoading) return <LottieLoader />;
@@ -397,6 +405,7 @@ export default function PurchaseScreen() {
                 startIcon={<AddIcon sx={{ fontSize: 16 }} />}
                 onClick={() => { setEditPurchaseId(null); setAddDialog(true); }}
                 disableElevation
+                disabled={!canCreate}
                 sx={{ flexShrink: 0, fontSize: 14, fontWeight: 700, bgcolor: "#D32F2F", color: "#fff", px: 2, py: 0.9, borderRadius: 1.5, boxShadow: "0 4px 14px rgba(211,47,47,0.3)", "&:hover": { bgcolor: "#B71C1C" }, "&:active": { transform: "scale(0.97)" }, transition: "all 0.15s", whiteSpace: "nowrap", display: { xs: "none", md: "inline-flex" } }}
               >
                 Add New Purchase
@@ -421,10 +430,12 @@ export default function PurchaseScreen() {
         </Box>
 
         {/* FAB */}
-        <Fab color="primary" onClick={() => { setEditPurchaseId(null); setAddDialog(true); }}
-          sx={{ position: "fixed", bottom: 24, right: 24, display: { xs: "flex", md: "none" }, bgcolor: "#D32F2F", boxShadow: "0 8px 24px rgba(211,47,47,0.4)", "&:hover": { bgcolor: "#B71C1C" } }}>
-          <AddIcon />
-        </Fab>
+        {canCreate && (
+          <Fab color="primary" onClick={() => { setEditPurchaseId(null); setAddDialog(true); }}
+            sx={{ position: "fixed", bottom: 24, right: 24, display: { xs: "flex", md: "none" }, bgcolor: "#D32F2F", boxShadow: "0 8px 24px rgba(211,47,47,0.4)", "&:hover": { bgcolor: "#B71C1C" } }}>
+            <AddIcon />
+          </Fab>
+        )}
 
         {/* ── Purchase Detail Dialog (ID click) ── */}
         <PurchaseDetailDialog

@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { RootState } from "@store/store";
-import type { AuthUser, CompanyDetails, CompanyWithBranches } from "@pages/auth/Authapi";
+import type { AuthUser, CompanyDetails, CompanyWithBranches, RoleAccessItem } from "@pages/auth/Authapi";
 
 interface Userstate {
   branchId: string;
@@ -12,6 +12,7 @@ interface Userstate {
   refreshToken: string | null;
   profile: AuthUser | null;
   company: CompanyDetails | null;
+  roleAccess: RoleAccessItem[];
   isAuthenticated: boolean;
 }
 
@@ -25,6 +26,7 @@ const initialState: Userstate = {
   refreshToken: null,
   profile: null,
   company: null,
+  roleAccess: [],
   isAuthenticated: false,
 };
 
@@ -46,6 +48,7 @@ const userSlice = createSlice({
         profile: AuthUser;
         company?: CompanyDetails | null;
         companies?: CompanyWithBranches[];
+        roleAccess?: RoleAccessItem[];
       }>
     ) => {
       state.accessToken = action.payload.accessToken;
@@ -53,6 +56,7 @@ const userSlice = createSlice({
       state.profile = action.payload.profile;
       state.company = action.payload.company ?? state.company;
       state.companies = action.payload.companies ?? state.companies;
+      state.roleAccess = action.payload.roleAccess ?? state.roleAccess;
       // zoduId, branchId, branchName are set via addUserData after branch selection
       state.isAuthenticated = Boolean(
         action.payload.accessToken &&
@@ -63,12 +67,16 @@ const userSlice = createSlice({
     setCompanies: (state, action: PayloadAction<CompanyWithBranches[]>) => {
       state.companies = action.payload;
     },
+    setRoleAccess: (state, action: PayloadAction<RoleAccessItem[]>) => {
+      state.roleAccess = action.payload;
+    },
     clearAuthData: (state) => {
       state.accessToken = null;
       state.refreshToken = null;
       state.profile = null;
       state.company = null;
       state.companies = [];
+      state.roleAccess = [];
       state.isAuthenticated = false;
       state.branchId = "";
       state.branchName = "";
@@ -78,7 +86,7 @@ const userSlice = createSlice({
   },
 });
 
-export const { addUserData, setAuthData, setCompanies, clearAuthData } = userSlice.actions;
+export const { addUserData, setAuthData, setCompanies, setRoleAccess, clearAuthData } = userSlice.actions;
 
 export const BranchId = (state: RootState) => state.user.branchId;
 export const BranchName = (state: RootState) => state.user.branchName;
@@ -89,6 +97,7 @@ export const AuthToken = (state: RootState) => state.user.accessToken;
 export const RefreshToken = (state: RootState) => state.user.refreshToken;
 export const UserProfile = (state: RootState) => state.user.profile;
 export const UserCompany = (state: RootState) => state.user.company;
+export const RoleAccess = (state: RootState) => state.user.roleAccess;
 export const IsAuthenticated = (state: RootState) => state.user.isAuthenticated;
 
 export default userSlice.reducer;

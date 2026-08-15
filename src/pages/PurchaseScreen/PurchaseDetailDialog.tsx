@@ -18,6 +18,7 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import { useState } from "react";
 import { usePurchaseById, type PurchaseDetail } from "./usePuchaseapi";
 import AddNewPurchaseDialog from "./Addnewpuechasedialog";
+import { useModulePermission } from "@hooks/useModulePermission";
 
 const INR = (v: number | string) =>
   new Intl.NumberFormat("en-IN", {
@@ -55,11 +56,10 @@ const STATUS_STYLES: Record<
 };
 
 const TH: React.CSSProperties = {
-  fontSize: 10,
+  fontSize: 12.5,
   fontWeight: 700,
   color: "#94A3B8",
-  textTransform: "uppercase",
-  letterSpacing: "0.08em",
+  letterSpacing: "0.02em",
   backgroundColor: "#F8FAFC",
   padding: "10px 14px",
   borderBottom: "1px solid #E5E7EB",
@@ -393,6 +393,7 @@ interface Props {
 }
 
 export default function PurchaseDetailDialog({ purchaseId, onClose }: Props) {
+  const { canEdit } = useModulePermission("Purchase");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editPurchaseId, setEditPurchaseId] = useState<string | null>(null);
 
@@ -464,7 +465,7 @@ export default function PurchaseDetailDialog({ purchaseId, onClose }: Props) {
         </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          {data && (
+          {data && canEdit && (
             <IconButton
               size="small"
               onClick={() => handleEdit(data.purchase_id)}

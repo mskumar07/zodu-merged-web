@@ -26,11 +26,10 @@ export function IHCell({
       align={align}
       sx={{
         bgcolor: "#F8FAFC",
-        fontSize: "0.7rem",
+        fontSize: "0.78rem",
         fontWeight: 700,
-        letterSpacing: "0.06em",
+        letterSpacing: "0.02em",
         color: "#64748B",
-        textTransform: "uppercase",
         borderBottom: "1px solid #E2E8F0",
         py: 1.5,
         px: 2,

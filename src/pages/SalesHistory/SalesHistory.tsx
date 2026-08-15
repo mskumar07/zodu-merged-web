@@ -32,6 +32,7 @@ import SalesReturnDialog   from "./Salesreturndialog";
 import DataTable           from "@utils/DataTable";
 import StatCard            from "@components/StatCard";
 import { useNavigate }     from "react-router-dom";
+import { useModulePermission } from "@hooks/useModulePermission";
 
 // ─── Formatter ────────────────────────────────────────────────
 const INR = (v: number) =>
@@ -186,6 +187,7 @@ export default function SalesHistoryPage() {
 
   const { branchId, businessType } = useTenantContext();
   const isRestaurant = businessType?.toLowerCase() === "restaurant";
+  const { canEdit, canDelete } = useModulePermission("Sales History");
   const [activeTab, setActiveTab] = useState<"orders" | "cancelled">("orders");
 
   const emptyFilters = (cancelled = false): Filters =>
@@ -271,7 +273,12 @@ export default function SalesHistoryPage() {
       label: "Customer",
       minWidth: 220,
       render: (sale: Sale) => {
-        const name = sale.cust_name || sale.cpy_name || "Walk-In";
+        const name = sale.cust_name || sale.cpy_name || "";
+        if (!name) {
+          return (
+            <Typography sx={{ fontSize: BODY_FONT_SIZE, color: TABLE_TEXT_COLOR }}>-</Typography>
+          );
+        }
         return (
           <Stack direction="row" alignItems="center" gap={1}>
             <Avatar sx={{
@@ -417,6 +424,7 @@ export default function SalesHistoryPage() {
                 {status !== "Paid" && !isReturned && !isQuotation && !isCancelledTab && (
                   <Button
                     size="small" variant="contained" color="primary" disableElevation
+                    disabled={!canEdit}
                     onClick={() => setPaymentDialog(sale)}
                     sx={{ fontSize: "0.65rem", py: 0.4, px: 1.5, height: 24, width: "100%", whiteSpace: "nowrap" }}
                   >
@@ -476,11 +484,11 @@ export default function SalesHistoryPage() {
         return (
           <Stack direction="row" justifyContent="flex-end" gap={0.3}>
             {!isQuotation && !isRestaurant && (
-              <Tooltip title={isReturned ? "Fully returned" : "Sales Return"}>
+              <Tooltip title={isReturned ? "Fully returned" : !canEdit ? "You don't have permission to edit" : "Sales Return"}>
                 <span>
                   <IconButton
                     size="small"
-                    disabled={isReturned}
+                    disabled={isReturned || !canEdit}
                     onClick={() => setReturnDialog(sale)}
                     sx={{
                       color: isReturned ? "text.disabled" : "text.secondary",
@@ -496,28 +504,34 @@ export default function SalesHistoryPage() {
               </Tooltip>
             )}
             {!isRestaurant && (
-            <Tooltip title="Edit Invoice">
-              <IconButton
-                size="small"
-                onClick={() => navigate(getPosEditUrl(sale))}
-                sx={{ color: "text.secondary", borderRadius: 1.5, "&:hover": { color: "primary.main", bgcolor: alpha("#E53935", 0.06) } }}
-              >
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                </svg>
-              </IconButton>
+            <Tooltip title={canEdit ? "Edit Invoice" : "You don't have permission to edit"}>
+              <span>
+                <IconButton
+                  size="small"
+                  disabled={!canEdit}
+                  onClick={() => navigate(getPosEditUrl(sale))}
+                  sx={{ color: "text.secondary", borderRadius: 1.5, "&:hover": { color: "primary.main", bgcolor: alpha("#E53935", 0.06) } }}
+                >
+                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </IconButton>
+              </span>
             </Tooltip>
             )}
-            <Tooltip title="Delete Invoice">
-              <IconButton
-                size="small"
-                onClick={() => setDeleteDialog(sale)}
-                sx={{ color: "text.secondary", borderRadius: 1.5, "&:hover": { color: "#C62828", bgcolor: alpha("#C62828", 0.06) } }}
-              >
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </IconButton>
+            <Tooltip title={canDelete ? "Delete Invoice" : "You don't have permission to delete"}>
+              <span>
+                <IconButton
+                  size="small"
+                  disabled={!canDelete}
+                  onClick={() => setDeleteDialog(sale)}
+                  sx={{ color: "text.secondary", borderRadius: 1.5, "&:hover": { color: "#C62828", bgcolor: alpha("#C62828", 0.06) } }}
+                >
+                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </IconButton>
+              </span>
             </Tooltip>
           </Stack>
         );

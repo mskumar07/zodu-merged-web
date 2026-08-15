@@ -71,14 +71,13 @@ const SectionTitle = styled(Typography)(() => ({
 }));
 
 const TH = styled(TableCell)(() => ({
-  fontSize: 10,
+  fontSize: 12,
   fontWeight: 700,
-  textTransform: "uppercase",
   color: "#64748B",
   padding: "10px 14px",
   borderBottom: "none",
   backgroundColor: "#F1F5F9",
-  letterSpacing: "0.06em",
+  letterSpacing: "0.02em",
   whiteSpace: "nowrap",
 }));
 

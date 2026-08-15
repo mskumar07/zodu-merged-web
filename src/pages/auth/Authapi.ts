@@ -49,6 +49,8 @@ export interface Branch {
   district?: string;
   state?: string;
   area_street_name?: string;
+  address_line_1?: string;
+  address_line_2?: string;
   same_as_address?: boolean;
   same_as_bank_details?: boolean;
 }
@@ -85,6 +87,9 @@ export interface CompanyWithBranches {
   status?: string;
   created_at?: string;
   updated_at?: string;
+  is_subscripted?: boolean;
+  subscription_start_date?: string;
+  subscription_expiry_date?: string;
   branches: Branch[];
 }
 
@@ -110,7 +115,11 @@ export interface AuthUser {
   email: string;
   phone_number: string;
   user_type: string;
-  branch_id: string;
+  branch_id?: string;
+  employee_branch?: string;
+  employee_code?: string;
+  employee_id?: string;
+  employee_name?: string;
 }
 
 export interface CompanyDetails {
@@ -243,6 +252,19 @@ export interface EditBranchPayload {
   use_same_bank_as_company?: boolean;
 }
 
+export interface RoleAccessItem {
+  module_id: string;
+  module_name: string;
+  parent_module_id: string | null;
+  sort_order: number;
+  can_read: boolean;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+  role_id: string;
+  role_name: string;
+}
+
 export interface LoginResponse {
   message: string;
   access_token: string;
@@ -250,6 +272,7 @@ export interface LoginResponse {
   user: AuthUser;
   company?: CompanyDetails;
   companies?: CompanyWithBranches[];
+  role_access?: RoleAccessItem[];
 }
 
 export interface SignupResponse {
@@ -337,6 +360,14 @@ export const authApis = {
     unwrap<any>(
       api.put(`/auth/api/branch/edit/${zoduId}/${branchId}`, payload)
     ),
+
+  // GET /auth/api/role-access?zodu_id=...&branch_id=... — called once a branch is
+  // selected, since permissions are scoped per zodu_id + branch_id rather than
+  // returned with the login response.
+  getRoleAccess: (zoduId: string, branchId: string) =>
+    unwrap<{ role_access: RoleAccessItem[] }>(
+      api.get('/auth/api/role-access', { params: { zodu_id: zoduId, branch_id: branchId } })
+    ).then((res) => res.role_access ?? []),
 };
 
 // ── token helpers ─────────────────────────────────────────────────────────────

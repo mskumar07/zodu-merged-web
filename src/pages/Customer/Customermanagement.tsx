@@ -19,6 +19,7 @@ import CustomerLedgerDialog from "./CustomerLedgerDialog";
 import MarkPaymentDialog from "./MarkPaymentDialog";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
 import { useInfiniteCustomers } from "./useCustomerapi";
+import { useModulePermission } from "@hooks/useModulePermission";
 
 const theme = createTheme({
   palette: {
@@ -115,6 +116,7 @@ export default function CustomerManagement({
   onEditCustomer,
   onDeleteCustomer,
 }: CustomerManagementProps) {
+  const { canCreate, canEdit, canDelete } = useModulePermission("Customer Management");
   const [search, setSearch] = useState("");
   const [addCustomerOpen, setAddCustomerOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<ApiCustomer | null>(null);
@@ -210,7 +212,7 @@ export default function CustomerManagement({
         label: "Customer / Business Name",
         width: 220,
         render: (customer) => (
-          <Box sx={{ overflow: "hidden" }}>
+          <Box sx={{ overflow: "hidden", pl: 2 }}>
             <Typography sx={{ fontSize: 13, fontWeight: 500, color: TABLE_TEXT_COLOR, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {customer.contactName}
             </Typography>
@@ -331,6 +333,7 @@ export default function CustomerManagement({
               variant="contained"
               color="primary"
               disableElevation
+              disabled={!canEdit}
               onClick={(event) => {
                 event.stopPropagation();
                 setPaymentTarget(customer);
@@ -355,53 +358,59 @@ export default function CustomerManagement({
         width: 100,
         render: (customer) => (
           <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
-            <Tooltip title="Edit" placement="top">
-              <IconButton
-                size="small"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  // Find the full customer data from apiCustomers
-                  const fullCustomer = (apiCustomers as unknown as ApiCustomer[]).find((c: ApiCustomer) => c.cust_id === customer.id);
-                  if (fullCustomer) {
-                    setEditingCustomer(fullCustomer);
-                    setAddCustomerOpen(true);
-                  }
-                  onEditCustomer?.(customer);
-                }}
-                sx={{
-                  color: "#9CA3AF",
-                  p: 0.6,
-                  borderRadius: 1,
-                  "&:hover": { color: "#2563EB", bgcolor: "#EFF6FF" },
-                  transition: "all 0.12s",
-                }}
-              >
-                <EditOutlinedIcon sx={{ fontSize: 16 }} />
-              </IconButton>
+            <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"} placement="top">
+              <span>
+                <IconButton
+                  size="small"
+                  disabled={!canEdit}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    // Find the full customer data from apiCustomers
+                    const fullCustomer = (apiCustomers as unknown as ApiCustomer[]).find((c: ApiCustomer) => c.cust_id === customer.id);
+                    if (fullCustomer) {
+                      setEditingCustomer(fullCustomer);
+                      setAddCustomerOpen(true);
+                    }
+                    onEditCustomer?.(customer);
+                  }}
+                  sx={{
+                    color: "#1565C0",
+                    p: 0.6,
+                    borderRadius: 1,
+                    "&:hover": { color: "#1976d2", bgcolor: "#EFF6FF" },
+                    transition: "all 0.12s",
+                  }}
+                >
+                  <EditOutlinedIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </span>
             </Tooltip>
-            <Tooltip title="Delete" placement="top">
-              <IconButton
-                size="small"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  handleDelete(customer.id);
-                }}
-                sx={{
-                  color: "#9CA3AF",
-                  p: 0.6,
-                  borderRadius: 1,
-                  "&:hover": { color: "#DC2626", bgcolor: "#FEE2E2" },
-                  transition: "all 0.12s",
-                }}
-              >
-                <DeleteOutlineIcon sx={{ fontSize: 16 }} />
-              </IconButton>
+            <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"} placement="top">
+              <span>
+                <IconButton
+                  size="small"
+                  disabled={!canDelete}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleDelete(customer.id);
+                  }}
+                  sx={{
+                    color: "#D2122E",
+                    p: 0.6,
+                    borderRadius: 1.5,
+                    "&:hover": { bgcolor: "#D2122E22" },
+                    transition: "all 0.12s",
+                  }}
+                >
+                  <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </span>
             </Tooltip>
           </Box>
         ),
       },
     ],
-    [onEditCustomer, apiCustomers, handleDelete, handleCustomerClick]
+    [onEditCustomer, apiCustomers, handleDelete, handleCustomerClick, canEdit, canDelete]
   );
 
   if (isLoading) return <LottieLoader />;
@@ -427,40 +436,43 @@ export default function CustomerManagement({
             justifyContent: "space-between",
             flexShrink: 0,
             gap: 2,
-            flexWrap: "nowrap",
-            overflow: "hidden",
+            flexWrap: "wrap",
+            borderBottom: "1px solid #E5E7EB",
           }}
         >
-          <TextField
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, phone, or GSTIN..."
-            size="small"
-            sx={{
-              flex: "1 1 0",
-              minWidth: 0,
-              "& .MuiOutlinedInput-root": {
-                borderRadius: 1,
-                bgcolor: "#ffff",
-                fontSize: 13,
-                "& fieldset": { borderColor: "#E5E7EB" },
-                "&:hover fieldset": { borderColor: "#D32F2F" },
-                "&.Mui-focused fieldset": { borderColor: "#D32F2F", borderWidth: 2 },
-              },
-            }}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ fontSize: 17, color: "#9CA3AF" }} />
-                  </InputAdornment>
-                ),
-              },
-            }}
-          />
+          <Typography sx={{ fontSize: 16, fontWeight: 700, color: "#1A1A2E", flexShrink: 0 }}>
+            Customer List
+          </Typography>
 
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexShrink: 0 }}>
-            <Typography sx={{ fontSize: 12, color: "#9CA3AF", fontWeight: 500 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "nowrap" }}>
+            <TextField
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, phone, or GSTIN..."
+              size="small"
+              sx={{
+                width: 280,
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 1,
+                  bgcolor: "#ffff",
+                  fontSize: 13,
+                  "& fieldset": { borderColor: "#E5E7EB" },
+                  "&:hover fieldset": { borderColor: "#D32F2F" },
+                  "&.Mui-focused fieldset": { borderColor: "#D32F2F", borderWidth: 2 },
+                },
+              }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ fontSize: 17, color: "#9CA3AF" }} />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+
+            <Typography sx={{ fontSize: 12, color: "#9CA3AF", fontWeight: 500, whiteSpace: "nowrap" }}>
               Showing{" "}
               <Box component="span" sx={{ fontWeight: 800, color: "#1A1A2E" }}>
                 {filtered.length}
@@ -514,6 +526,7 @@ export default function CustomerManagement({
                 onAddCustomer?.();
               }}
               disableElevation
+              disabled={!canCreate}
               sx={{
                 fontSize: 13,
                 fontWeight: 700,

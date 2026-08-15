@@ -1,19 +1,37 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
+import Avatar from "@mui/material/Avatar";
 import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
 import StorefrontOutlinedIcon from "@mui/icons-material/StorefrontOutlined";
-import WarehouseOutlinedIcon from "@mui/icons-material/WarehouseOutlined";
-import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
-import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
-
+import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
+import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { useAppDispatch, useAppSelector } from "@store/store";
-import { addUserData, AllCompanies } from "@store/slices/userSlice";
-import { type Branch, type CompanyWithBranches } from "@pages/auth/Authapi";
+import { addUserData, AllCompanies, UserProfile, setRoleAccess } from "@store/slices/userSlice";
+import { authApis, type Branch, type CompanyWithBranches } from "@pages/auth/Authapi";
+import SubscriptionExpiredModal from "@components/Modals/SubscriptionExpiredModal";
+import zlogo from "../../../assets/zlogo.png";
+
+// Parses "16 Apr 2031" style dates; returns null if unparseable so callers
+// can treat missing/garbled expiry as "not expired" rather than blocking access.
+const parseExpiryDate = (value?: string): Date | null => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const isSubscriptionExpired = (company: CompanyWithBranches): boolean => {
+  const expiry = parseExpiryDate(company.subscription_expiry_date);
+  if (!expiry) return false;
+  const endOfExpiryDay = new Date(expiry);
+  endOfExpiryDay.setHours(23, 59, 59, 999);
+  return endOfExpiryDay.getTime() < Date.now();
+};
 
 const BRAND_RED = "#c8101f";
 const CARD_BORDER = "rgba(19, 30, 56, 0.07)";
@@ -21,21 +39,16 @@ const CARD_BG = "rgba(255,255,255,0.82)";
 const TEXT_PRIMARY = "#151822";
 const TEXT_MUTED = "#8f93a3";
 
-const getBranchIcon = (index: number) => {
-  if (index % 3 === 0) return <StorefrontOutlinedIcon sx={{ fontSize: 17 }} />;
-  if (index % 3 === 1) return <WarehouseOutlinedIcon sx={{ fontSize: 17 }} />;
-  return <LocalShippingOutlinedIcon sx={{ fontSize: 17 }} />;
-};
-
 const getBranchAddress = (branch: Branch) => {
   const parts = [
-    branch.branch_area_street_name,
-    branch.branch_city,
-    branch.branch_district,
-    branch.branch_state,
+    branch.address_line_1 || branch.branch_address_line_1 || branch.area_street_name || branch.branch_area_street_name,
+    branch.address_line_2 || branch.branch_address_line_2,
+    branch.city || branch.branch_city,
+    branch.district || branch.branch_district,
+    branch.state || branch.branch_state,
   ].filter(Boolean);
 
-  return parts.length ? parts.join(", ") : "Address not available";
+  return parts.length ? parts.join(", ") : "";
 };
 
 function BranchRow({
@@ -76,7 +89,7 @@ function BranchRow({
             flexShrink: 0,
           }}
         >
-          {getBranchIcon(index)}
+          <LocationOnOutlinedIcon sx={{ fontSize: 17 }} />
         </Box>
 
         <Box sx={{ minWidth: 0 }}>
@@ -88,41 +101,30 @@ function BranchRow({
               lineHeight: 1.2,
             }}
           >
-            {branch.branch_name}
+            {branch.branch_id ? `${branch.branch_id} - ${branch.branch_name}` : branch.branch_name}
           </Typography>
-          <Typography
-            sx={{
-              mt: 0.2,
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              color: "#c2a47f",
-              lineHeight: 1.2,
-            }}
-          >
-            {branch.branch_id || "Branch"}
-          </Typography>
-          <Typography
-            sx={{
-              mt: 0.15,
-              fontSize: 11,
-              color: TEXT_MUTED,
-              lineHeight: 1.35,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              maxWidth: { xs: 120, sm: 160, md: 170 },
-            }}
-          >
-            {getBranchAddress(branch)}
-          </Typography>
+          {getBranchAddress(branch) && (
+            <Typography
+              sx={{
+                mt: 0.15,
+                fontSize: 11,
+                color: TEXT_MUTED,
+                lineHeight: 1.35,
+                whiteSpace: "normal",
+                wordBreak: "break-word",
+                maxWidth: { xs: 160, sm: 200, md: 210 },
+              }}
+            >
+              {getBranchAddress(branch)}
+            </Typography>
+          )}
         </Box>
       </Box>
 
       <Button
         variant="contained"
         onClick={onSelect}
+        endIcon={<ChevronRightIcon sx={{ fontSize: 16 }} />}
         sx={{
           minWidth: 104,
           px: 1.5,
@@ -136,69 +138,12 @@ function BranchRow({
           fontWeight: 800,
           lineHeight: 1.1,
           whiteSpace: "nowrap",
+          "& .MuiButton-endIcon": { ml: 0.5 },
           "&:hover": { bgcolor: "#a80d19" },
         }}
       >
         Select & Continue
       </Button>
-    </Box>
-  );
-}
-
-function SupportRow() {
-  return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        gap: 1.1,
-        px: { xs: 1.5, md: 1.75 },
-        py: 1.35,
-        borderRadius: "14px",
-        border: "1px solid rgba(24,39,75,0.06)",
-        bgcolor: "rgba(255,255,255,0.76)",
-      }}
-    >
-      <Box
-        sx={{
-          width: 28,
-          height: 28,
-          borderRadius: "999px",
-          bgcolor: "rgba(200,16,31,0.09)",
-          color: BRAND_RED,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
-        <SupportAgentOutlinedIcon sx={{ fontSize: 15 }} />
-      </Box>
-
-      <Box>
-        <Typography
-          sx={{
-            fontSize: 9.5,
-            fontWeight: 800,
-            lineHeight: 1.15,
-            color: TEXT_PRIMARY,
-            textTransform: "uppercase",
-          }}
-        >
-          Setup New Branch?
-        </Typography>
-        <Typography
-          sx={{
-            mt: 0.15,
-            fontSize: 10,
-            fontWeight: 700,
-            color: BRAND_RED,
-            lineHeight: 1.2,
-          }}
-        >
-          Contact Zodu Support
-        </Typography>
-      </Box>
     </Box>
   );
 }
@@ -210,6 +155,8 @@ function CompanyCard({
   company: CompanyWithBranches;
   onSelectBranch: (branchId: string, branchName: string) => void;
 }) {
+  const expired = useMemo(() => isSubscriptionExpired(company), [company]);
+
   return (
     <Box
       sx={{
@@ -222,71 +169,97 @@ function CompanyCard({
         p: { xs: 1.75, md: 1.9 },
       }}
     >
-      <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
-        <Box sx={{ minWidth: 0 }}>
-          <Typography
-            sx={{
-              fontSize: 18,
-              fontWeight: 700,
-              color: TEXT_PRIMARY,
-              letterSpacing: "-0.03em",
-              lineHeight: 1.05,
-            }}
-          >
-            {company.restaurant_name || company.business_name || company.company_name || "Company Name"} - {company.business_type}
-          </Typography>
-          <Typography
-            sx={{
-              mt: 0.7,
-              fontSize: 11.5,
-              color: TEXT_MUTED,
-              lineHeight: 1.45,
-              maxWidth: 280,
-            }}
-          >
-            {company.gst_no
-              ? `GSTIN ${company.gst_no}`
-              : company.business_type === "Restaurant"
-              ? "Main restaurant network for dining and food services."
-              : "Main retail distribution network for lifestyle products."}
-          </Typography>
-        </Box>
-
-        <Box sx={{ textAlign: "right", flexShrink: 0 }}>
-          <Typography
-            sx={{
-              fontSize: 8.5,
-              fontWeight: 800,
-              color: "#b7bcc7",
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-            }}
-          >
-            Zodu ID
-          </Typography>
-          <Typography
-            sx={{
-              mt: 0.4,
-              fontSize: 10.5,
-              fontWeight: 800,
-              color: "#78664f",
-              textDecoration: "underline",
-              textUnderlineOffset: "2px",
-            }}
-          >
-            {company.zodu_id}
-          </Typography>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
           <Box
             sx={{
-              width: 14,
-              height: 14,
-              borderRadius: 1,
+              width: 44,
+              height: 44,
+              borderRadius: "10px",
+              bgcolor: "rgba(200,16,31,0.09)",
+              color: BRAND_RED,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <StorefrontOutlinedIcon sx={{ fontSize: 24 }} />
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography
+              sx={{
+                fontSize: 18,
+                fontWeight: 700,
+                color: TEXT_PRIMARY,
+                letterSpacing: "-0.03em",
+                lineHeight: 1.05,
+              }}
+            >
+              {company.restaurant_name || company.business_name || company.company_name || "Company Name"} - {company.business_type}
+            </Typography>
+            {company.gst_no && (
+              <Typography
+                sx={{
+                  mt: 0.7,
+                  fontSize: 11.5,
+                  color: TEXT_MUTED,
+                  lineHeight: 1.45,
+                  maxWidth: 280,
+                }}
+              >
+                {`GSTIN ${company.gst_no}`}
+              </Typography>
+            )}
+          </Box>
+        </Box>
+
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 0.6, flexShrink: 0 }}>
+          <Box
+            sx={{
+              px: 1.1,
+              py: 0.5,
+              borderRadius: "999px",
               bgcolor: "#f6f3f1",
               border: "1px solid #efebe7",
-              mt: 2,
-              ml: "auto",
+              whiteSpace: "nowrap",
             }}
-          />
+          >
+            <Typography
+              sx={{
+                fontSize: 11,
+                fontWeight: 800,
+                color: "#78664f",
+              }}
+            >
+              {`Zodu ID - ${company.zodu_id}`}
+            </Typography>
+          </Box>
+          {company.subscription_expiry_date && (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0.5,
+                px: 1.1,
+                py: 0.4,
+                borderRadius: "999px",
+                bgcolor: expired ? "rgba(220,38,38,0.08)" : "rgba(37,99,235,0.08)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <ScheduleOutlinedIcon sx={{ fontSize: 12, color: expired ? "#dc2626" : "#2563eb" }} />
+              <Typography
+                sx={{
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  color: expired ? "#dc2626" : "#2563eb",
+                }}
+              >
+                {expired ? "Expired" : `Exp: ${company.subscription_expiry_date}`}
+              </Typography>
+            </Box>
+          )}
         </Box>
       </Box>
 
@@ -301,8 +274,6 @@ function CompanyCard({
             onSelect={() => onSelectBranch(branch.branch_id, branch.branch_name)}
           />
         ))}
-
-        <SupportRow />
       </Box>
     </Box>
   );
@@ -313,6 +284,8 @@ const SelectBranch: React.FC = () => {
   const location = useLocation();
   const dispatch = useAppDispatch();
   const storedCompanies = useAppSelector(AllCompanies);
+  const profile = useAppSelector(UserProfile);
+  const loggedInName = profile?.employee_name || profile?.restaurant_name || "";
 
   const locationState = location.state as { companies?: CompanyWithBranches[]; fromSwitch?: boolean } | null;
   const fromSwitch = locationState?.fromSwitch ?? false;
@@ -327,14 +300,30 @@ const SelectBranch: React.FC = () => {
     [companiesFromState, storedCompanies]
   );
 
-  const handleSelectBranch = (
+  const [expiredCompany, setExpiredCompany] = useState<CompanyWithBranches | null>(null);
+
+  // Permissions are scoped per zodu_id + branch_id and only resolvable once a
+  // branch is chosen, so they're fetched here rather than carried on login.
+  const loadRoleAccess = async (zoduId: string, branchId: string) => {
+    try {
+      const roleAccess = await authApis.getRoleAccess(zoduId, branchId);
+      dispatch(setRoleAccess(roleAccess));
+    } catch {
+      dispatch(setRoleAccess([]));
+    }
+  };
+
+  const handleSelectBranch = async (
     company: CompanyWithBranches,
     branchId: string,
     branchName: string
   ) => {
-    console.log("[SelectBranch] full company object:", company);
-    console.log("[SelectBranch] business_type value:", company.business_type);
+    if (isSubscriptionExpired(company)) {
+      setExpiredCompany(company);
+      return;
+    }
     dispatch(addUserData({ branchId, branchName, zoduId: company.zodu_id, businessType: company.business_type ?? "" }));
+    await loadRoleAccess(company.zodu_id, branchId);
     navigate("/dashboard", { replace: true });
   };
 
@@ -353,12 +342,16 @@ const SelectBranch: React.FC = () => {
         businessType: onlyCompany.business_type ?? "",
       })
     );
-    navigate("/dashboard", { replace: true });
+    loadRoleAccess(onlyCompany.zodu_id, onlyBranch.branch_id).finally(() => {
+      navigate("/dashboard", { replace: true });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companies, dispatch, navigate, fromSwitch]);
 
   return (
     <Box
       sx={{
+        position: "relative",
         height: "100%",
         overflowY: "auto",
         bgcolor: "#fff",
@@ -372,7 +365,49 @@ const SelectBranch: React.FC = () => {
         py: { xs: 3, md: 5 },
       }}
     >
-              <Typography sx={{fontSize:20,fontWeight:600,mb:2}}>Select the Organization</Typography>
+      <Box
+        component="img"
+        src={zlogo}
+        alt="Zodu"
+        sx={{
+          position: "absolute",
+          top: { xs: 16, md: 24 },
+          left: { xs: 16, md: 32 },
+          height: 32,
+          width: "auto",
+          objectFit: "contain",
+        }}
+      />
+
+      {loggedInName && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: { xs: 16, md: 24 },
+            right: { xs: 16, md: 32 },
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+          }}
+        >
+          <Avatar
+            sx={{
+              width: 28,
+              height: 28,
+              bgcolor: BRAND_RED,
+              fontSize: 13,
+              fontWeight: 700,
+            }}
+          >
+            {loggedInName.trim().charAt(0).toUpperCase()}
+          </Avatar>
+          <Typography sx={{ fontSize: 13, fontWeight: 700, color: TEXT_PRIMARY }}>
+            {loggedInName}
+          </Typography>
+        </Box>
+      )}
+
+              <Typography sx={{fontSize:20,fontWeight:600,mb:2}}>Select Your Business</Typography>
 
       <Box
         sx={{
@@ -437,6 +472,18 @@ const SelectBranch: React.FC = () => {
           </Box>
         )}
       </Box>
+
+      <SubscriptionExpiredModal
+        open={expiredCompany !== null}
+        businessName={
+          expiredCompany?.restaurant_name ||
+          expiredCompany?.business_name ||
+          expiredCompany?.company_name ||
+          ""
+        }
+        expiryDate={expiredCompany?.subscription_expiry_date}
+        onClose={() => setExpiredCompany(null)}
+      />
     </Box>
   );
 };

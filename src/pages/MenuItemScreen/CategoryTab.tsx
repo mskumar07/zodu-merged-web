@@ -45,6 +45,10 @@ interface CategoryTabProps {
   searchValue?: string;
   /** exposes the "open Add Category dialog" trigger to the parent, used together with hideToolbar */
   onRequestAdd?: (openAdd: () => void) => void;
+  /** when false, disables the row-level edit action (defaults to true — permission-gated callers pass this explicitly) */
+  canEdit?: boolean;
+  /** when false, disables the row-level delete action (defaults to true — permission-gated callers pass this explicitly) */
+  canDelete?: boolean;
 }
 
 // ─── CategoryTab ──────────────────────────────────────────────────────────────
@@ -56,6 +60,8 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
   hideToolbar = false,
   searchValue,
   onRequestAdd,
+  canEdit = true,
+  canDelete = true,
 }) => {
   const qc = useQueryClient();
 
@@ -206,7 +212,7 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
             checked={row.active}
             size="small"
             color="primary"
-            disabled={togglingId === row.id}
+            disabled={togglingId === row.id || !canEdit}
             onChange={() => { setTogglingId(row.id); toggleStatus({ id: row.id, active: !row.active, pageExpense: typeFilter === "E" }); }}
           />
         ),
@@ -215,23 +221,27 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
         key: "actions", label: "Actions", align: "center", width: 100,
         render: (row) => (
           <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
-            <Tooltip title="Edit">
-              <IconButton size="small" onClick={() => openEdit(row)}
-                sx={{ color: "text.disabled", "&:hover": { color: "primary.main", bgcolor: "primary.light" + "22" }, borderRadius: 1.5 }}>
-                <EditIcon fontSize="small" />
-              </IconButton>
+            <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"}>
+              <span>
+                <IconButton size="small" onClick={() => openEdit(row)} disabled={!canEdit}
+                  sx={{ color: "text.disabled", "&:hover": { color: "primary.main", bgcolor: "primary.light" + "22" }, borderRadius: 1.5 }}>
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              </span>
             </Tooltip>
-            <Tooltip title="Delete">
-              <IconButton size="small" onClick={() => setDeleteTarget(row)}
-                sx={{ color: "#D2122E", "&:hover": { bgcolor: "#D2122E22" }, borderRadius: 1.5 }}>
-                <DeleteIcon fontSize="small" />
-              </IconButton>
+            <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"}>
+              <span>
+                <IconButton size="small" onClick={() => setDeleteTarget(row)} disabled={!canDelete}
+                  sx={{ color: "#D2122E", "&:hover": { bgcolor: "#D2122E22" }, borderRadius: 1.5 }}>
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </span>
             </Tooltip>
           </Box>
         ),
       },
     ],
-    [openEdit, toggleStatus, togglingId] // eslint-disable-line react-hooks/exhaustive-deps
+    [openEdit, toggleStatus, togglingId, canEdit, canDelete] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const rows = useMemo<CategoryRowWithSno[]>(

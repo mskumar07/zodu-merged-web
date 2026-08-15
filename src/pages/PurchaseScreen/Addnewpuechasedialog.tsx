@@ -81,8 +81,8 @@ const theme = createTheme({
       styleOverrides: {
         root: { borderBottom: "1px solid #F3F4F6", padding: "8px 12px", fontSize: 13 },
         head: {
-          fontSize: 10, fontWeight: 700, letterSpacing: "0.07em",
-          color: "#6B7280", textTransform: "uppercase" as const,
+          fontSize: 12, fontWeight: 700, letterSpacing: "0.02em",
+          color: "#6B7280",
           backgroundColor: "#F9FAFB", borderBottom: "1px solid #E5E7EB",
           padding: "10px 12px",
         },
@@ -442,10 +442,10 @@ function ItemPickerDialog({ open, onClose, alreadyAdded, onConfirm }: ItemPicker
             <TableHead>
               <TableRow>
                 <TableCell sx={{ width: 44, bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important" }} />
-                <TableCell sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "10px !important", fontWeight: "700 !important", color: "#6B7280 !important", letterSpacing: "0.07em", textTransform: "uppercase" as const }}>Item</TableCell>
-                <TableCell align="center" sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "10px !important", fontWeight: "700 !important", color: "#6B7280 !important", width: 122 }}>Qty</TableCell>
-                <TableCell align="right" sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "10px !important", fontWeight: "700 !important", color: "#6B7280 !important", width: 148 }}>Unit Price</TableCell>
-                <TableCell align="center" sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "10px !important", fontWeight: "700 !important", color: "#6B7280 !important", width: 68 }}>GST</TableCell>
+                <TableCell sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "12px !important", fontWeight: "700 !important", color: "#6B7280 !important", letterSpacing: "0.02em" }}>Item</TableCell>
+                <TableCell align="center" sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "12px !important", fontWeight: "700 !important", color: "#6B7280 !important", width: 122 }}>Qty</TableCell>
+                <TableCell align="right" sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "12px !important", fontWeight: "700 !important", color: "#6B7280 !important", width: 148 }}>Unit Price</TableCell>
+                <TableCell align="center" sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "12px !important", fontWeight: "700 !important", color: "#6B7280 !important", width: 68 }}>GST</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>

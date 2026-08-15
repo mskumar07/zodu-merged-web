@@ -101,6 +101,10 @@ interface Props {
   onEdit?: () => void;
   onSuccess?: () => void;
   onError?: (msg: string) => void;
+  /** When false, the modal renders in read-only mode: status/remarks fields,
+   *  uploads, the pencil "edit task" icon, and the submit button are all
+   *  disabled — used when the Checklist / Tasklist module's can_edit is false. */
+  canEdit?: boolean;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────────
@@ -251,7 +255,7 @@ export function EvidenceThumb({
 // ─── Item Card ───────────────────────────────────────────────────────────────────
 
 function ItemCard({
-  item, onChangeStatus, onChangeRemarks, onPickFile, uploading, loggedEmployeeId, onRemoveFile, deletingEvidenceFileId,
+  item, onChangeStatus, onChangeRemarks, onPickFile, uploading, loggedEmployeeId, onRemoveFile, deletingEvidenceFileId, canEdit,
 }: {
   item: TaskStatusItem;
   onChangeStatus: (id: string, status: ItemStatus) => void;
@@ -261,6 +265,7 @@ function ItemCard({
   loggedEmployeeId?: string;
   onRemoveFile: (itemId: string, fileId: string) => void;
   deletingEvidenceFileId: string | null;
+  canEdit: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const c = ITEM_STATUS_COLORS[item.status] ?? ITEM_STATUS_COLORS["Not Started"];
@@ -290,7 +295,7 @@ function ItemCard({
         <Typography sx={{ fontSize: 12, color: "#6B7280", lineHeight: 1.4 }}>{item.description}</Typography>
 
         {/* Status */}
-        <FormControl size="small" fullWidth>
+        <FormControl size="small" fullWidth disabled={!canEdit}>
           <Select
             value={item.status}
             onChange={(e) => onChangeStatus(item.id, e.target.value as ItemStatus)}
@@ -319,6 +324,7 @@ function ItemCard({
           placeholder="Add remarks..."
           value={item.remarks}
           onChange={(e) => onChangeRemarks(item.id, e.target.value)}
+          disabled={!canEdit}
           sx={{ "& .MuiOutlinedInput-root": { fontSize: 12 } }}
         />
 
@@ -377,12 +383,12 @@ function ItemCard({
                   variant="outlined"
                   size="small"
                   startIcon={uploading ? <CircularProgress size={12} sx={{ color: "#E11D48" }} /> : <AddIcon sx={{ fontSize: 14 }} />}
-                  disabled={uploading}
+                  disabled={uploading || !canEdit}
                   sx={{ fontSize: 11.5, borderColor: "#E11D48", color: "#E11D48", borderRadius: 1.5, py: 0.4, px: 1.5,
                     "&:hover": { bgcolor: "#FFF1F2" } }}
                 >
                   Upload Files
-                  <input type="file" hidden multiple disabled={uploading}
+                  <input type="file" hidden multiple disabled={uploading || !canEdit}
                     onChange={(e) => { if (e.target.files?.length) onPickFile(item.id, e.target.files); e.target.value = ""; }}
                   />
                 </Button>
@@ -396,7 +402,7 @@ function ItemCard({
               ) : (
                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
                   {evidenceFiles.map((f) => {
-                    const canDelete = !!loggedEmployeeId && !!f.uploadedById && f.uploadedById === loggedEmployeeId;
+                    const canDelete = canEdit && !!loggedEmployeeId && !!f.uploadedById && f.uploadedById === loggedEmployeeId;
                     return (
                       <EvidenceThumb
                         key={f.id}
@@ -421,7 +427,7 @@ function ItemCard({
 
 type AttachFilter = "all" | "image" | "pdf" | "excel" | "word";
 
-export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmployeeId, onEdit, onSuccess, onError }: Props) {
+export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmployeeId, onEdit, onSuccess, onError, canEdit = true }: Props) {
   const zoduId = useAppSelector(ZoduId);
   const branchId = useAppSelector(BranchId);
   const profile = useAppSelector(UserProfile);
@@ -637,7 +643,7 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
               </Box>
             </Box>
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: -0.5 }}>
-              {isOwner && (
+              {isOwner && canEdit && (
                 <IconButton onClick={onEdit} size="small" sx={{ color: "#6B7280" }}>
                   <EditOutlinedIcon fontSize="small" />
                 </IconButton>
@@ -738,7 +744,7 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
               bgcolor: "#F8FAFC", borderRadius: 1.5, border: "1px solid #F1F5F9",
             }}>
               {["#", "Checklist Item", "Description", "Status *", "Remarks (Optional)", "Evidence"].map((h, i) => (
-                <Typography key={i} sx={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.3 }}>{h}</Typography>
+                <Typography key={i} sx={{ fontSize: 12.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: 0.1 }}>{h}</Typography>
               ))}
             </Box>
 
@@ -754,6 +760,7 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
                 loggedEmployeeId={loggedEmployeeId}
                 onRemoveFile={handleRemoveItemFile}
                 deletingEvidenceFileId={deletingEvidenceFileId}
+                canEdit={canEdit}
               />
             ))}
 
@@ -787,12 +794,12 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
                 variant="outlined"
                 size="small"
                 startIcon={attachUploading ? <CircularProgress size={13} sx={{ color: "#E11D48" }} /> : <AddIcon sx={{ fontSize: 15 }} />}
-                disabled={attachUploading}
+                disabled={attachUploading || !canEdit}
                 sx={{ fontSize: 12, borderColor: "#E11D48", color: "#E11D48", borderRadius: 1.5, px: 2, py: 0.6, whiteSpace: "nowrap",
                   "&:hover": { bgcolor: "#FFF1F2" } }}
               >
                 Upload Files
-                <input type="file" hidden multiple disabled={attachUploading}
+                <input type="file" hidden multiple disabled={attachUploading || !canEdit}
                   onChange={(e) => { handleAttachmentPick(e.target.files); e.target.value = ""; }}
                 />
               </Button>
@@ -805,8 +812,9 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
                 sx={{
                   display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                   border: "1.5px dashed #E5E7EB", borderRadius: 2, p: 3,
-                  cursor: attachUploading ? "default" : "pointer", minHeight: 160,
-                  "&:hover": attachUploading ? undefined : { borderColor: "#E11D48", bgcolor: "#FFF5F5" },
+                  cursor: (attachUploading || !canEdit) ? "default" : "pointer", minHeight: 160,
+                  opacity: canEdit ? 1 : 0.6,
+                  "&:hover": (attachUploading || !canEdit) ? undefined : { borderColor: "#E11D48", bgcolor: "#FFF5F5" },
                 }}
               >
                 {attachUploading ? (
@@ -827,7 +835,7 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
                     </Typography>
                   </>
                 )}
-                <input type="file" hidden multiple disabled={attachUploading}
+                <input type="file" hidden multiple disabled={attachUploading || !canEdit}
                   onChange={(e) => { handleAttachmentPick(e.target.files); e.target.value = ""; }}
                 />
               </Box>
@@ -876,7 +884,7 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
                   ) : (
                     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
                       {filteredAttach.map((f) => {
-                        const canDelete = !!loggedEmployeeId && !!f.uploadedById && f.uploadedById === loggedEmployeeId;
+                        const canDelete = canEdit && !!loggedEmployeeId && !!f.uploadedById && f.uploadedById === loggedEmployeeId;
                         return (
                           <EvidenceThumb
                             key={f.id}
@@ -899,7 +907,7 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
 
         {/* ── Footer ── */}
         <DialogActions sx={{ px: 3, py: 2, gap: 1.5, justifyContent: "space-between" }}>
-          <Button variant="outlined" sx={{ borderColor: "#E5E7EB", color: "#374151", px: 3 }}>
+          <Button variant="outlined" disabled={!canEdit} sx={{ borderColor: "#E5E7EB", color: "#374151", px: 3 }}>
             Save as Draft
           </Button>
           <Box sx={{ display: "flex", gap: 1.5 }}>
@@ -909,7 +917,7 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
             <Button
               variant="contained" disableElevation
               onClick={handleSubmit}
-              disabled={isSubmitting || !!uploadingItemId || attachUploading}
+              disabled={!canEdit || isSubmitting || !!uploadingItemId || attachUploading}
               startIcon={(isSubmitting || !!uploadingItemId || attachUploading) ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : undefined}
               sx={{ bgcolor: "#E11D48", color: "#fff", px: 3, "&:hover": { bgcolor: "#BE123C" } }}
             >

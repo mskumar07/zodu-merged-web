@@ -174,7 +174,7 @@ const YearWiseProfitReport: React.FC = () => {
   const columns = useMemo<ColumnDef<YearRow>[]>(() => [
     {
       key:      "year",
-      label:    "YEAR",
+      label:    "Year",
       minWidth: 120,
       render:   (row) => (
         <Typography sx={{ fontSize: "0.8rem", color: "#0F172A", fontWeight: 600, whiteSpace: "nowrap" }}>
@@ -184,7 +184,7 @@ const YearWiseProfitReport: React.FC = () => {
     },
     {
       key:      "total_sales",
-      label:    isRestaurant ? "TOTAL ORDERS" : "TOTAL SALES",
+      label:    isRestaurant ? "Total Orders" : "Total Sales",
       align:    "right",
       minWidth: 150,
       render:   (row) => (
@@ -195,7 +195,7 @@ const YearWiseProfitReport: React.FC = () => {
     },
     {
       key:      "total_purchase",
-      label:    "TOTAL PURCHASE",
+      label:    "Total Purchase",
       align:    "right",
       minWidth: 160,
       render:   (row) => (
@@ -206,7 +206,7 @@ const YearWiseProfitReport: React.FC = () => {
     },
     {
       key:      "total_expense",
-      label:    "TOTAL EXPENSE",
+      label:    "Total Expense",
       align:    "right",
       minWidth: 160,
       render:   (row) => (
@@ -217,7 +217,7 @@ const YearWiseProfitReport: React.FC = () => {
     },
     {
       key:      "profit",
-      label:    "TOTAL PROFIT",
+      label:    "Total Profit",
       align:    "right",
       minWidth: 150,
       render:   (row) => (

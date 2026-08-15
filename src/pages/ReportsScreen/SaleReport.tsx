@@ -144,7 +144,7 @@ const RestaurantMonthwiseReport = ({
     () => [
       {
         key: "month",
-        label: "MONTH",
+        label: "Month",
         minWidth: 160,
         render: (row) => (
           <Typography sx={{ fontSize: "0.8rem", fontWeight: 500, color: "#111827", whiteSpace: "nowrap" }}>
@@ -154,14 +154,14 @@ const RestaurantMonthwiseReport = ({
       },
       {
         key: "total_orders",
-        label: "TOTAL ORDERS",
+        label: "Total Orders",
         align: "center",
         minWidth: 120,
         render: (row) => row.total_orders,
       },
       {
         key: "total_amount",
-        label: "TOTAL AMOUNT",
+        label: "Total Amount",
         align: "right",
         minWidth: 140,
         render: (row) => (
@@ -314,7 +314,7 @@ const SalesReport = () => {
     () => [
       {
         key: "month",
-        label: "MONTH",
+        label: "Month",
         minWidth: 120,
         render: (row) => (
           <Typography sx={{ fontSize: "0.8rem", color: "#111827", fontWeight: 500, whiteSpace: "nowrap" }}>
@@ -324,14 +324,14 @@ const SalesReport = () => {
       },
       {
         key: "bills",
-        label: "BILLS",
+        label: "Bills",
         align: "center",
         minWidth: 90,
         render: (row) => row.bills ?? "—",
       },
       {
         key: "TOTAL AMOUNT",
-        label: "TOTAL AMOUNT",
+        label: "Total Amount",
         align: "right",
         minWidth: 120,
         render: (row) => (
@@ -342,14 +342,14 @@ const SalesReport = () => {
       },
       {
         key: "tax",
-        label: "TAX",
+        label: "Tax",
         align: "right",
         minWidth: 100,
         render: (row) => fmt(row.tax),
       },
       {
         key: "netSales",
-        label: "NET SALES",
+        label: "Net Sales",
         align: "right",
         minWidth: 130,
         render: (row) => (

@@ -63,13 +63,12 @@ const headCellSx = {
   padding:         CELL_P,
   lineHeight:      `${ROW_H}px`,
   whiteSpace:      "nowrap" as const,
-  fontSize:        "11px",
-  fontWeight:      600,
+  fontSize:        "12.5px",
+  fontWeight:      700,
   color:           "#6B7280",
   backgroundColor: "#F5F5F5",
   borderBottom:    "1px solid #E5E7EB",
-  letterSpacing:   "0.06em",
-  textTransform:   "uppercase" as const,
+  letterSpacing:   "0.02em",
   position:        "sticky" as const,
   top:             0,
   zIndex:          2,
@@ -114,35 +113,38 @@ function MiniTable<T>({
   hasNextPage?:        boolean;
 }) {
   const sentinelRef = useRef<HTMLTableRowElement>(null);
+  const scrollElRef = useRef<Element | null>(null);
   const stateRef = useRef({ onLoadMore, hasNextPage, isFetchingNextPage });
   stateRef.current = { onLoadMore, hasNextPage, isFetchingNextPage };
 
   useEffect(() => {
-    if (!onLoadMore) return;
-    const el = sentinelRef.current;
-    if (!el) return;
-
     // Find the nearest scrollable ancestor (SectionCard's overflowY:auto box)
-    // so the observer's root matches what actually scrolls — the viewport
-    // is not it, since these tables live in fixed-height scrolling cards.
-    let root: Element | null = el.parentElement;
+    // once per mount — this element is stable even though the sentinel <tr>
+    // itself gets added/removed/recreated as rows and skeletons change.
+    const startEl: Element | null = sentinelRef.current ?? null;
+    let root: Element | null = startEl?.parentElement ?? null;
     while (root && root !== document.body) {
       const style = getComputedStyle(root);
       if (style.overflowY === "auto" || style.overflowY === "scroll") break;
       root = root.parentElement;
     }
+    scrollElRef.current = root;
+    if (!root) return;
 
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        const { onLoadMore: load, hasNextPage: hasNext, isFetchingNextPage: fetching } = stateRef.current;
-        if (entry.isIntersecting && hasNext && !fetching) load?.();
-      },
-      { root: root && root !== document.body ? root : null, threshold: 0.1 }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [!!onLoadMore]);
+    const THRESHOLD = 120;
+    const checkScroll = () => {
+      const { onLoadMore: load, hasNextPage: hasNext, isFetchingNextPage: fetching } = stateRef.current;
+      if (!load || !hasNext || fetching) return;
+      const el = root as HTMLElement;
+      if (el.scrollHeight - el.scrollTop - el.clientHeight <= THRESHOLD) load();
+    };
+
+    root.addEventListener("scroll", checkScroll, { passive: true });
+    // Content may already fit without a scrollbar, or a fetch may have just
+    // finished leaving room for more — check immediately after every render.
+    checkScroll();
+    return () => root!.removeEventListener("scroll", checkScroll);
+  });
 
   return (
     <Box component="table" sx={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>

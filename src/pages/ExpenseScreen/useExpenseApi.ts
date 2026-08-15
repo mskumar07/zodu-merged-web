@@ -142,7 +142,7 @@ export interface ExpenseDetail {
   attachment_url?: Array<{ id: string; url: string; filename: string; size: number; mimetype: string }> | string[] | null;
   items: Array<{
     expense_item_id?: number;
-    item_id?: number;
+    item_id?: string | null;
     id?: number;
     item_name: string;
     qty: number | string;
