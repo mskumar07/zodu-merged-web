@@ -81,8 +81,8 @@ const theme = createTheme({
       styleOverrides: {
         root: { borderBottom: "1px solid #F3F4F6", padding: "8px 12px", fontSize: 13 },
         head: {
-          fontSize: 10, fontWeight: 700, letterSpacing: "0.07em",
-          color: "#6B7280", textTransform: "uppercase" as const,
+          fontSize: 12, fontWeight: 700, letterSpacing: "0.02em",
+          color: "#6B7280",
           backgroundColor: "#F9FAFB", borderBottom: "1px solid #E5E7EB",
           padding: "10px 12px",
         },
@@ -321,6 +321,8 @@ interface PurchaseForm {
   items: PurchaseItem[];
 }
 
+const NOTES_MAX_LENGTH = 1000;
+
 // ─── Helpers ──────────────────────────────────────────────────
 const todayStr      = () => new Date().toISOString().split("T")[0];
 const INR           = (v: number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(v);
@@ -440,10 +442,10 @@ function ItemPickerDialog({ open, onClose, alreadyAdded, onConfirm }: ItemPicker
             <TableHead>
               <TableRow>
                 <TableCell sx={{ width: 44, bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important" }} />
-                <TableCell sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "10px !important", fontWeight: "700 !important", color: "#6B7280 !important", letterSpacing: "0.07em", textTransform: "uppercase" as const }}>Item</TableCell>
-                <TableCell align="center" sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "10px !important", fontWeight: "700 !important", color: "#6B7280 !important", width: 122 }}>Qty</TableCell>
-                <TableCell align="right" sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "10px !important", fontWeight: "700 !important", color: "#6B7280 !important", width: 148 }}>Unit Price</TableCell>
-                <TableCell align="center" sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "10px !important", fontWeight: "700 !important", color: "#6B7280 !important", width: 68 }}>GST</TableCell>
+                <TableCell sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "12px !important", fontWeight: "700 !important", color: "#6B7280 !important", letterSpacing: "0.02em" }}>Item</TableCell>
+                <TableCell align="center" sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "12px !important", fontWeight: "700 !important", color: "#6B7280 !important", width: 122 }}>Qty</TableCell>
+                <TableCell align="right" sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "12px !important", fontWeight: "700 !important", color: "#6B7280 !important", width: 148 }}>Unit Price</TableCell>
+                <TableCell align="center" sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "12px !important", fontWeight: "700 !important", color: "#6B7280 !important", width: 68 }}>GST</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -508,8 +510,8 @@ const emptyForm = (): PurchaseForm => ({
 function detailToForm(detail: PurchaseDetail): PurchaseForm {
   return {
     supplier:      detail.vendor_id ?? "",
-    purchaseDate:  detail.purchase_date_formatted ?? detail.purchase_date?.split("T")[0] ?? todayStr(),
-    invoiceNo:     detail.purchase_id ?? "",
+    purchaseDate:  detail.purchase_date ? formatDateForInput(detail.purchase_date) : todayStr(),
+    invoiceNo:     detail.invoice_bill_no ?? "",
     paymentMethod: (detail.payments?.[0]?.transaction_type as PaymentMethod) ?? "Bank Transfer",
     paymentRef:    detail.payments?.[0]?.transaction_id ?? "",
     paymentDate:   detail.payments?.[0]?.payment_date ? formatDateForInput(detail.payments[0].payment_date) : todayStr(),
@@ -544,6 +546,9 @@ export default function AddNewPurchaseDialog({
   const [vendoropen , setVendorOpen]=useState(false);
   const [vendorSearch, setVendorSearch] = useState("");
   const [successMsg, setSuccessMsg]   = useState("");
+  const purchaseDateInputRef = useRef<HTMLInputElement>(null);
+  const paymentDateInputRef  = useRef<HTMLInputElement>(null);
+  const dueDateInputRef      = useRef<HTMLInputElement>(null);
 
   const { data: vendorsResponse = [], isLoading: vendorsLoading } = useVendors();
   const createPurchase = useCreatePurchase();
@@ -677,14 +682,15 @@ export default function AddNewPurchaseDialog({
 
     const payload: PurchasePayload = {
       zodu_id: getZoduId() ?? "", branch_id: getBranchId() ?? "",
-      vendor_id: form.supplier, purchase_date: form.purchaseDate,
+      vendor_id: form.supplier, purchase_date: form.purchaseDate || todayStr(),
       total_amount: grandTotal, paid_amount: paid,
       payment_status: paymentStatus(),
-      notes: form.notes || undefined,
+      invoice_bill_no: form.invoiceNo.trim() || undefined,
+      notes: form.notes.trim() ? form.notes.trim().slice(0, NOTES_MAX_LENGTH) : undefined,
       transaction_type: form.paymentMethod,
       transaction_id: form.paymentRef || null,
       payment_date: form.paymentDate || null,
-      due_date: form.dueDate ? new Date(form.dueDate).toISOString() : null,
+      due_date: balanceDue > 0 && form.dueDate ? new Date(form.dueDate).toISOString() : null,
       attachment_url: allUrls,
       items: form.items.map((item): PurchaseItemPayload => {
         const tax = itemTaxAmount(item);
@@ -716,6 +722,15 @@ export default function AddNewPurchaseDialog({
       "&:hover fieldset": { borderColor: "#D21F3C" },
       "&.Mui-focused fieldset": { borderColor: "#D21F3C", borderWidth: 2 },
     },
+  };
+
+  // Format YYYY-MM-DD -> "29-JUL-2026"
+  const formatDateDisplay = (dateString: string | undefined): string => {
+    if (!dateString) return "";
+    const [year, month, day] = dateString.split("-");
+    if (!year || !month || !day) return "";
+    const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+    return `${day}-${monthNames[Number(month) - 1]}-${year}`;
   };
 
   return (
@@ -774,7 +789,7 @@ export default function AddNewPurchaseDialog({
                       return vendorDisplayName(vendor) || String(v);
                     }}
                     onOpen={() => setVendorSearch("")}
-                    MenuProps={{ PaperProps: { sx: { mt: 0.5, maxHeight: 340, borderRadius: 2, boxShadow: "0 18px 40px rgba(15,23,42,0.12)" } } }}
+                    MenuProps={{ autoFocus: false, disableAutoFocusItem: true, PaperProps: { sx: { mt: 0.5, maxHeight: 340, borderRadius: 2, boxShadow: "0 18px 40px rgba(15,23,42,0.12)" } } }}
                     sx={{ bgcolor: "#F8FAFC", fontSize: 13, borderRadius: "8px" }}>
                     <ListSubheader sx={{ bgcolor: "#fff", py: 1, px: 1, borderBottom: "1px solid #F1F5F9" }} onKeyDown={e => e.stopPropagation()}>
                       <TextField
@@ -813,7 +828,32 @@ export default function AddNewPurchaseDialog({
                 <Box sx={{ minHeight: 30, display: "flex", alignItems: "center", mb: 0.5 }}>
                   <FieldLabel sx={{ mb: 0, lineHeight: 1.2 }}>Purchase Date</FieldLabel>
                 </Box>
-                <TextField type="date" size="small" fullWidth value={form.purchaseDate} onChange={e => setField("purchaseDate", e.target.value)} sx={inputSx} inputProps={{ style: { fontSize: 13 } }} />
+                <Box
+                  onClick={() => { purchaseDateInputRef.current?.showPicker?.(); purchaseDateInputRef.current?.focus(); }}
+                  sx={{
+                    position: "relative",
+                    display: "flex", alignItems: "center", gap: 0.6,
+                    height: 40,
+                    px: 1.25,
+                    borderRadius: "8px",
+                    border: "1px solid #E2E8F0",
+                    bgcolor: "#F8FAFC",
+                    cursor: "pointer",
+                    "&:hover": { borderColor: "#D21F3C" },
+                  }}
+                >
+                  <CalendarTodayIcon sx={{ fontSize: 14, color: "#6B7280" }} />
+                  <Typography sx={{ fontSize: 13, fontWeight: 600, color: form.purchaseDate ? "#111827" : "#94A3B8" }}>
+                    {form.purchaseDate ? formatDateDisplay(form.purchaseDate) : "Select date"}
+                  </Typography>
+                  <input
+                    ref={purchaseDateInputRef}
+                    type="date"
+                    value={form.purchaseDate}
+                    onChange={e => setField("purchaseDate", e.target.value)}
+                    style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
+                  />
+                </Box>
               </Box>
               <Box>
                 <Box sx={{ minHeight: 30, display: "flex", alignItems: "center", mb: 0.5 }}>
@@ -893,8 +933,21 @@ export default function AddNewPurchaseDialog({
               {/* Notes + Attachments */}
               <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
                 <Box>
-                  <FieldLabel>Purchase Notes</FieldLabel>
-                  <TextField multiline rows={3} fullWidth value={form.notes} onChange={e => setField("notes", e.target.value)} placeholder="Any additional notes…" size="small" sx={inputSx} />
+                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <FieldLabel>Purchase Notes</FieldLabel>
+                    <Typography sx={{ fontSize: 10, fontWeight: 600, color: form.notes.length > NOTES_MAX_LENGTH ? "#DC2626" : "#94A3B8" }}>
+                      {form.notes.length}/{NOTES_MAX_LENGTH}
+                    </Typography>
+                  </Box>
+                  <TextField
+                    multiline rows={3} fullWidth
+                    value={form.notes}
+                    onChange={e => setField("notes", e.target.value.slice(0, NOTES_MAX_LENGTH))}
+                    placeholder="Any additional notes…"
+                    size="small"
+                    sx={inputSx}
+                    inputProps={{ maxLength: NOTES_MAX_LENGTH }}
+                  />
                 </Box>
                 <Box>
                   <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.5 }}>
@@ -920,7 +973,32 @@ export default function AddNewPurchaseDialog({
                 </Box>
                 <Box>
                   <FieldLabel>Payment Date</FieldLabel>
-                  <TextField type="date" size="small" fullWidth value={form.paymentDate} onChange={e => setField("paymentDate", e.target.value)} sx={{ ...inputSx, "& .MuiOutlinedInput-root": { ...inputSx["& .MuiOutlinedInput-root"], bgcolor: "#fff" } }} inputProps={{ style: { fontSize: 13 } }} />
+                  <Box
+                    onClick={() => { paymentDateInputRef.current?.showPicker?.(); paymentDateInputRef.current?.focus(); }}
+                    sx={{
+                      position: "relative",
+                      display: "flex", alignItems: "center", gap: 0.6,
+                      height: 40,
+                      px: 1.25,
+                      borderRadius: "8px",
+                      border: "1px solid #E2E8F0",
+                      bgcolor: "#fff",
+                      cursor: "pointer",
+                      "&:hover": { borderColor: "#D21F3C" },
+                    }}
+                  >
+                    <CalendarTodayIcon sx={{ fontSize: 14, color: "#6B7280" }} />
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: form.paymentDate ? "#111827" : "#94A3B8" }}>
+                      {form.paymentDate ? formatDateDisplay(form.paymentDate) : "Select date"}
+                    </Typography>
+                    <input
+                      ref={paymentDateInputRef}
+                      type="date"
+                      value={form.paymentDate}
+                      onChange={e => setField("paymentDate", e.target.value)}
+                      style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
+                    />
+                  </Box>
                 </Box>
                 <Box>
                   <FieldLabel>Payment Reference</FieldLabel>
@@ -950,26 +1028,40 @@ export default function AddNewPurchaseDialog({
                   <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#D21F3C" }}>Balance Due</Typography>
                   <Typography sx={{ fontSize: 17, fontWeight: 800, color: "#D21F3C", fontFamily: "monospace" }}>{INR(balanceDue)}</Typography>
                 </Box>
-                {/* ✅ NEW: Due Date Field under Balance Due */}
+                {/* Due Date Field under Balance Due — disabled unless there's an outstanding balance */}
                 <Box sx={{ pt: 1.5, borderTop: "1px solid #E5E7EB", display: "flex", flexDirection: "column", gap: 1 }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <CalendarTodayIcon sx={{ fontSize: 13, color: "#D21F3C" }} />
+                    <CalendarTodayIcon sx={{ fontSize: 13, color: balanceDue > 0 ? "#D21F3C" : "#CBD5E1" }} />
                     <FieldLabel>Due Date</FieldLabel>
                   </Box>
-                  <TextField
-                    type="date"
-                    size="small"
-                    fullWidth
-                    value={form.dueDate ?? ""}
-                    onChange={e => setField("dueDate", e.target.value)}
-                    sx={inputSx}
-                    inputProps={{ style: { fontSize: 13 } }}
-                  />
-                  {form.dueDate && (
-                    <Typography sx={{ fontSize: 10, color: "#6B7280", fontWeight: 500, mt: 0.5 }}>
-                      {new Date(form.dueDate).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" })}
+                  <Box
+                    onClick={() => { if (balanceDue > 0) { dueDateInputRef.current?.showPicker?.(); dueDateInputRef.current?.focus(); } }}
+                    sx={{
+                      position: "relative",
+                      display: "flex", alignItems: "center", gap: 0.6,
+                      height: 40,
+                      px: 1.25,
+                      borderRadius: "8px",
+                      border: "1px solid #E2E8F0",
+                      bgcolor: balanceDue > 0 ? "#F8FAFC" : "#F1F5F9",
+                      cursor: balanceDue > 0 ? "pointer" : "not-allowed",
+                      opacity: balanceDue > 0 ? 1 : 0.6,
+                      "&:hover": balanceDue > 0 ? { borderColor: "#D21F3C" } : {},
+                    }}
+                  >
+                    <CalendarTodayIcon sx={{ fontSize: 14, color: "#6B7280" }} />
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: form.dueDate ? "#111827" : "#94A3B8" }}>
+                      {form.dueDate ? formatDateDisplay(form.dueDate) : "Select date"}
                     </Typography>
-                  )}
+                    <input
+                      ref={dueDateInputRef}
+                      type="date"
+                      disabled={balanceDue <= 0}
+                      value={form.dueDate ?? ""}
+                      onChange={e => setField("dueDate", e.target.value)}
+                      style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
+                    />
+                  </Box>
                 </Box>
               </Paper>
             </Box>
@@ -978,11 +1070,10 @@ export default function AddNewPurchaseDialog({
 
         {/* Footer */}
         <DialogActions sx={{ px: 3, py: 2, bgcolor: "#F8FAFC", borderTop: "1px solid #F1F5F9", gap: 1.5, flexShrink: 0 }}>
-          {saveError && <Typography sx={{ flex: 1, fontSize: 12, color: "#DC2626", fontWeight: 600 }}>{saveError}</Typography>}
           <Button onClick={handleDiscard} sx={{ color: "#374151", fontWeight: 700, px: 3, py: 1, fontSize: 13, borderRadius: 2, "&:hover": { bgcolor: "#F3F4F6" } }}>Discard</Button>
           <Button variant="contained" onClick={handleSave}
             startIcon={isBusy ? <CircularProgress size={15} sx={{ color: "#fff" }} /> : <SaveOutlinedIcon sx={{ fontSize: 17 }} />}
-            disableElevation disabled={isBusy}
+            disableElevation disabled={isBusy || paid > grandTotal}
             sx={{ bgcolor: isEditMode ? "#2563EB" : "#D21F3C", color: "#fff", fontWeight: 700, px: 3.5, py: 1, fontSize: 13, borderRadius: 2, boxShadow: isEditMode ? "0 4px 16px rgba(37,99,235,0.28)" : "0 4px 16px rgba(210,31,60,0.28)", "&:hover": { bgcolor: isEditMode ? "#1D4ED8" : "#B71C1C" }, "&:active": { transform: "scale(0.97)" }, transition: "all 0.15s", "&.Mui-disabled": { bgcolor: "#E5E7EB", color: "#9CA3AF", boxShadow: "none" } }}>
             {isBusy ? "Saving…" : isEditMode ? "Update Purchase" : "Save Purchase"}
           </Button>
@@ -997,6 +1088,7 @@ export default function AddNewPurchaseDialog({
         />
 
         <SuccessToast message={successMsg} onClose={() => setSuccessMsg("")} />
+        <SuccessToast message={saveError} severity="error" onClose={() => setSaveError("")} />
     </ThemeProvider>
   );
 }

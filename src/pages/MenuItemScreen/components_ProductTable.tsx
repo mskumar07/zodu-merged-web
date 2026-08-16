@@ -39,6 +39,8 @@ interface ProductTableProps {
   loadMoreRef?: React.RefObject<HTMLTableRowElement>;
   tableContainerRef?: React.RefObject<HTMLDivElement>;
   maxHeight?: string | number;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 const formatINR = (value: number) =>
@@ -61,6 +63,8 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
     loadMoreRef,
     tableContainerRef,
     maxHeight = "100%",
+    canEdit = true,
+    canDelete = true,
   }) => {
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [openDialog, setOpenDialog] = useState(false);
@@ -185,6 +189,7 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
               }
               size="small"
               color="primary"
+              disabled={!canEdit}
             />
           ),
         },
@@ -194,37 +199,43 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
           align: "center",
           render: (product) => (
             <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
-              <Tooltip title="Edit">
-                <IconButton
-                  size="small"
-                  onClick={() => onEdit?.(product)}
-                  sx={{
-                    color: "text.disabled",
-                    "&:hover": { color: "primary.main", bgcolor: "primary.light" + "22" },
-                    borderRadius: 1.5,
-                  }}
-                >
-                  <EditIcon fontSize="small" />
-                </IconButton>
+              <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"}>
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={() => onEdit?.(product)}
+                    disabled={!canEdit}
+                    sx={{
+                      color: "text.disabled",
+                      "&:hover": { color: "primary.main", bgcolor: "primary.light" + "22" },
+                      borderRadius: 1.5,
+                    }}
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                </span>
               </Tooltip>
-              <Tooltip title="Delete">
-                <IconButton
-                  size="small"
-                  onClick={() => onDelete?.(product)}
-                  sx={{
-                    color: "primary.main",
-                    "&:hover": { bgcolor: "primary.light" + "22" },
-                    borderRadius: 1.5,
-                  }}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
+              <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"}>
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={() => onDelete?.(product)}
+                    disabled={!canDelete}
+                    sx={{
+                      color: "primary.main",
+                      "&:hover": { bgcolor: "primary.light" + "22" },
+                      borderRadius: 1.5,
+                    }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </span>
               </Tooltip>
             </Box>
           ),
         },
       ],
-      [onDelete, onEdit, onToggleStatus, theme]
+      [onDelete, onEdit, onToggleStatus, theme, canEdit, canDelete]
     );
 
     return (
@@ -248,6 +259,12 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
             setOpenDialog(false);
             onEditFromDialog?.(uuid);
           }}
+          onDelete={(uuid) => {
+            setOpenDialog(false);
+            onDelete?.({ item_uuid: uuid } as Product);
+          }}
+          canEdit={canEdit}
+          canDelete={canDelete}
         />
       </>
     );

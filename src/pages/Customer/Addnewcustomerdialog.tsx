@@ -3,7 +3,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Box, Typography, TextField, Button, IconButton,
   Select, MenuItem, FormControl, InputAdornment,
-  Divider, CircularProgress, Alert,
+  Divider, CircularProgress, Alert, Checkbox,
 } from "@mui/material";
 import SuccessToast from "@components/Common/SuccessToast";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
@@ -38,11 +38,15 @@ interface CustomerForm {
   custName: string; cpyName: string; mobile: string; email: string;
   gstin: string; openingBalance: string;
   addressLine1: string; addressLine2: string; city: string; pincode: string; state: string;
+  shipSameAsBilling: boolean;
+  shippingAddressLine1: string; shippingAddressLine2: string; shippingCity: string; shippingPincode: string; shippingState: string;
 }
 
 const EMPTY: CustomerForm = {
   custName: "", cpyName: "", mobile: "", email: "", gstin: "",
   openingBalance: "", addressLine1: "", addressLine2: "", city: "", pincode: "", state: "",
+  shipSameAsBilling: true,
+  shippingAddressLine1: "", shippingAddressLine2: "", shippingCity: "", shippingPincode: "", shippingState: "",
 };
 
 interface Props {
@@ -61,6 +65,8 @@ interface Props {
     city: string | null;
     state: string | null;
     pincode: string | null;
+    shipping_address?: string | null;
+    same_as_billing_address?: boolean;
   } | null;
 }
 
@@ -106,6 +112,29 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved, editingCu
   // Update form when editingCustomer changes
   useEffect(() => {
     if (isEditing && editingCustomer) {
+      const shippingJoined = (editingCustomer.shipping_address || "").trim();
+      const sameAsBilling = editingCustomer.same_as_billing_address ?? !shippingJoined;
+
+      // Parse the comma-joined "line1, line2, city, state, pincode" string back
+      // into its parts. Pincode (trailing digits) and state (matches STATES)
+      // are popped off the end since they're unambiguous. Whatever remains was
+      // built in join order (line1, line2, city — skipping any empty ones), so
+      // the last remaining part is always the city and earlier parts fill
+      // line1/line2 front-to-back.
+      let shipLine1 = "", shipLine2 = "", shipCity = "", shipState = "", shipPincode = "";
+      if (shippingJoined) {
+        const parts = shippingJoined.split(",").map(p => p.trim()).filter(Boolean);
+        if (parts.length && /^\d+$/.test(parts[parts.length - 1])) {
+          shipPincode = parts.pop()!;
+        }
+        if (parts.length && STATES.includes(parts[parts.length - 1])) {
+          shipState = parts.pop()!;
+        }
+        if (parts.length >= 1) shipCity  = parts.pop()!;
+        if (parts.length >= 1) shipLine1 = parts.shift()!;
+        if (parts.length >= 1) shipLine2 = parts.shift()!;
+      }
+
       setForm({
         custName: editingCustomer.cust_name || "",
         cpyName: editingCustomer.cpy_name || "",
@@ -118,6 +147,12 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved, editingCu
         pincode: editingCustomer.pincode || "",
         state: editingCustomer.state || "",
         openingBalance: "",
+        shipSameAsBilling: sameAsBilling,
+        shippingAddressLine1: shipLine1,
+        shippingAddressLine2: shipLine2,
+        shippingCity: shipCity,
+        shippingPincode: shipPincode,
+        shippingState: shipState,
       });
     } else {
       setForm(EMPTY);
@@ -146,6 +181,7 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved, editingCu
     if (form.mobile.length !== 10) return "Mobile number must be 10 digits.";
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return "Enter a valid email address.";
     if (form.pincode && form.pincode.length !== 6) return "Pincode must be 6 digits.";
+    if (!form.shipSameAsBilling && form.shippingPincode && form.shippingPincode.length !== 6) return "Shipping pincode must be 6 digits.";
     return null;
   };
 
@@ -274,9 +310,9 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved, editingCu
 
             <Divider sx={{ borderColor: "#F3F4F6" }} />
 
-            {/* ── Address Details ── */}
+            {/* ── Billing Address ── */}
             <Box>
-              <SectionLabel>Address Details</SectionLabel>
+              <SectionLabel>Billing Address</SectionLabel>
 
               {/* Row 1: Addr1 | Addr2 | City | Pincode — 4 columns */}
               <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr ", gap: 2, mb: 2 }}>
@@ -313,6 +349,96 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved, editingCu
                     <Select
                       value={form.state}
                       onChange={e => setForm(p => ({ ...p, state: e.target.value }))}
+                      displayEmpty
+                      renderValue={v =>
+                        v || <Typography sx={{ color: "#9CA3AF", fontSize: 13 }}>Select State</Typography>
+                      }
+                      sx={{ bgcolor: "#F8FAFC", fontSize: 13, borderRadius: "8px" }}
+                    >
+                      {STATES.map(s => (
+                        <MenuItem key={s} value={s} sx={{ fontSize: 13 }}>{s}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Field>
+              </Box>
+            </Box>
+
+            <Divider sx={{ borderColor: "#F3F4F6" }} />
+
+            {/* ── Shipping Address ── */}
+            <Box>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5, mb: 2 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flex: 1 }}>
+                  <Typography sx={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.1em", color: "#9CA3AF", textTransform: "uppercase", whiteSpace: "nowrap" }}>
+                    Shipping Address
+                  </Typography>
+                  <Box sx={{ flex: 1, height: 1, bgcolor: "#F3F4F6" }} />
+                </Box>
+                <Box
+                  onClick={() => setForm(p => ({ ...p, shipSameAsBilling: !p.shipSameAsBilling }))}
+                  sx={{ display: "flex", alignItems: "center", gap: 0.3, cursor: "pointer", whiteSpace: "nowrap" }}
+                >
+                  <Checkbox
+                    checked={form.shipSameAsBilling}
+                    size="small"
+                    sx={{
+                      p: 0.5,
+                      color: "#D1D5DB",
+                      "&.Mui-checked": { color: "#C8102E" },
+                    }}
+                  />
+                  <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>Same as Billing Address</Typography>
+                </Box>
+              </Box>
+
+              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mb: 2 }}>
+                <Field label="Address Line 1">
+                  <TextField
+                    value={form.shipSameAsBilling ? form.addressLine1 : form.shippingAddressLine1}
+                    onChange={set("shippingAddressLine1")}
+                    placeholder="Building, Street name" size="small" fullWidth
+                    disabled={form.shipSameAsBilling}
+                    sx={sx}
+                  />
+                </Field>
+                <Field label="Address Line 2">
+                  <TextField
+                    value={form.shipSameAsBilling ? form.addressLine2 : form.shippingAddressLine2}
+                    onChange={set("shippingAddressLine2")}
+                    placeholder="Locality, Landmark" size="small" fullWidth
+                    disabled={form.shipSameAsBilling}
+                    sx={sx}
+                  />
+                </Field>
+              </Box>
+              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mb: 2 }}>
+                <Field label="City">
+                  <TextField
+                    value={form.shipSameAsBilling ? form.city : form.shippingCity}
+                    onChange={set("shippingCity")}
+                    placeholder="e.g. Chennai" size="small" fullWidth
+                    disabled={form.shipSameAsBilling}
+                    sx={sx}
+                  />
+                </Field>
+                <Field label="Pincode">
+                  <TextField
+                    value={form.shipSameAsBilling ? form.pincode : form.shippingPincode}
+                    onChange={e => setForm(p => ({ ...p, shippingPincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
+                    placeholder="600001" size="small" fullWidth
+                    disabled={form.shipSameAsBilling}
+                    inputProps={{ style: { fontFamily: "monospace", letterSpacing: "0.1em" } }}
+                    sx={sx}
+                  />
+                </Field>
+              </Box>
+              <Box sx={{ maxWidth: "50%" }}>
+                <Field label="State">
+                  <FormControl size="small" fullWidth sx={sx} disabled={form.shipSameAsBilling}>
+                    <Select
+                      value={form.shipSameAsBilling ? form.state : form.shippingState}
+                      onChange={e => setForm(p => ({ ...p, shippingState: e.target.value }))}
                       displayEmpty
                       renderValue={v =>
                         v || <Typography sx={{ color: "#9CA3AF", fontSize: 13 }}>Select State</Typography>

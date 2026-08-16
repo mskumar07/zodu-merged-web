@@ -174,7 +174,8 @@ export interface LineItem {
   hsn:          string;
   mrp:          number;
   gstPct:       number;
-  discount?:    number;   // ✅ item-level discount
+  discount?:    number;   // ✅ item-level discount amount
+  discountPct?: number;   // ✅ item-level discount percentage
   category?:    string;
   unit?:        string;
   sellPrice:    number;
@@ -186,6 +187,8 @@ export interface Customer {
   mobile:  string;
   address: string;
   gstin:   string;
+  shippingAddress?:      string;   // empty string = no shipping address on file
+  sameAsBillingAddress?: boolean;
 }
 
 export interface SaveOrderParams {
@@ -213,12 +216,12 @@ export interface SaveOrderResult {
   payment?: Record<string, unknown> | null;
 }
 
-function resolveDiscount(pct: string, flat: string) {
+function resolveDiscount(pct: string, flat: string, gstMode: "after" | "before") {
   const p = parseFloat(pct)  || 0;
   const f = parseFloat(flat) || 0;
-  if (p > 0) return { discount_type: "percentage" as const, discount_value: p };
-  if (f > 0) return { discount_type: "flat"       as const, discount_value: f };
-  return       { discount_type: null,              discount_value: 0 };
+  if (p > 0) return { discount_type: "percentage" as const, discount_value: p, discount_gst_mode: gstMode };
+  if (f > 0) return { discount_type: "flat"       as const, discount_value: f, discount_gst_mode: null };
+  return       { discount_type: null,              discount_value: 0, discount_gst_mode: null };
 }
 
 /** Returns current time as "HH:mm:ss" — Joi pattern /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/ */
@@ -236,8 +239,8 @@ export function useSaveOrder() {
     setLastError(null);
     try {
       const { zoduId, branchId } = getTenantContext();
-      const { discount_type, discount_value } = resolveDiscount(
-        params.discountPct, params.discountFlat
+      const { discount_type, discount_value, discount_gst_mode } = resolveDiscount(
+        params.discountPct, params.discountFlat, params.discountGstMode
       );
 
       const isQuotation = params.posMode === "QUOTATION";
@@ -257,7 +260,7 @@ export function useSaveOrder() {
 
         discount_type,
         discount_value,
-        discount_gst_mode: params.discountGstMode,
+        discount_gst_mode,
         round_off:          params.roundoff,
 
         ...(!isQuotation && {
@@ -275,7 +278,8 @@ export function useSaveOrder() {
           unit:           li.unit ?? "NOS",
           quantity:       li.qty,
           price:          li.sellPrice,      // ✅ selling price sent in payload
-          discount:       li.discount ?? 0,  // ✅ item-level discount
+          discount:       li.discount ?? 0,     // ✅ item-level discount amount
+          discount_percentage:   li.discountPct ?? 0,  // ✅ item-level discount percentage
           gst_percentage: li.gstPct,
           hsn_code:       li.hsn,
           mrp:            li.mrp,
@@ -310,9 +314,10 @@ const updateOrder = useCallback(async (
 
   try {
     const { zoduId, branchId } = getTenantContext();
-    const { discount_type, discount_value } = resolveDiscount(
+    const { discount_type, discount_value, discount_gst_mode } = resolveDiscount(
       params.discountPct,
-      params.discountFlat
+      params.discountFlat,
+      params.discountGstMode
     );
 
     const isQuotation = params.posMode === "QUOTATION";
@@ -333,7 +338,7 @@ const updateOrder = useCallback(async (
 
       discount_type,
       discount_value,
-      discount_gst_mode: params.discountGstMode,
+      discount_gst_mode,
       roundoff:          params.roundoff,
 
       ...(!isQuotation && {
@@ -352,6 +357,7 @@ const updateOrder = useCallback(async (
         quantity:       li.qty,
         price:          li.sellPrice,
         discount:       li.discount ?? 0,
+        discount_percentage:   li.discountPct ?? 0,
         gst_percentage: li.gstPct,
         hsn_code:       li.hsn,
         mrp:            li.mrp,

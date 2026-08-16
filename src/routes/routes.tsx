@@ -14,7 +14,6 @@ import RestaurantPOS from "@pages/restaurant/pos/RestaurantPOS";
 import RestaurantMenuList from "@pages/restaurant/menu/RestaurantMenuList";
 import SalesHistoryScreen from "@pages/SalesHistory/SalesHistory";
 import CustomerManagement from "@pages/Customer/Customermanagement";
-import RoleManagement from "@pages/auth/Role/RoleManagement";
 import EmployeeManagement from "@pages/Employee/EmployeeManagement";
 import InventoryManagement from "../pages/InventoryScreen/InventoryManagement";
 import ZoduLoginPage from "@pages/auth/Login";
@@ -56,7 +55,6 @@ export const routes = [
       { path: "purchase", element: <PurchaseScreen /> },
       { path: "expense", element: <ExpenseScreen /> },
       {path: "customer-details", element: <CustomerManagement/>},
-      {path: "role-management", element: <RoleManagement/>},
       {path: "employee-management", element: <EmployeeManagement/>},
       {path: "checklist", element: <ChecklistDashboard/>},
       {path: "attendance", element: <AttendanceDashboard/>},

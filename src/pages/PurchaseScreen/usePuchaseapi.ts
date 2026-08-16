@@ -65,6 +65,7 @@ export interface PurchasePayload {
   paid_amount: number;
   due_date: any;
   payment_status?: "pending" | "partial" | "paid";
+  invoice_bill_no?: string;
   notes?: string;
   attachment_url?: Array<{ id: string; url: string; filename: string; size: number; mimetype: string }> | null;
   transaction_type?: string;
@@ -102,6 +103,7 @@ export interface PurchaseRow {
   paid_amount: string;
   balance_amount: string;
   payment_status: "paid" | "partial" | "pending";
+  invoice_bill_no?: string | null;
   notes: string | null;
   zodu_id: string;
   branch_id: string;

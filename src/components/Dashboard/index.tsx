@@ -3,7 +3,6 @@ import LottieLoader from "@components/LottieLoader";
 import { createTheme, ThemeProvider, CssBaseline } from "@mui/material";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import IconButton from "@mui/material/IconButton";
 import Skeleton from "@mui/material/Skeleton";
 import { Circle } from "@mui/icons-material";
 
@@ -11,11 +10,11 @@ import PaymentsIcon              from "@mui/icons-material/Payments";
 import DescriptionIcon           from "@mui/icons-material/Description";
 import Inventory2Icon            from "@mui/icons-material/Inventory2";
 import InsightsIcon              from "@mui/icons-material/Insights";
-import ShoppingCartCheckoutIcon  from "@mui/icons-material/ShoppingCartCheckout";
 import TrendingUpIcon            from "@mui/icons-material/TrendingUp";
 import WarningAmberIcon          from "@mui/icons-material/WarningAmber";
 import AccountBalanceWalletIcon  from "@mui/icons-material/AccountBalanceWallet";
 import MoneyOffIcon              from "@mui/icons-material/MoneyOff";
+import HistoryIcon               from "@mui/icons-material/History";
 
 import {
   useStats,
@@ -35,7 +34,7 @@ import InvoiceDetailsModal from "@pages/SalesHistory/Invoicedetaildialog";
 const theme = createTheme({
   palette: {
     primary:    { main: "#D32F2F" },
-    background: { default: "#F8FAFC", paper: "#FFFFFF" },
+    background: { default: "#FFFFFF", paper: "#FFFFFF" },
     text:       { primary: "#0F172A", secondary: "#64748B" },
   },
   typography: { fontFamily: "'Inter', sans-serif" },
@@ -64,13 +63,12 @@ const headCellSx = {
   padding:         CELL_P,
   lineHeight:      `${ROW_H}px`,
   whiteSpace:      "nowrap" as const,
-  fontSize:        "11px",
-  fontWeight:      600,
+  fontSize:        "12.5px",
+  fontWeight:      700,
   color:           "#6B7280",
   backgroundColor: "#F5F5F5",
   borderBottom:    "1px solid #E5E7EB",
-  letterSpacing:   "0.06em",
-  textTransform:   "uppercase" as const,
+  letterSpacing:   "0.02em",
   position:        "sticky" as const,
   top:             0,
   zIndex:          2,
@@ -115,18 +113,38 @@ function MiniTable<T>({
   hasNextPage?:        boolean;
 }) {
   const sentinelRef = useRef<HTMLTableRowElement>(null);
+  const scrollElRef = useRef<Element | null>(null);
+  const stateRef = useRef({ onLoadMore, hasNextPage, isFetchingNextPage });
+  stateRef.current = { onLoadMore, hasNextPage, isFetchingNextPage };
 
   useEffect(() => {
-    if (!onLoadMore) return;
-    const el = sentinelRef.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) onLoadMore(); },
-      { threshold: 0.1 }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [onLoadMore, hasNextPage, isFetchingNextPage]);
+    // Find the nearest scrollable ancestor (SectionCard's overflowY:auto box)
+    // once per mount — this element is stable even though the sentinel <tr>
+    // itself gets added/removed/recreated as rows and skeletons change.
+    const startEl: Element | null = sentinelRef.current ?? null;
+    let root: Element | null = startEl?.parentElement ?? null;
+    while (root && root !== document.body) {
+      const style = getComputedStyle(root);
+      if (style.overflowY === "auto" || style.overflowY === "scroll") break;
+      root = root.parentElement;
+    }
+    scrollElRef.current = root;
+    if (!root) return;
+
+    const THRESHOLD = 120;
+    const checkScroll = () => {
+      const { onLoadMore: load, hasNextPage: hasNext, isFetchingNextPage: fetching } = stateRef.current;
+      if (!load || !hasNext || fetching) return;
+      const el = root as HTMLElement;
+      if (el.scrollHeight - el.scrollTop - el.clientHeight <= THRESHOLD) load();
+    };
+
+    root.addEventListener("scroll", checkScroll, { passive: true });
+    // Content may already fit without a scrollbar, or a fetch may have just
+    // finished leaving room for more — check immediately after every render.
+    checkScroll();
+    return () => root!.removeEventListener("scroll", checkScroll);
+  });
 
   return (
     <Box component="table" sx={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
@@ -426,7 +444,7 @@ type ReminderRow = {
 };
 const reminderCols: ColDef<ReminderRow>[] = [
   { key: "due",  label: "Due Date", minWidth: 70,
-    render: r => <Typography sx={{ fontSize: 12, color: "#64748B" }}>{r.due_date ? new Date(r.due_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) : "—"}</Typography> },
+    render: r => <Typography sx={{ fontSize: 12, color: "#64748B" }}>{r.due_date ? new Date(r.due_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</Typography> },
   { key: "inv",  label: "Invoice / PO", minWidth: 100,
     render: r => (
       <Box>
@@ -500,12 +518,6 @@ const alertCols: ColDef<AlertItem>[] = [
     render: r => <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{r.available_qty}</Typography> },
   { key: "status", label: "Status", align: "center",
     render: r => stockStatusBadge(r.stock_status) },
-  { key: "action", label: "", align: "center", width: 40,
-    render: _r => (
-      <IconButton size="small" sx={{ color: RED, p: 0.5, borderRadius: "6px", "&:hover": { bgcolor: "rgba(211,47,47,0.08)" } }}>
-        <ShoppingCartCheckoutIcon sx={{ fontSize: 16 }} />
-      </IconButton>
-    ) },
 ];
 
 // ── Main Dashboard ────────────────────────────────────────────
@@ -517,7 +529,7 @@ export default function DashboardLayout() {
   const salesQuery   = useSales(zoduId, branchId, businessType ?? "");
   const topQuery          = useTopItems(zoduId, branchId, businessType ?? "");
   const restTopQuery      = useRestaurantTopItems(zoduId, branchId, isRestaurant);
-  const remindQuery       = useReminders(zoduId, branchId, businessType ?? "");
+  const remindQuery       = useReminders(zoduId, branchId, businessType ?? "", 20);
   const alertQuery        = useInventoryAlerts(zoduId, branchId, businessType ?? "");
   const ordersQuery       = useOrders(zoduId, branchId, isRestaurant);
   const [invoiceDialog, setInvoiceDialog] = useState<string | null>(null);
@@ -627,7 +639,7 @@ const salesCols: ColDef<SaleRow>[] = [
       <CssBaseline />
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap'); *, *::before, *::after { font-family: 'Inter', sans-serif !important; box-sizing: border-box; }`}</style>
 
-      <Box sx={{ bgcolor: "#F8FAFC", height: "100%", minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <Box sx={{ bgcolor: "#ffffff", height: "100%", minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <Box component="main" sx={{
           flex: 1, minHeight: 0, px: { xs: 1.5, md: 2 }, py: { xs: 1.5, md: 2 },
           width: "100%", overflow: "hidden", display: "flex", flexDirection: "column", gap: 2,
@@ -647,7 +659,10 @@ const salesCols: ColDef<SaleRow>[] = [
             <Box sx={{ flex: "0 0 60%", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", gap: 2 }}>
 
               {isRestaurant ? (
-                <SectionCard title="Recent Orders" sx={{ flex: 1, minHeight: 0 }}>
+                <SectionCard
+                  title={<Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}><HistoryIcon sx={{ fontSize: 16, color: RED }} />Recent Orders</Box>}
+                  sx={{ flex: 1, minHeight: 0 }}
+                >
                   {ordersQuery.isLoading
                     ? <SkeletonTable cols={5} />
                     : <MiniTable
@@ -661,7 +676,10 @@ const salesCols: ColDef<SaleRow>[] = [
                   }
                 </SectionCard>
               ) : (
-                <SectionCard title="Recent Sales Activity" sx={{ flex: 1, minHeight: 0 }}>
+                <SectionCard
+                  title={<Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}><HistoryIcon sx={{ fontSize: 16, color: RED }} />Recent Sales Activity</Box>}
+                  sx={{ flex: 1, minHeight: 0 }}
+                >
                   {salesQuery.isLoading
                     ? <SkeletonTable cols={5} />
                     : <MiniTable
@@ -677,7 +695,7 @@ const salesCols: ColDef<SaleRow>[] = [
               )}
 
               <SectionCard
-                title="Payment Reminders"
+                title={<Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}><PaymentsIcon sx={{ fontSize: 16, color: RED }} />Payment Reminders</Box>}
                 sx={{ flex: 1, minHeight: 0 }}
               >
                 {remindQuery.isLoading

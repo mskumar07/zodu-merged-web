@@ -4,7 +4,8 @@
       "Read(//d/Zodu-Projetcs/Zodu-backend-Retail/auth-service/src/services/**)",
       "Read(//d/Zodu-Projetcs/Zodu-backend-Retail/auth-service/src/repository/**)",
       "Bash(npx tsc *)",
-      "Bash(git fetch *)"
+      "Bash(git fetch *)",
+      "Bash(node -e ' *)"
     ]
   }
 }

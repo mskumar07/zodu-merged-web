@@ -8,8 +8,9 @@ import {
   Select,
   MenuItem
 } from "@mui/material";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import CloseIcon from "@mui/icons-material/Close";
+import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -27,6 +28,17 @@ export default function StockHistoryModal({ open, onClose, item }: any) {
   const [selectedType, setSelectedType] = useState<string>("");
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
+  const fromDateInputRef = useRef<HTMLInputElement>(null);
+  const toDateInputRef = useRef<HTMLInputElement>(null);
+
+  // Format YYYY-MM-DD -> "29-JUL-2026"
+  const formatDateDisplay = (dateString: string): string => {
+    if (!dateString) return "";
+    const [year, month, day] = dateString.split("-");
+    if (!year || !month || !day) return "";
+    const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+    return `${day}-${monthNames[Number(month) - 1]}-${year}`;
+  };
 
   const parseDate = (dateStr: string): Date | null => {
     if (!dateStr) return null;
@@ -216,30 +228,70 @@ export default function StockHistoryModal({ open, onClose, item }: any) {
                 </Select> */}
 
                 {/* <Typography>From</Typography> */}
-                <TextField
-                  type="date"
-                  size="small"
-                  value={fromDate}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (toDate && val > toDate) setToDate("");
-                    setFromDate(val);
+                <Box
+                  onClick={() => { fromDateInputRef.current?.showPicker?.(); fromDateInputRef.current?.focus(); }}
+                  sx={{
+                    position: "relative",
+                    display: "flex", alignItems: "center", gap: 0.6,
+                    minWidth: 130, height: 33,
+                    px: 1.25,
+                    borderRadius: 1.5,
+                    border: "1px solid #E5E7EB",
+                    bgcolor: "#fff",
+                    cursor: "pointer",
+                    "&:hover": { borderColor: "#C8102E" },
                   }}
-                  inputProps={{ max: toDate || undefined }}
-                />
+                >
+                  <CalendarTodayIcon sx={{ fontSize: 14, color: "#6B7280" }} />
+                  <Typography sx={{ fontSize: 13, fontWeight: 600, color: fromDate ? "#111827" : "#94A3B8" }}>
+                    {fromDate ? formatDateDisplay(fromDate) : "Select date"}
+                  </Typography>
+                  <input
+                    ref={fromDateInputRef}
+                    type="date"
+                    value={fromDate}
+                    max={toDate || undefined}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (toDate && val > toDate) setToDate("");
+                      setFromDate(val);
+                    }}
+                    style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
+                  />
+                </Box>
 
                 <Typography>to</Typography>
-                <TextField
-                  type="date"
-                  size="small"
-                  value={toDate}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (fromDate && val < fromDate) return;
-                    setToDate(val);
+                <Box
+                  onClick={() => { toDateInputRef.current?.showPicker?.(); toDateInputRef.current?.focus(); }}
+                  sx={{
+                    position: "relative",
+                    display: "flex", alignItems: "center", gap: 0.6,
+                    minWidth: 130, height: 33,
+                    px: 1.25,
+                    borderRadius: 1.5,
+                    border: "1px solid #E5E7EB",
+                    bgcolor: "#fff",
+                    cursor: "pointer",
+                    "&:hover": { borderColor: "#C8102E" },
                   }}
-                  inputProps={{ min: fromDate || undefined }}
-                />
+                >
+                  <CalendarTodayIcon sx={{ fontSize: 14, color: "#6B7280" }} />
+                  <Typography sx={{ fontSize: 13, fontWeight: 600, color: toDate ? "#111827" : "#94A3B8" }}>
+                    {toDate ? formatDateDisplay(toDate) : "Select date"}
+                  </Typography>
+                  <input
+                    ref={toDateInputRef}
+                    type="date"
+                    value={toDate}
+                    min={fromDate || undefined}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (fromDate && val < fromDate) return;
+                      setToDate(val);
+                    }}
+                    style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
+                  />
+                </Box>
 
                 {hasActiveFilters && (
                   <Box onClick={handleResetFilters} sx={{ cursor: "pointer" }}>

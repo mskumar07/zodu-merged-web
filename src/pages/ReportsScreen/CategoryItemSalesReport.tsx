@@ -20,6 +20,7 @@ import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
 import { useTenantContext } from "@store/tenantContext";
+import { DateRangeChip } from "@components/Reports/utils/DateRangeChip";
 import {
   useCategoryItemSalesSummary,
   useInfiniteCategoryWiseSales,
@@ -206,7 +207,7 @@ const CategoryItemSalesReport = () => {
   const restaurantCategoryColumns = useMemo<ColumnDef<RestaurantCategoryRow>[]>(() => [
     {
       key: "category_name",
-      label: "CATEGORY NAME",
+      label: "Category Name",
       minWidth: 150,
       render: (row) => (
         <Typography sx={{ fontSize: "0.8rem", color: "#111827", fontWeight: 600, whiteSpace: "nowrap" }}>
@@ -216,14 +217,14 @@ const CategoryItemSalesReport = () => {
     },
     {
       key: "total_qty",
-      label: "ITEMS",
+      label: "Items",
       align: "right",
       minWidth: 80,
       render: (row) => numberFmt(row.total_qty),
     },
     {
       key: "total_amount",
-      label: "TOTAL (₹)",
+      label: "Total (₹)",
       align: "right",
       minWidth: 120,
       render: (row) => (
@@ -239,7 +240,7 @@ const CategoryItemSalesReport = () => {
   const restaurantItemColumns = useMemo<ColumnDef<RestaurantItemWithCategory>[]>(() => [
     {
       key: "item_name",
-      label: "ITEM NAME",
+      label: "Item Name",
       minWidth: 160,
       render: (row) => (
         <Box>
@@ -254,21 +255,21 @@ const CategoryItemSalesReport = () => {
     },
     {
       key: "total_qty",
-      label: "QTY",
+      label: "Qty",
       align: "right",
       minWidth: 70,
       render: (row) => numberFmt(row.total_qty),
     },
     {
       key: "price",
-      label: "PRICE (₹)",
+      label: "Price (₹)",
       align: "right",
       minWidth: 90,
       render: (row) => money(row.price),
     },
     {
       key: "total_amount",
-      label: "TOTAL (₹)",
+      label: "Total (₹)",
       align: "right",
       minWidth: 110,
       render: (row) => (
@@ -289,28 +290,7 @@ const CategoryItemSalesReport = () => {
       >
         Clear Filters
       </Button>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1.1, py: 0.65, borderRadius: 1, border: "1px solid #eee", bgcolor: "#fff" }}>
-        <CalendarTodayOutlinedIcon sx={{ fontSize: 15, color: "#D92D20" }} />
-        <TextField
-          type="date"
-          value={fromDate}
-          onChange={(e) => setFromDate(e.target.value)}
-          variant="standard"
-          InputProps={{ disableUnderline: true }}
-          inputProps={{ max: toDate, style: { fontSize: 11, fontWeight: 700 } }}
-          sx={{ minWidth: 126 }}
-        />
-        <Typography sx={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700 }}>-</Typography>
-        <TextField
-          type="date"
-          value={toDate}
-          onChange={(e) => setToDate(e.target.value)}
-          variant="standard"
-          InputProps={{ disableUnderline: true }}
-          inputProps={{ min: fromDate, style: { fontSize: 11, fontWeight: 700 } }}
-          sx={{ minWidth: 126 }}
-        />
-      </Box>
+      <DateRangeChip fromDate={fromDate} toDate={toDate} onFromDateChange={setFromDate} onToDateChange={setToDate} />
     </Box>
   );
 
@@ -424,7 +404,7 @@ const CategoryItemSalesReport = () => {
   const categoryColumns = useMemo<ColumnDef<CategoryWiseSalesRow>[]>(() => [
     {
       key: "categoryName",
-      label: "CATEGORY NAME",
+      label: "Category Name",
       minWidth: 150,
       render: (row) => (
         <Typography sx={{ fontSize: "0.8rem", color: "#111827", fontWeight: 600, whiteSpace: "nowrap" }}>
@@ -434,14 +414,14 @@ const CategoryItemSalesReport = () => {
     },
     {
       key: "quantity",
-      label: "ITEMS",
+      label: "Items",
       align: "right",
       minWidth: 70,
       render: (row) => numberFmt(row.quantity),
     },
     {
       key: "sales",
-      label: "TOTAL (₹)",
+      label: "Total (₹)",
       align: "right",
       minWidth: 110,
       render: (row) => (
@@ -477,7 +457,7 @@ const CategoryItemSalesReport = () => {
   const itemColumns = useMemo<ColumnDef<ItemWiseSalesRow>[]>(() => [
     {
       key: "itemName",
-      label: "ITEM NAME",
+      label: "Item Name",
       minWidth: 160,
       render: (row) => (
         <Typography sx={{ fontSize: "0.8rem", color: "#111827", fontWeight: 600, whiteSpace: "nowrap" }}>
@@ -500,21 +480,21 @@ const CategoryItemSalesReport = () => {
     // },
     {
       key: "quantity",
-      label: "QTY",
+      label: "Qty",
       align: "right",
       minWidth: 62,
       render: (row) => numberFmt(row.quantity),
     },
     {
       key: "avgPrice",
-      label: "PRICE (₹)",
+      label: "Price (₹)",
       align: "right",
       minWidth: 80,
       render: (row) => money(row.quantity > 0 ? row.sales / row.quantity : 0),
     },
     {
       key: "sales",
-      label: "TOTAL (₹)",
+      label: "Total (₹)",
       align: "right",
       minWidth: 100,
       render: (row) => (

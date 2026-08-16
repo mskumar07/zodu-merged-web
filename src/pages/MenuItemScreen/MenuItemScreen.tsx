@@ -18,6 +18,7 @@ import ProductTabs from './components_ProductTabs';
 import ProductTable from './components_ProductTable';
 import AddItemModal from './AddItemModal';
 import CategoryTab from './CategoryTab';
+import { useModulePermission } from '@hooks/useModulePermission';
 
 import {
   useInfiniteMenuItems,
@@ -64,6 +65,7 @@ function toProduct(item: MenuItemData) {
 
 function MenuItemScreen() {
   const qc = useQueryClient();
+  const { canCreate, canEdit, canDelete } = useModulePermission('Menu Items');
 
   const [activeTab, setActiveTab] = useState<TabValue>('all');
   const [searchInput, setSearchInput] = useState('');
@@ -74,6 +76,9 @@ function MenuItemScreen() {
 
   // 🔥 DELETE STATE
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
+  const [categorySearch, setCategorySearch] = useState('');
+  const requestAddCategoryRef = useRef<(() => void) | null>(null);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sentinelRef = useRef<HTMLTableRowElement>(null);
@@ -232,98 +237,134 @@ function MenuItemScreen() {
 
   if (isLoading && !hasLoadedOnceRef.current) return <LottieLoader />;
 
+  const menuItemToolbar = (
+    <>
+      <TextField
+        size="small"
+        placeholder="Search..."
+        sx={{ width: 220, bgcolor: '#fff' }}
+        value={searchInput}
+        onChange={(e) => handleSearchChange(e.target.value)}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
+            </InputAdornment>
+          ),
+          sx: { borderRadius: 0.5, fontSize: 13 },
+        }}
+      />
+
+      {/* Category multi-select */}
+      <FormControl size="small" sx={{ minWidth: 220 }}>
+        <Select
+          multiple
+          displayEmpty
+          value={selectedCategories}
+          onChange={(e) => setSelectedCategories(e.target.value as number[])}
+          input={<OutlinedInput sx={{ borderRadius: 0.5, fontSize: 13, bgcolor: '#fff' }} />}
+          renderValue={(selected) => {
+            if (!(selected as number[]).length)
+              return <Box component="span" sx={{ color: 'text.disabled', fontSize: 13 }}>All Categories</Box>;
+            return (
+              <Box component="span" sx={{ fontSize: 13, color: 'text.primary', fontWeight: 600 }}>
+                {(selected as number[]).length} {(selected as number[]).length === 1 ? 'Category' : 'Categories'}
+              </Box>
+            );
+          }}
+          MenuProps={{
+            PaperProps: {
+              sx: { maxHeight: 300 },
+              onScroll: handleCatMenuScroll,
+            },
+          }}
+        >
+          {categories.map((cat) => (
+            <MenuItem key={cat.value} value={Number(cat.value)} sx={{ fontSize: 13 }}>
+              <Checkbox checked={selectedCategories.includes(Number(cat.value))} size="small" sx={{ py: 0 }} />
+              <ListItemText primary={cat.label} primaryTypographyProps={{ fontSize: 13 }} />
+            </MenuItem>
+          ))}
+          {catIsFetchingNextPage && (
+            <MenuItem disabled sx={{ fontSize: 12, color: 'text.disabled', justifyContent: 'center' }}>
+              Loading...
+            </MenuItem>
+          )}
+        </Select>
+      </FormControl>
+
+      {/* Reset Filters */}
+      {hasActiveFilters && (
+        <Box
+          onClick={handleResetFilters}
+          title="Reset Filters"
+          sx={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 36, height: 36, borderRadius: 1, cursor: 'pointer',
+            bgcolor: '#F97316', color: '#fff',
+            '&:hover': { bgcolor: '#ea6c0a' },
+            flexShrink: 0,
+          }}
+        >
+          <FilterListOffIcon sx={{ fontSize: 20 }} />
+        </Box>
+      )}
+
+      <Button variant="contained" startIcon={<AddIcon />} disabled={!canCreate} onClick={() => { setEditItem(null); setModalOpen(true); }}
+        sx={{ borderRadius: 0.5, fontWeight: 700, px: 2.5, height: 40, textTransform: 'none', fontSize: 13, whiteSpace: 'nowrap', boxShadow: '0 4px 14px rgba(210,18,46,0.25)' }}>
+        Add Item
+      </Button>
+    </>
+  );
+
+  const categoryToolbar = (
+    <>
+      <TextField
+        size="small"
+        placeholder="Search by category name..."
+        sx={{ width: 220, bgcolor: '#fff' }}
+        value={categorySearch}
+        onChange={(e) => setCategorySearch(e.target.value)}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
+            </InputAdornment>
+          ),
+          sx: { borderRadius: 0.5, fontSize: 13 },
+        }}
+      />
+      <Button variant="contained" startIcon={<AddIcon />} disabled={!canCreate} onClick={() => requestAddCategoryRef.current?.()}
+        sx={{ borderRadius: 0.5, fontWeight: 700, px: 2.5, height: 40, textTransform: 'none', fontSize: 13, whiteSpace: 'nowrap', boxShadow: '0 4px 14px rgba(210,18,46,0.25)' }}>
+        Add Category
+      </Button>
+    </>
+  );
+
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 2 }}>
-      <ProductTabs value={activeTab} onChange={setActiveTab} />
+      <ProductTabs
+        value={activeTab}
+        onChange={setActiveTab}
+        rightSlot={activeTab === 'category' ? categoryToolbar : menuItemToolbar}
+      />
 
       {/* ── Category Tab ── */}
       {activeTab === 'category' && (
         <Box sx={{ flex: 1, overflow: 'hidden' }}>
-          <CategoryTab />
+          <CategoryTab
+            hideToolbar
+            searchValue={categorySearch}
+            onRequestAdd={(openAdd) => { requestAddCategoryRef.current = openAdd; }}
+            canEdit={canEdit}
+            canDelete={canDelete}
+          />
         </Box>
       )}
 
       {/* ── Menu Item / Sellable / Raw Tabs ── */}
       {activeTab !== 'category' && (
         <>
-          <Box sx={{ display: 'flex', gap: 1.5, mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-            <TextField
-              size="small"
-              placeholder="Search..."
-              sx={{ flex: 1, minWidth: 200, bgcolor: '#fff' }}
-              value={searchInput}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
-                  </InputAdornment>
-                ),
-                sx: { borderRadius: 0.5, fontSize: 13 },
-              }}
-            />
-
-            {/* Category multi-select */}
-            <FormControl size="small" sx={{ minWidth: 220 }}>
-              <Select
-                multiple
-                displayEmpty
-                value={selectedCategories}
-                onChange={(e) => setSelectedCategories(e.target.value as number[])}
-                input={<OutlinedInput sx={{ borderRadius: 0.5, fontSize: 13, bgcolor: '#fff' }} />}
-                renderValue={(selected) => {
-                  if (!(selected as number[]).length)
-                    return <Box component="span" sx={{ color: 'text.disabled', fontSize: 13 }}>All Categories</Box>;
-                  return (
-                    <Box component="span" sx={{ fontSize: 13, color: 'text.primary', fontWeight: 600 }}>
-                      {(selected as number[]).length} {(selected as number[]).length === 1 ? 'Category' : 'Categories'}
-                    </Box>
-                  );
-                }}
-                MenuProps={{
-                  PaperProps: {
-                    sx: { maxHeight: 300 },
-                    onScroll: handleCatMenuScroll,
-                  },
-                }}
-              >
-                {categories.map((cat) => (
-                  <MenuItem key={cat.value} value={Number(cat.value)} sx={{ fontSize: 13 }}>
-                    <Checkbox checked={selectedCategories.includes(Number(cat.value))} size="small" sx={{ py: 0 }} />
-                    <ListItemText primary={cat.label} primaryTypographyProps={{ fontSize: 13 }} />
-                  </MenuItem>
-                ))}
-                {catIsFetchingNextPage && (
-                  <MenuItem disabled sx={{ fontSize: 12, color: 'text.disabled', justifyContent: 'center' }}>
-                    Loading...
-                  </MenuItem>
-                )}
-              </Select>
-            </FormControl>
-
-            {/* Reset Filters */}
-            {hasActiveFilters && (
-              <Box
-                onClick={handleResetFilters}
-                title="Reset Filters"
-                sx={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  width: 36, height: 36, borderRadius: 1, cursor: 'pointer',
-                  bgcolor: '#F97316', color: '#fff',
-                  '&:hover': { bgcolor: '#ea6c0a' },
-                  flexShrink: 0,
-                }}
-              >
-                <FilterListOffIcon sx={{ fontSize: 20 }} />
-              </Box>
-            )}
-
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setEditItem(null); setModalOpen(true); }}
-              sx={{ borderRadius: 0.5, fontWeight: 700, px: 2.5, height: 40, textTransform: 'none', fontSize: 13, whiteSpace: 'nowrap', boxShadow: '0 4px 14px rgba(210,18,46,0.25)' }}>
-              Add Item
-            </Button>
-          </Box>
-
           {isLoading && <Alert>Loading...</Alert>}
 
           <Box sx={{ flex: 1, overflow: 'hidden' }}>
@@ -337,6 +378,8 @@ function MenuItemScreen() {
               isFetchingNextPage={isFetchingNextPage}
               loadMoreRef={sentinelRef}
               tableContainerRef={tableContainerRef}
+              canEdit={canEdit}
+              canDelete={canDelete}
             />
           </Box>
 

@@ -5,7 +5,7 @@ import {
   InputAdornment, Fab, CircularProgress,
   FormControl, Select, MenuItem, Skeleton, Stack,
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Tabs, Tab,
+  Tabs, Tab, Tooltip,
 } from "@mui/material";
 import { Circle } from "@mui/icons-material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
@@ -20,11 +20,12 @@ import ExpensePaymentDialog from "./ExpensePaymentDialog";
 import ExpenseDetailDialog from "./ExpenseDetailDialog";
 import ExpenseStats from "./ExpenseStats";
 import CategoryTab from "@pages/MenuItemScreen/CategoryTab";
+import { useModulePermission } from "@hooks/useModulePermission";
 
 const theme = createTheme({
   palette: {
     primary: { main: "#D32F2F" },
-    background: { default: "#fdfaf9", paper: "#ffffff" },
+    background: { default: "#ffffff", paper: "#ffffff" },
     text: { primary: "#0F172A", secondary: "#6B7280" },
   },
   components: {
@@ -79,6 +80,7 @@ function StatusBadge({ status }: { status: ExpenseStatus }) {
 
 
 export default function ExpenseScreen() {
+  const { canCreate, canEdit, canDelete } = useModulePermission("Expense");
   const [activeTab, setActiveTab] = useState(0);
   const [search, setSearch]             = useState("");
   const [statusFilter, setStatusFilter] = useState<ExpenseStatus | "">("");
@@ -87,6 +89,8 @@ export default function ExpenseScreen() {
   const [deleteTarget, setDeleteTarget]     = useState<string | null>(null);
   const [paymentTarget, setPaymentTarget]   = useState<ExpenseRow | null>(null);
   const [detailExpenseId, setDetailExpenseId] = useState<string | null>(null);
+  const [categorySearch, setCategorySearch] = useState("");
+  const requestAddCategoryRef = useRef<(() => void) | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const { data: summary, isLoading: summaryLoading, refetch: refetchSummary } = useExpenseSummary();
@@ -254,6 +258,7 @@ export default function ExpenseScreen() {
               {(e.payment_status === "pending" || e.payment_status === "partial") && (
                 <Button
                   size="small" variant="contained" disableElevation
+                  disabled={!canEdit}
                   onClick={() => setPaymentTarget(e)}
                   sx={{ fontSize: "0.65rem", py: 0.4, px: 1.5, height: 24, width: "100%", whiteSpace: "nowrap", bgcolor: "#D32F2F", "&:hover": { bgcolor: "#B71C1C" } }}
                 >
@@ -271,25 +276,35 @@ export default function ExpenseScreen() {
         width: 90,
         render: (e) => (
           <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
-            <IconButton
-              size="small"
-              onClick={() => { setEditExpenseId(e.expense_id); setAddDialogOpen(true); }}
-              sx={{ color: "#9CA3AF", p: 0.6, borderRadius: 1, "&:hover": { color: "#2563EB", bgcolor: "#EFF6FF" }, transition: "all 0.12s" }}
-            >
-              <EditOutlinedIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-            <IconButton
-              size="small"
-              onClick={() => setDeleteTarget(e.expense_id)}
-              sx={{ color: "#9CA3AF", p: 0.6, borderRadius: 1, "&:hover": { color: "#DC2626", bgcolor: "#FEE2E2" }, transition: "all 0.12s" }}
-            >
-              <DeleteOutlineIcon sx={{ fontSize: 16 }} />
-            </IconButton>
+            <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"}>
+              <span>
+                <IconButton
+                  size="small"
+                  disabled={!canEdit}
+                  onClick={() => { setEditExpenseId(e.expense_id); setAddDialogOpen(true); }}
+                  sx={{ color: "#1976d2", p: 0.6, borderRadius: 1, "&:hover": { color: "#1565C0", bgcolor: "#EFF6FF" }, transition: "all 0.12s" }}
+                >
+                  <EditOutlinedIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"}>
+              <span>
+                <IconButton
+                  size="small"
+                  disabled={!canDelete}
+                  onClick={() => setDeleteTarget(e.expense_id)}
+                  sx={{ color: "#D2122E", p: 0.6, borderRadius: 1.5, "&:hover": { bgcolor: "#D2122E22" }, transition: "all 0.12s" }}
+                >
+                  <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </span>
+            </Tooltip>
           </Box>
         ),
       },
     ],
-    [setPaymentTarget]
+    [setPaymentTarget, canEdit, canDelete]
   );
 
   if (isLoading && summaryLoading) return <LottieLoader />;
@@ -302,8 +317,12 @@ export default function ExpenseScreen() {
           {/* Stats */}
           {summaryLoading || !summary ? <StatsSkeleton /> : <ExpenseStats data={summary} />}
 
-          {/* Tab switcher */}
-          <Box sx={{ borderBottom: 1, borderColor: "divider", flexShrink: 0 }}>
+          {/* Tab switcher + toolbar */}
+          <Box sx={{
+            borderBottom: 1, borderColor: "divider", flexShrink: 0,
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            gap: 1.5, flexWrap: "wrap",
+          }}>
             <Tabs
               value={activeTab}
               onChange={(_e, v) => setActiveTab(v)}
@@ -317,22 +336,15 @@ export default function ExpenseScreen() {
               <Tab label="Expenses" />
               <Tab label="Category" />
             </Tabs>
-          </Box>
 
-          {activeTab === 1 ? (
-            <Box sx={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-              <CategoryTab typeFilter="E" fixedType="E" />
-            </Box>
-          ) : (
-            <>
-              {/* Toolbar */}
-              <Box sx={{ px: 1, display: "flex", alignItems: "center", flexShrink: 0, gap: 1.5, flexWrap: "nowrap" }}>
+            {activeTab === 0 && (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "nowrap", pb: 1 }}>
                 <TextField
                   value={search}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   placeholder="Search expenses, vendors..."
                   size="small"
-                  sx={{ flex: 1, minWidth: 0, "& .MuiOutlinedInput-root": { bgcolor: "white", height: 38, fontSize: "0.875rem", borderRadius: 1.5 } }}
+                  sx={{ width: 260, "& .MuiOutlinedInput-root": { bgcolor: "white", height: 38, fontSize: "0.875rem", borderRadius: 1.5 } }}
                   slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 17, color: "#9CA3AF" }} /></InputAdornment> } }}
                 />
                 <FormControl size="small" sx={{ minWidth: 140, flexShrink: 0 }}>
@@ -357,18 +369,57 @@ export default function ExpenseScreen() {
                   startIcon={<AddIcon sx={{ fontSize: 16 }} />}
                   onClick={() => { setEditExpenseId(null); setAddDialogOpen(true); }}
                   disableElevation
+                  disabled={!canCreate}
                   sx={{ flexShrink: 0, fontSize: 14, fontWeight: 700, bgcolor: "#D32F2F", color: "#fff", px: 2, py: 0.9, borderRadius: 1.5, boxShadow: "0 4px 14px rgba(211,47,47,0.3)", "&:hover": { bgcolor: "#B71C1C" }, whiteSpace: "nowrap" }}
                 >
                   Add New Expense
                 </Button>
               </Box>
+            )}
 
+            {activeTab === 1 && (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "nowrap", pb: 1 }}>
+                <TextField
+                  value={categorySearch}
+                  onChange={(e) => setCategorySearch(e.target.value)}
+                  placeholder="Search by category name..."
+                  size="small"
+                  sx={{ width: 260, "& .MuiOutlinedInput-root": { bgcolor: "white", height: 38, fontSize: "0.875rem", borderRadius: 1.5 } }}
+                  slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 17, color: "#9CA3AF" }} /></InputAdornment> } }}
+                />
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<AddIcon sx={{ fontSize: 16 }} />}
+                  onClick={() => requestAddCategoryRef.current?.()}
+                  disableElevation
+                  disabled={!canCreate}
+                  sx={{ flexShrink: 0, fontSize: 14, fontWeight: 700, bgcolor: "#D32F2F", color: "#fff", px: 2, py: 0.9, borderRadius: 1.5, boxShadow: "0 4px 14px rgba(211,47,47,0.3)", "&:hover": { bgcolor: "#B71C1C" }, whiteSpace: "nowrap" }}
+                >
+                  Add Category
+                </Button>
+              </Box>
+            )}
+          </Box>
+
+          {activeTab === 1 ? (
+            <Box sx={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+              <CategoryTab
+                typeFilter="E"
+                fixedType="E"
+                hideToolbar
+                searchValue={categorySearch}
+                onRequestAdd={(openAdd) => { requestAddCategoryRef.current = openAdd; }}
+                canEdit={canEdit}
+                canDelete={canDelete}
+              />
+            </Box>
+          ) : (
+            <>
               {/* Table */}
               <Box sx={{ flex: 1, minHeight: 0 }}>
                 {isLoading ? (
-                  <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
-                    <CircularProgress size={32} sx={{ color: "#D32F2F" }} />
-                  </Box>
+                  <LottieLoader />
                 ) : (
                   <DataTable<ExpenseRow>
                     columns={columns}
@@ -391,13 +442,15 @@ export default function ExpenseScreen() {
         </Box>
 
         {/* FAB */}
-        <Fab
-          color="primary"
-          onClick={() => { setEditExpenseId(null); setAddDialogOpen(true); }}
-          sx={{ position: "fixed", bottom: 24, right: 24, display: { xs: "flex", md: "none" }, bgcolor: "#D32F2F", boxShadow: "0 8px 24px rgba(211,47,47,0.4)", "&:hover": { bgcolor: "#B71C1C" } }}
-        >
-          <AddIcon />
-        </Fab>
+        {canCreate && (
+          <Fab
+            color="primary"
+            onClick={() => { setEditExpenseId(null); setAddDialogOpen(true); }}
+            sx={{ position: "fixed", bottom: 24, right: 24, display: { xs: "flex", md: "none" }, bgcolor: "#D32F2F", boxShadow: "0 8px 24px rgba(211,47,47,0.4)", "&:hover": { bgcolor: "#B71C1C" } }}
+          >
+            <AddIcon />
+          </Fab>
+        )}
 
         <AddNewExpenseDialog
           open={addDialogOpen}

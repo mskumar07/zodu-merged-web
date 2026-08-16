@@ -4,7 +4,7 @@ import {
   Box, Typography, TextField, Button, IconButton,
   Select, MenuItem, FormControl, InputAdornment, ListSubheader,
   Table, TableHead, TableBody, TableRow, TableCell,
-  Paper, Tooltip, Checkbox, Chip, CircularProgress,
+  Paper, Tooltip, Checkbox, Chip, CircularProgress, Menu,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import CloseIcon               from "@mui/icons-material/Close";
@@ -25,8 +25,14 @@ import TableChartOutlinedIcon  from "@mui/icons-material/TableChartOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import DownloadOutlinedIcon    from "@mui/icons-material/DownloadOutlined";
 import CalendarTodayIcon       from "@mui/icons-material/CalendarToday";
+import PostAddOutlinedIcon     from "@mui/icons-material/PostAddOutlined";
+import LocalOfferOutlinedIcon  from "@mui/icons-material/LocalOfferOutlined";
+import InfoOutlinedIcon        from "@mui/icons-material/InfoOutlined";
+import CheckCircleOutlineIcon  from "@mui/icons-material/CheckCircleOutline";
+import MoreVertIcon            from "@mui/icons-material/MoreVert";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCategories } from "../MenuItemScreen/useMenuItemApi";
-import { useExpenseCatalog, useExpenseDetail, type ExpenseCatalogItem } from "./useExpenseApi";
+import { useExpenseDetail, useExpenseCatalog, type ExpenseCatalogItem } from "./useExpenseApi";
 import {
   useVendors,
   type Vendor,
@@ -70,7 +76,7 @@ const theme = createTheme({
     MuiTableCell: {
       styleOverrides: {
         root: { borderBottom: "1px solid #F3F4F6", padding: "8px 12px", fontSize: 13 },
-        head: { fontSize: 10, fontWeight: 700, letterSpacing: "0.07em", color: "#6B7280", textTransform: "uppercase" as const, backgroundColor: "#F9FAFB", borderBottom: "1px solid #E5E7EB", padding: "10px 12px" },
+        head: { fontSize: 12, fontWeight: 700, letterSpacing: "0.02em", color: "#6B7280", backgroundColor: "#F9FAFB", borderBottom: "1px solid #E5E7EB", padding: "10px 12px" },
       },
     },
     MuiOutlinedInput: {
@@ -88,14 +94,14 @@ interface CatalogueItem {
   categoryId?: number | null; unitPrice: number; unit: string; gstPct: number;
 }
 
-const expenseCatalogToItem = (item: ExpenseCatalogItem): CatalogueItem => ({
-  id: String(item.id),
-  itemId: String(item.id),
-  name: item.item_name,
-  sku: String(item.id),
+const expenseCatalogItemToCatalogue = (item: ExpenseCatalogItem): CatalogueItem => ({
+  id: item.item_uuid,
+  itemId: item.item_id ?? "",
+  name: item.expense_item_name ?? "",
+  sku: item.item_id ?? "",
   category: item.category_name || "Uncategorized",
   categoryId: item.category_id ?? null,
-  unitPrice: 0,
+  unitPrice: Number(item.amount) || 0,
   unit: "NOS",
   gstPct: 0,
 });
@@ -275,6 +281,7 @@ type PaymentMethod = "Cash" | "UPI" | "Bank Transfer" | "Others";
 interface ExpenseItem {
   id: string; itemUuid: string; itemId: string; itemName: string; sku: string;
   qty: number; unitPrice: number; taxPct: number; unit: string; categoryId?: number | null;
+  catalogUuid?: string;
 }
 
 interface ExpenseForm {
@@ -299,6 +306,7 @@ const catalogueToItem = (cat: CatalogueItem & { qty?: number }): ExpenseItem => 
   itemUuid: cat.id, itemId: cat.itemId, itemName: cat.name, sku: cat.sku,
   qty: cat.qty ?? 1, unitPrice: cat.unitPrice, taxPct: cat.gstPct,
   unit: cat.unit, categoryId: cat.categoryId ?? null,
+  catalogUuid: cat.id,
 });
 
 function FieldLabel({ children, sx }: { children: React.ReactNode; sx?: object }) {
@@ -316,39 +324,53 @@ const emptyForm = (): ExpenseForm => ({
 });
 
 // ─── Item Picker Dialog ───────────────────────────────────────
-interface ItemPickerDialogProps { open: boolean; onClose: () => void; alreadyAdded: string[]; onConfirm: (items: Array<CatalogueItem & { qty: number }>) => void; categoryId: string; }
-function ItemPickerDialog({ open, onClose, alreadyAdded, onConfirm, categoryId }: ItemPickerDialogProps) {
-  const [qtys, setQtys]     = useState<Record<string, number>>({});
-  const [prices, setPrices] = useState<Record<string, number>>({});
-  const [search, setSearch] = useState("");
+interface ItemPickerDialogProps {
+  open: boolean; onClose: () => void; alreadyAdded: string[]; alreadyAddedNames: string[];
+  onConfirm: (items: Array<CatalogueItem & { qty: number }>) => void;
+  onEditCatalogItem: (item: CatalogueItem) => void;
+  onDeleteCatalogItem: (item: CatalogueItem) => void;
+}
+
+function ItemPickerDialog({ open, onClose, alreadyAdded, alreadyAddedNames, onConfirm, onEditCatalogItem, onDeleteCatalogItem }: ItemPickerDialogProps) {
+  const [rowMenuAnchor, setRowMenuAnchor] = useState<HTMLElement | null>(null);
+  const [rowMenuCat, setRowMenuCat]       = useState<CatalogueItem | null>(null);
+  const [qtys, setQtys]           = useState<Record<string, number>>({});
+  const [prices, setPrices]       = useState<Record<string, number>>({});
+  const [search, setSearch]       = useState("");
+  const [debSearch, setDebSearch] = useState("");
   const selectedCount = Object.values(qtys).filter(q => q > 0).length;
 
-  const { data: rawCatalogue = [], isLoading } = useExpenseCatalog(categoryId);
-  const catalogue = useMemo(() => rawCatalogue.map(expenseCatalogToItem), [rawCatalogue]);
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebSearch(search.trim()), 300);
+    return () => window.clearTimeout(t);
+  }, [search]);
 
-  const filteredCatalogue = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return catalogue;
-    return catalogue.filter(c => c.name.toLowerCase().includes(q) || c.sku.toLowerCase().includes(q));
-  }, [catalogue, search]);
+  const { data: catalogRows = [], isLoading } = useExpenseCatalog(undefined, debSearch || undefined, open);
+  const catalogue = useMemo(() => catalogRows.map(expenseCatalogItemToCatalogue), [catalogRows]);
+  const isCatAdded = (cat: CatalogueItem) =>
+    alreadyAdded.includes(cat.id) ||
+    (!!cat.itemId && alreadyAdded.includes(cat.itemId)) ||
+    (!!cat.name && alreadyAddedNames.includes(cat.name.trim().toLowerCase()));
 
   const toggleItem = (id: string) => {
-    if (alreadyAdded.includes(id)) return;
+    const item = catalogue.find(c => c.id === id);
+    if (item && isCatAdded(item)) return;
     setQtys(prev => {
       const cur = prev[id] ?? 0;
       if (cur > 0) { setPrices(p => { const n = { ...p }; delete n[id]; return n; }); return { ...prev, [id]: 0 }; }
-      const item = catalogue.find(c => c.id === id);
       if (item) setPrices(p => ({ ...p, [id]: item.unitPrice }));
       return { ...prev, [id]: 1 };
     });
   };
 
   const setQty = (id: string, val: number) => {
-    if (alreadyAdded.includes(id)) return;
+    const item = catalogue.find(c => c.id === id);
+    if (item && isCatAdded(item)) return;
     const next = Math.max(0, val);
     setQtys(prev => {
+      const was = prev[id] ?? 0;
       if (next === 0) { setPrices(p => { const n = { ...p }; delete n[id]; return n; }); }
-      else if ((prev[id] ?? 0) === 0 && next > 0) { const item = catalogue.find(c => c.id === id); if (item) setPrices(p => ({ ...p, [id]: item.unitPrice })); }
+      else if (was === 0 && next > 0) { if (item) setPrices(p => ({ ...p, [id]: item.unitPrice })); }
       return { ...prev, [id]: next };
     });
   };
@@ -356,11 +378,11 @@ function ItemPickerDialog({ open, onClose, alreadyAdded, onConfirm, categoryId }
   const setPrice = (id: string, price: number, fallback: number) =>
     setPrices(prev => ({ ...prev, [id]: Math.max(0, Number.isFinite(price) ? price : fallback) }));
 
-  const reset = () => { setQtys({}); setPrices({}); setSearch(""); };
+  const reset = () => { setQtys({}); setPrices({}); setSearch(""); setDebSearch(""); };
   const handleClose   = () => { reset(); onClose(); };
   const handleConfirm = () => {
-    onConfirm(filteredCatalogue.filter(c => (qtys[c.id] ?? 0) > 0).map(c => ({ ...c, unitPrice: prices[c.id] ?? c.unitPrice, qty: qtys[c.id] })));
-    reset(); onClose();
+    const items = catalogue.filter(c => (qtys[c.id] ?? 0) > 0).map(c => ({ ...c, unitPrice: prices[c.id] ?? c.unitPrice, qty: qtys[c.id] }));
+    onConfirm(items); reset(); onClose();
   };
 
   return (
@@ -370,7 +392,9 @@ function ItemPickerDialog({ open, onClose, alreadyAdded, onConfirm, categoryId }
           <Box sx={{ p: 0.8, bgcolor: "rgba(210,31,60,0.08)", borderRadius: 2, display: "flex" }}><InventoryOutlinedIcon sx={{ color: "#D21F3C", fontSize: 20 }} /></Box>
           <Box>
             <Typography sx={{ fontSize: 16, fontWeight: 800, color: "#0F172A" }}>Select Items</Typography>
-            <Typography sx={{ fontSize: 11, color: "#9CA3AF" }}>Use +/− to set quantity — reaching 0 deselects the item</Typography>
+            <Typography sx={{ fontSize: 11, color: "#9CA3AF" }}>
+              Use +/− to set quantity
+            </Typography>
           </Box>
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
@@ -379,40 +403,57 @@ function ItemPickerDialog({ open, onClose, alreadyAdded, onConfirm, categoryId }
         </Box>
       </DialogTitle>
       <Box sx={{ px: 3, pt: 2, pb: 1.5, flexShrink: 0, borderBottom: "1px solid #F1F5F9" }}>
-        <TextField value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or SKU…" size="small" fullWidth InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 17, color: "#9CA3AF" }} /></InputAdornment> }} sx={{ "& .MuiOutlinedInput-root": { bgcolor: "#F8FAFC", borderRadius: 2, fontSize: 13, "& fieldset": { borderColor: "#E2E8F0" }, "&:hover fieldset": { borderColor: "#D21F3C" }, "&.Mui-focused fieldset": { borderColor: "#D21F3C", borderWidth: 2 } } }} />
+        <TextField value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or item ID…" size="small" fullWidth InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 17, color: "#9CA3AF" }} /></InputAdornment> }} sx={{ "& .MuiOutlinedInput-root": { bgcolor: "#F8FAFC", borderRadius: 2, fontSize: 13, "& fieldset": { borderColor: "#E2E8F0" }, "&:hover fieldset": { borderColor: "#D21F3C" }, "&.Mui-focused fieldset": { borderColor: "#D21F3C", borderWidth: 2 } } }} />
       </Box>
       <DialogContent sx={{ p: 0, overflowY: "auto", flex: 1, overscrollBehavior: "contain" }}>
         {isLoading ? (
           <Box sx={{ py: 6, textAlign: "center" }}><CircularProgress size={24} sx={{ color: "#D21F3C" }} /></Box>
-        ) : filteredCatalogue.length === 0 ? (
-          <Box sx={{ py: 6, textAlign: "center" }}><Typography sx={{ fontSize: 13, color: "#9CA3AF" }}>No items found</Typography></Box>
+        ) : catalogue.length === 0 ? (
+          <Box sx={{ py: 6, textAlign: "center" }}>
+            <Typography sx={{ fontSize: 13, color: "#9CA3AF" }}>No expense items found</Typography>
+          </Box>
         ) : (
           <Table size="small" stickyHeader>
             <TableHead>
               <TableRow>
                 <TableCell sx={{ width: 44, bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important" }} />
-                <TableCell sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "10px !important", fontWeight: "700 !important", color: "#6B7280 !important", letterSpacing: "0.07em", textTransform: "uppercase" as const }}>Item</TableCell>
-                <TableCell align="center" sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "10px !important", fontWeight: "700 !important", color: "#6B7280 !important", width: 122 }}>Qty</TableCell>
-                <TableCell align="right" sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "10px !important", fontWeight: "700 !important", color: "#6B7280 !important", width: 148 }}>Unit Price</TableCell>
-                <TableCell align="center" sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "10px !important", fontWeight: "700 !important", color: "#6B7280 !important", width: 68 }}>GST</TableCell>
+                <TableCell sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "12px !important", fontWeight: "700 !important", color: "#6B7280 !important", letterSpacing: "0.02em" }}>Item</TableCell>
+                <TableCell align="center" sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "12px !important", fontWeight: "700 !important", color: "#6B7280 !important", width: 122 }}>Qty</TableCell>
+                <TableCell align="right" sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", fontSize: "12px !important", fontWeight: "700 !important", color: "#6B7280 !important", width: 148 }}>Unit Price</TableCell>
+                <TableCell sx={{ bgcolor: "#F9FAFB !important", borderBottom: "1px solid #E5E7EB !important", width: 44 }} />
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredCatalogue.map(cat => {
+              {catalogue.map(cat => {
                 const qty = qtys[cat.id] ?? 0;
                 const isSelected = qty > 0;
-                const isAdded = alreadyAdded.includes(cat.id);
+                const isAdded = isCatAdded(cat);
                 const price = prices[cat.id] ?? cat.unitPrice;
                 return (
-                  <TableRow key={cat.id} onClick={() => !isAdded && toggleItem(cat.id)} sx={{ cursor: isAdded ? "not-allowed" : "pointer", bgcolor: isSelected ? "#FFF9F9" : "transparent", opacity: isAdded ? 0.4 : 1, borderLeft: `3px solid ${isSelected ? "#D21F3C" : "transparent"}`, "&:hover": { bgcolor: isAdded ? "transparent" : isSelected ? "#FFF1F2" : "#FAFAFA" }, transition: "all 0.1s" }}>
-                    <TableCell sx={{ borderBottom: "1px solid #F3F4F6" }}><Checkbox checked={isSelected} disabled={isAdded} size="small" sx={{ color: "#D1D5DB", "&.Mui-checked": { color: "#D21F3C" }, p: 0.5 }} /></TableCell>
-                    <TableCell sx={{ borderBottom: "1px solid #F3F4F6" }}>
+                  <TableRow key={cat.id} onClick={() => !isAdded && toggleItem(cat.id)} sx={{ cursor: isAdded ? "not-allowed" : "pointer", bgcolor: isSelected ? "#FFF9F9" : "transparent", borderLeft: `3px solid ${isSelected ? "#D21F3C" : "transparent"}`, "&:hover": { bgcolor: isAdded ? "transparent" : isSelected ? "#FFF1F2" : "#FAFAFA" }, transition: "all 0.1s" }}>
+                    <TableCell sx={{ borderBottom: "1px solid #F3F4F6", opacity: isAdded ? 0.4 : 1 }}><Checkbox checked={isSelected} disabled={isAdded} size="small" sx={{ color: "#D1D5DB", "&.Mui-checked": { color: "#D21F3C" }, p: 0.5 }} /></TableCell>
+                    <TableCell sx={{ borderBottom: "1px solid #F3F4F6", opacity: isAdded ? 0.4 : 1 }}>
                       <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{cat.name}</Typography>
-                      <Typography sx={{ fontSize: 10, color: "#9CA3AF", fontFamily: "monospace" }}>{cat.sku} · {cat.unit}</Typography>
+                      <Typography sx={{ fontSize: 10, color: "#9CA3AF", fontFamily: "monospace" }}>{cat.sku} · {cat.category}</Typography>
                     </TableCell>
-                    <TableCell align="center" sx={{ borderBottom: "1px solid #F3F4F6" }} onClick={e => e.stopPropagation()}><QtyCounter value={qty} onChange={v => setQty(cat.id, v)} disabled={isAdded} min={0} size="compact" /></TableCell>
-                    <TableCell align="right" sx={{ borderBottom: "1px solid #F3F4F6" }} onClick={e => e.stopPropagation()}><PriceInput value={isSelected ? price : cat.unitPrice} onChange={v => setPrice(cat.id, v, cat.unitPrice)} disabled={isAdded || !isSelected} size="compact" /></TableCell>
-                    <TableCell align="center" sx={{ borderBottom: "1px solid #F3F4F6" }}><Chip label={`${cat.gstPct}%`} size="small" sx={{ fontSize: 10, fontWeight: 700, height: 18, bgcolor: "#EDE9FE", color: "#5B21B6" }} /></TableCell>
+                    <TableCell align="center" sx={{ borderBottom: "1px solid #F3F4F6", opacity: isAdded ? 0.4 : 1 }} onClick={e => e.stopPropagation()}><QtyCounter value={qty} onChange={v => setQty(cat.id, v)} disabled={isAdded} min={0} size="compact" /></TableCell>
+                    <TableCell align="right" sx={{ borderBottom: "1px solid #F3F4F6", opacity: isAdded ? 0.4 : 1 }} onClick={e => e.stopPropagation()}><PriceInput value={isSelected ? price : cat.unitPrice} onChange={v => setPrice(cat.id, v, cat.unitPrice)} disabled={isAdded || !isSelected} size="compact" /></TableCell>
+                    <TableCell sx={{ borderBottom: "1px solid #F3F4F6" }} onClick={e => e.stopPropagation()}>
+                      <IconButton
+                        size="small"
+                        onClick={e => { setRowMenuAnchor(e.currentTarget); setRowMenuCat(cat); }}
+                        sx={{
+                          color: "#D21F3C",
+                          bgcolor: "rgba(210,31,60,0.1)",
+                          p: 0.6,
+                          borderRadius: "10px",
+                          "&:hover": { color: "#fff", bgcolor: "#D21F3C" },
+                          transition: "all 0.15s",
+                        }}
+                      >
+                        <MoreVertIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -421,13 +462,206 @@ function ItemPickerDialog({ open, onClose, alreadyAdded, onConfirm, categoryId }
         )}
       </DialogContent>
       <DialogActions sx={{ px: 3, py: 2, bgcolor: "#F8FAFC", borderTop: "1px solid #F1F5F9", gap: 1.5, flexShrink: 0, justifyContent: "space-between" }}>
-        <Typography sx={{ fontSize: 12, color: "#9CA3AF" }}>{filteredCatalogue.length} item{filteredCatalogue.length !== 1 ? "s" : ""} shown</Typography>
+        <Typography sx={{ fontSize: 12, color: "#9CA3AF" }}>{catalogue.length} item{catalogue.length !== 1 ? "s" : ""} shown</Typography>
         <Box sx={{ display: "flex", gap: 1.5 }}>
           <Button onClick={handleClose} sx={{ color: "#374151", fontWeight: 700, px: 2.5, py: 0.9, fontSize: 13, borderRadius: 2, "&:hover": { bgcolor: "#F3F4F6" } }}>Cancel</Button>
           <Button variant="contained" onClick={handleConfirm} disabled={selectedCount === 0} startIcon={<CheckBoxOutlinedIcon sx={{ fontSize: 17 }} />} disableElevation sx={{ bgcolor: "#D21F3C", color: "#fff", fontWeight: 700, px: 3, py: 0.9, fontSize: 13, borderRadius: 2, "&:hover": { bgcolor: "#B71C1C" }, "&.Mui-disabled": { bgcolor: "#E5E7EB", color: "#9CA3AF" } }}>
             Add {selectedCount > 0 ? `${selectedCount} ` : ""}Item{selectedCount !== 1 ? "s" : ""}
           </Button>
         </Box>
+      </DialogActions>
+      <Menu
+        anchorEl={rowMenuAnchor}
+        open={!!rowMenuAnchor}
+        onClose={() => setRowMenuAnchor(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        PaperProps={{ sx: { borderRadius: 2, minWidth: 140, boxShadow: "0 12px 32px rgba(15,23,42,0.14)" } }}
+      >
+        <MenuItem onClick={() => { if (rowMenuCat) onEditCatalogItem(rowMenuCat); setRowMenuAnchor(null); }} sx={{ fontSize: 13, gap: 1 }}>
+          <EditOutlinedIcon sx={{ fontSize: 16, color: "#6B7280" }} /> Edit
+        </MenuItem>
+        <MenuItem onClick={() => { if (rowMenuCat) onDeleteCatalogItem(rowMenuCat); setRowMenuAnchor(null); }} sx={{ fontSize: 13, gap: 1, color: "#EF4444" }}>
+          <DeleteOutlineIcon sx={{ fontSize: 16 }} /> Delete
+        </MenuItem>
+      </Menu>
+    </Dialog>
+  );
+}
+
+// ─── Create Expense Item Dialog ────────────────────────────────
+interface NewExpenseItemForm {
+  name: string;
+  itemId: string;
+  categoryId: string;
+  amount: string;
+  qty: string;
+}
+const emptyNewItemForm = (): NewExpenseItemForm => ({ name: "", itemId: "", categoryId: "", amount: "", qty: "" });
+
+interface CreateExpenseItemDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onSave: (item: NewExpenseItemForm) => Promise<void>;
+  initialValue?: NewExpenseItemForm | null;
+}
+
+const genItemId = () => `EI-${Date.now().toString(36).toUpperCase()}`;
+
+function CreateExpenseItemDialog({ open, onClose, onSave, initialValue = null }: CreateExpenseItemDialogProps) {
+  const isEditMode = !!initialValue;
+  const [form, setForm]   = useState<NewExpenseItemForm>(emptyNewItemForm);
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState("");
+
+  useEffect(() => {
+    if (open) {
+      const base = initialValue ? { ...emptyNewItemForm(), ...initialValue } : emptyNewItemForm();
+      setForm({ ...base, itemId: base.itemId?.trim() ? base.itemId : genItemId() });
+      setError("");
+      setSaving(false);
+    }
+  }, [open, initialValue]);
+
+  const setField = <K extends keyof NewExpenseItemForm>(key: K, val: NewExpenseItemForm[K]) =>
+    setForm(prev => ({ ...prev, [key]: val }));
+
+  const amountNum = parseFloat(form.amount) || 0;
+  const qtyNum    = (form.qty ?? "").trim() ? (parseFloat(form.qty) || 0) : 1;
+  const totalCost = amountNum * qtyNum;
+  const isValid   = (form.name ?? "").trim() && (form.itemId ?? "").trim() && amountNum > 0 && qtyNum > 0;
+
+  const inputSx = {
+    "& .MuiOutlinedInput-root": {
+      bgcolor: "#F8FAFC", fontSize: 13, borderRadius: "8px",
+      "& fieldset": { borderColor: "#E2E8F0" },
+      "&:hover fieldset": { borderColor: "#D21F3C" },
+      "&.Mui-focused fieldset": { borderColor: "#D21F3C", borderWidth: 2 },
+    },
+  };
+
+  const handleClose = () => { setForm(emptyNewItemForm()); setError(""); onClose(); };
+  const handleSave = async () => {
+    if (!isValid || saving) return;
+    setError("");
+    setSaving(true);
+    try {
+      await onSave(form);
+      setForm(emptyNewItemForm());
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(e?.response?.data?.message ?? e?.message ?? "Failed to save expense item.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: 3, boxShadow: "0 25px 60px rgba(15,23,42,0.28)" } }}>
+      <DialogTitle sx={{ px: 3, py: 2.5, borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box sx={{ p: 0.8, bgcolor: "rgba(210,31,60,0.08)", borderRadius: 2, display: "flex" }}>
+            <PostAddOutlinedIcon sx={{ color: "#D21F3C", fontSize: 20 }} />
+          </Box>
+          <Box>
+            <Typography sx={{ fontSize: 16, fontWeight: 800, color: "#0F172A" }}>{isEditMode ? "Edit Expense Item" : "Add Expense Item"}</Typography>
+            <Typography sx={{ fontSize: 11.5, color: "#9CA3AF" }}>{isEditMode ? "Update the details for this expense item" : "Fill in the details to add a new expense item"}</Typography>
+          </Box>
+        </Box>
+        <IconButton size="small" onClick={handleClose} sx={{ color: "#6B7280", bgcolor: "#F9FAFB", "&:hover": { bgcolor: "#F3F4F6" }, borderRadius: "50%" }}>
+          <CloseIcon sx={{ fontSize: 17 }} />
+        </IconButton>
+      </DialogTitle>
+
+      <DialogContent sx={{ px: 3, py: 3 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+
+          {/* Name */}
+          <Box>
+            <FieldLabel>Expense Item Name *</FieldLabel>
+            <TextField size="small" fullWidth value={form.name} onChange={e => setField("name", e.target.value)}
+              placeholder="Enter expense item name"
+              InputProps={{ startAdornment: <InputAdornment position="start"><LocalOfferOutlinedIcon sx={{ fontSize: 16, color: "#D21F3C" }} /></InputAdornment> }}
+              sx={inputSx} />
+            <Typography sx={{ fontSize: 11, color: "#9CA3AF", mt: 0.5 }}>Enter a descriptive name for this expense item</Typography>
+          </Box>
+
+          {/* Qty / Amount */}
+          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+            <Box>
+              <FieldLabel>Unit</FieldLabel>
+              <TextField size="small" fullWidth type="number" value={form.qty} onChange={e => setField("qty", e.target.value)}
+                placeholder="Defaults to 1"
+                sx={inputSx} />
+              <Typography sx={{ fontSize: 11, color: "#9CA3AF", mt: 0.5 }}>Optional — defaults to 1 if left blank</Typography>
+            </Box>
+            <Box>
+              <FieldLabel>Amount (₹) *</FieldLabel>
+              <TextField size="small" fullWidth type="number" value={form.amount} onChange={e => setField("amount", e.target.value)}
+                placeholder="Enter amount"
+                InputProps={{ startAdornment: <InputAdornment position="start"><Typography sx={{ fontSize: 13, fontWeight: 700, color: "#D21F3C" }}>₹</Typography></InputAdornment> }}
+                sx={inputSx} />
+              <Typography sx={{ fontSize: 11, color: "#9CA3AF", mt: 0.5 }}>Enter the amount for this item</Typography>
+            </Box>
+          </Box>
+
+          {/* Info banner */}
+          {/* <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, py: 1.25, bgcolor: "#FFF5F5", border: "1px solid #FECDD3", borderRadius: 2 }}>
+            <InfoOutlinedIcon sx={{ fontSize: 17, color: "#D21F3C", flexShrink: 0 }} />
+            <Typography sx={{ fontSize: 12, color: "#7F1D1D" }}>
+              Total cost will be calculated automatically ( Amount × Quantity{totalCost > 0 ? ` = ${INR(totalCost)}` : ""} ).
+            </Typography>
+          </Box> */}
+
+          {error && (
+            <Box sx={{ px: 2, py: 1.25, bgcolor: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 2 }}>
+              <Typography sx={{ fontSize: 12, color: "#B91C1C", fontWeight: 600 }}>{error}</Typography>
+            </Box>
+          )}
+        </Box>
+      </DialogContent>
+
+      <DialogActions sx={{ px: 3, py: 2, bgcolor: "#F8FAFC", borderTop: "1px solid #F1F5F9", gap: 1.5 }}>
+        <Button onClick={handleClose} disabled={saving} startIcon={<CloseIcon sx={{ fontSize: 15 }} />} sx={{ color: "#374151", fontWeight: 700, px: 2.5, py: 0.9, fontSize: 13, borderRadius: 2, "&:hover": { bgcolor: "#F3F4F6" } }}>
+          Cancel
+        </Button>
+        <Button variant="contained" onClick={handleSave} disabled={!isValid || saving}
+          startIcon={saving ? <CircularProgress size={15} sx={{ color: "#fff" }} /> : <CheckCircleOutlineIcon sx={{ fontSize: 17 }} />} disableElevation
+          sx={{ bgcolor: "#D21F3C", color: "#fff", fontWeight: 700, px: 3, py: 0.9, fontSize: 13, borderRadius: 2, "&:hover": { bgcolor: "#B71C1C" }, "&.Mui-disabled": { bgcolor: "#E5E7EB", color: "#9CA3AF" } }}>
+          {saving ? (isEditMode ? "Updating…" : "Saving…") : isEditMode ? "Update Expense Item" : "Save Expense Item"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// ─── Delete Confirmation Dialog ────────────────────────────────
+interface DeleteItemConfirmDialogProps {
+  open: boolean;
+  itemName?: string;
+  onClose: () => void;
+  onConfirm: () => void;
+}
+function DeleteItemConfirmDialog({ open, itemName, onClose, onConfirm }: DeleteItemConfirmDialogProps) {
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 3, boxShadow: "0 25px 60px rgba(15,23,42,0.28)" } }}>
+      <DialogContent sx={{ p: 3, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 1.5 }}>
+        <Box sx={{ width: 52, height: 52, borderRadius: "50%", bgcolor: "#FEF2F2", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <DeleteOutlineIcon sx={{ fontSize: 26, color: "#EF4444" }} />
+        </Box>
+        <Typography sx={{ fontSize: 16, fontWeight: 800, color: "#0F172A" }}>Remove Item?</Typography>
+        <Typography sx={{ fontSize: 13, color: "#6B7280" }}>
+          {itemName ? <>Are you sure you want to remove <b>{itemName}</b> from this expense?</> : "Are you sure you want to remove this item from this expense?"}
+        </Typography>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 3, pt: 0, gap: 1.5, justifyContent: "center" }}>
+        <Button onClick={onClose} sx={{ color: "#374151", fontWeight: 700, px: 2.5, py: 0.9, fontSize: 13, borderRadius: 2, "&:hover": { bgcolor: "#F3F4F6" } }}>
+          Cancel
+        </Button>
+        <Button variant="contained" onClick={onConfirm} startIcon={<DeleteOutlineIcon sx={{ fontSize: 16 }} />} disableElevation
+          sx={{ bgcolor: "#EF4444", color: "#fff", fontWeight: 700, px: 2.5, py: 0.9, fontSize: 13, borderRadius: 2, "&:hover": { bgcolor: "#DC2626" } }}>
+          Remove Item
+        </Button>
       </DialogActions>
     </Dialog>
   );
@@ -443,15 +677,23 @@ interface AddNewExpenseDialogProps {
 
 export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpenseId }: AddNewExpenseDialogProps) {
   const isEditMode = !!editExpenseId;
+  const queryClient = useQueryClient();
 
   const [form, setForm]               = useState<ExpenseForm>(emptyForm);
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [pickerOpen, setPickerOpen]   = useState(false);
+  const [createItemOpen, setCreateItemOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<ExpenseItem | null>(null);
+  const [deletingItem, setDeletingItem] = useState<ExpenseItem | null>(null);
+  const [reopenPickerAfter, setReopenPickerAfter] = useState(false);
   const [saveError, setSaveError]     = useState("");
   const [vendorOpen, setVendorOpen]   = useState(false);
   const [vendorSearch, setVendorSearch] = useState("");
   const [isSaving, setIsSaving]       = useState(false);
   const [successMsg, setSuccessMsg]   = useState("");
+  const expenseDateInputRef = useRef<HTMLInputElement>(null);
+  const paymentDateInputRef = useRef<HTMLInputElement>(null);
+  const dueDateInputRef     = useRef<HTMLInputElement>(null);
 
   const { data: vendorsResponse = [], isLoading: vendorsLoading } = useVendors("Expense");
   const { data: categories = [] } = useCategories("expense");
@@ -489,7 +731,7 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
     setForm({
       supplier: expenseDetail.vendor_id ?? "",
       expenseDate: expenseDetail.expense_date ? formatDateForInput(expenseDetail.expense_date) : todayStr(),
-      categoryId: String(expenseDetail.category_id),
+      categoryId: expenseDetail.category_id != null ? String(expenseDetail.category_id) : "",
       paymentMethod: ((expenseDetail.transaction_type || expenseDetail.payments?.[0]?.transaction_type) as PaymentMethod) ?? "Bank Transfer",
       paymentRef: expenseDetail.transaction_id ?? expenseDetail.payments?.[0]?.transaction_id ?? "",
       paymentDate: expenseDetail.payments?.[0]?.payment_date ? formatDateForInput(expenseDetail.payments[0].payment_date) : todayStr(),
@@ -497,13 +739,13 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
       notes: expenseDetail.notes ?? "",
       dueDate: expenseDetail.due_date ? formatDateForInput(expenseDetail.due_date) : "",
       items: expenseDetail.items.map(item => {
-        const itemId = item.item_id ?? item.id;
+        const itemId = item.item_id || (item.id != null ? String(item.id) : "");
         return {
-          id: `ei-${item.expense_item_id ?? itemId}-${Date.now()}-${Math.random()}`,
-          itemUuid: String(itemId),
-          itemId: String(itemId),
+          id: `ei-${item.expense_item_id ?? itemId ?? Math.random()}-${Date.now()}-${Math.random()}`,
+          itemUuid: itemId,
+          itemId,
           itemName: item.item_name,
-          sku: String(itemId),
+          sku: itemId,
           qty: Math.round(parseFloat(String(item.qty))) || 1,
           unitPrice: parseFloat(String(item.price)) || 0,
           taxPct: 0,
@@ -522,7 +764,100 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
     setForm(prev => ({ ...prev, items: [...prev.items, ...items.map(catalogueToItem)] }));
   }, []);
 
-  const removeItem      = useCallback((id: string) => setForm(prev => ({ ...prev, items: prev.items.filter(i => i.id !== id) })), []);
+  const closeCatalogFlyout = useCallback(() => {
+    setEditingItem(null);
+    setDeletingItem(null);
+    setReopenPickerAfter(reopen => {
+      if (reopen) setPickerOpen(true);
+      return false;
+    });
+  }, []);
+
+  const handleSaveCatalogItem = useCallback(async (item: NewExpenseItemForm) => {
+    const { zoduId, branchId } = getTenantContext();
+
+    if (editingItem) {
+      const payload = {
+        expense_item_name: item.name,
+        amount: parseFloat(item.amount) || 0,
+        unit: parseFloat(item.qty) || 1,
+      };
+      const res = editingItem.catalogUuid
+        ? await getApi().put(`/expense/catalog/${editingItem.catalogUuid}`, payload)
+        : null;
+      const data = res?.data?.data;
+      const editingNameLower = editingItem.itemName.trim().toLowerCase();
+      const matchesEditingItem = (i: ExpenseItem) =>
+        i.id === editingItem.id ||
+        (!!editingItem.catalogUuid && i.catalogUuid === editingItem.catalogUuid) ||
+        (!!editingItem.itemId && i.itemId === editingItem.itemId) ||
+        (!!editingNameLower && i.itemName.trim().toLowerCase() === editingNameLower);
+      setForm(prev => ({
+        ...prev,
+        items: prev.items.map(i => matchesEditingItem(i) ? {
+          ...i,
+          itemUuid: data?.item_uuid ?? i.itemUuid,
+          catalogUuid: data?.item_uuid ?? i.catalogUuid,
+          itemId: item.itemId,
+          itemName: item.name,
+          sku: item.itemId,
+          qty: parseFloat(item.qty) || 1,
+          unitPrice: parseFloat(item.amount) || 0,
+        } : i),
+      }));
+      queryClient.invalidateQueries({ queryKey: ["expense", "catalog"] });
+      closeCatalogFlyout();
+      return;
+    }
+
+    const res = await getApi().post(`/expense/catalog`, {
+      zodu_id: zoduId,
+      branch_id: branchId,
+      expense_item_name: item.name,
+      amount: parseFloat(item.amount) || 0,
+      unit: parseFloat(item.qty) || 1,
+    });
+    const data = res.data.data;
+    const newItem: ExpenseItem = {
+      id: `ei-${data.item_uuid}-${Date.now()}`,
+      itemUuid: data.item_uuid,
+      catalogUuid: data.item_uuid,
+      itemId: data.item_id,
+      itemName: data.expense_item_name,
+      sku: data.item_id,
+      qty: parseFloat(data.unit ?? data.qty) || 1,
+      unitPrice: parseFloat(data.amount) || 0,
+      taxPct: 0,
+      unit: "NOS",
+      categoryId: data.category_id ?? null,
+    };
+    setForm(prev => ({ ...prev, items: [...prev.items, newItem] }));
+    queryClient.invalidateQueries({ queryKey: ["expense", "catalog"] });
+    setCreateItemOpen(false);
+  }, [editingItem, queryClient, closeCatalogFlyout]);
+
+  const confirmDeleteItem = useCallback(async () => {
+    if (!deletingItem) return;
+    if (deletingItem.catalogUuid) {
+      try { await getApi().delete(`/expense/catalog/${deletingItem.catalogUuid}`); }
+      catch { /* item still removed from this expense's line items below */ }
+    }
+    const deletingNameLower = deletingItem.itemName.trim().toLowerCase();
+    const matchesDeletingItem = (i: ExpenseItem) =>
+      i.id === deletingItem.id ||
+      (!!deletingItem.catalogUuid && i.catalogUuid === deletingItem.catalogUuid) ||
+      (!!deletingItem.itemId && i.itemId === deletingItem.itemId) ||
+      (!!deletingNameLower && i.itemName.trim().toLowerCase() === deletingNameLower);
+    setForm(prev => ({
+      ...prev,
+      items: prev.items.filter(i => !matchesDeletingItem(i)),
+    }));
+    queryClient.invalidateQueries({ queryKey: ["expense", "catalog"] });
+    closeCatalogFlyout();
+  }, [deletingItem, queryClient, closeCatalogFlyout]);
+
+  const removeItemFromRow = useCallback((id: string) => setForm(prev => ({ ...prev, items: prev.items.filter(i => i.id !== id) })), []);
+
   const updateItemQty   = useCallback((id: string, v: number) => setForm(prev => ({ ...prev, items: prev.items.map(i => i.id === id ? { ...i, qty: Math.max(1, v) } : i) })), []);
   const updateItemPrice = useCallback((id: string, v: number) => setForm(prev => ({ ...prev, items: prev.items.map(i => i.id === id ? { ...i, unitPrice: Math.max(0, v) } : i) })), []);
   const updateItemTax   = useCallback((id: string, v: number) => setForm(prev => ({ ...prev, items: prev.items.map(i => i.id === id ? { ...i, taxPct: Math.max(0, v) } : i) })), []);
@@ -549,10 +884,13 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
     }
   }, []);
 
-  const grandTotal = parseFloat(form.items.reduce((s, i) => s + i.qty * i.unitPrice, 0).toFixed(2));
+  const visibleItems = form.items;
+
+  const grandTotal = parseFloat(visibleItems.reduce((s, i) => s + i.qty * i.unitPrice, 0).toFixed(2));
   const paid       = parseFloat(form.paidAmount) || 0;
   const balanceDue = Math.max(0, grandTotal - paid);
-  const alreadyAdded = form.items.map(i => i.itemUuid);
+  const alreadyAdded = Array.from(new Set(visibleItems.flatMap(i => [i.itemUuid, i.itemId].filter(Boolean))));
+  const alreadyAddedNames = Array.from(new Set(visibleItems.map(i => i.itemName.trim().toLowerCase()).filter(Boolean)));
 
   const paymentStatus = (): "paid" | "partial" | "pending" => {
     const roundedTotal = parseFloat(grandTotal.toFixed(2));
@@ -567,8 +905,8 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
   };
 
   const handleSave = async () => {
-    if (!form.categoryId)   { setSaveError("Select a category before saving."); return; }
-    if (!form.items.length) { setSaveError("Add at least one item before saving."); return; }
+    if (!form.categoryId)      { setSaveError("Select a category before saving."); return; }
+    if (!visibleItems.length)  { setSaveError("Add at least one item in the selected category before saving."); return; }
     if (paid > grandTotal) { setSaveError("Paid amount cannot exceed grand total."); return; }
     if (attachments.some(a => a.uploading)) { setSaveError("Please wait for attachments to finish uploading."); return; }
 
@@ -585,7 +923,7 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
       zodu_id: zoduId,
       branch_id: branchId,
       vendor_id: form.supplier,
-      expense_date: form.expenseDate,
+      expense_date: form.expenseDate || todayStr(),
       category_id: Number(form.categoryId),
       total_amount: grandTotal,
       paid_amount: paid,
@@ -593,11 +931,11 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
       payment_status: paymentStatus(),
       notes: form.notes || null,
       attachment_url: allUrls,
-      due_date: form.dueDate ? new Date(form.dueDate).toISOString() : null,
+      due_date: balanceDue > 0 && form.dueDate ? new Date(form.dueDate).toISOString() : null,
       transaction_type: form.paymentMethod,
       transaction_id: form.paymentRef || null,
       payment_date: form.paymentDate || null,
-      items: form.items.map(item => {
+      items: visibleItems.map(item => {
         const tax = itemTaxAmount(item);
         return { item_uuid: item.itemUuid, item_id: item.itemId, item_name: item.itemName, qty: item.qty, unit: item.unit, price: item.unitPrice, gst_percentage: item.taxPct, tax_amount: tax, cgst: tax / 2, sgst: tax / 2, category_id: item.categoryId ?? null };
       }),
@@ -632,10 +970,45 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
     },
   };
 
+  // Format YYYY-MM-DD -> "29-JUL-2026"
+  const formatDateDisplay = (dateString: string | undefined): string => {
+    if (!dateString) return "";
+    const [year, month, day] = dateString.split("-");
+    if (!year || !month || !day) return "";
+    const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+    return `${day}-${monthNames[Number(month) - 1]}-${year}`;
+  };
+
   return (
     <ThemeProvider theme={theme}>
-      <ItemPickerDialog open={pickerOpen} onClose={() => setPickerOpen(false)} alreadyAdded={alreadyAdded} onConfirm={handlePickerConfirm} categoryId={form.categoryId} />
-
+      <ItemPickerDialog
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        alreadyAdded={alreadyAdded}
+        alreadyAddedNames={alreadyAddedNames}
+        onConfirm={handlePickerConfirm}
+        onEditCatalogItem={cat => { setPickerOpen(false); setReopenPickerAfter(true); setEditingItem(catalogueToItem(cat)); }}
+        onDeleteCatalogItem={cat => { setPickerOpen(false); setReopenPickerAfter(true); setDeletingItem(catalogueToItem(cat)); }}
+      />
+      <CreateExpenseItemDialog open={createItemOpen} onClose={() => setCreateItemOpen(false)} onSave={handleSaveCatalogItem} />
+      <CreateExpenseItemDialog
+        open={!!editingItem}
+        onClose={closeCatalogFlyout}
+        onSave={handleSaveCatalogItem}
+        initialValue={editingItem ? {
+          name: editingItem.itemName,
+          itemId: editingItem.itemId,
+          categoryId: editingItem.categoryId != null ? String(editingItem.categoryId) : "",
+          amount: String(editingItem.unitPrice),
+          qty: String(editingItem.qty),
+        } : null}
+      />
+      <DeleteItemConfirmDialog
+        open={!!deletingItem}
+        itemName={deletingItem?.itemName}
+        onClose={closeCatalogFlyout}
+        onConfirm={confirmDeleteItem}
+      />
       <Dialog open={open} onClose={handleDiscard} fullWidth maxWidth="lg" PaperProps={{ sx: { borderRadius: 3, maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 25px 60px rgba(15,23,42,0.2)" } }}>
 
         {/* Header */}
@@ -683,7 +1056,7 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
                       return vendorDisplayName(vendor) || String(v);
                     }}
                     onOpen={() => setVendorSearch("")}
-                    MenuProps={{ PaperProps: { sx: { mt: 0.5, maxHeight: 340, borderRadius: 2, boxShadow: "0 18px 40px rgba(15,23,42,0.12)" } } }}
+                    MenuProps={{ autoFocus: false, disableAutoFocusItem: true, PaperProps: { sx: { mt: 0.5, maxHeight: 340, borderRadius: 2, boxShadow: "0 18px 40px rgba(15,23,42,0.12)" } } }}
                     sx={{ bgcolor: "#F8FAFC", fontSize: 13, borderRadius: "8px" }}>
                     <ListSubheader sx={{ bgcolor: "#fff", py: 1, px: 1, borderBottom: "1px solid #F1F5F9" }} onKeyDown={e => e.stopPropagation()}>
                       <TextField autoFocus size="small" fullWidth placeholder="Search supplier..." value={vendorSearch} onChange={e => setVendorSearch(e.target.value)} onClick={e => e.stopPropagation()}
@@ -704,7 +1077,32 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
                 <Box sx={{ minHeight: 30, display: "flex", alignItems: "center", mb: 0.5 }}>
                   <FieldLabel sx={{ mb: 0, lineHeight: 1.2 }}>Expense Date</FieldLabel>
                 </Box>
-                <TextField type="date" size="small" fullWidth value={form.expenseDate} onChange={e => setField("expenseDate", e.target.value)} sx={inputSx} inputProps={{ style: { fontSize: 13 } }} />
+                <Box
+                  onClick={() => { expenseDateInputRef.current?.showPicker?.(); expenseDateInputRef.current?.focus(); }}
+                  sx={{
+                    position: "relative",
+                    display: "flex", alignItems: "center", gap: 0.6,
+                    height: 40,
+                    px: 1.25,
+                    borderRadius: "8px",
+                    border: "1px solid #E2E8F0",
+                    bgcolor: "#F8FAFC",
+                    cursor: "pointer",
+                    "&:hover": { borderColor: "#D21F3C" },
+                  }}
+                >
+                  <CalendarTodayIcon sx={{ fontSize: 14, color: "#6B7280" }} />
+                  <Typography sx={{ fontSize: 13, fontWeight: 600, color: form.expenseDate ? "#111827" : "#94A3B8" }}>
+                    {form.expenseDate ? formatDateDisplay(form.expenseDate) : "Select date"}
+                  </Typography>
+                  <input
+                    ref={expenseDateInputRef}
+                    type="date"
+                    value={form.expenseDate}
+                    onChange={e => setField("expenseDate", e.target.value)}
+                    style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
+                  />
+                </Box>
               </Box>
 
               {/* Category */}
@@ -733,15 +1131,16 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   <Typography sx={{ fontSize: 15, fontWeight: 800, color: "#1E293B" }}>Expense Items</Typography>
-                  {form.items.length > 0 && <Chip label={`${form.items.length} item${form.items.length !== 1 ? "s" : ""}`} size="small" sx={{ fontSize: 10, fontWeight: 700, height: 20, bgcolor: "#FFF1F2", color: "#D21F3C", border: "1px solid #FECDD3" }} />}
+                  {visibleItems.length > 0 && <Chip label={`${visibleItems.length} item${visibleItems.length !== 1 ? "s" : ""}`} size="small" sx={{ fontSize: 10, fontWeight: 700, height: 20, bgcolor: "#FFF1F2", color: "#D21F3C", border: "1px solid #FECDD3" }} />}
                 </Box>
-                <Tooltip title={!form.categoryId ? "Select a category first" : ""}>
-                  <span>
-                    <Button size="small" startIcon={<AddIcon sx={{ fontSize: 15 }} />} onClick={() => setPickerOpen(true)} disabled={!form.categoryId} sx={{ fontSize: 12, fontWeight: 700, color: "#D21F3C", bgcolor: "rgba(210,31,60,0.07)", px: 1.5, py: 0.6, borderRadius: 1.5, "&:hover": { bgcolor: "rgba(210,31,60,0.14)" }, "&.Mui-disabled": { color: "#9CA3AF", bgcolor: "#F3F4F6" } }}>
-                      Add Items
-                    </Button>
-                  </span>
-                </Tooltip>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Button size="small" startIcon={<PostAddOutlinedIcon sx={{ fontSize: 15 }} />} onClick={() => setCreateItemOpen(true)} sx={{ fontSize: 12, fontWeight: 700, color: "#D21F3C", border: "1px solid #FECDD3", px: 1.5, py: 0.6, borderRadius: 1.5, "&:hover": { bgcolor: "rgba(210,31,60,0.07)" } }}>
+                    Create Expense Item
+                  </Button>
+                  <Button size="small" startIcon={<AddIcon sx={{ fontSize: 15 }} />} onClick={() => setPickerOpen(true)} sx={{ fontSize: 12, fontWeight: 700, color: "#D21F3C", bgcolor: "rgba(210,31,60,0.07)", px: 1.5, py: 0.6, borderRadius: 1.5, "&:hover": { bgcolor: "rgba(210,31,60,0.14)" } }}>
+                    Add Items
+                  </Button>
+                </Box>
               </Box>
               <Paper elevation={0} sx={{ border: "1px solid #E5E7EB", borderRadius: 2, overflow: "hidden" }}>
                 <Table size="small">
@@ -751,27 +1150,25 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
                       <TableCell align="center" sx={{ width: 116 }}>Qty</TableCell>
                       <TableCell sx={{ width: 160 }}>Unit Price</TableCell>
                       <TableCell align="right" sx={{ width: 130 }}>Total</TableCell>
-                      <TableCell sx={{ width: 44 }} />
+                      <TableCell sx={{ width: 76 }} />
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {form.items.length === 0 ? (
+                    {visibleItems.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={5} align="center" sx={{ py: 5, border: "none" }}>
                           <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
                             <InventoryOutlinedIcon sx={{ fontSize: 34, color: "#E2E8F0" }} />
-                            <Typography sx={{ fontSize: 13, color: "#9CA3AF" }}>No items added yet</Typography>
-                            <Tooltip title={!form.categoryId ? "Select a category first" : ""}>
-                              <span>
-                                <Button size="small" startIcon={<AddIcon sx={{ fontSize: 14 }} />} onClick={() => setPickerOpen(true)} disabled={!form.categoryId} sx={{ fontSize: 11, fontWeight: 700, mt: 0.5, color: "#D21F3C", bgcolor: "rgba(210,31,60,0.07)", px: 1.5, py: 0.5, borderRadius: 1.5, "&:hover": { bgcolor: "rgba(210,31,60,0.14)" }, "&.Mui-disabled": { color: "#9CA3AF", bgcolor: "#F3F4F6" } }}>
-                                  Browse &amp; Add Items
-                                </Button>
-                              </span>
-                            </Tooltip>
+                            <Typography sx={{ fontSize: 13, color: "#9CA3AF" }}>
+                              No items added yet
+                            </Typography>
+                            <Button size="small" startIcon={<AddIcon sx={{ fontSize: 14 }} />} onClick={() => setPickerOpen(true)} sx={{ fontSize: 11, fontWeight: 700, mt: 0.5, color: "#D21F3C", bgcolor: "rgba(210,31,60,0.07)", px: 1.5, py: 0.5, borderRadius: 1.5, "&:hover": { bgcolor: "rgba(210,31,60,0.14)" } }}>
+                              Browse &amp; Add Items
+                            </Button>
                           </Box>
                         </TableCell>
                       </TableRow>
-                    ) : form.items.map(item => (
+                    ) : visibleItems.map(item => (
                       <TableRow key={item.id} sx={{ "&:hover": { bgcolor: "#FAFAFA" }, transition: "background 0.1s" }}>
                         <TableCell>
                           <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{item.itemName}</Typography>
@@ -781,11 +1178,11 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
                         <TableCell><PriceInput value={item.unitPrice} onChange={v => updateItemPrice(item.id, v)} size="full" /></TableCell>
                         <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", fontFamily: "monospace" }}>{INR(item.qty * item.unitPrice)}</Typography></TableCell>
                         <TableCell>
-                          <Tooltip title="Remove" placement="top">
-                            <IconButton size="small" onClick={() => removeItem(item.id)} sx={{ color: "#D1D5DB", p: 0.5, borderRadius: 1, "&:hover": { color: "#EF4444", bgcolor: "#FEF2F2" }, transition: "all 0.12s" }}>
+                          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.25 }}>
+                            <IconButton size="small" onClick={() => removeItemFromRow(item.id)} sx={{ color: "#D1D5DB", p: 0.5, borderRadius: 1, "&:hover": { color: "#EF4444", bgcolor: "#FEF2F2" }, transition: "all 0.12s" }}>
                               <DeleteOutlineIcon sx={{ fontSize: 16 }} />
                             </IconButton>
-                          </Tooltip>
+                          </Box>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -827,7 +1224,32 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
                 </Box>
                 <Box>
                   <FieldLabel>Payment Date</FieldLabel>
-                  <TextField type="date" size="small" fullWidth value={form.paymentDate} onChange={e => setField("paymentDate", e.target.value)} sx={{ ...inputSx, "& .MuiOutlinedInput-root": { ...inputSx["& .MuiOutlinedInput-root"], bgcolor: "#fff" } }} inputProps={{ style: { fontSize: 13 } }} />
+                  <Box
+                    onClick={() => { paymentDateInputRef.current?.showPicker?.(); paymentDateInputRef.current?.focus(); }}
+                    sx={{
+                      position: "relative",
+                      display: "flex", alignItems: "center", gap: 0.6,
+                      height: 40,
+                      px: 1.25,
+                      borderRadius: "8px",
+                      border: "1px solid #E2E8F0",
+                      bgcolor: "#fff",
+                      cursor: "pointer",
+                      "&:hover": { borderColor: "#D21F3C" },
+                    }}
+                  >
+                    <CalendarTodayIcon sx={{ fontSize: 14, color: "#6B7280" }} />
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: form.paymentDate ? "#111827" : "#94A3B8" }}>
+                      {form.paymentDate ? formatDateDisplay(form.paymentDate) : "Select date"}
+                    </Typography>
+                    <input
+                      ref={paymentDateInputRef}
+                      type="date"
+                      value={form.paymentDate}
+                      onChange={e => setField("paymentDate", e.target.value)}
+                      style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
+                    />
+                  </Box>
                 </Box>
                 <Box>
                   <FieldLabel>Payment Reference</FieldLabel>
@@ -859,15 +1281,37 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
                 </Box>
                 <Box sx={{ pt: 1.5, borderTop: "1px solid #E5E7EB", display: "flex", flexDirection: "column", gap: 1 }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <CalendarTodayIcon sx={{ fontSize: 13, color: "#D21F3C" }} />
+                    <CalendarTodayIcon sx={{ fontSize: 13, color: balanceDue > 0 ? "#D21F3C" : "#CBD5E1" }} />
                     <FieldLabel>Due Date</FieldLabel>
                   </Box>
-                  <TextField type="date" size="small" fullWidth value={form.dueDate ?? ""} onChange={e => setField("dueDate", e.target.value)} sx={inputSx} inputProps={{ style: { fontSize: 13 } }} />
-                  {form.dueDate && (
-                    <Typography sx={{ fontSize: 10, color: "#6B7280", fontWeight: 500, mt: 0.5 }}>
-                      {new Date(form.dueDate).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" })}
+                  <Box
+                    onClick={() => { if (balanceDue > 0) { dueDateInputRef.current?.showPicker?.(); dueDateInputRef.current?.focus(); } }}
+                    sx={{
+                      position: "relative",
+                      display: "flex", alignItems: "center", gap: 0.6,
+                      height: 40,
+                      px: 1.25,
+                      borderRadius: "8px",
+                      border: "1px solid #E2E8F0",
+                      bgcolor: balanceDue > 0 ? "#F8FAFC" : "#F1F5F9",
+                      cursor: balanceDue > 0 ? "pointer" : "not-allowed",
+                      opacity: balanceDue > 0 ? 1 : 0.6,
+                      "&:hover": balanceDue > 0 ? { borderColor: "#D21F3C" } : {},
+                    }}
+                  >
+                    <CalendarTodayIcon sx={{ fontSize: 14, color: "#6B7280" }} />
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: form.dueDate ? "#111827" : "#94A3B8" }}>
+                      {form.dueDate ? formatDateDisplay(form.dueDate) : "Select date"}
                     </Typography>
-                  )}
+                    <input
+                      ref={dueDateInputRef}
+                      type="date"
+                      disabled={balanceDue <= 0}
+                      value={form.dueDate ?? ""}
+                      onChange={e => setField("dueDate", e.target.value)}
+                      style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
+                    />
+                  </Box>
                 </Box>
               </Paper>
             </Box>
@@ -876,11 +1320,10 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
 
         {/* Footer */}
         <DialogActions sx={{ px: 3, py: 2, bgcolor: "#F8FAFC", borderTop: "1px solid #F1F5F9", gap: 1.5, flexShrink: 0 }}>
-          {saveError && <Typography sx={{ flex: 1, fontSize: 12, color: "#DC2626", fontWeight: 600 }}>{saveError}</Typography>}
           <Button onClick={handleDiscard} sx={{ color: "#374151", fontWeight: 700, px: 3, py: 1, fontSize: 13, borderRadius: 2, "&:hover": { bgcolor: "#F3F4F6" } }}>Discard</Button>
           <Button variant="contained" onClick={handleSave}
             startIcon={isSaving ? <CircularProgress size={15} sx={{ color: "#fff" }} /> : <SaveOutlinedIcon sx={{ fontSize: 17 }} />}
-            disableElevation disabled={isSaving}
+            disableElevation disabled={isSaving || paid > grandTotal}
             sx={{ bgcolor: isEditMode ? "#2563EB" : "#D21F3C", color: "#fff", fontWeight: 700, px: 3.5, py: 1, fontSize: 13, borderRadius: 2, boxShadow: isEditMode ? "0 4px 16px rgba(37,99,235,0.28)" : "0 4px 16px rgba(210,31,60,0.28)", "&:hover": { bgcolor: isEditMode ? "#1D4ED8" : "#B71C1C" }, "&:active": { transform: "scale(0.97)" }, transition: "all 0.15s", "&.Mui-disabled": { bgcolor: "#E5E7EB", color: "#9CA3AF", boxShadow: "none" } }}>
             {isSaving ? "Saving…" : isEditMode ? "Update Expense" : "Save Expense"}
           </Button>
@@ -890,6 +1333,7 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
       <AddVendorModal open={vendorOpen} onClose={() => setVendorOpen(false)} onSave={(data) => console.log("Saved vendor:", data)} vendorType="Expense" />
 
       <SuccessToast message={successMsg} onClose={() => setSuccessMsg("")} />
+      <SuccessToast message={saveError} severity="error" onClose={() => setSaveError("")} />
     </ThemeProvider>
   );
 }

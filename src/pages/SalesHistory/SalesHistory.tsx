@@ -16,6 +16,7 @@ import {
   Search as SearchIcon, Receipt as ReceiptIcon,
   TrendingUp as TrendingUpIcon, Circle,
 } from "@mui/icons-material";
+import FilterListOffIcon from "@mui/icons-material/FilterListOff";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import {
   fetchHistory, fetchSummary, fetchRestaurantHistory, fetchRestaurantSummary,
@@ -23,6 +24,7 @@ import {
   type Sale, type Filters,
 } from "./useSaleshistory";
 import { useTenantContext } from "@store/tenantContext";
+import { DateRangeChip } from "@components/Reports/utils/DateRangeChip";
 
 import InvoiceDetailDialog from "./Invoicedetaildialog";
 import MarkPaymentDialog   from "./MarkPaymentDialog";
@@ -30,6 +32,7 @@ import SalesReturnDialog   from "./Salesreturndialog";
 import DataTable           from "@utils/DataTable";
 import StatCard            from "@components/StatCard";
 import { useNavigate }     from "react-router-dom";
+import { useModulePermission } from "@hooks/useModulePermission";
 
 // ─── Formatter ────────────────────────────────────────────────
 const INR = (v: number) =>
@@ -45,7 +48,7 @@ const theme = createTheme({
     success:    { main: "#2E7D32" },
     warning:    { main: "#F57C00" },
     error:      { main: "#C62828" },
-    background: { default: "#F5F6FA", paper: "#FFFFFF" },
+    background: { default: "#FFFFFF", paper: "#FFFFFF" },
     text:       { primary: "#1A1A2E", secondary: "#6B7280" },
   },
   typography: {
@@ -184,10 +187,33 @@ export default function SalesHistoryPage() {
 
   const { branchId, businessType } = useTenantContext();
   const isRestaurant = businessType?.toLowerCase() === "restaurant";
+  const { canEdit, canDelete } = useModulePermission("Sales History");
   const [activeTab, setActiveTab] = useState<"orders" | "cancelled">("orders");
 
-  const [draftFilters,   setDraftFilters]   = useState<Filters>({ search: "", payment_status: "", from_date: "", to_date: "", order_type: "", cancelled_order: false });
-  const [appliedFilters, setAppliedFilters] = useState<Filters>({ search: "", payment_status: "", from_date: "", to_date: "", order_type: "", cancelled_order: false });
+  const emptyFilters = (cancelled = false): Filters =>
+    ({ search: "", payment_status: "", from_date: "", to_date: "", order_type: "", cancelled_order: cancelled });
+
+  const [searchInput,    setSearchInput]    = useState("");
+  const [appliedFilters, setAppliedFilters] = useState<Filters>(emptyFilters());
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSearchChange = (val: string) => {
+    setSearchInput(val);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      setAppliedFilters(f => ({ ...f, search: val }));
+    }, 400);
+  };
+
+  const hasActiveFilters =
+    !!appliedFilters.search || !!appliedFilters.payment_status ||
+    !!appliedFilters.from_date || !!appliedFilters.to_date || !!appliedFilters.order_type;
+
+  const handleResetFilters = () => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    setSearchInput("");
+    setAppliedFilters(emptyFilters(activeTab === "cancelled"));
+  };
 
   const [invoiceDialog, setInvoiceDialog] = useState<string | null>(null);
   const [paymentDialog, setPaymentDialog] = useState<Sale   | null>(null);
@@ -223,6 +249,9 @@ export default function SalesHistoryPage() {
   const allItems       = data?.pages.flatMap(p => p.data) ?? [];
   const isCancelledTab = activeTab === "cancelled";
 
+  const hasLoadedOnceRef = useRef(false);
+  if (!isLoading) hasLoadedOnceRef.current = true;
+
   // ── Column definitions ────────────────────────────────────────
   const columns = [
     {
@@ -244,7 +273,12 @@ export default function SalesHistoryPage() {
       label: "Customer",
       minWidth: 220,
       render: (sale: Sale) => {
-        const name = sale.cust_name || sale.cpy_name || "Walk-In";
+        const name = sale.cust_name || sale.cpy_name || "";
+        if (!name) {
+          return (
+            <Typography sx={{ fontSize: BODY_FONT_SIZE, color: TABLE_TEXT_COLOR }}>-</Typography>
+          );
+        }
         return (
           <Stack direction="row" alignItems="center" gap={1}>
             <Avatar sx={{
@@ -271,7 +305,7 @@ export default function SalesHistoryPage() {
       width: 170,
       render: (sale: Sale) => (
         <Typography variant="body2" sx={{ fontSize: "12px", color: TABLE_TEXT_COLOR }}>
-          {sale.created_at_fmt}
+          {isRestaurant ? sale.created_at_fmt : sale.sale_date_fmt}
         </Typography>
       ),
     },
@@ -387,9 +421,10 @@ export default function SalesHistoryPage() {
                 <StatusBadge status={status} />
               </Box>
               <Box sx={{ width: 110 }}>
-                {status !== "Paid" && !isReturned && !isQuotation && (
+                {status !== "Paid" && !isReturned && !isQuotation && !isCancelledTab && (
                   <Button
                     size="small" variant="contained" color="primary" disableElevation
+                    disabled={!canEdit}
                     onClick={() => setPaymentDialog(sale)}
                     sx={{ fontSize: "0.65rem", py: 0.4, px: 1.5, height: 24, width: "100%", whiteSpace: "nowrap" }}
                   >
@@ -449,11 +484,11 @@ export default function SalesHistoryPage() {
         return (
           <Stack direction="row" justifyContent="flex-end" gap={0.3}>
             {!isQuotation && !isRestaurant && (
-              <Tooltip title={isReturned ? "Fully returned" : "Sales Return"}>
+              <Tooltip title={isReturned ? "Fully returned" : !canEdit ? "You don't have permission to edit" : "Sales Return"}>
                 <span>
                   <IconButton
                     size="small"
-                    disabled={isReturned}
+                    disabled={isReturned || !canEdit}
                     onClick={() => setReturnDialog(sale)}
                     sx={{
                       color: isReturned ? "text.disabled" : "text.secondary",
@@ -469,28 +504,34 @@ export default function SalesHistoryPage() {
               </Tooltip>
             )}
             {!isRestaurant && (
-            <Tooltip title="Edit Invoice">
-              <IconButton
-                size="small"
-                onClick={() => navigate(getPosEditUrl(sale))}
-                sx={{ color: "text.secondary", borderRadius: 1.5, "&:hover": { color: "primary.main", bgcolor: alpha("#E53935", 0.06) } }}
-              >
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                </svg>
-              </IconButton>
+            <Tooltip title={canEdit ? "Edit Invoice" : "You don't have permission to edit"}>
+              <span>
+                <IconButton
+                  size="small"
+                  disabled={!canEdit}
+                  onClick={() => navigate(getPosEditUrl(sale))}
+                  sx={{ color: "text.secondary", borderRadius: 1.5, "&:hover": { color: "primary.main", bgcolor: alpha("#E53935", 0.06) } }}
+                >
+                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </IconButton>
+              </span>
             </Tooltip>
             )}
-            <Tooltip title="Delete Invoice">
-              <IconButton
-                size="small"
-                onClick={() => setDeleteDialog(sale)}
-                sx={{ color: "text.secondary", borderRadius: 1.5, "&:hover": { color: "#C62828", bgcolor: alpha("#C62828", 0.06) } }}
-              >
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </IconButton>
+            <Tooltip title={canDelete ? "Delete Invoice" : "You don't have permission to delete"}>
+              <span>
+                <IconButton
+                  size="small"
+                  disabled={!canDelete}
+                  onClick={() => setDeleteDialog(sale)}
+                  sx={{ color: "text.secondary", borderRadius: 1.5, "&:hover": { color: "#C62828", bgcolor: alpha("#C62828", 0.06) } }}
+                >
+                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </IconButton>
+              </span>
             </Tooltip>
           </Stack>
         );
@@ -498,7 +539,7 @@ export default function SalesHistoryPage() {
     },
   ];
 
-  if (isLoading) {
+  if (isLoading && !hasLoadedOnceRef.current) {
     return (
       <Box
         sx={{
@@ -609,126 +650,115 @@ export default function SalesHistoryPage() {
         )}
       </Grid>
 
-      {/* Tabs */}
-      <Tabs
-        value={activeTab}
-        onChange={(_, v) => {
-          setActiveTab(v);
-          const isCancelled = v === "cancelled";
-          const reset: Filters = { search: "", payment_status: "", from_date: "", to_date: "", order_type: "", cancelled_order: isCancelled };
-          setDraftFilters(reset);
-          setAppliedFilters(reset);
-        }}
-        sx={{
-          minHeight: 36,
-          "& .MuiTabs-indicator": { backgroundColor: "#E53935" },
-          "& .MuiTab-root": { textTransform: "none", fontWeight: 600, fontSize: 13, minHeight: 36, py: 0.5 },
-          "& .Mui-selected": { color: "#E53935" },
-        }}
-      >
-        <Tab value="orders" label={isRestaurant ? "Orders" : "Invoice"} />
-        <Tab value="cancelled" label={isRestaurant ? "Cancelled Orders" : "Cancelled Invoice"} />
-      </Tabs>
-
-      {/* Filter bar */}
-      <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", flexWrap: "wrap", mb: 1 }}>
-        <TextField
-          placeholder={isRestaurant ? "Order ID" : "Invoice ID or Customer name or mobile"}
-          size="small"
-          value={draftFilters.search}
-          onChange={e => setDraftFilters(f => ({ ...f, search: e.target.value }))}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon sx={{ fontSize: 18, color: "text.disabled" }} />
-              </InputAdornment>
-            ),
-            sx: { borderRadius: 0.5, fontSize: 13 },
+      {/* Tabs + Toolbar */}
+      <Box sx={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        gap: 1.5, flexWrap: "wrap",
+      }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, v) => {
+            setActiveTab(v);
+            const isCancelled = v === "cancelled";
+            setSearchInput("");
+            if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+            setAppliedFilters(emptyFilters(isCancelled));
           }}
-          sx={{ flex: 1, minWidth: 240, backgroundColor: "#fff" }}
-        />
+          sx={{
+            minHeight: 36,
+            "& .MuiTabs-indicator": { backgroundColor: "#E53935" },
+            "& .MuiTab-root": { textTransform: "none", fontWeight: 600, fontSize: 13, minHeight: 36, py: 0.5 },
+            "& .Mui-selected": { color: "#E53935" },
+          }}
+        >
+          <Tab value="orders" label={isRestaurant ? "Orders" : "Invoice"} />
+          <Tab value="cancelled" label={isRestaurant ? "Cancelled Orders" : "Cancelled Invoice"} />
+        </Tabs>
 
-        <TextField
-          type="date"
-          size="small"
-          value={draftFilters.from_date}
-          onChange={e => setDraftFilters(f => ({ ...f, from_date: e.target.value }))}
-          inputProps={{ placeholder: "From Date" }}
-          InputProps={{ sx: { borderRadius: 0.5, fontSize: 13 } }}
-          sx={{ minWidth: 160, backgroundColor: "#fff" }}
-        />
+        <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", flexWrap: "wrap", pb: 1 }}>
+          <TextField
+            placeholder={isRestaurant ? "Order ID" : "Invoice ID or Customer name or mobile"}
+            size="small"
+            value={searchInput}
+            onChange={e => handleSearchChange(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ fontSize: 18, color: "text.disabled" }} />
+                </InputAdornment>
+              ),
+              sx: { borderRadius: 0.5, fontSize: 13 },
+            }}
+            sx={{ width: 320, backgroundColor: "#fff" }}
+          />
 
-        <TextField
-          type="date"
-          size="small"
-          value={draftFilters.to_date}
-          onChange={e => setDraftFilters(f => ({ ...f, to_date: e.target.value }))}
-          InputProps={{ sx: { borderRadius: 0.5, fontSize: 13 } }}
-          sx={{ minWidth: 160, backgroundColor: "#fff" }}
-        />
+          <DateRangeChip
+            fromDate={appliedFilters.from_date}
+            toDate={appliedFilters.to_date}
+            onFromDateChange={(value) => setAppliedFilters(f => ({ ...f, from_date: value }))}
+            onToDateChange={(value) => setAppliedFilters(f => ({ ...f, to_date: value }))}
+          />
 
-        <FormControl size="small" sx={{ minWidth: 160 }}>
-          {isRestaurant ? (
-            <Select
-              value={draftFilters.order_type ?? ""}
-              displayEmpty
-              renderValue={(selected) =>
-                selected
-                  ? selected
-                  : <Box component="span" sx={{ color: "text.disabled", fontSize: 13 }}>All Types</Box>
-              }
-              onChange={e => setDraftFilters(f => ({ ...f, order_type: e.target.value }))}
-              sx={{ borderRadius: 0.5, fontSize: 13, backgroundColor: "#fff" }}
-            >
-              <MenuItem value="">All Types</MenuItem>
-              <MenuItem value="Dine-In">Dine-In</MenuItem>
-              <MenuItem value="Delivery">Delivery</MenuItem>
-              <MenuItem value="Takeaway">Takeaway</MenuItem>
-            </Select>
-          ) : (
-            <Select
-              value={draftFilters.payment_status}
-              displayEmpty
-              renderValue={(selected) => {
-                if (!selected) return <Box component="span" sx={{ color: "text.disabled", fontSize: 13 }}>All Status</Box>;
-                if (selected === "fully_paid")     return "Paid";
-                if (selected === "partially_paid") return "Partial";
-                if (selected === "unpaid")         return "Unpaid";
-                if (selected === "returned")       return "Returned";
-                if (selected === "partial_return") return "Partial Return";
-                return selected;
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            {isRestaurant ? (
+              <Select
+                value={appliedFilters.order_type ?? ""}
+                displayEmpty
+                renderValue={(selected) =>
+                  selected
+                    ? selected
+                    : <Box component="span" sx={{ color: "text.disabled", fontSize: 13 }}>All Types</Box>
+                }
+                onChange={e => setAppliedFilters(f => ({ ...f, order_type: e.target.value }))}
+                sx={{ borderRadius: 0.5, fontSize: 13, backgroundColor: "#fff" }}
+              >
+                <MenuItem value="">All Types</MenuItem>
+                <MenuItem value="Dine-In">Dine-In</MenuItem>
+                <MenuItem value="Delivery">Delivery</MenuItem>
+                <MenuItem value="Takeaway">Takeaway</MenuItem>
+              </Select>
+            ) : (
+              <Select
+                value={appliedFilters.payment_status}
+                displayEmpty
+                renderValue={(selected) => {
+                  if (!selected) return <Box component="span" sx={{ color: "text.disabled", fontSize: 13 }}>All Status</Box>;
+                  if (selected === "fully_paid")     return "Paid";
+                  if (selected === "partially_paid") return "Partial";
+                  if (selected === "unpaid")         return "Unpaid";
+                  if (selected === "returned")       return "Returned";
+                  if (selected === "partial_return") return "Partial Return";
+                  return selected;
+                }}
+                onChange={e => setAppliedFilters(f => ({ ...f, payment_status: e.target.value }))}
+                sx={{ borderRadius: 0.5, fontSize: 13, backgroundColor: "#fff" }}
+              >
+                <MenuItem value="">All Status</MenuItem>
+                <MenuItem value="fully_paid">Paid</MenuItem>
+                <MenuItem value="partially_paid">Partial</MenuItem>
+                <MenuItem value="unpaid">Unpaid</MenuItem>
+                <MenuItem value="returned">Returned</MenuItem>
+                <MenuItem value="partial_return">Partial Return</MenuItem>
+              </Select>
+            )}
+          </FormControl>
+
+          {hasActiveFilters && (
+            <Box
+              onClick={handleResetFilters}
+              title="Reset Filters"
+              sx={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                width: 36, height: 36, borderRadius: 1, cursor: "pointer",
+                bgcolor: "#F97316", color: "#fff",
+                "&:hover": { bgcolor: "#ea6c0a" },
+                flexShrink: 0,
               }}
-              onChange={e => setDraftFilters(f => ({ ...f, payment_status: e.target.value }))}
-              sx={{ borderRadius: 0.5, fontSize: 13, backgroundColor: "#fff" }}
             >
-              <MenuItem value="">All Status</MenuItem>
-              <MenuItem value="fully_paid">Paid</MenuItem>
-              <MenuItem value="partially_paid">Partial</MenuItem>
-              <MenuItem value="unpaid">Unpaid</MenuItem>
-              <MenuItem value="returned">Returned</MenuItem>
-              <MenuItem value="partial_return">Partial Return</MenuItem>
-            </Select>
+              <FilterListOffIcon sx={{ fontSize: 20 }} />
+            </Box>
           )}
-        </FormControl>
-
-        <Button
-          variant="contained" color="primary" disableElevation size="medium"
-          sx={{ px: 3.5, height: 40, borderRadius: 0.5, textTransform: "none", fontWeight: 700, fontSize: 13 }}
-          onClick={() => setAppliedFilters({ ...draftFilters })}
-        >
-          Apply
-        </Button>
-        <Button
-          variant="outlined" color="inherit" size="medium"
-          sx={{ px: 2, height: 40, borderRadius: 0.5, textTransform: "none", fontWeight: 700, fontSize: 13, borderColor: "#D1D5DB", color: "#6B7280", "&:hover": { borderColor: "#9CA3AF", bgcolor: "#F9FAFB" } }}
-          onClick={() => {
-            const empty = { search: "", payment_status: "", from_date: "", to_date: "", order_type: "", cancelled_order: activeTab === "cancelled" };
-            setDraftFilters(empty);
-            setAppliedFilters(empty);
-          }}
-        >
-          Reset
-        </Button>
+        </Box>
       </Box>
 
       {/* Transactions table */}

@@ -39,6 +39,7 @@ export interface Sale {
   discount_type:   string | null;
   discount_value:  string;
   discount_amount: string;
+  discount_gst_mode?: "before" | "after" | null;
   total_amount:    string;
   paid_amount:     string;
   balance_amount:  string;
@@ -190,6 +191,7 @@ export interface HsnWiseTax {
   cgst_amount:   string;
   sgst_percent:  string;
   sgst_amount:   string;
+  item_wise_discount_amount?: string;
   total_tax:     string;
 }
 

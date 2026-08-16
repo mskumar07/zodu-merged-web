@@ -71,14 +71,13 @@ const SectionTitle = styled(Typography)(() => ({
 }));
 
 const TH = styled(TableCell)(() => ({
-  fontSize: 10,
+  fontSize: 12,
   fontWeight: 700,
-  textTransform: "uppercase",
   color: "#64748B",
   padding: "10px 14px",
   borderBottom: "none",
   backgroundColor: "#F1F5F9",
-  letterSpacing: "0.06em",
+  letterSpacing: "0.02em",
   whiteSpace: "nowrap",
 }));
 
@@ -368,21 +367,29 @@ export default function InvoiceDetailsModal({
   const hsnWiseTax: HsnWiseTax[] = data?.hsn_wise_tax ?? [];
   const hsnTotals = hsnWiseTax.reduce(
     (acc, row) => ({
-      taxable: acc.taxable + Number(row.taxable_value),
-      cgst:    acc.cgst    + Number(row.cgst_amount),
-      sgst:    acc.sgst    + Number(row.sgst_amount),
+      taxable:      acc.taxable      + Number(row.taxable_value),
+      cgst:         acc.cgst         + Number(row.cgst_amount),
+      sgst:         acc.sgst         + Number(row.sgst_amount),
+      itemDiscount: acc.itemDiscount + Number(row.item_wise_discount_amount ?? 0),
     }),
-    { taxable: 0, cgst: 0, sgst: 0 },
+    { taxable: 0, cgst: 0, sgst: 0, itemDiscount: 0 },
   );
 
   // ── Derived values ────────────────────────────────────────
   const hasDiscount = sale && Number(sale.discount_amount) > 0;
+  const hasItemDiscount = hsnTotals.itemDiscount > 0;
   const hasRoundOff = sale && sale.round_off !== null &&
                       sale.round_off !== undefined &&
                       Number(sale.round_off) !== 0;
 
+  const discountGstModeLabel = sale?.discount_gst_mode === "before"
+    ? "Before GST"
+    : sale?.discount_gst_mode === "after"
+    ? "After GST"
+    : null;
+
   const discountLabel = sale?.discount_type === "percentage"
-    ? `Discount (${Number(sale.discount_value)}%)`
+    ? `Discount (${Number(sale.discount_value)}%${discountGstModeLabel ? ` · ${discountGstModeLabel}` : ""})`
     : "Discount";
 
   const isQuotation    = sale?.sale_type === "quotation";
@@ -866,6 +873,14 @@ export default function InvoiceDetailsModal({
 
                 <SRow label="Subtotal" value={INR(sale.subtotal)} />
 
+                {hasItemDiscount && (
+                  <SRow
+                    label="Item Discount Amt"
+                    value={`− ${INR(hsnTotals.itemDiscount)}`}
+                    color="#DC2626"
+                  />
+                )}
+
                 {hasDiscount && (
                   <SRow
                     label={discountLabel}
@@ -965,7 +980,7 @@ export default function InvoiceDetailsModal({
                       {isRestaurant ? (
                         <TableRow sx={{ "&:hover": { bgcolor: "#FAFBFC" } }}>
                           <TD sx={{ borderBottom: "none", color: "#334155" }}>
-                            {sale?.sale_date_fmt ?? "—"}
+                            {sale?.created_at_fmt ?? "—"}
                           </TD>
                           <TD sx={{ borderBottom: "none" }}>
                             <Box sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
@@ -998,7 +1013,7 @@ export default function InvoiceDetailsModal({
                           <TableRow key={h.payment_row_id ?? idx}
                             sx={{ "&:hover": { bgcolor: "#FAFBFC" } }}>
                             <TD sx={{ borderBottom: isLast ? "none" : undefined, color: "#334155" }}>
-                              {h.created_at_fmt ?? h.payment_date_fmt ?? "—"}
+                              {h.payment_date_fmt ?? h.created_at_fmt ?? "—"}
                             </TD>
                             <TD sx={{ borderBottom: isLast ? "none" : undefined }}>
                               <Box sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}>

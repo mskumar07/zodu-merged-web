@@ -38,6 +38,17 @@ interface CategoryTabProps {
   /** when provided, Add/Edit dialog hides the Type toggle and always uses this value */
   fixedType?:   "S" | "M" | "E";
   businessType?: string;
+  /** when true, the component's own search+Add toolbar is not rendered — the parent
+   *  is expected to render an equivalent toolbar and drive search/add via the props below */
+  hideToolbar?: boolean;
+  /** controlled search value, used together with hideToolbar */
+  searchValue?: string;
+  /** exposes the "open Add Category dialog" trigger to the parent, used together with hideToolbar */
+  onRequestAdd?: (openAdd: () => void) => void;
+  /** when false, disables the row-level edit action (defaults to true — permission-gated callers pass this explicitly) */
+  canEdit?: boolean;
+  /** when false, disables the row-level delete action (defaults to true — permission-gated callers pass this explicitly) */
+  canDelete?: boolean;
 }
 
 // ─── CategoryTab ──────────────────────────────────────────────────────────────
@@ -46,6 +57,11 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
   typeFilter = "S,M",
   fixedType,
   businessType,
+  hideToolbar = false,
+  searchValue,
+  onRequestAdd,
+  canEdit = true,
+  canDelete = true,
 }) => {
   const qc = useQueryClient();
 
@@ -56,16 +72,28 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
   const openAdd  = useCallback(() => { setEditRow(null); setCatDialogOpen(true); }, []);
   const openEdit = useCallback((row: CategoryRow) => { setEditRow(row); setCatDialogOpen(true); }, []);
 
+  useEffect(() => { onRequestAdd?.(openAdd); }, [onRequestAdd, openAdd]);
+
   // ── Search ────────────────────────────────────────────────────────────────
-  const [search,          setSearch]    = useState("");
-  const [debouncedSearch, setDebSearch] = useState("");
+  const [searchInternal,  setSearchInternal] = useState("");
+  const [debouncedSearch, setDebSearch]      = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const search = searchValue !== undefined ? searchValue : searchInternal;
 
   const handleSearchChange = (val: string) => {
-    setSearch(val);
+    setSearchInternal(val);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => setDebSearch(val), 300);
   };
+
+  // When search is controlled by the parent (hideToolbar mode), debounce it here too —
+  // handleSearchChange is never called since the parent owns the TextField's onChange.
+  useEffect(() => {
+    if (searchValue === undefined) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebSearch(searchValue), 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchValue]);
 
   // ── Toast ─────────────────────────────────────────────────────────────────
   const [toastMsg,      setToastMsg]      = useState("");
@@ -111,18 +139,14 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const {
     data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage,
-  } = useInfiniteCategoryList(true, typeFilter);
+  } = useInfiniteCategoryList(true, typeFilter, false, debouncedSearch.trim());
 
   const allCategories = useMemo<CategoryRow[]>(() => {
     if (!data?.pages) return [];
     return data.pages.flatMap((page) => page.Data);
   }, [data]);
 
-  const filtered = useMemo(() => {
-    const q = debouncedSearch.trim().toLowerCase();
-    if (!q) return allCategories;
-    return allCategories.filter((c) => c.name.toLowerCase().includes(q));
-  }, [allCategories, debouncedSearch]);
+  const filtered = allCategories;
 
   // ── Infinite scroll observer ──────────────────────────────────────────────
   useEffect(() => {
@@ -188,7 +212,7 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
             checked={row.active}
             size="small"
             color="primary"
-            disabled={togglingId === row.id}
+            disabled={togglingId === row.id || !canEdit}
             onChange={() => { setTogglingId(row.id); toggleStatus({ id: row.id, active: !row.active, pageExpense: typeFilter === "E" }); }}
           />
         ),
@@ -197,23 +221,27 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
         key: "actions", label: "Actions", align: "center", width: 100,
         render: (row) => (
           <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
-            <Tooltip title="Edit">
-              <IconButton size="small" onClick={() => openEdit(row)}
-                sx={{ color: "text.disabled", "&:hover": { color: "primary.main", bgcolor: "primary.light" + "22" }, borderRadius: 1.5 }}>
-                <EditIcon fontSize="small" />
-              </IconButton>
+            <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"}>
+              <span>
+                <IconButton size="small" onClick={() => openEdit(row)} disabled={!canEdit}
+                  sx={{ color: "text.disabled", "&:hover": { color: "primary.main", bgcolor: "primary.light" + "22" }, borderRadius: 1.5 }}>
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              </span>
             </Tooltip>
-            <Tooltip title="Delete">
-              <IconButton size="small" onClick={() => setDeleteTarget(row)}
-                sx={{ color: "#D2122E", "&:hover": { bgcolor: "#D2122E22" }, borderRadius: 1.5 }}>
-                <DeleteIcon fontSize="small" />
-              </IconButton>
+            <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"}>
+              <span>
+                <IconButton size="small" onClick={() => setDeleteTarget(row)} disabled={!canDelete}
+                  sx={{ color: "#D2122E", "&:hover": { bgcolor: "#D2122E22" }, borderRadius: 1.5 }}>
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </span>
             </Tooltip>
           </Box>
         ),
       },
     ],
-    [openEdit, toggleStatus, togglingId] // eslint-disable-line react-hooks/exhaustive-deps
+    [openEdit, toggleStatus, togglingId, canEdit, canDelete] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const rows = useMemo<CategoryRowWithSno[]>(
@@ -233,29 +261,31 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2, height: "100%" }}>
 
       {/* ── Toolbar ── */}
-      <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", flexWrap: "wrap" }}>
-        <TextField
-          size="small" placeholder="Search..." value={search}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          sx={{ flex: 1, minWidth: 200, bgcolor: "#fff" }}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ fontSize: 18, color: "text.disabled" }} />
-                </InputAdornment>
-              ),
-              sx: { borderRadius: 0.5, fontSize: 13 },
-            },
-          }}
-        />
-        <Button
-          variant="contained" startIcon={<AddIcon />} onClick={openAdd}
-          sx={{ borderRadius: 0.5, fontWeight: 700, px: 2.5, height: 40, textTransform: "none", fontSize: 13, whiteSpace: "nowrap", boxShadow: "0 4px 14px rgba(210,18,46,0.25)" }}
-        >
-          Add Category
-        </Button>
-      </Box>
+      {!hideToolbar && (
+        <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", flexWrap: "wrap" }}>
+          <TextField
+            size="small" placeholder="Search by category name..." value={search}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            sx={{ flex: 1, minWidth: 200, bgcolor: "#fff" }}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ fontSize: 18, color: "text.disabled" }} />
+                  </InputAdornment>
+                ),
+                sx: { borderRadius: 0.5, fontSize: 13 },
+              },
+            }}
+          />
+          <Button
+            variant="contained" startIcon={<AddIcon />} onClick={openAdd}
+            sx={{ borderRadius: 0.5, fontWeight: 700, px: 2.5, height: 40, textTransform: "none", fontSize: 13, whiteSpace: "nowrap", boxShadow: "0 4px 14px rgba(210,18,46,0.25)" }}
+          >
+            Add Category
+          </Button>
+        </Box>
+      )}
 
       {/* ── Table ── */}
       <Box sx={{ flex: 1, overflow: "hidden" }}>

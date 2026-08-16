@@ -79,7 +79,6 @@ interface PermState {
 type PermKey = keyof PermState;
 
 const EMPTY: PermState = { can_read: false, can_create: false, can_edit: false, can_delete: false };
-const FULL:  PermState = { can_read: true,  can_create: true,  can_edit: true,  can_delete: true  };
 
 interface PermCol { key: PermKey; label: string; icon: React.ReactNode; }
 
@@ -111,20 +110,36 @@ function countSelected(perms: Record<string, PermState>) {
   return { selected, total };
 }
 
+// Some modules don't support the full CRUD set in the UI — e.g. Dashboard is
+// read-only, Attendance/Reports are never deletable. Keyed by the module's
+// full name (case-insensitive) since several names share a first word
+// (e.g. "Staff / User Management" vs "Sales History" both start with a
+// distinct word, so matching on the full name avoids collisions).
+const MODULE_PERM_OVERRIDES: Record<string, PermKey[]> = {
+  "dashboard":             ["can_read"],
+  "billing":               ["can_read", "can_create"],
+  "inventory":             ["can_read", "can_edit"],
+  "attendance":            ["can_read", "can_edit"],
+  "reports":               ["can_read"],
+  "checklist / tasklist": ["can_read", "can_create", "can_edit"],
+  "sales history":  ["can_read", "can_edit", "can_delete"]
+};
+
 function visibleCols(moduleName: string): PermCol[] {
-  return moduleName.toLowerCase().split(" ")[0] === "dashboard"
-    ? PERM_COLS.filter((c) => c.key === "can_read")
-    : PERM_COLS;
+  const allowedKeys = MODULE_PERM_OVERRIDES[moduleName.trim().toLowerCase()];
+  return allowedKeys ? PERM_COLS.filter((c) => allowedKeys.includes(c.key)) : PERM_COLS;
 }
 
 function moduleCount(module: ModuleItem, perms: Record<string, PermState>) {
   const ids: string[] = [];
   const walk = (m: ModuleItem) => { ids.push(m.module_id); m.sub_modules?.forEach(walk); };
   walk(module);
-  const total    = ids.length * 4;
+  const colCount = visibleCols(module.module_name).length;
+  const total    = ids.length * colCount;
   const selected = ids.reduce((acc, id) => {
     const p = perms[id];
-    return p ? acc + [p.can_read, p.can_create, p.can_edit, p.can_delete].filter(Boolean).length : acc;
+    if (!p) return acc;
+    return acc + visibleCols(module.module_name).filter((c) => p[c.key]).length;
   }, 0);
   return { selected, total };
 }
@@ -452,7 +467,10 @@ export default function RoleEditPage({
     setPerms((prev) => {
       const next = { ...prev };
       const walk = (m: ModuleItem) => {
-        next[m.module_id] = checked ? { ...FULL } : { ...EMPTY };
+        const current = next[m.module_id] ?? EMPTY;
+        const updated = { ...current };
+        visibleCols(m.module_name).forEach((c) => { updated[c.key] = checked; });
+        next[m.module_id] = updated;
         m.sub_modules?.forEach(walk);
       };
       walk(module);

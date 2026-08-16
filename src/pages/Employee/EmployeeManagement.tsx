@@ -16,11 +16,12 @@ import { useInfiniteEmployees, useDeleteEmployee, type EmployeeListItem } from "
 import EmployeeFormModal from "./EmployeeFormModal";
 import EmployeeViewModal from "./EmployeeViewModal";
 import LottieLoader from "@components/LottieLoader";
+import { useModulePermission } from "@hooks/useModulePermission";
 
 const theme = createTheme({
   palette: {
     primary: { main: "#E11D48" },
-    background: { default: "#F9FAFB", paper: "#FFFFFF" },
+    background: { default: "#FFFFFF", paper: "#FFFFFF" },
     text: { primary: "#0F172A", secondary: "#6B7280" },
   },
   components: {
@@ -85,6 +86,7 @@ function DeleteDialog({ open, name, isPending, onConfirm, onCancel }: {
 
 // ─── Main ─────────────────────────────────────────────────────
 export default function EmployeeManagement() {
+  const { canCreate, canEdit, canDelete } = useModulePermission("Staff / User Management");
   const [modalOpen, setModalOpen]   = useState(false);
   const [modalMode, setModalMode]   = useState<"add" | "edit" | "view">("add");
   const [activeId, setActiveId]     = useState<string | null>(null);
@@ -125,21 +127,6 @@ export default function EmployeeManagement() {
 
   const columns = useMemo<ColumnDef<EmployeeListItem>[]>(() => [
     {
-      key: "name",
-      label: "Employee",
-      width: 220,
-      render: (row) => (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          <Avatar sx={{ width: 32, height: 32, bgcolor: "#FFF1F2", color: "#E11D48", fontSize: 13, fontWeight: 700 }}>
-            {row.name?.[0]?.toUpperCase() ?? "E"}
-          </Avatar>
-          <Box>
-            <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{row.name}</Typography>
-          </Box>
-        </Box>
-      ),
-    },
-    {
       key: "employee_code",
       label: "Employee ID",
       width: 140,
@@ -158,6 +145,21 @@ export default function EmployeeManagement() {
         ) : (
           <Typography sx={{ fontSize: 13, color: "#374151" }}>—</Typography>
         )
+      ),
+    },
+    {
+      key: "name",
+      label: "Employee",
+      width: 220,
+      render: (row) => (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Avatar sx={{ width: 32, height: 32, bgcolor: "#FFF1F2", color: "#E11D48", fontSize: 13, fontWeight: 700 }}>
+            {row.name?.[0]?.toUpperCase() ?? "E"}
+          </Avatar>
+          <Box>
+            <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{row.name}</Typography>
+          </Box>
+        </Box>
       ),
     },
     {
@@ -197,63 +199,39 @@ export default function EmployeeManagement() {
               <VisibilityOutlinedIcon sx={{ fontSize: 16 }} />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Edit" placement="top">
-            <IconButton size="small" onClick={(e) => { e.stopPropagation(); openEdit(row.employee_id); }}
-              sx={{ color: "#E11D48", p: 0.6, borderRadius: 1, "&:hover": { bgcolor: "#FFF1F2", color: "#BE123C" }, transition: "all 0.12s" }}>
-              <EditOutlinedIcon sx={{ fontSize: 16 }} />
-            </IconButton>
+          <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"} placement="top">
+            <span>
+              <IconButton size="small" disabled={!canEdit} onClick={(e) => { e.stopPropagation(); openEdit(row.employee_id); }}
+                sx={{ color: "#1976d2", p: 0.6, borderRadius: 1, "&:hover": { bgcolor: "#EFF6FF", color: "#1565C0" }, transition: "all 0.12s" }}>
+                <EditOutlinedIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </span>
           </Tooltip>
           {status === "active" && (
-            <Tooltip title="Delete" placement="top">
-              <IconButton size="small" onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: row.employee_id, name: row.name }); }}
-                sx={{ color: "#D1D5DB", p: 0.6, borderRadius: 1, "&:hover": { bgcolor: "#FFF1F2", color: "#E11D48" }, transition: "all 0.12s" }}>
-                <DeleteOutlineIcon sx={{ fontSize: 16 }} />
-              </IconButton>
+            <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"} placement="top">
+              <span>
+                <IconButton size="small" disabled={!canDelete} onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: row.employee_id, name: row.name }); }}
+                  sx={{ color: "#D2122E", p: 0.6, borderRadius: 1.5, "&:hover": { bgcolor: "#D2122E22" }, transition: "all 0.12s" }}>
+                  <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </span>
             </Tooltip>
           )}
         </Box>
       ),
     },
-  ], [openView, openEdit, status]);
+  ], [openView, openEdit, status, canEdit, canDelete]);
 
   return (
     <ThemeProvider theme={theme}>
-      <Box sx={{ height: "100%", display: "flex", flexDirection: "column", bgcolor: "#F9FAFB", overflow: "hidden", minHeight: 0 }}>
+      <Box sx={{ height: "100%", display: "flex", flexDirection: "column", bgcolor: "#ffffff", overflow: "hidden", minHeight: 0 }}>
 
-        {/* Toolbar */}
-        <Box sx={{ px: 1, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, gap: 2 }}>
-          <TextField
-            value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, EMP ID..." size="small"
-            sx={{
-              flex: "1 1 0", minWidth: 0,
-              "& .MuiOutlinedInput-root": {
-                borderRadius: 1, bgcolor: "#fff", fontSize: 13,
-                "& fieldset": { borderColor: "#E5E7EB" },
-                "&:hover fieldset": { borderColor: "#E11D48" },
-                "&.Mui-focused fieldset": { borderColor: "#E11D48", borderWidth: 2 },
-              },
-            }}
-            slotProps={{ input: { startAdornment: (
-              <InputAdornment position="start"><SearchIcon sx={{ fontSize: 17, color: "#9CA3AF" }} /></InputAdornment>
-            ) } }}
-          />
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexShrink: 0 }}>
-            <Typography sx={{ fontSize: 12, color: "#9CA3AF", fontWeight: 500 }}>
-              Showing <Box component="span" sx={{ fontWeight: 800, color: "#1A1A2E" }}>{employees.length}</Box> employees
-            </Typography>
-            <Button variant="contained" size="small" startIcon={<AddIcon sx={{ fontSize: 16 }} />}
-              onClick={openAdd} disableElevation
-              sx={{ fontSize: 13, fontWeight: 700, bgcolor: "#E11D48", color: "#fff", px: 2, py: 0.8,
-                borderRadius: 1.5, boxShadow: "0 4px 14px rgba(225,29,72,0.3)",
-                "&:hover": { bgcolor: "#BE123C" }, transition: "all 0.15s" }}>
-              Add Employee
-            </Button>
-          </Box>
-        </Box>
-
-        {/* Tabs */}
-        <Box sx={{ px: 1, flexShrink: 0, borderBottom: "1px solid #E5E7EB" }}>
+        {/* Tabs + Toolbar */}
+        <Box sx={{
+          px: 1, py: 1, flexShrink: 0, borderBottom: "1px solid #E5E7EB",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          gap: 1.5, flexWrap: "wrap",
+        }}>
           <Tabs value={tab} onChange={(_, v) => setTab(v)}
             sx={{ minHeight: 36,
               "& .MuiTab-root": { minHeight: 36, fontSize: 13, fontWeight: 600, textTransform: "none", color: "#6B7280" },
@@ -262,6 +240,32 @@ export default function EmployeeManagement() {
             <Tab label="Active Employees" />
             <Tab label="Inactive Employees" />
           </Tabs>
+
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "nowrap" }}>
+            <TextField
+              value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, EMP ID..." size="small"
+              sx={{
+                width: 260,
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 1, bgcolor: "#fff", fontSize: 13,
+                  "& fieldset": { borderColor: "#E5E7EB" },
+                  "&:hover fieldset": { borderColor: "#E11D48" },
+                  "&.Mui-focused fieldset": { borderColor: "#E11D48", borderWidth: 2 },
+                },
+              }}
+              slotProps={{ input: { startAdornment: (
+                <InputAdornment position="start"><SearchIcon sx={{ fontSize: 17, color: "#9CA3AF" }} /></InputAdornment>
+              ) } }}
+            />
+            <Button variant="contained" size="small" startIcon={<AddIcon sx={{ fontSize: 16 }} />}
+              onClick={openAdd} disableElevation disabled={!canCreate}
+              sx={{ flexShrink: 0, fontSize: 13, fontWeight: 700, bgcolor: "#E11D48", color: "#fff", px: 2, py: 0.8,
+                borderRadius: 1.5, boxShadow: "0 4px 14px rgba(225,29,72,0.3)",
+                "&:hover": { bgcolor: "#BE123C" }, transition: "all 0.15s", whiteSpace: "nowrap" }}>
+              Add Employee
+            </Button>
+          </Box>
         </Box>
 
         {/* Table */}

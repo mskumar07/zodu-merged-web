@@ -33,7 +33,7 @@ const POSLayout: React.FC = () => {
             // p: 2,
             flexGrow: 1,
              maxHeight: "calc(100vh - 64px)",
-            backgroundColor: "#fafafa",
+            backgroundColor: "#ffffff",
             // overflow: "auto",
           }}
         >

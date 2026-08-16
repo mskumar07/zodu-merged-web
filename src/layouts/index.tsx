@@ -6,6 +6,7 @@ import { useTheme } from "@mui/material/styles";
 import Sidebar from "./Sidebar/index.tsx"; // adjust import if path differs
 import TopBar from "./Topbar/index.tsx"; // adjust import if path differs
 import { Outlet } from "react-router-dom";
+import RouteAccessGuard from "../routes/RouteAccessGuard";
 
 const drawerWidth = 260;
 
@@ -32,13 +33,15 @@ const Layout: React.FC = () => {
         <Box
           sx={{
             flex: 1,
-            backgroundColor: "#fafafa",
+            backgroundColor: "#ffffff",
             overflow: "auto",
             minHeight: 0,
           }}
         >
           <Box sx={{ height: "100%" }}>
-            <Outlet />
+            <RouteAccessGuard>
+              <Outlet />
+            </RouteAccessGuard>
           </Box>
         </Box>
       </Box>

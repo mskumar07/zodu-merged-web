@@ -14,6 +14,10 @@ import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs, { Dayjs } from "dayjs";
 import { useOutstandingBills, useMarkPayment } from "./useCustomerapi";
 
 const RED = "#D32F2F";
@@ -240,7 +244,7 @@ export default function MarkPaymentDialog({ customer, onClose, onSuccess }: Prop
                       <TableCell
                         key={h}
                         align={h === "Select" ? "center" : h === "Bill Amount" || h === "Outstanding" ? "right" : "left"}
-                        sx={{ fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em", bgcolor: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}
+                        sx={{ fontSize: 12, fontWeight: 700, color: "#6B7280", letterSpacing: "0.02em", bgcolor: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}
                       >
                         {h}
                       </TableCell>
@@ -312,12 +316,19 @@ export default function MarkPaymentDialog({ customer, onClose, onSuccess }: Prop
                 <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
                   <Box>
                     <FieldLabel required>Payment Date</FieldLabel>
-                    <TextField
-                      size="small" fullWidth type="date"
-                      value={paymentDate}
-                      onChange={(e) => setPaymentDate(e.target.value)}
-                      sx={{ ...inputSx, "& .MuiOutlinedInput-root": { ...inputSx["& .MuiOutlinedInput-root"], bgcolor: "#fff" } }}
-                    />
+                    <LocalizationProvider dateAdapter={AdapterDayjs}>
+                      <DatePicker
+                        value={paymentDate ? dayjs(paymentDate) : null}
+                        format="DD-MMM-YYYY"
+                        onChange={(newValue: Dayjs | null) => setPaymentDate(newValue ? newValue.format("YYYY-MM-DD") : "")}
+                        slotProps={{
+                          textField: {
+                            size: "small", fullWidth: true,
+                            sx: { ...inputSx, "& .MuiOutlinedInput-root": { ...inputSx["& .MuiOutlinedInput-root"], bgcolor: "#fff" } },
+                          },
+                        }}
+                      />
+                    </LocalizationProvider>
                   </Box>
                   <Box>
                     <FieldLabel required>Payment Mode</FieldLabel>

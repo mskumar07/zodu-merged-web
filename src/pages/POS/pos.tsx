@@ -8,6 +8,7 @@ import {
   type ApiCustomer,
   primaryMobile,
   customerAddress,
+  customerShippingAddress,
 } from "./usecustomer";
 import {
   useHoldOrders,
@@ -32,6 +33,7 @@ import SaveIcon               from "@mui/icons-material/Save";
 import PrintOutlinedIcon      from "@mui/icons-material/PrintOutlined";
 import QrCodeScannerIcon      from "@mui/icons-material/QrCodeScanner";
 import AddIcon                from "@mui/icons-material/Add";
+import AddCircleOutlineIcon   from "@mui/icons-material/AddCircleOutline";
 import RemoveIcon             from "@mui/icons-material/Remove";
 import PlayArrowIcon          from "@mui/icons-material/PlayArrow";
 import CloseIcon              from "@mui/icons-material/Close";
@@ -44,6 +46,14 @@ import RequestQuoteIcon       from "@mui/icons-material/RequestQuote";
 import NoteAltOutlinedIcon    from "@mui/icons-material/NoteAltOutlined";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import ShareIcon              from "@mui/icons-material/Share";
+import QrCode2Icon            from "@mui/icons-material/QrCode2";
+import AccountBalanceIcon     from "@mui/icons-material/AccountBalance";
+import PaymentsIcon           from "@mui/icons-material/Payments";
+import MoreHorizIcon          from "@mui/icons-material/MoreHoriz";
+import InfoOutlinedIcon       from "@mui/icons-material/InfoOutlined";
+import SwapHorizIcon          from "@mui/icons-material/SwapHoriz";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import html2canvas            from "html2canvas";
 import jsPDF                  from "jspdf";
 import { useLocation }        from "react-router-dom";
@@ -60,10 +70,24 @@ import NoteModal              from "./NotesModal";
 import { useAppSelector }     from "@store/store";
 import { BranchId, ZoduId }   from "@store/slices/userSlice";
 import { Download } from "@mui/icons-material";
+import CheckCircleIcon        from "@mui/icons-material/CheckCircle";
+import CurrencyRupeeIcon      from "@mui/icons-material/CurrencyRupee";
 
 const INR = (v: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(v);
+// Round-half-up to 2 decimals — matches the value the user sees per row, so totals summed
+// from these match the sum of the displayed rows instead of drifting from unrounded sums.
+const round2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
 const todayStr = () => new Date().toISOString().split("T")[0];
+
+// Format YYYY-MM-DD -> "29-JUL-2026"
+const formatDateDisplay = (dateString: string | undefined): string => {
+  if (!dateString) return "";
+  const [year, month, day] = dateString.split("-");
+  if (!year || !month || !day) return "";
+  const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  return `${day}-${monthNames[Number(month) - 1]}-${year}`;
+};
 
 // Format date string to YYYY-MM-DD without timezone shift
 const formatDateForInput = (dateString: string | undefined): string => {
@@ -78,7 +102,7 @@ const formatDateForInput = (dateString: string | undefined): string => {
 const theme = createTheme({
   palette: {
     primary: { main: "#C8102E" },
-    background: { default: "#F0F2F5", paper: "#FFFFFF" },
+    background: { default: "#FFFFFF", paper: "#FFFFFF" },
     text: { primary: "#1A1A2E", secondary: "#6B7280" },
   },
   components: {
@@ -87,8 +111,8 @@ const theme = createTheme({
       styleOverrides: {
         root: { borderBottom: "1px solid #F0F0F0", padding: "6px 8px" },
         head: {
-          fontSize: 10, fontWeight: 700, letterSpacing: "0.07em", color: "#6B7280",
-          textTransform: "uppercase", backgroundColor: "#FAFAFA",
+          fontSize: 12, fontWeight: 700, letterSpacing: "0.02em", color: "#6B7280",
+          backgroundColor: "#FAFAFA",
           whiteSpace: "normal", wordBreak: "break-word", overflowWrap: "anywhere", lineHeight: 1.35,
         },
       },
@@ -105,8 +129,8 @@ interface LineItem {
   editingQty?: boolean; editingPrice?: boolean; editingDiscount?: boolean;
   qtyDraft?: string; priceDraft?: string; discountDraft?: string;
 }
-interface Customer { id: string | null; name: string; mobile: string; address: string; gstin: string; }
-const EMPTY_CUSTOMER: Customer = { id: null, name: "", mobile: "", address: "", gstin: "" };
+interface Customer { id: string | null; name: string; mobile: string; address: string; gstin: string; shippingAddress: string; sameAsBillingAddress: boolean; }
+const EMPTY_CUSTOMER: Customer = { id: null, name: "", mobile: "", address: "", gstin: "", shippingAddress: "", sameAsBillingAddress: true };
 interface SavedOrderSnapshot {
   result: SaveOrderResult;
   customer: Customer;
@@ -132,6 +156,7 @@ function toLineItem(p: PosProduct): LineItem {
   const gstPct = Number(p.gst_tax) || 0;
   const taxInclusive = p.tax_inclusive === true || (p.tax_inclusive as unknown) === 1;
   const unitPrice = taxInclusive && gstPct > 0 ? grossPrice / (1 + gstPct / 100) : grossPrice;
+  console.log
   return {
     uuid: p.item_uuid, code: p.item_id, description: p.item_name,
     qty: 1, unitPrice, sellPrice: grossPrice, taxInclusive,
@@ -142,8 +167,8 @@ function toLineItem(p: PosProduct): LineItem {
 
 function paymentStatus(grand: number, received: number) {
   if (received <= 0) return { label: "UNPAID", color: "#DC2626" };
-  if (received < grand - 0.01) return { label: `PARTIAL · Due ${INR(grand - received)}`, color: "#D97706" };
-  if (received > grand + 0.01) return { label: `EXCESS · Return ${INR(received - grand)}`, color: "#2563EB" };
+  if (received < grand - 0.01) return { label: "PARTIAL", color: "#D97706" };
+  if (received > grand + 0.01) return { label: "EXCESS", color: "#2563EB" };
   return { label: "FULL PAYMENT", color: "#16A34A" };
 }
 
@@ -208,6 +233,7 @@ function RetailPOSInner() {
   const [dueDate,        setDueDate]        = useState("");
   const [orderNote,      setOrderNote]      = useState("");
   const [customer,       setCustomer]       = useState<Customer>(EMPTY_CUSTOMER);
+  const [selectedApiCustomer, setSelectedApiCustomer] = useState<ApiCustomer | null>(null);
   const [customerSuggestionsOpen, setCustomerSuggestionsOpen] = useState(false);
   const [customerLedgerOpen,      setCustomerLedgerOpen]      = useState(false);
   const [addCustomerOpen,         setAddCustomerOpen]         = useState(false);
@@ -220,6 +246,10 @@ function RetailPOSInner() {
 
   const [discountModalOpen, setDiscountModalOpen] = useState(false);
   const [noteModalOpen,     setNoteModalOpen]     = useState(false);
+  // Purely visual toggle for the "Ship to same as Billing" checkbox in the redesigned
+  // Bill To / Ship To cards — there is no separate shipping-address field in existing
+  // state/API, so this only controls which label the Ship To card mirrors.
+  const [shipSameAsBilling, setShipSameAsBilling] = useState(true);
 
   const { results: customerResults, loading: customerLoading, search: searchCustomers, clear: clearCustomerResults } = useCustomerSearch(zoduId, branchId);
 
@@ -230,6 +260,9 @@ function RetailPOSInner() {
   const [suggestionIdx,        setSuggestionIdx]        = useState(-1);
   const [customerSuggestionIdx,setCustomerSuggestionIdx]= useState(-1);
   const [showSuggestions,      setShowSuggestions]      = useState(false);
+  // Free-typed search query for the Customer panel — kept separate from `customer.name`
+  // so Bill To / Ship To only reflect an actually-selected customer, not each keystroke.
+  const [customerQuery,        setCustomerQuery]        = useState("");
   const [holdDialogOpen,       setHoldDialogOpen]       = useState(false);
   const [receivedDirty, setReceivedDirty] = useState(false);
 
@@ -244,11 +277,25 @@ const {
   const { saveOrder, saving, updateOrder }                   = useSaveOrder();
 
   // ─── ALL computed totals — declared BEFORE any useCallback that uses them ───
-  const subtotal          = useMemo(() => items.reduce((s, i) => s + i.qty * i.unitPrice, 0), [items]);
+  const subtotal          = useMemo(() => items.reduce((s, i) => s + round2(i.qty * i.unitPrice), 0), [items]);
   const itemDiscountTotal = useMemo(() => items.reduce((s, i) => s + (i.discount ?? 0), 0), [items]);
-  const discountPctAmt    = subtotal * (parseFloat(discountPct) || 0) / 100;
-  const discountFlatAmt   = parseFloat(discount) || 0;
-  const orderDiscountAmt  = discountPctAmt + discountFlatAmt;
+
+  // Undiscounted GST — the tax on the full taxable value, before any order-level discount is applied.
+  // Each item's GST is rounded to 2dp first (matching its displayed value), then summed.
+  const grossGstAmount = useMemo(() => {
+    if (subtotal === 0) return 0;
+    return items.reduce((s, i) => s + round2(i.qty * i.unitPrice * i.gstPct / 100), 0);
+  }, [items, subtotal]);
+
+  const discountFlatAmt = parseFloat(discount) || 0;
+  const discountPctVal  = parseFloat(discountPct) || 0;
+
+  // "Before GST": % is taken on the taxable value, so GST is recomputed on the discounted base.
+  // "After GST": % is taken on the GST-inclusive total (subtotal + GST), matching how the discount reads on the bill.
+  const discountPctAmt = gstMode === "before"
+    ? subtotal * discountPctVal / 100
+    : (subtotal + grossGstAmount) * discountPctVal / 100;
+  const orderDiscountAmt = discountPctAmt + discountFlatAmt;
 
   const gstAmount = useMemo(() => {
     if (subtotal === 0) return 0;
@@ -256,15 +303,11 @@ const {
       return items.reduce((s, i) => {
         const itemBase     = i.qty * i.unitPrice;
         const itemDiscount = orderDiscountAmt * (itemBase / subtotal);
-        return s + Math.max(0, itemBase - itemDiscount) * i.gstPct / 100;
-      }, 0);
-    } else {
-      return items.reduce((s, i) => {
-        const itemBase = i.qty * i.unitPrice;
-        return s + itemBase * i.gstPct / 100;
+        return s + round2(Math.max(0, itemBase - itemDiscount) * i.gstPct / 100);
       }, 0);
     }
-  }, [items, orderDiscountAmt, gstMode, subtotal]);
+    return grossGstAmount;
+  }, [items, orderDiscountAmt, gstMode, subtotal, grossGstAmount]);
 
   const grandTotalRaw = useMemo(() => {
     if (gstMode === "before") {
@@ -290,11 +333,11 @@ const {
 
   const codeRef           = useRef<HTMLInputElement>(null);
   const customerNameRef   = useRef<HTMLInputElement>(null);
-  const customerMobileRef = useRef<HTMLInputElement>(null);
   const discountPctRef    = useRef<HTMLInputElement>(null);
   const discountAmtRef    = useRef<HTMLInputElement>(null);
   const refNoRef          = useRef<HTMLInputElement>(null);
   const receivedRef       = useRef<HTMLInputElement>(null);
+  const dueDateInputRef   = useRef<HTMLInputElement | null>(null);
   const tableBodyRef      = useRef<HTMLTableSectionElement>(null);
   const qtyRefs           = useRef<Record<string, HTMLInputElement | null>>({});
   const priceRefs         = useRef<Record<string, HTMLInputElement | null>>({});
@@ -407,15 +450,19 @@ useEffect(() => {
         const gstPct       = Number(i.gst_percentage) || 0;
         const taxInclusive = Boolean(i.tax_inclusive);
         const unitPrice    = taxInclusive && gstPct > 0 ? grossPrice / (1 + gstPct / 100) : grossPrice;
-        return { code: i.item_id, description: i.item_name, qty: Number(i.quantity), unitPrice, sellPrice: grossPrice, gstPct, taxInclusive, uuid: i.item_uuid, hsn: i.hsn_code ?? "", mrp: Number(i.mrp || 0), unit: i.unit || "NOS", discount: Number(i.discount || 0) };
+        return { code: i.item_id, description: i.item_name, qty: Number(i.quantity), unitPrice, sellPrice: grossPrice, gstPct, taxInclusive, uuid: i.item_uuid, hsn: i.hsn_code ?? "", mrp: Number(i.mrp || 0), unit: i.unit || "NOS", discount: Number(i.discount || 0), discountPct: Number(i.discount_percentage || 0) };
       }));
       if (data.customer) {
         const c = data.customer;
         const displayName = c.cust_name && c.cpy_name ? `${c.cust_name} / ${c.cpy_name}` : c.cust_name || c.cpy_name || "";
-        setCustomer({ id: c.cust_uuid, name: displayName, mobile: c.mobile || "", address: [c.address_line1, c.address_line2, c.city, c.state, c.pincode].filter(Boolean).join(", "), gstin: c.gst || "" });
+        const billingAddress = [c.address_line1, c.address_line2, c.city, c.state, c.pincode].filter(Boolean).join(", ");
+        setCustomer({ id: c.cust_uuid, name: displayName, mobile: c.mobile || "", address: billingAddress, gstin: c.gst || "", shippingAddress: c.same_as_billing_address ? billingAddress : (c.shipping_address || ""), sameAsBillingAddress: !!c.same_as_billing_address });
+        setShipSameAsBilling(!!c.same_as_billing_address);
+        setCustomerQuery(displayName);
       }
       if (sale.discount_type === "percentage") { setDiscountPct(String(sale.discount_value || 0)); setDiscount("0"); }
       else { setDiscount(String(sale.discount_amount || 0)); setDiscountPct("0"); }
+      setGstMode(sale.discount_gst_mode === "before" ? "before" : "after");
       setReceivedAmount(String(sale.paid_amount || 0));
       if (data.payment_history.length > 0) {
         const last = data.payment_history[data.payment_history.length - 1];
@@ -450,7 +497,7 @@ useEffect(() => {
     setReceivedAmount(""); setCodeInput(""); setActiveRowIdx(-1); setOrderNote("");
     setDueDate("");
     setZone("SEARCH"); setSearchFocus("CODE");
-    setCustomer(EMPTY_CUSTOMER); clearCustomerResults(); setGstMode("after");
+    setCustomer(EMPTY_CUSTOMER); setSelectedApiCustomer(null); setCustomerQuery(""); clearCustomerResults(); setGstMode("after");
     setReceivedDirty(false);
 
   }, [clearCustomerResults]);
@@ -544,6 +591,8 @@ console.log("test",serverHolds)
       setZone("SEARCH");
       setSearchFocus("CODE");
       setCustomer(EMPTY_CUSTOMER);
+      setSelectedApiCustomer(null);
+      setCustomerQuery("");
       setOrderNote("");
       refetchHolds();
     } catch (err) {
@@ -572,6 +621,7 @@ console.log("test",serverHolds)
   setItems(hold.items);
   setDiscount(hold.discount);
   setCustomer(hold.customer);
+  setCustomerQuery(hold.customer.name || "");
 
   setHoldDialogOpen(false);
   setZone("TABLE");
@@ -593,8 +643,17 @@ console.log("test",serverHolds)
     if (inputRef.current) { inputRef.current.showPicker(); inputRef.current.focus(); }
   };
 
+  const handleOpenDueDatePicker = () => {
+    if (dueDateInputRef.current) { dueDateInputRef.current.showPicker(); dueDateInputRef.current.focus(); }
+  };
+
   const updateQty  = (code: string, delta: number) =>
-    setItems(prev => prev.map(i => i.code === code ? { ...i, qty: Math.max(1, i.qty + delta) } : i));
+    setItems(prev => prev.map(i => {
+      if (i.code !== code) return i;
+      const qty = Math.max(1, i.qty + delta);
+      const discount = i.discountPct ? parseFloat(((i.discountPct * qty * i.sellPrice) / 100).toFixed(2)) : i.discount;
+      return { ...i, qty, discount };
+    }));
 
   const removeItem = (code: string) => {
     setItems(prev => {
@@ -605,8 +664,8 @@ console.log("test",serverHolds)
     });
   };
 
-  const handleCustomerFieldChange = useCallback((field: "name" | "mobile", value: string) => {
-    setCustomer(prev => ({ ...prev, id: null, [field]: value }));
+  const handleCustomerQueryChange = useCallback((value: string) => {
+    setCustomerQuery(value);
     setCustomerSuggestionsOpen(true);
     setCustomerSuggestionIdx(-1);
     searchCustomers(value);
@@ -622,7 +681,10 @@ console.log("test",serverHolds)
     const custName    = c.cust_name?.trim() ?? "";
     const cpyName     = c.cpy_name?.trim()  ?? "";
     const displayName = custName && cpyName ? `${custName} / ${cpyName}` : custName || cpyName;
-    setCustomer({ id: c.cust_uuid, name: displayName, mobile: primaryMobile(c), address: customerAddress(c), gstin: c.gst ?? "" });
+    setCustomer({ id: c.cust_uuid, name: displayName, mobile: primaryMobile(c), address: customerAddress(c), gstin: c.gst ?? "", shippingAddress: customerShippingAddress(c), sameAsBillingAddress: c.same_as_billing_address });
+    setSelectedApiCustomer(c);
+    setShipSameAsBilling(c.same_as_billing_address);
+    setCustomerQuery(displayName);
     setCustomerSuggestionsOpen(false); setCustomerSuggestionIdx(-1); clearCustomerResults(); setZone("CUSTOMER");
   }, [clearCustomerResults]);
 
@@ -796,8 +858,13 @@ console.log("test",serverHolds)
     return parts.join(" + ") || null;
   })();
 
-  const totalGstRow = items.reduce((s, i) => s + (i.qty * i.unitPrice * i.gstPct) / 100, 0);
-  const totalAmtRow = items.reduce((s, i) => s + i.qty * i.sellPrice - (i.discount ?? 0), 0);
+  const totalGstRow = items.reduce((s, i) => s + round2((i.qty * i.unitPrice * i.gstPct) / 100), 0);
+  // Built from unitPrice + rounded item GST (same basis as the sidebar's Sub Total/Tax), not sellPrice —
+  // keeps this footer reconciled with Sub Total + Tax + Round Off on the right.
+  const totalAmtRow = items.reduce((s, i) => {
+    const itemGst = round2((i.qty * i.unitPrice * i.gstPct) / 100);
+    return s + round2(i.qty * i.unitPrice + itemGst - (i.discount ?? 0));
+  }, 0);
   const empty       = items.length === 0;
 
   const savedHsnBreakdown = useMemo(() => {
@@ -985,61 +1052,49 @@ console.log("test",serverHolds)
   // ─────────────────────────────────────────────────────────────
   return (
     <ThemeProvider theme={theme}>
-      <Box sx={{ height: "100%", minHeight: 0, bgcolor: "#F0F2F5", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <Box sx={{ height: "100%", minHeight: 0, bgcolor: "#F5F6FA", display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-        {/* ═══════════════════════ TOP BAR ════════════════════════ */}
-        <Box sx={{ bgcolor: "#fff", borderBottom: "1px solid #E5E7EB", px: { xs: 2, md: 3 }, py: 0.75, display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 50 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, bgcolor: "#F3F4F6", borderRadius: 2, p: 0.5 }}>
-            <Box onClick={() => setPosMode("SALE")} sx={{ display: "flex", alignItems: "center", gap: 0.7, px: 1.75, py: 0.6, borderRadius: 1.5, cursor: "pointer", bgcolor: !isQuotation ? "#C8102E" : "transparent", color: !isQuotation ? "#fff" : "#6B7280", transition: "all 0.18s", "&:hover": { bgcolor: !isQuotation ? "#C8102E" : "#E5E7EB" } }}>
-              <ReceiptLongIcon sx={{ fontSize: 15 }} />
-              <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em" }}>Sale</Typography>
-            </Box>
-            <Box onClick={() => setPosMode("QUOTATION")} sx={{ display: "flex", alignItems: "center", gap: 0.7, px: 1.75, py: 0.6, borderRadius: 1.5, cursor: "pointer", bgcolor: isQuotation ? "#1D4ED8" : "transparent", color: isQuotation ? "#fff" : "#6B7280", transition: "all 0.18s", "&:hover": { bgcolor: isQuotation ? "#1D4ED8" : "#E5E7EB" } }}>
-              <RequestQuoteIcon sx={{ fontSize: 15 }} />
-              <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em" }}>Quotation</Typography>
-            </Box>
-          </Box>
+        {/* ═══════════════════ MAIN TWO-COLUMN LAYOUT ═══════════════════ */}
+        <Box sx={{ flex: 1, minHeight: 0, display: "flex", gap: { xs: 0.75, md: 1 }, p: { xs: 0.5, sm: 0.75, md: 1 }, overflow: "hidden", flexDirection: { xs: "column", lg: "row" } }}>
 
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2, alignSelf: "end" }}>
-            {!isQuotation && (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, justifyContent: "space-between", width: "100%" }}>
-                <Box sx={{ display: "flex", gap: 0.75 }}>
-                  <Button size="small" disabled={holdSaving || items.length === 0}
-                    startIcon={holdSaving ? <CircularProgress size={10} /> : <PauseCircleOutlineIcon />}
-                    onClick={handleHold}
-                    
-                    sx={{ minWidth: 82, height: 26, px: 1, borderRadius: 1.25, bgcolor: "#4B5563", color: "#fff", fontSize: 10, fontWeight: 800, boxShadow: "0 2px 6px rgba(75,85,99,0.22)", "&:hover": { bgcolor: "#374151" } }}>
-                    HOLD <Box component="span" sx={{ fontSize: 9, opacity: 0.8, ml: 0.3 }}>[F9]</Box>
-                  </Button>
-                  <Badge badgeContent={heldOrders.length} invisible={heldOrders.length === 0} sx={{ "& .MuiBadge-badge": { fontSize: 8, minWidth: 14, height: 14, bgcolor: "#C8102E", color: "#fff", fontWeight: 800 } }}>
-                    <Button size="small" startIcon={<PlayArrowIcon sx={{ fontSize: 12 }} />} onClick={() => { setHoldDialogOpen(true); refetchHolds(); }}
-                      sx={{ minWidth: 80, height: 26, px: 1, borderRadius: 1.25, border: "1px solid #E5E7EB", bgcolor: heldOrders.length > 0 ? "#4B5563" : "#F3F4F6", color: heldOrders.length > 0 ? "#fff" : "#9CA3AF", fontSize: 10, fontWeight: 800, "&:hover": { bgcolor: heldOrders.length > 0 ? "#374151" : "#E5E7EB" } }}>
-                      RECALL
-                    </Button>
-                  </Badge>
+          {/* ─────────────────────── LEFT COLUMN ─────────────────────── */}
+          <Box sx={{ flex: "1 1 auto", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", gap: { xs: 0.75, sm: 1 }, overflow: "hidden" }}>
+
+            {/* Top row: Sale/Quotation tabs + Hold/Recall/Date */}
+            <Box sx={{ bgcolor: "#fff", border: "1px solid #E5E7EB", borderRadius: 2, px: { xs: 1.5, md: 2 }, py: 0.75, display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 50, flexShrink: 0, flexWrap: "wrap", gap: 1 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, bgcolor: "#F3F4F6", borderRadius: 2, p: 0.5 }}>
+                <Box onClick={() => setPosMode("SALE")} sx={{ display: "flex", alignItems: "center", gap: 0.7, px: 1.75, py: 0.6, borderRadius: 1.5, cursor: "pointer", bgcolor: !isQuotation ? "#C8102E" : "transparent", color: !isQuotation ? "#fff" : "#6B7280", transition: "all 0.18s", "&:hover": { bgcolor: !isQuotation ? "#C8102E" : "#E5E7EB" } }}>
+                  <ReceiptLongIcon sx={{ fontSize: 15 }} />
+                  <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em" }}>Sale</Typography>
+                </Box>
+                <Box onClick={() => setPosMode("QUOTATION")} sx={{ display: "flex", alignItems: "center", gap: 0.7, px: 1.75, py: 0.6, borderRadius: 1.5, cursor: "pointer", bgcolor: isQuotation ? "#1D4ED8" : "transparent", color: isQuotation ? "#fff" : "#6B7280", transition: "all 0.18s", "&:hover": { bgcolor: isQuotation ? "#1D4ED8" : "#E5E7EB" } }}>
+                  <RequestQuoteIcon sx={{ fontSize: 15 }} />
+                  <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em" }}>Quotation</Typography>
                 </Box>
               </Box>
-            )}
-            <Box onClick={handleOpenPicker}
-              sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 1 }, bgcolor: isQuotation ? "#DBEAFE" : "#FEE2E2", border: `1px solid ${isQuotation ? "#1D4ED8" : "#C8102E"}`, borderRadius: 1.5, px: { xs: 1, sm: 1.5 }, py: 0.5, transition: "all 0.2s", cursor: "pointer", whiteSpace: "nowrap" }}>
-              <CalendarTodayIcon sx={{ fontSize: 15, color: isQuotation ? "#1D4ED8" : "#C8102E", flexShrink: 0 }} />
-              <Typography sx={{ fontSize: { xs: 9, sm: 10 }, color: isQuotation ? "#1D4ED8" : "#C8102E", fontWeight: 700, letterSpacing: "0.05em", display: { xs: "none", sm: "block" } }}>
-                {isQuotation ? "QUOTATION DATE" : "INVOICE DATE"}
-              </Typography>
-              <Typography sx={{ fontSize: { xs: 11, sm: 12 }, fontWeight: 700, color: isQuotation ? "#1D4ED8" : "#C8102E", whiteSpace: "nowrap" }}>
-                {invoiceDate || "Select date"}
-              </Typography>
-              <input ref={inputRef} type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} style={{ position: "absolute", opacity: 0, pointerEvents: "none" }} />
+
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+                {!isQuotation && (
+                  <Box sx={{ display: "flex", gap: 0.75 }}>
+                    <Button size="small" disabled={holdSaving || items.length === 0}
+                      startIcon={holdSaving ? <CircularProgress size={10} /> : <PauseCircleOutlineIcon />}
+                      onClick={handleHold}
+                      sx={{ minWidth: 82, height: 26, px: 1, borderRadius: 1.25, bgcolor: "#4B5563", color: "#fff", fontSize: 10, fontWeight: 800, boxShadow: "0 2px 6px rgba(75,85,99,0.22)", "&:hover": { bgcolor: "#374151" } }}>
+                      HOLD <Box component="span" sx={{ fontSize: 9, opacity: 0.8, ml: 0.3 }}>[F9]</Box>
+                    </Button>
+                    <Badge badgeContent={heldOrders.length} invisible={heldOrders.length === 0} sx={{ "& .MuiBadge-badge": { fontSize: 8, minWidth: 14, height: 14, bgcolor: "#C8102E", color: "#fff", fontWeight: 800 } }}>
+                      <Button size="small" startIcon={<PlayArrowIcon sx={{ fontSize: 12 }} />} onClick={() => { setHoldDialogOpen(true); refetchHolds(); }}
+                        sx={{ minWidth: 80, height: 26, px: 1, borderRadius: 1.25, border: "1px solid #E5E7EB", bgcolor: heldOrders.length > 0 ? "#4B5563" : "#F3F4F6", color: heldOrders.length > 0 ? "#fff" : "#9CA3AF", fontSize: 10, fontWeight: 800, "&:hover": { bgcolor: heldOrders.length > 0 ? "#374151" : "#E5E7EB" } }}>
+                        RECALL
+                      </Button>
+                    </Badge>
+                  </Box>
+                )}
+              </Box>
             </Box>
-          </Box>
-        </Box>
 
-        {/* MAIN CONTENT */}
-        <Box sx={{ flex: 1, minHeight: 0, px: { xs: 0.5, sm: 1, md: 1.5 }, pt: { xs: 0.5, sm: 0.75 }, pb: { xs: 0.5, sm: 0.75 }, display: "flex", flexDirection: "column" }}>
-          <Box sx={{ display: "flex", gap: { xs: 0.75, sm: 1, md: 1.5 }, mb: { xs: 0.75, sm: 1 }, alignItems: "stretch", flexDirection: { xs: "column", md: "row" } }}>
-
-            {/* Search panel */}
-            <Paper elevation={0} sx={{ flex: "1 1 auto", borderRadius: 2, p: 1.5, bgcolor: "#fff", position: "relative", zIndex: 100, transition: "border-color 0.2s", border: zone === "SEARCH" ? `2px solid ${modeAccent}` : "2px solid #E5E7EB", boxShadow: zone === "SEARCH" ? `0 0 0 3px ${isQuotation ? "rgba(29,78,216,0.08)" : "rgba(200,16,46,0.08)"}` : "none" }}>
+            {/* Search row */}
+            <Paper elevation={0} sx={{ borderRadius: 2, p: 1.75, bgcolor: "#fff", position: "relative", zIndex: 100, transition: "border-color 0.2s", flexShrink: 0, border: zone === "SEARCH" ? `2px solid ${modeAccent}` : "2px solid #E5E7EB", boxShadow: zone === "SEARCH" ? `0 0 0 3px ${isQuotation ? "rgba(29,78,216,0.08)" : "rgba(200,16,46,0.08)"}` : "none" }}>
               <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-end" }}>
                 <Box sx={{ flex: 1, position: "relative" }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.4 }}>
@@ -1102,91 +1157,46 @@ console.log("test",serverHolds)
                 </Box>
                 <Button variant="contained" startIcon={<AddShoppingCartIcon />} onClick={() => handleAddItem()}
                   sx={{ bgcolor: modeAccent, color: "#fff", px: 2.5, py: 0.9, fontSize: 13, fontWeight: 700, borderRadius: 1.5, minHeight: 38, whiteSpace: "nowrap", boxShadow: `0 4px 14px ${isQuotation ? "rgba(29,78,216,0.35)" : "rgba(200,16,46,0.35)"}`, "&:hover": { bgcolor: isQuotation ? "#1E40AF" : "#A50D26" }, "&:active": { transform: "scale(0.97)" } }}>
-                  ADD <Box component="span" sx={{ fontSize: 10, opacity: 0.8, ml: 0.4 }}>[Enter]</Box>
+                  ADD ITEM <Box component="span" sx={{ fontSize: 10, opacity: 0.8, ml: 0.4 }}>[Enter]</Box>
                 </Button>
+                {items.length > 0 && (
+                  <Button variant="outlined" startIcon={<DeleteOutlineIcon sx={{ fontSize: 16 }} />} onClick={handleClear}
+                    sx={{ borderColor: "#E5E7EB", color: "#6B7280", px: 1.75, py: 0.9, fontSize: 12, fontWeight: 700, borderRadius: 1.5, minHeight: 38, whiteSpace: "nowrap", "&:hover": { borderColor: "#C8102E", color: "#C8102E", bgcolor: "#FEF2F2" } }}>
+                    CLEAR <Box component="span" sx={{ fontSize: 10, opacity: 0.8, ml: 0.4 }}>[F4]</Box>
+                  </Button>
+                )}
               </Box>
             </Paper>
-
-            {/* Customer panel */}
-            <Paper elevation={0} sx={{ flex: { xs: 1, md: "0 0 auto" }, width: { md: "40%", lg: "38%", xl: "34%" }, maxWidth: { md: 560 }, border: zone === "CUSTOMER" ? `2px solid ${modeAccent}` : "1px solid #E5E7EB", borderRadius: 2.5, p: { xs: 1, sm: 1.25 }, bgcolor: "#fff", transition: "border 0.2s, box-shadow 0.2s", position: "relative", boxShadow: zone === "CUSTOMER" ? `0 0 0 3px ${isQuotation ? "rgba(29,78,216,0.08)" : "rgba(200,16,46,0.08)"}` : "none" }}>
-              <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5, mb: 1.2 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.7 }}>
-                  <PersonSearchIcon sx={{ fontSize: 15, color: modeAccent }} />
-                  <Typography sx={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", color: "#374151" }}>CUSTOMER</Typography>
-                  {customer.id && <Chip label="Linked" size="small" onDelete={() => { setCustomer(EMPTY_CUSTOMER); clearCustomerResults(); }} sx={{ fontSize: 9, height: 18, bgcolor: "#DCFCE7", color: "#16A34A", fontWeight: 700 }} />}
-                </Box>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Button disabled={!customer.id} size="small" variant="outlined" onClick={() => setCustomerLedgerOpen(true)} sx={{ borderColor: modeBorder, color: modeAccent, fontSize: 9, fontWeight: 800, px: 1.25, py: 0.55, borderRadius: 1.5, minWidth: 0, whiteSpace: "nowrap", "&:hover": { borderColor: modeAccent, bgcolor: modeBg } }}>View Ledger / History</Button>
-                </Box>
-              </Box>
-              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1 }}>
-                <TextField inputRef={customerNameRef} value={customer.name} onChange={e => handleCustomerFieldChange("name", e.target.value)} onFocus={() => { setZone("CUSTOMER"); if (customer.name.trim()) { setCustomerSuggestionsOpen(true); setCustomerSuggestionIdx(-1); } }} onBlur={() => setTimeout(() => setCustomerSuggestionsOpen(false), 180)} placeholder="Name or company" size="small" autoComplete="off" sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.75, fontSize: 12, bgcolor: "#F8FAFC", "& fieldset": { borderColor: "#E2E8F0" }, "&:hover fieldset": { borderColor: modeAccent }, "&.Mui-focused fieldset": { borderColor: modeAccent } } }} inputProps={{ style: { padding: "7px 12px", fontWeight: 500 } }} />
-                <TextField inputRef={customerMobileRef} value={customer.mobile} onChange={e => handleCustomerFieldChange("mobile", e.target.value.replace(/\D/g, "").slice(0, 10))} onFocus={() => { setZone("CUSTOMER"); if (customer.mobile.trim()) { setCustomerSuggestionsOpen(true); setCustomerSuggestionIdx(-1); } }} onBlur={() => setTimeout(() => setCustomerSuggestionsOpen(false), 180)} placeholder="Mobile" size="small" autoComplete="off" sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.75, fontSize: 12, bgcolor: "#F8FAFC", "& fieldset": { borderColor: "#E2E8F0" }, "&:hover fieldset": { borderColor: modeAccent }, "&.Mui-focused fieldset": { borderColor: modeAccent } } }} inputProps={{ style: { padding: "7px 12px", fontWeight: 500, fontFamily: "monospace", letterSpacing: "0.04em" } }} />
-              </Box>
-              {customerSuggestionsOpen && (customer.name.trim() || customer.mobile.trim()) && (
-                <Paper elevation={8} sx={{ position: "absolute", top: "calc(100% - 4px)", left: 12, right: 12, zIndex: 9998, borderRadius: 2, border: "1px solid #E5E7EB", overflow: "hidden", boxShadow: "0 16px 40px rgba(15,23,42,0.16)" }}>
-                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 1.5, py: 1, bgcolor: isQuotation ? "#EFF6FF" : "#FFF7F8", borderBottom: `1px solid ${isQuotation ? "#BFDBFE" : "#F3D6DB"}` }}>
-                    <Box>
-                      <Typography sx={{ fontSize: 10, fontWeight: 800, color: "#374151", letterSpacing: "0.06em" }}>CUSTOMER SEARCH</Typography>
-                      <Typography sx={{ fontSize: 9, color: "#9CA3AF" }}>Select to auto-fill mobile, address and GSTIN.</Typography>
-                    </Box>
-                    {customerLoading ? <CircularProgress size={12} sx={{ color: modeAccent }} /> : <Typography sx={{ fontSize: 9, fontWeight: 800, color: modeAccent }}>{customerResults.length} result{customerResults.length !== 1 ? "s" : ""}</Typography>}
-                  </Box>
-                  {!customerLoading && customerResults.length === 0
-                    ? <Box sx={{ px: 2, py: 3, textAlign: "center" }}><Typography sx={{ fontSize: 12, color: "#9CA3AF" }}>No matching customers found.</Typography></Box>
-                    : <Box ref={customerSuggestionListRef} sx={{ maxHeight: 280, overflowY: "auto", bgcolor: "#fff" }}>
-                        {customerResults.map((c, idx) => (
-                          <Box key={c.cust_uuid} onMouseDown={() => handleSelectCustomer(c)} sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1, px: 1.5, py: 1.1, borderBottom: "1px solid #F8FAFC", cursor: "pointer", bgcolor: idx === customerSuggestionIdx ? (isQuotation ? "#EFF6FF" : "#FFF7F8") : "#fff", borderLeft: idx === customerSuggestionIdx ? `3px solid ${modeAccent}` : "3px solid transparent", "&:hover": { bgcolor: isQuotation ? "#EFF6FF" : "#FFF7F8" } }}>
-                            <Box sx={{ minWidth: 0 }}>
-                              {c.cust_name && <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#1F2937", lineHeight: 1.3 }}>{c.cust_name}</Typography>}
-                              {c.cpy_name && <Typography sx={{ fontSize: 11, fontWeight: 600, color: c.cust_name ? "#6B7280" : "#1F2937", lineHeight: 1.3 }}>{c.cust_name ? `🏢 ${c.cpy_name}` : c.cpy_name}</Typography>}
-                              <Typography sx={{ fontSize: 10, color: "#9CA3AF", mt: 0.2 }}>{primaryMobile(c)}{c.city ? ` • ${c.city}` : ""}</Typography>
-                            </Box>
-                            {c.gst && <Typography sx={{ fontSize: 9, fontWeight: 700, color: "#6B7280", fontFamily: "monospace", whiteSpace: "nowrap" }}>{c.gst}</Typography>}
-                          </Box>
-                        ))}
-                      </Box>
-                  }
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 1.5, py: 0.85, bgcolor: "#FCFCFD", borderTop: "1px solid #EEF2F7" }}>
-                    <Typography sx={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700 }}>Type to search by name or mobile</Typography>
-                    <Button size="small" variant="contained" onClick={() => { setCustomerSuggestionsOpen(false); setAddCustomerOpen(true); }} sx={{ bgcolor: modeAccent, fontSize: 9, fontWeight: 800, borderRadius: 1.5, px: 1.1, py: 0.45, "&:hover": { bgcolor: isQuotation ? "#1E40AF" : "#A50D26" } }}>+ Add New</Button>
-                  </Box>
-                </Paper>
-              )}
-            </Paper>
-          </Box>
 
           {/* ORDER TABLE */}
           <Paper elevation={0} sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", border: zone === "TABLE" ? "2px solid #1976d2" : "1px solid #E5E7EB", borderRadius: 2, overflow: "hidden", transition: "border 0.2s", boxShadow: zone === "TABLE" ? "0 0 0 3px rgba(245,158,11,0.1)" : "none" }}>
-            <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", scrollbarWidth: "thin", scrollbarColor: "#ea9999 #F3F4F6", "&::-webkit-scrollbar": { width: "8px" }, "&::-webkit-scrollbar-track": { backgroundColor: "#F3F4F6", borderRadius: "4px" }, "&::-webkit-scrollbar-thumb": { backgroundColor: "#ea9999", borderRadius: "4px", "&:hover": { backgroundColor: "#A50D26" } } }}>
-              <Table size="small" stickyHeader sx={{ borderCollapse: "separate", tableLayout: "fixed" }}>
+            <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden", scrollbarWidth: "thin", scrollbarColor: "#ea9999 #F3F4F6", "&::-webkit-scrollbar": { width: "8px" }, "&::-webkit-scrollbar-track": { backgroundColor: "#F3F4F6", borderRadius: "4px" }, "&::-webkit-scrollbar-thumb": { backgroundColor: "#ea9999", borderRadius: "4px", "&:hover": { backgroundColor: "#A50D26" } } }}>
+              <Table size="small" stickyHeader sx={{ borderCollapse: "separate", tableLayout: "fixed", width: "100%" }}>
                 <colgroup>
-                  <col style={{ width: 10 }} /><col style={{ width: 120 }} /><col /><col style={{ width: 70 }} />
-                  <col style={{ width: 60 }} /><col style={{ width: 90 }} /><col style={{ width: 90 }} />
-                  <col style={{ width: 130 }} /><col style={{ width: 130 }} /><col style={{ width: 110 }} />
-                  <col style={{ width: 115 }} /><col style={{ width: 105 }} /><col style={{ width: 36 }} />
+                  <col style={{ width: "0.8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "16%" }} />
+                  <col style={{ width: "12%" }} /><col style={{ width: "6%" }} />
+                  <col style={{ width: "10%" }} /><col style={{ width: "10%" }} /><col style={{ width: "8%" }} />
+                  <col style={{ width: "8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "3%" }} />
                 </colgroup>
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ width: 10, p: 0 }} />
-                    <TableCell sx={{ width: 120, fontSize: 12 }}>ITEM ID</TableCell>
-                    <TableCell sx={{ fontSize: 12 }}>DESCRIPTION</TableCell>
-                    <TableCell sx={{ width: 70, fontSize: 12 }}>HSN</TableCell>
-                    <TableCell align="center" sx={{ width: 60, fontSize: 12 }}>GST%</TableCell>
-                    <TableCell align="right" sx={{ width: 90, fontSize: 12 }}>GST AMT</TableCell>
-                    <TableCell align="right" sx={{ width: 90, fontSize: 12 }}>MRP (₹)</TableCell>
-                    <TableCell align="center" sx={{ width: 130, fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.4 }}>QTY <Kbd>Q</Kbd></Box></TableCell>
-                    <TableCell align="right" sx={{ width: 130, fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>RATE <Kbd>P</Kbd></Box></TableCell>
-                    <TableCell align="right" sx={{ width: 110, fontSize: 12, whiteSpace: "nowrap" }}>UNIT PRICE</TableCell>
-                    <TableCell align="right" sx={{ width: 115, fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>DISC % <Kbd>D</Kbd></Box></TableCell>
-                    <TableCell align="right" sx={{ width: 105, fontSize: 12 }}>TOTAL</TableCell>
-                    <TableCell sx={{ width: 36 }} />
+                    <TableCell sx={{ width: "0.8%", p: 0 }} />
+                    <TableCell sx={{ width: "10%", fontSize: 12 }}>ITEM ID</TableCell>
+                    <TableCell sx={{ width: "16%", fontSize: 12 }}>DESCRIPTION</TableCell>
+                    <TableCell align="right" sx={{ width: "12%", fontSize: 12, pr: 0.5 }}>TAX AMT (GST %)</TableCell>
+                    <TableCell align="right" sx={{ width: "6%", fontSize: 12, pr: 0.5 }}>MRP (₹)</TableCell>
+                    <TableCell align="center" sx={{ width: "10%", fontSize: 12, pl: 0.5 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.4 }}>QTY <Kbd>Q</Kbd></Box></TableCell>
+                    <TableCell align="right" sx={{ width: "10%", fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>RATE <Kbd>P</Kbd></Box></TableCell>
+                    <TableCell align="right" sx={{ width: "8%", fontSize: 12, whiteSpace: "nowrap" }}>UNIT PRICE</TableCell>
+                    <TableCell align="right" sx={{ width: "8%", fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>DISC % <Kbd>D</Kbd></Box></TableCell>
+                    <TableCell align="right" sx={{ width: "10%", fontSize: 12 }}>TOTAL</TableCell>
+                    <TableCell sx={{ width: "3%" }} />
                   </TableRow>
                 </TableHead>
                 <TableBody ref={tableBodyRef}>
                   {items.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={13} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={11} align="center" sx={{ py: 6 }}>
                         <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, color: "#D1D5DB" }}>
                           <KeyboardReturnIcon sx={{ fontSize: 32 }} />
                           <Typography sx={{ fontSize: 13 }}>Search and add items above</Typography>
@@ -1196,8 +1206,8 @@ console.log("test",serverHolds)
                   )}
                   {items.map((item, rowIdx) => {
                     const isActive  = zone === "TABLE" && activeRowIdx === rowIdx;
-                    const itemGst   = (item.qty * item.unitPrice * item.gstPct) / 100;
-                    const itemTotal = item.qty * item.sellPrice - (item.discount ?? 0);
+                    const itemGst   = round2((item.qty * item.unitPrice * item.gstPct) / 100);
+                    const itemTotal = round2(item.qty * item.unitPrice + itemGst - (item.discount ?? 0));
                     return (
                       <Fade in key={item.code}>
                         <TableRow data-rowcode={item.code} onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); }}
@@ -1219,10 +1229,11 @@ console.log("test",serverHolds)
                             <Typography sx={{ fontSize: 13, fontWeight: isActive ? 800 : 700, color: "#1A1A2E", lineHeight: 1.3 }}>{item.description}</Typography>
                             {item.category && <Typography sx={{ fontSize: 10, fontWeight: 700, color: CAT_COLOR[item.category] ?? "#6B7280" }}>{item.category}</Typography>}
                           </TableCell>
-                          <TableCell><Typography sx={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>{item.hsn}</Typography></TableCell>
-                          <TableCell align="center"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{item.gstPct}%</Typography></TableCell>
-                          <TableCell align="right"><Typography sx={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>{INR(itemGst)}</Typography></TableCell>
-                          <TableCell align="right"><Typography sx={{ fontSize: 13, color: "#9CA3AF" }}>₹{item.mrp.toLocaleString("en-IN")}</Typography></TableCell>
+                          <TableCell align="right">
+                            <Typography sx={{ fontSize: 13, color: "#374151", fontWeight: 700, lineHeight: 1.2, wordBreak: "break-word" }}>{INR(itemGst)}</Typography>
+                            <Box component="span" sx={{ display: "inline-block", fontSize: 9.5, fontWeight: 700, color: "#6B7280", bgcolor: "#F3F4F6", borderRadius: 999, px: 0.7, py: 0.05, mt: 0.2 }}>GST {item.gstPct}%</Box>
+                          </TableCell>
+                          <TableCell align="right"><Typography sx={{ fontSize: 13, color: "#9CA3AF", wordBreak: "break-word" }}>₹{item.mrp.toLocaleString("en-IN")}</Typography></TableCell>
 
                           {/* QTY */}
                           <TableCell align="center" onClick={e => e.stopPropagation()}>
@@ -1231,8 +1242,8 @@ console.log("test",serverHolds)
                               {item.editingQty ? (
                                 <TextField inputRef={el => { qtyRefs.current[item.code] = el; }} value={item.qtyDraft ?? ""}
                                   onChange={e => setItems(prev => prev.map(i => i.code === item.code ? { ...i, qtyDraft: e.target.value.replace(/[^0-9.]/g, "") } : i))}
-                                  onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = qtyRefs.current[item.code]; const newQty = Math.max(1, parseFloat(el?.value ?? "") || 1); setItems(prev => prev.map(i => i.code === item.code ? { ...i, qty: newQty, editingQty: false, qtyDraft: undefined } : i)); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
-                                  onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); const newQty = Math.max(1, parseFloat((e.target as HTMLInputElement).value) || 1); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, qty: newQty, editingQty: false, qtyDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingQty: false, qtyDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
+                                  onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = qtyRefs.current[item.code]; const newQty = Math.max(1, parseFloat(el?.value ?? "") || 1); setItems(prev => prev.map(i => { if (i.code !== item.code) return i; const discount = i.discountPct ? parseFloat(((i.discountPct * newQty * i.sellPrice) / 100).toFixed(2)) : i.discount; return { ...i, qty: newQty, discount, editingQty: false, qtyDraft: undefined }; })); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
+                                  onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); const newQty = Math.max(1, parseFloat((e.target as HTMLInputElement).value) || 1); editCancelledRef.current = true; setItems(prev => prev.map(i => { if (i.code !== item.code) return i; const discount = i.discountPct ? parseFloat(((i.discountPct * newQty * i.sellPrice) / 100).toFixed(2)) : i.discount; return { ...i, qty: newQty, discount, editingQty: false, qtyDraft: undefined }; })); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingQty: false, qtyDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
                                   size="small" inputProps={{ step: "any", style: { textAlign: "center", fontWeight: 800, fontSize: 14, padding: "2px 2px", width: 48 } }}
                                   sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#1976D2", borderWidth: 2 } }, width: 64 }} />
                               ) : (
@@ -1250,22 +1261,22 @@ console.log("test",serverHolds)
                                 <Typography sx={{ fontSize: 13, color: "#9CA3AF", fontWeight: 700 }}>₹</Typography>
                                 <TextField inputRef={el => { priceRefs.current[item.code] = el; }} value={item.priceDraft ?? ""}
                                   onChange={e => setItems(prev => prev.map(i => i.code === item.code ? { ...i, priceDraft: e.target.value.replace(/[^0-9.]/g, "") } : i))}
-                                  onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = priceRefs.current[item.code]; const newSell = Math.max(0, parseFloat(el?.value ?? "") || item.sellPrice); const newBase = item.taxInclusive && item.gstPct > 0 ? newSell / (1 + item.gstPct / 100) : newSell; setItems(prev => prev.map(i => i.code === item.code ? { ...i, sellPrice: newSell, unitPrice: newBase, editingPrice: false, priceDraft: undefined } : i)); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
-                                  onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); const newSell = Math.max(0, parseFloat((e.target as HTMLInputElement).value) || item.sellPrice); const newBase = item.taxInclusive && item.gstPct > 0 ? newSell / (1 + item.gstPct / 100) : newSell; editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, sellPrice: newSell, unitPrice: newBase, editingPrice: false, priceDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingPrice: false, priceDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
+                                  onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = priceRefs.current[item.code]; const newSell = Math.max(0, parseFloat(el?.value ?? "") || item.sellPrice); const newBase = item.taxInclusive && item.gstPct > 0 ? newSell / (1 + item.gstPct / 100) : newSell; setItems(prev => prev.map(i => { if (i.code !== item.code) return i; const discount = i.discountPct ? parseFloat(((i.discountPct * i.qty * newSell) / 100).toFixed(2)) : i.discount; return { ...i, sellPrice: newSell, unitPrice: newBase, discount, editingPrice: false, priceDraft: undefined }; })); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
+                                  onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); const newSell = Math.max(0, parseFloat((e.target as HTMLInputElement).value) || item.sellPrice); const newBase = item.taxInclusive && item.gstPct > 0 ? newSell / (1 + item.gstPct / 100) : newSell; editCancelledRef.current = true; setItems(prev => prev.map(i => { if (i.code !== item.code) return i; const discount = i.discountPct ? parseFloat(((i.discountPct * i.qty * newSell) / 100).toFixed(2)) : i.discount; return { ...i, sellPrice: newSell, unitPrice: newBase, discount, editingPrice: false, priceDraft: undefined }; })); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingPrice: false, priceDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
                                   size="small" inputProps={{ style: { textAlign: "right", fontWeight: 700, fontSize: 13, padding: "2px 4px", width: 60 } }}
                                   sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#1976D2", borderWidth: 2 } }, width: 80 }} />
                               </Box>
                             ) : (
                               <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditPrice(item.code); }}
                                 sx={{ display: "inline-flex", alignItems: "center", gap: 0.3, px: 0.6, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #1976D2" : "1.5px dashed transparent", bgcolor: isActive ? "#E3F2FD" : "transparent", "&:hover": { border: "1.5px dashed #1976D2", bgcolor: "#E3F2FD", "& .pedit": { opacity: 1 } }, transition: "all 0.15s" }}>
-                                <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{INR(item.sellPrice)}</Typography>
-                                <EditIcon className="pedit" sx={{ fontSize: 10, color: "#1976D2", opacity: isActive ? 0.6 : 0, transition: "opacity 0.15s" }} />
+                                <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", wordBreak: "break-word" }}>{INR(item.sellPrice)}</Typography>
+                                <EditIcon className="pedit" sx={{ fontSize: 10, color: "#1976D2", opacity: isActive ? 0.6 : 0, transition: "opacity 0.15s", flexShrink: 0 }} />
                               </Box>
                             )}
                           </TableCell>
 
                           {/* UNIT PRICE EX.TAX */}
-                          <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{INR(item.unitPrice)}</Typography></TableCell>
+                          <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", wordBreak: "break-word" }}>{INR(item.unitPrice)}</Typography></TableCell>
 
                           {/* DISCOUNT % */}
                           <TableCell align="right" onClick={e => e.stopPropagation()}>
@@ -1327,7 +1338,9 @@ console.log("test",serverHolds)
                           </TableCell>
 
                           {/* TOTAL */}
-                          <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 700, color: isActive ? "#0D47A1" : "#1A1A2E" }}>{INR(itemTotal)}</Typography></TableCell>
+                          <TableCell align="right">
+                            <Typography sx={{ fontSize: 13, fontWeight: 700, color: isActive ? "#0D47A1" : "#1A1A2E", wordBreak: "break-word" }}>{INR(itemTotal)}</Typography>
+                          </TableCell>
                           <TableCell onClick={e => e.stopPropagation()}><IconButton size="small" onClick={() => removeItem(item.code)} sx={{ color: "#D1D5DB", "&:hover": { color: "#C8102E", bgcolor: "#FEE2E2" } }}><DeleteOutlineIcon sx={{ fontSize: 15 }} /></IconButton></TableCell>
                         </TableRow>
                       </Fade>
@@ -1338,182 +1351,366 @@ console.log("test",serverHolds)
             </Box>
 
             {/* Total row pinned to bottom */}
-            <Table size="small" sx={{ borderCollapse: "separate", flexShrink: 0, tableLayout: "fixed" }}>
+            <Table size="small" sx={{ borderCollapse: "separate", flexShrink: 0, tableLayout: "fixed", width: "100%" }}>
               <colgroup>
-                <col style={{ width: 10 }} /><col style={{ width: 70 }} /><col /><col style={{ width: 70 }} />
-                <col style={{ width: 60 }} /><col style={{ width: 90 }} /><col style={{ width: 90 }} />
-                <col style={{ width: 130 }} /><col style={{ width: 130 }} /><col style={{ width: 110 }} />
-                <col style={{ width: 115 }} /><col style={{ width: 105 }} /><col style={{ width: 36 }} />
+                <col style={{ width: "0.8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "16%" }} />
+                <col style={{ width: "12%" }} /><col style={{ width: "6%" }} />
+                <col style={{ width: "10%" }} /><col style={{ width: "10%" }} /><col style={{ width: "8%" }} />
+                <col style={{ width: "8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "3%" }} />
               </colgroup>
               <TableBody>
                 <TableRow sx={{ bgcolor: "#F8FAFC", "& .MuiTableCell-root": { borderTop: "2px solid #E5E7EB", borderBottom: "none", py: 1, height: 34, bgcolor: "#F8FAFC" } }}>
                   <TableCell sx={{ p: 0 }} /><TableCell />
                   <TableCell><Typography sx={{ fontSize: 13, fontWeight: 800, color: "#374151" }}>Total</Typography></TableCell>
-                  <TableCell /><TableCell align="center" />
-                  <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{INR(items.length > 0 ? totalGstRow : 0)}</Typography></TableCell>
+                  <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", wordBreak: "break-word" }}>{INR(items.length > 0 ? totalGstRow : 0)}</Typography></TableCell>
                   <TableCell align="right" />
                   <TableCell align="center"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{items.length > 0 ? totalUnits : 0}</Typography></TableCell>
                   <TableCell align="right" />
-                  <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{INR(items.length > 0 ? subtotal : 0)}</Typography></TableCell>
+                  <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", wordBreak: "break-word" }}>{INR(items.length > 0 ? subtotal : 0)}</Typography></TableCell>
                   <TableCell align="right">
                     {items.length > 0 && itemDiscountTotal > 0
                       ? <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#C8102E" }}>- {INR(itemDiscountTotal)}</Typography>
                       : <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#D1D5DB" }}>—</Typography>
                     }
                   </TableCell>
-                  <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 700, color: "#000" }}>{INR(items.length > 0 ? totalAmtRow : 0)}</Typography></TableCell>
+                  <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 700, color: "#000", wordBreak: "break-word" }}>{INR(items.length > 0 ? totalAmtRow : 0)}</Typography></TableCell>
                   <TableCell />
                 </TableRow>
               </TableBody>
             </Table>
           </Paper>
+
+            {/* Customer panel — search row + Bill To / Ship To cards */}
+            <Paper elevation={0} sx={{ flexShrink: 0, border: zone === "CUSTOMER" ? `2px solid ${modeAccent}` : "1px solid #E5E7EB", borderRadius: 2.5, p: { xs: 1.75, sm: 2.25 },  bgcolor: "#fff", transition: "border 0.2s, box-shadow 0.2s", position: "relative", boxShadow: zone === "CUSTOMER" ? `0 0 0 3px ${isQuotation ? "rgba(29,78,216,0.08)" : "rgba(200,16,46,0.08)"}` : "none" }}>
+              <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5, mb: 0.8 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.7 }}>
+                  <PersonSearchIcon sx={{ fontSize: 15, color: modeAccent }} />
+                  <Typography sx={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", color: "#374151" }}>CUSTOMER</Typography>
+                  {customer.id && <Chip label="Clear Customer" size="small" onDelete={() => { setCustomer(EMPTY_CUSTOMER); setSelectedApiCustomer(null); setCustomerQuery(""); clearCustomerResults(); }} sx={{ fontSize: 9, height: 18, bgcolor: "#FEE2E2", color: "#C8102E", fontWeight: 700 }} />}
+                </Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Button disabled={!customer.id} size="small" variant="outlined" onClick={() => setCustomerLedgerOpen(true)} sx={{ borderColor: modeBorder, color: modeAccent, fontSize: 9, fontWeight: 800, px: 1.25, py: 0.55, borderRadius: 1.5, minWidth: 0, whiteSpace: "nowrap", "&:hover": { borderColor: modeAccent, bgcolor: modeBg } }}>View Ledger / History</Button>
+                </Box>
+              </Box>
+
+              {/* Search / autocomplete row — one field searches by name, company or mobile */}
+              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr auto" }, gap: 1, alignItems: "center" }}>
+                <Box sx={{ position: "relative" }}>
+                  <TextField inputRef={customerNameRef} value={customerQuery} onChange={e => handleCustomerQueryChange(e.target.value)} onFocus={() => { setZone("CUSTOMER"); if (customer.id) { setCustomerQuery(""); clearCustomerResults(); } else if (customerQuery.trim()) { setCustomerSuggestionsOpen(true); setCustomerSuggestionIdx(-1); } }} onBlur={() => setTimeout(() => setCustomerSuggestionsOpen(false), 180)} placeholder="Search by name, company or mobile" size="small" autoComplete="off" fullWidth sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.75, fontSize: 12, bgcolor: "#F8FAFC", "& fieldset": { borderColor: "#E2E8F0" }, "&:hover fieldset": { borderColor: modeAccent }, "&.Mui-focused fieldset": { borderColor: modeAccent } } }} inputProps={{ style: { padding: "7px 12px", fontWeight: 500 } }} />
+
+                  {customerSuggestionsOpen && customerQuery.trim() && (
+                    <Paper elevation={8} sx={{ position: "absolute", bottom: "calc(100% + 4px)", left: 0, right: 0, zIndex: 9998, borderRadius: 2, border: "1px solid #E5E7EB", overflow: "hidden", boxShadow: "0 -16px 40px rgba(15,23,42,0.16)" }}>
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, px: 1.5, py: 1, bgcolor: modeAccent }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.7, minWidth: 0 }}>
+                          <PersonSearchIcon sx={{ fontSize: 14, color: "#fff", flexShrink: 0 }} />
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography sx={{ fontSize: 10.5, fontWeight: 800, color: "#fff", letterSpacing: "0.07em" }}>CUSTOMER SEARCH</Typography>
+                            <Typography sx={{ fontSize: 9.5, fontWeight: 600, color: "#fff", whiteSpace: "nowrap" }}>Select to auto-fill mobile, address and GSTIN.</Typography>
+                          </Box>
+                        </Box>
+                        {customerLoading
+                          ? <CircularProgress size={12} sx={{ color: "#fff" }} />
+                          : <Box sx={{ px: 0.9, py: 0.25, borderRadius: 999, bgcolor: "rgba(255,255,255,0.18)" }}>
+                              <Typography sx={{ fontSize: 9, fontWeight: 800, color: "#fff", whiteSpace: "nowrap" }}>{customerResults.length} result{customerResults.length !== 1 ? "s" : ""}</Typography>
+                            </Box>
+                        }
+                      </Box>
+                      {!customerLoading && customerResults.length === 0
+                        ? <Box sx={{ px: 2, py: 3, textAlign: "center" }}><Typography sx={{ fontSize: 12, color: "#9CA3AF" }}>No matching customers found.</Typography></Box>
+                        : <Box ref={customerSuggestionListRef} sx={{ maxHeight: 280, overflowY: "auto", bgcolor: "#fff" }}>
+                            {customerResults.map((c, idx) => (
+                              <Box key={c.cust_uuid} onMouseDown={() => handleSelectCustomer(c)} sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1, px: 1.5, py: 1.1, borderBottom: "1px solid #F8FAFC", cursor: "pointer", bgcolor: idx === customerSuggestionIdx ? (isQuotation ? "#EFF6FF" : "#FFF7F8") : "#fff", borderLeft: idx === customerSuggestionIdx ? `3px solid ${modeAccent}` : "3px solid transparent", "&:hover": { bgcolor: isQuotation ? "#EFF6FF" : "#FFF7F8" } }}>
+                                <Box sx={{ minWidth: 0 }}>
+                                  {c.cust_name && <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#1F2937", lineHeight: 1.3 }}>{c.cust_name}</Typography>}
+                                  {c.cpy_name && <Typography sx={{ fontSize: 11, fontWeight: 600, color: c.cust_name ? "#6B7280" : "#1F2937", lineHeight: 1.3 }}>{c.cust_name ? `🏢 ${c.cpy_name}` : c.cpy_name}</Typography>}
+                                  <Typography sx={{ fontSize: 10, color: "#9CA3AF", mt: 0.2 }}>{primaryMobile(c)}{c.city ? ` • ${c.city}` : ""}</Typography>
+                                </Box>
+                                {c.gst && <Typography sx={{ fontSize: 9, fontWeight: 700, color: "#6B7280", fontFamily: "monospace", whiteSpace: "nowrap" }}>{c.gst}</Typography>}
+                              </Box>
+                            ))}
+                          </Box>
+                      }
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 1.5, py: 0.85, bgcolor: "#FCFCFD", borderTop: "1px solid #EEF2F7" }}>
+                        <Typography sx={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700 }}>Type to search by name or mobile</Typography>
+                        <Button size="small" variant="contained" onClick={() => { setCustomerSuggestionsOpen(false); setSelectedApiCustomer(null); setAddCustomerOpen(true); }} sx={{ bgcolor: modeAccent, fontSize: 9, fontWeight: 800, borderRadius: 1.5, px: 1.1, py: 0.45, "&:hover": { bgcolor: isQuotation ? "#1E40AF" : "#A50D26" } }}>+ Add New</Button>
+                      </Box>
+                    </Paper>
+                  )}
+                </Box>
+                <TextField
+                  value={customer.gstin}
+                  placeholder="GSTIN"
+                  size="small"
+                  fullWidth
+                  InputProps={{
+                    readOnly: true,
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Typography sx={{ fontSize: 10, fontWeight: 800, color: "#9CA3AF", letterSpacing: "0.06em" }}>GSTIN</Typography>
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.75, fontSize: 12, bgcolor: "#F8FAFC", "& fieldset": { borderColor: "#E2E8F0" } } }}
+                  inputProps={{ style: { padding: "7px 12px", fontWeight: 600, fontFamily: "monospace", letterSpacing: "0.03em" } }}
+                />
+                <Button size="small" variant="contained" onClick={() => setAddCustomerOpen(true)} sx={{ bgcolor: modeAccent, fontSize: 11, fontWeight: 800, borderRadius: 1.5, px: 1.5, py: 0.85, whiteSpace: "nowrap", "&:hover": { bgcolor: isQuotation ? "#1E40AF" : "#A50D26" } }}>{customer.id ? "Edit Customer" : "+ Add New"}</Button>
+              </Box>
+
+              {/* Bill To / Ship To visual cards (read-only summary of the same customer record) */}
+              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1, mt: 0.9, position: "relative" }}>
+                <Box sx={{ border: "1px solid #E5E7EB", borderRadius: 2, p: 0.85, bgcolor: "#F9FAFB" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.35 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      <DescriptionOutlinedIcon sx={{ fontSize: 12, color: "#C8102E" }} />
+                      <Typography sx={{ fontSize: 8.5, fontWeight: 800, letterSpacing: "0.08em", color: "#9CA3AF" }}>BILL TO</Typography>
+                    </Box>
+                    <IconButton size="small" onClick={() => { setCustomerQuery(""); clearCustomerResults(); customerNameRef.current?.focus(); }} sx={{ p: 0.2, color: "#9CA3AF", "&:hover": { color: modeAccent, bgcolor: modeBg } }}>
+                      <EditIcon sx={{ fontSize: 12 }} />
+                    </IconButton>
+                  </Box>
+                  <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#1F2937", lineHeight: 1.25 }}>{customer.name || "Walk-in Customer"}</Typography>
+                  {customer.mobile && <Typography sx={{ fontSize: 11, color: "#6B7280", mt: 0.1 }}>{customer.mobile}</Typography>}
+                  <Typography sx={{ fontSize: 10, color: "#9CA3AF", mt: 0.1 }}>{customer.address || "No address on file"}</Typography>
+                  {customer.gstin && <Typography sx={{ fontSize: 9, color: "#6B7280", fontFamily: "monospace", mt: 0.1 }}>GSTIN: {customer.gstin}</Typography>}
+                </Box>
+
+                <Box sx={{ border: "1px solid #E5E7EB", borderRadius: 2, p: 0.85, bgcolor: "#F9FAFB", position: "relative" }}>
+                  <Box sx={{ position: "absolute", left: -15, top: "50%", transform: "translateY(-50%)", display: { xs: "none", sm: "flex" }, alignItems: "center", justifyContent: "center", width: 22, height: 22, bgcolor: "#fff", border: "1px solid #E5E7EB", borderRadius: "50%", color: "#9CA3AF" }}>
+                    <SwapHorizIcon sx={{ fontSize: 12 }} />
+                  </Box>
+                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.35 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      <LocalShippingOutlinedIcon sx={{ fontSize: 12, color: "#C8102E" }} />
+                      <Typography sx={{ fontSize: 8.5, fontWeight: 800, letterSpacing: "0.08em", color: "#9CA3AF" }}>SHIP TO</Typography>
+                    </Box>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.4 }}>
+                      <Box sx={{ width: 13, height: 13, borderRadius: 0.5, border: `1.5px solid ${shipSameAsBilling ? modeAccent : "#D1D5DB"}`, bgcolor: shipSameAsBilling ? modeAccent : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {shipSameAsBilling && <Box sx={{ width: 6, height: 6, bgcolor: "#fff", borderRadius: 0.25 }} />}
+                      </Box>
+                      <Typography sx={{ fontSize: 8.5, color: "#6B7280", fontWeight: 600 }}>Same as Billing</Typography>
+                    </Box>
+                  </Box>
+                  <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#1F2937", lineHeight: 1.25 }}>{customer.name || "Walk-in Customer"}</Typography>
+                  {customer.mobile && <Typography sx={{ fontSize: 11, color: "#6B7280", mt: 0.1 }}>{customer.mobile}</Typography>}
+                  <Typography sx={{ fontSize: 10, color: "#9CA3AF", mt: 0.1 }}>
+                    {shipSameAsBilling ? (customer.address || "No address on file") : (customer.shippingAddress || "No shipping address on file")}
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
         </Box>
 
-        {/* ═══════════════════ BILLING FOOTER ════════════════════ */}
-        <Box sx={{ bgcolor: "#fff", borderTop: "1px solid #E5E7EB", flexShrink: 0, px: { xs: 0.75, sm: 1.25, md: 1.75 }, py: { xs: 0.5, sm: 0.75 }, display: "flex", gap: { xs: 0.75, sm: 1, md: 1.5 }, alignItems: "stretch", justifyContent: "flex-end", flexDirection: { xs: "column", md: "row" }, overflowY: { xs: "auto", md: "visible" }, maxHeight: { xs: "45vh", md: "none" } }}>
+          {/* ─────────────────────── RIGHT COLUMN (SIDEBAR) ─────────────────────── */}
+          <Box sx={{ width: { xs: "100%", lg: 340, xl: 360 }, flexShrink: 0, minHeight: 0, display: "flex", flexDirection: "column", gap: { xs: 0.6, sm: 0.75 }, overflow: "hidden" }}>
 
-          {/* LEFT BLOCK */}
-          <Box sx={{ width: { xs: "100%", md: "auto" }, minWidth: { md: 320, lg: 360 }, flexShrink: 0, display: "flex", flexDirection: "column", gap: { xs: 0.4, sm: 0.55 } }}>
-            <Box sx={{ display: "flex", gap: { xs: 0.5, sm: 0.75 }, flexDirection: "row" }}>
-              <Button onClick={() => setDiscountModalOpen(true)} variant="outlined" startIcon={<LocalOfferOutlinedIcon sx={{ fontSize: 14 }} />}
-                sx={{ flex: 1, justifyContent: "flex-start", borderRadius: { xs: 1.5, sm: 2 }, py: { xs: 0.65, sm: 0.85 }, px: { xs: 1, sm: 1.5 }, fontSize: { xs: 11, sm: 12 }, fontWeight: 700, color: hasDiscount ? modeAccent : "#6B7280", borderColor: hasDiscount ? modeAccent : "#E5E7EB", borderWidth: hasDiscount ? 1.5 : 1, bgcolor: hasDiscount ? `${modeAccent}06` : "#FAFAFA", "&:hover": { borderColor: modeAccent, bgcolor: `${modeAccent}0A`, color: modeAccent }, transition: "all 0.18s", textTransform: "none", gap: 0.5 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flex: 1 }}>
-                  <span>Discount</span>
-                  <Box component="span" sx={{ fontSize: { xs: 8, sm: 9 }, opacity: 0.55 }}>[F6]</Box>
-                </Box>
-                {discountBadge && <Chip label={discountBadge} size="small" sx={{ height: 18, fontSize: { xs: 9, sm: 10 }, fontWeight: 700, bgcolor: `${modeAccent}18`, color: modeAccent, border: "none", ml: 0.5, display: { xs: "none", sm: "inline-flex" } }} />}
-              </Button>
-              <Button onClick={() => setNoteModalOpen(true)} variant="outlined" startIcon={<NoteAltOutlinedIcon sx={{ fontSize: 14 }} />}
-                sx={{ flex: 1, justifyContent: "flex-start", borderRadius: { xs: 1.5, sm: 2 }, py: { xs: 0.65, sm: 0.85 }, px: { xs: 1, sm: 1.5 }, fontSize: { xs: 11, sm: 12 }, fontWeight: 700, color: hasNote ? "#16A34A" : "#6B7280", borderColor: hasNote ? "#86EFAC" : "#E5E7EB", borderWidth: hasNote ? 1.5 : 1, bgcolor: hasNote ? "#F0FDF4" : "#FAFAFA", "&:hover": { borderColor: "#6EE7B7", bgcolor: "#F0FDF4", color: "#16A34A" }, transition: "all 0.18s", textTransform: "none", gap: 0.5 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flex: 1 }}>
-                  <span>Note</span>
-                  <Box component="span" sx={{ fontSize: { xs: 8, sm: 9 }, opacity: 0.55 }}>[F7]</Box>
-                </Box>
-                {hasNote && <Chip label="Added" size="small" sx={{ height: 18, fontSize: { xs: 9, sm: 10 }, fontWeight: 700, bgcolor: "#DCFCE7", color: "#166534", border: "none", ml: 0.5, display: { xs: "none", sm: "inline-flex" } }} />}
-              </Button>
-            </Box>
+          <Box sx={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: { xs: 1, sm: 1.25 } }}>
 
+            {/* SUMMARY card */}
+            <Paper elevation={0} sx={{ border: "1px solid #E5E7EB", borderRadius: 2.5, p: 2.25, bgcolor: "#fff" }}>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, mb: 2 }}>
+                <Typography sx={{ fontSize: 14.5, fontWeight: 800, letterSpacing: "0.06em", color: "#374151" }}>SUMMARY</Typography>
+                <Box onClick={handleOpenPicker}
+                  sx={{ display: "flex", alignItems: "center", gap: 0.6, bgcolor: isQuotation ? "#DBEAFE" : "#FEE2E2", border: `1px solid ${isQuotation ? "#1D4ED8" : "#C8102E"}`, borderRadius: 1.5, px: 1, py: 0.4, transition: "all 0.2s", cursor: "pointer", whiteSpace: "nowrap", position: "relative" }}>
+                  <CalendarTodayIcon sx={{ fontSize: 14, color: isQuotation ? "#1D4ED8" : "#C8102E", flexShrink: 0 }} />
+                  <Typography sx={{ fontSize: 10, color: isQuotation ? "#1D4ED8" : "#C8102E", fontWeight: 700, letterSpacing: "0.04em" }}>
+                    {isQuotation ? "QUOTATION DATE" : "INVOICE DATE"}
+                  </Typography>
+                  <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: isQuotation ? "#1D4ED8" : "#C8102E", whiteSpace: "nowrap" }}>
+                    {invoiceDate ? formatDateDisplay(invoiceDate) : "Select date"}
+                  </Typography>
+                  <input ref={inputRef} type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} style={{ position: "absolute", opacity: 0, pointerEvents: "none" }} />
+                </Box>
+              </Box>
+
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.6 }}>
+                <Typography sx={{ fontSize: 13.5, color: "#6B7280" }}>Total Items</Typography>
+                <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: "#111827" }}>{items.length}</Typography>
+              </Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.6 }}>
+                <Typography sx={{ fontSize: 13.5, color: "#6B7280" }}>Sub Total</Typography>
+                <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: "#111827" }}>{INR(items.length > 0 ? subtotal : 0)}</Typography>
+              </Box>
+
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.6, gap: 1 }}>
+                <Typography sx={{ fontSize: 13.5, color: "#6B7280", whiteSpace: "nowrap" }}>Discount {gstMode === "before" && "(Before GST)"}</Typography>
+                {hasDiscount ? (
+                  <Box onClick={() => setDiscountModalOpen(true)}
+                    sx={{ display: "flex", alignItems: "center", gap: 0.6, pl: 1, pr: 0.5, py: 0.3, borderRadius: 999, bgcolor: "#FEE2E2", cursor: "pointer", "&:hover": { bgcolor: "#FECACA" }, transition: "background 0.15s" }}>
+                    <Typography sx={{ fontSize: 12.5, fontWeight: 800, color: "#C8102E", whiteSpace: "nowrap" }}>
+                      {discountBadge} · - ₹{(orderDiscountAmt + itemDiscountTotal).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    </Typography>
+                    <IconButton size="small"
+                      onClick={(e) => { e.stopPropagation(); setDiscountPct("0"); setDiscount("0"); }}
+                      sx={{ p: 0.2, color: "#C8102E", "&:hover": { bgcolor: "#FCA5A5" } }}>
+                      <CloseIcon sx={{ fontSize: 12 }} />
+                    </IconButton>
+                  </Box>
+                ) : (
+                  <Button onClick={() => setDiscountModalOpen(true)} disabled={items.length === 0} size="small" startIcon={<AddCircleOutlineIcon sx={{ fontSize: 15 }} />}
+                    sx={{ minWidth: 0, px: 1.25, py: 0.35, fontSize: 10.5, fontWeight: 500, color: modeAccent, borderRadius: 999, bgcolor: modeBg, "&:hover": { bgcolor: "#FEE2E2" }, "&.Mui-disabled": { color: "#B0B7C4", bgcolor: "#F3F4F6" } }}>
+                    Add Discount
+                  </Button>
+                )}
+              </Box>
+
+              {gstAmount > 0 && (
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.6 }}>
+                  <Typography sx={{ fontSize: 13.5, color: "#6B7280" }}>Tax (GST)</Typography>
+                  <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: "#111827" }}>{INR(gstAmount)}</Typography>
+                </Box>
+              )}
+
+              {!isQuotation && (
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                  <Typography sx={{ fontSize: 13.5, color: "#6B7280" }}>Round Off</Typography>
+                  <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: roundoffValue > 0 ? "#16A34A" : "#C8102E" }}>
+                    {roundoffValue > 0 ? "+" : ""}{roundoffValue.toFixed(2)}
+                  </Typography>
+                </Box>
+              )}
+
+              {/* TOTAL AMOUNT highlighted bar */}
+              <Box sx={{ bgcolor: isQuotation ? "#EFF6FF" : "#DCFCE7", border: `1px solid ${isQuotation ? "#BFDBFE" : "#86EFAC"}`, borderRadius: 2, px: 1.5, py: 1.1, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", rowGap: 0.25, columnGap: 1, mb: 2 }}>
+                <Typography sx={{ fontSize: 13, fontWeight: 800, letterSpacing: "0.05em", color: isQuotation ? "#1D4ED8" : "#16A34A", whiteSpace: "nowrap" }}>TOTAL AMOUNT</Typography>
+                <Typography sx={{ fontSize: 20, fontWeight: 900, color: isQuotation ? "#1D4ED8" : "#16A34A", wordBreak: "break-word" }}>{INR(grandTotal)}</Typography>
+              </Box>
+
+              {!isQuotation && (
+                <>
+                  <Box sx={{ mb: 2 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.4, mb: 0.6 }}>
+                      <Typography sx={{ fontSize: 11.5, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.05em" }}>RECEIVED AMOUNT</Typography>
+                      <Tooltip title={`Total due: ${INR(grandTotal)}`}>
+                        <InfoOutlinedIcon sx={{ fontSize: 13, color: "#D1D5DB" }} />
+                      </Tooltip>
+                    </Box>
+                    <TextField
+                      inputRef={receivedRef}
+                      value={receivedAmount}
+                      onChange={e => { setReceivedDirty(true); setReceivedAmount(e.target.value.replace(/[^0-9.]/g, "")); }}
+                      onFocus={() => { setZone("FOOTER"); setFooterFocus("RECEIVED"); }}
+                      placeholder="0.00" size="small" fullWidth
+                      InputProps={{ startAdornment: <InputAdornment position="start">₹</InputAdornment> }}
+                      inputProps={{ style: { fontWeight: 800, fontSize: 16, textAlign: "right" } }}
+                      sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.5, "& fieldset": { borderColor: isFooterActive("RECEIVED") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("RECEIVED") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" } } }}
+                    />
+                  </Box>
+
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <Typography sx={{ fontSize: 13.5, color: "#6B7280" }}>Balance Due</Typography>
+                    <Typography sx={{ fontSize: 15, fontWeight: 800, color: received >= grandTotal ? "#16A34A" : "#C8102E" }}>
+                      {INR(Math.max(0, grandTotal - received))}
+                    </Typography>
+                  </Box>
+                </>
+              )}
+            </Paper>
+
+            {/* PAYMENT DETAILS card */}
             {!isQuotation && (
-              <Box sx={{ display: "flex", gap: { xs: 0.5, sm: 0.75 }, flexDirection: "row" }}>
-                <Box sx={{ width: { xs: 110, sm: 130 }, flexShrink: 0 }}>
-                  <Typography sx={{ fontSize: { xs: 8, sm: 9 }, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.08em", mb: 0.3 }}>PAYMENT TYPE</Typography>
-                  <Select value={paymentType} onChange={e => setPaymentType(e.target.value as PaymentType)} onFocus={() => { setZone("FOOTER"); setFooterFocus("PAYMENT_TYPE"); }} size="small" fullWidth
-                    sx={{ fontSize: { xs: 11, sm: 12 }, fontWeight: 700, borderRadius: 1.5, "& fieldset": { borderColor: isFooterActive("PAYMENT_TYPE") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("PAYMENT_TYPE") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" }, "& .MuiSelect-select": { py: { xs: "4px", sm: "6px" } } }}>
-                    {["Cash","UPI","Bank Transfer","Others"].map(val => <MenuItem key={val} value={val} sx={{ fontSize: { xs: 11, sm: 12 }, fontWeight: 600 }}>{val}</MenuItem>)}
-                  </Select>
+              <Paper elevation={0} sx={{ border: "1px solid #E5E7EB", borderRadius: 2.5, p: 2.25, bgcolor: "#fff", flex: 1 }}>
+                <Typography sx={{ fontSize: 13, fontWeight: 800, letterSpacing: "0.06em", color: "#374151", mb: 2 }}>PAYMENT DETAILS</Typography>
+
+                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0.75, mb: 2 }}>
+                  {(["UPI", "Bank Transfer", "Cash", "Others"] as PaymentType[]).map(val => {
+                    const selected = paymentType === val;
+                    const Icon = val === "UPI" ? QrCode2Icon : val === "Bank Transfer" ? AccountBalanceIcon : val === "Cash" ? PaymentsIcon : MoreHorizIcon;
+                    return (
+                      <Box key={val} onClick={() => { setPaymentType(val); setZone("FOOTER"); setFooterFocus("PAYMENT_TYPE"); }}
+                        sx={{
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: 0.6,
+                          border: `1.5px solid ${selected ? modeAccent : "#E5E7EB"}`, borderRadius: 999, py: 0.85, px: 1, cursor: "pointer",
+                          bgcolor: selected ? `${modeAccent}0D` : "#FAFAFA", transition: "all 0.15s",
+                          "&:hover": { borderColor: modeAccent, bgcolor: `${modeAccent}0D` },
+                        }}>
+                        <Icon sx={{ fontSize: 18, color: selected ? modeAccent : "#6B7280" }} />
+                        <Typography sx={{ fontSize: 13, fontWeight: 700, color: selected ? modeAccent : "#6B7280", whiteSpace: "nowrap" }}>{val}</Typography>
+                      </Box>
+                    );
+                  })}
                 </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontSize: { xs: 8, sm: 9 }, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.08em", mb: 0.3 }}>REFERENCE NO.</Typography>
+                {/* Hidden select preserves existing FOOTER zone keyboard nav (arrow keys / Enter) for payment type */}
+                <Select value={paymentType} onChange={e => setPaymentType(e.target.value as PaymentType)} onFocus={() => { setZone("FOOTER"); setFooterFocus("PAYMENT_TYPE"); }}
+                  sx={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} tabIndex={-1}>
+                  {["Cash", "UPI", "Bank Transfer", "Others"].map(val => <MenuItem key={val} value={val}>{val}</MenuItem>)}
+                </Select>
+
+                <Box sx={{ mb: 2 }}>
+                  <Typography sx={{ fontSize: 11.5, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.06em", mb: 1.5 }}>REFERENCE NO.</Typography>
                   <TextField inputRef={refNoRef} value={referenceNo} onChange={e => setReferenceNo(e.target.value)} onFocus={() => { setZone("FOOTER"); setFooterFocus("REF_NO"); }} placeholder="Transaction ID" size="small" fullWidth
-                    inputProps={{ style: { padding: "6px 10px", fontSize: "clamp(11px, 1vw, 12px)" } }}
+                    inputProps={{ style: { padding: "8px 10px", fontSize: 13.5 } }}
                     sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.5, "& fieldset": { borderColor: isFooterActive("REF_NO") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("REF_NO") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" } } }} />
                 </Box>
-              </Box>
-            )}
-            {!isQuotation && (
-              <Box sx={{ display: "flex", gap: { xs: 0.5, sm: 1 }, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" }}>
-                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-                  <Typography sx={{ fontSize: { xs: 8, sm: 9 }, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.06em", mb: 0.35 }}>PAYMENT STATUS</Typography>
-                  <Box sx={{ display: "flex", alignItems: "center", height: 32 }}>
-                    <Typography sx={{ fontSize: { xs: 11, sm: 12 }, fontWeight: 800, color: status.color, letterSpacing: "0.04em" }}>{status.label}</Typography>
+
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2.10 }}>
+                  <Typography sx={{ fontSize: 11.5, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.05em" }}>PAYMENT STATUS</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 800, color: status.color, letterSpacing: "0.03em" }}>{status.label}</Typography>
+                </Box>
+
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.50 }}>
+                  <Typography sx={{ fontSize: 11.5, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.05em" }}>DUE DATE</Typography>
+                  <Box
+                    onClick={() => { if (dueDateEnabled) { setZone("FOOTER"); handleOpenDueDatePicker(); } }}
+                    sx={{
+                      position: "relative",
+                      display: "flex", alignItems: "center", gap: 0.6,
+                      minWidth: 140, height: 33,
+                      px: 1.25,
+                      borderRadius: 1.5,
+                      border: "1px solid",
+                      borderColor: dueDateEnabled ? "#E5E7EB" : "#E2E8F0",
+                      bgcolor: dueDateEnabled ? "#fff" : "#F8FAFC",
+                      cursor: dueDateEnabled ? "pointer" : "default",
+                      "&:hover": { borderColor: dueDateEnabled ? "#C8102E" : "#E2E8F0" },
+                    }}
+                  >
+                    <CalendarTodayIcon sx={{ fontSize: 14, color: dueDateEnabled ? "#6B7280" : "#CBD5E1" }} />
+                    <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: dueDateEnabled ? "#111827" : "#94A3B8" }}>
+                      {dueDate ? formatDateDisplay(dueDate) : "Select date"}
+                    </Typography>
+                    <input
+                      ref={dueDateInputRef}
+                      type="date"
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                      disabled={!dueDateEnabled}
+                      min={invoiceDate}
+                      style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
+                    />
                   </Box>
                 </Box>
-                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-                  <Typography sx={{ fontSize: { xs: 8, sm: 9 }, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.06em", mb: 0.35 }}>DUE DATE</Typography>
-                  <TextField
-                    type="date"
-                    value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                    onFocus={() => setZone("FOOTER")}
-                    disabled={!dueDateEnabled}
-                    size="small"
-                    inputProps={{ min: invoiceDate }}
-                    sx={{
-                      minWidth: { xs: 120, sm: 140 },
-                      "& .MuiOutlinedInput-root": {
-                        borderRadius: 1.5,
-                        bgcolor: dueDateEnabled ? "#fff" : "#F8FAFC",
-                        "& fieldset": { borderColor: dueDateEnabled ? "#E5E7EB" : "#E2E8F0" },
-                        "&:hover fieldset": { borderColor: dueDateEnabled ? "#C8102E" : "#E2E8F0" },
-                        "&.Mui-focused fieldset": { borderColor: "#C8102E", borderWidth: 2 },
-                      },
-                      "& .MuiInputBase-input": {
-                        py: "6px",
-                        fontSize: "12px",
-                        fontWeight: 600,
-                        color: dueDateEnabled ? "#111827" : "#94A3B8",
-                      },
-                    }}
-                  />
-                </Box>
-              </Box>
+              </Paper>
             )}
-           
-          
+
           </Box>
 
-          <Divider orientation="vertical" flexItem sx={{ mx: { xs: 0.25, sm: 0.5 }, display: { xs: "none", md: "block" } }} />
-
-          {/* RIGHT BLOCK */}
-          <Box sx={{ display: "flex", flexDirection: "column", gap: { xs: 0.4, sm: 0.5 }, alignItems: { xs: "stretch", md: "flex-end" }, flex: { xs: 1, md: "0 0 auto" } }}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", gap: 1 }}>
-              <Typography sx={{ fontSize: { xs: 10, sm: 11 }, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>Discount {gstMode === "before" && "(Before GST)"}</Typography>
-              <Typography sx={{ fontSize: { xs: 10, sm: 11 }, fontWeight: 800, color: (orderDiscountAmt + itemDiscountTotal) > 0 ? "#C8102E" : "#9CA3AF" }}>
-                {(orderDiscountAmt + itemDiscountTotal) > 0 ? `- ₹${(orderDiscountAmt + itemDiscountTotal).toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : "0.00"}
-              </Typography>
-            </Box>
-
-            {!isQuotation && (
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", gap: 1 }}>
-                <Typography sx={{ fontSize: { xs: 10, sm: 11 }, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>Round Off</Typography>
-                <Typography sx={{ fontSize: { xs: 10, sm: 11 }, fontWeight: 800, color: roundoffValue > 0 ? "#16A34A" : "#C8102E" }}>
-                  {roundoffValue > 0 ? "+" : ""}{roundoffValue.toFixed(2)}
-                </Typography>
+            {/* Note button (kept alongside payment/summary controls) */}
+            <Button onClick={() => setNoteModalOpen(true)} variant="outlined" startIcon={<NoteAltOutlinedIcon sx={{ fontSize: 14 }} />}
+              sx={{ justifyContent: "flex-start", borderRadius: 2, py: 0.85, px: 1.5, fontSize: 12, fontWeight: 700, color: hasNote ? "#16A34A" : "#6B7280", borderColor: hasNote ? "#86EFAC" : "#E5E7EB", borderWidth: hasNote ? 1.5 : 1, bgcolor: hasNote ? "#F0FDF4" : "#FAFAFA", "&:hover": { borderColor: "#6EE7B7", bgcolor: "#F0FDF4", color: "#16A34A" }, transition: "all 0.18s", textTransform: "none", gap: 0.5 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flex: 1 }}>
+                <span>Note</span>
+                <Box component="span" sx={{ fontSize: 9, opacity: 0.55 }}>[F7]</Box>
               </Box>
-            )}
+              {hasNote && <Chip label="Added" size="small" sx={{ height: 18, fontSize: 10, fontWeight: 700, bgcolor: "#DCFCE7", color: "#166534", border: "none", ml: 0.5 }} />}
+            </Button>
 
-            {isQuotation ? (
-              <Box sx={{ border: "2px solid #D3D3D3", borderRadius: { xs: 1.5, sm: 2 }, px: { xs: 1.25, sm: 1.75 }, py: { xs: 0.35, sm: 0.5 }, textAlign: "right", bgcolor: "#E5E4E2", width: "100%", maxWidth: { xs: "100%", md: "clamp(200px, 20vw, 280px)" } }}>
-                <Typography sx={{ fontSize: { xs: 8, sm: 9 }, fontWeight: 800, color: "#000", letterSpacing: "0.1em", mb: 0.1 }}>TOTAL AMOUNT</Typography>
-                <Box sx={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 0.3 }}>
-                  <Typography sx={{ fontSize: { xs: 13, sm: 14 }, fontWeight: 900, color: "#000" }}>₹</Typography>
-                  <Typography sx={{ fontSize: { xs: 18, sm: 20 }, fontWeight: 900, color: "#000", lineHeight: 1 }}>{grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
-                </Box>
-              </Box>
-            ) : (
-              <Box onClick={() => receivedRef.current?.focus()}
-                sx={{ border: `2px solid ${isFooterActive("RECEIVED") ? "#A0A0A0" : "#D3D3D3"}`, borderRadius: { xs: 1.5, sm: 2 }, px: { xs: 1.25, sm: 1.75 }, py: { xs: 0.25, sm: 0.35 }, textAlign: "right", bgcolor: isFooterActive("RECEIVED") ? "#fff" : "#E5E4E2", cursor: "text", transition: "border-color 0.15s, background 0.15s", width: "100%", maxWidth: { xs: "100%", md: "clamp(200px, 20vw, 280px)" }, "&:hover": { borderColor: "#A0A0A0", bgcolor: "#D8D8D6" } }}>
-                <Typography sx={{ fontSize: { xs: 8, sm: 9 }, fontWeight: 800, color: "#444", letterSpacing: "0.1em", mb: 0.05 }}>RECEIVED · TOTAL {INR(grandTotal)}</Typography>
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.15 }}>
-                  <Typography sx={{ fontSize: { xs: 13, sm: 14 }, fontWeight: 900, color: "#000", lineHeight: 1 }}>₹</Typography>
-                  <TextField inputRef={receivedRef} value={receivedAmount}
-onChange={e => {
-  setReceivedDirty(true);
-  setReceivedAmount(e.target.value.replace(/[^0-9.]/g, ""));
-}}                    onFocus={() => { setZone("FOOTER"); setFooterFocus("RECEIVED"); }}
-                    placeholder="0.00" variant="standard" InputProps={{ disableUnderline: true }}
-                    inputProps={{ style: { padding: 0, fontSize: "clamp(12px, 1.3vw, 18px)", fontWeight: 900, color: "#000", textAlign: "right", width: "100%", minWidth: "60px" } }}
-                    sx={{ width: "100%", "& input::placeholder": { color: "#888", opacity: 1 } }} />
-                </Box>
-              </Box>
-            )}
-
-<Box sx={{ display: "flex", gap: { xs: 0.75, sm: 1 }, alignItems: "stretch", width: "100%", overflow: "hidden" }}>
-                <Tooltip title={printEnabled ? "Print ON" : "Print OFF"}>
+            {/* PRINT + SAVE row */}
+            <Box sx={{ display: "flex", gap: 1, alignItems: "stretch" }}>
+              <Tooltip title={printEnabled ? "Print ON" : "Print OFF"}>
                 <Box onClick={() => setPrintEnabled(p => !p)}
-                  sx={{ width: { xs: 44, sm: 48 }, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 0.3, border: "1px solid #E5E7EB", borderRadius: { xs: 1.5, sm: 2 }, cursor: "pointer", bgcolor: "#F9FAFB", "&:hover": { bgcolor: "#F3F4F6" }, transition: "background 0.15s", flexShrink: 0 }}>
-                  <Box sx={{ width: 24, height: 14, bgcolor: printEnabled ? modeAccent : "#D1D5DB", borderRadius: 10, position: "relative", transition: "background 0.2s" }}>
-                    <Box sx={{ position: "absolute", top: 2, left: printEnabled ? 10 : 2, width: 10, height: 10, bgcolor: "#fff", borderRadius: "50%", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+                  sx={{ width: 92, display: "flex", alignItems: "center", justifyContent: "center", gap: 0.75, border: "1px solid #E5E7EB", borderRadius: 2, cursor: "pointer", bgcolor: "#F9FAFB", "&:hover": { bgcolor: "#F3F4F6" }, transition: "background 0.15s", flexShrink: 0 }}>
+                  <Box sx={{ width: 34, height: 18, borderRadius: 999, bgcolor: printEnabled ? modeAccent : "#D1D5DB", display: "flex", alignItems: "center", justifyContent: printEnabled ? "flex-end" : "flex-start", px: 0.3, transition: "background 0.15s" }}>
+                    <Box sx={{ width: 14, height: 14, borderRadius: "50%", bgcolor: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.25)", transition: "all 0.15s" }} />
                   </Box>
-                  <Typography sx={{ fontSize: { xs: 7, sm: 8 }, fontWeight: 700, color: "#6B7280", letterSpacing: "0.05em" }}>PRINT</Typography>
+                  <Typography sx={{ fontSize: 10, fontWeight: 700, color: "#6B7280", letterSpacing: "0.05em" }}>PRINT</Typography>
                 </Box>
               </Tooltip>
               <Button variant="contained"
-                startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <SaveIcon sx={{ fontSize: { xs: 16, sm: 18 } }} />}
-                onClick={handleSave} disabled={saving || items.length === 0}
-                sx={{ ...footerOutline("SAVE"), flex: 1, minWidth: 0, width: "100%", bgcolor: modeAccent, color: "#fff", fontSize: { xs: 12, sm: 14 }, fontWeight: 800, py: { xs: 0.7, sm: 0.9 }, px: { xs: 1, sm: 2 }, borderRadius: { xs: 1.5, sm: 2 }, boxShadow: `0 4px 18px rgba(200,16,46,0.35)`, "&:hover": { bgcolor: "#A50D26" }, "&:active": { transform: "scale(0.98)" }, "&.Mui-disabled": { bgcolor: "#E5E7EB", color: "#9CA3AF", boxShadow: "none" }, transition: "all 0.15s" }}>
+                startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <SaveIcon sx={{ fontSize: 18 }} />}
+                onClick={handleSave} disabled={saving || items.length === 0 || received > grandTotal + 0.01}
+                sx={{ ...footerOutline("SAVE"), flex: 1, minWidth: 0, bgcolor: modeAccent, color: "#fff", fontSize: 14, fontWeight: 800, py: 0.9, px: 2, borderRadius: 2, boxShadow: `0 4px 18px rgba(200,16,46,0.35)`, "&:hover": { bgcolor: "#A50D26" }, "&:active": { transform: "scale(0.98)" }, "&.Mui-disabled": { bgcolor: "#E5E7EB", color: "#9CA3AF", boxShadow: "none" }, transition: "all 0.15s" }}>
                 {saving ? "SAVING…" : isQuotation ? "SAVE QUOTE" : "SAVE"}{" "}
-                <Box component="span" sx={{ fontSize: { xs: 10, sm: 11 }, opacity: 0.85, ml: 0.5 }}>[F8]</Box>
+                <Box component="span" sx={{ fontSize: 11, opacity: 0.85, ml: 0.5 }}>[F8]</Box>
               </Button>
             </Box>
           </Box>
@@ -1569,72 +1766,120 @@ onChange={e => {
         </Dialog>
 
         {/* SAVE RESULT DIALOG */}
-        <Dialog open={!!saveResult?.open} onClose={handleCloseSaveResult} maxWidth="xs" fullWidth TransitionComponent={Fade}>
-          <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pb: 0 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Box sx={{ bgcolor: saveResult?.success ? "#DCFCE7" : "#FEE2E2", borderRadius: "50%", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {saveResult?.success ? <SaveIcon sx={{ color: "#16A34A", fontSize: 20 }} /> : <CloseIcon sx={{ color: "#C8102E", fontSize: 20 }} />}
+        <Dialog open={!!saveResult?.open} onClose={handleCloseSaveResult} maxWidth={saveResult?.success ? "sm" : "xs"} fullWidth TransitionComponent={Fade}
+          PaperProps={{ sx: { borderRadius: "20px", boxShadow: "0 24px 70px rgba(0,0,0,0.18)", overflow: "visible" } }}>
+          {saveResult?.success ? (
+            <>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2, px: 3, pt: 3, pb: 2 }}>
+                <Box sx={{ position: "relative", width: 52, height: 52, flexShrink: 0 }}>
+                  <Box sx={{ bgcolor: "#DCFCE7", borderRadius: "50%", width: 52, height: 52, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <CheckCircleIcon sx={{ color: "#16A34A", fontSize: 34 }} />
+                  </Box>
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ fontWeight: 800, fontSize: 19, color: "#111827" }}>
+                    {isQuotation ? "Quotation Created!" : "Invoice Created!"}
+                  </Typography>
+                  <Typography sx={{ fontSize: 15, mt: 0.25 }}>
+                    <Box component="span" sx={{ color: "#16A34A", fontWeight: 800 }}>{INR(saveResult.grandTotal ?? 0)}</Box>
+                    <Box component="span" sx={{ color: "#6B7280", ml: 0.75 }}>saved 🎉</Box>
+                  </Typography>
+                </Box>
+                <IconButton size="small" onClick={handleCloseSaveResult} sx={{ alignSelf: "flex-start", color: "#9CA3AF" }}><CloseIcon sx={{ fontSize: 18 }} /></IconButton>
               </Box>
-              <Typography sx={{ fontWeight: 700, fontSize: 16 }}>{saveResult?.success ? (isQuotation ? "Quotation Saved" : "Order Saved") : "Save Failed"}</Typography>
-            </Box>
-            <IconButton size="small" onClick={handleCloseSaveResult}><CloseIcon sx={{ fontSize: 16 }} /></IconButton>
-          </DialogTitle>
-          <DialogContent sx={{ pt: 2 }}>
-            {saveResult?.success ? (
-              <Box sx={{my:2}}>
-                 <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
-                  <Typography sx={{ fontSize: 13, color: "#6B7280" }}>Invoice Id</Typography>
-                  <Typography sx={{ fontSize: 13, fontWeight: 700 }}>{saveResult.saleId}</Typography>
+
+              <Divider sx={{ borderColor: "#F1F5F9" }} />
+
+              <DialogContent sx={{ px: 3, py: 2 }}>
+                <Box sx={{ display: "flex", alignItems: "stretch" }}>
+                  <Box sx={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 0.5 }}>
+                    <Box sx={{ bgcolor: "#DCFCE7", borderRadius: "10px", width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <ReceiptLongIcon sx={{ color: "#16A34A", fontSize: 18 }} />
+                    </Box>
+                    <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>{saveResult.saleId}</Typography>
+                    <Typography sx={{ fontSize: 11, color: "#9CA3AF" }}>Invoice No.</Typography>
+                  </Box>
+                  <Divider orientation="vertical" flexItem sx={{ borderColor: "#F1F5F9", mx: 1 }} />
+                  <Box sx={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 0.5 }}>
+                    <Box sx={{ bgcolor: "#DCFCE7", borderRadius: "10px", width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <CurrencyRupeeIcon sx={{ color: "#16A34A", fontSize: 18 }} />
+                    </Box>
+                    <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>{INR(saveResult.grandTotal ?? 0)}</Typography>
+                    <Typography sx={{ fontSize: 11, color: "#9CA3AF" }}>Total Amount</Typography>
+                  </Box>
+                  <Divider orientation="vertical" flexItem sx={{ borderColor: "#F1F5F9", mx: 1 }} />
+                  <Box sx={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 0.5 }}>
+                    <Box sx={{ bgcolor: "#DCFCE7", borderRadius: "10px", width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <CalendarTodayIcon sx={{ color: "#16A34A", fontSize: 16 }} />
+                    </Box>
+                    <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>
+                      {invoiceDate ? new Date(invoiceDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-"}
+                    </Typography>
+                    <Typography sx={{ fontSize: 11, color: "#9CA3AF" }}>Date</Typography>
+                  </Box>
                 </Box>
-                
-                <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
-                  <Typography sx={{ fontSize: 13, color: "#6B7280" }}>Grand Total</Typography>
-                  <Typography sx={{ fontSize: 13, fontWeight: 700 }}>{INR(saveResult.grandTotal ?? 0)}</Typography>
-                </Box>
-                <Typography sx={{ fontSize: 15, color: "#16A34A", mb: 0.5,textAlign:"center" }}>Invoice generated successfully.</Typography>
+
                 {!isQuotation && (saveResult.change ?? 0) > 0 && (
-                  <Box sx={{ display: "flex", justifyContent: "space-between", bgcolor: "#DBEAFE", borderRadius: 1.5, px: 1.5, py: 0.8, mt: 0.5 }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", bgcolor: "#DBEAFE", borderRadius: 1.5, px: 1.5, py: 0.8, mt: 2 }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#1D4ED8" }}>💵 Return Change</Typography>
                     <Typography sx={{ fontSize: 14, fontWeight: 800, color: "#1D4ED8" }}>{INR(saveResult.change ?? 0)}</Typography>
                   </Box>
                 )}
+              </DialogContent>
 
-              </Box>
-            ) : (
-              <Box sx={{ bgcolor: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 2, p: 1.5 }}>
-                <Typography sx={{ fontSize: 13, color: "#DC2626" }}>{saveResult?.message}</Typography>
-              </Box>
-            )}
-          </DialogContent>
-          <DialogActions sx={{ px: 2, pb: 2, gap: 1 }}>
-            {saveResult?.success && (
-              <Tooltip title={savedPdfData ? "Download invoice" : "Preparing invoice..."}>
-                <span>
-                  <IconButton onClick={handleDownloadInvoice} disabled={!savedPdfData || downloadLoading}
-                    sx={{ border: "1px solid #E5E7EB", borderRadius: 2, color: "#475569", bgcolor: "#fff", "&:hover": { bgcolor: "#F8FAFC", borderColor: "#CBD5E1" }, "&.Mui-disabled": { bgcolor: "#F8FAFC", color: "#CBD5E1" } }}>
-                    {downloadLoading ? <CircularProgress size={18} /> : <Download sx={{ fontSize: 18 }} />}
-                  </IconButton>
-                </span>
-              </Tooltip>
-            )}
-            {saveResult?.success && (
-              <Tooltip title={savedPdfData ? "Share invoice" : "Preparing invoice..."}>
-                <span>
-                  <IconButton onClick={handleShareInvoice} disabled={!savedPdfData || shareLoading}
-                    sx={{ border: "1px solid #E5E7EB", borderRadius: 2, color: "#475569", bgcolor: "#fff", "&:hover": { bgcolor: "#F8FAFC", borderColor: "#CBD5E1" }, "&.Mui-disabled": { bgcolor: "#F8FAFC", color: "#CBD5E1" } }}>
-                    {shareLoading ? <CircularProgress size={18} /> : <ShareIcon sx={{ fontSize: 18 }} />}
-                  </IconButton>
-                </span>
-              </Tooltip>
-            )}
-            {saveResult?.success && printEnabled && (
-              <Button variant="outlined" startIcon={<PrintOutlinedIcon />} onClick={handleThermalPrint} sx={{ borderRadius: 2, fontWeight: 600, flex: 1, borderColor: "#E5E7EB", color: "#374151" }}>Print</Button>
-            )}
-            <Button variant="contained" onClick={handleCloseSaveResult}
-              sx={{ bgcolor: saveResult?.success ? "#16A34A" : "#C8102E", "&:hover": { bgcolor: saveResult?.success ? "#15803D" : "#A50D26" }, borderRadius: 2, fontWeight: 700, flex: 1 }} autoFocus>
-              {saveResult?.success ? (isQuotation ? "New Quote" : "New Sale") : "Dismiss"}
-            </Button>
-          </DialogActions>
+              <Divider sx={{ borderColor: "#F1F5F9", mb: 2 }} />
+
+              <DialogActions sx={{ px: 3, pb: 3, pt: 0, gap: 1, flexWrap: "nowrap" }}>
+                <Tooltip title={savedPdfData ? "Download invoice" : "Preparing invoice..."}>
+                  <span style={{ flex: "1 1 0" }}>
+                    <Button fullWidth variant="outlined" onClick={handleDownloadInvoice} disabled={!savedPdfData || downloadLoading}
+                      startIcon={downloadLoading ? <CircularProgress size={16} /> : <Download sx={{ fontSize: 18 }} />}
+                      sx={{ borderRadius: 2, fontWeight: 600, whiteSpace: "nowrap", borderColor: "#E5E7EB", color: "#374151", textTransform: "none" }}>PDF</Button>
+                  </span>
+                </Tooltip>
+                <Tooltip title={savedPdfData ? "Share invoice" : "Preparing invoice..."}>
+                  <span style={{ flex: "1 1 0" }}>
+                    <Button fullWidth variant="outlined" onClick={handleShareInvoice} disabled={!savedPdfData || shareLoading}
+                      startIcon={shareLoading ? <CircularProgress size={16} /> : <ShareIcon sx={{ fontSize: 18 }} />}
+                      sx={{ borderRadius: 2, fontWeight: 600, whiteSpace: "nowrap", borderColor: "#E5E7EB", color: "#374151", textTransform: "none" }}>Share</Button>
+                  </span>
+                </Tooltip>
+                {printEnabled && (
+                  <Tooltip title="Print invoice">
+                    <Button variant="outlined" onClick={handleThermalPrint} startIcon={<PrintOutlinedIcon sx={{ fontSize: 18 }} />}
+                      sx={{ borderRadius: 2, fontWeight: 600, flex: "1 1 0", whiteSpace: "nowrap", borderColor: "#E5E7EB", color: "#374151", textTransform: "none" }}>Print</Button>
+                  </Tooltip>
+                )}
+                <Button variant="contained" onClick={handleCloseSaveResult} startIcon={<AddIcon />}
+                  sx={{ bgcolor: "#16A34A", "&:hover": { bgcolor: "#15803D" }, borderRadius: 2, fontWeight: 700, flex: "1.4 1 0", whiteSpace: "nowrap", textTransform: "none" }} autoFocus>
+                  New Sale
+                </Button>
+              </DialogActions>
+            </>
+          ) : (
+            <>
+              <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pb: 0 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Box sx={{ bgcolor: "#FEE2E2", borderRadius: "50%", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <CloseIcon sx={{ color: "#C8102E", fontSize: 20 }} />
+                  </Box>
+                  <Typography sx={{ fontWeight: 700, fontSize: 16 }}>Save Failed</Typography>
+                </Box>
+                <IconButton size="small" onClick={handleCloseSaveResult}><CloseIcon sx={{ fontSize: 16 }} /></IconButton>
+              </DialogTitle>
+              <DialogContent sx={{ pt: 2 }}>
+                <Box sx={{ bgcolor: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 2, p: 1.5 }}>
+                  <Typography sx={{ fontSize: 13, color: "#DC2626" }}>{saveResult?.message}</Typography>
+                </Box>
+              </DialogContent>
+              <DialogActions sx={{ px: 2, pb: 2, gap: 1 }}>
+                <Button variant="contained" onClick={handleCloseSaveResult}
+                  sx={{ bgcolor: "#C8102E", "&:hover": { bgcolor: "#A50D26" }, borderRadius: 2, fontWeight: 700, flex: 1 }} autoFocus>
+                  Dismiss
+                </Button>
+              </DialogActions>
+            </>
+          )}
         </Dialog>
 
         {savedPdfData && (
@@ -1649,7 +1894,21 @@ onChange={e => {
         )}
 
         <CustomerLedgerDialog open={customerLedgerOpen} onClose={() => setCustomerLedgerOpen(false)} custUuid={customer.id} customerName={customer.name || "Walk-in"} />
-        <AddNewCustomerDialog open={addCustomerOpen} onClose={() => setAddCustomerOpen(false)} />
+        <AddNewCustomerDialog
+          open={addCustomerOpen}
+          onClose={() => setAddCustomerOpen(false)}
+          editingCustomer={selectedApiCustomer}
+          onSaved={(saved) => {
+            const custName    = saved.cust_name?.trim() ?? "";
+            const cpyName     = saved.cpy_name?.trim()  ?? "";
+            const displayName = custName && cpyName ? `${custName} / ${cpyName}` : custName || cpyName;
+            const c: ApiCustomer = { ...saved, same_as_billing_address: (saved as any).same_as_billing_address ?? !saved.shipping_address };
+            setCustomer({ id: c.cust_uuid, name: displayName, mobile: primaryMobile(c), address: customerAddress(c), gstin: c.gst ?? "", shippingAddress: customerShippingAddress(c), sameAsBillingAddress: c.same_as_billing_address });
+            setSelectedApiCustomer(c);
+            setShipSameAsBilling(c.same_as_billing_address);
+            setCustomerQuery(displayName);
+          }}
+        />
         <AddItemModal open={addItemOpen} onClose={() => setAddItemOpen(false)} onSave={handleAddItemSaved} />
       </Box>
     </ThemeProvider>

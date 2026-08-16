@@ -22,6 +22,7 @@ import {
 import LottieLoader from "@components/LottieLoader";
 import SuccessToast from "@components/Common/SuccessToast";
 import MarkAttendanceModal from "./MarkAttendanceModal";
+import { useModulePermission } from "@hooks/useModulePermission";
 
 // ─── Theme ─────────────────────────────────────────────────────────────────
 
@@ -155,10 +156,12 @@ function round1(n: number): number {
 // ─── Main Component ────────────────────────────────────────────────────────
 
 export default function AttendanceDashboard() {
+  const { canEdit } = useModulePermission("Attendance");
   const zoduId = useAppSelector(ZoduId);
   const branchId = useAppSelector(BranchId);
   const profile = useAppSelector(UserProfile);
   const employeeId: string = (profile as any)?.employee_id ?? (profile as any)?.id ?? "";
+  const isSuperAdmin = (profile as any)?.user_type === "super_admin";
 
   const today = useMemo(() => new Date(), []);
 
@@ -182,7 +185,7 @@ export default function AttendanceDashboard() {
   }, [today]);
 
   const canQueryTeam = Boolean(zoduId && branchId && employeeId);
-  const canQueryMine = Boolean(zoduId && branchId && employeeId);
+  const canQueryMine = Boolean(zoduId && branchId && employeeId) && !isSuperAdmin;
 
   const {
     data: teamData,
@@ -260,7 +263,10 @@ export default function AttendanceDashboard() {
 
   return (
     <ThemeProvider theme={theme}>
-      <Box sx={{ bgcolor: "#ffffff", minHeight: "100vh", width: "100%", minWidth: 0, px: 3, py: 3, boxSizing: "border-box" }}>
+      <Box sx={{
+        bgcolor: "#ffffff", height: "100%", width: "100%", minWidth: 0,
+        overflowY: "auto", px: 3, py: 3, boxSizing: "border-box",
+      }}>
         {/* ── Summary Cards (grouped, like Checklist dashboard) ───────────── */}
         <Box sx={{ display: "flex", gap: 4, mb: 3, flexWrap: "wrap", alignItems: "flex-start" }}>
           {/* Team Attendance summary */}
@@ -306,6 +312,7 @@ export default function AttendanceDashboard() {
           </Box>
 
           {/* My Attendance summary */}
+          {!isSuperAdmin && (
           <Box>
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1.25 }}>
               <EventAvailableOutlinedIcon sx={{ fontSize: 16, color: "#E11D48" }} />
@@ -346,6 +353,7 @@ export default function AttendanceDashboard() {
               </Box>
             )}
           </Box>
+          )}
         </Box>
 
         {/* ── Team Attendance Grid ───────────────────────────────────────── */}
@@ -363,6 +371,7 @@ export default function AttendanceDashboard() {
                 variant="contained"
                 startIcon={<EditOutlinedIcon sx={{ fontSize: 16 }} />}
                 disableElevation
+                disabled={!canEdit}
                 onClick={() => setMarkModalOpen(true)}
                 sx={{ bgcolor: "#E11D48", color: "#fff", px: 2.5, "&:hover": { bgcolor: "#BE123C" } }}
               >
@@ -375,10 +384,13 @@ export default function AttendanceDashboard() {
             <LottieLoader />
           ) : (
             <Box sx={{
-              overflowX: "auto", overflowY: "hidden", width: "100%",
+              overflowX: "auto",
+              overflowY: teamRows.length > 10 ? "auto" : "hidden",
+              maxHeight: teamRows.length > 10 ? 520 : "none",
+              width: "100%",
               scrollbarWidth: "auto" as const,
               scrollbarColor: "#CBD5E1 #F1F5F9",
-              "&::-webkit-scrollbar": { height: 10 },
+              "&::-webkit-scrollbar": { height: 10, width: 10 },
               "&::-webkit-scrollbar-track": { background: "#F1F5F9" },
               "&::-webkit-scrollbar-thumb": { background: "#CBD5E1", borderRadius: "999px" },
               "&::-webkit-scrollbar-thumb:hover": { background: "#94A3B8" },
@@ -401,18 +413,18 @@ export default function AttendanceDashboard() {
                 </Box>
                 <Box component="thead">
                   <Box component="tr">
-                    <Box component="th" sx={theadCellSx({ position: "sticky", left: 0, zIndex: 2 })}>
+                    <Box component="th" sx={theadCellSx({ position: "sticky", left: 0, top: 0, zIndex: 3 })}>
                       Employee / Date
                     </Box>
                     {teamDateColumns.map((d) => (
-                      <Box component="th" key={d} sx={theadCellSx({ textAlign: "center", px: 0.25, textTransform: "none" })}>
+                      <Box component="th" key={d} sx={theadCellSx({ position: "sticky", top: 0, zIndex: 2, textAlign: "center", px: 0.25, textTransform: "none" })}>
                         <Box sx={{ fontWeight: 700, fontSize: 11, color: "#374151" }}>{d}</Box>
                         <Box sx={{ fontSize: 9.5, color: "#9CA3AF", fontWeight: 500 }}>
                           {weekdayLabel(teamYear, teamMonth, d)}
                         </Box>
                       </Box>
                     ))}
-                    <Box component="th" sx={theadCellSx({ position: "sticky", right: 0, zIndex: 2 })}>
+                    <Box component="th" sx={theadCellSx({ position: "sticky", right: 0, top: 0, zIndex: 3 })}>
                       Summary
                     </Box>
                   </Box>
@@ -488,6 +500,7 @@ export default function AttendanceDashboard() {
         </Box>
 
         {/* ── My Attendance ──────────────────────────────────────────────── */}
+        {!isSuperAdmin && (
         <Box sx={{ border: "1px solid #F1F5F9", borderRadius: 2.5, overflow: "hidden", width: "100%", minWidth: 0 }}>
           <Box sx={{
             display: "flex", alignItems: "flex-start", justifyContent: "space-between",
@@ -586,6 +599,7 @@ export default function AttendanceDashboard() {
             </Box>
           )}
         </Box>
+        )}
 
         <MarkAttendanceModal
           open={markModalOpen}
@@ -610,8 +624,8 @@ export default function AttendanceDashboard() {
 function theadCellSx(extra: Record<string, unknown> = {}) {
   return {
     px: 1.25, py: 1,
-    fontSize: 10.5, fontWeight: 700, color: "#6B7280",
-    textTransform: "uppercase" as const, letterSpacing: "0.04em",
+    fontSize: 12.5, fontWeight: 700, color: "#6B7280",
+    letterSpacing: "0.02em",
     bgcolor: "#F9FAFB", borderBottom: "1px solid #E5E7EB",
     textAlign: "left" as const, whiteSpace: "nowrap" as const,
     ...extra,

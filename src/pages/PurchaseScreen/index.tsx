@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import LottieLoader from "@components/LottieLoader";
 import {
   Box, Typography, TextField, Button, IconButton,
-  InputAdornment, Chip, Tooltip, Fab, CircularProgress, Skeleton,
+  InputAdornment, Chip, Tooltip, Fab, Skeleton,
   Dialog, DialogTitle, DialogContent, DialogActions,
   FormControl, Select, MenuItem, Stack, Tabs, Tab,
 } from "@mui/material";
@@ -24,11 +24,12 @@ import {
   type PurchaseRow,
 } from "./usePuchaseapi";
 import PurchasePaymentDialog from "./purchasePaymentDialog";
+import { useModulePermission } from "@hooks/useModulePermission";
 
 const theme = createTheme({
   palette: {
     primary: { main: "#D32F2F" },
-    background: { default: "#fdfaf9", paper: "#ffffff" },
+    background: { default: "#ffffff", paper: "#ffffff" },
     text: { primary: "#0F172A", secondary: "#6B7280" },
   },
   components: {
@@ -85,6 +86,7 @@ function StatsSkeleton() {
 }
 
 export default function PurchaseScreen() {
+  const { canCreate, canEdit, canDelete } = useModulePermission("Purchase");
   const [search, setSearch]               = useState("");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<PurchaseStatus | "">("");
   const [addDialogOpen, setAddDialog]     = useState(false);
@@ -274,6 +276,7 @@ export default function PurchaseScreen() {
                   variant="contained"
                   color="primary"
                   disableElevation
+                  disabled={!canEdit}
                   onClick={() => setPayment(p)}
                   sx={{
                     fontSize: "0.65rem",
@@ -298,38 +301,43 @@ export default function PurchaseScreen() {
         width: 90,
         render: (p: PurchaseRow) => (
           <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
-            <Tooltip title="Edit" placement="top">
-              <IconButton
-                size="small"
-                onClick={() => handleEdit(p.purchase_id)}
-                sx={{
-                  color: "#9CA3AF", p: 0.6, borderRadius: 1,
-                  "&:hover": { color: "#2563EB", bgcolor: "#EFF6FF" },
-                  transition: "all 0.12s",
-                }}
-              >
-                <EditOutlinedIcon sx={{ fontSize: 16 }} />
-              </IconButton>
+            <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"} placement="top">
+              <span>
+                <IconButton
+                  size="small"
+                  disabled={!canEdit}
+                  onClick={() => handleEdit(p.purchase_id)}
+                  sx={{
+                    color: "#1976d2", p: 0.6, borderRadius: 1,
+                    "&:hover": { color: "#1565C0", bgcolor: "#EFF6FF" },
+                    transition: "all 0.12s",
+                  }}
+                >
+                  <EditOutlinedIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </span>
             </Tooltip>
-            <Tooltip title="Delete" placement="top">
-              <IconButton
-                size="small"
-                onClick={() => setDeleteTarget(p)}
-                disabled={isDeleting}
-                sx={{
-                  color: "#9CA3AF", p: 0.6, borderRadius: 1,
-                  "&:hover": { color: "#DC2626", bgcolor: "#FEE2E2" },
-                  transition: "all 0.12s",
-                }}
-              >
-                <DeleteOutlineIcon sx={{ fontSize: 16 }} />
-              </IconButton>
+            <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"} placement="top">
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={() => setDeleteTarget(p)}
+                  disabled={isDeleting || !canDelete}
+                  sx={{
+                    color: "#D2122E", p: 0.6, borderRadius: 1.5,
+                    "&:hover": { bgcolor: "#D2122E22" },
+                    transition: "all 0.12s",
+                  }}
+                >
+                  <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </span>
             </Tooltip>
           </Box>
         ),
       }] as ColumnDef<PurchaseRow>[]),
     ],
-    [isDeleting, tab]
+    [isDeleting, tab, canEdit, canDelete]
   );
 
   if (listLoading && statsLoading) return <LottieLoader />;
@@ -342,8 +350,12 @@ export default function PurchaseScreen() {
           {/* Stats */}
           {statsLoading || !stats ? <StatsSkeleton /> : <PurchaseStats data={stats} />}
 
-          {/* Tabs */}
-          <Box sx={{ px: 1, borderBottom: 1, borderColor: "divider", flexShrink: 0 }}>
+          {/* Tabs + Toolbar */}
+          <Box sx={{
+            px: 1, borderBottom: 1, borderColor: "divider", flexShrink: 0,
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            gap: 1.5, flexWrap: "wrap",
+          }}>
             <Tabs
               value={tab}
               onChange={(_, v) => setTab(v)}
@@ -357,56 +369,54 @@ export default function PurchaseScreen() {
               <Tab label="Purchase" value="active" />
               <Tab label="Cancelled Purchase" value="cancelled" />
             </Tabs>
-          </Box>
 
-          {/* Toolbar */}
-          <Box sx={{ px: 1, display: "flex", alignItems: "center", justifyContent: "space-between",  flexShrink: 0, gap: 2 }}>
-            <TextField
-              value={search} onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search invoices, vendors..." size="small"
-              sx={{ flex: "1 1 380px", minWidth: { xs: "100%", sm: 260 }, "& .MuiOutlinedInput-root": { bgcolor: "white", height: 38, fontSize: "0.875rem", borderRadius: 1.5 } }}
-              InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 17, color: "#9CA3AF" }} /></InputAdornment> }}
-            />
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <Select
-                value={paymentStatusFilter}
-                onChange={(e) => setPaymentStatusFilter(e.target.value as PurchaseStatus | "")}
-                displayEmpty
-                sx={{
-                  bgcolor: "white",
-                  height: 38,
-                  fontSize: "0.875rem",
-                  borderRadius: 1.5,
-                }}
-                renderValue={(value) =>
-                  value
-                    ? STATUS_STYLES[value as PurchaseStatus]?.label ?? value
-                    : "All Status"
-                }
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "nowrap", pb: 1 }}>
+              <TextField
+                value={search} onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search invoices, vendors..." size="small"
+                sx={{ width: 260, "& .MuiOutlinedInput-root": { bgcolor: "white", height: 38, fontSize: "0.875rem", borderRadius: 1.5 } }}
+                InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 17, color: "#9CA3AF" }} /></InputAdornment> }}
+              />
+              <FormControl size="small" sx={{ minWidth: 140, flexShrink: 0 }}>
+                <Select
+                  value={paymentStatusFilter}
+                  onChange={(e) => setPaymentStatusFilter(e.target.value as PurchaseStatus | "")}
+                  displayEmpty
+                  sx={{
+                    bgcolor: "white",
+                    height: 38,
+                    fontSize: "0.875rem",
+                    borderRadius: 1.5,
+                  }}
+                  renderValue={(value) =>
+                    value
+                      ? STATUS_STYLES[value as PurchaseStatus]?.label ?? value
+                      : "All Status"
+                  }
+                >
+                  <MenuItem value="">All Status</MenuItem>
+                  <MenuItem value="paid">Paid</MenuItem>
+                  <MenuItem value="partial">Partial</MenuItem>
+                  <MenuItem value="pending">Pending</MenuItem>
+                </Select>
+              </FormControl>
+              <Button
+                variant="contained" size="small"
+                startIcon={<AddIcon sx={{ fontSize: 16 }} />}
+                onClick={() => { setEditPurchaseId(null); setAddDialog(true); }}
+                disableElevation
+                disabled={!canCreate}
+                sx={{ flexShrink: 0, fontSize: 14, fontWeight: 700, bgcolor: "#D32F2F", color: "#fff", px: 2, py: 0.9, borderRadius: 1.5, boxShadow: "0 4px 14px rgba(211,47,47,0.3)", "&:hover": { bgcolor: "#B71C1C" }, "&:active": { transform: "scale(0.97)" }, transition: "all 0.15s", whiteSpace: "nowrap", display: { xs: "none", md: "inline-flex" } }}
               >
-                <MenuItem value="">All Status</MenuItem>
-                <MenuItem value="paid">Paid</MenuItem>
-                <MenuItem value="partial">Partial</MenuItem>
-                <MenuItem value="pending">Pending</MenuItem>
-              </Select>
-            </FormControl>
-            <Button
-              variant="contained" size="small"
-              startIcon={<AddIcon sx={{ fontSize: 16 }} />}
-              onClick={() => { setEditPurchaseId(null); setAddDialog(true); }}
-              disableElevation
-              sx={{ fontSize: 14, fontWeight: 700, bgcolor: "#D32F2F", color: "#fff", px: 2, py: 0.9, borderRadius: 1.5, boxShadow: "0 4px 14px rgba(211,47,47,0.3)", "&:hover": { bgcolor: "#B71C1C" }, "&:active": { transform: "scale(0.97)" }, transition: "all 0.15s", display: { xs: "none", md: "inline-flex" } }}
-            >
-              Add New Purchase
-            </Button>
+                Add New Purchase
+              </Button>
+            </Box>
           </Box>
 
           {/* Table */}
           <Box sx={{ flex: 1, minHeight: 0 }}>
             {listLoading ? (
-              <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
-                <CircularProgress size={32} sx={{ color: "#D32F2F" }} />
-              </Box>
+              <LottieLoader />
             ) : (
               <DataTable<PurchaseRow>
                 columns={columns}
@@ -420,10 +430,12 @@ export default function PurchaseScreen() {
         </Box>
 
         {/* FAB */}
-        <Fab color="primary" onClick={() => { setEditPurchaseId(null); setAddDialog(true); }}
-          sx={{ position: "fixed", bottom: 24, right: 24, display: { xs: "flex", md: "none" }, bgcolor: "#D32F2F", boxShadow: "0 8px 24px rgba(211,47,47,0.4)", "&:hover": { bgcolor: "#B71C1C" } }}>
-          <AddIcon />
-        </Fab>
+        {canCreate && (
+          <Fab color="primary" onClick={() => { setEditPurchaseId(null); setAddDialog(true); }}
+            sx={{ position: "fixed", bottom: 24, right: 24, display: { xs: "flex", md: "none" }, bgcolor: "#D32F2F", boxShadow: "0 8px 24px rgba(211,47,47,0.4)", "&:hover": { bgcolor: "#B71C1C" } }}>
+            <AddIcon />
+          </Fab>
+        )}
 
         {/* ── Purchase Detail Dialog (ID click) ── */}
         <PurchaseDetailDialog
