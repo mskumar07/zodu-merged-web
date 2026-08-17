@@ -15,7 +15,6 @@ import {
 } from "@mui/material";
 import TagRoundedIcon from "@mui/icons-material/TagRounded";
 import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
-import Pin from "@mui/icons-material/Pin";
 import GradingRoundedIcon from "@mui/icons-material/GradingRounded";
 import FavoriteOutlinedIcon from "@mui/icons-material/FavoriteOutlined";
 import CreditCardRoundedIcon from "@mui/icons-material/CreditCardRounded";
@@ -23,6 +22,8 @@ import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import EventRoundedIcon from "@mui/icons-material/EventRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import SuccessToast from "@components/Common/SuccessToast";
+import { useAppSelector } from "@store/store";
+import { BusinessType } from "@store/slices/userSlice";
 import {
   useInvoiceSettings,
   useUpdateInvoiceSettings,
@@ -175,11 +176,26 @@ const PAYMENT_METHOD_TO_CODE: Record<string, string> = {
   Cash: "cash",
   Card: "card",
   UPI: "upi",
+  QR: "qr",
   "Bank Transfer": "bank_transfer",
+  Others: "others",
 };
 const PAYMENT_CODE_TO_METHOD: Record<string, string> = Object.fromEntries(
   Object.entries(PAYMENT_METHOD_TO_CODE).map(([label, code]) => [code, label])
 );
+
+const RETAIL_PAYMENT_METHODS: Array<{ value: string; label: string }> = [
+  { value: "cash", label: "Cash" },
+  { value: "upi", label: "UPI" },
+  { value: "bank_transfer", label: "Bank Transfer" },
+  { value: "others", label: "Others" },
+];
+
+const RESTAURANT_PAYMENT_METHODS: Array<{ value: string; label: string }> = [
+  { value: "qr", label: "QR" },
+  { value: "cash", label: "Cash" },
+  { value: "card", label: "Card" },
+];
 
 function toUiSettings(api: InvoiceSettingsResponse): InvoiceSettings {
   return {
@@ -222,6 +238,10 @@ const DEFAULT_SETTINGS: InvoiceSettings = {
 };
 
 export default function InvoiceSetting() {
+  const businessType = useAppSelector(BusinessType);
+  const paymentMethodOptions =
+    businessType === "Restaurant" ? RESTAURANT_PAYMENT_METHODS : RETAIL_PAYMENT_METHODS;
+
   const [settings, setSettings] = useState<InvoiceSettings>(DEFAULT_SETTINGS);
   const [saved, setSaved] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -253,12 +273,6 @@ export default function InvoiceSetting() {
 
   const handleSave = () => {
     saveSettings(toApiPayload(settings));
-  };
-
-  const previewInvoiceNumber = () => {
-    const digits = parseInt(settings.numberOfDigits) || 4;
-    const num = parseInt(settings.invoiceStartNumber) || 1;
-    return `${settings.invoicePrefix}-${String(num).padStart(digits, "0")}`;
   };
 
   if (isLoading) {
@@ -306,164 +320,6 @@ export default function InvoiceSetting() {
                 placeholder="INV"
                 sx={textFieldSx}
               />
-            </SettingRow>
-
-            <Divider sx={{ borderColor: "#f4f5f8" }} />
-
-            <SettingRow
-              icon={<Pin fontSize="small" />}
-              iconBg="#faf5ff"
-              iconColor="#7c3aed"
-              label="Number of Digits"
-              description="Total digits in invoice number"
-            >
-              <FormControl fullWidth size="small">
-                <Select
-                  value={settings.numberOfDigits}
-                  onChange={(e) => update("numberOfDigits", e.target.value)}
-                  sx={selectSx}
-                >
-                  <MenuItem value="3">3 ({settings.invoicePrefix || "INV"}-001)</MenuItem>
-                  <MenuItem value="4">4 ({settings.invoicePrefix || "INV"}-0001)</MenuItem>
-                  <MenuItem value="5">5 ({settings.invoicePrefix || "INV"}-00001)</MenuItem>
-                </Select>
-              </FormControl>
-            </SettingRow>
-
-            <Divider sx={{ borderColor: "#f4f5f8" }} />
-
-            <Box sx={{ py: 2 }}>
-              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <Box
-                    sx={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 1.5,
-                      bgcolor: "#f0fdf4",
-                      color: "#16a34a",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <TagRoundedIcon fontSize="small" />
-                  </Box>
-                  <Box>
-                    <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText }}>
-                      Invoice Start Number
-                    </Typography>
-                    <Typography sx={{ fontSize: 12, color: subtleText, mt: 0.3 }}>
-                      Starting number for invoice sequence
-                    </Typography>
-                  </Box>
-                </Stack>
-                <TextField
-                  size="small"
-                  type="number"
-                  value={settings.invoiceStartNumber}
-                  onChange={(e) => update("invoiceStartNumber", e.target.value)}
-                  inputProps={{ min: 1 }}
-                  sx={{ ...textFieldSx, width: 100 }}
-                />
-              </Stack>
-              <Box
-                sx={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 1,
-                  px: 1.5,
-                  py: 0.6,
-                  borderRadius: 1,
-                  bgcolor: "#f4f5f8",
-                  border: "1px dashed #dde0e8",
-                }}
-              >
-                <Typography sx={{ fontSize: 11, color: subtleText, fontWeight: 600 }}>Preview:</Typography>
-                <Typography sx={{ fontSize: 13, fontWeight: 800, color: headingText, fontFamily: "monospace" }}>
-                  {previewInvoiceNumber()}
-                </Typography>
-              </Box>
-            </Box>
-          </Section>
-
-          {/* Tax Settings */}
-          <Section title="Tax Settings" subtitle="Define how taxes are computed and applied">
-            <SettingRow
-              icon={<GradingRoundedIcon fontSize="small" />}
-              iconBg="#fdecef"
-              iconColor={redTint}
-              label="Default Tax"
-              description="Default tax to apply in invoice"
-            >
-              <FormControl fullWidth size="small">
-                <Select
-                  value={settings.defaultTax}
-                  onChange={(e) => update("defaultTax", e.target.value)}
-                  sx={selectSx}
-                >
-                  <MenuItem value="none">None</MenuItem>
-                  <MenuItem value="GST5">GST 5%</MenuItem>
-                  <MenuItem value="GST12">GST 12%</MenuItem>
-                  <MenuItem value="GST18">GST 18%</MenuItem>
-                  <MenuItem value="GST28">GST 28%</MenuItem>
-                </Select>
-              </FormControl>
-            </SettingRow>
-          </Section>
-        </Stack>
-
-        {/* Right Column */}
-        <Stack spacing={2}>
-          {/* Payment & Rounding */}
-          <Section title="Payment Settings" subtitle="Default payment preferences and invoice due days">
-            <SettingRow
-              icon={<EventRoundedIcon fontSize="small" />}
-              iconBg="#eef4ff"
-              iconColor="#2563eb"
-              label="Invoice Due Days"
-              description="Default due days for credit invoices"
-            >
-              <TextField
-                fullWidth
-                size="small"
-                type="number"
-                value={settings.invoiceDueDays}
-                onChange={(e) => update("invoiceDueDays", e.target.value)}
-                inputProps={{ min: 0 }}
-                InputProps={{
-                  endAdornment: (
-                    <Typography sx={{ fontSize: 12, color: subtleText, pr: 1, whiteSpace: "nowrap" }}>
-                      days
-                    </Typography>
-                  ),
-                }}
-                sx={textFieldSx}
-              />
-            </SettingRow>
-
-            <Divider sx={{ borderColor: "#f4f5f8" }} />
-
-            <SettingRow
-              icon={<CreditCardRoundedIcon fontSize="small" />}
-              iconBg="#faf5ff"
-              iconColor="#7c3aed"
-              label="Default Payment Method"
-              description="Select default payment method"
-            >
-              <FormControl fullWidth size="small">
-                <Select
-                  value={settings.defaultPaymentMethod}
-                  onChange={(e) => update("defaultPaymentMethod", e.target.value)}
-                  sx={selectSx}
-                >
-                  <MenuItem value="cash">Cash</MenuItem>
-                  <MenuItem value="card">Card</MenuItem>
-                  <MenuItem value="upi">UPI</MenuItem>
-                  <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
-                </Select>
-              </FormControl>
             </SettingRow>
           </Section>
 
@@ -528,6 +384,90 @@ export default function InvoiceSetting() {
                   }}
                 />
               </Box>
+            </SettingRow>
+          </Section>
+        </Stack>
+
+        {/* Right Column */}
+        <Stack spacing={2}>
+          {/* Payment & Rounding */}
+          <Section title="Payment Settings" subtitle="Default payment preferences and invoice due days">
+            {businessType !== "Restaurant" && (
+              <>
+                <SettingRow
+                  icon={<EventRoundedIcon fontSize="small" />}
+                  iconBg="#eef4ff"
+                  iconColor="#2563eb"
+                  label="Invoice Due Days"
+                  description="Default due days for credit invoices"
+                >
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="number"
+                    value={settings.invoiceDueDays}
+                    onChange={(e) => update("invoiceDueDays", e.target.value)}
+                    inputProps={{ min: 0 }}
+                    InputProps={{
+                      endAdornment: (
+                        <Typography sx={{ fontSize: 12, color: subtleText, pr: 1, whiteSpace: "nowrap" }}>
+                          days
+                        </Typography>
+                      ),
+                    }}
+                    sx={textFieldSx}
+                  />
+                </SettingRow>
+
+                <Divider sx={{ borderColor: "#f4f5f8" }} />
+              </>
+            )}
+
+            <SettingRow
+              icon={<CreditCardRoundedIcon fontSize="small" />}
+              iconBg="#faf5ff"
+              iconColor="#7c3aed"
+              label="Default Payment Method"
+              description="Select default payment method"
+            >
+              <FormControl fullWidth size="small">
+                <Select
+                  value={settings.defaultPaymentMethod}
+                  onChange={(e) => update("defaultPaymentMethod", e.target.value)}
+                  sx={selectSx}
+                >
+                  {paymentMethodOptions.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </SettingRow>
+          </Section>
+
+          {/* Tax Settings */}
+          <Section title="Tax Settings" subtitle="Define how taxes are computed and applied">
+            <SettingRow
+              icon={<GradingRoundedIcon fontSize="small" />}
+              iconBg="#fdecef"
+              iconColor={redTint}
+              label="Default Tax"
+              description="Default tax to apply in invoice"
+            >
+              <FormControl fullWidth size="small">
+                <Select
+                  value={settings.defaultTax}
+                  onChange={(e) => update("defaultTax", e.target.value)}
+                  sx={selectSx}
+                >
+                  <MenuItem value="none">None</MenuItem>
+                  <MenuItem value="GST5">GST 5%</MenuItem>
+                  <MenuItem value="GST12">GST 12%</MenuItem>
+                  <MenuItem value="GST18">GST 18%</MenuItem>
+                  <MenuItem value="GST28">GST 28%</MenuItem>
+                </Select>
+              </FormControl>
             </SettingRow>
           </Section>
         </Stack>

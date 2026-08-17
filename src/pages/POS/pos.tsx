@@ -68,7 +68,7 @@ import { ThermalInvoiceTemplate, type ThermalPaperSize } from "../SalesHistory/T
 import DiscountModal          from "./DiscountModal";
 import NoteModal              from "./NotesModal";
 import { useAppSelector }     from "@store/store";
-import { BranchId, ZoduId }   from "@store/slices/userSlice";
+import { BranchId, ZoduId, InvoiceSettingsData } from "@store/slices/userSlice";
 import { Download } from "@mui/icons-material";
 import CheckCircleIcon        from "@mui/icons-material/CheckCircle";
 import CurrencyRupeeIcon      from "@mui/icons-material/CurrencyRupee";
@@ -165,6 +165,29 @@ function toLineItem(p: PosProduct): LineItem {
   };
 }
 
+// Settings' default_payment_method ("Cash" | "Card" | "UPI" | "Bank Transfer") doesn't have a
+// "Card" equivalent among POS's payment tiles, so it falls back to "Others".
+function toPosPaymentType(method: string | undefined): PaymentType {
+  if (method === "Cash" || method === "UPI" || method === "Bank Transfer") return method;
+  return "Others";
+}
+
+// printer_inch is stored as "3 Inch" / "4 Inch" / "5 Inch"; ThermalPaperSize only accepts "3" | "4" | "5".
+function toThermalPaperSize(printerInch: string | undefined): ThermalPaperSize {
+  if (printerInch?.startsWith("4")) return "4";
+  if (printerInch?.startsWith("5")) return "5";
+  return "3";
+}
+
+function addDaysToDate(dateStr: string, days: number): string {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function paymentStatus(grand: number, received: number) {
   if (received <= 0) return { label: "UNPAID", color: "#DC2626" };
   if (received < grand - 0.01) return { label: "PARTIAL", color: "#D97706" };
@@ -209,6 +232,7 @@ export default function RetailPOS() {
 function RetailPOSInner() {
   const zoduId   = useAppSelector(ZoduId);
   const branchId = useAppSelector(BranchId);
+  const invoiceSettings = useAppSelector(InvoiceSettingsData);
 
   const [codeInput, setCodeInput] = useState("");
   const { results: suggestions, isLoading: catalogueLoading, total: catalogueTotal } = usePosSearch(branchId, codeInput, zoduId);
@@ -228,7 +252,7 @@ function RetailPOSInner() {
   const [receivedAmount, setReceivedAmount] = useState("");
   const [paymentType,    setPaymentType]    = useState<PaymentType>("Cash");
   const [printEnabled,   setPrintEnabled]   = useState(true);
-  const thermalPaperSize: ThermalPaperSize = "3";
+  const thermalPaperSize: ThermalPaperSize = toThermalPaperSize(invoiceSettings?.printer_inch);
   const [invoiceDate,    setInvoiceDate]    = useState(todayStr());
   const [dueDate,        setDueDate]        = useState("");
   const [orderNote,      setOrderNote]      = useState("");
@@ -410,6 +434,15 @@ useEffect(() => {
   }
 }, [grandTotal, receivedDirty]);
 
+  // Seed payment type / due date from branch invoice settings — only for a fresh order
+  // (no saleId loaded yet), so this never clobbers values restored from an existing sale.
+  useEffect(() => {
+    if (!invoiceSettings || saleId) return;
+    setPaymentType(toPosPaymentType(invoiceSettings.default_payment_method));
+    setDueDate(addDaysToDate(invoiceDate, invoiceSettings.invoice_due_days || 0));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoiceSettings, saleId]);
+
   const startEditQty = useCallback((code: string) => {
     setItems(prev => prev.map(i => i.code === code ? { ...i, editingQty: true, editingPrice: false, editingDiscount: false, qtyDraft: String(i.qty) } : { ...i, editingQty: false }));
     setTimeout(() => { qtyRefs.current[code]?.focus(); qtyRefs.current[code]?.select(); }, 30);
@@ -495,12 +528,15 @@ useEffect(() => {
   const handleClear = useCallback(() => {
     setItems([]); setDiscount("0"); setDiscountPct("0"); setReferenceNo("");
     setReceivedAmount(""); setCodeInput(""); setActiveRowIdx(-1); setOrderNote("");
-    setDueDate("");
+    const freshInvoiceDate = todayStr();
+    setInvoiceDate(freshInvoiceDate);
+    setDueDate(invoiceSettings ? addDaysToDate(freshInvoiceDate, invoiceSettings.invoice_due_days || 0) : "");
+    setPaymentType(invoiceSettings ? toPosPaymentType(invoiceSettings.default_payment_method) : "Cash");
     setZone("SEARCH"); setSearchFocus("CODE");
     setCustomer(EMPTY_CUSTOMER); setSelectedApiCustomer(null); setCustomerQuery(""); clearCustomerResults(); setGstMode("after");
     setReceivedDirty(false);
 
-  }, [clearCustomerResults]);
+  }, [clearCustomerResults, invoiceSettings]);
 
 console.log("test",serverHolds)
 

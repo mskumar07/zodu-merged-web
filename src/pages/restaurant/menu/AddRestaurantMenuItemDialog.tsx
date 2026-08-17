@@ -33,6 +33,8 @@ import {
   type UnitOption,
 } from "@pages/MenuItemScreen/useMenuItemApi";
 import { sanitizeAmountInput } from "@pages/MenuItemScreen/ItemValidation";
+import { useAppSelector } from "@store/store";
+import { InvoiceSettingsData } from "@store/slices/userSlice";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -180,6 +182,8 @@ const AddRestaurantMenuItemDialog: React.FC<
   // ── Hooks ──────────────────────────────────────────────────────────────────
   const { data: gstOptions = [], isLoading: gstLoading } = useGstList();
   const { data: unitOptions = [], isLoading: unitsLoading } = useUnitList();
+  const invoiceSettings = useAppSelector(InvoiceSettingsData);
+  const defaultGstOption = gstOptions.find((g) => g.label === invoiceSettings?.default_tax_label);
 
   // ── Fetch categories when dialog opens or Menu Type changes ────────────────
   useEffect(() => {
@@ -259,9 +263,12 @@ const AddRestaurantMenuItemDialog: React.FC<
       setTouched({});
     } else {
       handleReset();
+      if (defaultGstOption) {
+        setForm((prev) => ({ ...prev, gstTax: String(defaultGstOption.value) }));
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, editItem]);
+  }, [open, editItem, defaultGstOption]);
 
   const handleClose = () => {
     if (submitting) return;

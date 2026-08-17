@@ -12,9 +12,10 @@ import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { useAppDispatch, useAppSelector } from "@store/store";
-import { addUserData, AllCompanies, UserProfile, setRoleAccess } from "@store/slices/userSlice";
+import { addUserData, AllCompanies, UserProfile, setRoleAccess, setInvoiceSettings } from "@store/slices/userSlice";
 import { authApis, type Branch, type CompanyWithBranches } from "@pages/auth/Authapi";
 import SubscriptionExpiredModal from "@components/Modals/SubscriptionExpiredModal";
+import SuccessToast from "@components/Common/SuccessToast";
 import zlogo from "../../../assets/zlogo.png";
 
 // Parses "16 Apr 2031" style dates; returns null if unparseable so callers
@@ -301,6 +302,7 @@ const SelectBranch: React.FC = () => {
   );
 
   const [expiredCompany, setExpiredCompany] = useState<CompanyWithBranches | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Permissions are scoped per zodu_id + branch_id and only resolvable once a
   // branch is chosen, so they're fetched here rather than carried on login.
@@ -310,6 +312,21 @@ const SelectBranch: React.FC = () => {
       dispatch(setRoleAccess(roleAccess));
     } catch {
       dispatch(setRoleAccess([]));
+    }
+  };
+
+  // Settings are scoped per zodu_id + branch_id too. A 400 here means the
+  // user doesn't have access to this company's settings; stay on this page
+  // so the error toast is visible instead of navigating away immediately.
+  const loadSettings = async (zoduId: string, branchId: string): Promise<boolean> => {
+    try {
+      const res = await authApis.getSettings(zoduId, branchId);
+      dispatch(setInvoiceSettings(res.settings?.invoice ?? null));
+      return true;
+    } catch (err: any) {
+      dispatch(setInvoiceSettings(null));
+      setErrorMsg(err?.response?.data?.error || "Failed to load settings");
+      return false;
     }
   };
 
@@ -324,6 +341,8 @@ const SelectBranch: React.FC = () => {
     }
     dispatch(addUserData({ branchId, branchName, zoduId: company.zodu_id, businessType: company.business_type ?? "" }));
     await loadRoleAccess(company.zodu_id, branchId);
+    const settingsOk = await loadSettings(company.zodu_id, branchId);
+    if (!settingsOk) return;
     navigate("/dashboard", { replace: true });
   };
 
@@ -342,8 +361,9 @@ const SelectBranch: React.FC = () => {
         businessType: onlyCompany.business_type ?? "",
       })
     );
-    loadRoleAccess(onlyCompany.zodu_id, onlyBranch.branch_id).finally(() => {
-      navigate("/dashboard", { replace: true });
+    loadRoleAccess(onlyCompany.zodu_id, onlyBranch.branch_id).then(async () => {
+      const settingsOk = await loadSettings(onlyCompany.zodu_id, onlyBranch.branch_id);
+      if (settingsOk) navigate("/dashboard", { replace: true });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companies, dispatch, navigate, fromSwitch]);
@@ -483,6 +503,12 @@ const SelectBranch: React.FC = () => {
         }
         expiryDate={expiredCompany?.subscription_expiry_date}
         onClose={() => setExpiredCompany(null)}
+      />
+
+      <SuccessToast
+        message={errorMsg || ""}
+        severity="error"
+        onClose={() => setErrorMsg(null)}
       />
     </Box>
   );
