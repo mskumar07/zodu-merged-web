@@ -756,7 +756,9 @@ console.log("test",serverHolds)
     // Use actual printable widths (roll width minus hardware margins) to prevent right-side clipping
     const paperMmMap: Record<ThermalPaperSize, number> = { "3": 72, "4": 96, "5": 120 };
     const mm = paperMmMap[thermalPaperSize];
-    const content = thermalRef.current.innerHTML;
+    // outerHTML (not innerHTML) — the ref'd div carries the base font-family/color/weight
+    // inline styles; innerHTML would drop them and fall back to the browser's thin default font.
+    const content = thermalRef.current.outerHTML;
     const printWindow = window.open("", "_blank", "width=500,height=700");
     if (!printWindow) return;
     printWindow.document.write(`<!DOCTYPE html>
@@ -767,7 +769,15 @@ console.log("test",serverHolds)
   <style>
     @page { size: ${mm}mm auto; margin: 0; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { width: ${mm}mm; background: #fff; }
+    body {
+      width: ${mm}mm;
+      background: #fff;
+      color: #000;
+      font-family: 'Courier New','Consolas','Lucida Console',monospace;
+      font-weight: 600;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
     @media print { html, body { width: ${mm}mm; } }
   </style>
 </head>

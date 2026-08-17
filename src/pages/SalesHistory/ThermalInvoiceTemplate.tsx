@@ -1,4 +1,4 @@
-import React from "react";
+ import React from "react";
 import { useAppSelector } from "@store/store";
 import { useTenantContext } from "@store/tenantContext";
 import { AllCompanies } from "@store/slices/userSlice";
@@ -28,36 +28,36 @@ const PAPER: Record<ThermalPaperSize, PaperConfig> = {
   "3": {
     widthPx: 272,          // 72 mm × (96 px/in ÷ 25.4 mm/in) ≈ 272 px
     widthMm: 72,           // actual printable width (was 80 — caused right-side clipping)
-    baseFontSize: 10,
-    itemFontSize: 10,
-    headerFontSize: 13,
-    grandFontSize: 12,
+    baseFontSize: 13,
+    itemFontSize: 13,
+    headerFontSize: 16,
+    grandFontSize: 15,
     padding: "10px 4px 24px 4px",    // narrow side padding to maximize usable width
-    gridCols: "1fr 22px 58px 62px",  // wider RATE+TOTAL cols so amounts aren't clipped
+    gridCols: "1fr 24px 62px 66px",  // wider RATE+TOTAL cols so amounts aren't clipped
     showGstCol: false,
   },
   // 4" = 104 mm roll; ~8 mm total margins → 96 mm printable
   "4": {
     widthPx: 362,          // 96 mm ≈ 362 px
     widthMm: 96,           // printable width (was 104)
-    baseFontSize: 12,
-    itemFontSize: 12,
-    headerFontSize: 16,
-    grandFontSize: 13,
+    baseFontSize: 15,
+    itemFontSize: 15,
+    headerFontSize: 19,
+    grandFontSize: 17,
     padding: "14px 8px 32px 8px",
-    gridCols: "1fr 26px 64px 68px",
+    gridCols: "1fr 28px 68px 72px",
     showGstCol: false,
   },
   // 5" = 130 mm roll; ~10 mm total margins → 120 mm printable
   "5": {
     widthPx: 453,          // 120 mm ≈ 453 px
     widthMm: 120,          // printable width (was 130)
-    baseFontSize: 13,
-    itemFontSize: 13,
-    headerFontSize: 19,
-    grandFontSize: 15,
+    baseFontSize: 16,
+    itemFontSize: 16,
+    headerFontSize: 22,
+    grandFontSize: 19,
     padding: "16px 10px 36px 10px",
-    gridCols: "1fr 30px 68px 34px 80px",
+    gridCols: "1fr 32px 72px 36px 84px",
     showGstCol: true,
   },
 };
@@ -111,7 +111,7 @@ function ReceiptRow({
         justifyContent: "space-between",
         alignItems: "baseline",
         fontSize: large ? fontSize + 2 : fontSize,
-        fontWeight: bold || large ? 700 : 400,
+        fontWeight: bold || large ? 700 : 600,
         marginBottom: 3,
         lineHeight: 1.45,
       }}
@@ -212,6 +212,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
           fontFamily: THERMAL_FONT,
           color: "#000",
           fontSize: `${fs}px`,
+          fontWeight: 600,
           boxSizing: "border-box",
           WebkitFontSmoothing: "antialiased" as any,
         }}
@@ -311,14 +312,14 @@ export const ThermalInvoiceTemplate = React.forwardRef(
               >
                 {item.name}
               </span>
-              <span style={{ textAlign: "center", paddingTop: 1 }}>
+              <span style={{ textAlign: "center", fontWeight: 600, paddingTop: 1 }}>
                 {item.qty}
               </span>
-              <span style={{ textAlign: "right", paddingTop: 1 }}>
+              <span style={{ textAlign: "right", fontWeight: 600, paddingTop: 1 }}>
                 {fmt(item.rate)}
               </span>
               {cfg.showGstCol && (
-                <span style={{ textAlign: "center", paddingTop: 1 }}>
+                <span style={{ textAlign: "center", fontWeight: 600, paddingTop: 1 }}>
                   {item.tax ? `${Number(item.tax).toFixed(0)}%` : "-"}
                 </span>
               )}
@@ -331,8 +332,9 @@ export const ThermalInvoiceTemplate = React.forwardRef(
             {item.item_id && (
               <div
                 style={{
-                  fontSize: fs - 2,
-                  color: "#444",
+                  fontSize: fs - 1,
+                  fontWeight: 600,
+                  color: "#000",
                   paddingLeft: 1,
                   marginTop: 1,
                   lineHeight: 1.3,
