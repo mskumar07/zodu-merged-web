@@ -93,9 +93,11 @@ export interface PaymentRow {
   payment_id:       string;
   payment_date:     string;         // ISO: YYYY-MM-DD
   invoice_id:       string;
-  transaction_type: string;         // e.g. "upi" | "cash" | "Payment Received"
+  transaction_type: string;         // e.g. "UPI" | "Cash"
   amount:           string;         // numeric from pg → string
   status:           string;
+  transaction_id?:  string | null;  // reference / UTR / txn no.
+  created_at?:      string;         // formatted display date
 }
 
 export interface LedgerSummary {

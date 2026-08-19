@@ -207,7 +207,7 @@ function toUiSettings(api: InvoiceSettingsResponse): InvoiceSettings {
     showCompanyLogo: api.show_company_logo,
     printThankYouMessage: api.print_thank_you_message,
     defaultPaymentMethod: PAYMENT_METHOD_TO_CODE[api.default_payment_method] ?? "cash",
-    printInch: api.printer_inch.startsWith("5") ? "5" : "3",
+    printInch: api.printer_inch === "A4" ? "A4" : api.printer_inch.startsWith("5") ? "5" : "3",
   };
 }
 
@@ -219,30 +219,32 @@ function toApiPayload(ui: InvoiceSettings): UpdateInvoiceSettingsPayload {
     default_tax_label: TAX_CODE_TO_LABEL[ui.defaultTax] ?? ui.defaultTax,
     invoice_due_days: parseInt(ui.invoiceDueDays, 10) || 0,
     default_payment_method: PAYMENT_CODE_TO_METHOD[ui.defaultPaymentMethod] ?? ui.defaultPaymentMethod,
-    printer_inch: `${ui.printInch} Inch`,
+    printer_inch: ui.printInch === "A4" ? "A4" : `${ui.printInch} Inch`,
     show_company_logo: ui.showCompanyLogo,
     print_thank_you_message: ui.printThankYouMessage,
   };
 }
 
-const DEFAULT_SETTINGS: InvoiceSettings = {
-  invoicePrefix: "INV",
-  numberOfDigits: "4",
-  invoiceStartNumber: "1",
-  defaultTax: "GST18",
-  invoiceDueDays: "15",
-  showCompanyLogo: true,
-  printThankYouMessage: true,
-  defaultPaymentMethod: "cash",
-  printInch: "3",
-};
+function getDefaultSettings(businessType: string): InvoiceSettings {
+  return {
+    invoicePrefix: "INV",
+    numberOfDigits: "4",
+    invoiceStartNumber: "1",
+    defaultTax: "GST18",
+    invoiceDueDays: "15",
+    showCompanyLogo: true,
+    printThankYouMessage: true,
+    defaultPaymentMethod: "cash",
+    printInch: businessType === "Restaurant" ? "3" : "A4",
+  };
+}
 
 export default function InvoiceSetting() {
   const businessType = useAppSelector(BusinessType);
   const paymentMethodOptions =
     businessType === "Restaurant" ? RESTAURANT_PAYMENT_METHODS : RETAIL_PAYMENT_METHODS;
 
-  const [settings, setSettings] = useState<InvoiceSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<InvoiceSettings>(() => getDefaultSettings(businessType));
   const [saved, setSaved] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -329,7 +331,7 @@ export default function InvoiceSetting() {
               icon={<TagRoundedIcon fontSize="small" />}
               iconBg="#f0fdf4"
               iconColor="#16a34a"
-              label="Printer Inch"
+              label="Invoice Type"
               description="Select the print paper width"
             >
               <FormControl fullWidth size="small">
@@ -338,6 +340,7 @@ export default function InvoiceSetting() {
                   onChange={(e) => update("printInch", e.target.value)}
                   sx={selectSx}
                 >
+                  {businessType !== "Restaurant" && <MenuItem value="A4">A4</MenuItem>}
                   <MenuItem value="3">3 Inch</MenuItem>
                   <MenuItem value="5">5 Inch</MenuItem>
                 </Select>

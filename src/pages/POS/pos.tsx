@@ -1504,7 +1504,7 @@ console.log("test",serverHolds)
                       <EditIcon sx={{ fontSize: 12 }} />
                     </IconButton>
                   </Box>
-                  <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#1F2937", lineHeight: 1.25 }}>{customer.name || "Walk-in Customer"}</Typography>
+                  {customer.name && <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#1F2937", lineHeight: 1.25 }}>{customer.name}</Typography>}
                   {customer.mobile && <Typography sx={{ fontSize: 11, color: "#6B7280", mt: 0.1 }}>{customer.mobile}</Typography>}
                   <Typography sx={{ fontSize: 10, color: "#9CA3AF", mt: 0.1 }}>{customer.address || "No address on file"}</Typography>
                   {customer.gstin && <Typography sx={{ fontSize: 9, color: "#6B7280", fontFamily: "monospace", mt: 0.1 }}>GSTIN: {customer.gstin}</Typography>}
@@ -1526,7 +1526,7 @@ console.log("test",serverHolds)
                       <Typography sx={{ fontSize: 8.5, color: "#6B7280", fontWeight: 600 }}>Same as Billing</Typography>
                     </Box>
                   </Box>
-                  <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#1F2937", lineHeight: 1.25 }}>{customer.name || "Walk-in Customer"}</Typography>
+                  {customer.name && <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#1F2937", lineHeight: 1.25 }}>{customer.name}</Typography>}
                   {customer.mobile && <Typography sx={{ fontSize: 11, color: "#6B7280", mt: 0.1 }}>{customer.mobile}</Typography>}
                   <Typography sx={{ fontSize: 10, color: "#9CA3AF", mt: 0.1 }}>
                     {shipSameAsBilling ? (customer.address || "No address on file") : (customer.shippingAddress || "No shipping address on file")}

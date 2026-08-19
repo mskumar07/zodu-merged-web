@@ -48,8 +48,9 @@ import {
   Search as SearchIcon,
   Visibility as VisibilityIcon,
   ErrorOutline as ErrorOutlineIcon,
-  CalendarToday as CalendarIcon,
   FilterAlt as FilterAltIcon,
+  ShoppingBagOutlined as SalesTabIcon,
+  AccountBalanceWalletOutlined as PaymentTabIcon,
 } from "@mui/icons-material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import {
@@ -61,6 +62,7 @@ import {
   type SalesReturnRow,
   type PaymentRow,
 } from "./useCustomerapi";
+import { DateRangeChip } from "../../components/Reports/utils/DateRangeChip";
 
 // ─── Theme ────────────────────────────────────────────────────
 const theme = createTheme({
@@ -74,51 +76,6 @@ const theme = createTheme({
 });
 
 // ─── Styled primitives ────────────────────────────────────────
-
-/**
- * Fixed-height, brand-focused date input.
- * Targets the native calendar indicator so it stays subtle.
- */
-const FilterDateField = styled(TextField)(() => ({
-  width: 152,
-  "& .MuiOutlinedInput-root": {
-    height: 36,
-    borderRadius: 6,
-    fontSize: "0.75rem",
-    backgroundColor: "#fff",
-    color: "#475569",
-    "& fieldset": {
-      borderColor: "#e2e8f0",
-      transition: "border-color 0.15s ease",
-    },
-    "&:hover fieldset": { borderColor: "#cbd5e1" },
-    "&.Mui-focused fieldset": {
-      borderColor: "#dc2626",
-      borderWidth: "1.5px",
-    },
-  },
-  // Style the native date parts consistently across browsers
-  "& input": {
-    padding: "0 8px 0 12px",
-    fontSize: "0.75rem",
-    color: "#475569",
-    "&::-webkit-calendar-picker-indicator": {
-      opacity: 0.4,
-      cursor: "pointer",
-      width: 13,
-      height: 13,
-      marginRight: 2,
-      filter: "invert(30%) sepia(10%) saturate(500%) hue-rotate(180deg)",
-      "&:hover": { opacity: 0.7 },
-    },
-    "&::-webkit-datetime-edit": { padding: 0 },
-    "&::-webkit-datetime-edit-fields-wrapper": { padding: 0 },
-    "&::-webkit-datetime-edit-text":        { color: "#cbd5e1" },
-    "&::-webkit-datetime-edit-month-field": { color: "#475569" },
-    "&::-webkit-datetime-edit-day-field":   { color: "#475569" },
-    "&::-webkit-datetime-edit-year-field":  { color: "#475569" },
-  },
-}));
 
 /** Matching-height Select wrapper */
 const FilterSelect = styled(Select)(() => ({
@@ -165,6 +122,35 @@ const SearchField = styled(TextField)(() => ({
   },
   "& input": { padding: "0 8px 0 0", fontSize: "0.75rem", color: "#475569" },
   "& .MuiInputAdornment-root": { ml: 0 },
+}));
+
+/** Pill-style segmented control (Sales History / Payment History) */
+const SegmentedControl = styled(Box)(() => ({
+  display: "inline-flex",
+  alignItems: "center",
+  padding: 4,
+  borderRadius: 999,
+  backgroundColor: "#f1f5f9",
+  gap: 4,
+}));
+
+const SegmentedButton = styled(Box, {
+  shouldForwardProp: (prop) => prop !== "active",
+})<{ active: boolean }>(({ active }) => ({
+  display: "flex",
+  alignItems: "center",
+  gap: 6,
+  padding: "8px 18px",
+  borderRadius: 999,
+  fontSize: "0.8rem",
+  fontWeight: 700,
+  cursor: "pointer",
+  userSelect: "none",
+  transition: "all 0.15s ease",
+  color: active ? "#fff" : "#64748b",
+  backgroundColor: active ? "#dc2626" : "transparent",
+  boxShadow: active ? "0 2px 8px -1px rgba(220,38,38,0.45)" : "none",
+  "&:hover": { backgroundColor: active ? "#dc2626" : "#e2e8f0" },
 }));
 
 // ─── Header cell helper ───────────────────────────────────────
@@ -247,6 +233,9 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
   custUuid,
   customerName = "Customer",
 }) => {
+  // ── Active segment (Sales History / Payment History) ─────
+  const [activeTab, setActiveTab] = useState<"sales" | "payment">("sales");
+
   // ── Filter state (server-side) ────────────────────────────
   const [salesFromDate,  setSalesFromDate]  = useState("");
   const [salesToDate,    setSalesToDate]    = useState("");
@@ -303,6 +292,12 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
         r.description.toLowerCase().includes(searchQuery)
     );
   }, [salesAndReturns, searchQuery]);
+
+  // ── Payment history total ─────────────────────────────────
+  const totalPaymentAmount = useMemo(
+    () => paymentRows.reduce((sum, row) => sum + toNum(row.amount), 0),
+    [paymentRows]
+  );
 
   // ── Clear filters helper ──────────────────────────────────
   const clearSalesFilters = useCallback(() => {
@@ -383,11 +378,32 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
             </Alert>
           )}
 
+          {/* Segmented control */}
+          <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
+            <SegmentedControl>
+              <SegmentedButton
+                active={activeTab === "sales"}
+                onClick={() => setActiveTab("sales")}
+              >
+                <SalesTabIcon sx={{ fontSize: 17 }} />
+                Sales History
+              </SegmentedButton>
+              <SegmentedButton
+                active={activeTab === "payment"}
+                onClick={() => setActiveTab("payment")}
+              >
+                <PaymentTabIcon sx={{ fontSize: 17 }} />
+                Payment History
+              </SegmentedButton>
+            </SegmentedControl>
+          </Box>
+
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3.5 }}>
 
             {/* ════════════════════════════════════════════
                 SALES & RETURNS
             ════════════════════════════════════════════ */}
+            {activeTab === "sales" && (
             <Box>
               {/* Section toolbar */}
               <Box
@@ -423,36 +439,11 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
 
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
                   {/* Date range */}
-                  <FilterDateField
-                    type="date"
-                    size="small"
-                    value={salesFromDate}
-                    onChange={(e) => setSalesFromDate(e.target.value)}
-                    inputProps={{ max: salesToDate || undefined }}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start" sx={{ mr: 0.25 }}>
-                          <CalendarIcon sx={{ fontSize: 13, color: "#94a3b8" }} />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                  <Typography sx={{ fontSize: "0.7rem", color: "#94a3b8", flexShrink: 0 }}>
-                    to
-                  </Typography>
-                  <FilterDateField
-                    type="date"
-                    size="small"
-                    value={salesToDate}
-                    onChange={(e) => setSalesToDate(e.target.value)}
-                    inputProps={{ min: salesFromDate || undefined }}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start" sx={{ mr: 0.25 }}>
-                          <CalendarIcon sx={{ fontSize: 13, color: "#94a3b8" }} />
-                        </InputAdornment>
-                      ),
-                    }}
+                  <DateRangeChip
+                    fromDate={salesFromDate}
+                    toDate={salesToDate}
+                    onFromDateChange={setSalesFromDate}
+                    onToDateChange={setSalesToDate}
                   />
                   {/* Search */}
                   <SearchField
@@ -636,10 +627,12 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                 </Table>
               </TableContainer>
             </Box>
+            )}
 
             {/* ════════════════════════════════════════════
                 PAYMENT HISTORY
             ════════════════════════════════════════════ */}
+            {activeTab === "payment" && (
             <Box>
               {/* Section toolbar */}
               <Box
@@ -674,36 +667,11 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                 </Box>
 
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-                  <FilterDateField
-                    type="date"
-                    size="small"
-                    value={paymentFromDate}
-                    onChange={(e) => setPaymentFromDate(e.target.value)}
-                    inputProps={{ max: paymentToDate || undefined }}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start" sx={{ mr: 0.25 }}>
-                          <CalendarIcon sx={{ fontSize: 13, color: "#94a3b8" }} />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                  <Typography sx={{ fontSize: "0.7rem", color: "#94a3b8", flexShrink: 0 }}>
-                    to
-                  </Typography>
-                  <FilterDateField
-                    type="date"
-                    size="small"
-                    value={paymentToDate}
-                    onChange={(e) => setPaymentToDate(e.target.value)}
-                    inputProps={{ min: paymentFromDate || undefined }}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start" sx={{ mr: 0.25 }}>
-                          <CalendarIcon sx={{ fontSize: 13, color: "#94a3b8" }} />
-                        </InputAdornment>
-                      ),
-                    }}
+                  <DateRangeChip
+                    fromDate={paymentFromDate}
+                    toDate={paymentToDate}
+                    onFromDateChange={setPaymentFromDate}
+                    onToDateChange={setPaymentToDate}
                   />
                   <FormControl size="small">
                     <FilterSelect
@@ -738,7 +706,7 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                       <TableCell sx={TH_SX}>Date</TableCell>
                       <TableCell sx={TH_SX}>Invoice ID</TableCell>
                       <TableCell sx={TH_SX}>Transaction Type</TableCell>
-                      <TableCell sx={TH_SX}>Method</TableCell>
+                      <TableCell sx={TH_SX}>Reference No</TableCell>
                       <TableCell align="right" sx={TH_SX}>Amount (₹)</TableCell>
                       <TableCell align="center" sx={TH_SX}>Receipt</TableCell>
                     </TableRow>
@@ -754,13 +722,10 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                         const amount   = toNum(row.amount);
                         const isRefund = amount < 0;
 
-                        // Derive display labels from transaction_type
-                        // transaction_type in tbl_sale_payment stores the method (upi/cash/…)
-                        // Map it to a readable label for "Transaction Type" column
-                        const methodLabel = row.transaction_type
+                        const txTypeLabel = row.transaction_type
                           ? row.transaction_type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
                           : "—";
-                        const txTypeLabel = isRefund ? "Payment Refunded" : "Payment Received";
+                        const referenceNo = row.transaction_id || "-";
 
                         return (
                           <TableRow
@@ -801,8 +766,8 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                               {txTypeLabel}
                             </TableCell>
 
-                            <TableCell sx={{ fontSize: "0.8rem", color: "#64748b", py: 1.5 }}>
-                              {methodLabel}
+                            <TableCell sx={{ fontSize: "0.8rem", color: "#64748b", py: 1.5, whiteSpace: "nowrap" }}>
+                              {referenceNo}
                             </TableCell>
 
                             <TableCell
@@ -847,10 +812,37 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                         </TableCell>
                       </TableRow>
                     )}
+
+                    {/* Sticky total row */}
+                    {!paymentQuery.isLoading && paymentRows.length > 0 && (
+                      <TableRow
+                        sx={{
+                          position: "sticky",
+                          bottom: 0,
+                          zIndex: 2,
+                          "& td": {
+                            borderTop:       "2px solid #e2e8f0",
+                            borderBottom:    "none",
+                            backgroundColor: "#f8fafc",
+                          },
+                        }}
+                      >
+                        <TableCell colSpan={4} sx={{ py: 1.75 }}>
+                          <Typography sx={{ fontSize: "0.8rem", fontWeight: 800, color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                            Total
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontSize: "0.85rem", fontWeight: 900, color: "#16a34a", py: 1.75, whiteSpace: "nowrap" }}>
+                          {formatCurrency(totalPaymentAmount)}
+                        </TableCell>
+                        <TableCell />
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </TableContainer>
             </Box>
+            )}
           </Box>
         </DialogContent>
 

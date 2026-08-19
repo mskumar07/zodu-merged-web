@@ -888,7 +888,7 @@ const RestaurantPOS: React.FC = () => {
         {/* Back + Title */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Box
-            onClick={() => navigate("/restaurant-menu")}
+            onClick={() => navigate("/sales-history")}
             sx={{
               display: "flex",
               alignItems: "center",
