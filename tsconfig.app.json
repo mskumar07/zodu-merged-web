@@ -24,19 +24,18 @@
     "noUncheckedSideEffectImports": true,
 
     /* 👉 Path Aliases */
-    "baseUrl": "./src",
     "paths": {
-      "@components/*": ["components/*"],
-      "@layouts/*": ["layouts/*"],
-      "@pages/*": ["pages/*"],
-      "@hooks/*": ["hooks/*"],
-      "@store/*": ["store/*"],
-      "@utils/*": ["utils/*"], // Z-T71
-      "@assets/*": ["assets/*"], // Z-T71
-      "@types/*": ["types/*"], // Z-T71
-      "@services/*": ["store/services/*"], // Z-T71
-      "@Services/*": ["Services/*"],
-      "@config/*": ["config/*"] // Z-T71
+      "@components/*": ["./src/components/*"],
+      "@layouts/*": ["./src/layouts/*"],
+      "@pages/*": ["./src/pages/*"],
+      "@hooks/*": ["./src/hooks/*"],
+      "@store/*": ["./src/store/*"],
+      "@utils/*": ["./src/utils/*"], // Z-T71
+      "@assets/*": ["./src/assets/*"], // Z-T71
+      "@types/*": ["./src/types/*"], // Z-T71
+      "@services/*": ["./src/store/services/*"], // Z-T71
+      "@Services/*": ["./src/Services/*"],
+      "@config/*": ["./src/config/*"] // Z-T71
     }
   },
   "include": ["src"]

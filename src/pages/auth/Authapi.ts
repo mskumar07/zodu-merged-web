@@ -252,6 +252,30 @@ export interface EditBranchPayload {
   use_same_bank_as_company?: boolean;
 }
 
+export interface InvoiceSettings {
+  id: number;
+  zodu_id: string;
+  branch_id: string;
+  invoice_prefix: string;
+  invoice_digit_count: number;
+  invoice_start_number: number;
+  default_tax_label: string;
+  invoice_due_days: number;
+  default_payment_method: string;
+  printer_inch: string;
+  show_company_logo: boolean;
+  print_thank_you_message: boolean;
+  active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface BranchSettingsResponse {
+  settings: {
+    invoice: InvoiceSettings;
+  };
+}
+
 export interface RoleAccessItem {
   module_id: string;
   module_name: string;
@@ -368,6 +392,13 @@ export const authApis = {
     unwrap<{ role_access: RoleAccessItem[] }>(
       api.get('/auth/api/role-access', { params: { zodu_id: zoduId, branch_id: branchId } })
     ).then((res) => res.role_access ?? []),
+
+  // GET /auth/api/settings/:zodu_id/:branch_id — company/branch settings.
+  // Can 400 with an access error, which callers should surface to the user.
+  getSettings: (zoduId: string, branchId: string) =>
+    unwrap<BranchSettingsResponse>(
+      api.get(`/auth/api/settings/${zoduId}/${branchId}`)
+    ),
 };
 
 // ── token helpers ─────────────────────────────────────────────────────────────

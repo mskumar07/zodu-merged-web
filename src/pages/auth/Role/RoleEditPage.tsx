@@ -158,9 +158,41 @@ function PermItem({
   label: string; icon: React.ReactNode; checked: boolean;
   onClick: () => void; readOnly: boolean;
 }) {
+  // In read-only (view) mode there's no checkbox — the chip itself is
+  // either shown as granted (normal) or disabled/greyed-out (not granted).
+  if (readOnly) {
+    return (
+      <Box
+        sx={{
+          display: "inline-flex", alignItems: "center", gap: 1,
+          pl: 1.2, pr: 1.2, py: 0.75,
+          border: "1.5px solid #E5E7EB",
+          borderRadius: 1.5,
+          bgcolor: "#fff",
+          userSelect: "none",
+          opacity: checked ? 1 : 0.45,
+        }}
+      >
+        <Box sx={{
+          width: 20, height: 20, borderRadius: 1,
+          bgcolor: "#FEE2E2",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "#E11D48", flexShrink: 0,
+        }}>
+          {icon}
+        </Box>
+        <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", whiteSpace: "nowrap" }}>
+          {label}
+        </Typography>
+        {/* Spacer matching the checkbox's footprint in edit mode, so chip widths line up */}
+        <Box sx={{ width: 11, height: 11, flexShrink: 0 }} />
+      </Box>
+    );
+  }
+
   return (
     <Box
-      onClick={readOnly ? undefined : onClick}
+      onClick={onClick}
       sx={{
         display: "inline-flex", alignItems: "center", gap: 1,
         pl: 1.2, pr: 1.2, py: 0.75,
@@ -168,7 +200,7 @@ function PermItem({
         borderRadius: 1.5,
         bgcolor: "#fff",
         userSelect: "none",
-        cursor: readOnly ? "default" : "pointer",
+        cursor: "pointer",
       }}
     >
       {/* Red rounded-square icon */}
@@ -185,16 +217,16 @@ function PermItem({
       </Typography>
       {/* Checkbox */}
       <Box
-        onClick={readOnly ? undefined : (e: React.MouseEvent) => { e.stopPropagation(); onClick(); }}
+        onClick={(e: React.MouseEvent) => { e.stopPropagation(); onClick(); }}
         sx={{
           width: 11, height: 11, border: "1.5px solid",
           borderColor:  "#D1D5DB",
           borderRadius: 0.4,
           bgcolor: checked ? "#039c10" : "#fff",
           display: "flex", alignItems: "center", justifyContent: "center",
-          flexShrink: 0, cursor: readOnly ? "default" : "pointer",
+          flexShrink: 0, cursor: "pointer",
           transition: "border-color 0.15s, background-color 0.15s",
-          "&:hover": readOnly ? {} : { borderColor: "#E11D48" },
+          "&:hover": { borderColor: "#E11D48" },
         }}
       >
         {checked && (

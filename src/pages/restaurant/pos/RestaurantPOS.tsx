@@ -16,7 +16,7 @@ import SuccessToast from "@components/Common/SuccessToast";
 import zoduLogo from "@assets/zlogo.png";
 
 import { useAppSelector } from "../../../store/store";
-import { BranchId, ZoduId, BranchName, AllCompanies, UserProfile, addUserData, setRoleAccess } from "@store/slices/userSlice";
+import { BranchId, ZoduId, BranchName, AllCompanies, UserProfile, addUserData, setRoleAccess, InvoiceSettingsData } from "@store/slices/userSlice";
 import { authApis } from "@pages/auth/Authapi";
 import { useAppDispatch } from "@store/store";
 import { MenuItem, Select, IconButton, Avatar, Badge } from "@mui/material";
@@ -143,6 +143,8 @@ const RestaurantPOS: React.FC = () => {
 
   const isBusy = addingOrder || updatingOrder || completingOrder || holdingOrder;
 
+  const invoiceSettings = useAppSelector(InvoiceSettingsData);
+
   // ── State ────────────────────────────────────────────────────────────────
   const [order,        setOrder       ] = useState<RestaurantOrder>(buildInitialOrder());
   const [cartItems,    setCartItems   ] = useState<RestaurantCartItem[]>([]);
@@ -165,6 +167,17 @@ const RestaurantPOS: React.FC = () => {
   // only deleted from the server once the order is actually sent to KDS, paid, or re-held
   const [activeHoldId, setActiveHoldId] = useState<string | null>(null);
 
+
+  // Seed the default payment method from invoice settings once loaded, without
+  // overriding a method the user has already picked for the current order.
+  useEffect(() => {
+    const defaultMethod = invoiceSettings?.default_payment_method;
+    if (defaultMethod === "Card" || defaultMethod === "QR" || defaultMethod === "Cash") {
+      setOrder((prev) =>
+        prev.paymentMethod === "Cash" ? { ...prev, paymentMethod: defaultMethod } : prev
+      );
+    }
+  }, [invoiceSettings]);
 
   // ── Auto-scroll refs ─────────────────────────────────────────────────────
   const menuScrollRef    = useRef<HTMLDivElement>(null);
@@ -875,7 +888,7 @@ const RestaurantPOS: React.FC = () => {
         {/* Back + Title */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Box
-            onClick={() => navigate("/restaurant-menu")}
+            onClick={() => navigate("/sales-history")}
             sx={{
               display: "flex",
               alignItems: "center",

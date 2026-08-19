@@ -21,6 +21,8 @@ import SearchIcon           from '@mui/icons-material/Search';
 import axiosInstance from '@store/services/axiosInstance';
 import { apiConfig } from '@config/api';
 import { getTenantContext } from '@store/tenantContext';
+import { useAppSelector } from '@store/store';
+import { InvoiceSettingsData } from '@store/slices/userSlice';
 import { addItemSchema, ITEM_ID_MAX_LENGTH, ITEM_NAME_MAX_LENGTH, HSN_CODE_MAX_LENGTH, BARCODE_MAX_LENGTH, sanitizeAmountInput } from './ItemValidation';
 import {
   useInfiniteCategoryList,
@@ -202,6 +204,15 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
   };
   const { data: gstOptions  = [], isLoading: gstLoading  }      = useGstList();
   const { data: unitOptions = [], isLoading: unitsLoading }      = useUnitList();
+  const invoiceSettings = useAppSelector(InvoiceSettingsData);
+  const defaultGstOption = gstOptions.find((g) => g.label === invoiceSettings?.default_tax_label);
+
+  // Default the tax rate from invoice settings when adding a new item (not editing).
+  useEffect(() => {
+    if (!open || editItem || !defaultGstOption) return;
+    formik.setFieldValue('gstId', String(defaultGstOption.value));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editItem, defaultGstOption]);
 
   const { mutate: saveItem,  isPending: saving,  isError: saveError, error: saveErr, reset: resetSave } = useAddMenuItem({
     onSuccess: (data) => { setToastSeverity('success'); setSuccessMsg("Item added successfully!"); onSave?.(data); handleReset(); },
