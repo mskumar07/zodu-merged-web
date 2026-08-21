@@ -84,6 +84,7 @@ export interface SalesReturnRow {
   paid_amount:     string;
   balance_amount:  string;
   payment_status?: string;          // SALE only
+  due_date?:       string | null;   // SALE only — formatted display date
   refund_type?:    string;          // RETURN only
   original_sale_id?: string;        // RETURN only
   row_category:    "sale" | "return";
@@ -101,6 +102,7 @@ export interface PaymentRow {
 }
 
 export interface LedgerSummary {
+  total_invoice:   number;
   gross_total:     number;
   total_paid:      number;
   total_balance:   number;

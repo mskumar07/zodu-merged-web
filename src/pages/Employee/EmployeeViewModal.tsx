@@ -57,7 +57,7 @@ function SH({ icon, title, iconBg, iconColor }: {
 function Field({ label, value }: { label: string; value?: string | null }) {
   return (
     <Box>
-      <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: 0.6, textTransform: "uppercase", mb: 0.3 }}>
+      <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: 0.6, textTransform: "capitalize", mb: 0.3 }}>
         {label}
       </Typography>
       <Typography sx={{ fontSize: 13, fontWeight: 700, color: value ? "#0F172A" : "#D1D5DB" }}>
@@ -168,7 +168,7 @@ export default function EmployeeViewModal({ open, onClose, employeeId }: Props) 
 
                   {/* Profile photo */}
                   <Box sx={{ flexShrink: 0, textAlign: "center" }}>
-                    <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: 0.6, textTransform: "uppercase", mb: 0.5 }}>
+                    <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: 0.6, textTransform: "capitalize", mb: 0.5 }}>
                       Profile Photo
                     </Typography>
                     <Box sx={{

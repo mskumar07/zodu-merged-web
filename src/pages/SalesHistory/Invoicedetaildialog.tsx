@@ -16,6 +16,8 @@ import DownloadIcon           from "@mui/icons-material/Download";
 import PrintIcon              from "@mui/icons-material/Print";
 import EditIcon               from "@mui/icons-material/Edit";
 import AssignmentReturnIcon   from "@mui/icons-material/AssignmentReturn";
+import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
+import RestaurantMenuOutlinedIcon from "@mui/icons-material/RestaurantMenuOutlined";
 import html2canvas            from "html2canvas";
 import jsPDF                  from "jspdf";
 import { useNavigate }        from "react-router-dom";
@@ -705,6 +707,11 @@ export default function InvoiceDetailsModal({
         position: "sticky", top: 0, bgcolor: "#fff", zIndex: 10,
       }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+          <Box sx={{ p: 0.8, bgcolor: "rgba(208,2,27,0.08)", borderRadius: 2, display: "flex" }}>
+            {isRestaurant
+              ? <RestaurantMenuOutlinedIcon sx={{ color: "#D0021B", fontSize: 20 }} />
+              : <ReceiptLongOutlinedIcon sx={{ color: "#D0021B", fontSize: 20 }} />}
+          </Box>
           <Typography sx={{ fontSize: 18, fontWeight: 800, color: "#0F172A" }}>
             {isRestaurant ? "Order Details" : "Invoice Details"}
           </Typography>

@@ -24,6 +24,7 @@ import {
   DeleteOutline as DeleteOutlineIcon,
   InfoOutlined as InfoIcon,
   Remove as RemoveIcon,
+  AssignmentReturn as AssignmentReturnIcon,
 } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import { API_BASE, fetchSaleDetail, salesQueryKeys, getBranchId, getZoduId, createSaleReturn, type CreateSaleReturnPayload, type Sale } from "./useSaleshistory";
@@ -222,15 +223,20 @@ const canConfirm = someSelected && !!reason && !!refundType;
         borderBottom: "1px solid #E2E8F0",
         bgcolor: "#fff",
       }}>
-        <Box>
-          <Typography sx={{ fontSize: "1.5rem", fontWeight: 700, color: "#0F172A", letterSpacing: "-0.3px", lineHeight: 1.2 }}>
-            Process Sales Return
-          </Typography>
-          {normalizedSale && (
-            <Typography sx={{ fontSize: "0.875rem", fontWeight: 500, color: "#64748B", mt: 0.4 }}>
-              Invoice {normalizedSale.invoice_no} | Customer: {normalizedSale.customer_name || "Walk-In"}
+        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
+          <Box sx={{ p: 1, borderRadius: "8px", bgcolor: "rgba(210,4,45,0.1)", display: "flex" }}>
+            <AssignmentReturnIcon sx={{ color: "#D2042D", fontSize: 22 }} />
+          </Box>
+          <Box>
+            <Typography sx={{ fontSize: "1.5rem", fontWeight: 700, color: "#0F172A", letterSpacing: "-0.3px", lineHeight: 1.2 }}>
+              Process Sales Return
             </Typography>
-          )}
+            {normalizedSale && (
+              <Typography sx={{ fontSize: "0.875rem", fontWeight: 500, color: "#64748B", mt: 0.4 }}>
+                Invoice {normalizedSale.invoice_no} | Customer: {normalizedSale.customer_name || "Walk-In"}
+              </Typography>
+            )}
+          </Box>
         </Box>
         <IconButton onClick={onClose} size="small"
           sx={{ borderRadius: "999px", color: "#64748B", "&:hover": { bgcolor: "#F1F5F9" }, mt: 0.5 }}>

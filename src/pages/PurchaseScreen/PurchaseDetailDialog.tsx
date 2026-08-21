@@ -15,6 +15,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import PrintIcon from "@mui/icons-material/Print";
 import DownloadIcon from "@mui/icons-material/Download";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import ShoppingCartCheckoutIcon from "@mui/icons-material/ShoppingCartCheckout";
 import { useState } from "react";
 import { usePurchaseById, type PurchaseDetail } from "./usePuchaseapi";
 import AddNewPurchaseDialog from "./Addnewpuechasedialog";
@@ -211,7 +212,7 @@ function PurchaseDetailContent({ data }: { data: PurchaseDetail }) {
                   fontSize: 9.5,
                   fontWeight: 700,
                   color: "#94A3B8",
-                  textTransform: "uppercase",
+                  textTransform: "initial",
                   letterSpacing: "0.08em",
                   mb: 0.4,
                 }}
@@ -439,6 +440,9 @@ export default function PurchaseDetailDialog({ purchaseId, onClose }: Props) {
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+          <Box sx={{ p: 0.8, bgcolor: "rgba(210,31,60,0.08)", borderRadius: 2, display: "flex" }}>
+            <ShoppingCartCheckoutIcon sx={{ color: "#D21F3C", fontSize: 20 }} />
+          </Box>
           <Typography sx={{ fontSize: 20, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em" }}>
             Purchase Details
           </Typography>

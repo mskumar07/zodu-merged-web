@@ -9,6 +9,7 @@ import {
   TableRow, TableCell, InputAdornment, CircularProgress,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import PaymentsIcon from "@mui/icons-material/Payments";
 import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
 import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
@@ -196,7 +197,11 @@ export default function MarkPaymentDialog({ customer, onClose, onSuccess }: Prop
         display: "flex", alignItems: "center", justifyContent: "space-between",
         px: 3, py: 2.25, borderBottom: "1px solid #F1F5F9", bgcolor: "#fff", flexShrink: 0,
       }}>
-        <Box>
+        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
+          <Box sx={{ p: 1, bgcolor: "rgba(211,47,47,0.08)", borderRadius: 2, display: "flex" }}>
+            <PaymentsIcon sx={{ color: RED, fontSize: 22 }} />
+          </Box>
+          <Box>
           <Typography sx={{ fontSize: 20, fontWeight: 800, color: "#0F172A", mb: 0.5 }}>
             Mark Payment
           </Typography>
@@ -215,6 +220,7 @@ export default function MarkPaymentDialog({ customer, onClose, onSuccess }: Prop
                 {INR(customer.outstandingBalance)}
               </Box>
             </Typography>
+          </Box>
           </Box>
         </Box>
         <IconButton onClick={onClose} size="small" sx={{ color: "#64748B", "&:hover": { bgcolor: "#F1F5F9" } }}>

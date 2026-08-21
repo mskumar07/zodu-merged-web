@@ -559,7 +559,7 @@ const salesCols: ColDef<SaleRow>[] = [
   { key: "inv",      label: "Invoice ID", minWidth: 100,
     render: r => <Typography onClick={() => handleInvoice(r.sale_id)} sx={{ fontSize: 12, fontWeight: 600, color: "#1976d2",cursor:"pointer" }}>{r.sale_id}</Typography> },
   { key: "customer", label: "Customer",
-    render: r => <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{r.customer_name}</Typography> },
+    render: r => <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{r.customer_name || "—"}</Typography> },
   { key: "amount",   label: "Amount", align: "right",
     render: r => <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#1976d2" }}>{fmt(+r.total_amount)}</Typography> },
   { key: "status",   label: "Status", align: "center",

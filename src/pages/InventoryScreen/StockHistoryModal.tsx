@@ -15,6 +15,7 @@ import AddCircleIcon from "@mui/icons-material/AddCircle";
 import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
 import DeleteIcon from "@mui/icons-material/Delete";
 import KeyboardReturnIcon from "@mui/icons-material/KeyboardReturn";
+import InventoryOutlinedIcon from "@mui/icons-material/InventoryOutlined";
 import { useStockHistory } from "./useInventoryApi";
 import DataTable from "@utils/DataTable";
 
@@ -164,9 +165,14 @@ export default function StockHistoryModal({ open, onClose, item }: any) {
             borderBottom: "1px solid #E5E7EB"
           }}
         >
-          <Typography fontWeight={700} fontSize={16}>
-            Inventory Details
-          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Box sx={{ p: 0.8, bgcolor: "rgba(210,31,60,0.08)", borderRadius: 2, display: "flex" }}>
+              <InventoryOutlinedIcon sx={{ color: "#D21F3C", fontSize: 20 }} />
+            </Box>
+            <Typography fontWeight={700} fontSize={16}>
+              Inventory Details
+            </Typography>
+          </Box>
 
           <IconButton onClick={onClose}>
             <CloseIcon />

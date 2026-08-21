@@ -522,15 +522,20 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
         {/* ── Header ── */}
         <DialogTitle sx={{ pb: 0.5, pt: 2.5, px: 3 }}>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <Box>
-              <Typography sx={{ fontWeight: 700, fontSize: 18, color: "#0F172A" }}>
-                {isEditMode ? "Edit Task" : "Create Task"}
-              </Typography>
-              <Typography sx={{ fontSize: 12, color: "#6B7280", mt: 0.25 }}>
-                {isEditMode
-                  ? "Update task details, checklist items and assignees."
-                  : "Create a new task, define checklist items and assign it to one or more employees."}
-              </Typography>
+            <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
+              <Box sx={{ p: 0.8, bgcolor: "rgba(225,29,72,0.08)", borderRadius: 2, display: "flex" }}>
+                <ChecklistIcon sx={{ color: "#E11D48", fontSize: 20 }} />
+              </Box>
+              <Box>
+                <Typography sx={{ fontWeight: 700, fontSize: 18, color: "#0F172A" }}>
+                  {isEditMode ? "Edit Task" : "Create Task"}
+                </Typography>
+                <Typography sx={{ fontSize: 12, color: "#6B7280", mt: 0.25 }}>
+                  {isEditMode
+                    ? "Update task details, checklist items and assignees."
+                    : "Create a new task, define checklist items and assign it to one or more employees."}
+                </Typography>
+              </Box>
             </Box>
             <IconButton onClick={handleClose} size="small" sx={{ mt: -0.5 }}>
               <CloseIcon fontSize="small" />

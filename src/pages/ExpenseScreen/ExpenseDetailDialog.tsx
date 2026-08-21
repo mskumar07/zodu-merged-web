@@ -16,6 +16,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import PrintIcon from "@mui/icons-material/Print";
 import DownloadIcon from "@mui/icons-material/Download";
+import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import { useState, useRef } from "react";
 import { useExpenseDetail, type ExpenseDetail } from "./useExpenseApi";
 import AddNewExpenseDialog from "./AddNewExpenseDialog";
@@ -142,7 +143,7 @@ function ExpenseDetailContent({ data }: { data: ExpenseDetail }) {
             { label: "Category",       value: data.category_name },
           ].map(({ label, value }) => (
             <Box key={label}>
-              <Typography sx={{ fontSize: 9.5, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em", mb: 0.4 }}>
+              <Typography sx={{ fontSize: 9.5, fontWeight: 700, color: "#94A3B8", textTransform: "initial", letterSpacing: "0.08em", mb: 0.4 }}>
                 {label}
               </Typography>
               <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>
@@ -328,6 +329,9 @@ export default function ExpenseDetailDialog({ expenseId, onClose, onEditSuccess 
         sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 3.5, py: 2, borderBottom: "1px solid #F1F5F9" }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+          <Box sx={{ p: 0.8, bgcolor: "rgba(210,31,60,0.08)", borderRadius: 2, display: "flex" }}>
+            <ReceiptLongOutlinedIcon sx={{ color: "#D21F3C", fontSize: 20 }} />
+          </Box>
           <Typography sx={{ fontSize: 20, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em" }}>
             Expense Details
           </Typography>

@@ -43,14 +43,15 @@ import {
 import { styled } from "@mui/material/styles";
 import {
   Close as CloseIcon,
-  Download as DownloadIcon,
   Print as PrintIcon,
   Search as SearchIcon,
-  Visibility as VisibilityIcon,
   ErrorOutline as ErrorOutlineIcon,
   FilterAlt as FilterAltIcon,
   ShoppingBagOutlined as SalesTabIcon,
   AccountBalanceWalletOutlined as PaymentTabIcon,
+  DescriptionOutlined as InvoiceStatIcon,
+  ReceiptLongOutlined as OutstandingStatIcon,
+  AccountBalanceOutlined as LedgerIcon,
 } from "@mui/icons-material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import {
@@ -124,35 +125,6 @@ const SearchField = styled(TextField)(() => ({
   "& .MuiInputAdornment-root": { ml: 0 },
 }));
 
-/** Pill-style segmented control (Sales History / Payment History) */
-const SegmentedControl = styled(Box)(() => ({
-  display: "inline-flex",
-  alignItems: "center",
-  padding: 4,
-  borderRadius: 999,
-  backgroundColor: "#f1f5f9",
-  gap: 4,
-}));
-
-const SegmentedButton = styled(Box, {
-  shouldForwardProp: (prop) => prop !== "active",
-})<{ active: boolean }>(({ active }) => ({
-  display: "flex",
-  alignItems: "center",
-  gap: 6,
-  padding: "8px 18px",
-  borderRadius: 999,
-  fontSize: "0.8rem",
-  fontWeight: 700,
-  cursor: "pointer",
-  userSelect: "none",
-  transition: "all 0.15s ease",
-  color: active ? "#fff" : "#64748b",
-  backgroundColor: active ? "#dc2626" : "transparent",
-  boxShadow: active ? "0 2px 8px -1px rgba(220,38,38,0.45)" : "none",
-  "&:hover": { backgroundColor: active ? "#dc2626" : "#e2e8f0" },
-}));
-
 // ─── Header cell helper ───────────────────────────────────────
 const TH_SX = {
   bgcolor: "#f8fafc",
@@ -186,14 +158,124 @@ function PaymentSkeletonRows() {
     <>
       {Array.from({ length: 5 }).map((_, i) => (
         <TableRow key={i}>
-          {Array.from({ length: 6 }).map((__, j) => (
+          {Array.from({ length: 5 }).map((__, j) => (
             <TableCell key={j} sx={{ py: 1.5 }}>
-              <Skeleton variant="text" width={j === 5 ? 24 : "65%"} height={18} />
+              <Skeleton variant="text" width="65%" height={18} />
             </TableCell>
           ))}
         </TableRow>
       ))}
     </>
+  );
+}
+
+// ─── Whole-rupee formatting for stat cards (no decimals) ──────
+function formatCurrencyWhole(amount: number): string {
+  return Math.round(Math.abs(amount)).toLocaleString("en-IN");
+}
+
+// ─── Compact stat card — same visual language as the shared StatCard,
+// sized down so 4 fit comfortably in the ledger dialog header ─────
+function CompactStatCard({
+  label,
+  value,
+  valuePrefix = "₹",
+  sublabel,
+  icon,
+  iconColor,
+  iconBgColor,
+  loading,
+}: {
+  label:        string;
+  value:        string;
+  valuePrefix?: string;
+  sublabel?:    string;
+  icon:         React.ReactNode;
+  iconColor:    string;
+  iconBgColor:  string;
+  loading?:     boolean;
+}) {
+  return (
+    <Box
+      sx={{
+        bgcolor: "#fff",
+        border: "1px solid #F1F5F9",
+        borderRadius: "8px",
+        boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+        px: 1.5,
+        py: 1,
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        width: "fit-content",
+      }}
+    >
+      <Box
+        sx={{
+          width: 28,
+          height: 28,
+          borderRadius: "8px",
+          bgcolor: iconBgColor,
+          color: iconColor,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        {icon}
+      </Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography
+          sx={{
+            fontSize: "0.68rem",
+            fontWeight: 500,
+            color: "#64748B",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {label}
+        </Typography>
+        {loading ? (
+          <Skeleton width={60} height={20} sx={{ borderRadius: 1 }} />
+        ) : (
+          <Typography
+            sx={{
+              fontSize: "0.9rem",
+              fontWeight: 800,
+              color: "#0F172A",
+              lineHeight: 1.3,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {valuePrefix}{value}
+          </Typography>
+        )}
+        {sublabel && (
+          <Typography sx={{ fontSize: "0.62rem", color: "#94a3b8", whiteSpace: "nowrap" }}>
+            {sublabel}
+          </Typography>
+        )}
+      </Box>
+    </Box>
+  );
+}
+
+// ─── Two-line date cell: "19 Aug 2026" then "11:41 AM (Wed)" ──
+function DateTimeCell({ value }: { value: string | undefined }) {
+  if (!value) return <>—</>;
+  const commaIdx = value.indexOf(",");
+  const datePart = commaIdx === -1 ? value : value.slice(0, commaIdx);
+  const timePart = commaIdx === -1 ? ""    : value.slice(commaIdx + 1).trim();
+  return (
+    <Box sx={{ lineHeight: 1.35 }}>
+      <Box component="span" sx={{ display: "block" }}>{datePart}</Box>
+      {timePart && (
+        <Box component="span" sx={{ display: "block", color: "#94a3b8", fontSize: "0.7rem" }}>
+          {timePart}
+        </Box>
+      )}
+    </Box>
   );
 }
 
@@ -233,15 +315,10 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
   custUuid,
   customerName = "Customer",
 }) => {
-  // ── Active segment (Sales History / Payment History) ─────
-  const [activeTab, setActiveTab] = useState<"sales" | "payment">("sales");
-
-  // ── Filter state (server-side) ────────────────────────────
-  const [salesFromDate,  setSalesFromDate]  = useState("");
-  const [salesToDate,    setSalesToDate]    = useState("");
-  const [paymentFromDate, setPaymentFromDate] = useState("");
-  const [paymentToDate,   setPaymentToDate]   = useState("");
-  const [paymentMethod,  setPaymentMethod]  = useState("all");
+  // ── Filter state (server-side) — one shared date range drives both
+  // the Sales & Returns and Payment History queries ─────────────────
+  const [fromDate, setFromDate] = useState("");
+  const [toDate,   setToDate]   = useState("");
 
   // ── Client-side search (debounced) ───────────────────────
   const [searchRaw,   setSearchRaw]   = useState("");
@@ -252,25 +329,15 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
     return () => clearTimeout(t);
   }, [searchRaw]);
 
-  // ── Server filter objects — only recalc on actual value change ──
-  const salesFilters  = useMemo<LedgerFilters>(() => ({
-    fromDate: salesFromDate  || undefined,
-    toDate:   salesToDate    || undefined,
+  // ── Server filter object — shared by both queries ────────────────
+  const ledgerFilters = useMemo<LedgerFilters>(() => ({
+    fromDate: fromDate || undefined,
+    toDate:   toDate   || undefined,
     limit:    100,
-  }), [salesFromDate, salesToDate]);
+  }), [fromDate, toDate]);
 
-  const paymentFilters = useMemo<LedgerFilters>(() => ({
-    fromDate: paymentFromDate || undefined,
-    toDate:   paymentToDate   || undefined,
-    method:   paymentMethod,
-    limit:    100,
-  }), [paymentFromDate, paymentToDate, paymentMethod]);
-
-  // ── Merge filter keys so a single query covers both sections ──
-  // We use a combined filter; if user filters sales by date vs payments
-  // by date separately, we run two queries.
-  const salesQuery   = useCustomerLedger(open ? custUuid : null, salesFilters);
-  const paymentQuery = useCustomerLedger(open ? custUuid : null, paymentFilters);
+  const salesQuery   = useCustomerLedger(open ? custUuid : null, ledgerFilters);
+  const paymentQuery = useCustomerLedger(open ? custUuid : null, ledgerFilters);
 
   // ── Derived display data ──────────────────────────────────
   const salesAndReturns: SalesReturnRow[] = salesQuery.data?.sales_and_returns ?? [];
@@ -282,6 +349,7 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
     salesQuery.data?.customer?.cpy_name   ||
     salesQuery.data?.customer?.cust_name  ||
     customerName;
+  const displayCustId = salesQuery.data?.customer?.cust_id;
 
   // ── Client-side invoice search filter ────────────────────
   const filteredSales = useMemo(() => {
@@ -300,30 +368,23 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
   );
 
   // ── Clear filters helper ──────────────────────────────────
-  const clearSalesFilters = useCallback(() => {
-    setSalesFromDate("");
-    setSalesToDate("");
+  const clearFilters = useCallback(() => {
+    setFromDate("");
+    setToDate("");
     setSearchRaw("");
   }, []);
 
-  const clearPaymentFilters = useCallback(() => {
-    setPaymentFromDate("");
-    setPaymentToDate("");
-    setPaymentMethod("all");
-  }, []);
-
-  const hasSalesFilter   = !!(salesFromDate || salesToDate || searchQuery);
-  const hasPaymentFilter = !!(paymentFromDate || paymentToDate || paymentMethod !== "all");
+  const hasFilter = !!(fromDate || toDate || searchQuery);
 
   return (
     <ThemeProvider theme={theme}>
       <Dialog
         open={open}
         onClose={onClose}
-        maxWidth="lg"
+        maxWidth="xl"
         fullWidth
         PaperProps={{
-          sx: { borderRadius: 2, maxWidth: "1280px" },
+          sx: { borderRadius: 2, maxWidth: "1440px" },
         }}
       >
         {/* ── Header ─────────────────────────────────────── */}
@@ -338,7 +399,9 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Box sx={{ width: 8, height: 32, bgcolor: "primary.main", borderRadius: 999 }} />
+            <Box sx={{ p: 0.8, bgcolor: "rgba(200,16,46,0.08)", borderRadius: 2, display: "flex" }}>
+              <LedgerIcon sx={{ color: "primary.main", fontSize: 20 }} />
+            </Box>
             <Typography variant="h6" fontWeight={700} sx={{ fontSize: "1.15rem" }}>
               Customer Payment Ledger —{" "}
               <Box component="span" sx={{ color: "primary.main" }}>
@@ -346,6 +409,14 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                   ? <Skeleton variant="text" width={180} sx={{ display: "inline-block" }} />
                   : displayName}
               </Box>
+              {!salesQuery.isLoading && displayCustId != null && (
+                <Box
+                  component="span"
+                  sx={{ fontSize: "0.75rem", fontWeight: 600, color: "#94a3b8", ml: 1 }}
+                >
+                  (ID: {displayCustId})
+                </Box>
+              )}
             </Typography>
           </Box>
           <IconButton onClick={onClose} size="small" sx={{ color: "#94a3b8" }}>
@@ -354,7 +425,7 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
         </DialogTitle>
 
         {/* ── Content ────────────────────────────────────── */}
-        <DialogContent sx={{ p: 3 }}>
+        <DialogContent sx={{ pt: 4, pr: 3, pb: 3, pl: 1.5 }}>
 
           {/* Global error banner */}
           {(salesQuery.isError || paymentQuery.isError) && (
@@ -378,88 +449,114 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
             </Alert>
           )}
 
-          {/* Segmented control */}
-          <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
-            <SegmentedControl>
-              <SegmentedButton
-                active={activeTab === "sales"}
-                onClick={() => setActiveTab("sales")}
-              >
-                <SalesTabIcon sx={{ fontSize: 17 }} />
-                Sales History
-              </SegmentedButton>
-              <SegmentedButton
-                active={activeTab === "payment"}
-                onClick={() => setActiveTab("payment")}
-              >
-                <PaymentTabIcon sx={{ fontSize: 17 }} />
-                Payment History
-              </SegmentedButton>
-            </SegmentedControl>
+          {/* Stat cards + shared filters (search, date range) on one line */}
+          <Box
+            sx={{
+              display:        "flex",
+              justifyContent: "space-between",
+              alignItems:     "flex-start",
+              flexWrap:       "wrap",
+              gap: 2,
+              mt: 2,
+              mb: 2.5,
+            }}
+          >
+            <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
+              <CompactStatCard
+                label="Total Sales"
+                value={formatCurrencyWhole(summary?.gross_total ?? 0)}
+                icon={<SalesTabIcon sx={{ fontSize: 17 }} />}
+                iconColor="#dc2626"
+                iconBgColor="rgba(220,38,38,0.1)"
+                loading={salesQuery.isLoading}
+              />
+              <CompactStatCard
+                label="Total Payments"
+                value={formatCurrencyWhole(totalPaymentAmount)}
+                icon={<PaymentTabIcon sx={{ fontSize: 17 }} />}
+                iconColor="#16a34a"
+                iconBgColor="rgba(22,163,74,0.1)"
+                loading={paymentQuery.isLoading}
+              />
+              <CompactStatCard
+                label="Outstanding"
+                value={formatCurrencyWhole(summary?.net_outstanding ?? 0)}
+                icon={<OutstandingStatIcon sx={{ fontSize: 17 }} />}
+                iconColor="#dc2626"
+                iconBgColor="rgba(220,38,38,0.1)"
+                loading={salesQuery.isLoading}
+              />
+              <CompactStatCard
+                label="Total Invoices"
+                value={String(summary?.total_invoice ?? 0)}
+                valuePrefix=""
+                icon={<InvoiceStatIcon sx={{ fontSize: 17 }} />}
+                iconColor="#2563eb"
+                iconBgColor="rgba(37,99,235,0.1)"
+                loading={salesQuery.isLoading}
+              />
+            </Box>
+
+            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 0.75 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+                {/* Search */}
+                <SearchField
+                  size="small"
+                  placeholder="Search invoices…"
+                  value={searchRaw}
+                  onChange={(e) => setSearchRaw(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon sx={{ fontSize: 15, color: "#94a3b8" }} />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                {/* Date range */}
+                <DateRangeChip
+                  fromDate={fromDate}
+                  toDate={toDate}
+                  onFromDateChange={setFromDate}
+                  onToDateChange={setToDate}
+                />
+              </Box>
+
+              {hasFilter && (
+                <Chip
+                  label="Clear filters"
+                  size="small"
+                  icon={<FilterAltIcon sx={{ fontSize: 12 }} />}
+                  onClick={clearFilters}
+                  sx={{
+                    height: 22,
+                    fontSize: "0.7rem",
+                    bgcolor: "#fee2e2",
+                    color:   "#dc2626",
+                    border:  "none",
+                    cursor:  "pointer",
+                    "& .MuiChip-icon": { color: "#dc2626" },
+                  }}
+                />
+              )}
+            </Box>
           </Box>
 
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 3.5 }}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", lg: "1.15fr 1fr" },
+              gap: 3,
+              alignItems: "start",
+            }}
+          >
 
             {/* ════════════════════════════════════════════
                 SALES & RETURNS
             ════════════════════════════════════════════ */}
-            {activeTab === "sales" && (
-            <Box>
-              {/* Section toolbar */}
-              <Box
-                sx={{
-                  display:        "flex",
-                  justifyContent: "space-between",
-                  alignItems:     "center",
-                  mb: 1.5,
-                  flexWrap:       "wrap",
-                  gap: 1,
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 0.5 }}>
-                  <SectionLabel label="Sales & Returns" />
-                  {hasSalesFilter && (
-                    <Chip
-                      label="Clear filters"
-                      size="small"
-                      icon={<FilterAltIcon sx={{ fontSize: 12 }} />}
-                      onClick={clearSalesFilters}
-                      sx={{
-                        height: 22,
-                        fontSize: "0.7rem",
-                        bgcolor: "#fee2e2",
-                        color:   "#dc2626",
-                        border:  "none",
-                        cursor:  "pointer",
-                        "& .MuiChip-icon": { color: "#dc2626" },
-                      }}
-                    />
-                  )}
-                </Box>
-
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-                  {/* Date range */}
-                  <DateRangeChip
-                    fromDate={salesFromDate}
-                    toDate={salesToDate}
-                    onFromDateChange={setSalesFromDate}
-                    onToDateChange={setSalesToDate}
-                  />
-                  {/* Search */}
-                  <SearchField
-                    size="small"
-                    placeholder="Search invoices…"
-                    value={searchRaw}
-                    onChange={(e) => setSearchRaw(e.target.value)}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <SearchIcon sx={{ fontSize: 15, color: "#94a3b8" }} />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Box>
+            <Box sx={{ minWidth: 0 }}>
+              <Box sx={{ mb: 1.5 }}>
+                <SectionLabel label="Sales & Returns" />
               </Box>
 
               {/* Table */}
@@ -478,11 +575,10 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                     <TableRow>
                       <TableCell sx={TH_SX}>Date</TableCell>
                       <TableCell sx={TH_SX}>ID</TableCell>
-                      <TableCell sx={{ ...TH_SX, width: "35%" }}>Description</TableCell>
+                      <TableCell sx={{ ...TH_SX, width: "18%", whiteSpace: "normal" }}>Description</TableCell>
                       <TableCell align="right" sx={TH_SX}>Total (₹)</TableCell>
                       <TableCell align="right" sx={TH_SX}>Paid (₹)</TableCell>
                       <TableCell align="right" sx={TH_SX}>Balance (₹)</TableCell>
-                      <TableCell align="center" sx={TH_SX}>Action</TableCell>
                     </TableRow>
                   </TableHead>
 
@@ -510,10 +606,10 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                             }}
                           >
                             <TableCell sx={{ fontSize: "0.8rem", color: "#64748b", py: 1.5, whiteSpace: "nowrap" }}>
-                             {row.doc_date}
+                              <DateTimeCell value={row.doc_date} />
                             </TableCell>
 
-                            <TableCell sx={{ py: 1.5 }}>
+                            <TableCell sx={{ py: 1.5, whiteSpace: "nowrap" }}>
                               <Link
                                 href="#"
                                 sx={{
@@ -521,6 +617,7 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                                   fontWeight:     600,
                                   color:          "#2563eb",
                                   textDecoration: "none",
+                                  whiteSpace:     "nowrap",
                                   "&:hover":      { textDecoration: "underline" },
                                 }}
                               >
@@ -534,6 +631,8 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                                 color:     isReturn ? "#dc2626" : "#64748b",
                                 fontStyle: isReturn ? "italic" : "normal",
                                 py: 1.5,
+                                whiteSpace: "normal",
+                                wordBreak: "break-word",
                               }}
                             >
                               {row.description === "S" ? "Sale" : isReturn ? "Return - " + row.description : row.description}
@@ -566,12 +665,11 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                               }}
                             >
                               {formatCurrency(balance)}
-                            </TableCell>
-
-                            <TableCell align="center" sx={{ py: 1.5 }}>
-                              <IconButton size="small" sx={{ color: "#dc2626" }}>
-                                <VisibilityIcon sx={{ fontSize: 15 }} />
-                              </IconButton>
+                              {balancePos && row.due_date && (
+                                <Typography sx={{ fontSize: "0.68rem", fontWeight: 650, color: "#0c0c0c", mt: 0.15 }}>
+                                  Due: {row.due_date}
+                                </Typography>
+                              )}
                             </TableCell>
                           </TableRow>
                         );
@@ -581,11 +679,11 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                     {!salesQuery.isLoading && filteredSales.length === 0 && (
                       <TableRow>
                         <TableCell
-                          colSpan={7}
+                          colSpan={6}
                           align="center"
                           sx={{ py: 4, fontSize: "0.8rem", color: "#94a3b8" }}
                         >
-                          {hasSalesFilter
+                          {hasFilter
                             ? "No records match the selected filters."
                             : "No sales or returns found for this customer."}
                         </TableCell>
@@ -620,73 +718,25 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                         <TableCell align="right" sx={{ fontSize: "0.85rem", fontWeight: 900, color: "#dc2626", py: 1.75, whiteSpace: "nowrap" }}>
                           {formatCurrency(summary?.net_outstanding ?? 0)}
                         </TableCell>
-                        <TableCell />
                       </TableRow>
                     )}
                   </TableBody>
                 </Table>
               </TableContainer>
+
+              {!salesQuery.isLoading && filteredSales.length > 0 && (
+                <Typography sx={{ mt: 1, fontSize: "0.75rem", color: "#94a3b8" }}>
+                  Showing {filteredSales.length} of {filteredSales.length} invoices
+                </Typography>
+              )}
             </Box>
-            )}
 
             {/* ════════════════════════════════════════════
                 PAYMENT HISTORY
             ════════════════════════════════════════════ */}
-            {activeTab === "payment" && (
-            <Box>
-              {/* Section toolbar */}
-              <Box
-                sx={{
-                  display:        "flex",
-                  justifyContent: "space-between",
-                  alignItems:     "center",
-                  mb: 1.5,
-                  flexWrap:       "wrap",
-                  gap: 1,
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                  <SectionLabel label="Payment History" color="#22c55e" />
-                  {hasPaymentFilter && (
-                    <Chip
-                      label="Clear filters"
-                      size="small"
-                      icon={<FilterAltIcon sx={{ fontSize: 12 }} />}
-                      onClick={clearPaymentFilters}
-                      sx={{
-                        height:  22,
-                        fontSize: "0.7rem",
-                        bgcolor: "#fee2e2",
-                        color:   "#dc2626",
-                        border:  "none",
-                        cursor:  "pointer",
-                        "& .MuiChip-icon": { color: "#dc2626" },
-                      }}
-                    />
-                  )}
-                </Box>
-
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-                  <DateRangeChip
-                    fromDate={paymentFromDate}
-                    toDate={paymentToDate}
-                    onFromDateChange={setPaymentFromDate}
-                    onToDateChange={setPaymentToDate}
-                  />
-                  <FormControl size="small">
-                    <FilterSelect
-                      value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value as string)}
-                    >
-                      <MenuItem value="all"          sx={{ fontSize: "0.8rem" }}>All Methods</MenuItem>
-                      <MenuItem value="upi"          sx={{ fontSize: "0.8rem" }}>UPI</MenuItem>
-                      <MenuItem value="cash"         sx={{ fontSize: "0.8rem" }}>Cash</MenuItem>
-                      <MenuItem value="bank transfer" sx={{ fontSize: "0.8rem" }}>Bank Transfer</MenuItem>
-                      <MenuItem value="store credit" sx={{ fontSize: "0.8rem" }}>Store Credit</MenuItem>
-                      <MenuItem value="card"         sx={{ fontSize: "0.8rem" }}>Card</MenuItem>
-                    </FilterSelect>
-                  </FormControl>
-                </Box>
+            <Box sx={{ minWidth: 0 }}>
+              <Box sx={{ mb: 1.5 }}>
+                <SectionLabel label="Payment History" color="#22c55e" />
               </Box>
 
               {/* Table */}
@@ -696,7 +746,7 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                 sx={{
                   border:       "1px solid #e2e8f0",
                   borderRadius: 1.5,
-                  maxHeight:    270,
+                  maxHeight:    320,
                   overflow:     "auto",
                 }}
               >
@@ -707,8 +757,7 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                       <TableCell sx={TH_SX}>Invoice ID</TableCell>
                       <TableCell sx={TH_SX}>Transaction Type</TableCell>
                       <TableCell sx={TH_SX}>Reference No</TableCell>
-                      <TableCell align="right" sx={TH_SX}>Amount (₹)</TableCell>
-                      <TableCell align="center" sx={TH_SX}>Receipt</TableCell>
+                      <TableCell align="right" sx={{ ...TH_SX, pr: 1 }}>Amount (₹)</TableCell>
                     </TableRow>
                   </TableHead>
 
@@ -736,10 +785,10 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                             }}
                           >
                             <TableCell sx={{ fontSize: "0.8rem", color: "#64748b", py: 1.5, whiteSpace: "nowrap" }}>
-                              {row.created_at}
+                              <DateTimeCell value={row.created_at} />
                             </TableCell>
 
-                            <TableCell sx={{ py: 1.5 }}>
+                            <TableCell sx={{ py: 1.5, whiteSpace: "nowrap" }}>
                               <Link
                                 href="#"
                                 sx={{
@@ -747,6 +796,7 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                                   fontWeight:     600,
                                   color:          "#2563eb",
                                   textDecoration: "none",
+                                  whiteSpace:     "nowrap",
                                   "&:hover":      { textDecoration: "underline" },
                                 }}
                               >
@@ -777,22 +827,11 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                                 fontWeight: 700,
                                 color:      isRefund ? "#dc2626" : "#16a34a",
                                 py: 1.5,
+                                pr: 1,
                                 whiteSpace: "nowrap",
                               }}
                             >
                               {formatCurrency(amount)}
-                            </TableCell>
-
-                            <TableCell align="center" sx={{ py: 1.5 }}>
-                              <IconButton
-                                size="small"
-                                sx={{
-                                  color: "#94a3b8",
-                                  "&:hover": { color: "#475569", bgcolor: "#f1f5f9" },
-                                }}
-                              >
-                                <DownloadIcon sx={{ fontSize: 15 }} />
-                              </IconButton>
                             </TableCell>
                           </TableRow>
                         );
@@ -802,11 +841,11 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                     {!paymentQuery.isLoading && paymentRows.length === 0 && (
                       <TableRow>
                         <TableCell
-                          colSpan={6}
+                          colSpan={5}
                           align="center"
                           sx={{ py: 4, fontSize: "0.8rem", color: "#94a3b8" }}
                         >
-                          {hasPaymentFilter
+                          {hasFilter
                             ? "No payments match the selected filters."
                             : "No payment history found for this customer."}
                         </TableCell>
@@ -832,17 +871,21 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                             Total
                           </Typography>
                         </TableCell>
-                        <TableCell align="right" sx={{ fontSize: "0.85rem", fontWeight: 900, color: "#16a34a", py: 1.75, whiteSpace: "nowrap" }}>
+                        <TableCell align="right" sx={{ fontSize: "0.85rem", fontWeight: 900, color: "#16a34a", py: 1.75, pr: 1, whiteSpace: "nowrap" }}>
                           {formatCurrency(totalPaymentAmount)}
                         </TableCell>
-                        <TableCell />
                       </TableRow>
                     )}
                   </TableBody>
                 </Table>
               </TableContainer>
+
+              {!paymentQuery.isLoading && paymentRows.length > 0 && (
+                <Typography sx={{ mt: 1, fontSize: "0.75rem", color: "#94a3b8" }}>
+                  Showing {paymentRows.length} of {paymentRows.length} payments
+                </Typography>
+              )}
             </Box>
-            )}
           </Box>
         </DialogContent>
 
