@@ -566,7 +566,7 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                 sx={{
                   border:      "1px solid #e2e8f0",
                   borderRadius: 1.5,
-                  maxHeight:   380,
+                  height:      380,
                   overflow:    "auto",
                 }}
               >
@@ -576,9 +576,9 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                       <TableCell sx={TH_SX}>Date</TableCell>
                       <TableCell sx={TH_SX}>ID</TableCell>
                       <TableCell sx={{ ...TH_SX, width: "18%", whiteSpace: "normal" }}>Description</TableCell>
-                      <TableCell align="right" sx={TH_SX}>Total (₹)</TableCell>
-                      <TableCell align="right" sx={TH_SX}>Paid (₹)</TableCell>
-                      <TableCell align="right" sx={TH_SX}>Balance (₹)</TableCell>
+                      <TableCell align="right" sx={TH_SX}>Total</TableCell>
+                      <TableCell align="right" sx={TH_SX}>Paid</TableCell>
+                      <TableCell align="right" sx={TH_SX}>Balance</TableCell>
                     </TableRow>
                   </TableHead>
 
@@ -677,11 +677,11 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
 
                     {/* Empty */}
                     {!salesQuery.isLoading && filteredSales.length === 0 && (
-                      <TableRow>
+                      <TableRow sx={{ height: 300 }}>
                         <TableCell
                           colSpan={6}
                           align="center"
-                          sx={{ py: 4, fontSize: "0.8rem", color: "#94a3b8" }}
+                          sx={{ fontSize: "0.8rem", color: "#94a3b8", border: "none" }}
                         >
                           {hasFilter
                             ? "No records match the selected filters."
@@ -689,46 +689,9 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                         </TableCell>
                       </TableRow>
                     )}
-
-                    {/* Sticky total row */}
-                    {!salesQuery.isLoading && filteredSales.length > 0 && (
-                      <TableRow
-                        sx={{
-                          position: "sticky",
-                          bottom: 0,
-                          zIndex: 2,
-                          "& td": {
-                            borderTop:       "2px solid #e2e8f0",
-                            borderBottom:    "none",
-                            backgroundColor: "#f8fafc",
-                          },
-                        }}
-                      >
-                        <TableCell colSpan={3} sx={{ py: 1.75 }}>
-                          <Typography sx={{ fontSize: "0.8rem", fontWeight: 800, color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                            Total
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="right" sx={{ fontSize: "0.85rem", fontWeight: 800, color: "#0f172a", py: 1.75, whiteSpace: "nowrap" }}>
-                          {formatCurrency(summary?.gross_total ?? 0)}
-                        </TableCell>
-                        <TableCell align="right" sx={{ fontSize: "0.85rem", fontWeight: 800, color: "#16a34a", py: 1.75, whiteSpace: "nowrap" }}>
-                          {formatCurrency(summary?.total_paid ?? 0)}
-                        </TableCell>
-                        <TableCell align="right" sx={{ fontSize: "0.85rem", fontWeight: 900, color: "#dc2626", py: 1.75, whiteSpace: "nowrap" }}>
-                          {formatCurrency(summary?.net_outstanding ?? 0)}
-                        </TableCell>
-                      </TableRow>
-                    )}
                   </TableBody>
                 </Table>
               </TableContainer>
-
-              {!salesQuery.isLoading && filteredSales.length > 0 && (
-                <Typography sx={{ mt: 1, fontSize: "0.75rem", color: "#94a3b8" }}>
-                  Showing {filteredSales.length} of {filteredSales.length} invoices
-                </Typography>
-              )}
             </Box>
 
             {/* ════════════════════════════════════════════
@@ -746,7 +709,7 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                 sx={{
                   border:       "1px solid #e2e8f0",
                   borderRadius: 1.5,
-                  maxHeight:    320,
+                  height:       380,
                   overflow:     "auto",
                 }}
               >
@@ -755,9 +718,8 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                     <TableRow>
                       <TableCell sx={TH_SX}>Date</TableCell>
                       <TableCell sx={TH_SX}>Invoice ID</TableCell>
-                      <TableCell sx={TH_SX}>Transaction Type</TableCell>
-                      <TableCell sx={TH_SX}>Reference No</TableCell>
-                      <TableCell align="right" sx={{ ...TH_SX, pr: 1 }}>Amount (₹)</TableCell>
+                      <TableCell sx={TH_SX}>Reference No / Transaction Type</TableCell>
+                      <TableCell align="right" sx={{ ...TH_SX, pr: 1 }}>Amount</TableCell>
                     </TableRow>
                   </TableHead>
 
@@ -804,20 +766,13 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                               </Link>
                             </TableCell>
 
-                            <TableCell
-                              sx={{
-                                fontSize:  "0.8rem",
-                                fontWeight: 500,
-                                color:     isRefund ? "#dc2626" : "#1e293b",
-                                fontStyle: isRefund ? "italic" : "normal",
-                                py: 1.5,
-                              }}
-                            >
-                              {txTypeLabel}
-                            </TableCell>
-
-                            <TableCell sx={{ fontSize: "0.8rem", color: "#64748b", py: 1.5, whiteSpace: "nowrap" }}>
-                              {referenceNo}
+                            <TableCell sx={{ py: 1.5, whiteSpace: "nowrap" }}>
+                              <Typography sx={{ fontSize: "0.8rem", fontWeight: 500, color: isRefund ? "#dc2626" : "#1e293b", fontStyle: isRefund ? "italic" : "normal" }}>
+                                {referenceNo}
+                              </Typography>
+                              <Typography sx={{ fontSize: "0.68rem", fontWeight: 650, color: "#94a3b8", mt: 0.15 }}>
+                                {txTypeLabel}
+                              </Typography>
                             </TableCell>
 
                             <TableCell
@@ -839,11 +794,11 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
 
                     {/* Empty */}
                     {!paymentQuery.isLoading && paymentRows.length === 0 && (
-                      <TableRow>
+                      <TableRow sx={{ height: 300 }}>
                         <TableCell
-                          colSpan={5}
+                          colSpan={4}
                           align="center"
-                          sx={{ py: 4, fontSize: "0.8rem", color: "#94a3b8" }}
+                          sx={{ fontSize: "0.8rem", color: "#94a3b8", border: "none" }}
                         >
                           {hasFilter
                             ? "No payments match the selected filters."
@@ -851,40 +806,9 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                         </TableCell>
                       </TableRow>
                     )}
-
-                    {/* Sticky total row */}
-                    {!paymentQuery.isLoading && paymentRows.length > 0 && (
-                      <TableRow
-                        sx={{
-                          position: "sticky",
-                          bottom: 0,
-                          zIndex: 2,
-                          "& td": {
-                            borderTop:       "2px solid #e2e8f0",
-                            borderBottom:    "none",
-                            backgroundColor: "#f8fafc",
-                          },
-                        }}
-                      >
-                        <TableCell colSpan={4} sx={{ py: 1.75 }}>
-                          <Typography sx={{ fontSize: "0.8rem", fontWeight: 800, color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                            Total
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="right" sx={{ fontSize: "0.85rem", fontWeight: 900, color: "#16a34a", py: 1.75, pr: 1, whiteSpace: "nowrap" }}>
-                          {formatCurrency(totalPaymentAmount)}
-                        </TableCell>
-                      </TableRow>
-                    )}
                   </TableBody>
                 </Table>
               </TableContainer>
-
-              {!paymentQuery.isLoading && paymentRows.length > 0 && (
-                <Typography sx={{ mt: 1, fontSize: "0.75rem", color: "#94a3b8" }}>
-                  Showing {paymentRows.length} of {paymentRows.length} payments
-                </Typography>
-              )}
             </Box>
           </Box>
         </DialogContent>

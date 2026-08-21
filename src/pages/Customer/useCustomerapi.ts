@@ -445,7 +445,7 @@ export function toNum(value: string | number | null | undefined): number {
 /** Format currency the same way the original component does */
 export function formatCurrency(amount: number): string {
   const abs = Math.abs(amount);
-  return amount < 0 ? `(${abs.toFixed(2)})` : abs.toFixed(2);
+  return amount < 0 ? `(₹${abs.toFixed(2)})` : `₹${abs.toFixed(2)}`;
 }
 
 // ─── Outstanding Bills ─────────────────────────────────────────

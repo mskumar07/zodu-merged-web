@@ -5,6 +5,7 @@ import {
   Select, MenuItem, FormControl, InputAdornment, ListSubheader,
   Table, TableHead, TableBody, TableRow, TableCell,
   Paper, Tooltip, Checkbox, Chip, CircularProgress, Menu,
+  Autocomplete,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import CloseIcon               from "@mui/icons-material/Close";
@@ -688,7 +689,6 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
   const [reopenPickerAfter, setReopenPickerAfter] = useState(false);
   const [saveError, setSaveError]     = useState("");
   const [vendorOpen, setVendorOpen]   = useState(false);
-  const [vendorSearch, setVendorSearch] = useState("");
   const [isSaving, setIsSaving]       = useState(false);
   const [successMsg, setSuccessMsg]   = useState("");
   const expenseDateInputRef = useRef<HTMLInputElement>(null);
@@ -700,14 +700,9 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
   const { data: expenseDetail } = useExpenseDetail(isEditMode ? editExpenseId! : null);
 
   const vendors = useMemo<Vendor[]>(() => Array.isArray(vendorsResponse) ? vendorsResponse : [], [vendorsResponse]);
-  const filteredVendors = useMemo(() => {
-    const q = vendorSearch.trim().toLowerCase();
-    if (!q) return vendors;
-    return vendors.filter(v => vendorDisplayName(v).toLowerCase().includes(q) || v.vendor_id?.toLowerCase().includes(q));
-  }, [vendorSearch, vendors]);
 
   useEffect(() => {
-    if (open && !isEditMode) { setForm(emptyForm()); setAttachments([]); setSaveError(""); setVendorSearch(""); }
+    if (open && !isEditMode) { setForm(emptyForm()); setAttachments([]); setSaveError(""); }
   }, [open, isEditMode]);
 
   useEffect(() => {
@@ -1048,28 +1043,59 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
                     Add Vendor
                   </Button>
                 </Box>
-                <FormControl size="small" fullWidth sx={inputSx}>
-                  <Select value={form.supplier} onChange={e => setField("supplier", e.target.value)} displayEmpty
-                    renderValue={v => {
-                      if (!v) return <Typography sx={{ color: "#9CA3AF", fontSize: 13 }}>Select Supplier</Typography>;
-                      const vendor = vendors.find(item => item.vendor_id === v);
-                      return vendorDisplayName(vendor) || String(v);
-                    }}
-                    onOpen={() => setVendorSearch("")}
-                    MenuProps={{ autoFocus: false, disableAutoFocusItem: true, PaperProps: { sx: { mt: 0.5, maxHeight: 340, borderRadius: 2, boxShadow: "0 18px 40px rgba(15,23,42,0.12)" } } }}
-                    sx={{ bgcolor: "#F8FAFC", fontSize: 13, borderRadius: "8px" }}>
-                    <ListSubheader sx={{ bgcolor: "#fff", py: 1, px: 1, borderBottom: "1px solid #F1F5F9" }} onKeyDown={e => e.stopPropagation()}>
-                      <TextField autoFocus size="small" fullWidth placeholder="Search supplier..." value={vendorSearch} onChange={e => setVendorSearch(e.target.value)} onClick={e => e.stopPropagation()}
-                        InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: "#9CA3AF" }} /></InputAdornment> }}
-                        sx={{ "& .MuiOutlinedInput-root": { bgcolor: "#F8FAFC", fontSize: 12.5, borderRadius: 1.5 } }} />
-                    </ListSubheader>
-                    {vendorsLoading
-                      ? <MenuItem disabled sx={{ fontSize: 13 }}>Loading…</MenuItem>
-                      : filteredVendors.length === 0
-                        ? <MenuItem disabled sx={{ fontSize: 13 }}>No suppliers found</MenuItem>
-                        : filteredVendors.map(v => <MenuItem key={v.vendor_id} value={v.vendor_id} sx={{ fontSize: 13 }}>{vendorDisplayName(v)}</MenuItem>)}
-                  </Select>
-                </FormControl>
+                <Autocomplete
+                  size="small"
+                  fullWidth
+                  loading={vendorsLoading}
+                  options={vendors}
+                  value={vendors.find(v => v.vendor_id === form.supplier) ?? null}
+                  getOptionLabel={v => vendorDisplayName(v)}
+                  isOptionEqualToValue={(a, b) => a.vendor_id === b.vendor_id}
+                  onChange={(_, v) => setField("supplier", v?.vendor_id ?? "")}
+                  noOptionsText="No suppliers found"
+                  renderOption={(props, v) => {
+                    const { key, ...rest } = props as any;
+                    return (
+                      <Box component="li" key={key} {...rest}
+                        sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
+                        <Typography sx={{ fontSize: 13, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {vendorDisplayName(v)}
+                        </Typography>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.25, flexShrink: 0 }}>
+                          <IconButton size="small" onClick={e => e.stopPropagation()} sx={{ color: "#6B7280", p: 0.5 }}>
+                            <EditOutlinedIcon sx={{ fontSize: 15 }} />
+                          </IconButton>
+                          <IconButton size="small" onClick={e => e.stopPropagation()} sx={{ color: "#DC2626", p: 0.5 }}>
+                            <DeleteOutlineIcon sx={{ fontSize: 15 }} />
+                          </IconButton>
+                        </Box>
+                      </Box>
+                    );
+                  }}
+                  renderInput={params => (
+                    <TextField
+                      {...params}
+                      placeholder="Select Supplier"
+                      InputProps={{
+                        ...params.InputProps,
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SearchIcon sx={{ fontSize: 16, color: "#9CA3AF" }} />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  )}
+                  sx={{
+                    ...inputSx,
+                    "& .MuiOutlinedInput-root": {
+                      ...inputSx["& .MuiOutlinedInput-root"],
+                      bgcolor: "#F8FAFC",
+                      fontSize: 13,
+                      borderRadius: "8px",
+                    },
+                  }}
+                />
               </Box>
 
               {/* Expense Date */}
