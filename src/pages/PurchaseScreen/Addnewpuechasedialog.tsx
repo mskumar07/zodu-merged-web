@@ -40,7 +40,8 @@ import {
   getZoduId,
   getBranchId,
 } from "./usePuchaseapi";
-import AddVendorModal from "@pages/Vendor/AddVendorDialog";
+import { useVendorRowActions, vendorDisplayName } from "@pages/Vendor/useVendorRowActions";
+import { VendorRowActionIcons, VendorEditDeleteDialogs } from "@pages/Vendor/VendorRowControls";
 import axios from "axios";
 import SuccessToast from "@components/Common/SuccessToast";
 import { getTenantContext, getAccessToken } from "@store/tenantContext";
@@ -339,11 +340,6 @@ const catalogueToItem = (cat: CatalogueItem & { qty?: number }): PurchaseItem =>
 function FieldLabel({ children, sx }: { children: React.ReactNode; sx?: object }) {
   return <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#374151", mb: 0.5, ...sx }}>{children}</Typography>;
 }
-function vendorDisplayName(v?: Vendor) {
-  if (!v) return "";
-  return v.company_name ? `${v.vendor_name} (${v.company_name})` : v.vendor_name;
-}
-
 // ─── Item Picker Dialog ───────────────────────────────────────
 interface ItemPickerDialogProps {
   open: boolean; onClose: () => void; alreadyAdded: string[];
@@ -544,7 +540,6 @@ export default function AddNewPurchaseDialog({
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [pickerOpen, setPickerOpen]   = useState(false);
   const [saveError, setSaveError]     = useState("");
-  const [vendoropen , setVendorOpen]=useState(false);
   const [successMsg, setSuccessMsg]   = useState("");
   const purchaseDateInputRef = useRef<HTMLInputElement>(null);
   const paymentDateInputRef  = useRef<HTMLInputElement>(null);
@@ -611,6 +606,13 @@ export default function AddNewPurchaseDialog({
   const updateItemQty   = useCallback((id: string, v: number) => setForm(prev => ({ ...prev, items: prev.items.map(i => i.id === id ? { ...i, qty: Math.max(1, v) } : i) })), []);
   const updateItemPrice = useCallback((id: string, v: number) => setForm(prev => ({ ...prev, items: prev.items.map(i => i.id === id ? { ...i, unitPrice: Math.max(0, v) } : i) })), []);
   const updateItemTax   = useCallback((id: string, v: number) => setForm(prev => ({ ...prev, items: prev.items.map(i => i.id === id ? { ...i, taxPct: Math.max(0, v) } : i) })), []);
+
+  const vendorActions = useVendorRowActions({
+    selectedVendorId: form.supplier,
+    onSelectedVendorCleared: () => setField("supplier", ""),
+    onDeleted: () => setSuccessMsg("Vendor deleted successfully!"),
+    onError: setSaveError,
+  });
 
   const handleAddAtts   = useCallback((files: AttachmentFile[]) => setAttachments(prev => [...prev, ...files]), []);
   const handleRemoveAtt = useCallback((id: string) => setAttachments(prev => { const f = prev.find(a => a.id === id); if (f?.previewUrl && !f.url) URL.revokeObjectURL(f.previewUrl); return prev.filter(a => a.id !== id); }), []);
@@ -763,7 +765,7 @@ export default function AddNewPurchaseDialog({
               <Box>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, minHeight: 30, mb: 0.5 }}>
                 <FieldLabel sx={{ mb: 0, lineHeight: 1.2 }}>Supplier / Vendor *</FieldLabel>
-                  <Button size="small" startIcon={<AddIcon sx={{ fontSize: 13 }} />} onClick={() => setVendorOpen(true)} sx={{ height: 24, minWidth: 0, flexShrink: 0, px: 0.5, py: 0, fontSize: 11.5, fontWeight: 700, color: "#D21F3C", borderRadius: 1.5 }}>
+                  <Button size="small" startIcon={<AddIcon sx={{ fontSize: 13 }} />} onClick={vendorActions.openCreate} sx={{ height: 24, minWidth: 0, flexShrink: 0, px: 0.5, py: 0, fontSize: 11.5, fontWeight: 700, color: "#D21F3C", borderRadius: 1.5 }}>
                   Add Vendor
                 </Button>
                 </Box>
@@ -785,14 +787,7 @@ export default function AddNewPurchaseDialog({
                         <Typography sx={{ fontSize: 13, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {vendorDisplayName(v)}
                         </Typography>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.25, flexShrink: 0 }}>
-                          <IconButton size="small" onClick={e => e.stopPropagation()} sx={{ color: "#6B7280", p: 0.5 }}>
-                            <EditOutlinedIcon sx={{ fontSize: 15 }} />
-                          </IconButton>
-                          <IconButton size="small" onClick={e => e.stopPropagation()} sx={{ color: "#DC2626", p: 0.5 }}>
-                            <DeleteOutlineIcon sx={{ fontSize: 15 }} />
-                          </IconButton>
-                        </Box>
+                        <VendorRowActionIcons vendor={v} actions={vendorActions} />
                       </Box>
                     );
                   }}
@@ -1077,12 +1072,7 @@ export default function AddNewPurchaseDialog({
         </DialogActions>
        
       </Dialog>
-        <AddVendorModal
-          open={vendoropen}
-          onClose={() => setVendorOpen(false)}
-          vendorType="Purchase"
-          onSave={(data) => console.log("Saved vendor:", data)}
-        />
+        <VendorEditDeleteDialogs actions={vendorActions} vendorType="Purchase" />
 
         <SuccessToast message={successMsg} onClose={() => setSuccessMsg("")} />
         <SuccessToast message={saveError} severity="error" onClose={() => setSaveError("")} />

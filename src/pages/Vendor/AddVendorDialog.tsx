@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -27,7 +27,7 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import SaveIcon from "@mui/icons-material/Save";
 import SearchIcon from "@mui/icons-material/Search";
 import CircularProgress from "@mui/material/CircularProgress";
-import {  useCreateVendor } from "./useVendorApi";
+import { useCreateVendor, useUpdateVendor, type VendorRecord } from "./useVendorApi";
 import SuccessToast from "@components/Common/SuccessToast";
 import { getTenantContext } from "@store/tenantContext";
 
@@ -74,6 +74,8 @@ interface AddVendorModalProps {
   onClose: () => void;
   onSave?: (data: VendorFormState) => void;
   vendorType?: "Expense" | "Purchase";
+  /** When provided, the dialog opens in edit mode and prefills from this vendor. */
+  vendor?: VendorRecord | null;
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
@@ -136,13 +138,37 @@ const emptyForm = (): VendorFormState => ({
   pinCode: "",
 });
 
-const AddVendorModal: React.FC<AddVendorModalProps> = ({ open, onClose, onSave, vendorType = "Purchase" }) => {
+const AddVendorModal: React.FC<AddVendorModalProps> = ({ open, onClose, onSave, vendorType = "Purchase", vendor = null }) => {
+  const isEditMode = !!vendor?.vendor_id;
   const [form, setForm] = useState<VendorFormState>(emptyForm);
   const [stateSearch, setStateSearch] = useState("");
   const [saveError, setSaveError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const createVendor = useCreateVendor();
+  const updateVendor = useUpdateVendor();
   const {zoduId, branchId} = getTenantContext();
+
+  useEffect(() => {
+    if (!open) return;
+    if (vendor) {
+      setForm({
+        vendorName: vendor.company_name ?? "",
+        contactPerson: vendor.vendor_name ?? "",
+        mobileNumber: vendor.vendor_phone ?? "",
+        email: vendor.vendor_email ?? "",
+        gstin: vendor.gst ?? "",
+        addressLine1: vendor.vendor_address_1 ?? "",
+        addressLine2: vendor.vendor_address_2 ?? "",
+        city: vendor.city ?? "",
+        state: vendor.state ?? "",
+        pinCode: vendor.pincode ?? "",
+      });
+    } else {
+      setForm(emptyForm());
+    }
+    setStateSearch("");
+    setSaveError("");
+  }, [open, vendor]);
 
   const handleChange =
     (field: keyof VendorFormState) =>
@@ -165,27 +191,50 @@ const AddVendorModal: React.FC<AddVendorModalProps> = ({ open, onClose, onSave, 
     onClose();
   };
 
+  const isSaving = createVendor.isPending || updateVendor.isPending;
+
   const handleSave = async () => {
     try {
       setSaveError("");
-      const payload = {
-        zodu_id: zoduId,
-        branch_id: branchId,
-        vendor_name: form.contactPerson,
-        company_name: form.vendorName || null,
-        gst: form.gstin || null,
-        vendor_phone: form.mobileNumber || null,
-        vendor_email: form.email || null,
-        vendor_address_1: form.addressLine1 || null,
-        vendor_address_2: form.addressLine2 || null,
-        city: form.city || null,
-        state: form.state || null,
-        pincode: form.pinCode || null,
-        type: vendorType,
-      };
 
-      const result = await createVendor.mutateAsync(payload);
-      setSuccessMsg("Vendor added successfully!");
+      let result;
+      if (isEditMode && vendor) {
+        result = await updateVendor.mutateAsync({
+          id: vendor.id ?? vendor.vendor_id,
+          data: {
+            vendor_name: form.contactPerson,
+            company_name: form.vendorName || null,
+            gst: form.gstin || null,
+            vendor_phone: form.mobileNumber || null,
+            vendor_email: form.email || null,
+            vendor_address_1: form.addressLine1 || null,
+            vendor_address_2: form.addressLine2 || null,
+            city: form.city || null,
+            state: form.state || null,
+            pincode: form.pinCode || null,
+            vendor_type: vendorType,
+          },
+        });
+        setSuccessMsg("Vendor updated successfully!");
+      } else {
+        result = await createVendor.mutateAsync({
+          zodu_id: zoduId,
+          branch_id: branchId,
+          vendor_name: form.contactPerson,
+          company_name: form.vendorName || null,
+          gst: form.gstin || null,
+          vendor_phone: form.mobileNumber || null,
+          vendor_email: form.email || null,
+          vendor_address_1: form.addressLine1 || null,
+          vendor_address_2: form.addressLine2 || null,
+          city: form.city || null,
+          state: form.state || null,
+          pincode: form.pinCode || null,
+          vendor_type: vendorType,
+        });
+        setSuccessMsg("Vendor added successfully!");
+      }
+
       onSave?.(form);
       setForm(emptyForm());
       setStateSearch("");
@@ -249,10 +298,10 @@ const AddVendorModal: React.FC<AddVendorModalProps> = ({ open, onClose, onSave, 
             </Box>
             <Box>
               <Typography sx={{ fontSize: 17, fontWeight: 800, color: "#0F172A" }}>
-                Add New Vendor / Supplier
+                {isEditMode ? "Edit Vendor / Supplier" : "Add New Vendor / Supplier"}
               </Typography>
               <Typography sx={{ fontSize: 11, color: "#6B7280" }}>
-                Create a supplier profile for purchase entries
+                {isEditMode ? "Update this supplier's details" : "Create a supplier profile for purchase entries"}
               </Typography>
             </Box>
           </Box>
@@ -510,11 +559,7 @@ const AddVendorModal: React.FC<AddVendorModalProps> = ({ open, onClose, onSave, 
               gap: 1.5,
             }}
           >
-            {saveError && (
-              <Typography sx={{ flex: 1, fontSize: 12, color: "#DC2626", fontWeight: 600 }}>
-                {saveError}
-              </Typography>
-            )}
+            <Box sx={{ flex: 1 }} />
             <Button
               variant="text"
               onClick={handleCancel}
@@ -526,8 +571,8 @@ const AddVendorModal: React.FC<AddVendorModalProps> = ({ open, onClose, onSave, 
               type="button"
               onClick={handleSave}
               variant="contained"
-              startIcon={createVendor.isPending ? <CircularProgress size={15} sx={{ color: "#fff" }} /> : <SaveIcon />}
-              disabled={createVendor.isPending}
+              startIcon={isSaving ? <CircularProgress size={15} sx={{ color: "#fff" }} /> : <SaveIcon />}
+              disabled={isSaving}
               sx={{
                 bgcolor: "#D21F3C",
                 "&:hover": { bgcolor: "#B71C1C" },
@@ -537,13 +582,14 @@ const AddVendorModal: React.FC<AddVendorModalProps> = ({ open, onClose, onSave, 
                 "&.Mui-disabled": { bgcolor: "#E5E7EB", color: "#9CA3AF", boxShadow: "none" },
               }}
             >
-              {createVendor.isPending ? "Saving..." : "Save Vendor"}
+              {isSaving ? "Saving..." : isEditMode ? "Update Vendor" : "Save Vendor"}
             </Button>
           </DialogActions>
         </form>
       </Dialog>
 
       <SuccessToast message={successMsg} onClose={() => setSuccessMsg("")} />
+      <SuccessToast message={saveError} severity="error" onClose={() => setSaveError("")} />
     </ThemeProvider>
   );
 };
