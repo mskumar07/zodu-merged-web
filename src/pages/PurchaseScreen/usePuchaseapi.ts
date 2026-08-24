@@ -36,7 +36,27 @@ export interface Vendor {
   gst?: string;
   vendor_phone?: string;
   vendor_email?: string;
+  vendor_address_1?: string;
+  vendor_address_2?: string;
   city?: string;
+  state?: string;
+  pincode?: string;
+  vendor_type?: "Expense" | "Purchase";
+}
+
+/** Body sent to PUT /vendors/:id — all fields optional, only supplied ones are updated */
+export interface EditVendorPayload {
+  vendor_name?: string;
+  company_name?: string | null;
+  gst?: string | null;
+  vendor_phone?: string | null;
+  vendor_email?: string | null;
+  vendor_address_1?: string | null;
+  vendor_address_2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
+  vendor_type?: "Expense" | "Purchase";
 }
 
 /** One row inserted into tbl_purchase_items */
@@ -182,14 +202,17 @@ export const useVendors = (type?: "Expense" | "Purchase") => {
   });
 };
 
-export const useVendorById = (vendor_id: string) =>
+/** GET /api/vendors/:id — fetch a single vendor for prefill (edit dialog) */
+export const useVendorById = (vendor_id: string, enabled = true) =>
   useQuery({
     queryKey: ["vendor", vendor_id],
     queryFn: async () => {
-      const res = await getApi().get(`/vendor/${vendor_id}`);
-      return res.data as Vendor;
+      const res = await getApi().get(`/vendors/${vendor_id}`);
+      if (res.data?.success === false) throw new Error(res.data?.message ?? res.data?.error ?? "Vendor not found");
+      return res.data?.data as Vendor;
     },
-    enabled: !!vendor_id,
+    enabled: enabled && !!vendor_id,
+    staleTime: 30_000,
   });
 
 export const useCreateVendor = () => {
@@ -203,25 +226,35 @@ export const useCreateVendor = () => {
   });
 };
 
+/** PUT /api/vendors/:id */
 export const useUpdateVendor = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<Vendor> }) => {
+    mutationFn: async ({ id, data }: { id: string; data: EditVendorPayload }) => {
       const res = await getApi().put(`/vendor/${id}`, data);
-      return res.data;
+      if (res.data?.success === false) throw new Error(res.data?.message ?? res.data?.error ?? "Failed to update vendor");
+      return res.data?.data as Vendor;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["vendors"] }),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ["vendors"] });
+      queryClient.invalidateQueries({ queryKey: ["vendor", id] });
+    },
   });
 };
 
+/** DELETE /api/vendors/:id */
 export const useDeleteVendor = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
       const res = await getApi().delete(`/vendor/${id}`);
+      if (res.data?.success === false) throw new Error(res.data?.message ?? res.data?.error ?? "Failed to delete vendor");
       return res.data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["vendors"] }),
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: ["vendors"] });
+      queryClient.removeQueries({ queryKey: ["vendor", id] });
+    },
   });
 };
 

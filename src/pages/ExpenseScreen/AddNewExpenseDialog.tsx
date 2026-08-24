@@ -38,7 +38,8 @@ import {
   useVendors,
   type Vendor,
 } from "../PurchaseScreen/usePuchaseapi";
-import AddVendorModal from "@pages/Vendor/AddVendorDialog";
+import { useVendorRowActions } from "@pages/Vendor/useVendorRowActions";
+import { VendorRowActionIcons, VendorEditDeleteDialogs } from "@pages/Vendor/VendorRowControls";
 import axios from "axios";
 import SuccessToast from "@components/Common/SuccessToast";
 import { getTenantContext, getAccessToken } from "@store/tenantContext";
@@ -688,7 +689,6 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
   const [deletingItem, setDeletingItem] = useState<ExpenseItem | null>(null);
   const [reopenPickerAfter, setReopenPickerAfter] = useState(false);
   const [saveError, setSaveError]     = useState("");
-  const [vendorOpen, setVendorOpen]   = useState(false);
   const [isSaving, setIsSaving]       = useState(false);
   const [successMsg, setSuccessMsg]   = useState("");
   const expenseDateInputRef = useRef<HTMLInputElement>(null);
@@ -754,6 +754,13 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
 
   const setField = <K extends keyof ExpenseForm>(key: K, val: ExpenseForm[K]) =>
     setForm(prev => ({ ...prev, [key]: val }));
+
+  const vendorActions = useVendorRowActions({
+    selectedVendorId: form.supplier,
+    onSelectedVendorCleared: () => setField("supplier", ""),
+    onDeleted: () => setSuccessMsg("Vendor deleted successfully!"),
+    onError: setSaveError,
+  });
 
   const handlePickerConfirm = useCallback((items: Array<CatalogueItem & { qty: number }>) => {
     setForm(prev => ({ ...prev, items: [...prev.items, ...items.map(catalogueToItem)] }));
@@ -1039,7 +1046,7 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
               <Box>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, minHeight: 30, mb: 0.5 }}>
                   <FieldLabel sx={{ mb: 0, lineHeight: 1.2 }}>Supplier / Vendor (Optional)</FieldLabel>
-                  <Button size="small" startIcon={<AddIcon sx={{ fontSize: 13 }} />} onClick={() => setVendorOpen(true)} sx={{ height: 24, minWidth: 0, flexShrink: 0, px: 0.5, py: 0, fontSize: 11.5, fontWeight: 700, color: "#D21F3C", borderRadius: 1.5 }}>
+                  <Button size="small" startIcon={<AddIcon sx={{ fontSize: 13 }} />} onClick={vendorActions.openCreate} sx={{ height: 24, minWidth: 0, flexShrink: 0, px: 0.5, py: 0, fontSize: 11.5, fontWeight: 700, color: "#D21F3C", borderRadius: 1.5 }}>
                     Add Vendor
                   </Button>
                 </Box>
@@ -1061,14 +1068,7 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
                         <Typography sx={{ fontSize: 13, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {vendorDisplayName(v)}
                         </Typography>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.25, flexShrink: 0 }}>
-                          <IconButton size="small" onClick={e => e.stopPropagation()} sx={{ color: "#6B7280", p: 0.5 }}>
-                            <EditOutlinedIcon sx={{ fontSize: 15 }} />
-                          </IconButton>
-                          <IconButton size="small" onClick={e => e.stopPropagation()} sx={{ color: "#DC2626", p: 0.5 }}>
-                            <DeleteOutlineIcon sx={{ fontSize: 15 }} />
-                          </IconButton>
-                        </Box>
+                        <VendorRowActionIcons vendor={v} actions={vendorActions} />
                       </Box>
                     );
                   }}
@@ -1356,7 +1356,7 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
         </DialogActions>
       </Dialog>
 
-      <AddVendorModal open={vendorOpen} onClose={() => setVendorOpen(false)} onSave={(data) => console.log("Saved vendor:", data)} vendorType="Expense" />
+      <VendorEditDeleteDialogs actions={vendorActions} vendorType="Expense" />
 
       <SuccessToast message={successMsg} onClose={() => setSuccessMsg("")} />
       <SuccessToast message={saveError} severity="error" onClose={() => setSaveError("")} />
