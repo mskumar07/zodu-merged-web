@@ -1,22 +1,27 @@
-import React from "react";
+import React, { useState } from "react";
 import Box from "@mui/material/Box";
 import CssBaseline from "@mui/material/CssBaseline";
 import Toolbar from "@mui/material/Toolbar";
 import { useTheme } from "@mui/material/styles";
 import Sidebar from "./Sidebar/index.tsx"; // adjust import if path differs
 import TopBar from "./Topbar/index.tsx"; // adjust import if path differs
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import RouteAccessGuard from "../routes/RouteAccessGuard";
-
-const drawerWidth = 260;
 
 const Layout: React.FC = () => {
   const theme = useTheme();
+  const location = useLocation();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Closing on route change covers both nav-item clicks (Sidebar also closes
+  // itself immediately for a snappier feel) and any other way the URL changes
+  // while the drawer happens to be open.
+  React.useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
   return (
     <Box sx={{ display: "flex" }}>
       <CssBaseline />
-      <Sidebar />
+      <Sidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
       <Box
         sx={{
           flexGrow: 1,
@@ -27,7 +32,7 @@ const Layout: React.FC = () => {
           flexDirection: "column",
         }}
       >
-        <TopBar />
+        <TopBar onMenuClick={() => setMobileOpen(true)} />
         {/* This Toolbar acts as a vertical spacer, matching TopBar height */}
         <Toolbar />
         <Box

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
@@ -10,6 +10,7 @@ import {
 import SuccessToast from '@components/Common/SuccessToast';
 import CameraBarcodeScanner from '@components/Common/CameraBarcodeScanner';
 import { useHardwareScannerListener } from '@components/Common/useHardwareScannerListener';
+import { isMobileOrTabletDevice } from '@components/Common/deviceType';
 import { useFormik } from 'formik';
 import axios from 'axios';
 import AddCircleIcon        from '@mui/icons-material/AddCircle';
@@ -76,6 +77,9 @@ const Label: React.FC<{ text: string; required?: boolean }> = ({ text, required 
 const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, editItem }) => {
   const isEditMode = Boolean(editItem);
   const qc = useQueryClient();
+  // Camera scanning only makes sense on a phone/tablet's own camera — desktop/laptop
+  // relies on a hardware USB/Bluetooth scanner instead, so the camera icon is hidden there.
+  const isMobileOrTablet = useMemo(() => isMobileOrTabletDevice(), []);
 
   const [catDialogOpen,    setCatDialogOpen]    = useState(false);
   const [imagePreview,     setImagePreview]     = useState<string | null>(null);
@@ -566,7 +570,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                       inputProps={{ maxLength: ITEM_ID_MAX_LENGTH }}
                       InputProps={{
                         sx: inputSx,
-                        endAdornment: (
+                        endAdornment: (itemIdChecking || isMobileOrTablet) ? (
                           <InputAdornment position="end">
                             {itemIdChecking ? (
                               <CircularProgress size={14} />
@@ -578,7 +582,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                               </Tooltip>
                             )}
                           </InputAdornment>
-                        ),
+                        ) : undefined,
                       }}
                     />
                   </Box>

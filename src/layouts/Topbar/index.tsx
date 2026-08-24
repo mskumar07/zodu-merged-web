@@ -10,6 +10,7 @@ import Tooltip from "@mui/material/Tooltip";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import SwitchAccountIcon from "@mui/icons-material/SwitchAccount";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import MenuIcon from "@mui/icons-material/Menu";
 import styles from "./index.module.css";
 import { useTheme } from "@mui/material/styles";
 import { drawerWidth, collapsedDrawerWidth } from "../Sidebar/index";
@@ -27,7 +28,12 @@ import {
 import { authApis } from "@pages/auth/Authapi";
 import { useNavigate, useLocation } from "react-router-dom";
 
-const TopBar: React.FC = () => {
+interface TopBarProps {
+  /** Opens the mobile/tablet sidebar drawer — only rendered below `md`. */
+  onMenuClick?: () => void;
+}
+
+const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -39,7 +45,9 @@ const TopBar: React.FC = () => {
     location.pathname !== "/reports";
   // Sidebar reserves only the collapsed rail width on the billing route (it hover-
   // expands as an overlay without affecting layout there) — match that here so the
-  // top bar / company name don't sit under a phantom 240px gap.
+  // top bar / company name don't sit under a phantom 240px gap. Below `md` the
+  // sidebar is an off-canvas overlay (opened via the hamburger button) and never
+  // reserves layout space, so the top bar always spans the full width there.
   const isBillingRoute = location.pathname.startsWith("/pos");
   const reservedSidebarWidth = isBillingRoute ? collapsedDrawerWidth : drawerWidth;
   const zoduId = useAppSelector(ZoduId);
@@ -79,8 +87,8 @@ const TopBar: React.FC = () => {
       className={styles.appBar}
       sx={{
         backgroundColor: "#fff",
-        width: { sm: `calc(100% - ${reservedSidebarWidth}px)` },
-        ml: { sm: reservedSidebarWidth },
+        width: { xs: "100%", md: `calc(100% - ${reservedSidebarWidth}px)` },
+        ml: { xs: 0, md: reservedSidebarWidth },
         transition: theme.transitions.create(["width", "margin"], {
           easing: theme.transitions.easing.sharp,
           duration: theme.transitions.duration.enteringScreen,
@@ -91,6 +99,17 @@ const TopBar: React.FC = () => {
     >
       <Toolbar className={styles.toolbar}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <IconButton
+            onClick={onMenuClick}
+            aria-label="Open navigation menu"
+            sx={{
+              display: { xs: "inline-flex", md: "none" },
+              color: "#1A0004",
+              mr: 0.5,
+            }}
+          >
+            <MenuIcon />
+          </IconButton>
           {isReportSubPage && (
             <Tooltip title="Back to Reports">
               <IconButton

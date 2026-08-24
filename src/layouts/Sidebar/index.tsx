@@ -25,6 +25,7 @@ import {
   Toolbar,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import React, { useState, useEffect } from "react";
 import { History, Person, Settings, Badge } from "@mui/icons-material";
 import { useAppDispatch, useAppSelector } from "@store/store";
@@ -73,7 +74,14 @@ const restaurantNavItems = [
   { label: "Settings", icon: <Settings />, path: "/settings", module: "Settings" },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  /** Controlled open state for the temporary (mobile/tablet) drawer. */
+  mobileOpen?: boolean;
+  /** Called to close the temporary drawer — backdrop click, Escape, or a nav item click. */
+  onMobileClose?: () => void;
+}
+
+export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
@@ -81,6 +89,10 @@ export default function Sidebar() {
   const { navigate } = useNavigation();
   const businessType = useAppSelector(BusinessType);
   const roleAccess = useAppSelector(RoleAccess);
+  // Below `md` the sidebar can't rely on hover (touch devices) or afford to
+  // permanently reserve drawer width, so it becomes a hamburger-triggered
+  // overlay instead of the desktop's always-visible rail.
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   const allNavItems = businessType === "Restaurant" ? restaurantNavItems : retailNavItems;
 
@@ -109,7 +121,9 @@ export default function Sidebar() {
   // so the rail always starts collapsed on the billing route until the user actually
   // moves the mouse over it.
   useEffect(() => { setIsHovered(false); }, [location.pathname]);
-  const expanded = !isBillingRoute || isHovered;
+  // On mobile/tablet the drawer is a full-width temporary overlay — the
+  // desktop-only collapsed-rail/hover behavior doesn't apply there.
+  const expanded = isMobile ? true : !isBillingRoute || isHovered;
   const currentWidth = expanded ? drawerWidth : collapsedDrawerWidth;
   // On the billing route the reserved layout width always stays at the collapsed
   // rail size — hovering overlays the expanded panel on TOP of the page content
@@ -134,7 +148,7 @@ export default function Sidebar() {
   return (
     <Drawer
       sx={{
-        width: reservedWidth,
+        width: isMobile ? undefined : reservedWidth,
         flexShrink: 0,
         whiteSpace: "nowrap",
         transition: widthTransition,
@@ -146,18 +160,21 @@ export default function Sidebar() {
           // borderRight: 1,
           borderColor: theme.palette.divider,
           bgcolor: theme.palette.background.default,
-          ...(isBillingRoute && {
+          ...(isBillingRoute && !isMobile && {
             position: "fixed",
             zIndex: theme.zIndex.drawer + 1,
             boxShadow: isHovered ? "4px 0 20px rgba(15,23,42,0.12)" : "none",
           }),
         },
       }}
-      variant="permanent"
+      variant={isMobile ? "temporary" : "permanent"}
+      open={isMobile ? mobileOpen : true}
+      onClose={onMobileClose}
+      ModalProps={isMobile ? { keepMounted: true } : undefined}
       anchor="left"
       aria-label="Sidebar navigation"
-      onMouseEnter={() => { if (isBillingRoute) setIsHovered(true); }}
-      onMouseLeave={() => { if (isBillingRoute) setIsHovered(false); }}
+      onMouseEnter={() => { if (isBillingRoute && !isMobile) setIsHovered(true); }}
+      onMouseLeave={() => { if (isBillingRoute && !isMobile) setIsHovered(false); }}
     >
       <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
    <Toolbar
@@ -212,6 +229,7 @@ export default function Sidebar() {
             sx={{ mb: 0.35 }}
             onClick={() => {
               navigate(item.path);
+              if (isMobile) onMobileClose?.();
             }}
           >
             <ListItemButton

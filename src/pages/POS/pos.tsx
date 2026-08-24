@@ -61,9 +61,9 @@ import CustomerLedgerDialog   from "../Customer/CustomerLedgerDialog";
 import AddNewCustomerDialog   from "@pages/Customer/Addnewcustomerdialog";
 import AddItemModal           from "../MenuItemScreen/AddItemModal";
 import SuccessToast           from "@components/Common/SuccessToast";
-import HardwareScannerInput   from "@components/Common/HardwareScannerInput";
 import CameraBarcodeScanner   from "@components/Common/CameraBarcodeScanner";
 import { useHardwareScannerListener } from "@components/Common/useHardwareScannerListener";
+import { isMobileOrTabletDevice } from "@components/Common/deviceType";
 import CameraAltOutlinedIcon  from "@mui/icons-material/CameraAltOutlined";
 import {
   fetchSaleDetail,
@@ -238,6 +238,9 @@ function RetailPOSInner() {
   const zoduId   = useAppSelector(ZoduId);
   const branchId = useAppSelector(BranchId);
   const invoiceSettings = useAppSelector(InvoiceSettingsData);
+  // Camera scanning only makes sense on a phone/tablet's own camera — desktop/laptop
+  // relies on a hardware USB/Bluetooth scanner instead, so the camera button is hidden there.
+  const isMobileOrTablet = useMemo(() => isMobileOrTabletDevice(), []);
 
   const [codeInput, setCodeInput] = useState("");
   const { results: suggestions, isLoading: catalogueLoading, total: catalogueTotal } = usePosSearch(branchId, codeInput, zoduId);
@@ -275,6 +278,7 @@ function RetailPOSInner() {
   const [toastSeverity,           setToastSeverity]           = useState<'success' | 'error'>('success');
   const [downloadLoading,         setDownloadLoading]         = useState(false);
   const [shareLoading,            setShareLoading]            = useState(false);
+  const [printLoading,            setPrintLoading]            = useState(false);
   const [savedOrderSnapshot,      setSavedOrderSnapshot]      = useState<SavedOrderSnapshot | null>(null);
   const [flashRow,       setFlashRow]       = useState<string | null>(null);
   const [saleId,         setSaleId]         = useState<string | null>(null);
@@ -471,10 +475,12 @@ useEffect(() => {
 
   // Shared by manual suggestion clicks, Enter-to-add, and barcode/QR scans —
   // bumps qty if the product's already on the order, otherwise prepends a new line.
+  // This is the single source of truth for qty — callers must not re-set it afterwards,
+  // or a repeat scan/Enter of the same item stops incrementing.
   const addProductLine = useCallback((p: PosProduct) => {
     setItems(prev => {
       const idx = prev.findIndex(i => i.code === p.item_id);
-      if (idx >= 0) { const e = prev[idx]; return [{ ...e, qty: e.qty + 1 }, ...prev.filter((_, i) => i !== idx)]; }
+      if (idx >= 0) { const e = prev[idx]; return [{ ...e, qty: e.qty + 1, uuid: p.item_uuid }, ...prev.filter((_, i) => i !== idx)]; }
       return [toLineItem(p), ...prev];
     });
     setFlashRow(p.item_id); setTimeout(() => setFlashRow(null), 700);
@@ -561,16 +567,20 @@ useEffect(() => {
   const handleAddItem = useCallback((overrideCode?: string) => {
     const code = (overrideCode ?? codeInput).trim();
     const id   = doAddItem(code);
+    if (!id && code) {
+      // Not found via the live search suggestions (e.g. a scanned barcode that
+      // differs from item_id) — fall back to an exact item_id/barcode match
+      // against the full catalogue, same lookup a physical scan uses.
+      handleScanCode(code);
+    }
     setCodeInput(""); setShowSuggestions(false);
-    if (id) setItems(prev => prev.map(i => i.code === id ? { ...i, qty: 1 } : i));
     setZone("SEARCH"); setSearchFocus("CODE");
     setTimeout(() => codeRef.current?.focus(), 10);
-  }, [codeInput, doAddItem]);
+  }, [codeInput, doAddItem, handleScanCode]);
 
   const selectSuggestion = useCallback((p: PosProduct) => {
-    const id = doAddItem(p.item_id);
+    doAddItem(p.item_id);
     setCodeInput(""); setShowSuggestions(false);
-    if (id) setItems(prev => prev.map(i => i.code === id ? { ...i, qty: 1, uuid: p.item_uuid } : i));
     setZone("SEARCH"); setSearchFocus("CODE");
     setTimeout(() => codeRef.current?.focus(), 10);
   }, [doAddItem]);
@@ -1135,6 +1145,33 @@ console.log("test",serverHolds)
     }
   }, [generateInvoicePdf, saveResult?.saleId, savedPdfData]);
 
+  // "Invoice Type" in Invoice Settings decides how the Print button behaves:
+  // A4 opens the generated PDF and triggers the browser's print dialog on it;
+  // any thermal width (3"/5", "4" handled defensively) prints the thermal receipt.
+  const handlePrintInvoice = useCallback(async () => {
+    if (invoiceSettings?.printer_inch !== "A4") {
+      handleThermalPrint();
+      return;
+    }
+    if (!savedPdfData) return;
+    setPrintLoading(true);
+    try {
+      const pdf = await generateInvoicePdf();
+      if (!pdf) return;
+      pdf.autoPrint();
+      const blob = pdf.output("blob");
+      const url = URL.createObjectURL(blob);
+      // Opening the blob URL (rather than calling window.print() directly) is the
+      // reliable cross-browser way to get jsPDF's autoPrint to trigger the native
+      // print dialog once the PDF has actually loaded in the new tab.
+      const printWindow = window.open(url, "_blank");
+      if (!printWindow) window.location.href = url;
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } finally {
+      setPrintLoading(false);
+    }
+  }, [invoiceSettings?.printer_inch, savedPdfData, generateInvoicePdf, handleThermalPrint]);
+
   // ─────────────────────────────────────────────────────────────
   return (
     <ThemeProvider theme={theme}>
@@ -1196,7 +1233,7 @@ console.log("test",serverHolds)
                     onChange={e => setCodeInput(e.target.value)}
                     onFocus={() => { setZone("SEARCH"); setSearchFocus("CODE"); if (!catalogueLoading && codeInput.trim()) setShowSuggestions(true); }}
                     onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
-                    placeholder="Search by item ID, name or category…" size="small" fullWidth autoComplete="off"
+                    placeholder="Search by item ID, name, category — or scan a barcode/QR…" size="small" fullWidth autoComplete="off"
                     InputProps={{
                       startAdornment: <InputAdornment position="start"><QrCodeScannerIcon sx={{ color: modeAccent, fontSize: 18 }} /></InputAdornment>,
                       endAdornment: codeInput
@@ -1251,24 +1288,15 @@ console.log("test",serverHolds)
                     CLEAR <Box component="span" sx={{ fontSize: 10, opacity: 0.8, ml: 0.4 }}>[F4]</Box>
                   </Button>
                 )}
+                {isMobileOrTablet && (
+                  <Tooltip title="Scan with camera">
+                    <IconButton size="small" onClick={() => setCameraScanOpen(true)}
+                      sx={{ border: "1px solid #E5E7EB", borderRadius: 1.5, color: modeAccent, height: 38, width: 38 }}>
+                      <CameraAltOutlinedIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
               </Box>
-            </Paper>
-
-            {/* Scan bar — barcode/QR scan adds the matching product directly, bypassing search */}
-            <Paper elevation={0} sx={{ borderRadius: 2, p: 1.25, bgcolor: "#fff", border: "1px solid #E5E7EB", flexShrink: 0, display: "flex", alignItems: "center", gap: 1 }}>
-              <Box sx={{ flex: 1 }}>
-                <HardwareScannerInput
-                  onScan={handleScanCode}
-                  placeholder="Scan barcode / QR with a scanner gun, or click camera →"
-                  sx={{ width: "100%", "& .MuiOutlinedInput-root": { borderRadius: 1.5, bgcolor: "#FAFAFA", fontSize: 13 } }}
-                />
-              </Box>
-              <Tooltip title="Scan with camera">
-                <IconButton size="small" onClick={() => setCameraScanOpen(true)}
-                  sx={{ border: "1px solid #E5E7EB", borderRadius: 1.5, color: modeAccent, height: 38, width: 38 }}>
-                  <CameraAltOutlinedIcon sx={{ fontSize: 18 }} />
-                </IconButton>
-              </Tooltip>
             </Paper>
 
           {/* ORDER TABLE */}
@@ -1948,9 +1976,13 @@ console.log("test",serverHolds)
                   </span>
                 </Tooltip>
                 {printEnabled && (
-                  <Tooltip title="Print invoice">
-                    <Button variant="outlined" onClick={handleThermalPrint} startIcon={<PrintOutlinedIcon sx={{ fontSize: 18 }} />}
-                      sx={{ borderRadius: 2, fontWeight: 600, flex: "1 1 0", whiteSpace: "nowrap", borderColor: "#E5E7EB", color: "#374151", textTransform: "none" }}>Print</Button>
+                  <Tooltip title={invoiceSettings?.printer_inch === "A4" && !savedPdfData ? "Preparing invoice..." : "Print invoice"}>
+                    <span style={{ flex: "1 1 0" }}>
+                      <Button fullWidth variant="outlined" onClick={handlePrintInvoice}
+                        disabled={printLoading || (invoiceSettings?.printer_inch === "A4" && !savedPdfData)}
+                        startIcon={printLoading ? <CircularProgress size={16} /> : <PrintOutlinedIcon sx={{ fontSize: 18 }} />}
+                        sx={{ borderRadius: 2, fontWeight: 600, whiteSpace: "nowrap", borderColor: "#E5E7EB", color: "#374151", textTransform: "none" }}>Print</Button>
+                    </span>
                   </Tooltip>
                 )}
                 <Button variant="contained" onClick={handleCloseSaveResult} startIcon={<AddIcon />}

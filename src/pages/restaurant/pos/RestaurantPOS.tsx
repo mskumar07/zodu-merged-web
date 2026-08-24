@@ -16,6 +16,7 @@ import SuccessToast from "@components/Common/SuccessToast";
 import HardwareScannerInput from "@components/Common/HardwareScannerInput";
 import CameraBarcodeScanner from "@components/Common/CameraBarcodeScanner";
 import { useHardwareScannerListener } from "@components/Common/useHardwareScannerListener";
+import { isMobileOrTabletDevice } from "@components/Common/deviceType";
 import CameraAltOutlinedIcon from "@mui/icons-material/CameraAltOutlined";
 import zoduLogo from "@assets/zlogo.png";
 
@@ -100,6 +101,9 @@ const RestaurantPOS: React.FC = () => {
   const dispatch  = useAppDispatch();
   const branchId  = useAppSelector(BranchId) ?? "";
   const zoduId    = useAppSelector(ZoduId)   ?? "";
+  // Camera scanning only makes sense on a phone/tablet's own camera — desktop/laptop
+  // relies on a hardware USB/Bluetooth scanner instead, so the camera button is hidden there.
+  const isMobileOrTablet = useMemo(() => isMobileOrTabletDevice(), []);
   const branchName = useAppSelector(BranchName);
   const companies  = useAppSelector(AllCompanies);
   const profile    = useAppSelector(UserProfile);
@@ -992,14 +996,16 @@ const RestaurantPOS: React.FC = () => {
             },
           }}
         />
-        <IconButton
-          size="small"
-          onClick={() => setShowCameraScan(true)}
-          title="Scan with camera"
-          sx={{ border: "1px solid #e5e7eb", borderRadius: "8px", width: 34, height: 34, color: "#d32f2f" }}
-        >
-          <CameraAltOutlinedIcon sx={{ fontSize: 17 }} />
-        </IconButton>
+        {isMobileOrTablet && (
+          <IconButton
+            size="small"
+            onClick={() => setShowCameraScan(true)}
+            title="Scan with camera"
+            sx={{ border: "1px solid #e5e7eb", borderRadius: "8px", width: 34, height: 34, color: "#d32f2f" }}
+          >
+            <CameraAltOutlinedIcon sx={{ fontSize: 17 }} />
+          </IconButton>
+        )}
 
         {/* Favourites toggle */}
         <Box
