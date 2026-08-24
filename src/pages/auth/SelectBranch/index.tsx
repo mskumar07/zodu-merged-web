@@ -65,10 +65,11 @@ function BranchRow({
     <Box
       sx={{
         display: "flex",
-        alignItems: "center",
+        flexDirection: { xs: "column", sm: "row" },
+        alignItems: { xs: "stretch", sm: "center" },
         justifyContent: "space-between",
-        gap: 2,
-        px: { xs: 1.5, md: 1.75 },
+        gap: { xs: 1.1, sm: 2 },
+        px: { xs: 1.25, sm: 1.5, md: 1.75 },
         py: 1.5,
         borderRadius: "5px",
         bgcolor: "#fff",
@@ -113,7 +114,7 @@ function BranchRow({
                 lineHeight: 1.35,
                 whiteSpace: "normal",
                 wordBreak: "break-word",
-                maxWidth: { xs: 160, sm: 200, md: 210 },
+                maxWidth: { xs: "100%", sm: 200, md: 210 },
               }}
             >
               {getBranchAddress(branch)}
@@ -127,7 +128,8 @@ function BranchRow({
         onClick={onSelect}
         endIcon={<ChevronRightIcon sx={{ fontSize: 16 }} />}
         sx={{
-          minWidth: 104,
+          minWidth: { xs: "100%", sm: 104 },
+          width: { xs: "100%", sm: "auto" },
           px: 1.5,
           py: 0.9,
           borderRadius: "8px",
@@ -167,15 +169,23 @@ function CompanyCard({
         bgcolor: CARD_BG,
         backdropFilter: "blur(14px)",
         boxShadow: "0 18px 40px rgba(17, 24, 39, 0.06)",
-        p: { xs: 1.75, md: 1.9 },
+        p: { xs: 1.5, sm: 1.75, md: 1.9 },
       }}
     >
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", sm: "row" },
+          justifyContent: "space-between",
+          alignItems: { xs: "flex-start", sm: "flex-start" },
+          gap: { xs: 1.25, sm: 2 },
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0, width: { xs: "100%", sm: "auto" } }}>
           <Box
             sx={{
-              width: 44,
-              height: 44,
+              width: { xs: 38, sm: 44 },
+              height: { xs: 38, sm: 44 },
               borderRadius: "10px",
               bgcolor: "rgba(200,16,31,0.09)",
               color: BRAND_RED,
@@ -185,16 +195,17 @@ function CompanyCard({
               flexShrink: 0,
             }}
           >
-            <StorefrontOutlinedIcon sx={{ fontSize: 24 }} />
+            <StorefrontOutlinedIcon sx={{ fontSize: { xs: 20, sm: 24 } }} />
           </Box>
           <Box sx={{ minWidth: 0 }}>
             <Typography
               sx={{
-                fontSize: 18,
+                fontSize: { xs: 15.5, sm: 18 },
                 fontWeight: 700,
                 color: TEXT_PRIMARY,
                 letterSpacing: "-0.03em",
-                lineHeight: 1.05,
+                lineHeight: 1.2,
+                wordBreak: "break-word",
               }}
             >
               {company.restaurant_name || company.business_name || company.company_name || "Company Name"} - {company.business_type}
@@ -206,7 +217,8 @@ function CompanyCard({
                   fontSize: 11.5,
                   color: TEXT_MUTED,
                   lineHeight: 1.45,
-                  maxWidth: 280,
+                  maxWidth: { xs: "100%", sm: 280 },
+                  wordBreak: "break-word",
                 }}
               >
                 {`GSTIN ${company.gst_no}`}
@@ -215,7 +227,18 @@ function CompanyCard({
           </Box>
         </Box>
 
-        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 0.6, flexShrink: 0 }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "row",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: { xs: "flex-start", sm: "flex-end" },
+            alignSelf: { xs: "stretch", sm: "flex-start" },
+            gap: 0.6,
+            flexShrink: 0,
+          }}
+        >
           <Box
             sx={{
               px: 1.1,
@@ -374,6 +397,7 @@ const SelectBranch: React.FC = () => {
         position: "relative",
         height: "100%",
         overflowY: "auto",
+        overflowX: "hidden",
         bgcolor: "#fff",
 
         display: "flex",
@@ -382,7 +406,8 @@ const SelectBranch: React.FC = () => {
 
         alignItems: "center",
         px: { xs: 2, sm: 3, md: 4 },
-        py: { xs: 3, md: 5 },
+        pt: { xs: 8, sm: 8, md: 5 },
+        pb: { xs: 3, md: 5 },
       }}
     >
       <Box
@@ -393,7 +418,7 @@ const SelectBranch: React.FC = () => {
           position: "absolute",
           top: { xs: 16, md: 24 },
           left: { xs: 16, md: 32 },
-          height: 32,
+          height: { xs: 26, md: 32 },
           width: "auto",
           objectFit: "contain",
         }}
@@ -408,6 +433,7 @@ const SelectBranch: React.FC = () => {
             display: "flex",
             alignItems: "center",
             gap: 1,
+            maxWidth: { xs: 140, sm: "none" },
           }}
         >
           <Avatar
@@ -417,17 +443,27 @@ const SelectBranch: React.FC = () => {
               bgcolor: BRAND_RED,
               fontSize: 13,
               fontWeight: 700,
+              flexShrink: 0,
             }}
           >
             {loggedInName.trim().charAt(0).toUpperCase()}
           </Avatar>
-          <Typography sx={{ fontSize: 13, fontWeight: 700, color: TEXT_PRIMARY }}>
+          <Typography
+            sx={{
+              fontSize: 13,
+              fontWeight: 700,
+              color: TEXT_PRIMARY,
+              display: { xs: "none", sm: "block" },
+            }}
+          >
             {loggedInName}
           </Typography>
         </Box>
       )}
 
-              <Typography sx={{fontSize:20,fontWeight:600,mb:2}}>Select Your Business</Typography>
+      <Typography sx={{ fontSize: { xs: 17, sm: 18, md: 20 }, fontWeight: 600, mb: 2, textAlign: "center" }}>
+        Select Your Business
+      </Typography>
 
       <Box
         sx={{
@@ -436,10 +472,10 @@ const SelectBranch: React.FC = () => {
           display: "grid",
           gridTemplateColumns: {
             xs: "1fr",
-            md: companies.length === 1 ? "minmax(320px, 560px)" : "repeat(2, minmax(0, 1fr))",
+            lg: companies.length === 1 ? "minmax(320px, 560px)" : "repeat(2, minmax(0, 1fr))",
           },
           justifyContent: "center",
-          gap: { xs: 2, md: 2.25 },
+          gap: { xs: 1.75, sm: 2, md: 2.25 },
         }}
       >
         {companies.map((company) => (

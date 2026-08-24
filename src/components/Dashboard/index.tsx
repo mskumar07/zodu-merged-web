@@ -54,6 +54,15 @@ const card = {
   boxShadow:   "0 1px 4px rgba(0,0,0,0.05)",
 };
 
+// ── Responsive section sizing — desktop splits available height via
+// flex:1, but on tablet/mobile (stacked columns) each card instead gets
+// a fixed viewport-independent height with its own internal scroll.
+const sectionSx = {
+  flex:      { xs: "0 0 auto", md: 1 },
+  minHeight: 0,
+  height:    { xs: 320, sm: 360, md: "auto" },
+};
+
 // ── Table primitives ──────────────────────────────────────────
 const ROW_H  = 38;
 const CELL_P = "0px 12px";
@@ -639,29 +648,38 @@ const salesCols: ColDef<SaleRow>[] = [
       <CssBaseline />
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap'); *, *::before, *::after { font-family: 'Inter', sans-serif !important; box-sizing: border-box; }`}</style>
 
-      <Box sx={{ bgcolor: "#ffffff", height: "100%", minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <Box sx={{
+        bgcolor: "#ffffff", height: "100%", minHeight: 0, display: "flex", flexDirection: "column",
+        overflow: { xs: "auto", md: "hidden" },
+      }}>
         <Box component="main" sx={{
-          flex: 1, minHeight: 0, px: { xs: 1.5, md: 2 }, py: { xs: 1.5, md: 2 },
-          width: "100%", overflow: "hidden", display: "flex", flexDirection: "column", gap: 2,
+          flex: "1 1 auto", minHeight: { xs: "auto", md: 0 }, px: { xs: 1.25, sm: 1.5, md: 2 }, py: { xs: 1.25, sm: 1.5, md: 2 },
+          width: "100%", overflow: { xs: "visible", md: "hidden" }, display: "flex", flexDirection: "column", gap: { xs: 1.5, md: 2 },
         }}>
 
           {/* ── Summary Cards ── */}
-          <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", alignItems: "stretch" }}>
+          <Box sx={{ display: "flex", gap: { xs: 1, sm: 1.5 }, flexWrap: "wrap", alignItems: "stretch" }}>
             {summaryCards.map(c => (
               <SummaryCard key={c.label} loading={statsQuery.isLoading} {...c} />
             ))}
           </Box>
 
-          {/* ── Two-column layout ── */}
-          <Box sx={{ flex: 1, minHeight: 0, display: "flex", gap: 2, alignItems: "stretch" }}>
+          {/* ── Two-column layout — stacks on tablet/mobile ── */}
+          <Box sx={{
+            flex: "1 1 auto", minHeight: { xs: "auto", md: 0 }, display: "flex",
+            flexDirection: { xs: "column", md: "row" }, gap: { xs: 1.5, md: 2 }, alignItems: "stretch",
+          }}>
 
-            {/* LEFT — 60% */}
-            <Box sx={{ flex: "0 0 60%", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+            {/* LEFT — 60% on desktop, full width when stacked */}
+            <Box sx={{
+              flex: { xs: "1 1 auto", md: "0 0 60%" }, minWidth: 0, minHeight: { xs: "auto", md: 0 },
+              display: "flex", flexDirection: "column", gap: { xs: 1.5, md: 2 },
+            }}>
 
               {isRestaurant ? (
                 <SectionCard
                   title={<Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}><HistoryIcon sx={{ fontSize: 16, color: RED }} />Recent Orders</Box>}
-                  sx={{ flex: 1, minHeight: 0 }}
+                  sx={sectionSx}
                 >
                   {ordersQuery.isLoading
                     ? <SkeletonTable cols={5} />
@@ -678,7 +696,7 @@ const salesCols: ColDef<SaleRow>[] = [
               ) : (
                 <SectionCard
                   title={<Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}><HistoryIcon sx={{ fontSize: 16, color: RED }} />Recent Sales Activity</Box>}
-                  sx={{ flex: 1, minHeight: 0 }}
+                  sx={sectionSx}
                 >
                   {salesQuery.isLoading
                     ? <SkeletonTable cols={5} />
@@ -696,7 +714,7 @@ const salesCols: ColDef<SaleRow>[] = [
 
               <SectionCard
                 title={<Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}><PaymentsIcon sx={{ fontSize: 16, color: RED }} />Payment Reminders</Box>}
-                sx={{ flex: 1, minHeight: 0 }}
+                sx={sectionSx}
               >
                 {remindQuery.isLoading
                   ? <SkeletonTable cols={5} />
@@ -713,13 +731,16 @@ const salesCols: ColDef<SaleRow>[] = [
 
             </Box>
 
-            {/* RIGHT — 40% */}
-            <Box sx={{ flex: "0 0 39%", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+            {/* RIGHT — 40% on desktop, full width when stacked */}
+            <Box sx={{
+              flex: { xs: "1 1 auto", md: "0 0 39%" }, minWidth: 0, minHeight: { xs: "auto", md: 0 },
+              display: "flex", flexDirection: "column", gap: { xs: 1.5, md: 2 },
+            }}>
 
               {isRestaurant ? (
                 <SectionCard
                   title={<Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}><TrendingUpIcon sx={{ fontSize: 16, color: RED }} />Top Selling Items</Box>}
-                  sx={{ flex: 1, minHeight: 0 }}
+                  sx={sectionSx}
                 >
                   {restTopQuery.isLoading
                     ? <SkeletonTable cols={3} />
@@ -736,7 +757,7 @@ const salesCols: ColDef<SaleRow>[] = [
               ) : (
                 <SectionCard
                   title={<Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}><TrendingUpIcon sx={{ fontSize: 16, color: RED }} />Top Selling Items</Box>}
-                  sx={{ flex: 1, minHeight: 0 }}
+                  sx={sectionSx}
                 >
                   {topQuery.isLoading
                     ? <SkeletonTable cols={3} />
@@ -759,7 +780,7 @@ const salesCols: ColDef<SaleRow>[] = [
                     {alertQuery.isLoading ? <Skeleton width={40} /> : `${alerts.length} LOW`}
                   </Box>
                 }
-                sx={{ flex: 1, minHeight: 0 }}
+                sx={sectionSx}
               >
                 {alertQuery.isLoading
                   ? <SkeletonTable cols={4} />

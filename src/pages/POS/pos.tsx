@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useForceRefreshProducts, usePosSearch } from "./useposproducts";
+import { useForceRefreshProducts, usePosSearch, usePosProducts } from "./useposproducts";
 import type { PosProduct } from "./db";
 import { useSaveOrder, type SaveOrderResult } from "./usesaveOrder";
 import {
@@ -60,6 +60,11 @@ import { useLocation }        from "react-router-dom";
 import CustomerLedgerDialog   from "../Customer/CustomerLedgerDialog";
 import AddNewCustomerDialog   from "@pages/Customer/Addnewcustomerdialog";
 import AddItemModal           from "../MenuItemScreen/AddItemModal";
+import SuccessToast           from "@components/Common/SuccessToast";
+import HardwareScannerInput   from "@components/Common/HardwareScannerInput";
+import CameraBarcodeScanner   from "@components/Common/CameraBarcodeScanner";
+import { useHardwareScannerListener } from "@components/Common/useHardwareScannerListener";
+import CameraAltOutlinedIcon  from "@mui/icons-material/CameraAltOutlined";
 import {
   fetchSaleDetail,
 } from "../SalesHistory/useSaleshistory";
@@ -236,6 +241,9 @@ function RetailPOSInner() {
 
   const [codeInput, setCodeInput] = useState("");
   const { results: suggestions, isLoading: catalogueLoading, total: catalogueTotal } = usePosSearch(branchId, codeInput, zoduId);
+  // Full cached catalogue (same query as usePosSearch's, shared via react-query cache) — used for
+  // exact barcode/item_id lookups on scan, independent of whatever's currently typed in the search box.
+  const { data: allProducts = [] } = usePosProducts(branchId, zoduId);
   const forceRefresh = useForceRefreshProducts(branchId, zoduId);
 
   const location        = useLocation();
@@ -262,6 +270,9 @@ function RetailPOSInner() {
   const [customerLedgerOpen,      setCustomerLedgerOpen]      = useState(false);
   const [addCustomerOpen,         setAddCustomerOpen]         = useState(false);
   const [addItemOpen,             setAddItemOpen]             = useState(false);
+  const [cameraScanOpen,          setCameraScanOpen]          = useState(false);
+  const [scanMsg,                 setScanMsg]                 = useState("");
+  const [toastSeverity,           setToastSeverity]           = useState<'success' | 'error'>('success');
   const [downloadLoading,         setDownloadLoading]         = useState(false);
   const [shareLoading,            setShareLoading]            = useState(false);
   const [savedOrderSnapshot,      setSavedOrderSnapshot]      = useState<SavedOrderSnapshot | null>(null);
@@ -458,17 +469,56 @@ useEffect(() => {
     setTimeout(() => { discountRefs.current[code]?.focus(); discountRefs.current[code]?.select(); }, 30);
   }, []);
 
-  const doAddItem = useCallback((itemId: string) => {
-    const p = suggestions.find(s => s.item_id === itemId);
-    if (!p) return false;
+  // Shared by manual suggestion clicks, Enter-to-add, and barcode/QR scans —
+  // bumps qty if the product's already on the order, otherwise prepends a new line.
+  const addProductLine = useCallback((p: PosProduct) => {
     setItems(prev => {
       const idx = prev.findIndex(i => i.code === p.item_id);
       if (idx >= 0) { const e = prev[idx]; return [{ ...e, qty: e.qty + 1 }, ...prev.filter((_, i) => i !== idx)]; }
       return [toLineItem(p), ...prev];
     });
     setFlashRow(p.item_id); setTimeout(() => setFlashRow(null), 700);
+  }, []);
+
+  const doAddItem = useCallback((itemId: string) => {
+    const p = suggestions.find(s => s.item_id === itemId);
+    if (!p) return false;
+    addProductLine(p);
     return p.item_id;
-  }, [suggestions]);
+  }, [suggestions, addProductLine]);
+
+  // Scan lookups (hardware gun or camera) match against the FULL cached catalogue,
+  // not the live-typed `suggestions`, so a scan works regardless of what's in the
+  // search box. Matches by exact item_id or barcode (case-insensitive). Scanning the
+  // same item again bumps its qty (addProductLine already does this) — the toast just
+  // reflects which happened so repeated scans are visibly confirmed.
+  const handleScanCode = useCallback((rawCode: string) => {
+    const code = rawCode.trim();
+    if (!code) return;
+    const lower = code.toLowerCase();
+    const p = allProducts.find(prod =>
+      prod.item_id?.toLowerCase() === lower || prod.barcode?.toLowerCase() === lower
+    );
+    if (!p) {
+      setToastSeverity('error');
+      setScanMsg(`No item found for scanned code "${code}"`);
+      return;
+    }
+    const existing = items.find(i => i.code === p.item_id);
+    addProductLine(p);
+    setToastSeverity('success');
+    setScanMsg(existing ? `"${p.item_name}" qty increased to ${existing.qty + 1}` : `Added "${p.item_name}"`);
+  }, [allProducts, addProductLine, items]);
+
+  // Whether any dialog is currently open — the page-level scanner listener below must
+  // stay off while one is, so it doesn't fight with a dialog's own scan handling
+  // (e.g. AddItemModal's Item ID field owns scans while that modal is open).
+  const anyModalOpen = addItemOpen || cameraScanOpen || addCustomerOpen || customerLedgerOpen
+    || discountModalOpen || noteModalOpen || holdDialogOpen || Boolean(saveResult?.open);
+
+  // Auto-detects a connected hardware USB/Bluetooth scanner without requiring the
+  // scan bar to be clicked first — active whenever the POS screen has no dialog open.
+  useHardwareScannerListener({ onScan: handleScanCode, active: !anyModalOpen });
 
   useEffect(() => {
     if (!saleId) return;
@@ -1202,6 +1252,23 @@ console.log("test",serverHolds)
                   </Button>
                 )}
               </Box>
+            </Paper>
+
+            {/* Scan bar — barcode/QR scan adds the matching product directly, bypassing search */}
+            <Paper elevation={0} sx={{ borderRadius: 2, p: 1.25, bgcolor: "#fff", border: "1px solid #E5E7EB", flexShrink: 0, display: "flex", alignItems: "center", gap: 1 }}>
+              <Box sx={{ flex: 1 }}>
+                <HardwareScannerInput
+                  onScan={handleScanCode}
+                  placeholder="Scan barcode / QR with a scanner gun, or click camera →"
+                  sx={{ width: "100%", "& .MuiOutlinedInput-root": { borderRadius: 1.5, bgcolor: "#FAFAFA", fontSize: 13 } }}
+                />
+              </Box>
+              <Tooltip title="Scan with camera">
+                <IconButton size="small" onClick={() => setCameraScanOpen(true)}
+                  sx={{ border: "1px solid #E5E7EB", borderRadius: 1.5, color: modeAccent, height: 38, width: 38 }}>
+                  <CameraAltOutlinedIcon sx={{ fontSize: 18 }} />
+                </IconButton>
+              </Tooltip>
             </Paper>
 
           {/* ORDER TABLE */}
@@ -1946,6 +2013,12 @@ console.log("test",serverHolds)
           }}
         />
         <AddItemModal open={addItemOpen} onClose={() => setAddItemOpen(false)} onSave={handleAddItemSaved} />
+        <CameraBarcodeScanner
+          open={cameraScanOpen}
+          onClose={() => setCameraScanOpen(false)}
+          onScan={handleScanCode}
+        />
+        <SuccessToast message={scanMsg} severity={toastSeverity} onClose={() => setScanMsg("")} />
       </Box>
     </ThemeProvider>
   );

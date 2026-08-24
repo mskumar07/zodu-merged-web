@@ -13,6 +13,10 @@ import RestoreIcon from "@mui/icons-material/Restore";
 import type { HoldOrder, RunningOrder, RunningOrderOrderedItem } from "./api/restaurantPosApi";
 import TableBarIcon from "@mui/icons-material/TableBar";
 import SuccessToast from "@components/Common/SuccessToast";
+import HardwareScannerInput from "@components/Common/HardwareScannerInput";
+import CameraBarcodeScanner from "@components/Common/CameraBarcodeScanner";
+import { useHardwareScannerListener } from "@components/Common/useHardwareScannerListener";
+import CameraAltOutlinedIcon from "@mui/icons-material/CameraAltOutlined";
 import zoduLogo from "@assets/zlogo.png";
 
 import { useAppSelector } from "../../../store/store";
@@ -131,6 +135,10 @@ const RestaurantPOS: React.FC = () => {
   }, [searchQuery]);
 
   const { data: menuData,        isLoading: menuLoading } = useRestaurantMenuQuery(branchId, zoduId, debouncedSearch);
+  // Full, unfiltered catalogue — same query as the "" (no search) case above, so it shares
+  // cache and costs nothing extra when the header search box is idle. Used for scan lookups
+  // so a barcode/QR scan always resolves regardless of whatever's currently typed in search.
+  const { data: fullMenuData } = useRestaurantMenuQuery(branchId, zoduId, "");
   const { data: tableOrdersData                         } = useTableOrdersQuery(branchId, zoduId);
   const { data: holdOrdersData                          } = useHoldOrdersQuery(branchId, zoduId);
 
@@ -155,6 +163,7 @@ const RestaurantPOS: React.FC = () => {
   const [showTable,    setShowTable   ] = useState(false);
   const [showDiscount, setShowDiscount] = useState(false);
   const [showCustomer, setShowCustomer] = useState(false);
+  const [showCameraScan, setShowCameraScan] = useState(false);
   const [runningOrderSummary, setRunningOrderSummary] = useState<RunningOrderOrderedItem[]>([]);
   const [runningOrderTotal,   setRunningOrderTotal  ] = useState<number>(0);
   const [isEditingSummary,    setIsEditingSummary   ] = useState(false);
@@ -406,6 +415,44 @@ const RestaurantPOS: React.FC = () => {
     },
     [addToCart, addToSummary, isEditingSummary, isOutOfStock, getCartQty]
   );
+
+  // Barcode/QR scan (hardware gun or camera) — looks up the FULL catalogue by exact
+  // menu_id or qr_code match, then follows the same branches as a manual product click
+  // (variant prompt, stock check, cart vs. edit-summary). Mirrors handleProductClick's
+  // logic rather than calling it directly, so the success toast only fires on an actual
+  // add — not when a variant prompt opens or the item turns out to be out of stock.
+  const handleScanCode = useCallback(
+    (rawCode: string) => {
+      const code = rawCode.trim();
+      if (!code) return;
+      const lower = code.toLowerCase();
+      const allItems = (fullMenuData ?? categories).flatMap((c) => c.items);
+      const product = allItems.find(
+        (i) => i.menu_id?.toLowerCase() === lower || i.qr_code?.toLowerCase() === lower
+      );
+      if (!product) {
+        setErrorMsg(`No item found for scanned code "${code}"`);
+        return;
+      }
+      if (product.variants && product.variants.length > 0) {
+        setVariantItem(product);
+        return;
+      }
+      const priorQty = getCartQty(product.menu_id);
+      if (isOutOfStock(product, priorQty + 1)) return;
+      if (isEditingSummary) addToSummary(product); else addToCart(product);
+      setSuccessMsg(priorQty > 0 ? `"${product.menu_name}" qty increased to ${priorQty + 1}` : `Added "${product.menu_name}"`);
+    },
+    [fullMenuData, categories, isEditingSummary, addToCart, addToSummary, isOutOfStock, getCartQty]
+  );
+
+  // Whether any dialog is currently open — the page-level scanner listener below must
+  // stay off while one is, so it doesn't fight with a dialog's own scan handling.
+  const anyModalOpen = showCameraScan || showTable || showDiscount || showCustomer || Boolean(variantItem);
+
+  // Auto-detects a connected hardware USB/Bluetooth scanner without requiring the
+  // scan bar to be clicked first — active whenever this screen has no dialog open.
+  useHardwareScannerListener({ onScan: handleScanCode, active: !anyModalOpen });
 
   const incrementCart = useCallback((ci: RestaurantCartItem) => {
     if (isOutOfStock(ci.product, ci.quantity + 1)) return;
@@ -931,6 +978,29 @@ const RestaurantPOS: React.FC = () => {
           }}
         />
 
+        {/* Scan bar — barcode/QR scan adds the matching item directly */}
+        <HardwareScannerInput
+          onScan={handleScanCode}
+          placeholder="Click, then scan…"
+          sx={{
+            width: { xs: 110, sm: 150, md: 170 },
+            "& .MuiOutlinedInput-root": {
+              borderRadius: "8px",
+              bgcolor: "#f9fafb",
+              height: 34,
+              fontSize: "0.82rem",
+            },
+          }}
+        />
+        <IconButton
+          size="small"
+          onClick={() => setShowCameraScan(true)}
+          title="Scan with camera"
+          sx={{ border: "1px solid #e5e7eb", borderRadius: "8px", width: 34, height: 34, color: "#d32f2f" }}
+        >
+          <CameraAltOutlinedIcon sx={{ fontSize: 17 }} />
+        </IconButton>
+
         {/* Favourites toggle */}
         <Box
           onClick={() => setFilterMode(filterMode === "Favourites" ? "All" : "Favourites")}
@@ -1272,6 +1342,11 @@ const RestaurantPOS: React.FC = () => {
       </Box>
 
       {/* ════ Modals ════ */}
+      <CameraBarcodeScanner
+        open={showCameraScan}
+        onClose={() => setShowCameraScan(false)}
+        onScan={handleScanCode}
+      />
       <TableModal
         open={showTable}
         activeTableNumbers={activeTableNumbers}

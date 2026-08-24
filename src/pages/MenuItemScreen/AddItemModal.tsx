@@ -8,6 +8,8 @@ import {
   Autocomplete,
 } from '@mui/material';
 import SuccessToast from '@components/Common/SuccessToast';
+import CameraBarcodeScanner from '@components/Common/CameraBarcodeScanner';
+import { useHardwareScannerListener } from '@components/Common/useHardwareScannerListener';
 import { useFormik } from 'formik';
 import axios from 'axios';
 import AddCircleIcon        from '@mui/icons-material/AddCircle';
@@ -83,9 +85,11 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
   const [imageDeleting,    setImageDeleting]    = useState(false);
   const [itemIdError,      setItemIdError]      = useState<string | null>(null);
   const [itemIdChecking,   setItemIdChecking]   = useState(false);
+  const [cameraScanOpen,   setCameraScanOpen]   = useState(false);
   const [successMsg,       setSuccessMsg]       = useState("");
   const [toastSeverity,    setToastSeverity]    = useState<'success' | 'error'>('success');
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const itemIdRef = useRef<HTMLInputElement>(null);
   const stockCacheRef = useRef<{ openingStock: string | number; lowStockAlert: string | number }>({
     openingStock: '',
     lowStockAlert: '',
@@ -109,6 +113,9 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
       openingStock: editItem?.available_qty ?? '',
       lowStockAlert: editItem?.reorder_level ?? '',
     };
+    // MUI Dialog's own focus-trap claims focus first — wait a tick so it doesn't
+    // immediately steal it back from the Item ID field.
+    setTimeout(() => itemIdRef.current?.focus(), 60);
   }, [open, editItem]);
 
   // ── 2. getInitialValues — itemId pre-filled in edit mode ────
@@ -327,9 +334,9 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
     qc.invalidateQueries({ queryKey: ['menu', 'categoryList'] });
   };
 
-  const handleItemIdBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
-    formik.handleBlur(e);
-    const value = e.target.value.trim();
+  // Shared by the blur-check and a barcode/QR scan filling item_id — both need the
+  // same "does this ID already exist" duplicate check.
+  const checkItemIdDuplicate = async (value: string) => {
     if (!value) { setItemIdError(null); return; }
     // In edit mode skip the check when the ID hasn't changed
     if (isEditMode && editItem && value === editItem.item_id) { setItemIdError(null); return; }
@@ -344,6 +351,25 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
       setItemIdChecking(false);
     }
   };
+
+  const handleItemIdBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
+    formik.handleBlur(e);
+    await checkItemIdDuplicate(e.target.value.trim());
+  };
+
+  const handleScanItemId = async (code: string) => {
+    const value = code.trim();
+    if (!value) return;
+    formik.setFieldValue('itemId', value);
+    formik.setFieldTouched('itemId', true, false);
+    await checkItemIdDuplicate(value);
+  };
+
+  // Auto-detects a connected hardware USB/Bluetooth scanner without requiring the
+  // Item ID field to be clicked first — active only while this modal is open, and
+  // never fires while focus is inside a real text field (that field's own
+  // onChange/onKeyDown already handles a scan landing directly in it).
+  useHardwareScannerListener({ onScan: handleScanItemId, active: open });
 
   const err   = formik.errors;
   const touch = formik.touched;
@@ -513,14 +539,23 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 2 }}>
                   <Box>
                     <Label text="Item ID" required />
+                    {/* Scanning happens in this same field — a hardware scanner just needs it
+                        focused (types the code, then Enter); the camera icon opens the camera
+                        scanner, which fills this field the same way. Neither touches any order/cart. */}
                     <TextField
                       fullWidth size="small"
-                      placeholder="e.g. ITM-001"
+                      inputRef={itemIdRef}
+                      placeholder="e.g. ITM-001 or click and scan…"
                       {...formik.getFieldProps('itemId')}
                       onBlur={handleItemIdBlur}
                       onChange={(e) => {
                         formik.handleChange(e);
                         setItemIdError(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key !== 'Enter') return;
+                        e.preventDefault();
+                        void checkItemIdDuplicate(e.currentTarget.value.trim());
                       }}
                       error={(touch.itemId && Boolean(err.itemId)) || Boolean(itemIdError)}
                       helperText={
@@ -531,9 +566,19 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                       inputProps={{ maxLength: ITEM_ID_MAX_LENGTH }}
                       InputProps={{
                         sx: inputSx,
-                        endAdornment: itemIdChecking
-                          ? <InputAdornment position="end"><CircularProgress size={14} /></InputAdornment>
-                          : undefined,
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            {itemIdChecking ? (
+                              <CircularProgress size={14} />
+                            ) : (
+                              <Tooltip title="Scan with camera">
+                                <IconButton size="small" edge="end" onClick={() => setCameraScanOpen(true)} sx={{ color: 'text.disabled' }}>
+                                  <QrCodeScannerIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                          </InputAdornment>
+                        ),
                       }}
                     />
                   </Box>
@@ -869,6 +914,13 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
         serviceType={formik.values.serviceType}
         onClose={() => setCatDialogOpen(false)}
         onAdded={handleCategoryAdded}
+      />
+
+      <CameraBarcodeScanner
+        open={cameraScanOpen}
+        onClose={() => setCameraScanOpen(false)}
+        onScan={(code) => { setCameraScanOpen(false); handleScanItemId(code); }}
+        title="Scan Item ID"
       />
 
       <SuccessToast message={successMsg} onClose={() => setSuccessMsg("")} severity={toastSeverity} />
