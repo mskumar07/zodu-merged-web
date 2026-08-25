@@ -97,14 +97,15 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
       }}
       elevation={0}
     >
-      <Toolbar className={styles.toolbar}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+      <Toolbar className={styles.toolbar} sx={{ gap: { xs: 0.5, sm: 1 } }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0, flex: "1 1 auto" }}>
           <IconButton
             onClick={onMenuClick}
             aria-label="Open navigation menu"
             sx={{
               display: { xs: "inline-flex", md: "none" },
               color: "#1A0004",
+              flexShrink: 0,
               mr: 0.5,
             }}
           >
@@ -121,6 +122,7 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
                   borderRadius: "8px",
                   p: 0.6,
                   mr: 0.5,
+                  flexShrink: 0,
                   "&:hover": { bgcolor: "#a50d19" },
                 }}
               >
@@ -128,7 +130,18 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
               </IconButton>
             </Tooltip>
           )}
-          <Typography sx={{ color: "black", fontWeight: 600, fontSize: 20, textTransform: "capitalize" }}>
+          <Typography
+            noWrap
+            sx={{
+              color: "black",
+              fontWeight: 600,
+              fontSize: { xs: 15, md: 20 },
+              textTransform: "capitalize",
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
             {selectedCompany?.restaurant_name || selectedCompany?.company_name || profile?.restaurant_name || ""}
           </Typography>
           <Tooltip title={isEmployee ? "" : "Switch Organisation"}>
@@ -142,6 +155,7 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
                   bgcolor: "rgba(200,16,31,0.07)",
                   borderRadius: "8px",
                   p: 0.6,
+                  flexShrink: 0,
                   "&:hover": { bgcolor: "rgba(200,16,31,0.14)" },
                   "&.Mui-disabled": { color: "#c8c8c8", bgcolor: "rgba(0,0,0,0.04)" },
                 }}
@@ -152,12 +166,20 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
           </Tooltip>
         </Box>
 
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 2 }, flexShrink: 0 }}>
           <Select
             size="small"
             value={branchId}
             onChange={(e) => handleBranchChange(e.target.value)}
-            sx={{ minWidth: 180 }}
+            sx={{
+              minWidth: { xs: 70, sm: 140, md: 180 },
+              maxWidth: { xs: 100, sm: "none" },
+              "& .MuiSelect-select": {
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              },
+            }}
           >
             {companyBranches.length > 0
               ? companyBranches.map((b) => (
@@ -169,13 +191,13 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
             }
           </Select>
 
-          <IconButton>
+          <IconButton sx={{ flexShrink: 0 }}>
             <Badge color="error" variant="dot">
               <NotificationsIcon />
             </Badge>
           </IconButton>
 
-          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 1 }}>
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 1, flexShrink: 0 }}>
             <Avatar sx={{ bgcolor: "#c8101f", fontSize: 14, fontWeight: 700 }}>
               {(profile?.employee_name || profile?.restaurant_name || "?").trim().charAt(0).toUpperCase()}
             </Avatar>

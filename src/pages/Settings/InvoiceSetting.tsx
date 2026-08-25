@@ -22,8 +22,8 @@ import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import EventRoundedIcon from "@mui/icons-material/EventRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import SuccessToast from "@components/Common/SuccessToast";
-import { useAppSelector } from "@store/store";
-import { BusinessType } from "@store/slices/userSlice";
+import { useAppDispatch, useAppSelector } from "@store/store";
+import { BusinessType, setInvoiceSettings } from "@store/slices/userSlice";
 import {
   useInvoiceSettings,
   useUpdateInvoiceSettings,
@@ -240,6 +240,7 @@ function getDefaultSettings(businessType: string): InvoiceSettings {
 }
 
 export default function InvoiceSetting() {
+  const dispatch = useAppDispatch();
   const businessType = useAppSelector(BusinessType);
   const paymentMethodOptions =
     businessType === "Restaurant" ? RESTAURANT_PAYMENT_METHODS : RETAIL_PAYMENT_METHODS;
@@ -260,7 +261,17 @@ export default function InvoiceSetting() {
   }, [isError]);
 
   const { mutate: saveSettings, isPending: isSaving } = useUpdateInvoiceSettings({
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      // Re-sync local form state from the save response directly rather than
+      // waiting on the query-cache round trip (the useEffect below) — a stale
+      // in-flight GET can otherwise resolve after this PUT and overwrite the
+      // cache with pre-save data, which silently reverted fields (e.g. Invoice
+      // Type) back to their old value right after the "saved" toast appeared.
+      setSettings(toUiSettings(updated));
+      // POS reads printer_inch straight from Redux (populated once at branch-select)
+      // to decide A4-vs-thermal print template — without this the change here would
+      // only take effect after the next login/branch switch.
+      dispatch(setInvoiceSettings(updated));
       setSaved(true);
       setSuccessMsg("Invoice settings updated successfully");
       setTimeout(() => setSaved(false), 2000);

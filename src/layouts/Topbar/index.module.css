@@ -41,8 +41,15 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-left: 16px;
-  padding-right: 16px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+@media (min-width: 600px) {
+  .toolbar {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
 }
 
 .greeting {

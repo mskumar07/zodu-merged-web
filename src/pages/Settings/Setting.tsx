@@ -627,7 +627,7 @@ export default function Setting() {
                   fontWeight: 700,
                 }}
               />
-              <Tab
+              {/* <Tab
                 label="User settings"
                 value="user"
                 sx={{
@@ -636,7 +636,7 @@ export default function Setting() {
                   fontSize: 14,
                   fontWeight: 700,
                 }}
-              />
+              /> */}
               <Tab
                 label="Role Management"
                 value="role"
@@ -1188,7 +1188,7 @@ export default function Setting() {
 
           {activeTab === "invoice" && <InvoiceSetting />}
 
-          {activeTab === "user" && (
+          {/* {activeTab === "user" && (
             <Paper
               elevation={0}
               sx={{
@@ -1213,7 +1213,7 @@ export default function Setting() {
                 Manage user-specific preferences, access setup, and profile-related settings here.
               </Typography>
             </Paper>
-          )}
+          )} */}
 
           {activeTab === "role" && (
             <Box sx={{ height: "calc(100vh - 220px)", minHeight: 550, mx: -3 }}>

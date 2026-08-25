@@ -1146,8 +1146,9 @@ console.log("test",serverHolds)
   }, [generateInvoicePdf, saveResult?.saleId, savedPdfData]);
 
   // "Invoice Type" in Invoice Settings decides how the Print button behaves:
-  // A4 opens the generated PDF and triggers the browser's print dialog on it;
-  // any thermal width (3"/5", "4" handled defensively) prints the thermal receipt.
+  // A4 triggers the browser's print dialog on the generated PDF without ever
+  // navigating away; any thermal width (3"/5", "4" handled defensively) prints
+  // the thermal receipt.
   const handlePrintInvoice = useCallback(async () => {
     if (invoiceSettings?.printer_inch !== "A4") {
       handleThermalPrint();
@@ -1158,15 +1159,33 @@ console.log("test",serverHolds)
     try {
       const pdf = await generateInvoicePdf();
       if (!pdf) return;
-      pdf.autoPrint();
       const blob = pdf.output("blob");
       const url = URL.createObjectURL(blob);
-      // Opening the blob URL (rather than calling window.print() directly) is the
-      // reliable cross-browser way to get jsPDF's autoPrint to trigger the native
-      // print dialog once the PDF has actually loaded in the new tab.
-      const printWindow = window.open(url, "_blank");
-      if (!printWindow) window.location.href = url;
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      // A hidden iframe (rather than window.open in a new tab) loads the PDF and
+      // prints it in place — the user never leaves the current page/tab. Chrome's
+      // built-in PDF viewer doesn't reliably fire the iframe's `load` event (a
+      // long-standing quirk), so `onload` is only a fast path — a fallback timer
+      // guarantees print() still fires on browsers where it never does.
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "0";
+      iframe.src = url;
+      let printed = false;
+      const triggerPrint = () => {
+        if (printed) return;
+        printed = true;
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      };
+      iframe.onload = triggerPrint;
+      document.body.appendChild(iframe);
+      setTimeout(triggerPrint, 1000);
+      setTimeout(() => {
+        iframe.remove();
+        URL.revokeObjectURL(url);
+      }, 60000);
     } finally {
       setPrintLoading(false);
     }
@@ -1175,13 +1194,19 @@ console.log("test",serverHolds)
   // ─────────────────────────────────────────────────────────────
   return (
     <ThemeProvider theme={theme}>
-      <Box sx={{ height: "100%", minHeight: 0, bgcolor: "#F5F6FA", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <Box sx={{ height: "100%", minHeight: 0, bgcolor: "#F5F6FA", display: "flex", flexDirection: "column", overflow: { xs: "auto", lg: "hidden" } }}>
 
         {/* ═══════════════════ MAIN TWO-COLUMN LAYOUT ═══════════════════ */}
-        <Box sx={{ flex: 1, minHeight: 0, display: "flex", gap: { xs: 0.75, md: 1 }, p: { xs: 0.5, sm: 0.75, md: 1 }, overflow: "hidden", flexDirection: { xs: "column", lg: "row" } }}>
+        {/* Below `lg` this stacks to a column. Desktop relies on a fixed viewport
+            height with internal scroll regions (minHeight:0 + overflow:hidden) —
+            stacked on mobile/tablet that squeezes the item-entry column to nothing
+            to make room for the summary column below it. `minHeight:"auto"` lets
+            each section keep its natural content height instead, and the page
+            scrolls as a whole (via the root Box's overflow, above). */}
+        <Box sx={{ flex: 1, minHeight: { xs: "auto", lg: 0 }, display: "flex", gap: { xs: 0.75, md: 1 }, p: { xs: 0.5, sm: 0.75, md: 1 }, overflow: { xs: "visible", lg: "hidden" }, flexDirection: { xs: "column", lg: "row" } }}>
 
           {/* ─────────────────────── LEFT COLUMN ─────────────────────── */}
-          <Box sx={{ flex: "1 1 auto", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", gap: { xs: 0.75, sm: 1 }, overflow: "hidden" }}>
+          <Box sx={{ flex: "1 1 auto", minWidth: 0, minHeight: { xs: "auto", lg: 0 }, display: "flex", flexDirection: "column", gap: { xs: 0.75, sm: 1 }, overflow: { xs: "visible", lg: "hidden" } }}>
 
             {/* Top row: Sale/Quotation tabs + Hold/Recall/Date */}
             <Box sx={{ bgcolor: "#fff", border: "1px solid #E5E7EB", borderRadius: 2, px: { xs: 1.5, md: 2 }, py: 0.75, display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 50, flexShrink: 0, flexWrap: "wrap", gap: 1 }}>
@@ -1218,8 +1243,8 @@ console.log("test",serverHolds)
 
             {/* Search row */}
             <Paper elevation={0} sx={{ borderRadius: 2, p: 1.75, bgcolor: "#fff", position: "relative", zIndex: 100, transition: "border-color 0.2s", flexShrink: 0, border: zone === "SEARCH" ? `2px solid ${modeAccent}` : "2px solid #E5E7EB", boxShadow: zone === "SEARCH" ? `0 0 0 3px ${isQuotation ? "rgba(29,78,216,0.08)" : "rgba(200,16,46,0.08)"}` : "none" }}>
-              <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-end" }}>
-                <Box sx={{ flex: 1, position: "relative" }}>
+              <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-end", flexWrap: { xs: "wrap", md: "nowrap" } }}>
+                <Box sx={{ flex: 1, minWidth: { xs: "100%", md: 0 }, position: "relative" }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.4 }}>
                     <Typography sx={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", color: modeAccent }}>ITEM ID / NAME</Typography>
                     <Kbd>F2</Kbd>
@@ -1300,9 +1325,16 @@ console.log("test",serverHolds)
             </Paper>
 
           {/* ORDER TABLE */}
-          <Paper elevation={0} sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", border: zone === "TABLE" ? "2px solid #1976d2" : "1px solid #E5E7EB", borderRadius: 2, overflow: "hidden", transition: "border 0.2s", boxShadow: zone === "TABLE" ? "0 0 0 3px rgba(245,158,11,0.1)" : "none" }}>
-            <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden", scrollbarWidth: "thin", scrollbarColor: "#ea9999 #F3F4F6", "&::-webkit-scrollbar": { width: "8px" }, "&::-webkit-scrollbar-track": { backgroundColor: "#F3F4F6", borderRadius: "4px" }, "&::-webkit-scrollbar-thumb": { backgroundColor: "#ea9999", borderRadius: "4px", "&:hover": { backgroundColor: "#A50D26" } } }}>
-              <Table size="small" stickyHeader sx={{ borderCollapse: "separate", tableLayout: "fixed", width: "100%" }}>
+          <Paper elevation={0} sx={{ flex: 1, minHeight: { xs: "auto", lg: 0 }, display: "flex", flexDirection: "column", border: zone === "TABLE" ? "2px solid #1976d2" : "1px solid #E5E7EB", borderRadius: 2, overflow: "hidden", transition: "border 0.2s", boxShadow: zone === "TABLE" ? "0 0 0 3px rgba(245,158,11,0.1)" : "none" }}>
+            {/* Below `lg` the 11-column table can't fit its fixed-width qty/rate/discount
+                inputs — this wrapper lets it scroll horizontally (in sync with the pinned
+                totals row below) instead of clipping columns; desktop is untouched. */}
+            <Box sx={{ flex: 1, minHeight: { xs: "auto", lg: 0 }, display: "flex", flexDirection: "column", overflowX: { xs: "auto", lg: "hidden" } }}>
+            {/* Desktop scrolls rows within a fixed-height viewport; below `lg` the row
+                list instead grows with its content and the whole page scrolls, since a
+                second nested scroll region reads badly on touch. */}
+            <Box sx={{ flex: 1, minHeight: { xs: "auto", lg: 0 }, overflowY: { xs: "visible", lg: "auto" }, overflowX: "hidden", scrollbarWidth: "thin", scrollbarColor: "#ea9999 #F3F4F6", "&::-webkit-scrollbar": { width: "8px" }, "&::-webkit-scrollbar-track": { backgroundColor: "#F3F4F6", borderRadius: "4px" }, "&::-webkit-scrollbar-thumb": { backgroundColor: "#ea9999", borderRadius: "4px", "&:hover": { backgroundColor: "#A50D26" } } }}>
+              <Table size="small" stickyHeader sx={{ borderCollapse: "separate", tableLayout: "fixed", width: "100%", minWidth: { xs: 860, lg: "auto" } }}>
                 <colgroup>
                   <col style={{ width: "0.8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "16%" }} />
                   <col style={{ width: "12%" }} /><col style={{ width: "6%" }} />
@@ -1482,7 +1514,7 @@ console.log("test",serverHolds)
             </Box>
 
             {/* Total row pinned to bottom */}
-            <Table size="small" sx={{ borderCollapse: "separate", flexShrink: 0, tableLayout: "fixed", width: "100%" }}>
+            <Table size="small" sx={{ borderCollapse: "separate", flexShrink: 0, tableLayout: "fixed", width: "100%", minWidth: { xs: 860, lg: "auto" } }}>
               <colgroup>
                 <col style={{ width: "0.8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "16%" }} />
                 <col style={{ width: "12%" }} /><col style={{ width: "6%" }} />
@@ -1509,6 +1541,7 @@ console.log("test",serverHolds)
                 </TableRow>
               </TableBody>
             </Table>
+            </Box>
           </Paper>
 
             {/* Customer panel — search row + Bill To / Ship To cards */}
@@ -1632,9 +1665,9 @@ console.log("test",serverHolds)
         </Box>
 
           {/* ─────────────────────── RIGHT COLUMN (SIDEBAR) ─────────────────────── */}
-          <Box sx={{ width: { xs: "100%", lg: 340, xl: 360 }, flexShrink: 0, minHeight: 0, display: "flex", flexDirection: "column", gap: { xs: 0.6, sm: 0.75 }, overflow: "hidden" }}>
+          <Box sx={{ width: { xs: "100%", lg: 340, xl: 360 }, flexShrink: 0, minHeight: { xs: "auto", lg: 0 }, display: "flex", flexDirection: "column", gap: { xs: 0.6, sm: 0.75 }, overflow: { xs: "visible", lg: "hidden" } }}>
 
-          <Box sx={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: { xs: 1, sm: 1.25 } }}>
+          <Box sx={{ flex: "1 1 auto", minHeight: { xs: "auto", lg: 0 }, overflowY: { xs: "visible", lg: "auto" }, display: "flex", flexDirection: "column", gap: { xs: 1, sm: 1.25 } }}>
 
             {/* SUMMARY card */}
             <Paper elevation={0} sx={{ border: "1px solid #E5E7EB", borderRadius: 2.5, p: 2.25, bgcolor: "#fff" }}>
@@ -1760,9 +1793,11 @@ console.log("test",serverHolds)
                     );
                   })}
                 </Box>
-                {/* Hidden select preserves existing FOOTER zone keyboard nav (arrow keys / Enter) for payment type */}
+                {/* Hidden select preserves existing FOOTER zone keyboard nav (arrow keys / Enter) for payment type.
+                    Must be "1px" not the bare number 1 — MUI's sx treats a 0-1 width/height number as a
+                    percentage (1 = 100%), which was silently stretching this to full container width. */}
                 <Select value={paymentType} onChange={e => setPaymentType(e.target.value as PaymentType)} onFocus={() => { setZone("FOOTER"); setFooterFocus("PAYMENT_TYPE"); }}
-                  sx={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} tabIndex={-1}>
+                  sx={{ position: "absolute", width: "1px", height: "1px", opacity: 0, pointerEvents: "none" }} tabIndex={-1}>
                   {["Cash", "UPI", "Bank Transfer", "Others"].map(val => <MenuItem key={val} value={val}>{val}</MenuItem>)}
                 </Select>
 
@@ -1862,6 +1897,10 @@ console.log("test",serverHolds)
               InputProps={{ startAdornment: <SearchIcon sx={{ fontSize: 18, color: "#9CA3AF", mr: 1 }} /> }}
               sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px", bgcolor: "#F9FAFB", fontSize: 13 } }} />
           </Box>
+          {/* The 6-column grid below doesn't reflow at phone dialog widths — scroll it
+              horizontally there instead of clipping the ACTION column. */}
+          <Box sx={{ overflowX: { xs: "auto", sm: "hidden" } }}>
+          <Box sx={{ minWidth: { xs: 620, sm: "auto" } }}>
           <Box sx={{ display: "grid", gridTemplateColumns: "1.2fr 1.2fr 1.5fr 1fr 1fr 1fr", px: 3, py: 0.75, fontSize: 11, fontWeight: 700, color: "#6B7280", bgcolor: "#FAFAFA", borderTop: "1px solid #F1F5F9", borderBottom: "2px solid #E5E7EB", letterSpacing: "0.05em" }}>
             <span>HOLD ID</span><span>DATE & TIME</span><span>CUSTOMER</span><span>ITEMS</span><span>TOTAL</span><span style={{ textAlign: "center" }}>ACTION</span>
           </Box>
@@ -1893,6 +1932,8 @@ console.log("test",serverHolds)
                 </React.Fragment>
               );
             })}
+          </Box>
+          </Box>
           </Box>
         </Dialog>
 
