@@ -8,17 +8,21 @@ import {
   IconButton,
   InputAdornment,
   Tooltip,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import RestoreIcon from "@mui/icons-material/Restore";
 import SearchIcon from "@mui/icons-material/Search";
 import AddNewCustomerDialog from "./Addnewcustomerdialog";
 import CustomerLedgerDialog from "./CustomerLedgerDialog";
 import MarkPaymentDialog from "./MarkPaymentDialog";
+import SuccessToast from "@components/Common/SuccessToast";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
-import { useInfiniteCustomers } from "./useCustomerapi";
+import { useInfiniteCustomers, useSetCustomerActive } from "./useCustomerapi";
 import { useModulePermission } from "@hooks/useModulePermission";
 
 const theme = createTheme({
@@ -118,11 +122,13 @@ export default function CustomerManagement({
 }: CustomerManagementProps) {
   const { canCreate, canEdit, canDelete } = useModulePermission("Customer Management");
   const [search, setSearch] = useState("");
+  const [statusTab, setStatusTab] = useState<"active" | "inactive">("active");
   const [addCustomerOpen, setAddCustomerOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<ApiCustomer | null>(null);
   const [customerLedgerOpen, setCustomerLedgerOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [paymentTarget, setPaymentTarget] = useState<Customer | null>(null);
+  const [toast, setToast] = useState<{ message: string; severity: "success" | "error" } | null>(null);
 
   const sentinelRef       = useRef<HTMLTableRowElement>(null) as React.RefObject<HTMLTableRowElement>;
   const tableContainerRef = useRef<HTMLDivElement>(null)      as React.RefObject<HTMLDivElement>;
@@ -133,7 +139,17 @@ export default function CustomerManagement({
     hasNextPage,
     isFetchingNextPage,
     isLoading,
-  } = useInfiniteCustomers(search);
+  } = useInfiniteCustomers(search, statusTab === "active");
+
+  const setCustomerActive = useSetCustomerActive({
+    onSuccess: (customer) => {
+      setToast({
+        message: customer.is_active ? "Customer restored successfully" : "Customer deleted successfully",
+        severity: "success",
+      });
+    },
+    onError: (msg) => setToast({ message: msg, severity: "error" }),
+  });
 
   const apiCustomers = useMemo(
     () => data?.pages.flatMap((p) => p.customers) ?? [],
@@ -153,11 +169,18 @@ export default function CustomerManagement({
     return () => observer.disconnect();
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
-  const handleDelete = useCallback((id: string) => {
+  const handleDelete = useCallback((customer: Customer) => {
     if (window.confirm("Delete this customer?")) {
-      onDeleteCustomer?.(id);
+      setCustomerActive.mutate({ custUuid: customer.custUuid, isActive: false });
+      onDeleteCustomer?.(customer.id);
     }
-  }, [onDeleteCustomer]);
+  }, [onDeleteCustomer, setCustomerActive]);
+
+  const handleRestore = useCallback((customer: Customer) => {
+    if (window.confirm("Restore this customer?")) {
+      setCustomerActive.mutate({ custUuid: customer.custUuid, isActive: true });
+    }
+  }, [setCustomerActive]);
 
   const filtered: Customer[] = useMemo(() => {
     if (!apiCustomers || !Array.isArray(apiCustomers)) return [];
@@ -356,61 +379,84 @@ export default function CustomerManagement({
         label: "Actions",
         align: "center",
         width: 100,
-        render: (customer) => (
-          <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
-            <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"} placement="top">
-              <span>
-                <IconButton
-                  size="small"
-                  disabled={!canEdit}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    // Find the full customer data from apiCustomers
-                    const fullCustomer = (apiCustomers as unknown as ApiCustomer[]).find((c: ApiCustomer) => c.cust_id === customer.id);
-                    if (fullCustomer) {
-                      setEditingCustomer(fullCustomer);
-                      setAddCustomerOpen(true);
-                    }
-                    onEditCustomer?.(customer);
-                  }}
-                  sx={{
-                    color: "#1565C0",
-                    p: 0.6,
-                    borderRadius: 1,
-                    "&:hover": { color: "#1976d2", bgcolor: "#EFF6FF" },
-                    transition: "all 0.12s",
-                  }}
-                >
-                  <EditOutlinedIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-              </span>
-            </Tooltip>
-            <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"} placement="top">
+        render: (customer) =>
+          statusTab === "inactive" ? (
+            <Tooltip title={canDelete ? "Restore" : "You don't have permission to restore"} placement="top">
               <span>
                 <IconButton
                   size="small"
                   disabled={!canDelete}
                   onClick={(event) => {
                     event.stopPropagation();
-                    handleDelete(customer.id);
+                    handleRestore(customer);
                   }}
                   sx={{
-                    color: "#D2122E",
+                    color: "#16A34A",
                     p: 0.6,
                     borderRadius: 1.5,
-                    "&:hover": { bgcolor: "#D2122E22" },
+                    "&:hover": { bgcolor: "#16A34A22" },
                     transition: "all 0.12s",
                   }}
                 >
-                  <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+                  <RestoreIcon sx={{ fontSize: 16 }} />
                 </IconButton>
               </span>
             </Tooltip>
-          </Box>
-        ),
+          ) : (
+            <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
+              <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"} placement="top">
+                <span>
+                  <IconButton
+                    size="small"
+                    disabled={!canEdit}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      // Find the full customer data from apiCustomers
+                      const fullCustomer = (apiCustomers as unknown as ApiCustomer[]).find((c: ApiCustomer) => c.cust_id === customer.id);
+                      if (fullCustomer) {
+                        setEditingCustomer(fullCustomer);
+                        setAddCustomerOpen(true);
+                      }
+                      onEditCustomer?.(customer);
+                    }}
+                    sx={{
+                      color: "#1565C0",
+                      p: 0.6,
+                      borderRadius: 1,
+                      "&:hover": { color: "#1976d2", bgcolor: "#EFF6FF" },
+                      transition: "all 0.12s",
+                    }}
+                  >
+                    <EditOutlinedIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"} placement="top">
+                <span>
+                  <IconButton
+                    size="small"
+                    disabled={!canDelete}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleDelete(customer);
+                    }}
+                    sx={{
+                      color: "#D2122E",
+                      p: 0.6,
+                      borderRadius: 1.5,
+                      "&:hover": { bgcolor: "#D2122E22" },
+                      transition: "all 0.12s",
+                    }}
+                  >
+                    <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Box>
+          ),
       },
     ],
-    [onEditCustomer, apiCustomers, handleDelete, handleCustomerClick, canEdit, canDelete]
+    [onEditCustomer, apiCustomers, handleDelete, handleRestore, handleCustomerClick, canEdit, canDelete, statusTab]
   );
 
   if (isLoading) return <LottieLoader />;
@@ -546,6 +592,28 @@ export default function CustomerManagement({
           </Box>
         </Box>
 
+        <Box sx={{ px: 1, flexShrink: 0, borderBottom: "1px solid #E5E7EB" }}>
+          <Tabs
+            value={statusTab}
+            onChange={(_event, value: "active" | "inactive") => setStatusTab(value)}
+            sx={{
+              minHeight: 40,
+              "& .MuiTab-root": {
+                minHeight: 40,
+                textTransform: "none",
+                fontSize: 13,
+                fontWeight: 700,
+                color: "#6B7280",
+              },
+              "& .Mui-selected": { color: "#D32F2F !important" },
+              "& .MuiTabs-indicator": { bgcolor: "#D32F2F" },
+            }}
+          >
+            <Tab label="Active" value="active" />
+            <Tab label="Inactive" value="inactive" />
+          </Tabs>
+        </Box>
+
         <Box sx={{ flex: 1, minHeight: 0, px: 1, py: 1.5 }}>
           <Box sx={{ height: "100%", minHeight: 0 }}>
             <DataTable<Customer>
@@ -559,10 +627,22 @@ export default function CustomerManagement({
               loadMoreRef={sentinelRef}
               tableContainerRef={tableContainerRef}
               maxHeight="100%"
-              emptyMessage={search ? `No customers found for "${search}"` : "No customers found."}
+              emptyMessage={
+                search
+                  ? `No customers found for "${search}"`
+                  : statusTab === "inactive"
+                  ? "No inactive customers found."
+                  : "No customers found."
+              }
             />
           </Box>
         </Box>
+
+        <SuccessToast
+          message={toast?.message ?? ""}
+          severity={toast?.severity ?? "success"}
+          onClose={() => setToast(null)}
+        />
 
         <AddNewCustomerDialog
           open={addCustomerOpen}

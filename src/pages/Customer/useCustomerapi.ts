@@ -9,6 +9,12 @@ import { getTenantContext, useTenantContext, getAccessToken } from "@store/tenan
 
 const API_BASE  = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 
+// Customer records live in a per-vertical service — the same relative path
+// exists under both, so only the prefix needs to switch on business type.
+function customersBasePath(businessType: string): string {
+  return businessType === "Restaurant" ? "/restaurant/api/customers" : "/retail/api/customers";
+}
+
 // ─── Payload ──────────────────────────────────────────────────
 export interface AddCustomerPayload {
   zodu_id:        string;
@@ -218,6 +224,50 @@ export function useUpdateCustomer(options?: {
 }
 
 
+// ─── Soft delete / restore Customer API call ──────────────────
+export interface SetCustomerActiveResponse {
+  success:  boolean;
+  message:  string;
+  customer: { cust_uuid: string; is_active: boolean };
+}
+
+async function setCustomerActive(payload: {
+  custUuid: string;
+  isActive: boolean;
+}): Promise<SetCustomerActiveResponse> {
+  const { businessType } = getTenantContext();
+  const { data } = await axios.delete<SetCustomerActiveResponse>(
+    `${API_BASE}${customersBasePath(businessType)}/${payload.custUuid}`,
+    { data: { is_active: payload.isActive } }
+  );
+  return data;
+}
+
+/** Soft-deletes (isActive: false) or restores (isActive: true) a customer. */
+export function useSetCustomerActive(options?: {
+  onSuccess?: (customer: SetCustomerActiveResponse["customer"]) => void;
+  onError?:   (message: string) => void;
+}) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: setCustomerActive,
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: customerQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["customers-infinite"] });
+      options?.onSuccess?.(response.customer);
+    },
+    onError: (err: unknown) => {
+      const msg = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string; error?: string } | undefined)?.message
+          ?? (err.response?.data as { error?: string } | undefined)?.error
+          ?? err.message
+        : "Failed to update customer status";
+      options?.onError?.(msg);
+    },
+  });
+}
+
 async function getCustomers(): Promise<Record<string, unknown>[]> {
   const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.get(
@@ -254,17 +304,18 @@ export interface CustomerPage {
   total:       number;
 }
 
-async function getCustomersPage(page: number, search: string): Promise<CustomerPage> {
-  const { zoduId, branchId } = getTenantContext();
+async function getCustomersPage(page: number, search: string, isActive: boolean): Promise<CustomerPage> {
+  const { zoduId, branchId, businessType } = getTenantContext();
   const params: Record<string, string> = {
     zodu_id:   zoduId,
     branch_id: branchId,
     page:      String(page),
     limit:     "50",
+    is_active: String(isActive),
   };
   if (search) params.search = search;
 
-  const { data } = await axios.get(`${API_BASE}/retail/api/customers`, { params });
+  const { data } = await axios.get(`${API_BASE}${customersBasePath(businessType)}`, { params });
 
   if (data?.success) {
     return {
@@ -277,10 +328,11 @@ async function getCustomersPage(page: number, search: string): Promise<CustomerP
   return { customers: [], page, total_pages: 1, total: 0 };
 }
 
-export function useInfiniteCustomers(search: string) {
+/** `isActive` selects the Active vs Inactive (soft-deleted) customer list. */
+export function useInfiniteCustomers(search: string, isActive: boolean = true) {
   return useInfiniteQuery({
-    queryKey:         ["customers-infinite", search],
-    queryFn:          ({ pageParam = 1 }) => getCustomersPage(pageParam as number, search),
+    queryKey:         ["customers-infinite", search, isActive],
+    queryFn:          ({ pageParam = 1 }) => getCustomersPage(pageParam as number, search, isActive),
     initialPageParam: 1,
     getNextPageParam: (last) => last.page < last.total_pages ? last.page + 1 : undefined,
     placeholderData: keepPreviousData,

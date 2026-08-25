@@ -30,6 +30,9 @@ import {
   type ModuleItem, type PermissionPayload,
 } from "./useRoleApi";
 import { getTenantContext } from "@store/tenantContext";
+import { useAppDispatch } from "@store/store";
+import { setRoleAccess } from "@store/slices/userSlice";
+import { authApis } from "@pages/auth/Authapi";
 import LottieLoader from "@components/LottieLoader";
 
 // ─── Module icon config ───────────────────────────────────────
@@ -444,6 +447,7 @@ export default function RoleEditPage({
   const isEdit = mode === "edit";
   const isAdd  = mode === "add";
 
+  const dispatch = useAppDispatch();
   const { data: modules = [], isLoading: modulesLoading } = useModules();
   const { data: detail,        isLoading: detailLoading  } = useRoleDetail(roleId ?? null);
 
@@ -513,8 +517,32 @@ export default function RoleEditPage({
   const buildPermissions = useCallback((): PermissionPayload[] =>
     Object.entries(perms).map(([module_id, p]) => ({ module_id, ...p })), [perms]);
 
-  const createRole = useCreateRole({ onSuccess: () => onSaved(),       onError: (msg) => setError(msg) });
-  const updateRole = useUpdateRole({ onSuccess: () => onSaved(roleId), onError: (msg) => setError(msg) });
+  // A role save can change permissions for the role the *current* session is
+  // logged in as (e.g. an admin editing their own role, or a role they're
+  // currently impersonating via branch context) — re-pull this session's own
+  // role_access and push it into Redux so the Sidebar (and RouteAccessGuard)
+  // reflect the change immediately, instead of only after the next
+  // login/branch-switch. Harmless no-op when the edited role isn't the
+  // current session's own role, since the fetch just returns the same data.
+  const refreshSessionRoleAccess = useCallback(async () => {
+    const { zoduId, branchId } = getTenantContext();
+    if (!zoduId || !branchId) return;
+    try {
+      const roleAccess = await authApis.getRoleAccess(zoduId, branchId);
+      dispatch(setRoleAccess(roleAccess));
+    } catch {
+      // Best-effort — worst case the sidebar catches up on next login/branch-switch.
+    }
+  }, [dispatch]);
+
+  const createRole = useCreateRole({
+    onSuccess: () => { refreshSessionRoleAccess(); onSaved(); },
+    onError: (msg) => setError(msg),
+  });
+  const updateRole = useUpdateRole({
+    onSuccess: () => { refreshSessionRoleAccess(); onSaved(roleId); },
+    onError: (msg) => setError(msg),
+  });
 
   const isSaving  = createRole.isPending || updateRole.isPending;
   const isLoading = modulesLoading || (!!roleId && detailLoading);

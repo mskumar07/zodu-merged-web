@@ -2,6 +2,8 @@
  * InvoiceDetailsModal.tsx
  */
 import { useRef } from "react";
+import { useAppSelector } from "@store/store";
+import { InvoiceSettingsData } from "@store/slices/userSlice";
 import {
   Dialog, DialogContent, DialogActions,
   Box, Typography, IconButton, Button, Chip, Divider,
@@ -31,6 +33,7 @@ import {
   type HsnWiseTax,
 } from "./useSaleshistory";
 import { InvoicePDFTemplate } from "./InvoicePDFTemplate";
+import { ThermalInvoiceTemplate, type ThermalPaperSize } from "./ThermalInvoiceTemplate";
 
 const PDF_CAPTURE_SCALE = 1.6;
 const PDF_IMAGE_QUALITY = 0.72;
@@ -112,6 +115,13 @@ function INR(v: number | string) {
 function toWords(n: number): string {
   // lightweight — just shows the number if words lib not available
   return n.toLocaleString("en-IN");
+}
+
+// printer_inch is stored as "3 Inch" / "4 Inch" / "5 Inch"; ThermalPaperSize only accepts "3" | "4" | "5".
+function toThermalPaperSize(printerInch: string | undefined): ThermalPaperSize {
+  if (printerInch?.startsWith("4")) return "4";
+  if (printerInch?.startsWith("5")) return "5";
+  return "3";
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -338,7 +348,10 @@ export default function InvoiceDetailsModal({
   open = true, saleId, onClose, isRestaurant = false, isCancelledTab = false,
 }: Props) {
   const navigate = useNavigate();
-  const pdfRef   = useRef<HTMLDivElement | null>(null);
+  const pdfRef     = useRef<HTMLDivElement | null>(null);
+  const thermalRef = useRef<HTMLDivElement | null>(null);
+  const invoiceSettings = useAppSelector(InvoiceSettingsData);
+  const thermalPaperSize: ThermalPaperSize = toThermalPaperSize(invoiceSettings?.printer_inch);
 
   const { data, isLoading } = useQuery({
     queryKey: [...salesQueryKeys.detail(saleId), isRestaurant ? "restaurant" : "retail"],
@@ -631,13 +644,83 @@ export default function InvoiceDetailsModal({
     pdf?.save(`Invoice_${sale?.sale_id ?? "invoice"}.pdf`);
   };
 
+  // ── Thermal print handler ───────────────────────────────────
+  const handleThermalPrint = () => {
+    if (!thermalRef.current) return;
+    // Use actual printable widths (roll width minus hardware margins) to prevent right-side clipping
+    const paperMmMap: Record<ThermalPaperSize, number> = { "3": 72, "4": 96, "5": 120 };
+    const mm = paperMmMap[thermalPaperSize];
+    // outerHTML (not innerHTML) — the ref'd div carries the base font-family/color/weight
+    // inline styles; innerHTML would drop them and fall back to the browser's thin default font.
+    const content = thermalRef.current.outerHTML;
+    const printWindow = window.open("", "_blank", "width=500,height=700");
+    if (!printWindow) return;
+    printWindow.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Receipt</title>
+  <style>
+    @page { size: ${mm}mm auto; margin: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: ${mm}mm;
+      background: #fff;
+      color: #000;
+      font-family: 'Courier New','Consolas','Lucida Console',monospace;
+      font-weight: 600;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    @media print { html, body { width: ${mm}mm; } }
+  </style>
+</head>
+<body>${content}</body>
+</html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 300);
+  };
+
   // ── Print handler ─────────────────────────────────────────
+  // "Invoice Type" in Invoice Settings decides the format: A4 triggers the
+  // browser's print dialog on the generated PDF without ever navigating away
+  // (a hidden iframe, not a new tab); any thermal width (3"/5", "4" handled
+  // defensively) prints the thermal receipt.
   const handlePrint = async () => {
+    if (invoiceSettings?.printer_inch !== "A4") {
+      handleThermalPrint();
+      return;
+    }
     const pdf = await generatePDF();
     if (!pdf) return;
-    const url = pdf.output("bloburl");
-    const win = window.open(url as unknown as string, "_blank");
-    win?.addEventListener("load", () => win.print());
+    const blob = pdf.output("blob");
+    const url = URL.createObjectURL(blob);
+    // A hidden iframe (rather than window.open in a new tab) loads the PDF and
+    // prints it in place — the user never leaves the current page/tab. Chrome's
+    // built-in PDF viewer doesn't reliably fire the iframe's `load` event (a
+    // long-standing quirk), so `onload` is only a fast path — a fallback timer
+    // guarantees print() still fires on browsers where it never does.
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    iframe.src = url;
+    let printed = false;
+    const triggerPrint = () => {
+      if (printed) return;
+      printed = true;
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    };
+    iframe.onload = triggerPrint;
+    document.body.appendChild(iframe);
+    setTimeout(triggerPrint, 1000);
+    setTimeout(() => {
+      iframe.remove();
+      URL.revokeObjectURL(url);
+    }, 60000);
   };
 
   // ── PDF data ──────────────────────────────────────────────
@@ -1339,9 +1422,10 @@ export default function InvoiceDetailsModal({
         )}
       </DialogContent>
 
-      {/* Hidden PDF render target */}
+      {/* Hidden PDF / thermal render targets */}
       <div style={{ position: "fixed", left: "-9999px", top: "-9999px", overflow: "hidden", pointerEvents: "none" }}>
         <InvoicePDFTemplate ref={pdfRef} data={pdfData} />
+        <ThermalInvoiceTemplate ref={thermalRef} data={pdfData} paperSize={thermalPaperSize} />
       </div>
 
       {/* ── Footer actions ─────────────────────────────────── */}
