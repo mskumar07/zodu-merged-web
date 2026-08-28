@@ -1938,17 +1938,16 @@ const ZoduLandingPage: React.FC = () => {
 </Grid>
           
        {/* 8. PURCHASE MANAGEMENT */}
+{/* 8. PURCHASE MANAGEMENT */}
 <Grid size={{ xs: 12, sm: 6, md: 4 }} sx={{ display: "flex" }}>
   <Box
     sx={{
       bgcolor: "#fff",
-      p: 1,
+      p: 1.2,
       borderRadius: "16px",
       border: "1px solid #e2e8f0",
       width: "100%",
-      height: "192px",
-      minHeight: "192px",
-      maxHeight: "192px",
+      height: { xs: "auto", md: "192px" },
       boxSizing: "border-box",
       overflow: "hidden",
       display: "flex",
@@ -1957,7 +1956,7 @@ const ZoduLandingPage: React.FC = () => {
     }}
   >
     {/* Header */}
-    <Box sx={{ display: "flex", gap: 1, mb: 0.35, alignItems: "center", flexShrink: 0 }}>
+    <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexShrink: 0, mb: 1 }}>
       <Box
         sx={{
           width: 34,
@@ -1983,32 +1982,32 @@ const ZoduLandingPage: React.FC = () => {
     </Box>
 
     {/* Content wrapper: Left metrics stack & Right full image side-by-side */}
-    <Box sx={{ flex: 1, minHeight: 0, display: "flex", gap: 0.8, alignItems: "stretch" }}>
+    <Box sx={{ display: "flex", gap: 0.8, flex: 1, minHeight: 0, alignItems: "stretch" }}>
       
       {/* Left Side: Metrics Stack */}
-      <Stack spacing={0.4} sx={{ flex: 1.1, minHeight: 0, display: "flex" }}>
-        <Box sx={{ p: 0.5, px: 0.7, borderRadius: "8px", bgcolor: "#f8fafc", border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.03)", display: "flex", flexDirection: "column", justifyContent: "center", flex: 1, minHeight: 0 }}>
+      <Box sx={{ flex: 1.3, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 0.45, minHeight: 0 }}>
+        <Box sx={{ p: 0.4, px: 0.6, borderRadius: "8px", bgcolor: "#f8fafc", border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.03)", display: "flex", flexDirection: "column", justifyContent: "center", flex: 1, minHeight: 0 }}>
           <Typography sx={{ fontSize: "0.45rem", color: "#64748b", fontWeight: 600, lineHeight: 1.1 }}>Total Purchases</Typography>
           <Typography sx={{ fontSize: "0.62rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, mt: 0.1 }}>₹ 1,25,000</Typography>
         </Box>
 
-        <Box sx={{ p: 0.5, px: 0.7, borderRadius: "8px", bgcolor: "#f8fafc", border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.03)", display: "flex", flexDirection: "column", justifyContent: "center", flex: 1, minHeight: 0 }}>
+        <Box sx={{ p: 0.4, px: 0.6, borderRadius: "8px", bgcolor: "#f8fafc", border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.03)", display: "flex", flexDirection: "column", justifyContent: "center", flex: 1, minHeight: 0 }}>
           <Typography sx={{ fontSize: "0.45rem", color: "#64748b", fontWeight: 600, lineHeight: 1.1 }}>Purchase Orders</Typography>
           <Typography sx={{ fontSize: "0.62rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, mt: 0.1 }}>12</Typography>
         </Box>
 
-        <Box sx={{ p: 0.5, px: 0.7, borderRadius: "8px", bgcolor: "#f8fafc", border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.03)", display: "flex", flexDirection: "column", justifyContent: "center", flex: 1, minHeight: 0 }}>
+        <Box sx={{ p: 0.4, px: 0.6, borderRadius: "8px", bgcolor: "#f8fafc", border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.03)", display: "flex", flexDirection: "column", justifyContent: "center", flex: 1, minHeight: 0 }}>
           <Typography sx={{ fontSize: "0.45rem", color: "#64748b", fontWeight: 600, lineHeight: 1.1 }}>Pending Receipts</Typography>
           <Typography sx={{ fontSize: "0.62rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, mt: 0.1 }}>5</Typography>
         </Box>
-      </Stack>
+      </Box>
 
       {/* Right Side: Full Image Card */}
       <Box
         sx={{
           flex: 1.4,
           minHeight: 0,
-          p: 0.3,
+          p: 0.5,
           borderRadius: "10px",
           bgcolor: "#f8fafc",
           border: "1px solid #f1f5f9",
@@ -2026,9 +2025,8 @@ const ZoduLandingPage: React.FC = () => {
           sx={{
             width: "100%",
             height: "100%",
-            objectFit: "cover",
+            objectFit: "contain",
             objectPosition: "center",
-            borderRadius: "8px",
           }}
         />
       </Box>
@@ -2038,7 +2036,8 @@ const ZoduLandingPage: React.FC = () => {
 </Grid>
           
           {/* 9. REPORTS & ANALYTICS */}
- <Grid size={{ xs: 12, sm: 6, md: 4 }} sx={{ display: "flex" }}>
+ {/* 9. REPORTS & ANALYTICS */}
+<Grid size={{ xs: 12, sm: 6, md: 4 }} sx={{ display: "flex" }}>
   <Box
     sx={{
       bgcolor: "#fff",
@@ -2051,12 +2050,11 @@ const ZoduLandingPage: React.FC = () => {
       overflow: "hidden",
       display: "flex",
       flexDirection: "column",
-      justifyContent: "space-between",
       boxShadow: "0 4px 20px rgba(15,23,42,0.04)",
     }}
   >
     {/* Header */}
-    <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexShrink: 0 }}>
+    <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexShrink: 0, mb: 1 }}>
       <Box
         sx={{
           width: 34,
@@ -2082,10 +2080,10 @@ const ZoduLandingPage: React.FC = () => {
     </Box>
 
     {/* Main Body: Left Metrics Stack & Right Image Box */}
-    <Box sx={{ display: "flex", gap: 0.8, flex: 1, mt: 0.8, alignItems: "center" }}>
+    <Box sx={{ display: "flex", gap: 0.8, flex: 1, minHeight: 0, alignItems: "stretch" }}>
       
       {/* Left Side: Metrics Stacked Vertically */}
-      <Box sx={{ flex: 1.3, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 0.45, height: "100%" }}>
+      <Box sx={{ flex: 1.3, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 0.45, minHeight: 0 }}>
         
         {/* Top Metrics Row */}
         <Box sx={{ display: "flex", gap: 0.4 }}>
@@ -2128,7 +2126,7 @@ const ZoduLandingPage: React.FC = () => {
           </Box>
         </Box>
 
-        {/* Bottom Sales by Category Card (Fixed gap & perfectly aligned center) */}
+        {/* Bottom Sales by Category Card */}
         <Box
           sx={{
             flex: 1,
@@ -2139,7 +2137,7 @@ const ZoduLandingPage: React.FC = () => {
             border: "1px solid #f1f5f9",
             display: "flex",
             flexDirection: "column",
-            justifyContent: "center", // Changed from space-between to center to remove the gap
+            justifyContent: "center",
             gap: 0.35,
           }}
         >
@@ -2177,7 +2175,7 @@ const ZoduLandingPage: React.FC = () => {
       <Box
         sx={{
           flex: 1.4,
-          height: "100%",
+          minHeight: 0,
           borderRadius: "10px",
           bgcolor: "#f8fafc",
           border: "1px solid #f1f5f9",
