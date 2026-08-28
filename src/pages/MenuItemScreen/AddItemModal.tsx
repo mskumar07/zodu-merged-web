@@ -545,7 +545,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
       />
     </Box>
 
-    {/* Barcode / QR Field (Item ID-ku Right side-la varum) */}
+    {/* Barcode / QR Field  */}
     <Box>
       <Label text="Barcode / QR" />
       <TextField
@@ -735,74 +735,76 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
            
 
             {/* Row 4: Tax */}
-            <Box sx={{ bgcolor: 'action.hover', borderRadius: 1.5, p: 2.5 }}>
-              <Typography variant="body2" fontWeight={700} color="text.secondary" textTransform="uppercase" letterSpacing="0.06em" fontSize={11} mb={2}>
-                Tax Information
-              </Typography>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2.5 }}>
-                <Box>
-                  <Label text="Tax Type" required />
-                  <FormControl fullWidth size="small" error={touch.gstId && Boolean(err.gstId)}>
-                    <Autocomplete
-                      options={gstOptions}
-                      getOptionLabel={(g) => g.label}
-                      isOptionEqualToValue={(a, b) => String(a.value) === String(b.value)}
-                      value={gstOptions.find(g => String(g.value) === formik.values.gstId) ?? null}
-                      onChange={(_e, newValue) => formik.setFieldValue('gstId', newValue ? String(newValue.value) : '')}
-                      loading={gstLoading}
-                      noOptionsText="No tax types found"
-                      ListboxProps={{ sx: { maxHeight: 300 } }}
-                      renderOption={(props, option) => (
-                        <MenuItem {...props} key={option.value} sx={{ fontSize: 14 }}>{option.label}</MenuItem>
-                      )}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          size="small"
-                          placeholder="Select Tax"
-                          sx={{ ...inputSx, bgcolor: 'background.paper' }}
-                          InputProps={{
-                            ...params.InputProps,
-                            endAdornment: (
-                              <>
-                                {gstLoading ? <CircularProgress size={14} /> : null}
-                                {params.InputProps.endAdornment}
-                              </>
-                            ),
-                          }}
-                        />
-                      )}
-                    />
-                    {touch.gstId && err.gstId && (
-                      <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>{err.gstId}</Typography>
-                    )}
-                  </FormControl>
-                </Box>
-                <Box>
-                  <Label text="HSN Code" />
-                  <TextField fullWidth size="small" placeholder="Enter HSN/SAC"
-                    {...formik.getFieldProps('hsn')}
-                    error={touch.hsn && Boolean(err.hsn)}
-                    helperText={touch.hsn && err.hsn}
-                    inputProps={{ maxLength: HSN_CODE_MAX_LENGTH }}
-                    InputProps={{ sx: { ...inputSx, bgcolor: 'background.paper' } }} />
-                </Box>
-                  
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, gridColumn: { md: '1 / -1' } }}>
-                  <Typography variant="body2" fontWeight={600} whiteSpace="nowrap">Tax Inclusion</Typography>
-                  <ToggleButtonGroup exclusive value={formik.values.taxInclusion}
-                    onChange={(_e, v) => v && formik.setFieldValue('taxInclusion', v)}
-                    sx={{ bgcolor: 'rgba(0,0,0,0.08)', borderRadius: '999px', p: '3px', gap: '3px', '& .MuiToggleButtonGroup-grouped': { margin: 0 } }}>
-                    {(['Incl.', 'Excl.'] as const).map(v => (
-                      <ToggleButton key={v} value={v}
-                        sx={{ border: 'none !important', borderRadius: '999px !important', textTransform: 'none', fontSize: 12, fontWeight: 600, px: 1.8, height: 28, color: 'text.secondary', '&.Mui-selected': { bgcolor: 'background.paper', color: 'text.primary', boxShadow: '0 1px 3px rgba(0,0,0,0.15)', '&:hover': { bgcolor: 'background.paper' } }, '&:hover': { bgcolor: 'transparent' } }}>
-                        {v}
-                      </ToggleButton>
-                    ))}
-                  </ToggleButtonGroup>
-                </Box>
-              </Box>
-            </Box>
+           <Box sx={{ bgcolor: 'action.hover', borderRadius: 1.5, p: 2.5 }}>
+  <Typography variant="body2" fontWeight={700} color="text.secondary" textTransform="uppercase" letterSpacing="0.06em" fontSize={11} mb={2}>
+    Tax Information
+  </Typography>
+  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2.5 }}>
+    <Box>
+      <Label text="Tax Type"/>
+      <FormControl fullWidth size="small" error={touch.gstId && Boolean(err.gstId)}>
+        <Autocomplete
+          options={gstOptions}
+          getOptionLabel={(g) => g.label}
+          isOptionEqualToValue={(a, b) => String(a.value) === String(b.value)}
+          value={gstOptions.find(g => String(g.value) === formik.values.gstId) ?? null}
+          onChange={(_e, newValue) => formik.setFieldValue('gstId', newValue ? String(newValue.value) : '')}
+          loading={gstLoading}
+          noOptionsText="No tax types found"
+          ListboxProps={{ sx: { maxHeight: 300 } }}
+          renderOption={(props, option) => (
+            <MenuItem {...props} key={option.value} sx={{ fontSize: 14 }}>{option.label}</MenuItem>
+          )}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              size="small"
+              placeholder="Select Tax"
+              sx={{ ...inputSx, bgcolor: 'background.paper' }}
+              InputProps={{
+                ...params.InputProps,
+                endAdornment: (
+                  <>
+                    {gstLoading ? <CircularProgress size={14} /> : null}
+                    {params.InputProps.endAdornment}
+                  </>
+                ),
+              }}
+            />
+          )}
+        />
+        {/* {touch.gstId && err.gstId && (
+          <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>{err.gstId}</Typography>
+        )} */}
+      </FormControl>
+    </Box>
+    <Box>
+      <Label text="HSN Code" />
+      <TextField fullWidth size="small" placeholder="Enter HSN/SAC"
+        {...formik.getFieldProps('hsn')}
+        error={touch.hsn && Boolean(err.hsn)}
+        helperText={touch.hsn && err.hsn}
+        inputProps={{ maxLength: HSN_CODE_MAX_LENGTH }}
+        InputProps={{ sx: { ...inputSx, bgcolor: 'background.paper' } }} />
+    </Box>
+      
+    {formik.values.gstId && (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, gridColumn: { md: '1 / -1' } }}>
+        <Typography variant="body2" fontWeight={600} whiteSpace="nowrap">Tax Inclusion</Typography>
+        <ToggleButtonGroup exclusive value={formik.values.taxInclusion}
+          onChange={(_e, v) => v && formik.setFieldValue('taxInclusion', v)}
+          sx={{ bgcolor: 'rgba(0,0,0,0.08)', borderRadius: '999px', p: '3px', gap: '3px', '& .MuiToggleButtonGroup-grouped': { margin: 0 } }}>
+          {(['Incl.', 'Excl.'] as const).map(v => (
+            <ToggleButton key={v} value={v}
+              sx={{ border: 'none !important', borderRadius: '999px !important', textTransform: 'none', fontSize: 12, fontWeight: 600, px: 1.8, height: 28, color: 'text.secondary', '&.Mui-selected': { bgcolor: 'background.paper', color: 'text.primary', boxShadow: '0 1px 3px rgba(0,0,0,0.15)', '&:hover': { bgcolor: 'background.paper' } }, '&:hover': { bgcolor: 'transparent' } }}>
+              {v}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+      </Box>
+    )}
+  </Box>
+</Box>
 
             {!isService && (
               <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}>
