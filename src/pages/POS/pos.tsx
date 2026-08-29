@@ -177,7 +177,7 @@ function toPosPaymentType(method: string | undefined): PaymentType {
   return "Others";
 }
 
-// printer_inch is stored as "3 Inch" / "4 Inch" / "5 Inch"; ThermalPaperSize only accepts "3" | "4" | "5".
+// printer_inch is stored as "3 Inch" / "4 Inch" / "5 Inch"; PaperSize only accepts "3" | "4" | "5".
 function toThermalPaperSize(printerInch: string | undefined): ThermalPaperSize {
   if (printerInch?.startsWith("4")) return "4";
   if (printerInch?.startsWith("5")) return "5";
