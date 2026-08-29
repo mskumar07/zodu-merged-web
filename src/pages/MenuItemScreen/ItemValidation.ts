@@ -48,7 +48,8 @@ export const addItemSchema = Yup.object({
   rate:          amountField('selling rate').required('Selling rate is required'),
 
   // gstId is the API-driven GST dropdown value (string of gst id)
-  gstId: Yup.string().required('Tax type is required'),
+  // gstId: Yup.string().required('Tax type is required'),
+  gstId: Yup.string().nullable().optional(),
 
   taxInclusion: Yup.string().oneOf(['Incl.', 'Excl.']).required(),
 
