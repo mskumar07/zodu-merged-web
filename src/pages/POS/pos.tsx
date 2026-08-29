@@ -25,6 +25,7 @@ import {
   Select, MenuItem, CircularProgress,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import AddShoppingCartIcon    from "@mui/icons-material/AddShoppingCart";
 import KeyboardReturnIcon     from "@mui/icons-material/KeyboardReturn";
 import DeleteOutlineIcon      from "@mui/icons-material/DeleteOutline";
@@ -177,7 +178,7 @@ function toPosPaymentType(method: string | undefined): PaymentType {
   return "Others";
 }
 
-// printer_inch is stored as "3 Inch" / "4 Inch" / "5 Inch"; ThermalPaperSize only accepts "3" | "4" | "5".
+// printer_inch is stored as "3 Inch" / "4 Inch" / "5 Inch"; PaperSize only accepts "3" | "4" | "5".
 function toThermalPaperSize(printerInch: string | undefined): ThermalPaperSize {
   if (printerInch?.startsWith("4")) return "4";
   if (printerInch?.startsWith("5")) return "5";
@@ -241,6 +242,15 @@ function RetailPOSInner() {
   // Camera scanning only makes sense on a phone/tablet's own camera — desktop/laptop
   // relies on a hardware USB/Bluetooth scanner instead, so the camera button is hidden there.
   const isMobileOrTablet = useMemo(() => isMobileOrTabletDevice(), []);
+  // Below `md` (phone/tablet-portrait widths) the order list renders as stacked
+  // cards instead of the 11-column table — a horizontally-scrolling table doesn't
+  // work well on touch, and the qty/rate/discount edit inputs need real room.
+  // `md` and up (small laptops included) keeps the table — plenty of width once
+  // this section is no longer sharing space with a sidebar. `useMediaQuery` (not
+  // just an sx breakpoint) because the two layouts mount different DOM/controls —
+  // CSS-hiding one instead of the other would double up the qty/price/discount
+  // TextField refs.
+  const isCompactTable = useMediaQuery(theme.breakpoints.down("md"));
 
   const [codeInput, setCodeInput] = useState("");
   const { results: suggestions, isLoading: catalogueLoading, total: catalogueTotal } = usePosSearch(branchId, codeInput, zoduId);
@@ -1191,6 +1201,106 @@ console.log("test",serverHolds)
     }
   }, [invoiceSettings?.printer_inch, savedPdfData, generateInvoicePdf, handleThermalPrint]);
 
+  // ── Shared qty/rate/discount editing controls ──────────────────
+  // Used by both the desktop table row and the mobile/tablet card list so the
+  // inline-edit behavior (refs, blur/keydown commit, F2-style shortcuts) has a
+  // single implementation — only the surrounding layout differs per breakpoint.
+  const renderQtyControl = (item: LineItem, rowIdx: number, isActive: boolean) => (
+    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.3 }}>
+      <IconButton size="small" onClick={() => updateQty(item.code, -1)} sx={{ width: 24, height: 24, bgcolor: "#F3F4F6", "&:hover": { bgcolor: "#FEE2E2" } }}><RemoveIcon sx={{ fontSize: 12 }} /></IconButton>
+      {item.editingQty ? (
+        <TextField inputRef={el => { qtyRefs.current[item.code] = el; }} value={item.qtyDraft ?? ""}
+          onChange={e => setItems(prev => prev.map(i => i.code === item.code ? { ...i, qtyDraft: e.target.value.replace(/[^0-9.]/g, "") } : i))}
+          onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = qtyRefs.current[item.code]; const newQty = Math.max(1, parseFloat(el?.value ?? "") || 1); setItems(prev => prev.map(i => { if (i.code !== item.code) return i; const discount = i.discountPct ? parseFloat(((i.discountPct * newQty * i.sellPrice) / 100).toFixed(2)) : i.discount; return { ...i, qty: newQty, discount, editingQty: false, qtyDraft: undefined }; })); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
+          onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); const newQty = Math.max(1, parseFloat((e.target as HTMLInputElement).value) || 1); editCancelledRef.current = true; setItems(prev => prev.map(i => { if (i.code !== item.code) return i; const discount = i.discountPct ? parseFloat(((i.discountPct * newQty * i.sellPrice) / 100).toFixed(2)) : i.discount; return { ...i, qty: newQty, discount, editingQty: false, qtyDraft: undefined }; })); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingQty: false, qtyDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
+          size="small" inputProps={{ step: "any", style: { textAlign: "center", fontWeight: 800, fontSize: 14, padding: "2px 2px", width: 48 } }}
+          sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#1976D2", borderWidth: 2 } }, width: 64 }} />
+      ) : (
+        <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditQty(item.code); }}
+          sx={{ minWidth: 30, textAlign: "center", fontWeight: 800, fontSize: 14, px: 0.4, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #1976D2" : "1.5px dashed transparent", bgcolor: isActive ? "#E3F2FD" : "transparent", "&:hover": { border: "1.5px dashed #1976D2", bgcolor: "#E3F2FD" }, transition: "all 0.15s" }}>{item.qty}</Box>
+      )}
+      <IconButton size="small" onClick={() => updateQty(item.code, 1)} sx={{ width: 24, height: 24, bgcolor: "#F3F4F6", "&:hover": { bgcolor: "#DCFCE7" } }}><AddIcon sx={{ fontSize: 12 }} /></IconButton>
+    </Box>
+  );
+
+  const renderRateControl = (item: LineItem, rowIdx: number, isActive: boolean) => (
+    item.editingPrice ? (
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>
+        <Typography sx={{ fontSize: 13, color: "#9CA3AF", fontWeight: 700 }}>₹</Typography>
+        <TextField inputRef={el => { priceRefs.current[item.code] = el; }} value={item.priceDraft ?? ""}
+          onChange={e => setItems(prev => prev.map(i => i.code === item.code ? { ...i, priceDraft: e.target.value.replace(/[^0-9.]/g, "") } : i))}
+          onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = priceRefs.current[item.code]; const newSell = Math.max(0, parseFloat(el?.value ?? "") || item.sellPrice); const newBase = item.taxInclusive && item.gstPct > 0 ? newSell / (1 + item.gstPct / 100) : newSell; setItems(prev => prev.map(i => { if (i.code !== item.code) return i; const discount = i.discountPct ? parseFloat(((i.discountPct * i.qty * newSell) / 100).toFixed(2)) : i.discount; return { ...i, sellPrice: newSell, unitPrice: newBase, discount, editingPrice: false, priceDraft: undefined }; })); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
+          onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); const newSell = Math.max(0, parseFloat((e.target as HTMLInputElement).value) || item.sellPrice); const newBase = item.taxInclusive && item.gstPct > 0 ? newSell / (1 + item.gstPct / 100) : newSell; editCancelledRef.current = true; setItems(prev => prev.map(i => { if (i.code !== item.code) return i; const discount = i.discountPct ? parseFloat(((i.discountPct * i.qty * newSell) / 100).toFixed(2)) : i.discount; return { ...i, sellPrice: newSell, unitPrice: newBase, discount, editingPrice: false, priceDraft: undefined }; })); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingPrice: false, priceDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
+          size="small" inputProps={{ style: { textAlign: "right", fontWeight: 700, fontSize: 13, padding: "2px 4px", width: 60 } }}
+          sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#1976D2", borderWidth: 2 } }, width: 80 }} />
+      </Box>
+    ) : (
+      <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditPrice(item.code); }}
+        sx={{ display: "inline-flex", alignItems: "center", gap: 0.3, px: 0.6, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #1976D2" : "1.5px dashed transparent", bgcolor: isActive ? "#E3F2FD" : "transparent", "&:hover": { border: "1.5px dashed #1976D2", bgcolor: "#E3F2FD", "& .pedit": { opacity: 1 } }, transition: "all 0.15s" }}>
+        <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", wordBreak: "break-word" }}>{INR(item.sellPrice)}</Typography>
+        <EditIcon className="pedit" sx={{ fontSize: 10, color: "#1976D2", opacity: isActive ? 0.6 : 0, transition: "opacity 0.15s", flexShrink: 0 }} />
+      </Box>
+    )
+  );
+
+  const renderDiscountControl = (item: LineItem, rowIdx: number, isActive: boolean) => (
+    item.editingDiscount ? (
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>
+        <TextField
+          inputRef={el => { discountRefs.current[item.code] = el; }}
+          value={item.discountDraft ?? ""}
+          onChange={e => setItems(prev => prev.map(i => i.code === item.code ? { ...i, discountDraft: e.target.value.replace(/[^0-9.]/g, "") } : i))}
+          onBlur={() => {
+            if (editCancelledRef.current) { editCancelledRef.current = false; return; }
+            const el = discountRefs.current[item.code];
+            const pct = Math.min(100, Math.max(0, parseFloat(el?.value ?? "") || 0));
+            const flat = parseFloat(((pct * item.qty * item.sellPrice) / 100).toFixed(2));
+            setItems(prev => prev.map(i => i.code === item.code ? { ...i, discountPct: pct, discount: flat, editingDiscount: false, discountDraft: undefined } : i));
+            setZone("TABLE"); setActiveRowIdx(rowIdx);
+          }}
+          onKeyDown={e => {
+            if (e.key === "Enter" || e.key === "Tab") {
+              e.preventDefault(); e.stopPropagation();
+              const pct = Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0));
+              const flat = parseFloat(((pct * item.qty * item.sellPrice) / 100).toFixed(2));
+              editCancelledRef.current = true;
+              setItems(prev => prev.map(i => i.code === item.code ? { ...i, discountPct: pct, discount: flat, editingDiscount: false, discountDraft: undefined } : i));
+              (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx);
+            }
+            if (e.key === "Escape") {
+              e.preventDefault(); e.stopPropagation();
+              editCancelledRef.current = true;
+              setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingDiscount: false, discountDraft: undefined } : i));
+              (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx);
+            }
+          }}
+          size="small"
+          inputProps={{ style: { textAlign: "right", fontWeight: 700, fontSize: 13, padding: "2px 4px", width: 40 } }}
+          sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#C8102E", borderWidth: 2 } }, width: 70 }}
+          InputProps={{ endAdornment: <Typography sx={{ fontSize: 12, color: "#9CA3AF", fontWeight: 700 }}>%</Typography> }}
+        />
+      </Box>
+    ) : (
+      <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditDiscount(item.code); }}
+        sx={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-end", px: 0.6, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #C8102E" : "1.5px dashed transparent", bgcolor: isActive ? "#FFF1F3" : "transparent", "&:hover": { border: "1.5px dashed #C8102E", bgcolor: "#FFF1F3", "& .dedit": { opacity: 1 } }, transition: "all 0.15s" }}>
+        {(item.discountPct ?? 0) > 0 ? (
+          <>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.3 }}>
+              <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#C8102E" }}>{item.discountPct}%</Typography>
+              <EditIcon className="dedit" sx={{ fontSize: 10, color: "#C8102E", opacity: isActive ? 0.5 : 0, transition: "opacity 0.15s" }} />
+            </Box>
+            <Typography sx={{ fontSize: 10, color: "#C8102E", fontWeight: 500 }}>- {INR(item.discount ?? 0)}</Typography>
+          </>
+        ) : (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.3 }}>
+            <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#D1D5DB" }}>—</Typography>
+            <EditIcon className="dedit" sx={{ fontSize: 10, color: "#C8102E", opacity: isActive ? 0.5 : 0, transition: "opacity 0.15s" }} />
+          </Box>
+        )}
+      </Box>
+    )
+  );
+
   // ─────────────────────────────────────────────────────────────
   return (
     <ThemeProvider theme={theme}>
@@ -1208,50 +1318,55 @@ console.log("test",serverHolds)
           {/* ─────────────────────── LEFT COLUMN ─────────────────────── */}
           <Box sx={{ flex: "1 1 auto", minWidth: 0, minHeight: { xs: "auto", lg: 0 }, display: "flex", flexDirection: "column", gap: { xs: 0.75, sm: 1 }, overflow: { xs: "visible", lg: "hidden" } }}>
 
-            {/* Top row: Sale/Quotation tabs + Hold/Recall/Date */}
-            <Box sx={{ bgcolor: "#fff", border: "1px solid #E5E7EB", borderRadius: 2, px: { xs: 1.5, md: 2 }, py: 0.75, display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 50, flexShrink: 0, flexWrap: "wrap", gap: 1 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, bgcolor: "#F3F4F6", borderRadius: 2, p: 0.5 }}>
-                <Box onClick={() => setPosMode("SALE")} sx={{ display: "flex", alignItems: "center", gap: 0.7, px: 1.75, py: 0.6, borderRadius: 1.5, cursor: "pointer", bgcolor: !isQuotation ? "#C8102E" : "transparent", color: !isQuotation ? "#fff" : "#6B7280", transition: "all 0.18s", "&:hover": { bgcolor: !isQuotation ? "#C8102E" : "#E5E7EB" } }}>
-                  <ReceiptLongIcon sx={{ fontSize: 15 }} />
-                  <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em" }}>Sale</Typography>
+            {/* Top row: Sale/Quotation tabs + Hold/Recall — stays a single row on
+                every width (no wrap): the switcher and buttons shrink their padding/
+                font on `xs` and drop the "[F9]"-style keyboard hints (meaningless on
+                touch anyway) so all four controls keep fitting phone widths. */}
+            <Box sx={{ bgcolor: "#fff", border: "1px solid #E5E7EB", borderRadius: 2, px: { xs: 1, md: 2 }, py: 0.75, display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: { xs: 42, md: 50 }, flexShrink: 0, flexWrap: "nowrap", gap: { xs: 0.5, md: 1 } }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.3, md: 0.5 }, bgcolor: "#F3F4F6", borderRadius: 2, p: 0.5, flexShrink: 0 }}>
+                <Box onClick={() => setPosMode("SALE")} sx={{ display: "flex", alignItems: "center", gap: { xs: 0.4, md: 0.7 }, px: { xs: 1, md: 1.75 }, py: { xs: 0.4, md: 0.6 }, borderRadius: 1.5, cursor: "pointer", bgcolor: !isQuotation ? "#C8102E" : "transparent", color: !isQuotation ? "#fff" : "#6B7280", transition: "all 0.18s", "&:hover": { bgcolor: !isQuotation ? "#C8102E" : "#E5E7EB" } }}>
+                  <ReceiptLongIcon sx={{ fontSize: { xs: 13, md: 15 } }} />
+                  <Typography sx={{ fontSize: { xs: 10.5, md: 12 }, fontWeight: 700, letterSpacing: "0.04em" }}>Sale</Typography>
                 </Box>
-                <Box onClick={() => setPosMode("QUOTATION")} sx={{ display: "flex", alignItems: "center", gap: 0.7, px: 1.75, py: 0.6, borderRadius: 1.5, cursor: "pointer", bgcolor: isQuotation ? "#1D4ED8" : "transparent", color: isQuotation ? "#fff" : "#6B7280", transition: "all 0.18s", "&:hover": { bgcolor: isQuotation ? "#1D4ED8" : "#E5E7EB" } }}>
-                  <RequestQuoteIcon sx={{ fontSize: 15 }} />
-                  <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em" }}>Quotation</Typography>
+                <Box onClick={() => setPosMode("QUOTATION")} sx={{ display: "flex", alignItems: "center", gap: { xs: 0.4, md: 0.7 }, px: { xs: 1, md: 1.75 }, py: { xs: 0.4, md: 0.6 }, borderRadius: 1.5, cursor: "pointer", bgcolor: isQuotation ? "#1D4ED8" : "transparent", color: isQuotation ? "#fff" : "#6B7280", transition: "all 0.18s", "&:hover": { bgcolor: isQuotation ? "#1D4ED8" : "#E5E7EB" } }}>
+                  <RequestQuoteIcon sx={{ fontSize: { xs: 13, md: 15 } }} />
+                  <Typography sx={{ fontSize: { xs: 10.5, md: 12 }, fontWeight: 700, letterSpacing: "0.04em" }}>Quotation</Typography>
                 </Box>
               </Box>
 
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-                {!isQuotation && (
-                  <Box sx={{ display: "flex", gap: 0.75 }}>
-                    <Button size="small" disabled={holdSaving || items.length === 0}
-                      startIcon={holdSaving ? <CircularProgress size={10} /> : <PauseCircleOutlineIcon />}
-                      onClick={handleHold}
-                      sx={{ minWidth: 82, height: 26, px: 1, borderRadius: 1.25, bgcolor: "#4B5563", color: "#fff", fontSize: 10, fontWeight: 800, boxShadow: "0 2px 6px rgba(75,85,99,0.22)", "&:hover": { bgcolor: "#374151" } }}>
-                      HOLD <Box component="span" sx={{ fontSize: 9, opacity: 0.8, ml: 0.3 }}>[F9]</Box>
+              {!isQuotation && (
+                <Box sx={{ display: "flex", gap: { xs: 0.5, md: 0.75 }, flexShrink: 0 }}>
+                  <Button size="small" disabled={holdSaving || items.length === 0}
+                    startIcon={holdSaving ? <CircularProgress size={10} /> : <PauseCircleOutlineIcon sx={{ fontSize: { xs: 13, md: 16 } }} />}
+                    onClick={handleHold}
+                    sx={{ minWidth: { xs: 0, md: 82 }, height: { xs: 24, md: 26 }, px: { xs: 0.75, md: 1 }, borderRadius: 1.25, bgcolor: "#4B5563", color: "#fff", fontSize: { xs: 9, md: 10 }, fontWeight: 800, boxShadow: "0 2px 6px rgba(75,85,99,0.22)", "&:hover": { bgcolor: "#374151" } }}>
+                    HOLD <Box component="span" sx={{ display: { xs: "none", md: "inline" }, fontSize: 9, opacity: 0.8, ml: 0.3 }}>[F9]</Box>
+                  </Button>
+                  <Badge badgeContent={heldOrders.length} invisible={heldOrders.length === 0} sx={{ "& .MuiBadge-badge": { fontSize: 8, minWidth: 14, height: 14, bgcolor: "#C8102E", color: "#fff", fontWeight: 800 } }}>
+                    <Button size="small" startIcon={<PlayArrowIcon sx={{ fontSize: { xs: 11, md: 12 } }} />} onClick={() => { setHoldDialogOpen(true); refetchHolds(); }}
+                      sx={{ minWidth: { xs: 0, md: 80 }, height: { xs: 24, md: 26 }, px: { xs: 0.75, md: 1 }, borderRadius: 1.25, border: "1px solid #E5E7EB", bgcolor: heldOrders.length > 0 ? "#4B5563" : "#F3F4F6", color: heldOrders.length > 0 ? "#fff" : "#9CA3AF", fontSize: { xs: 9, md: 10 }, fontWeight: 800, "&:hover": { bgcolor: heldOrders.length > 0 ? "#374151" : "#E5E7EB" } }}>
+                      RECALL
                     </Button>
-                    <Badge badgeContent={heldOrders.length} invisible={heldOrders.length === 0} sx={{ "& .MuiBadge-badge": { fontSize: 8, minWidth: 14, height: 14, bgcolor: "#C8102E", color: "#fff", fontWeight: 800 } }}>
-                      <Button size="small" startIcon={<PlayArrowIcon sx={{ fontSize: 12 }} />} onClick={() => { setHoldDialogOpen(true); refetchHolds(); }}
-                        sx={{ minWidth: 80, height: 26, px: 1, borderRadius: 1.25, border: "1px solid #E5E7EB", bgcolor: heldOrders.length > 0 ? "#4B5563" : "#F3F4F6", color: heldOrders.length > 0 ? "#fff" : "#9CA3AF", fontSize: 10, fontWeight: 800, "&:hover": { bgcolor: heldOrders.length > 0 ? "#374151" : "#E5E7EB" } }}>
-                        RECALL
-                      </Button>
-                    </Badge>
-                  </Box>
-                )}
-              </Box>
+                  </Badge>
+                </Box>
+              )}
             </Box>
 
             {/* Search row */}
-            <Paper elevation={0} sx={{ borderRadius: 2, p: 1.75, bgcolor: "#fff", position: "relative", zIndex: 100, transition: "border-color 0.2s", flexShrink: 0, border: zone === "SEARCH" ? `2px solid ${modeAccent}` : "2px solid #E5E7EB", boxShadow: zone === "SEARCH" ? `0 0 0 3px ${isQuotation ? "rgba(29,78,216,0.08)" : "rgba(200,16,46,0.08)"}` : "none" }}>
-              <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-end", flexWrap: { xs: "wrap", md: "nowrap" } }}>
+            <Paper elevation={0} sx={{ borderRadius: 2, p: { xs: 1.1, md: 1.75 }, bgcolor: "#fff", position: "relative", zIndex: 100, transition: "border-color 0.2s", flexShrink: 0, border: zone === "SEARCH" ? `2px solid ${modeAccent}` : "2px solid #E5E7EB", boxShadow: zone === "SEARCH" ? `0 0 0 3px ${isQuotation ? "rgba(29,78,216,0.08)" : "rgba(200,16,46,0.08)"}` : "none" }}>
+              <Box sx={{ display: "flex", gap: { xs: 0.75, md: 1.5 }, alignItems: "flex-end", flexWrap: { xs: "wrap", md: "nowrap" } }}>
                 <Box sx={{ flex: 1, minWidth: { xs: "100%", md: 0 }, position: "relative" }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.4 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.3 }}>
                     <Typography sx={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", color: modeAccent }}>ITEM ID / NAME</Typography>
                     <Kbd>F2</Kbd>
-                    {catalogueLoading
-                      ? <Typography sx={{ fontSize: 9, color: "#9CA3AF", ml: 0.5 }}>syncing…</Typography>
-                      : catalogueTotal > 0 && <Typography sx={{ fontSize: 9, color: "#10B981", ml: 0.5 }}>● {catalogueTotal.toLocaleString()} items</Typography>
-                    }
+                    {/* Catalogue sync status is a nice-to-have, not actionable on a phone screen —
+                        keep it off mobile so the label row doesn't fight the input for width. */}
+                    <Box sx={{ display: { xs: "none", sm: "inline-flex" } }}>
+                      {catalogueLoading
+                        ? <Typography sx={{ fontSize: 9, color: "#9CA3AF", ml: 0.5 }}>syncing…</Typography>
+                        : catalogueTotal > 0 && <Typography sx={{ fontSize: 9, color: "#10B981", ml: 0.5 }}>● {catalogueTotal.toLocaleString()} items</Typography>
+                      }
+                    </Box>
                   </Box>
                   <TextField
                     inputRef={codeRef} value={codeInput}
@@ -1304,19 +1419,19 @@ console.log("test",serverHolds)
                   )}
                 </Box>
                 <Button variant="contained" startIcon={<AddShoppingCartIcon />} onClick={() => handleAddItem()}
-                  sx={{ bgcolor: modeAccent, color: "#fff", px: 2.5, py: 0.9, fontSize: 13, fontWeight: 700, borderRadius: 1.5, minHeight: 38, whiteSpace: "nowrap", boxShadow: `0 4px 14px ${isQuotation ? "rgba(29,78,216,0.35)" : "rgba(200,16,46,0.35)"}`, "&:hover": { bgcolor: isQuotation ? "#1E40AF" : "#A50D26" }, "&:active": { transform: "scale(0.97)" } }}>
-                  ADD ITEM <Box component="span" sx={{ fontSize: 10, opacity: 0.8, ml: 0.4 }}>[Enter]</Box>
+                  sx={{ flex: { xs: 1, md: "initial" }, bgcolor: modeAccent, color: "#fff", px: { xs: 1.5, md: 2.5 }, py: 0.9, fontSize: { xs: 12, md: 13 }, fontWeight: 700, borderRadius: 1.5, minHeight: 38, whiteSpace: "nowrap", boxShadow: `0 4px 14px ${isQuotation ? "rgba(29,78,216,0.35)" : "rgba(200,16,46,0.35)"}`, "&:hover": { bgcolor: isQuotation ? "#1E40AF" : "#A50D26" }, "&:active": { transform: "scale(0.97)" } }}>
+                  ADD ITEM <Box component="span" sx={{ display: { xs: "none", md: "inline" }, fontSize: 10, opacity: 0.8, ml: 0.4 }}>[Enter]</Box>
                 </Button>
                 {items.length > 0 && (
                   <Button variant="outlined" startIcon={<DeleteOutlineIcon sx={{ fontSize: 16 }} />} onClick={handleClear}
-                    sx={{ borderColor: "#E5E7EB", color: "#6B7280", px: 1.75, py: 0.9, fontSize: 12, fontWeight: 700, borderRadius: 1.5, minHeight: 38, whiteSpace: "nowrap", "&:hover": { borderColor: "#C8102E", color: "#C8102E", bgcolor: "#FEF2F2" } }}>
-                    CLEAR <Box component="span" sx={{ fontSize: 10, opacity: 0.8, ml: 0.4 }}>[F4]</Box>
+                    sx={{ borderColor: "#E5E7EB", color: "#6B7280", px: { xs: 1.1, md: 1.75 }, py: 0.9, fontSize: { xs: 11, md: 12 }, fontWeight: 700, borderRadius: 1.5, minHeight: 38, whiteSpace: "nowrap", "&:hover": { borderColor: "#C8102E", color: "#C8102E", bgcolor: "#FEF2F2" } }}>
+                    CLEAR <Box component="span" sx={{ display: { xs: "none", md: "inline" }, fontSize: 10, opacity: 0.8, ml: 0.4 }}>[F4]</Box>
                   </Button>
                 )}
                 {isMobileOrTablet && (
                   <Tooltip title="Scan with camera">
                     <IconButton size="small" onClick={() => setCameraScanOpen(true)}
-                      sx={{ border: "1px solid #E5E7EB", borderRadius: 1.5, color: modeAccent, height: 38, width: 38 }}>
+                      sx={{ flexShrink: 0, border: "1px solid #E5E7EB", borderRadius: 1.5, color: modeAccent, height: 38, width: 38 }}>
                       <CameraAltOutlinedIcon sx={{ fontSize: 18 }} />
                     </IconButton>
                   </Tooltip>
@@ -1326,222 +1441,232 @@ console.log("test",serverHolds)
 
           {/* ORDER TABLE */}
           <Paper elevation={0} sx={{ flex: 1, minHeight: { xs: "auto", lg: 0 }, display: "flex", flexDirection: "column", border: zone === "TABLE" ? "2px solid #1976d2" : "1px solid #E5E7EB", borderRadius: 2, overflow: "hidden", transition: "border 0.2s", boxShadow: zone === "TABLE" ? "0 0 0 3px rgba(245,158,11,0.1)" : "none" }}>
-            {/* Below `lg` the 11-column table can't fit its fixed-width qty/rate/discount
-                inputs — this wrapper lets it scroll horizontally (in sync with the pinned
-                totals row below) instead of clipping columns; desktop is untouched. */}
-            <Box sx={{ flex: 1, minHeight: { xs: "auto", lg: 0 }, display: "flex", flexDirection: "column", overflowX: { xs: "auto", lg: "hidden" } }}>
-            {/* Desktop scrolls rows within a fixed-height viewport; below `lg` the row
-                list instead grows with its content and the whole page scrolls, since a
-                second nested scroll region reads badly on touch. */}
-            <Box sx={{ flex: 1, minHeight: { xs: "auto", lg: 0 }, overflowY: { xs: "visible", lg: "auto" }, overflowX: "hidden", scrollbarWidth: "thin", scrollbarColor: "#ea9999 #F3F4F6", "&::-webkit-scrollbar": { width: "8px" }, "&::-webkit-scrollbar-track": { backgroundColor: "#F3F4F6", borderRadius: "4px" }, "&::-webkit-scrollbar-thumb": { backgroundColor: "#ea9999", borderRadius: "4px", "&:hover": { backgroundColor: "#A50D26" } } }}>
-              <Table size="small" stickyHeader sx={{ borderCollapse: "separate", tableLayout: "fixed", width: "100%", minWidth: { xs: 860, lg: "auto" } }}>
-                <colgroup>
-                  <col style={{ width: "0.8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "16%" }} />
-                  <col style={{ width: "12%" }} /><col style={{ width: "6%" }} />
-                  <col style={{ width: "10%" }} /><col style={{ width: "10%" }} /><col style={{ width: "8%" }} />
-                  <col style={{ width: "8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "3%" }} />
-                </colgroup>
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ width: "0.8%", p: 0 }} />
-                    <TableCell sx={{ width: "10%", fontSize: 12 }}>ITEM ID</TableCell>
-                    <TableCell sx={{ width: "16%", fontSize: 12 }}>DESCRIPTION</TableCell>
-                    <TableCell align="right" sx={{ width: "12%", fontSize: 12, pr: 0.5 }}>TAX AMT (GST %)</TableCell>
-                    <TableCell align="right" sx={{ width: "6%", fontSize: 12, pr: 0.5 }}>MRP (₹)</TableCell>
-                    <TableCell align="center" sx={{ width: "10%", fontSize: 12, pl: 0.5 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.4 }}>QTY <Kbd>Q</Kbd></Box></TableCell>
-                    <TableCell align="right" sx={{ width: "10%", fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>RATE <Kbd>P</Kbd></Box></TableCell>
-                    <TableCell align="right" sx={{ width: "8%", fontSize: 12, whiteSpace: "nowrap" }}>UNIT PRICE</TableCell>
-                    <TableCell align="right" sx={{ width: "8%", fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>DISC % <Kbd>D</Kbd></Box></TableCell>
-                    <TableCell align="right" sx={{ width: "10%", fontSize: 12 }}>TOTAL</TableCell>
-                    <TableCell sx={{ width: "3%" }} />
-                  </TableRow>
-                </TableHead>
-                <TableBody ref={tableBodyRef}>
-                  {items.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={11} align="center" sx={{ py: 6 }}>
-                        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, color: "#D1D5DB" }}>
-                          <KeyboardReturnIcon sx={{ fontSize: 32 }} />
-                          <Typography sx={{ fontSize: 13 }}>Search and add items above</Typography>
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {items.map((item, rowIdx) => {
-                    const isActive  = zone === "TABLE" && activeRowIdx === rowIdx;
-                    const itemGst   = round2((item.qty * item.unitPrice * item.gstPct) / 100);
-                    const itemTotal = round2(item.qty * item.unitPrice + itemGst - (item.discount ?? 0));
-                    return (
-                      <Fade in key={item.code}>
-                        <TableRow data-rowcode={item.code} onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); }}
-                          sx={{ bgcolor: flashRow === item.code ? "#FFF1F3" : isActive ? "#E3F2FD" : "transparent", cursor: "pointer", transition: "background 0.2s", "&:hover": { bgcolor: isActive ? "#E3F2FD" : "#F5F5F5" } }}>
-                          <TableCell sx={{ p: 0 }}><Box sx={{ width: 4, minHeight: 40, bgcolor: isActive ? "#1976D2" : "transparent", borderRadius: "0 2px 2px 0", transition: "background 0.2s" }} /></TableCell>
-<TableCell>
-  <Typography
-    sx={{
-      fontSize: 12,
-      fontWeight: 700,
-      color: "#374151",
-      whiteSpace: "nowrap",
-      overflow: "visible",
-    }}
-  >
-    {item.code}
-  </Typography>
-</TableCell>                          <TableCell>
-                            <Typography sx={{ fontSize: 13, fontWeight: isActive ? 800 : 700, color: "#1A1A2E", lineHeight: 1.3 }}>{item.description}</Typography>
-                            {item.category && <Typography sx={{ fontSize: 10, fontWeight: 700, color: CAT_COLOR[item.category] ?? "#6B7280" }}>{item.category}</Typography>}
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography sx={{ fontSize: 13, color: "#374151", fontWeight: 700, lineHeight: 1.2, wordBreak: "break-word" }}>{INR(itemGst)}</Typography>
-                            <Box component="span" sx={{ display: "inline-block", fontSize: 9.5, fontWeight: 700, color: "#6B7280", bgcolor: "#F3F4F6", borderRadius: 999, px: 0.7, py: 0.05, mt: 0.2 }}>GST {item.gstPct}%</Box>
-                          </TableCell>
-                          <TableCell align="right"><Typography sx={{ fontSize: 13, color: "#9CA3AF", wordBreak: "break-word" }}>₹{item.mrp.toLocaleString("en-IN")}</Typography></TableCell>
+            {isCompactTable ? (
+              /* Below `lg` an 11-column table doesn't work on touch even with horizontal
+                 scroll — each item renders as its own card instead, with the qty/rate/
+                 discount controls reused as-is from renderQtyControl/renderRateControl/
+                 renderDiscountControl so the editing behavior stays identical to desktop. */
+              <Box sx={{ flex: 1, minHeight: "auto", display: "flex", flexDirection: "column" }}>
+                {items.length === 0 ? (
+                  <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, color: "#D1D5DB", py: 6 }}>
+                    <KeyboardReturnIcon sx={{ fontSize: 32 }} />
+                    <Typography sx={{ fontSize: 13 }}>Search and add items above</Typography>
+                  </Box>
+                ) : (
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 0.85, p: 1 }}>
+                    {items.map((item, rowIdx) => {
+                      const isActive  = zone === "TABLE" && activeRowIdx === rowIdx;
+                      const itemGst   = round2((item.qty * item.unitPrice * item.gstPct) / 100);
+                      const itemTotal = round2(item.qty * item.unitPrice + itemGst - (item.discount ?? 0));
+                      return (
+                        <Fade in key={item.code}>
+                          <Paper
+                            data-rowcode={item.code}
+                            elevation={0}
+                            onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); }}
+                            sx={{
+                              border: isActive ? "1.5px solid #1976D2" : "1px solid #E5E7EB",
+                              borderRadius: 2, p: 1.1, cursor: "pointer", transition: "background 0.2s, border-color 0.2s",
+                              bgcolor: flashRow === item.code ? "#FFF1F3" : isActive ? "#E3F2FD" : "#fff",
+                            }}
+                          >
+                            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 1 }}>
+                              <Box sx={{ minWidth: 0 }}>
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 0.6 }}>
+                                  <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: "#9CA3AF" }}>{item.code}</Typography>
+                                  {item.category && (
+                                    <>
+                                      <Box sx={{ width: 3, height: 3, borderRadius: "50%", bgcolor: "#D1D5DB" }} />
+                                      <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: CAT_COLOR[item.category] ?? "#6B7280" }}>{item.category}</Typography>
+                                    </>
+                                  )}
+                                </Box>
+                                <Typography sx={{ fontSize: 14, fontWeight: isActive ? 800 : 700, color: "#1A1A2E", lineHeight: 1.3 }}>{item.description}</Typography>
+                              </Box>
+                              <IconButton size="small" onClick={e => { e.stopPropagation(); removeItem(item.code); }} sx={{ flexShrink: 0, color: "#D1D5DB", p: 0.4, "&:hover": { color: "#C8102E", bgcolor: "#FEE2E2" } }}><DeleteOutlineIcon sx={{ fontSize: 16 }} /></IconButton>
+                            </Box>
 
-                          {/* QTY */}
-                          <TableCell align="center" onClick={e => e.stopPropagation()}>
-                            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.3 }}>
-                              <IconButton size="small" onClick={() => updateQty(item.code, -1)} sx={{ width: 24, height: 24, bgcolor: "#F3F4F6", "&:hover": { bgcolor: "#FEE2E2" } }}><RemoveIcon sx={{ fontSize: 12 }} /></IconButton>
-                              {item.editingQty ? (
-                                <TextField inputRef={el => { qtyRefs.current[item.code] = el; }} value={item.qtyDraft ?? ""}
-                                  onChange={e => setItems(prev => prev.map(i => i.code === item.code ? { ...i, qtyDraft: e.target.value.replace(/[^0-9.]/g, "") } : i))}
-                                  onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = qtyRefs.current[item.code]; const newQty = Math.max(1, parseFloat(el?.value ?? "") || 1); setItems(prev => prev.map(i => { if (i.code !== item.code) return i; const discount = i.discountPct ? parseFloat(((i.discountPct * newQty * i.sellPrice) / 100).toFixed(2)) : i.discount; return { ...i, qty: newQty, discount, editingQty: false, qtyDraft: undefined }; })); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
-                                  onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); const newQty = Math.max(1, parseFloat((e.target as HTMLInputElement).value) || 1); editCancelledRef.current = true; setItems(prev => prev.map(i => { if (i.code !== item.code) return i; const discount = i.discountPct ? parseFloat(((i.discountPct * newQty * i.sellPrice) / 100).toFixed(2)) : i.discount; return { ...i, qty: newQty, discount, editingQty: false, qtyDraft: undefined }; })); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingQty: false, qtyDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
-                                  size="small" inputProps={{ step: "any", style: { textAlign: "center", fontWeight: 800, fontSize: 14, padding: "2px 2px", width: 48 } }}
-                                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#1976D2", borderWidth: 2 } }, width: 64 }} />
-                              ) : (
-                                <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditQty(item.code); }}
-                                  sx={{ minWidth: 30, textAlign: "center", fontWeight: 800, fontSize: 14, px: 0.4, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #1976D2" : "1.5px dashed transparent", bgcolor: isActive ? "#E3F2FD" : "transparent", "&:hover": { border: "1.5px dashed #1976D2", bgcolor: "#E3F2FD" }, transition: "all 0.15s" }}>{item.qty}</Box>
-                              )}
-                              <IconButton size="small" onClick={() => updateQty(item.code, 1)} sx={{ width: 24, height: 24, bgcolor: "#F3F4F6", "&:hover": { bgcolor: "#DCFCE7" } }}><AddIcon sx={{ fontSize: 12 }} /></IconButton>
+                            <Divider sx={{ my: 0.85 }} />
+
+                            <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5, flexWrap: "wrap" }} onClick={e => e.stopPropagation()}>
+                              <Box>
+                                <Typography sx={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", mb: 0.2 }}>Qty</Typography>
+                                {renderQtyControl(item, rowIdx, isActive)}
+                              </Box>
+                              <Box sx={{ textAlign: "right" }}>
+                                <Typography sx={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", mb: 0.2 }}>Rate</Typography>
+                                {renderRateControl(item, rowIdx, isActive)}
+                              </Box>
+                            </Box>
+
+                            <Divider sx={{ my: 0.85 }} />
+
+                            {/* Secondary specs flow naturally instead of a rigid 2-col grid — a
+                                short value (e.g. "—" for no discount) no longer leaves a whole
+                                half-width cell looking empty. */}
+                            <Box sx={{ display: "flex", flexWrap: "wrap", rowGap: 0.6, columnGap: 2 }}>
+                              <Box>
+                                <Typography sx={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase" }}>MRP</Typography>
+                                <Typography sx={{ fontSize: 12.5, color: "#9CA3AF" }}>₹{item.mrp.toLocaleString("en-IN")}</Typography>
+                              </Box>
+                              <Box>
+                                <Typography sx={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase" }}>Unit Price</Typography>
+                                <Typography sx={{ fontSize: 12.5, color: "#374151", fontWeight: 600 }}>{INR(item.unitPrice)}</Typography>
+                              </Box>
+                              <Box>
+                                <Typography sx={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase" }}>Tax (GST {item.gstPct}%)</Typography>
+                                <Typography sx={{ fontSize: 12.5, color: "#374151", fontWeight: 700 }}>{INR(itemGst)}</Typography>
+                              </Box>
+                              <Box onClick={e => e.stopPropagation()}>
+                                <Typography sx={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", mb: 0.2 }}>Discount</Typography>
+                                {renderDiscountControl(item, rowIdx, isActive)}
+                              </Box>
+                            </Box>
+
+                            <Divider sx={{ my: 0.85 }} />
+
+                            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#6B7280" }}>Total</Typography>
+                              <Typography sx={{ fontSize: 16, fontWeight: 800, color: isActive ? "#0D47A1" : "#1A1A2E" }}>{INR(itemTotal)}</Typography>
+                            </Box>
+                          </Paper>
+                        </Fade>
+                      );
+                    })}
+                  </Box>
+                )}
+
+                {/* Quick glance total — the full breakdown (subtotal, discount, tax,
+                    round off) already lives in the SUMMARY card just below, so this
+                    strip only needs the two numbers useful while scrolling the list. */}
+                {items.length > 0 && (
+                  <Box sx={{ borderTop: "1px solid #E5E7EB", bgcolor: "#F8FAFC", p: 1.5, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#6B7280" }}>{items.length} item{items.length > 1 ? "s" : ""}</Typography>
+                    <Typography sx={{ fontSize: 14, fontWeight: 800, color: "#000" }}>Total: {INR(totalAmtRow)}</Typography>
+                  </Box>
+                )}
+              </Box>
+            ) : (
+              <>
+                <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden", scrollbarWidth: "thin", scrollbarColor: "#ea9999 #F3F4F6", "&::-webkit-scrollbar": { width: "8px" }, "&::-webkit-scrollbar-track": { backgroundColor: "#F3F4F6", borderRadius: "4px" }, "&::-webkit-scrollbar-thumb": { backgroundColor: "#ea9999", borderRadius: "4px", "&:hover": { backgroundColor: "#A50D26" } } }}>
+                  <Table size="small" stickyHeader sx={{ borderCollapse: "separate", tableLayout: "fixed", width: "100%" }}>
+                    <colgroup>
+                      <col style={{ width: "0.8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "16%" }} />
+                      <col style={{ width: "12%" }} /><col style={{ width: "6%" }} />
+                      <col style={{ width: "10%" }} /><col style={{ width: "10%" }} /><col style={{ width: "8%" }} />
+                      <col style={{ width: "8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "3%" }} />
+                    </colgroup>
+                    <TableHead>
+                      <TableRow sx={{ "& .MuiTableCell-root": { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", px: 1 } }}>
+                        <TableCell sx={{ width: "0.8%", p: 0 }} />
+                        <TableCell sx={{ width: "10%", fontSize: 12 }}>ITEM ID</TableCell>
+                        <TableCell sx={{ width: "16%", fontSize: 12 }}>DESCRIPTION</TableCell>
+                        <TableCell align="right" sx={{ width: "12%", fontSize: 12 }}>TAX AMT (GST %)</TableCell>
+                        <TableCell align="right" sx={{ width: "6%", fontSize: 12 }}>MRP (₹)</TableCell>
+                        <TableCell align="center" sx={{ width: "10%", fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.4 }}>QTY <Kbd>Q</Kbd></Box></TableCell>
+                        <TableCell align="right" sx={{ width: "10%", fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>RATE <Kbd>P</Kbd></Box></TableCell>
+                        <TableCell align="right" sx={{ width: "8%", fontSize: 12 }}>UNIT PRICE</TableCell>
+                        <TableCell align="right" sx={{ width: "8%", fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>DISC % <Kbd>D</Kbd></Box></TableCell>
+                        <TableCell align="right" sx={{ width: "10%", fontSize: 12 }}>TOTAL</TableCell>
+                        <TableCell sx={{ width: "3%" }} />
+                      </TableRow>
+                    </TableHead>
+                    <TableBody ref={tableBodyRef}>
+                      {items.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={11} align="center" sx={{ py: 6 }}>
+                            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, color: "#D1D5DB" }}>
+                              <KeyboardReturnIcon sx={{ fontSize: 32 }} />
+                              <Typography sx={{ fontSize: 13 }}>Search and add items above</Typography>
                             </Box>
                           </TableCell>
-
-                          {/* RATE */}
-                          <TableCell align="right" onClick={e => e.stopPropagation()}>
-                            {item.editingPrice ? (
-                              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>
-                                <Typography sx={{ fontSize: 13, color: "#9CA3AF", fontWeight: 700 }}>₹</Typography>
-                                <TextField inputRef={el => { priceRefs.current[item.code] = el; }} value={item.priceDraft ?? ""}
-                                  onChange={e => setItems(prev => prev.map(i => i.code === item.code ? { ...i, priceDraft: e.target.value.replace(/[^0-9.]/g, "") } : i))}
-                                  onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = priceRefs.current[item.code]; const newSell = Math.max(0, parseFloat(el?.value ?? "") || item.sellPrice); const newBase = item.taxInclusive && item.gstPct > 0 ? newSell / (1 + item.gstPct / 100) : newSell; setItems(prev => prev.map(i => { if (i.code !== item.code) return i; const discount = i.discountPct ? parseFloat(((i.discountPct * i.qty * newSell) / 100).toFixed(2)) : i.discount; return { ...i, sellPrice: newSell, unitPrice: newBase, discount, editingPrice: false, priceDraft: undefined }; })); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
-                                  onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); const newSell = Math.max(0, parseFloat((e.target as HTMLInputElement).value) || item.sellPrice); const newBase = item.taxInclusive && item.gstPct > 0 ? newSell / (1 + item.gstPct / 100) : newSell; editCancelledRef.current = true; setItems(prev => prev.map(i => { if (i.code !== item.code) return i; const discount = i.discountPct ? parseFloat(((i.discountPct * i.qty * newSell) / 100).toFixed(2)) : i.discount; return { ...i, sellPrice: newSell, unitPrice: newBase, discount, editingPrice: false, priceDraft: undefined }; })); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingPrice: false, priceDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
-                                  size="small" inputProps={{ style: { textAlign: "right", fontWeight: 700, fontSize: 13, padding: "2px 4px", width: 60 } }}
-                                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#1976D2", borderWidth: 2 } }, width: 80 }} />
-                              </Box>
-                            ) : (
-                              <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditPrice(item.code); }}
-                                sx={{ display: "inline-flex", alignItems: "center", gap: 0.3, px: 0.6, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #1976D2" : "1.5px dashed transparent", bgcolor: isActive ? "#E3F2FD" : "transparent", "&:hover": { border: "1.5px dashed #1976D2", bgcolor: "#E3F2FD", "& .pedit": { opacity: 1 } }, transition: "all 0.15s" }}>
-                                <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", wordBreak: "break-word" }}>{INR(item.sellPrice)}</Typography>
-                                <EditIcon className="pedit" sx={{ fontSize: 10, color: "#1976D2", opacity: isActive ? 0.6 : 0, transition: "opacity 0.15s", flexShrink: 0 }} />
-                              </Box>
-                            )}
-                          </TableCell>
-
-                          {/* UNIT PRICE EX.TAX */}
-                          <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", wordBreak: "break-word" }}>{INR(item.unitPrice)}</Typography></TableCell>
-
-                          {/* DISCOUNT % */}
-                          <TableCell align="right" onClick={e => e.stopPropagation()}>
-                            {item.editingDiscount ? (
-                              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>
-                                <TextField
-                                  inputRef={el => { discountRefs.current[item.code] = el; }}
-                                  value={item.discountDraft ?? ""}
-                                  onChange={e => setItems(prev => prev.map(i => i.code === item.code ? { ...i, discountDraft: e.target.value.replace(/[^0-9.]/g, "") } : i))}
-                                  onBlur={() => {
-                                    if (editCancelledRef.current) { editCancelledRef.current = false; return; }
-                                    const el = discountRefs.current[item.code];
-                                    const pct = Math.min(100, Math.max(0, parseFloat(el?.value ?? "") || 0));
-                                    const flat = parseFloat(((pct * item.qty * item.sellPrice) / 100).toFixed(2));
-                                    setItems(prev => prev.map(i => i.code === item.code ? { ...i, discountPct: pct, discount: flat, editingDiscount: false, discountDraft: undefined } : i));
-                                    setZone("TABLE"); setActiveRowIdx(rowIdx);
-                                  }}
-                                  onKeyDown={e => {
-                                    if (e.key === "Enter" || e.key === "Tab") {
-                                      e.preventDefault(); e.stopPropagation();
-                                      const pct = Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0));
-                                      const flat = parseFloat(((pct * item.qty * item.sellPrice) / 100).toFixed(2));
-                                      editCancelledRef.current = true;
-                                      setItems(prev => prev.map(i => i.code === item.code ? { ...i, discountPct: pct, discount: flat, editingDiscount: false, discountDraft: undefined } : i));
-                                      (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx);
-                                    }
-                                    if (e.key === "Escape") {
-                                      e.preventDefault(); e.stopPropagation();
-                                      editCancelledRef.current = true;
-                                      setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingDiscount: false, discountDraft: undefined } : i));
-                                      (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx);
-                                    }
-                                  }}
-                                  size="small"
-                                  inputProps={{ style: { textAlign: "right", fontWeight: 700, fontSize: 13, padding: "2px 4px", width: 40 } }}
-                                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#C8102E", borderWidth: 2 } }, width: 70 }}
-                                  InputProps={{ endAdornment: <Typography sx={{ fontSize: 12, color: "#9CA3AF", fontWeight: 700 }}>%</Typography> }}
-                                />
-                              </Box>
-                            ) : (
-                              <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditDiscount(item.code); }}
-                                sx={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-end", px: 0.6, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #C8102E" : "1.5px dashed transparent", bgcolor: isActive ? "#FFF1F3" : "transparent", "&:hover": { border: "1.5px dashed #C8102E", bgcolor: "#FFF1F3", "& .dedit": { opacity: 1 } }, transition: "all 0.15s" }}>
-                                {(item.discountPct ?? 0) > 0 ? (
-                                  <>
-                                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.3 }}>
-                                      <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#C8102E" }}>{item.discountPct}%</Typography>
-                                      <EditIcon className="dedit" sx={{ fontSize: 10, color: "#C8102E", opacity: isActive ? 0.5 : 0, transition: "opacity 0.15s" }} />
-                                    </Box>
-                                    <Typography sx={{ fontSize: 10, color: "#C8102E", fontWeight: 500 }}>- {INR(item.discount ?? 0)}</Typography>
-                                  </>
-                                ) : (
-                                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.3 }}>
-                                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#D1D5DB" }}>—</Typography>
-                                    <EditIcon className="dedit" sx={{ fontSize: 10, color: "#C8102E", opacity: isActive ? 0.5 : 0, transition: "opacity 0.15s" }} />
-                                  </Box>
-                                )}
-                              </Box>
-                            )}
-                          </TableCell>
-
-                          {/* TOTAL */}
-                          <TableCell align="right">
-                            <Typography sx={{ fontSize: 13, fontWeight: 700, color: isActive ? "#0D47A1" : "#1A1A2E", wordBreak: "break-word" }}>{INR(itemTotal)}</Typography>
-                          </TableCell>
-                          <TableCell onClick={e => e.stopPropagation()}><IconButton size="small" onClick={() => removeItem(item.code)} sx={{ color: "#D1D5DB", "&:hover": { color: "#C8102E", bgcolor: "#FEE2E2" } }}><DeleteOutlineIcon sx={{ fontSize: 15 }} /></IconButton></TableCell>
                         </TableRow>
-                      </Fade>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </Box>
+                      )}
+                      {items.map((item, rowIdx) => {
+                        const isActive  = zone === "TABLE" && activeRowIdx === rowIdx;
+                        const itemGst   = round2((item.qty * item.unitPrice * item.gstPct) / 100);
+                        const itemTotal = round2(item.qty * item.unitPrice + itemGst - (item.discount ?? 0));
+                        return (
+                          <Fade in key={item.code}>
+                            <TableRow data-rowcode={item.code} onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); }}
+                              sx={{ bgcolor: flashRow === item.code ? "#FFF1F3" : isActive ? "#E3F2FD" : "transparent", cursor: "pointer", transition: "background 0.2s", "&:hover": { bgcolor: isActive ? "#E3F2FD" : "#F5F5F5" } }}>
+                              <TableCell sx={{ p: 0 }}><Box sx={{ width: 4, minHeight: 40, bgcolor: isActive ? "#1976D2" : "transparent", borderRadius: "0 2px 2px 0", transition: "background 0.2s" }} /></TableCell>
+                              <TableCell>
+                                <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#374151", whiteSpace: "nowrap", overflow: "visible" }}>
+                                  {item.code}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Typography sx={{ fontSize: 13, fontWeight: isActive ? 800 : 700, color: "#1A1A2E", lineHeight: 1.3 }}>{item.description}</Typography>
+                                {item.category && <Typography sx={{ fontSize: 10, fontWeight: 700, color: CAT_COLOR[item.category] ?? "#6B7280" }}>{item.category}</Typography>}
+                              </TableCell>
+                              <TableCell align="right">
+                                <Typography sx={{ fontSize: 13, color: "#374151", fontWeight: 700, lineHeight: 1.2, wordBreak: "break-word" }}>{INR(itemGst)}</Typography>
+                                <Box component="span" sx={{ display: "inline-block", fontSize: 9.5, fontWeight: 700, color: "#6B7280", bgcolor: "#F3F4F6", borderRadius: 999, px: 0.7, py: 0.05, mt: 0.2 }}>GST {item.gstPct}%</Box>
+                              </TableCell>
+                              <TableCell align="right"><Typography sx={{ fontSize: 13, color: "#9CA3AF", wordBreak: "break-word" }}>₹{item.mrp.toLocaleString("en-IN")}</Typography></TableCell>
 
-            {/* Total row pinned to bottom */}
-            <Table size="small" sx={{ borderCollapse: "separate", flexShrink: 0, tableLayout: "fixed", width: "100%", minWidth: { xs: 860, lg: "auto" } }}>
-              <colgroup>
-                <col style={{ width: "0.8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "16%" }} />
-                <col style={{ width: "12%" }} /><col style={{ width: "6%" }} />
-                <col style={{ width: "10%" }} /><col style={{ width: "10%" }} /><col style={{ width: "8%" }} />
-                <col style={{ width: "8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "3%" }} />
-              </colgroup>
-              <TableBody>
-                <TableRow sx={{ bgcolor: "#F8FAFC", "& .MuiTableCell-root": { borderTop: "2px solid #E5E7EB", borderBottom: "none", py: 1, height: 34, bgcolor: "#F8FAFC" } }}>
-                  <TableCell sx={{ p: 0 }} /><TableCell />
-                  <TableCell><Typography sx={{ fontSize: 13, fontWeight: 800, color: "#374151" }}>Total</Typography></TableCell>
-                  <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", wordBreak: "break-word" }}>{INR(items.length > 0 ? totalGstRow : 0)}</Typography></TableCell>
-                  <TableCell align="right" />
-                  <TableCell align="center"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{items.length > 0 ? totalUnits : 0}</Typography></TableCell>
-                  <TableCell align="right" />
-                  <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", wordBreak: "break-word" }}>{INR(items.length > 0 ? subtotal : 0)}</Typography></TableCell>
-                  <TableCell align="right">
-                    {items.length > 0 && itemDiscountTotal > 0
-                      ? <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#C8102E" }}>- {INR(itemDiscountTotal)}</Typography>
-                      : <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#D1D5DB" }}>—</Typography>
-                    }
-                  </TableCell>
-                  <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 700, color: "#000", wordBreak: "break-word" }}>{INR(items.length > 0 ? totalAmtRow : 0)}</Typography></TableCell>
-                  <TableCell />
-                </TableRow>
-              </TableBody>
-            </Table>
-            </Box>
+                              {/* QTY */}
+                              <TableCell align="center" onClick={e => e.stopPropagation()}>
+                                {renderQtyControl(item, rowIdx, isActive)}
+                              </TableCell>
+
+                              {/* RATE */}
+                              <TableCell align="right" onClick={e => e.stopPropagation()}>
+                                {renderRateControl(item, rowIdx, isActive)}
+                              </TableCell>
+
+                              {/* UNIT PRICE EX.TAX */}
+                              <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", wordBreak: "break-word" }}>{INR(item.unitPrice)}</Typography></TableCell>
+
+                              {/* DISCOUNT % */}
+                              <TableCell align="right" onClick={e => e.stopPropagation()}>
+                                {renderDiscountControl(item, rowIdx, isActive)}
+                              </TableCell>
+
+                              {/* TOTAL */}
+                              <TableCell align="right">
+                                <Typography sx={{ fontSize: 13, fontWeight: 700, color: isActive ? "#0D47A1" : "#1A1A2E", wordBreak: "break-word" }}>{INR(itemTotal)}</Typography>
+                              </TableCell>
+                              <TableCell onClick={e => e.stopPropagation()}><IconButton size="small" onClick={() => removeItem(item.code)} sx={{ color: "#D1D5DB", "&:hover": { color: "#C8102E", bgcolor: "#FEE2E2" } }}><DeleteOutlineIcon sx={{ fontSize: 15 }} /></IconButton></TableCell>
+                            </TableRow>
+                          </Fade>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </Box>
+
+                {/* Total row pinned to bottom */}
+                <Table size="small" sx={{ borderCollapse: "separate", flexShrink: 0, tableLayout: "fixed", width: "100%" }}>
+                  <colgroup>
+                    <col style={{ width: "0.8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "16%" }} />
+                    <col style={{ width: "12%" }} /><col style={{ width: "6%" }} />
+                    <col style={{ width: "10%" }} /><col style={{ width: "10%" }} /><col style={{ width: "8%" }} />
+                    <col style={{ width: "8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "3%" }} />
+                  </colgroup>
+                  <TableBody>
+                    <TableRow sx={{ bgcolor: "#F8FAFC", "& .MuiTableCell-root": { borderTop: "2px solid #E5E7EB", borderBottom: "none", py: 1, height: 34, bgcolor: "#F8FAFC" } }}>
+                      <TableCell sx={{ p: 0 }} /><TableCell />
+                      <TableCell><Typography sx={{ fontSize: 13, fontWeight: 800, color: "#374151" }}>Total</Typography></TableCell>
+                      <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", wordBreak: "break-word" }}>{INR(items.length > 0 ? totalGstRow : 0)}</Typography></TableCell>
+                      <TableCell align="right" />
+                      <TableCell align="center"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{items.length > 0 ? totalUnits : 0}</Typography></TableCell>
+                      <TableCell align="right" />
+                      <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", wordBreak: "break-word" }}>{INR(items.length > 0 ? subtotal : 0)}</Typography></TableCell>
+                      <TableCell align="right">
+                        {items.length > 0 && itemDiscountTotal > 0
+                          ? <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#C8102E" }}>- {INR(itemDiscountTotal)}</Typography>
+                          : <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#D1D5DB" }}>—</Typography>
+                        }
+                      </TableCell>
+                      <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 700, color: "#000", wordBreak: "break-word" }}>{INR(items.length > 0 ? totalAmtRow : 0)}</Typography></TableCell>
+                      <TableCell />
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </>
+            )}
           </Paper>
 
             {/* Customer panel — search row + Bill To / Ship To cards */}

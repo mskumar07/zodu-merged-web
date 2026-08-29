@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
@@ -18,6 +18,10 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import SaveIcon             from '@mui/icons-material/Save';
 import InventoryIcon        from '@mui/icons-material/Inventory2Outlined';
 import SearchIcon           from '@mui/icons-material/Search';
+import CameraAltOutlinedIcon from '@mui/icons-material/CameraAltOutlined';
+import CameraBarcodeScanner from '@components/Common/CameraBarcodeScanner';
+import { useHardwareScannerListener } from '@components/Common/useHardwareScannerListener';
+import { isMobileOrTabletDevice } from '@components/Common/deviceType';
 import axiosInstance from '@store/services/axiosInstance';
 import { apiConfig } from '@config/api';
 import { getTenantContext } from '@store/tenantContext';
@@ -63,6 +67,32 @@ const INITIAL_VALUES = {
   lowStockAlert: '',
 };
 
+// ─── Barcode / QR scanning ────────────────────────────────────
+// The two fields a scanned code can land in. Whichever one is focused (or was
+// focused last) receives the next scan, so one scanner serves both.
+type ScanField = 'itemId' | 'barcode';
+
+const SCAN_FIELD_MAX_LENGTH: Record<ScanField, number> = {
+  itemId:  ITEM_ID_MAX_LENGTH,
+  barcode: BARCODE_MAX_LENGTH,
+};
+
+const SCAN_FIELD_LABEL: Record<ScanField, string> = {
+  itemId:  'Item ID',
+  barcode: 'Barcode / QR',
+};
+
+// Scanners wrap the code in terminators (Enter/Tab, and depending on how the device is
+// programmed sometimes a control-character prefix or suffix) — strip everything
+// unprintable so only the code itself reaches the field.
+function sanitizeScannedCode(raw: string, field: ScanField): string {
+  return raw
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001F\u007F]/g, '')
+    .trim()
+    .slice(0, SCAN_FIELD_MAX_LENGTH[field]);
+}
+
 // ─── Helper components ────────────────────────────────────────
 const Label: React.FC<{ text: string; required?: boolean }> = ({ text, required }) => (
   <Typography variant="body2" fontWeight={600} mb={0.8} color="text.primary">
@@ -84,8 +114,13 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
   const [itemIdError,      setItemIdError]      = useState<string | null>(null);
   const [itemIdChecking,   setItemIdChecking]   = useState(false);
   const [successMsg,       setSuccessMsg]       = useState("");
+  const [scanField,        setScanField]        = useState<ScanField>('itemId');
+  const [cameraScanOpen,   setCameraScanOpen]   = useState(false);
   const [toastSeverity,    setToastSeverity]    = useState<'success' | 'error'>('success');
   const imageInputRef = useRef<HTMLInputElement>(null);
+  // Camera scanning is only offered where there's a rear camera to point at a label;
+  // desktop/laptop relies on a wired or wireless hardware scanner instead.
+  const isMobileOrTablet = useMemo(() => isMobileOrTabletDevice(), []);
   const stockCacheRef = useRef<{ openingStock: string | number; lowStockAlert: string | number }>({
     openingStock: '',
     lowStockAlert: '',
@@ -234,6 +269,8 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
     setUploadedImageUrl(null);
     setImageDeleting(false);
     setItemIdError(null);
+    setCameraScanOpen(false);
+    setScanField('itemId');
     onClose();
   };
 
@@ -327,9 +364,8 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
     qc.invalidateQueries({ queryKey: ['menu', 'categoryList'] });
   };
 
-  const handleItemIdBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
-    formik.handleBlur(e);
-    const value = e.target.value.trim();
+  const runItemIdCheck = async (rawValue: string) => {
+    const value = rawValue.trim();
     if (!value) { setItemIdError(null); return; }
     // In edit mode skip the check when the ID hasn't changed
     if (isEditMode && editItem && value === editItem.item_id) { setItemIdError(null); return; }
@@ -344,6 +380,54 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
       setItemIdChecking(false);
     }
   };
+
+  const handleItemIdBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    formik.handleBlur(e);
+    void runItemIdCheck(e.target.value);
+  };
+
+  // A hardware scanner — wired USB or wireless Bluetooth/2.4GHz — presents itself as a
+  // keyboard: it types the code into the focused field, then sends Enter. Swallow that
+  // Enter (it must not act as a form submit) and settle the scanned value right there.
+  const handleScanFieldKeyDown = (field: ScanField) => (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const input = e.target as HTMLInputElement;
+    const code = sanitizeScannedCode(input.value, field);
+    if (code !== formik.values[field]) formik.setFieldValue(field, code);
+    // Leave the finished code selected so a re-scan of the same field replaces it
+    // instead of appending to it.
+    input.select();
+    if (field === 'itemId') void runItemIdCheck(code);
+  };
+
+  // Fills a field with a code that didn't arrive by typing into it — a camera scan, or a
+  // hardware scan fired while focus sat outside any text field.
+  const applyScannedCode = (rawCode: string, field: ScanField) => {
+    const code = sanitizeScannedCode(rawCode, field);
+    if (!code) return;
+    formik.setFieldValue(field, code);
+    formik.setFieldTouched(field, true, false);
+    if (field === 'itemId') {
+      setItemIdError(null);
+      void runItemIdCheck(code);
+    }
+    setToastSeverity('success');
+    setSuccessMsg(`${SCAN_FIELD_LABEL[field]} scanned: ${code}`);
+  };
+
+  const openCameraScan = (field: ScanField) => {
+    setScanField(field);
+    setCameraScanOpen(true);
+  };
+
+  // Catches a hardware scan even when neither field is focused. The listener stands down
+  // while focus is in any text field — a scan landing there is already handled by the
+  // field itself (and by handleScanFieldKeyDown above).
+  useHardwareScannerListener({
+    onScan: (code) => applyScannedCode(code, scanField),
+    active: open && !cameraScanOpen && !catDialogOpen,
+  });
 
   const err   = formik.errors;
   const touch = formik.touched;
@@ -367,6 +451,25 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
   });
 
   const inputSx = { borderRadius: 1, fontSize: 14 };
+
+  // End adornment for the two scannable fields: a camera button where a camera scan makes
+  // sense, otherwise a static hint that the field is ready for a hardware scanner.
+  const scanAdornment = (field: ScanField) => (
+    <InputAdornment position="end">
+      {isMobileOrTablet ? (
+        <Tooltip title={`Scan ${SCAN_FIELD_LABEL[field]} with camera`}>
+          <IconButton size="small" edge="end" onClick={() => openCameraScan(field)}
+            sx={{ color: 'text.secondary' }}>
+            <CameraAltOutlinedIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      ) : (
+        <Tooltip title="Click this field, then scan — the code fills it automatically">
+          <QrCodeScannerIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
+        </Tooltip>
+      )}
+    </InputAdornment>
+  );
 
   const handleAmountChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
     formik.setFieldValue(field, sanitizeAmountInput(e.target.value));
@@ -524,23 +627,26 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
         fullWidth size="small"
         placeholder="e.g. ITM-001"
         {...formik.getFieldProps('itemId')}
+        onFocus={() => setScanField('itemId')}
         onBlur={handleItemIdBlur}
         onChange={(e) => {
           formik.handleChange(e);
           setItemIdError(null);
         }}
+        onKeyDown={handleScanFieldKeyDown('itemId')}
         error={(touch.itemId && Boolean(err.itemId)) || Boolean(itemIdError)}
         helperText={
           itemIdError
             ? itemIdError
             : (touch.itemId && err.itemId)
         }
+        autoComplete="off"
         inputProps={{ maxLength: ITEM_ID_MAX_LENGTH }}
         InputProps={{
           sx: inputSx,
           endAdornment: itemIdChecking
             ? <InputAdornment position="end"><CircularProgress size={14} /></InputAdornment>
-            : undefined,
+            : scanAdornment('itemId'),
         }}
       />
     </Box>
@@ -552,25 +658,29 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
         fullWidth size="small"
         placeholder="Scan or enter code"
         {...formik.getFieldProps('barcode')}
+        onFocus={() => setScanField('barcode')}
+        onKeyDown={handleScanFieldKeyDown('barcode')}
         error={touch.barcode && Boolean(err.barcode)}
         helperText={touch.barcode && err.barcode}
+        autoComplete="off"
         inputProps={{ maxLength: BARCODE_MAX_LENGTH }}
         InputProps={{
-          endAdornment: (
-            <InputAdornment position="end">
-              <Tooltip title="Scan barcode">
-                <IconButton size="small" edge="end" sx={{ color: 'text.disabled' }}>
-                  <QrCodeScannerIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </InputAdornment>
-          ),
+          endAdornment: scanAdornment('barcode'),
           sx: { ...inputSx, bgcolor: 'background.paper' },
         }}
       />
     </Box>
 
   </Box>
+
+  {/* Scanning hint — a scan always lands in whichever of the two fields is focused. */}
+  <Typography variant="caption" color="text.secondary"
+    sx={{ mt: -1, display: 'flex', alignItems: 'center', gap: 0.6 }}>
+    <QrCodeScannerIcon sx={{ fontSize: 15 }} />
+    {isMobileOrTablet
+      ? 'Tap Item ID or Barcode, then use the camera icon — the code fills that field.'
+      : 'Click Item ID or Barcode, then scan — the scanned code fills the focused field.'}
+  </Typography>
 
   {/* Row 2: Item Name (Keela full width-la varum) */}
   <Box>
@@ -886,6 +996,13 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
           </Button>
         </DialogActions>
       </Dialog>
+
+      <CameraBarcodeScanner
+        open={cameraScanOpen}
+        onClose={() => setCameraScanOpen(false)}
+        onScan={(code) => { applyScannedCode(code, scanField); setCameraScanOpen(false); }}
+        title={`Scan ${SCAN_FIELD_LABEL[scanField]}`}
+      />
 
       <AddCategoryDialog
         open={catDialogOpen}
