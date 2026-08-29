@@ -2008,7 +2008,21 @@ console.log("test",serverHolds)
         </Box>
 
         {/* MODALS */}
-        <DiscountModal open={discountModalOpen} onClose={() => setDiscountModalOpen(false)} discountPct={discountPct} discount={discount} modeAccent={modeAccent} gstMode={gstMode} onApply={(pct, amt, mode) => { setDiscountPct(pct); setDiscount(amt); setGstMode(mode); }} />
+        {/* <DiscountModal open={discountModalOpen} onClose={() => setDiscountModalOpen(false)} discountPct={discountPct} discount={discount} modeAccent={modeAccent} gstMode={gstMode} onApply={(pct, amt, mode) => { setDiscountPct(pct); setDiscount(amt); setGstMode(mode); }} /> */}
+        <DiscountModal 
+  open={discountModalOpen} 
+  onClose={() => setDiscountModalOpen(false)} 
+  discountPct={discountPct} 
+  discount={discount} 
+  modeAccent={modeAccent} 
+  gstMode={gstMode} 
+  baseAmount={grandTotalRaw} 
+  onApply={(pct, amt, mode) => { 
+    setDiscountPct(pct); 
+    setDiscount(amt); 
+    setGstMode(mode); 
+  }} 
+/>
         <NoteModal open={noteModalOpen} onClose={() => setNoteModalOpen(false)} orderNote={orderNote} onApply={note => setOrderNote(note)} />
 
         {/* HOLD DIALOG */}

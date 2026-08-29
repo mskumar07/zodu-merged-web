@@ -845,19 +845,31 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
            
 
             {/* Row 4: Tax */}
-           <Box sx={{ bgcolor: 'action.hover', borderRadius: 1.5, p: 2.5 }}>
+       <Box sx={{ bgcolor: 'action.hover', borderRadius: 1.5, p: 2.5 }}>
   <Typography variant="body2" fontWeight={700} color="text.secondary" textTransform="uppercase" letterSpacing="0.06em" fontSize={11} mb={2}>
     Tax Information
   </Typography>
-  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2.5 }}>
+  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.5fr auto 1.5fr' }, gap: 2.5, alignItems: 'center' }}>
     <Box>
       <Label text="Tax Type"/>
       <FormControl fullWidth size="small" error={touch.gstId && Boolean(err.gstId)}>
         <Autocomplete
-          options={gstOptions}
+          options={[
+            { value: "none", label: "None" },
+            { value: "GST5", label: "GST 5%" },
+            { value: "GST12", label: "GST 12%" },
+            { value: "GST18", label: "GST 18%" },
+            { value: "GST28", label: "GST 28%" },
+          ]}
           getOptionLabel={(g) => g.label}
           isOptionEqualToValue={(a, b) => String(a.value) === String(b.value)}
-          value={gstOptions.find(g => String(g.value) === formik.values.gstId) ?? null}
+          value={[
+            { value: "none", label: "None" },
+            { value: "GST5", label: "GST 5%" },
+            { value: "GST12", label: "GST 12%" },
+            { value: "GST18", label: "GST 18%" },
+            { value: "GST28", label: "GST 28%" },
+          ].find(g => String(g.value) === String(formik.values.gstId)) ?? null}
           onChange={(_e, newValue) => formik.setFieldValue('gstId', newValue ? String(newValue.value) : '')}
           loading={gstLoading}
           noOptionsText="No tax types found"
@@ -883,11 +895,27 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
             />
           )}
         />
-        {/* {touch.gstId && err.gstId && (
-          <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>{err.gstId}</Typography>
-        )} */}
       </FormControl>
     </Box>
+
+    {formik.values.gstId && formik.values.gstId !== "none" ? (
+      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <Typography variant="body2" fontWeight={600} whiteSpace="nowrap" sx={{ mb: 0.75, fontSize: 12 }}>Tax Inclusion</Typography>
+        <ToggleButtonGroup exclusive value={formik.values.taxInclusion}
+          onChange={(_e, v) => v && formik.setFieldValue('taxInclusion', v)}
+          sx={{ bgcolor: 'rgba(0,0,0,0.08)', borderRadius: '999px', p: '3px', gap: '3px', height: 40, '& .MuiToggleButtonGroup-grouped': { margin: 0 } }}>
+          {(['Incl.', 'Excl.'] as const).map(v => (
+            <ToggleButton key={v} value={v}
+              sx={{ border: 'none !important', borderRadius: '999px !important', textTransform: 'none', fontSize: 12, fontWeight: 600, px: 1.8, color: 'text.secondary', '&.Mui-selected': { bgcolor: 'background.paper', color: 'text.primary', boxShadow: '0 1px 3px rgba(0,0,0,0.15)', '&:hover': { bgcolor: 'background.paper' } }, '&:hover': { bgcolor: 'transparent' } }}>
+              {v}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+      </Box>
+    ) : (
+      <Box />
+    )}
+
     <Box>
       <Label text="HSN Code" />
       <TextField fullWidth size="small" placeholder="Enter HSN/SAC"
@@ -897,22 +925,6 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
         inputProps={{ maxLength: HSN_CODE_MAX_LENGTH }}
         InputProps={{ sx: { ...inputSx, bgcolor: 'background.paper' } }} />
     </Box>
-      
-    {formik.values.gstId && (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, gridColumn: { md: '1 / -1' } }}>
-        <Typography variant="body2" fontWeight={600} whiteSpace="nowrap">Tax Inclusion</Typography>
-        <ToggleButtonGroup exclusive value={formik.values.taxInclusion}
-          onChange={(_e, v) => v && formik.setFieldValue('taxInclusion', v)}
-          sx={{ bgcolor: 'rgba(0,0,0,0.08)', borderRadius: '999px', p: '3px', gap: '3px', '& .MuiToggleButtonGroup-grouped': { margin: 0 } }}>
-          {(['Incl.', 'Excl.'] as const).map(v => (
-            <ToggleButton key={v} value={v}
-              sx={{ border: 'none !important', borderRadius: '999px !important', textTransform: 'none', fontSize: 12, fontWeight: 600, px: 1.8, height: 28, color: 'text.secondary', '&.Mui-selected': { bgcolor: 'background.paper', color: 'text.primary', boxShadow: '0 1px 3px rgba(0,0,0,0.15)', '&:hover': { bgcolor: 'background.paper' } }, '&:hover': { bgcolor: 'transparent' } }}>
-              {v}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
-      </Box>
-    )}
   </Box>
 </Box>
 
