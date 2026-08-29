@@ -614,6 +614,9 @@ export const ThermalInvoiceTemplate = React.forwardRef(
     
     const finalBillTotal = grand_total ?? total ?? final_amount ?? subtotal;
 
+    // Calculate items sum dynamically
+    const itemsTotalSum = items.reduce((sum: number, item: any) => sum + Number(item.total || 0), 0);
+
     const fs  = cfg.baseFontSize;
     const ifs = cfg.itemFontSize;
 
@@ -744,7 +747,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
         <div style={{ fontSize: fs, lineHeight: 1.6, marginBottom: 4 }}>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span>Total</span>
-            <span style={{ fontWeight: 700, whiteSpace: "nowrap" }}>{fmt(subtotal)}</span>
+            <span style={{ fontWeight: 700, whiteSpace: "nowrap" }}>{fmt(itemsTotalSum)}</span>
           </div>
 
           {showDiscount && (
