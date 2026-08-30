@@ -609,10 +609,11 @@ export const ThermalInvoiceTemplate = React.forwardRef(
     
     let discountText = "Discount";
     if (discount_label && discount_label.toLowerCase() !== "discount") {
-      discountText = `Discount (${discount_label})`;
+      discountText = `${discount_label}`;
     }
     
     const finalBillTotal = grand_total ?? total ?? final_amount ?? subtotal;
+    const totalQty = items.reduce((s: number, item: any) => s + Number(item.qty ?? 0), 0);
 
     const fs  = cfg.baseFontSize;
     const ifs = cfg.itemFontSize;
@@ -740,23 +741,27 @@ export const ThermalInvoiceTemplate = React.forwardRef(
 
         <SolidLine />
 
-        {/* ── TOTAL, DISCOUNT & BILL TOTAL SECTION ── */}
-        <div style={{ fontSize: fs, lineHeight: 1.6, marginBottom: 4 }}>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span>Total</span>
-            <span style={{ fontWeight: 700, whiteSpace: "nowrap" }}>{fmt(subtotal)}</span>
-          </div>
+        {/* ── T.QTY (left) / TOTAL, DISCOUNT & BILL TOTAL (right) ── */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", fontSize: fs, lineHeight: 1.6, marginBottom: 4 }}>
+          <span style={{ fontWeight: 700 }}>T.Qty: {totalQty}</span>
 
-          {showDiscount && (
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>{discountText}</span>
-              <span style={{ fontWeight: 700, whiteSpace: "nowrap" }}>{`-${fmt(discountVal)}`}</span>
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+              <span>Total :</span>
+              <span style={{ fontWeight: 700, whiteSpace: "nowrap" }}>{fmt(subtotal)}</span>
             </div>
-          )}
 
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span>Bill Total</span>
-            <span style={{ fontWeight: 700, whiteSpace: "nowrap" }}>{fmt(finalBillTotal)}</span>
+            {showDiscount && (
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                <span>{discountText}:</span>
+                <span style={{ fontWeight: 700, whiteSpace: "nowrap" }}>{fmt(discountVal)}</span>
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+              <span>Bill Total :</span>
+              <span style={{ fontWeight: 700, whiteSpace: "nowrap" }}>{fmt(finalBillTotal)}</span>
+            </div>
           </div>
         </div>
 
