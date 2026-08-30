@@ -615,6 +615,9 @@ export const ThermalInvoiceTemplate = React.forwardRef(
     const finalBillTotal = grand_total ?? total ?? final_amount ?? subtotal;
     const totalQty = items.reduce((s: number, item: any) => s + Number(item.qty ?? 0), 0);
 
+    // Calculate items sum dynamically
+    const itemsTotalSum = items.reduce((sum: number, item: any) => sum + Number(item.total || 0), 0);
+
     const fs  = cfg.baseFontSize;
     const ifs = cfg.itemFontSize;
 
