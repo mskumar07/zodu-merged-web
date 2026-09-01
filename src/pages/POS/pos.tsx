@@ -55,8 +55,8 @@ import InfoOutlinedIcon       from "@mui/icons-material/InfoOutlined";
 import SwapHorizIcon          from "@mui/icons-material/SwapHoriz";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
-import html2canvas            from "html2canvas";
 import jsPDF                  from "jspdf";
+import { renderPaginatedInvoicePdf } from "@utils/pdfPagination";
 import { useLocation }        from "react-router-dom";
 import CustomerLedgerDialog   from "../Customer/CustomerLedgerDialog";
 import AddNewCustomerDialog   from "@pages/Customer/Addnewcustomerdialog";
@@ -132,6 +132,7 @@ interface LineItem {
   hsn: string; mrp: number; gstPct: number; taxInclusive: boolean; category?: string; unit?: string;
   discount?: number;
   discountPct?: number;
+  itemDescription?: string;
   editingQty?: boolean; editingPrice?: boolean; editingDiscount?: boolean;
   qtyDraft?: string; priceDraft?: string; discountDraft?: string;
 }
@@ -140,6 +141,10 @@ const EMPTY_CUSTOMER: Customer = { id: null, name: "", mobile: "", address: "", 
 interface SavedOrderSnapshot {
   result: SaveOrderResult;
   customer: Customer;
+  // Manually-typed item descriptions aren't persisted by the backend yet, so
+  // they're captured here (keyed by item code) at save-time and merged back
+  // into the print data below rather than round-tripped through the API.
+  descriptions: Record<string, string>;
 }
 interface HeldOrder {
   id: string;
@@ -162,12 +167,12 @@ function toLineItem(p: PosProduct): LineItem {
   const gstPct = Number(p.gst_tax) || 0;
   const taxInclusive = p.tax_inclusive === true || (p.tax_inclusive as unknown) === 1;
   const unitPrice = taxInclusive && gstPct > 0 ? grossPrice / (1 + gstPct / 100) : grossPrice;
-  console.log
   return {
     uuid: p.item_uuid, code: p.item_id, description: p.item_name,
     qty: 1, unitPrice, sellPrice: grossPrice, taxInclusive,
     hsn: p.hsn_code ?? "", mrp: Number(p.mrp) || grossPrice,
     gstPct, category: p.category_name ?? "", unit: p.unit || "NOS", discount: 0,
+    itemDescription: "",
   };
 }
 
@@ -483,6 +488,10 @@ useEffect(() => {
     setTimeout(() => { discountRefs.current[code]?.focus(); discountRefs.current[code]?.select(); }, 30);
   }, []);
 
+  const updateItemDescription = useCallback((code: string, value: string) => {
+    setItems(prev => prev.map(i => i.code === code ? { ...i, itemDescription: value } : i));
+  }, []);
+
   // Shared by manual suggestion clicks, Enter-to-add, and barcode/QR scans —
   // bumps qty if the product's already on the order, otherwise prepends a new line.
   // This is the single source of truth for qty — callers must not re-set it afterwards,
@@ -549,7 +558,7 @@ useEffect(() => {
         const gstPct       = Number(i.gst_percentage) || 0;
         const taxInclusive = Boolean(i.tax_inclusive);
         const unitPrice    = taxInclusive && gstPct > 0 ? grossPrice / (1 + gstPct / 100) : grossPrice;
-        return { code: i.item_id, description: i.item_name, qty: Number(i.quantity), unitPrice, sellPrice: grossPrice, gstPct, taxInclusive, uuid: i.item_uuid, hsn: i.hsn_code ?? "", mrp: Number(i.mrp || 0), unit: i.unit || "NOS", discount: Number(i.discount || 0), discountPct: Number(i.discount_percentage || 0) };
+        return { code: i.item_id, description: i.item_name, qty: Number(i.quantity), unitPrice, sellPrice: grossPrice, gstPct, taxInclusive, uuid: i.item_uuid, hsn: i.hsn_code ?? "", mrp: Number(i.mrp || 0), unit: i.unit || "NOS", discount: Number(i.discount || 0), discountPct: Number(i.discount_percentage || 0), itemDescription: i.item_description ?? "" };
       }));
       if (data.customer) {
         const c = data.customer;
@@ -628,6 +637,7 @@ console.log("test",serverHolds)
       taxInclusive:Boolean(i.tax_inclusive),
       unit:        i.unit ?? "NOS",
       discount:    Number(i.discount ?? 0),
+      itemDescription: i.item_description ?? "",
     })),
     discount:    String(h.discount_type === "flat"       ? h.discount_value : 0),
     discountPct: String(h.discount_type === "percentage" ? h.discount_value : 0),
@@ -811,7 +821,11 @@ console.log("test",serverHolds)
       const paidAmt  = parseFloat(order?.paid_amount  ?? "0");
       const change   = paidAmt > totalAmt ? paidAmt - totalAmt : 0;
       const savedSaleId = String(order?.sale_id ?? saleIdFromUrl ?? "").trim() || undefined;
-      setSavedOrderSnapshot({ result: result as SaveOrderResult, customer: { ...customer } });
+      setSavedOrderSnapshot({
+        result: result as SaveOrderResult,
+        customer: { ...customer },
+        descriptions: Object.fromEntries(items.map(i => [i.code, i.itemDescription || ""])),
+      });
       setSaveResult({ open: true, success: true, message: result.message, grandTotal: totalAmt, change, saleId: savedSaleId });
       if (printEnabled) console.log("🖨 Printing invoice");
       handleClear();
@@ -1020,6 +1034,7 @@ console.log("test",serverHolds)
     const saleItems = (savedOrderSnapshot?.result.items as any[]) ?? [];
     const payment = savedOrderSnapshot?.result.payment as any;
     const saleCustomer = savedOrderSnapshot?.customer;
+    const itemDescriptions = savedOrderSnapshot?.descriptions ?? {};
     if (!order) return null;
 
     const customerName = saleCustomer?.name?.trim() || "Walk-In";
@@ -1050,6 +1065,7 @@ console.log("test",serverHolds)
         item_id: item.item_id,
         name: item.item_name,
         category: item.variant_name ?? "",
+        description: itemDescriptions[item.item_id] || "",
         hsn: item.hsn_code ?? "-",
         qty: Number(item.quantity ?? 0),
         mrp: Number(item.mrp ?? 0),
@@ -1074,35 +1090,7 @@ console.log("test",serverHolds)
 
   const generateInvoicePdf = useCallback(async (): Promise<jsPDF | null> => {
     if (!pdfRef.current) return null;
-
-    const canvas = await html2canvas(pdfRef.current, {
-      scale: 1.6,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      logging: false,
-    });
-
-    const imgData = canvas.toDataURL("image/jpeg", 0.72);
-    const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4", compress: true });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const imageWidth = pageWidth;
-    const imageHeight = (canvas.height * imageWidth) / canvas.width;
-
-    let heightLeft = imageHeight;
-    let position = 0;
-
-    pdf.addImage(imgData, "JPEG", 0, position, imageWidth, imageHeight, undefined, "MEDIUM");
-    heightLeft -= pageHeight;
-
-    while (heightLeft > 0) {
-      position = heightLeft - imageHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, "JPEG", 0, position, imageWidth, imageHeight, undefined, "MEDIUM");
-      heightLeft -= pageHeight;
-    }
-
-    return pdf;
+    return renderPaginatedInvoicePdf(pdfRef.current);
   }, []);
 
   const handleDownloadInvoice = useCallback(async () => {
@@ -1482,6 +1470,21 @@ console.log("test",serverHolds)
                                   )}
                                 </Box>
                                 <Typography sx={{ fontSize: 14, fontWeight: isActive ? 800 : 700, color: "#1A1A2E", lineHeight: 1.3 }}>{item.description}</Typography>
+                                <TextField
+                                  value={item.itemDescription ?? ""}
+                                  onChange={e => updateItemDescription(item.code, e.target.value)}
+                                  placeholder="Add description..."
+                                  size="small"
+                                  variant="outlined"
+                                  fullWidth
+                                  multiline
+                                  maxRows={2}
+                                  sx={{
+                                    mt: 0.5,
+                                    "& .MuiOutlinedInput-root": { fontSize: 12, bgcolor: "#FAFAFA", minHeight: 38, padding: "3px 6px", alignItems: "flex-start", "& fieldset": { borderColor: "#E5E7EB" } },
+                                    "& .MuiOutlinedInput-input": { padding: 0 },
+                                  }}
+                                />
                               </Box>
                               <IconButton size="small" onClick={e => { e.stopPropagation(); removeItem(item.code); }} sx={{ flexShrink: 0, color: "#D1D5DB", p: 0.4, "&:hover": { color: "#C8102E", bgcolor: "#FEE2E2" } }}><DeleteOutlineIcon sx={{ fontSize: 16 }} /></IconButton>
                             </Box>
@@ -1551,22 +1554,22 @@ console.log("test",serverHolds)
                 <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden", scrollbarWidth: "thin", scrollbarColor: "#ea9999 #F3F4F6", "&::-webkit-scrollbar": { width: "8px" }, "&::-webkit-scrollbar-track": { backgroundColor: "#F3F4F6", borderRadius: "4px" }, "&::-webkit-scrollbar-thumb": { backgroundColor: "#ea9999", borderRadius: "4px", "&:hover": { backgroundColor: "#A50D26" } } }}>
                   <Table size="small" stickyHeader sx={{ borderCollapse: "separate", tableLayout: "fixed", width: "100%" }}>
                     <colgroup>
-                      <col style={{ width: "0.8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "16%" }} />
-                      <col style={{ width: "12%" }} /><col style={{ width: "6%" }} />
-                      <col style={{ width: "10%" }} /><col style={{ width: "10%" }} /><col style={{ width: "8%" }} />
-                      <col style={{ width: "8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "3%" }} />
+                      <col style={{ width: "0.8%" }} /><col style={{ width: "8%" }} /><col style={{ width: "22%" }} />
+                      <col style={{ width: "10%" }} /><col style={{ width: "6%" }} />
+                      <col style={{ width: "10%" }} /><col style={{ width: "10%" }} /><col style={{ width: "7%" }} />
+                      <col style={{ width: "7%" }} /><col style={{ width: "10%" }} /><col style={{ width: "3%" }} />
                     </colgroup>
                     <TableHead>
                       <TableRow sx={{ "& .MuiTableCell-root": { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", px: 1 } }}>
                         <TableCell sx={{ width: "0.8%", p: 0 }} />
-                        <TableCell sx={{ width: "10%", fontSize: 12 }}>ITEM ID</TableCell>
-                        <TableCell sx={{ width: "16%", fontSize: 12 }}>DESCRIPTION</TableCell>
-                        <TableCell align="right" sx={{ width: "12%", fontSize: 12 }}>TAX AMT (GST %)</TableCell>
+                        <TableCell sx={{ width: "8%", fontSize: 12 }}>ITEM ID</TableCell>
+                        <TableCell sx={{ width: "22%", fontSize: 12 }}>DESCRIPTION</TableCell>
+                        <TableCell align="right" sx={{ width: "10%", fontSize: 12 }}>TAX AMT (GST %)</TableCell>
                         <TableCell align="right" sx={{ width: "6%", fontSize: 12 }}>MRP (₹)</TableCell>
                         <TableCell align="center" sx={{ width: "10%", fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.4 }}>QTY <Kbd>Q</Kbd></Box></TableCell>
                         <TableCell align="right" sx={{ width: "10%", fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>RATE <Kbd>P</Kbd></Box></TableCell>
-                        <TableCell align="right" sx={{ width: "8%", fontSize: 12 }}>UNIT PRICE</TableCell>
-                        <TableCell align="right" sx={{ width: "8%", fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>DISC % <Kbd>D</Kbd></Box></TableCell>
+                        <TableCell align="right" sx={{ width: "7%", fontSize: 12 }}>UNIT PRICE</TableCell>
+                        <TableCell align="right" sx={{ width: "7%", fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>DISC % <Kbd>D</Kbd></Box></TableCell>
                         <TableCell align="right" sx={{ width: "10%", fontSize: 12 }}>TOTAL</TableCell>
                         <TableCell sx={{ width: "3%" }} />
                       </TableRow>
@@ -1599,6 +1602,24 @@ console.log("test",serverHolds)
                               <TableCell>
                                 <Typography sx={{ fontSize: 13, fontWeight: isActive ? 800 : 700, color: "#1A1A2E", lineHeight: 1.3 }}>{item.description}</Typography>
                                 {item.category && <Typography sx={{ fontSize: 10, fontWeight: 700, color: CAT_COLOR[item.category] ?? "#6B7280" }}>{item.category}</Typography>}
+                                <TextField
+                                  value={item.itemDescription ?? ""}
+                                  onChange={e => updateItemDescription(item.code, e.target.value)}
+                                  onClick={e => e.stopPropagation()}
+                                  placeholder="Add description..."
+                                  size="medium"
+                                  variant="outlined"
+                                  fullWidth
+                                  
+                                  multiline
+                                  maxRows={3}
+                                  sx={{
+                                    mt: 0.5,
+                                    verticalAlign: "top",
+                                    "& .MuiOutlinedInput-root": { fontSize: 12, bgcolor: "#FAFAFA", minHeight: 50, padding: "4px 6px", alignItems: "flex-start", "& fieldset": { borderColor: "#E5E7EB" } },
+                                    "& .MuiOutlinedInput-input": { padding: 0.3 },
+                                  }}
+                                />
                               </TableCell>
                               <TableCell align="right">
                                 <Typography sx={{ fontSize: 13, color: "#374151", fontWeight: 700, lineHeight: 1.2, wordBreak: "break-word" }}>{INR(itemGst)}</Typography>
@@ -1640,10 +1661,10 @@ console.log("test",serverHolds)
                 {/* Total row pinned to bottom */}
                 <Table size="small" sx={{ borderCollapse: "separate", flexShrink: 0, tableLayout: "fixed", width: "100%" }}>
                   <colgroup>
-                    <col style={{ width: "0.8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "16%" }} />
-                    <col style={{ width: "12%" }} /><col style={{ width: "6%" }} />
-                    <col style={{ width: "10%" }} /><col style={{ width: "10%" }} /><col style={{ width: "8%" }} />
-                    <col style={{ width: "8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "3%" }} />
+                    <col style={{ width: "0.8%" }} /><col style={{ width: "8%" }} /><col style={{ width: "22%" }} />
+                    <col style={{ width: "10%" }} /><col style={{ width: "6%" }} />
+                    <col style={{ width: "10%" }} /><col style={{ width: "10%" }} /><col style={{ width: "7%" }} />
+                    <col style={{ width: "7%" }} /><col style={{ width: "10%" }} /><col style={{ width: "3%" }} />
                   </colgroup>
                   <TableBody>
                     <TableRow sx={{ bgcolor: "#F8FAFC", "& .MuiTableCell-root": { borderTop: "2px solid #E5E7EB", borderBottom: "none", py: 1, height: 34, bgcolor: "#F8FAFC" } }}>

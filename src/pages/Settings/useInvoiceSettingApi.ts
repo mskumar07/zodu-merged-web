@@ -30,6 +30,16 @@ export interface InvoiceSettingsResponse {
   printer_inch: string;
   show_company_logo: boolean;
   print_thank_you_message: boolean;
+  show_description: boolean;
+  show_item_id: boolean;
+  show_customer_details: boolean;
+  show_tax_details: boolean;
+  show_payment_details: boolean;
+  show_terms_conditions: boolean;
+  terms_conditions: string;
+  show_notes: boolean;
+  notes: string;
+  show_signature: boolean;
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -47,6 +57,16 @@ export type UpdateInvoiceSettingsPayload = Partial<
     | "printer_inch"
     | "show_company_logo"
     | "print_thank_you_message"
+    | "show_description"
+    | "show_item_id"
+    | "show_customer_details"
+    | "show_tax_details"
+    | "show_payment_details"
+    | "show_terms_conditions"
+    | "terms_conditions"
+    | "show_notes"
+    | "notes"
+    | "show_signature"
   >
 >;
 

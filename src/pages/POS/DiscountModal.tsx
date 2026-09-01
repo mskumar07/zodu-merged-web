@@ -560,6 +560,7 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
+import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 
 interface Props {
@@ -582,8 +583,8 @@ export default function DiscountModal({
 
   useEffect(() => {
     if (open) {
-      setLocalPct(discountPct || "");
-      setLocalAmt(discount || "");
+      setLocalPct(discountPct && parseFloat(discountPct) > 0 ? discountPct : "");
+      setLocalAmt(discount && parseFloat(discount) > 0 ? discount : "");
     }
   }, [open, discountPct, discount]);
 
@@ -613,7 +614,7 @@ export default function DiscountModal({
     <Dialog
       open={open}
       onClose={onClose}
-      maxWidth="xs"
+      maxWidth="sm"
       fullWidth
       PaperProps={{ sx: { borderRadius: 3, overflow: "hidden" } }}
     >
@@ -751,30 +752,76 @@ export default function DiscountModal({
         </Box>
 
         {/* EXPLICITLY RENDERED LIVE PREVIEW BOX */}
-        <Box 
-          sx={{ 
-            p: 2, 
-            bgcolor: "#F8FAFC", 
-            borderRadius: 2.5, 
-            border: "1px solid #E2E8F0", 
+        <Box
+          sx={{
+            p: 1.5,
+            bgcolor: "#F0FDF4",
+            borderRadius: 3,
+            border: "1px solid #D1FAE5",
             display: "flex",
             flexDirection: "column",
-            gap: 1.2
+            gap: 1.25,
           }}
         >
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography sx={{ fontSize: 12, color: "#64748B", fontWeight: 700 }}>
-              Total Discount Reduction:
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <Typography sx={{ fontSize: 12.5, color: "#64748B", fontWeight: 600 }}>
+              Previous Total
             </Typography>
-            <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#EF4444" }}>
+            <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>
+              Rs {currentBase.toFixed(2)}
+            </Typography>
+          </Box>
+
+          <Box sx={{ borderTop: "1px dashed #D1FAE5" }} />
+
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Box
+                sx={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: "50%",
+                  bgcolor: "#D1FAE5",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <LocalOfferOutlinedIcon sx={{ fontSize: 18, color: "#059669" }} />
+              </Box>
+              <Typography sx={{ fontSize: 14, color: "#334155", fontWeight: 600 }}>
+                Discount Applied
+              </Typography>
+            </Box>
+            <Typography sx={{ fontSize: 15, fontWeight: 800, color: "#EF4444" }}>
               - Rs {totalDiscountAmount.toFixed(2)}
             </Typography>
           </Box>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pt: 1, borderTop: "1px solid #E2E8F0" }}>
-            <Typography sx={{ fontSize: 12.5, color: "#1E293B", fontWeight: 700 }}>
-              Final Amount After Discount:
-            </Typography>
-            <Typography sx={{ fontSize: 15, fontWeight: 800, color: "#0F172A" }}>
+
+          <Box sx={{ borderTop: "1px solid #D1FAE5" }} />
+
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Box
+                sx={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: "50%",
+                  bgcolor: "#D1FAE5",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <AccountBalanceWalletOutlinedIcon sx={{ fontSize: 18, color: "#059669" }} />
+              </Box>
+              <Typography sx={{ fontSize: 14, color: "#0F172A", fontWeight: 700 }}>
+                Final Amount
+              </Typography>
+            </Box>
+            <Typography sx={{ fontSize: 17, fontWeight: 800, color: "#0F172A" }}>
               Rs {finalTotalAmount.toFixed(2)}
             </Typography>
           </Box>

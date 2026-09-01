@@ -265,6 +265,16 @@ export interface InvoiceSettings {
   printer_inch: string;
   show_company_logo: boolean;
   print_thank_you_message: boolean;
+  show_description: boolean;
+  show_item_id: boolean;
+  show_customer_details: boolean;
+  show_tax_details: boolean;
+  show_payment_details: boolean;
+  show_terms_conditions: boolean;
+  terms_conditions: string;
+  show_notes: boolean;
+  notes: string;
+  show_signature: boolean;
   active: boolean;
   created_at?: string;
   updated_at?: string;

@@ -1,6 +1,6 @@
 import { useAppSelector } from "@store/store";
 import { useTenantContext } from "@store/tenantContext";
-import { AllCompanies } from "@store/slices/userSlice";
+import { AllCompanies, InvoiceSettingsData } from "@store/slices/userSlice";
 import React from "react";
 
 // ── Inline style constants ────────────────────────────────────
@@ -263,13 +263,13 @@ const styles = {
 
 // ── Helper components ─────────────────────────────────────────
 function SummaryRow({
-  label, value, bold, red, green, large,
+  label, value, bold, red, green, large, compact,
 }: {
   label: string; value: string;
-  bold?: boolean; red?: boolean; green?: boolean; large?: boolean;
+  bold?: boolean; red?: boolean; green?: boolean; large?: boolean; compact?: boolean;
 }) {
   return (
-    <div style={styles.summaryRow}>
+    <div style={{ ...styles.summaryRow, marginBottom: compact ? 4 : 7 }}>
       <span style={large ? styles.grandLabel : bold ? { ...styles.summaryLabel, fontWeight: 700 } : styles.summaryLabel}>
         {label}
       </span>
@@ -295,7 +295,8 @@ function hasValue(v: unknown): v is string {
 }
 
 // ── Main template ─────────────────────────────────────────────
-export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => {
+export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, theme = "classic", accentColor = "#D0021B", logoUrl, headerImageUrl }: any, ref: any) => {
+  const isCompact = theme === "compact";
   const {
     sale_id, date, due_date,
     customer_name, customer_address, customer_mobile, customer_gstin,
@@ -311,6 +312,19 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
   const { profile, company, zoduId } = useTenantContext();
   const companies = useAppSelector(AllCompanies);
   const selectedCompany = companies.find(c => c.zodu_id === zoduId);
+  const reduxInvoiceSettings = useAppSelector(InvoiceSettingsData);
+  const invoiceSettings = settingsOverride ?? reduxInvoiceSettings;
+  const showCompanyLogo = invoiceSettings?.show_company_logo ?? false;
+  const showItemDescription = invoiceSettings?.show_description ?? false;
+  const rowIdentifier: "sno" | "item_id" = invoiceSettings?.show_item_id ? "item_id" : "sno";
+  const showCustomerDetails = invoiceSettings?.show_customer_details ?? true;
+  const showTaxDetails = invoiceSettings?.show_tax_details ?? true;
+  const showPaymentDetails = invoiceSettings?.show_payment_details ?? false;
+  const showTermsConditions = invoiceSettings?.show_terms_conditions ?? false;
+  const termsConditionsText = invoiceSettings?.terms_conditions ?? "";
+  const showNotes = invoiceSettings?.show_notes ?? false;
+  const notesText = invoiceSettings?.notes ?? "";
+  const showSignature = invoiceSettings?.show_signature ?? false;
 
   const showDiscount = discount && Number(discount) > 0;
   const showRoundOff = round_off !== undefined && round_off !== null && Number(round_off) !== 0;
@@ -339,12 +353,23 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
   };
 
   return (
-    <div ref={ref} style={styles.page}>
+    <div ref={ref} style={{ ...styles.page, padding: isCompact ? "16px 14px" : styles.page.padding }}>
+
+      {headerImageUrl && (
+        <img
+          src={headerImageUrl}
+          alt=""
+          style={{ width: "100%", maxHeight: isCompact ? 90 : 130, objectFit: "cover", marginBottom: isCompact ? 12 : 18, display: "block" }}
+        />
+      )}
 
       {/* ── HEADER ───────────────────────────────────────────── */}
       <div data-pdf-header style={styles.header}>
         <div>
-          <h1 style={styles.brandName}>{co.name}</h1>
+          {showCompanyLogo && logoUrl && (
+            <img src={logoUrl} alt="" style={{ maxHeight: 44, maxWidth: 140, objectFit: "contain", marginBottom: 8, display: "block" }} />
+          )}
+          <h1 style={{ ...styles.brandName, color: accentColor }}>{co.name}</h1>
           {co.gstin && <p style={styles.headerMeta}>GSTIN: {co.gstin}</p>}
           {co.line1 && <p style={styles.headerMeta}>{co.line1}</p>}
           {co.line2 && <p style={styles.headerMeta}>{co.line2}</p>}
@@ -371,44 +396,54 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
       </div>
 
       {/* Red divider */}
-      <div data-pdf-header-divider style={styles.redDivider} />
+      <div data-pdf-header-divider style={{ ...styles.redDivider, borderTop: `2px solid ${accentColor}` }} />
 
       {/* ── BILL TO ───────────────────────────────────────────── */}
-      <div style={styles.billBox}>
-        <div>
-          <p style={styles.billLabel}>BILL TO</p>
-          <h3 style={styles.billName}>{customer_name}</h3>
-          {hasValue(customer_gstin) && (
-            <p style={styles.billMeta}>GSTIN: {customer_gstin}</p>
+      {(showCustomerDetails || showPaymentDetails) && (
+        <div style={{
+          ...styles.billBox,
+          padding: isCompact ? "10px 14px" : styles.billBox.padding,
+          marginTop: isCompact ? 10 : styles.billBox.marginTop,
+          marginBottom: isCompact ? 14 : styles.billBox.marginBottom,
+        }}>
+          {showCustomerDetails && (
+            <div>
+              <p style={styles.billLabel}>BILL TO</p>
+              <h3 style={styles.billName}>{customer_name}</h3>
+              {hasValue(customer_gstin) && (
+                <p style={styles.billMeta}>GSTIN: {customer_gstin}</p>
+              )}
+              {hasValue(customer_address) && (
+                <p style={styles.billMeta}>{customer_address}</p>
+              )}
+              {hasValue(customer_mobile) && (
+                <p style={styles.billMeta}>Mobile: {customer_mobile}</p>
+              )}
+            </div>
           )}
-          {hasValue(customer_address) && (
-            <p style={styles.billMeta}>{customer_address}</p>
-          )}
-          {hasValue(customer_mobile) && (
-            <p style={styles.billMeta}>Mobile: {customer_mobile}</p>
+
+          {showPaymentDetails && (
+            <div style={{ textAlign: "right" }}>
+              <span style={{
+                ...styles.paidBadge,
+                ...(payment_status === "unpaid" || payment_status === "pending"
+                  ? { background: "#FEF3C7", color: "#D97706" }
+                  : payment_status === "partial"
+                  ? { background: "#FEF9C3", color: "#CA8A04" }
+                  : {}),
+              }}>
+                {payment_status === "fully_paid" || !payment_status ? "PAID" : payment_status.toUpperCase()}
+              </span>
+              <p style={styles.paymentMode}>Payment Mode: {payment_mode}</p>
+            </div>
           )}
         </div>
-
-        {/* <div style={{ textAlign: "right" }}>
-          <span style={{
-            ...styles.paidBadge,
-            ...(payment_status === "unpaid" || payment_status === "pending"
-              ? { background: "#FEF3C7", color: "#D97706" }
-              : payment_status === "partial"
-              ? { background: "#FEF9C3", color: "#CA8A04" }
-              : {}),
-          }}>
-            {payment_status === "fully_paid" || !payment_status ? "PAID" : payment_status.toUpperCase()}
-          </span>
-          <p style={styles.paymentMode}>Payment Mode: {payment_mode}</p>
-        </div> */}
-      </div>
+      )}
 
       {/* ── ITEMS TABLE ──────────────────────────────────────── */}
-      <table style={styles.table}>
+      <table style={{ ...styles.table, marginBottom: isCompact ? 16 : styles.table.marginBottom }}>
         <colgroup>
-          <col style={{ width: "24px" }} />
-          <col style={{ width: "95px" }} />
+          <col style={{ width: "70px" }} />
           <col />
           <col style={{ width: "64px" }} />
           <col style={{ width: "42px" }} />
@@ -417,67 +452,76 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
           <col style={{ width: "78px" }} />
           <col style={{ width: "88px" }} />
         </colgroup>
-        <thead style={styles.thead}>
+        <thead style={{ ...styles.thead, background: accentColor }}>
           <tr>
-            <th style={styles.theadTh}>SL</th>
-            <th style={styles.theadTh}>Item ID</th>
-            <th style={styles.theadTh}>Item Name</th>
-            <th style={styles.theadThCenter}>HSN</th>
-            <th style={styles.theadThCenter}>Tax</th>
-            <th style={styles.theadThCenter}>QTY</th>
-            <th style={styles.theadThRight}>MRP</th>
-            <th style={styles.theadThRight}>Rate</th>
-            <th style={styles.theadThRight}>Amount</th>
+            <th style={{ ...styles.theadTh, padding: isCompact ? "6px 8px" : styles.theadTh.padding }}>{rowIdentifier === "item_id" ? "Item ID" : "SL"}</th>
+            <th style={{ ...styles.theadTh, padding: isCompact ? "6px 8px" : styles.theadTh.padding }}>Item Name</th>
+            <th style={{ ...styles.theadThCenter, padding: isCompact ? "6px 8px" : styles.theadThCenter.padding }}>HSN</th>
+            <th style={{ ...styles.theadThCenter, padding: isCompact ? "6px 8px" : styles.theadThCenter.padding }}>Tax</th>
+            <th style={{ ...styles.theadThCenter, padding: isCompact ? "6px 8px" : styles.theadThCenter.padding }}>QTY</th>
+            <th style={{ ...styles.theadThRight, padding: isCompact ? "6px 8px" : styles.theadThRight.padding }}>MRP</th>
+            <th style={{ ...styles.theadThRight, padding: isCompact ? "6px 8px" : styles.theadThRight.padding }}>Rate</th>
+            <th style={{ ...styles.theadThRight, padding: isCompact ? "6px 8px" : styles.theadThRight.padding }}>Amount</th>
           </tr>
         </thead>
         <tbody>
           {items.map((item: any, i: number) => (
             <tr key={i} style={{ background: i % 2 === 0 ? "#fff" : "#FAFBFC" }}>
-              <td style={styles.tdBase}>{String(i + 1).padStart(2, "0")}</td>
-              <td style={styles.tdBase}>{item.item_id}</td>
-              <td style={styles.tdBase}>
+              <td style={{ ...styles.tdBase, padding: isCompact ? "3px 8px" : styles.tdBase.padding }}>
+                {rowIdentifier === "item_id" ? item.item_id : String(i + 1).padStart(2, "0")}
+              </td>
+              <td style={{ ...styles.tdBase, padding: isCompact ? "3px 8px" : styles.tdBase.padding }}>
                 <div style={styles.itemName}>{item.name}</div>
+                {showItemDescription && item.description && (
+                  <div style={styles.itemSub}>{item.description}</div>
+                )}
                 {/* {item.category && (
                   <div style={styles.itemSub}>{item.category}</div>
                 )} */}
               </td>
-              <td style={styles.tdCenter}>{item.hsn || "—"}</td>
-              <td style={styles.tdCenter}>{Number(item.tax).toFixed(0)}%</td>
-              <td style={styles.tdCenter}>{item.qty}</td>
-              <td style={styles.tdRight}>{fmt(item.mrp ?? item.rate)}</td>
-              <td style={styles.tdRight}>{fmt(item.rate)}</td>
-              <td style={{ ...styles.tdRight, fontWeight: 700 }}>{fmt(item.total)}</td>
+              <td style={{ ...styles.tdCenter, padding: isCompact ? "3px 8px" : styles.tdCenter.padding }}>{item.hsn || "—"}</td>
+              <td style={{ ...styles.tdCenter, padding: isCompact ? "3px 8px" : styles.tdCenter.padding }}>{Number(item.tax).toFixed(0)}%</td>
+              <td style={{ ...styles.tdCenter, padding: isCompact ? "3px 8px" : styles.tdCenter.padding }}>{item.qty}</td>
+              <td style={{ ...styles.tdRight, padding: isCompact ? "3px 8px" : styles.tdRight.padding }}>{fmt(item.mrp ?? item.rate)}</td>
+              <td style={{ ...styles.tdRight, padding: isCompact ? "3px 8px" : styles.tdRight.padding }}>{fmt(item.rate)}</td>
+              <td style={{ ...styles.tdRight, padding: isCompact ? "3px 8px" : styles.tdRight.padding, fontWeight: 700 }}>{fmt(item.total)}</td>
             </tr>
           ))}
         </tbody>
       </table>
 
       {/* ── SUMMARY (kept together across pages) ─────────────── */}
-      <div data-pdf-keep-together style={styles.summaryWrap}>
+      <div data-pdf-keep-together style={{ ...styles.summaryWrap, marginTop: isCompact ? 8 : 16, paddingTop: isCompact ? 6 : 12 }}>
         <div style={styles.summaryBox}>
-          <SummaryRow label="Subtotal:" value={fmt(subtotal)} />
+          <SummaryRow label="Subtotal:" value={fmt(subtotal)} compact={isCompact} />
 
           {showDiscount && (
             <SummaryRow
               label={discount_label ?? "Discount:"}
               value={`-${fmt(discount)}`}
               red
+              compact={isCompact}
             />
           )}
 
-          <SummaryRow label="CGST:" value={fmt(cgst)} />
-          <SummaryRow label="SGST:" value={fmt(sgst)} />
+          {showTaxDetails && (
+            <>
+              <SummaryRow label="CGST:" value={fmt(cgst)} compact={isCompact} />
+              <SummaryRow label="SGST:" value={fmt(sgst)} compact={isCompact} />
+            </>
+          )}
 
           {showRoundOff && (
             <SummaryRow
               label="Round Off:"
               value={Number(round_off) > 0 ? `+${fmt(round_off)}` : fmt(round_off)}
+              compact={isCompact}
             />
           )}
 
-          <div style={{ borderTop: "2px solid #E5E7EB", margin: "10px 0" }} />
+          <div style={{ borderTop: "2px solid #E5E7EB", margin: isCompact ? "6px 0" : "10px 0" }} />
 
-          <SummaryRow label="Grand Total:" value={fmt(total)} large />
+          <SummaryRow label="Grand Total:" value={fmt(total)} large compact={isCompact} />
 
           {amount_in_words && (
             <p style={styles.amountWords}>Amount in words: {amount_in_words}</p>
@@ -486,8 +530,8 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
       </div>
 
       {/* ── HSN-WISE TAX BREAKDOWN ───────────────────────────── */}
-      {gst_breakdown.length > 0 && (
-        <div style={styles.gstSection}>
+      {showTaxDetails && gst_breakdown.length > 0 && (
+        <div style={{ ...styles.gstSection, marginTop: isCompact ? 18 : styles.gstSection.marginTop }}>
           <p style={styles.gstLabel}>HSN-wise Tax Breakdown</p>
           <table style={{ ...styles.table, marginBottom: 0 }}>
             <thead style={styles.gstThead}>
@@ -538,10 +582,26 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
 
       {/* ── DECLARATION + BANK + FOOTER (kept together across pages) ── */}
       <div data-pdf-keep-together>
-        <div style={styles.noteGrid}>
-          <div>
-            <p style={styles.noteLabel}>Declaration</p>
-            <p style={styles.noteText}>{co.declaration}</p>
+        <div style={{ ...styles.noteGrid, marginTop: isCompact ? 14 : styles.noteGrid.marginTop, gap: isCompact ? "16px" : styles.noteGrid.gap }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+            <div>
+              <p style={styles.noteLabel}>Declaration</p>
+              <p style={styles.noteText}>{co.declaration}</p>
+            </div>
+
+            {showTermsConditions && termsConditionsText && (
+              <div>
+                <p style={styles.noteLabel}>Terms &amp; Conditions</p>
+                <p style={{ ...styles.noteText, whiteSpace: "pre-line" as const }}>{termsConditionsText}</p>
+              </div>
+            )}
+
+            {showNotes && notesText && (
+              <div>
+                <p style={styles.noteLabel}>Notes</p>
+                <p style={{ ...styles.noteText, whiteSpace: "pre-line" as const }}>{notesText}</p>
+              </div>
+            )}
           </div>
 
           <div style={styles.bankBox}>
@@ -562,7 +622,7 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
         </div>
 
         {/* ── FOOTER ─────────────────────────────────────────── */}
-        <div style={styles.footer}>
+        <div style={{ ...styles.footer, marginTop: isCompact ? 16 : styles.footer.marginTop }}>
           <p style={styles.footerThanks}>Thank you for your business!</p>
           <p style={styles.footerTerms}>
             Terms: Goods once sold will not be taken back.
@@ -571,10 +631,12 @@ export const InvoicePDFTemplate = React.forwardRef(({ data }: any, ref: any) => 
             © 2024 {co.name}. Authorised Signatory Required.
           </p>
 
-          <div style={styles.signBox}>
-            <div style={styles.signLine} />
-            <p style={styles.signLabel}>Authorized Signatory</p>
-          </div>
+          {showSignature && (
+            <div style={styles.signBox}>
+              <div style={styles.signLine} />
+              <p style={styles.signLabel}>Authorized Signatory</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
