@@ -8,9 +8,6 @@ import {
   Autocomplete,
 } from '@mui/material';
 import SuccessToast from '@components/Common/SuccessToast';
-import CameraBarcodeScanner from '@components/Common/CameraBarcodeScanner';
-import { useHardwareScannerListener } from '@components/Common/useHardwareScannerListener';
-import { isMobileOrTabletDevice } from '@components/Common/deviceType';
 import { useFormik } from 'formik';
 import axios from 'axios';
 import AddCircleIcon        from '@mui/icons-material/AddCircle';
@@ -21,6 +18,10 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import SaveIcon             from '@mui/icons-material/Save';
 import InventoryIcon        from '@mui/icons-material/Inventory2Outlined';
 import SearchIcon           from '@mui/icons-material/Search';
+import CameraAltOutlinedIcon from '@mui/icons-material/CameraAltOutlined';
+import CameraBarcodeScanner from '@components/Common/CameraBarcodeScanner';
+import { useHardwareScannerListener } from '@components/Common/useHardwareScannerListener';
+import { isMobileOrTabletDevice } from '@components/Common/deviceType';
 import axiosInstance from '@store/services/axiosInstance';
 import { apiConfig } from '@config/api';
 import { getTenantContext } from '@store/tenantContext';
@@ -66,6 +67,32 @@ const INITIAL_VALUES = {
   lowStockAlert: '',
 };
 
+// ─── Barcode / QR scanning ────────────────────────────────────
+// The two fields a scanned code can land in. Whichever one is focused (or was
+// focused last) receives the next scan, so one scanner serves both.
+type ScanField = 'itemId' | 'barcode';
+
+const SCAN_FIELD_MAX_LENGTH: Record<ScanField, number> = {
+  itemId:  ITEM_ID_MAX_LENGTH,
+  barcode: BARCODE_MAX_LENGTH,
+};
+
+const SCAN_FIELD_LABEL: Record<ScanField, string> = {
+  itemId:  'Item ID',
+  barcode: 'Barcode / QR',
+};
+
+// Scanners wrap the code in terminators (Enter/Tab, and depending on how the device is
+// programmed sometimes a control-character prefix or suffix) — strip everything
+// unprintable so only the code itself reaches the field.
+function sanitizeScannedCode(raw: string, field: ScanField): string {
+  return raw
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001F\u007F]/g, '')
+    .trim()
+    .slice(0, SCAN_FIELD_MAX_LENGTH[field]);
+}
+
 // ─── Helper components ────────────────────────────────────────
 const Label: React.FC<{ text: string; required?: boolean }> = ({ text, required }) => (
   <Typography variant="body2" fontWeight={600} mb={0.8} color="text.primary">
@@ -77,9 +104,6 @@ const Label: React.FC<{ text: string; required?: boolean }> = ({ text, required 
 const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, editItem }) => {
   const isEditMode = Boolean(editItem);
   const qc = useQueryClient();
-  // Camera scanning only makes sense on a phone/tablet's own camera — desktop/laptop
-  // relies on a hardware USB/Bluetooth scanner instead, so the camera icon is hidden there.
-  const isMobileOrTablet = useMemo(() => isMobileOrTabletDevice(), []);
 
   const [catDialogOpen,    setCatDialogOpen]    = useState(false);
   const [imagePreview,     setImagePreview]     = useState<string | null>(null);
@@ -89,11 +113,14 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
   const [imageDeleting,    setImageDeleting]    = useState(false);
   const [itemIdError,      setItemIdError]      = useState<string | null>(null);
   const [itemIdChecking,   setItemIdChecking]   = useState(false);
-  const [cameraScanOpen,   setCameraScanOpen]   = useState(false);
   const [successMsg,       setSuccessMsg]       = useState("");
+  const [scanField,        setScanField]        = useState<ScanField>('itemId');
+  const [cameraScanOpen,   setCameraScanOpen]   = useState(false);
   const [toastSeverity,    setToastSeverity]    = useState<'success' | 'error'>('success');
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const itemIdRef = useRef<HTMLInputElement>(null);
+  // Camera scanning is only offered where there's a rear camera to point at a label;
+  // desktop/laptop relies on a wired or wireless hardware scanner instead.
+  const isMobileOrTablet = useMemo(() => isMobileOrTabletDevice(), []);
   const stockCacheRef = useRef<{ openingStock: string | number; lowStockAlert: string | number }>({
     openingStock: '',
     lowStockAlert: '',
@@ -117,9 +144,6 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
       openingStock: editItem?.available_qty ?? '',
       lowStockAlert: editItem?.reorder_level ?? '',
     };
-    // MUI Dialog's own focus-trap claims focus first — wait a tick so it doesn't
-    // immediately steal it back from the Item ID field.
-    setTimeout(() => itemIdRef.current?.focus(), 60);
   }, [open, editItem]);
 
   // ── 2. getInitialValues — itemId pre-filled in edit mode ────
@@ -245,6 +269,8 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
     setUploadedImageUrl(null);
     setImageDeleting(false);
     setItemIdError(null);
+    setCameraScanOpen(false);
+    setScanField('itemId');
     onClose();
   };
 
@@ -338,9 +364,8 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
     qc.invalidateQueries({ queryKey: ['menu', 'categoryList'] });
   };
 
-  // Shared by the blur-check and a barcode/QR scan filling item_id — both need the
-  // same "does this ID already exist" duplicate check.
-  const checkItemIdDuplicate = async (value: string) => {
+  const runItemIdCheck = async (rawValue: string) => {
+    const value = rawValue.trim();
     if (!value) { setItemIdError(null); return; }
     // In edit mode skip the check when the ID hasn't changed
     if (isEditMode && editItem && value === editItem.item_id) { setItemIdError(null); return; }
@@ -356,24 +381,53 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
     }
   };
 
-  const handleItemIdBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
+  const handleItemIdBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     formik.handleBlur(e);
-    await checkItemIdDuplicate(e.target.value.trim());
+    void runItemIdCheck(e.target.value);
   };
 
-  const handleScanItemId = async (code: string) => {
-    const value = code.trim();
-    if (!value) return;
-    formik.setFieldValue('itemId', value);
-    formik.setFieldTouched('itemId', true, false);
-    await checkItemIdDuplicate(value);
+  // A hardware scanner — wired USB or wireless Bluetooth/2.4GHz — presents itself as a
+  // keyboard: it types the code into the focused field, then sends Enter. Swallow that
+  // Enter (it must not act as a form submit) and settle the scanned value right there.
+  const handleScanFieldKeyDown = (field: ScanField) => (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const input = e.target as HTMLInputElement;
+    const code = sanitizeScannedCode(input.value, field);
+    if (code !== formik.values[field]) formik.setFieldValue(field, code);
+    // Leave the finished code selected so a re-scan of the same field replaces it
+    // instead of appending to it.
+    input.select();
+    if (field === 'itemId') void runItemIdCheck(code);
   };
 
-  // Auto-detects a connected hardware USB/Bluetooth scanner without requiring the
-  // Item ID field to be clicked first — active only while this modal is open, and
-  // never fires while focus is inside a real text field (that field's own
-  // onChange/onKeyDown already handles a scan landing directly in it).
-  useHardwareScannerListener({ onScan: handleScanItemId, active: open });
+  // Fills a field with a code that didn't arrive by typing into it — a camera scan, or a
+  // hardware scan fired while focus sat outside any text field.
+  const applyScannedCode = (rawCode: string, field: ScanField) => {
+    const code = sanitizeScannedCode(rawCode, field);
+    if (!code) return;
+    formik.setFieldValue(field, code);
+    formik.setFieldTouched(field, true, false);
+    if (field === 'itemId') {
+      setItemIdError(null);
+      void runItemIdCheck(code);
+    }
+    setToastSeverity('success');
+    setSuccessMsg(`${SCAN_FIELD_LABEL[field]} scanned: ${code}`);
+  };
+
+  const openCameraScan = (field: ScanField) => {
+    setScanField(field);
+    setCameraScanOpen(true);
+  };
+
+  // Catches a hardware scan even when neither field is focused. The listener stands down
+  // while focus is in any text field — a scan landing there is already handled by the
+  // field itself (and by handleScanFieldKeyDown above).
+  useHardwareScannerListener({
+    onScan: (code) => applyScannedCode(code, scanField),
+    active: open && !cameraScanOpen && !catDialogOpen,
+  });
 
   const err   = formik.errors;
   const touch = formik.touched;
@@ -397,6 +451,25 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
   });
 
   const inputSx = { borderRadius: 1, fontSize: 14 };
+
+  // End adornment for the two scannable fields: a camera button where a camera scan makes
+  // sense, otherwise a static hint that the field is ready for a hardware scanner.
+  const scanAdornment = (field: ScanField) => (
+    <InputAdornment position="end">
+      {isMobileOrTablet ? (
+        <Tooltip title={`Scan ${SCAN_FIELD_LABEL[field]} with camera`}>
+          <IconButton size="small" edge="end" onClick={() => openCameraScan(field)}
+            sx={{ color: 'text.secondary' }}>
+            <CameraAltOutlinedIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      ) : (
+        <Tooltip title="Click this field, then scan — the code fills it automatically">
+          <QrCodeScannerIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
+        </Tooltip>
+      )}
+    </InputAdornment>
+  );
 
   const handleAmountChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
     formik.setFieldValue(field, sanitizeAmountInput(e.target.value));
@@ -540,65 +613,93 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                 </Box>
 
                 {/* ── 4. Item ID + Item Name in a 2-col grid ── */}
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 2 }}>
-                  <Box>
-                    <Label text="Item ID" required />
-                    {/* Scanning happens in this same field — a hardware scanner just needs it
-                        focused (types the code, then Enter); the camera icon opens the camera
-                        scanner, which fills this field the same way. Neither touches any order/cart. */}
-                    <TextField
-                      fullWidth size="small"
-                      inputRef={itemIdRef}
-                      placeholder="e.g. ITM-001 or click and scan…"
-                      {...formik.getFieldProps('itemId')}
-                      onBlur={handleItemIdBlur}
-                      onChange={(e) => {
-                        formik.handleChange(e);
-                        setItemIdError(null);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key !== 'Enter') return;
-                        e.preventDefault();
-                        void checkItemIdDuplicate(e.currentTarget.value.trim());
-                      }}
-                      error={(touch.itemId && Boolean(err.itemId)) || Boolean(itemIdError)}
-                      helperText={
-                        itemIdError
-                          ? itemIdError
-                          : (touch.itemId && err.itemId)
-                      }
-                      inputProps={{ maxLength: ITEM_ID_MAX_LENGTH }}
-                      InputProps={{
-                        sx: inputSx,
-                        endAdornment: (itemIdChecking || isMobileOrTablet) ? (
-                          <InputAdornment position="end">
-                            {itemIdChecking ? (
-                              <CircularProgress size={14} />
-                            ) : (
-                              <Tooltip title="Scan with camera">
-                                <IconButton size="small" edge="end" onClick={() => setCameraScanOpen(true)} sx={{ color: 'text.disabled' }}>
-                                  <QrCodeScannerIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                            )}
-                          </InputAdornment>
-                        ) : undefined,
-                      }}
-                    />
-                  </Box>
-                  <Box>
-                    <Label text="Item Name" required />
-                    <TextField
-                      fullWidth size="small"
-                      placeholder="e.g. Premium Cotton Polo"
-                      {...formik.getFieldProps('name')}
-                      error={touch.name && Boolean(err.name)}
-                      helperText={touch.name && err.name}
-                      inputProps={{ maxLength: ITEM_NAME_MAX_LENGTH }}
-                      InputProps={{ sx: inputSx }}
-                    />
-                  </Box>
-                </Box>
+               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+  {/* Item ID Field */}
+ <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+  
+  {/* Row 1: Item ID & Barcode side-by-side */}
+  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+    
+    {/* Item ID Field (Left) */}
+    <Box>
+      <Label text="Item ID" required />
+      <TextField
+        fullWidth size="small"
+        placeholder="e.g. ITM-001"
+        {...formik.getFieldProps('itemId')}
+        onFocus={() => setScanField('itemId')}
+        onBlur={handleItemIdBlur}
+        onChange={(e) => {
+          formik.handleChange(e);
+          setItemIdError(null);
+        }}
+        onKeyDown={handleScanFieldKeyDown('itemId')}
+        error={(touch.itemId && Boolean(err.itemId)) || Boolean(itemIdError)}
+        helperText={
+          itemIdError
+            ? itemIdError
+            : (touch.itemId && err.itemId)
+        }
+        autoComplete="off"
+        inputProps={{ maxLength: ITEM_ID_MAX_LENGTH }}
+        InputProps={{
+          sx: inputSx,
+          endAdornment: itemIdChecking
+            ? <InputAdornment position="end"><CircularProgress size={14} /></InputAdornment>
+            : scanAdornment('itemId'),
+        }}
+      />
+    </Box>
+
+    {/* Barcode / QR Field  */}
+    <Box>
+      <Label text="Barcode / QR" />
+      <TextField
+        fullWidth size="small"
+        placeholder="Scan or enter code"
+        {...formik.getFieldProps('barcode')}
+        onFocus={() => setScanField('barcode')}
+        onKeyDown={handleScanFieldKeyDown('barcode')}
+        error={touch.barcode && Boolean(err.barcode)}
+        helperText={touch.barcode && err.barcode}
+        autoComplete="off"
+        inputProps={{ maxLength: BARCODE_MAX_LENGTH }}
+        InputProps={{
+          endAdornment: scanAdornment('barcode'),
+          sx: { ...inputSx, bgcolor: 'background.paper' },
+        }}
+      />
+    </Box>
+
+  </Box>
+
+  {/* Scanning hint — a scan always lands in whichever of the two fields is focused. */}
+  <Typography variant="caption" color="text.secondary"
+    sx={{ mt: -1, display: 'flex', alignItems: 'center', gap: 0.6 }}>
+    <QrCodeScannerIcon sx={{ fontSize: 15 }} />
+    {isMobileOrTablet
+      ? 'Tap Item ID or Barcode, then use the camera icon — the code fills that field.'
+      : 'Click Item ID or Barcode, then scan — the scanned code fills the focused field.'}
+  </Typography>
+
+  {/* Row 2: Item Name (Keela full width-la varum) */}
+  <Box>
+    <Label text="Item Name" required />
+    <TextField
+      fullWidth size="small"
+      placeholder="e.g. Premium Cotton Polo"
+      {...formik.getFieldProps('name')}
+      error={touch.name && Boolean(err.name)}
+      helperText={touch.name && err.name}
+      inputProps={{ maxLength: ITEM_NAME_MAX_LENGTH }}
+      InputProps={{ sx: inputSx }}
+    />
+  </Box>
+
+</Box>
+
+ 
+</Box>
 
                 {/* ── 5. Category — clean layout ── */}
                 <Box>
@@ -744,93 +845,88 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
            
 
             {/* Row 4: Tax */}
-            <Box sx={{ bgcolor: 'action.hover', borderRadius: 1.5, p: 2.5 }}>
-              <Typography variant="body2" fontWeight={700} color="text.secondary" textTransform="uppercase" letterSpacing="0.06em" fontSize={11} mb={2}>
-                Tax Information
-              </Typography>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2.5 }}>
-                <Box>
-                  <Label text="Tax Type" required />
-                  <FormControl fullWidth size="small" error={touch.gstId && Boolean(err.gstId)}>
-                    <Autocomplete
-                      options={gstOptions}
-                      getOptionLabel={(g) => g.label}
-                      isOptionEqualToValue={(a, b) => String(a.value) === String(b.value)}
-                      value={gstOptions.find(g => String(g.value) === formik.values.gstId) ?? null}
-                      onChange={(_e, newValue) => formik.setFieldValue('gstId', newValue ? String(newValue.value) : '')}
-                      loading={gstLoading}
-                      noOptionsText="No tax types found"
-                      ListboxProps={{ sx: { maxHeight: 300 } }}
-                      renderOption={(props, option) => (
-                        <MenuItem {...props} key={option.value} sx={{ fontSize: 14 }}>{option.label}</MenuItem>
-                      )}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          size="small"
-                          placeholder="Select Tax"
-                          sx={{ ...inputSx, bgcolor: 'background.paper' }}
-                          InputProps={{
-                            ...params.InputProps,
-                            endAdornment: (
-                              <>
-                                {gstLoading ? <CircularProgress size={14} /> : null}
-                                {params.InputProps.endAdornment}
-                              </>
-                            ),
-                          }}
-                        />
-                      )}
-                    />
-                    {touch.gstId && err.gstId && (
-                      <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>{err.gstId}</Typography>
-                    )}
-                  </FormControl>
-                </Box>
-                <Box>
-                  <Label text="HSN Code" />
-                  <TextField fullWidth size="small" placeholder="Enter HSN/SAC"
-                    {...formik.getFieldProps('hsn')}
-                    error={touch.hsn && Boolean(err.hsn)}
-                    helperText={touch.hsn && err.hsn}
-                    inputProps={{ maxLength: HSN_CODE_MAX_LENGTH }}
-                    InputProps={{ sx: { ...inputSx, bgcolor: 'background.paper' } }} />
-                </Box>
-                <Box>
-                  <Label text="Barcode / QR" />
-                  <TextField fullWidth size="small" placeholder="Scan or enter code"
-                    {...formik.getFieldProps('barcode')}
-                    error={touch.barcode && Boolean(err.barcode)}
-                    helperText={touch.barcode && err.barcode}
-                    inputProps={{ maxLength: BARCODE_MAX_LENGTH }}
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <Tooltip title="Scan barcode">
-                            <IconButton size="small" edge="end" sx={{ color: 'text.disabled' }}>
-                              <QrCodeScannerIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </InputAdornment>
-                      ),
-                      sx: { ...inputSx, bgcolor: 'background.paper' },
-                    }} />
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, gridColumn: { md: '1 / -1' } }}>
-                  <Typography variant="body2" fontWeight={600} whiteSpace="nowrap">Tax Inclusion</Typography>
-                  <ToggleButtonGroup exclusive value={formik.values.taxInclusion}
-                    onChange={(_e, v) => v && formik.setFieldValue('taxInclusion', v)}
-                    sx={{ bgcolor: 'rgba(0,0,0,0.08)', borderRadius: '999px', p: '3px', gap: '3px', '& .MuiToggleButtonGroup-grouped': { margin: 0 } }}>
-                    {(['Incl.', 'Excl.'] as const).map(v => (
-                      <ToggleButton key={v} value={v}
-                        sx={{ border: 'none !important', borderRadius: '999px !important', textTransform: 'none', fontSize: 12, fontWeight: 600, px: 1.8, height: 28, color: 'text.secondary', '&.Mui-selected': { bgcolor: 'background.paper', color: 'text.primary', boxShadow: '0 1px 3px rgba(0,0,0,0.15)', '&:hover': { bgcolor: 'background.paper' } }, '&:hover': { bgcolor: 'transparent' } }}>
-                        {v}
-                      </ToggleButton>
-                    ))}
-                  </ToggleButtonGroup>
-                </Box>
-              </Box>
-            </Box>
+       <Box sx={{ bgcolor: 'action.hover', borderRadius: 1.5, p: 2.5 }}>
+  <Typography variant="body2" fontWeight={700} color="text.secondary" textTransform="uppercase" letterSpacing="0.06em" fontSize={11} mb={2}>
+    Tax Information
+  </Typography>
+  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.5fr auto 1.5fr' }, gap: 2.5, alignItems: 'center' }}>
+    <Box>
+      <Label text="Tax Type"/>
+      <FormControl fullWidth size="small" error={touch.gstId && Boolean(err.gstId)}>
+        <Autocomplete
+          options={[
+            { value: "none", label: "None" },
+            { value: "GST5", label: "GST 5%" },
+            { value: "GST12", label: "GST 12%" },
+            { value: "GST18", label: "GST 18%" },
+            { value: "GST28", label: "GST 28%" },
+          ]}
+          getOptionLabel={(g) => g.label}
+          isOptionEqualToValue={(a, b) => String(a.value) === String(b.value)}
+          value={[
+            { value: "none", label: "None" },
+            { value: "GST5", label: "GST 5%" },
+            { value: "GST12", label: "GST 12%" },
+            { value: "GST18", label: "GST 18%" },
+            { value: "GST28", label: "GST 28%" },
+          ].find(g => String(g.value) === String(formik.values.gstId)) ?? null}
+          onChange={(_e, newValue) => formik.setFieldValue('gstId', newValue ? String(newValue.value) : '')}
+          loading={gstLoading}
+          noOptionsText="No tax types found"
+          ListboxProps={{ sx: { maxHeight: 300 } }}
+          renderOption={(props, option) => (
+            <MenuItem {...props} key={option.value} sx={{ fontSize: 14 }}>{option.label}</MenuItem>
+          )}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              size="small"
+              placeholder="Select Tax"
+              sx={{ ...inputSx, bgcolor: 'background.paper' }}
+              InputProps={{
+                ...params.InputProps,
+                endAdornment: (
+                  <>
+                    {gstLoading ? <CircularProgress size={14} /> : null}
+                    {params.InputProps.endAdornment}
+                  </>
+                ),
+              }}
+            />
+          )}
+        />
+      </FormControl>
+    </Box>
+
+    {formik.values.gstId && formik.values.gstId !== "none" ? (
+      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <Typography variant="body2" fontWeight={600} whiteSpace="nowrap" sx={{ mb: 0.75, fontSize: 12 }}>Tax Inclusion</Typography>
+        <ToggleButtonGroup exclusive value={formik.values.taxInclusion}
+          onChange={(_e, v) => v && formik.setFieldValue('taxInclusion', v)}
+          sx={{ bgcolor: 'rgba(0,0,0,0.08)', borderRadius: '999px', p: '3px', gap: '3px', height: 40, '& .MuiToggleButtonGroup-grouped': { margin: 0 } }}>
+          {(['Incl.', 'Excl.'] as const).map(v => (
+            <ToggleButton key={v} value={v}
+              sx={{ border: 'none !important', borderRadius: '999px !important', textTransform: 'none', fontSize: 12, fontWeight: 600, px: 1.8, color: 'text.secondary', '&.Mui-selected': { bgcolor: 'background.paper', color: 'text.primary', boxShadow: '0 1px 3px rgba(0,0,0,0.15)', '&:hover': { bgcolor: 'background.paper' } }, '&:hover': { bgcolor: 'transparent' } }}>
+              {v}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+      </Box>
+    ) : (
+      <Box />
+    )}
+
+    <Box>
+      <Label text="HSN Code" />
+      <TextField fullWidth size="small" placeholder="Enter HSN/SAC"
+        {...formik.getFieldProps('hsn')}
+        error={touch.hsn && Boolean(err.hsn)}
+        helperText={touch.hsn && err.hsn}
+        inputProps={{ maxLength: HSN_CODE_MAX_LENGTH }}
+        InputProps={{ sx: { ...inputSx, bgcolor: 'background.paper' } }} />
+    </Box>
+  </Box>
+</Box>
 
             {!isService && (
               <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}>
@@ -913,18 +1009,18 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
         </DialogActions>
       </Dialog>
 
+      <CameraBarcodeScanner
+        open={cameraScanOpen}
+        onClose={() => setCameraScanOpen(false)}
+        onScan={(code) => { applyScannedCode(code, scanField); setCameraScanOpen(false); }}
+        title={`Scan ${SCAN_FIELD_LABEL[scanField]}`}
+      />
+
       <AddCategoryDialog
         open={catDialogOpen}
         serviceType={formik.values.serviceType}
         onClose={() => setCatDialogOpen(false)}
         onAdded={handleCategoryAdded}
-      />
-
-      <CameraBarcodeScanner
-        open={cameraScanOpen}
-        onClose={() => setCameraScanOpen(false)}
-        onScan={(code) => { setCameraScanOpen(false); handleScanItemId(code); }}
-        title="Scan Item ID"
       />
 
       <SuccessToast message={successMsg} onClose={() => setSuccessMsg("")} severity={toastSeverity} />

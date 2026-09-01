@@ -79,6 +79,7 @@ export interface ApiHoldItem {
   sgst:           number;
   tax_inclusive:  boolean;
   total_amount:   number;
+  item_description?: string;
 }
 
 export interface ApiHold {
