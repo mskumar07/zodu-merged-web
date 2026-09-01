@@ -15,6 +15,7 @@ import ShieldIcon from "@mui/icons-material/Shield";
 import { useRoles, useDeleteRole, type RoleListItem } from "./useRoleApi";
 import RoleEditPage from "./RoleEditPage";
 import LottieLoader from "@components/LottieLoader";
+import SuccessToast from "@components/Common/SuccessToast";
 
 const theme = createTheme({
   palette: { primary: { main: "#E11D48" } },
@@ -161,6 +162,7 @@ export default function RoleManagement() {
   const [pageMode,     setPageMode]     = useState<PageMode>("view");
   const [page,         setPage]         = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<{ roleId: string; roleName: string } | null>(null);
+  const [toast, setToast] = useState<{ message: string; severity: "success" | "error" } | null>(null);
 
   const { data: roles = [], isLoading, refetch } = useRoles();
 
@@ -179,8 +181,9 @@ export default function RoleManagement() {
     onSuccess: () => {
       setDeleteTarget(null);
       if (selectedId === deleteTarget?.roleId) setSelectedId(null);
+      setToast({ message: "Role deleted successfully.", severity: "success" });
     },
-    onError: (msg) => { setDeleteTarget(null); alert(msg); },
+    onError: (msg) => { setDeleteTarget(null); setToast({ message: msg, severity: "error" }); },
   });
 
   const handleSelect = useCallback((id: string) => { setSelectedId(id);   setPageMode("view"); }, []);
@@ -392,6 +395,12 @@ export default function RoleManagement() {
         isPending={deleteRole.isPending}
         onConfirm={() => deleteTarget && deleteRole.mutate(deleteTarget.roleId)}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      <SuccessToast
+        message={toast?.message ?? ""}
+        severity={toast?.severity ?? "success"}
+        onClose={() => setToast(null)}
       />
     </ThemeProvider>
   );
