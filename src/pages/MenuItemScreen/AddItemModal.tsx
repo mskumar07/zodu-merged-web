@@ -27,7 +27,7 @@ import { apiConfig } from '@config/api';
 import { getTenantContext } from '@store/tenantContext';
 import { useAppSelector } from '@store/store';
 import { InvoiceSettingsData } from '@store/slices/userSlice';
-import { addItemSchema, ITEM_ID_MAX_LENGTH, ITEM_NAME_MAX_LENGTH, HSN_CODE_MAX_LENGTH, BARCODE_MAX_LENGTH, sanitizeAmountInput } from './ItemValidation';
+import { addItemSchema, ITEM_ID_MAX_LENGTH, ITEM_NAME_MAX_LENGTH, ITEM_DESCRIPTION_MAX_LENGTH, HSN_CODE_MAX_LENGTH, BARCODE_MAX_LENGTH, sanitizeAmountInput } from './ItemValidation';
 import {
   useInfiniteCategoryList,
   useAddMenuItem,
@@ -54,6 +54,7 @@ const INITIAL_VALUES = {
   inventoryType: 'sellable' as 'sellable' | 'raw',
   itemId:        '',          // ← item_id in payload
   name:          '',
+  description:   '',
   category:      '',
   unit:          '' as string,
   purchasePrice: '',
@@ -154,6 +155,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
       inventoryType: 'sellable' as 'sellable' | 'raw',
       itemId:        editItem.item_id         ?? '',      // ← pre-fill in edit mode
       name:          editItem.item_name       ?? '',
+      description:   editItem.description     ?? '',
       category:      editItem.category_id     ? String(editItem.category_id) : '',
       unit:          editItem.unit            ? String(editItem.unit)         : '',
       purchasePrice: editItem.purchase_price  ?? '',
@@ -180,6 +182,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
         item_id:        itemId,
         item_type:      values.serviceType === 'product' ? 'S' as const : 'P' as const,
         item_name:      itemName,
+        description:    values.description.trim() || null,
         category_id:    values.category     ? Number(values.category)     : null,
         unit:           values.unit         ? Number(values.unit)         : null,
         purchase_price: values.purchasePrice ? Number(values.purchasePrice) : null,
@@ -692,6 +695,23 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
       error={touch.name && Boolean(err.name)}
       helperText={touch.name && err.name}
       inputProps={{ maxLength: ITEM_NAME_MAX_LENGTH }}
+      InputProps={{ sx: inputSx }}
+    />
+  </Box>
+
+  {/* Row 3: Description — full width, optional */}
+  <Box>
+    <Label text="Description" />
+    <TextField
+      fullWidth
+      multiline
+      minRows={2}
+      maxRows={4}
+      placeholder="Add a short description for this item"
+      {...formik.getFieldProps('description')}
+      error={touch.description && Boolean(err.description)}
+      helperText={touch.description && err.description}
+      inputProps={{ maxLength: ITEM_DESCRIPTION_MAX_LENGTH }}
       InputProps={{ sx: inputSx }}
     />
   </Box>

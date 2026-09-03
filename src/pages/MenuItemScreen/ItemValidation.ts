@@ -6,6 +6,7 @@ export const ITEM_NAME_MAX_LENGTH     = 200;
 export const CATEGORY_NAME_MAX_LENGTH = 60;
 export const HSN_CODE_MAX_LENGTH      = 20;
 export const BARCODE_MAX_LENGTH       = 20;
+export const ITEM_DESCRIPTION_MAX_LENGTH = 1000;
 export const MAX_AMOUNT               = 99999999999.99;
 
 const amountField = (label: string) =>
@@ -39,6 +40,7 @@ export const addItemSchema = Yup.object({
 
   itemId:   Yup.string().trim().max(ITEM_ID_MAX_LENGTH, `Item ID cannot exceed ${ITEM_ID_MAX_LENGTH} characters`).required('Item ID is required'),
   name:     Yup.string().trim().max(ITEM_NAME_MAX_LENGTH, `Item name cannot exceed ${ITEM_NAME_MAX_LENGTH} characters`).required('Item name is required'),
+  description: Yup.string().max(ITEM_DESCRIPTION_MAX_LENGTH, `Description cannot exceed ${ITEM_DESCRIPTION_MAX_LENGTH} characters`).optional(),
   category: Yup.string().required('Category is required'),
 
   unit: Yup.number().required(),

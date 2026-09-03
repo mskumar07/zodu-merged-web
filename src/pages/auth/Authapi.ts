@@ -90,6 +90,8 @@ export interface CompanyWithBranches {
   is_subscripted?: boolean;
   subscription_start_date?: string;
   subscription_expiry_date?: string;
+  // Returned by GET /my-companies. Null/absent when no logo has been uploaded.
+  company_logo_url?: string | null;
   branches: Branch[];
 }
 
@@ -159,6 +161,10 @@ export interface CreateCompanyPayload {
   account_type?: string;
   ifsc_code?: string;
   can_use_for_branch?: boolean;
+  // Attach a File to send the whole form as multipart/form-data in one request —
+  // the endpoint accepts either JSON or multipart, so this is only used when a
+  // logo is actually picked.
+  company_logo?: File | null;
 }
 
 export interface OpeningHours {
@@ -218,6 +224,15 @@ export interface EditCompanyPayload {
   account_number?: string;
   account_type?: string;
   ifsc_code?: string;
+  // Three ways to change the logo, per the API contract:
+  //   • attach a File as `company_logo`  → sent as multipart
+  //   • `company_logo_url: "<url>"`      → point at an already-uploaded file
+  //   • `company_logo_url: null`         → clear the stored logo
+  // Omitting both leaves the stored logo untouched. A logo-only edit (every other
+  // field absent) is accepted — the server relaxes its minimum-keys check when a
+  // file is attached.
+  company_logo?: File | null;
+  company_logo_url?: string | null;
 }
 
 export interface EditBranchPayload {
@@ -263,10 +278,12 @@ export interface InvoiceSettings {
   invoice_due_days: number;
   default_payment_method: string;
   printer_inch: string;
+  invoice_theme_color?: string | null;
   show_company_logo: boolean;
   print_thank_you_message: boolean;
   show_description: boolean;
   show_item_id: boolean;
+  show_serial_no: boolean;
   show_customer_details: boolean;
   show_tax_details: boolean;
   show_payment_details: boolean;
@@ -275,6 +292,13 @@ export interface InvoiceSettings {
   show_notes: boolean;
   notes: string;
   show_signature: boolean;
+  show_bank_details: boolean;
+  // Payment types offered at POS checkout, as canonical labels
+  // (e.g. ["Cash", "UPI", "UPI + Cash", "Others"]). Stored server-side as TEXT[].
+  // Absent on rows that predate this field.
+  payment_types?: string[];
+  // Which A4 invoice layout to render — "classic" (default) or "modern".
+  invoice_template?: string;
   active: boolean;
   created_at?: string;
   updated_at?: string;
@@ -331,6 +355,33 @@ async function unwrap<T>(promise: Promise<{ data: T }>): Promise<T> {
   return (payload?.data ?? payload) as T;
 }
 
+// Uploads need far longer than the instance's 10s default — a logo on a slow
+// mobile connection routinely takes more than that.
+const UPLOAD_CONFIG = {
+  headers: { 'Content-Type': 'multipart/form-data' },
+  timeout: 60_000,
+} as const;
+
+// Flattens a company payload into FormData so a picked logo file can ride along
+// with the rest of the form in a single request. Only called when there IS a
+// file — with no file the endpoints take plain JSON, which is cheaper and keeps
+// booleans/nulls typed instead of stringified.
+function toCompanyFormData(payload: Record<string, unknown>): FormData {
+  const fd = new FormData();
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value === undefined) return;
+    if (value instanceof File) {
+      fd.append(key, value);
+    } else if (value === null) {
+      // Multipart has no null — the server reads the empty string as "clear this".
+      fd.append(key, '');
+    } else {
+      fd.append(key, String(value));
+    }
+  });
+  return fd;
+}
+
 // ── API functions ─────────────────────────────────────────────────────────────
 
 export const authApis = {
@@ -370,10 +421,11 @@ export const authApis = {
       return res.companies ?? [];
     }),
 
-  createCompany: (payload: CreateCompanyPayload) =>
+  createCompany: ({ company_logo, ...payload }: CreateCompanyPayload) =>
     unwrap<any>(
-      api.post('/auth/api/create-company', payload)
-          
+      company_logo
+        ? api.post('/auth/api/create-company', toCompanyFormData({ ...payload, company_logo }), UPLOAD_CONFIG)
+        : api.post('/auth/api/create-company', payload)
     ),
 
   createBranch: (payload: CreateBranchPayload) =>
@@ -381,14 +433,31 @@ export const authApis = {
       api.post('/auth/api/branch/add', payload)
     ),
 
-  editCompany: (zoduId: string, payload: EditCompanyPayload) => {
-    console.log("=== authApis.editCompany called ===");
-    console.log("zoduId:", zoduId);
-    console.log("payload:", payload);
-    const result = api.put(`/auth/api/company/edit/${zoduId}`, payload);
-    console.log("API call made to: /auth/api/company/edit/" + zoduId);
-    return unwrap<any>(result);
+  editCompany: (zoduId: string, { company_logo, ...payload }: EditCompanyPayload) => {
+    const url = `/auth/api/company/edit/${zoduId}`;
+    // `company_logo_url: null` (clear the logo) has to survive into the request, so
+    // it stays in `payload` — only the File is split out to pick the encoding.
+    return unwrap<any>(
+      company_logo
+        ? api.put(url, toCompanyFormData({ ...payload, company_logo }), UPLOAD_CONFIG)
+        : api.put(url, payload)
+    );
   },
+
+  // POST /auth/api/company/:zodu_id/logo — dedicated upload, mirroring the invoice
+  // signature endpoints. Returns the updated company.
+  uploadCompanyLogo: (zoduId: string, file: File) => {
+    const fd = new FormData();
+    fd.append('company_logo', file);
+    return unwrap<CompanyWithBranches>(
+      api.post(`/auth/api/company/${zoduId}/logo`, fd, UPLOAD_CONFIG)
+    );
+  },
+
+  deleteCompanyLogo: (zoduId: string) =>
+    unwrap<CompanyWithBranches>(
+      api.delete(`/auth/api/company/${zoduId}/logo`)
+    ),
 
   editBranch: (zoduId: string, branchId: string, payload: EditBranchPayload) =>
     unwrap<any>(

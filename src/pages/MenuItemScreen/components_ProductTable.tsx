@@ -17,6 +17,7 @@ export interface Product {
   id: string;
   item_uuid: string;
   name: string;
+  description?: string;
   category: string;
   mrp: number;
   rate: number;
@@ -110,19 +111,21 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
                 {product.name[0]}
               </Avatar>
               <Box>
-                <Typography
-                  fontWeight={600}
-                  sx={{
-                    lineHeight: 1.4,
-                    fontSize: 13,
-                    color: TABLE_TEXT_COLOR,
-                    whiteSpace: "normal",
-                    wordBreak: "break-all",
-                    width: 175,
-                  }}
-                >
-                  {product.name}
-                </Typography>
+                <Tooltip title={product.description || ""} disableHoverListener={!product.description}>
+                  <Typography
+                    fontWeight={600}
+                    sx={{
+                      lineHeight: 1.4,
+                      fontSize: 13,
+                      color: TABLE_TEXT_COLOR,
+                      whiteSpace: "normal",
+                      wordBreak: "break-all",
+                      width: 175,
+                    }}
+                  >
+                    {product.name}
+                  </Typography>
+                </Tooltip>
                 <Typography
                   sx={{
                     fontSize: 12,

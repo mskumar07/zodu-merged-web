@@ -210,6 +210,12 @@ export default function ProductDetailsDialog({ open, itemUuid, onClose, onEdit, 
           </Box>
         </Box>
 
+        {item.description && (
+          <Typography sx={{ fontSize: "0.82rem", color: "#4b5563", lineHeight: 1.55, mb: 2.5 }}>
+            {item.description}
+          </Typography>
+        )}
+
         <Box sx={{ mb: 2.5 }}>
           <Typography sx={{ fontSize: "1.9rem", fontWeight: 800, color: "#111827", lineHeight: 1 }}>
             {INR(item.sell_price)}

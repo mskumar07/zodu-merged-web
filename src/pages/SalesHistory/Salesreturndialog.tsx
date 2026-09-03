@@ -144,6 +144,9 @@ const canConfirm = someSelected && !!reason && !!refundType;
       const returnItems = items
         .filter((item: any) => selected[item.id] && (returnQty[item.id] ?? 0) > 0)
         .map((item: any) => ({
+          // Description is inherited by the backend from the original sale
+          // line automatically — not sent here (Joi has no stripUnknown, so
+          // an extra key on this payload would 400).
           original_item_id: item.id,
           item_id:          item.item_id,
           item_uuid:        item.item_uuid,

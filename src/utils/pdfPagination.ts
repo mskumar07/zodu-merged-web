@@ -2,14 +2,34 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
 // Tuned for invoice templates that mark a repeating page header with
-// [data-pdf-header] / [data-pdf-header-divider], and sections that must
-// never be sliced across a page boundary with [data-pdf-keep-together].
+// [data-pdf-header] / [data-pdf-header-divider], a repeating items-table
+// column header with [data-pdf-repeat-thead], and sections that must never be
+// sliced across a page boundary with [data-pdf-keep-together].
 export const PDF_CAPTURE_SCALE = 1.6;
 export const PDF_IMAGE_QUALITY = 0.72;
 const PDF_HEADER_GAP_MM = 4;
-const PDF_PAGE_BOTTOM_GAP_MM = 10;
-const PDF_BREAK_SEARCH_PX = 96;
+// Gap between the repeated column header and the first continued table row.
+const PDF_THEAD_GAP_MM = 1.5;
+// Minimum breathing room reserved at the foot of every page — content is
+// sliced short of the full page height by this much so a table row (or the
+// footer block) never sits flush against the physical page edge. It's a
+// floor, not a fixed gap: trimCanvasBottom below still shrinks the drawn
+// image to whatever content actually filled the slice, so a page that ends
+// early gets more white space, never less than this.
+const PDF_PAGE_BOTTOM_GAP_MM = 14;
+// How far ABOVE the ideal page end we're willing to pull the break back to
+// land on a blank canvas row. Never search below it: a slice taller than the
+// usable page height gets silently clipped by the page edge, which is what
+// cuts a table row in half and leaves content flush against the sheet bottom.
+const PDF_BREAK_SEARCH_PX = 260;
 const PDF_MIN_SLICE_HEIGHT_PX = 40;
+// Absorbs the sub-pixel/line-height slack between a keep-together block's
+// DOM-measured bottom (captured before html2canvas runs) and the trimmed
+// canvas's actual last non-blank row (captured after) — without it, a block
+// whose measured end sits even 1px past the trimmed canvas always looks like
+// it "doesn't fit" and gets bumped whole to a fresh page, even when there's
+// plenty of room.
+const PDF_KEEP_TOGETHER_TOLERANCE_PX = 16;
 const PDF_ROW_WHITE_THRESHOLD = 245;
 
 function isCanvasRowBlank(
@@ -88,6 +108,44 @@ function trimCanvasBottom(canvas: HTMLCanvasElement): HTMLCanvasElement {
   return trimmedCanvas;
 }
 
+/** Copies the horizontal band [top, bottom) out of `canvas` onto a white strip. */
+function cropCanvasBand(
+  canvas: HTMLCanvasElement,
+  top: number,
+  bottom: number,
+): HTMLCanvasElement | null {
+  const bandTop = Math.max(0, Math.min(top, canvas.height));
+  const bandHeight = Math.max(0, Math.min(bottom, canvas.height) - bandTop);
+  if (bandHeight < 1) {
+    return null;
+  }
+
+  const band = document.createElement("canvas");
+  band.width = canvas.width;
+  band.height = bandHeight;
+
+  const context = band.getContext("2d");
+  if (!context) {
+    return null;
+  }
+
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, band.width, band.height);
+  context.drawImage(
+    canvas,
+    0,
+    bandTop,
+    canvas.width,
+    bandHeight,
+    0,
+    0,
+    band.width,
+    bandHeight,
+  );
+
+  return band;
+}
+
 function findSafeSliceHeight(
   canvas: HTMLCanvasElement,
   sourceY: number,
@@ -100,18 +158,28 @@ function findSafeSliceHeight(
   }
 
   const maxHeight = Math.min(targetHeight, canvas.height - sourceY);
-  if (maxHeight <= minHeight) {
+  // This slice already reaches the end of the content — there is nothing
+  // after it to defer to another page, so take the whole remainder as-is.
+  // Hunting for a "clean" blank-row break here would needlessly truncate
+  // trailing content (e.g. the declaration/bank/footer block) onto a wasted
+  // extra page even though it fits, since a short invoice's total height is
+  // routinely well under one page and any incidental whitespace between
+  // sections would otherwise be mistaken for a real page-break candidate.
+  if (maxHeight <= minHeight || sourceY + maxHeight >= canvas.height) {
     return maxHeight;
   }
 
   const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
   const idealEnd = sourceY + maxHeight;
+  // Search strictly UPWARD from the ideal page end. Looking past it would hand
+  // back a slice taller than the page can hold, and jsPDF clips that overflow
+  // at the sheet edge — slicing whatever row straddles the boundary in half.
+  const searchEnd = Math.min(idealEnd, canvas.height - 1);
   const searchStart = Math.max(sourceY + minHeight, idealEnd - PDF_BREAK_SEARCH_PX);
-  const searchEnd = Math.min(canvas.height - 1, idealEnd + PDF_BREAK_SEARCH_PX);
 
-  for (let row = Math.min(searchEnd, canvas.height - 1); row >= searchStart; row -= 1) {
+  for (let row = searchEnd; row >= searchStart; row -= 1) {
     if (isCanvasRowBlank(pixels, canvas.width, row)) {
-      return Math.max(row - sourceY, minHeight);
+      return Math.min(Math.max(row - sourceY, minHeight), maxHeight);
     }
   }
 
@@ -124,26 +192,45 @@ function findSafeSliceHeight(
  * [data-pdf-keep-together] block, so a table row, the totals summary, or the
  * footer never gets sliced in half across two pages. A repeating header
  * (marked by [data-pdf-header] / [data-pdf-header-divider]) is stamped on
- * every page after the first.
+ * every page after the first, and while the items table is still running its
+ * column-header row ([data-pdf-repeat-thead]) is stamped underneath so
+ * continued rows stay labelled.
  */
 export async function renderPaginatedInvoicePdf(
   container: HTMLElement,
 ): Promise<jsPDF | null> {
   const headerEl = container.querySelector("[data-pdf-header]") as HTMLElement | null;
   const headerDividerEl = container.querySelector("[data-pdf-header-divider]") as HTMLElement | null;
+  const theadEl = container.querySelector("[data-pdf-repeat-thead]") as HTMLElement | null;
   const keepTogetherEls = Array.from(
     container.querySelectorAll("[data-pdf-keep-together]"),
   ) as HTMLElement[];
 
   // Measure positions BEFORE html2canvas — DOM layout must still be intact
   const containerRect = container.getBoundingClientRect();
+  const toCanvasY = (clientY: number) =>
+    Math.round((clientY - containerRect.top) * PDF_CAPTURE_SCALE);
+
   const keepTogetherRanges = keepTogetherEls.map((el) => {
     const elRect = el.getBoundingClientRect();
     return {
-      start: Math.round((elRect.top - containerRect.top) * PDF_CAPTURE_SCALE),
-      end: Math.round((elRect.bottom - containerRect.top) * PDF_CAPTURE_SCALE),
+      start: toCanvasY(elRect.top),
+      end: toCanvasY(elRect.bottom),
     };
   });
+
+  let theadBottomPx = 0;
+  let itemsTableBottomPx = 0;
+  let theadTopPx = 0;
+  if (theadEl) {
+    const theadRect = theadEl.getBoundingClientRect();
+    theadTopPx = toCanvasY(theadRect.top);
+    theadBottomPx = toCanvasY(theadRect.bottom);
+    const tableEl = theadEl.closest("table");
+    itemsTableBottomPx = tableEl
+      ? toCanvasY(tableEl.getBoundingClientRect().bottom)
+      : theadBottomPx;
+  }
 
   const capturedCanvas = await html2canvas(container, {
     scale: PDF_CAPTURE_SCALE,
@@ -153,7 +240,6 @@ export async function renderPaginatedInvoicePdf(
   });
   const canvas = trimCanvasBottom(capturedCanvas);
 
-  let headerCanvas: HTMLCanvasElement | null = null;
   let headerImgData: string | null = null;
   let headerHeightPx = 0;
 
@@ -163,31 +249,23 @@ export async function renderPaginatedInvoicePdf(
     const dividerBottom = dividerRect ? dividerRect.bottom : headerRect.bottom;
     // Measure from the container's top (not the header element's top) so the
     // copy from canvas y=0 correctly includes the page's top padding and the
-    // red divider line is fully captured in the repeating header.
-    headerHeightPx = Math.max(1, Math.round((dividerBottom - containerRect.top) * PDF_CAPTURE_SCALE));
+    // accent divider line is fully captured in the repeating header.
+    const headerBand = cropCanvasBand(canvas, 0, Math.max(1, toCanvasY(dividerBottom)));
+    if (headerBand) {
+      headerHeightPx = headerBand.height;
+      headerImgData = headerBand.toDataURL("image/jpeg", PDF_IMAGE_QUALITY);
+    }
+  }
 
-    headerCanvas = document.createElement("canvas");
-    headerCanvas.width = canvas.width;
-    headerCanvas.height = headerHeightPx;
+  let theadImgData: string | null = null;
+  let theadHeightPx = 0;
 
-    const headerContext = headerCanvas.getContext("2d");
-    if (!headerContext) return null;
-
-    headerContext.fillStyle = "#ffffff";
-    headerContext.fillRect(0, 0, headerCanvas.width, headerCanvas.height);
-    headerContext.drawImage(
-      canvas,
-      0,
-      0,
-      canvas.width,
-      headerHeightPx,
-      0,
-      0,
-      headerCanvas.width,
-      headerCanvas.height,
-    );
-
-    headerImgData = headerCanvas.toDataURL("image/jpeg", PDF_IMAGE_QUALITY);
+  if (theadEl && theadBottomPx > theadTopPx) {
+    const theadBand = cropCanvasBand(canvas, theadTopPx, theadBottomPx);
+    if (theadBand) {
+      theadHeightPx = theadBand.height;
+      theadImgData = theadBand.toDataURL("image/jpeg", PDF_IMAGE_QUALITY);
+    }
   }
 
   const pdf = new jsPDF({
@@ -198,22 +276,38 @@ export async function renderPaginatedInvoicePdf(
   });
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
-  const pageBottomGapPx = Math.max(0, Math.round((PDF_PAGE_BOTTOM_GAP_MM * canvas.width) / pageWidth));
+  const pxPerMm = canvas.width / pageWidth;
+  const toMm = (px: number) => px / pxPerMm;
+
+  const pageBottomGapPx = Math.max(0, Math.round(PDF_PAGE_BOTTOM_GAP_MM * pxPerMm));
   const renderedPageHeightPx = Math.max(
     1,
-    Math.floor((canvas.width * pageHeight) / pageWidth) - pageBottomGapPx,
+    Math.floor(pageHeight * pxPerMm) - pageBottomGapPx,
   );
-  const headerHeightMm = headerCanvas ? (headerCanvas.height * pageWidth) / headerCanvas.width : 0;
-  const headerGapPx = headerCanvas
-    ? Math.max(0, Math.round((PDF_HEADER_GAP_MM * canvas.width) / pageWidth))
-    : 0;
-  const laterPageContentHeightPx = headerCanvas
-    ? Math.max(1, renderedPageHeightPx - headerHeightPx - headerGapPx)
-    : renderedPageHeightPx;
+  const headerHeightMm = headerImgData ? toMm(headerHeightPx) : 0;
+  const theadHeightMm = theadImgData ? toMm(theadHeightPx) : 0;
+  const headerGapPx = headerImgData ? Math.max(0, Math.round(PDF_HEADER_GAP_MM * pxPerMm)) : 0;
+  const theadGapPx = theadImgData ? Math.max(0, Math.round(PDF_THEAD_GAP_MM * pxPerMm)) : 0;
+  const headerOverheadPx = headerImgData ? headerHeightPx + headerGapPx : 0;
+  const headerOverheadMm = headerImgData ? headerHeightMm + PDF_HEADER_GAP_MM : 0;
 
   for (let sourceY = 0, pageIndex = 0; sourceY < canvas.height; pageIndex += 1) {
     const isFirstPage = pageIndex === 0;
-    const targetSliceHeight = isFirstPage ? renderedPageHeightPx : laterPageContentHeightPx;
+    // Repeat the items-table column header only while the table itself is
+    // still running — once only the totals/footer are left, a stray header
+    // row would be nonsense.
+    const repeatThead =
+      !isFirstPage &&
+      !!theadImgData &&
+      sourceY >= theadBottomPx &&
+      sourceY < itemsTableBottomPx;
+    const theadOverheadPx = repeatThead ? theadHeightPx + theadGapPx : 0;
+    const theadOverheadMm = repeatThead ? theadHeightMm + PDF_THEAD_GAP_MM : 0;
+
+    const targetSliceHeight = isFirstPage
+      ? renderedPageHeightPx
+      : Math.max(1, renderedPageHeightPx - headerOverheadPx - theadOverheadPx);
+
     let sliceHeight = findSafeSliceHeight(
       canvas,
       sourceY,
@@ -221,18 +315,24 @@ export async function renderPaginatedInvoicePdf(
       Math.min(PDF_MIN_SLICE_HEIGHT_PX, targetSliceHeight),
     );
 
-    // If a keep-together section (e.g. the summary block, or the
-    // declaration + bank + footer block) would be split across pages, end
-    // the current page just before it starts so the whole block lands on
-    // the next page together.
+    // If a keep-together section (a table row, the summary block, or the
+    // declaration + bank + footer block) would be split across pages, end the
+    // current page just before it starts so the whole block lands on the next
+    // page together.
     // Only trigger when the section does NOT fully fit in the space
     // remaining after its start point — if it fits, let it stay as-is.
     for (const range of keepTogetherRanges) {
       if (range.start > sourceY + PDF_MIN_SLICE_HEIGHT_PX &&
           range.start < sourceY + sliceHeight) {
-        const sectionHeight = range.end - range.start;
+        // Clamp to canvas.height — range.end was measured on the live DOM
+        // before capture, but trimCanvasBottom may have since shaved a few
+        // blank rows (line-height/padding below the last glyph) off the
+        // bottom of the actual capture. Without this clamp, the last
+        // keep-together block in the document can measure as "longer" than
+        // the canvas it must fit inside, so it always fails the fit check.
+        const sectionHeight = Math.min(range.end, canvas.height) - range.start;
         const spaceAfterStart = sourceY + sliceHeight - range.start;
-        if (sectionHeight > spaceAfterStart) {
+        if (sectionHeight > spaceAfterStart + PDF_KEEP_TOGETHER_TOLERANCE_PX) {
           sliceHeight = range.start - sourceY;
         }
       }
@@ -247,26 +347,10 @@ export async function renderPaginatedInvoicePdf(
       break;
     }
 
-    const pageCanvas = document.createElement("canvas");
-    pageCanvas.width = canvas.width;
-    pageCanvas.height = sliceHeight;
-
-    const pageContext = pageCanvas.getContext("2d");
-    if (!pageContext) return null;
-
-    pageContext.fillStyle = "#ffffff";
-    pageContext.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-    pageContext.drawImage(
-      canvas,
-      0,
-      sourceY,
-      canvas.width,
-      sliceHeight,
-      0,
-      0,
-      pageCanvas.width,
-      pageCanvas.height,
-    );
+    const pageCanvas = cropCanvasBand(canvas, sourceY, sourceY + sliceHeight);
+    if (!pageCanvas) {
+      break;
+    }
 
     const trimmedPageCanvas = trimCanvasBottom(pageCanvas);
     if (trimmedPageCanvas.height <= 1 && pageIndex > 0) {
@@ -274,21 +358,28 @@ export async function renderPaginatedInvoicePdf(
     }
 
     const imgData = trimmedPageCanvas.toDataURL("image/jpeg", PDF_IMAGE_QUALITY);
-    const sliceHeightMm = (trimmedPageCanvas.height * pageWidth) / trimmedPageCanvas.width;
+    const sliceHeightMm = toMm(trimmedPageCanvas.height);
 
     if (pageIndex > 0) {
       pdf.addPage();
     }
 
-    if (!isFirstPage && headerCanvas && headerImgData) {
+    let cursorMm = 0;
+    if (!isFirstPage && headerImgData) {
       pdf.addImage(headerImgData, "JPEG", 0, 0, pageWidth, headerHeightMm, undefined, "MEDIUM");
+      cursorMm = headerOverheadMm;
+    }
+
+    if (repeatThead && theadImgData) {
+      pdf.addImage(theadImgData, "JPEG", 0, cursorMm, pageWidth, theadHeightMm, undefined, "MEDIUM");
+      cursorMm += theadOverheadMm;
     }
 
     pdf.addImage(
       imgData,
       "JPEG",
       0,
-      isFirstPage ? 0 : headerHeightMm + PDF_HEADER_GAP_MM,
+      cursorMm,
       pageWidth,
       sliceHeightMm,
       undefined,

@@ -98,6 +98,7 @@ export interface SaleItem {
   item_id:        string;        // was product_id
   item_uuid:      string;        // UUID for return API
   item_name:      string;        // was product_name
+  description?:   string;        // absent entirely when the line has no description — never null/""
   variant_id:     string | null;
   variant_name:   string | null;
   unit:           string;
@@ -137,6 +138,7 @@ export interface SaleReturnHistoryItem {
   item_id?: string;
   item_uuid?: string;
   item_name?: string;
+  description?: string;          // absent entirely when the line has no description
   variant_name?: string | null;
   unit?: string | null;
   return_qty?: string | number | null;
@@ -241,7 +243,8 @@ export interface MarkPaymentResponse {
   new_payment_status:  "fully_paid" | "partially_paid" | "unpaid";
 }
 
-/** Item in a sales return */
+/** Item in a sales return. Description is NOT sent — the backend inherits it
+ *  from the original sale line automatically; an extra key here would 400. */
 export interface ReturnItem {
   original_item_id: number;
   item_id:          string;

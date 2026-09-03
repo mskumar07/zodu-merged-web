@@ -8,7 +8,7 @@
 body {
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
-  font-family: "Inter";
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
 }
 
 /* html,

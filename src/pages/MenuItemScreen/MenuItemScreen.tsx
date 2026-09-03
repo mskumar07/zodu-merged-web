@@ -49,6 +49,7 @@ function toProduct(item: MenuItemData) {
     id: item.item_id,
     item_uuid: item.item_uuid,
     name: item.item_name,
+    description: item.description,
     category: item.category_name ?? '-',
     mrp: Number(item.mrp) || 0,
     rate: Number(item.sell_price) || 0,

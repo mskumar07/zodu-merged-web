@@ -20,7 +20,7 @@ export const theme = createTheme({
     },
   },
   typography: {
-    fontFamily: '"Inter"',
+    fontFamily: '"Segoe UI", Roboto, Arial, sans-serif',
     fontWeightLight: 300,
     fontWeightRegular: 400,
     fontWeightMedium: 500,

@@ -4,22 +4,14 @@ import {
   Button,
   CircularProgress,
   Divider,
-  FormControl,
-  MenuItem,
   Paper,
-  Select,
   Stack,
   Switch,
   TextField,
   Typography,
 } from "@mui/material";
-import TagRoundedIcon from "@mui/icons-material/TagRounded";
-import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
-import GradingRoundedIcon from "@mui/icons-material/GradingRounded";
-import FavoriteOutlinedIcon from "@mui/icons-material/FavoriteOutlined";
-import CreditCardRoundedIcon from "@mui/icons-material/CreditCardRounded";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
-import EventRoundedIcon from "@mui/icons-material/EventRounded";
+import LocalPrintshopOutlinedIcon from "@mui/icons-material/LocalPrintshopOutlined";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import SubjectRoundedIcon from "@mui/icons-material/SubjectRounded";
 import FormatListNumberedRoundedIcon from "@mui/icons-material/FormatListNumberedRounded";
@@ -32,19 +24,21 @@ import BorderColorOutlinedIcon from "@mui/icons-material/BorderColorOutlined";
 import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlined";
 import SuccessToast from "@components/Common/SuccessToast";
 import { useAppDispatch, useAppSelector } from "@store/store";
 import { BusinessType, setInvoiceSettings } from "@store/slices/userSlice";
 import {
   useInvoiceSettings,
   useUpdateInvoiceSettings,
+  useUploadInvoiceSignature,
+  useDeleteInvoiceSignature,
   type InvoiceSettingsResponse,
   type UpdateInvoiceSettingsPayload,
 } from "./useInvoiceSettingApi";
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "../SalesHistory/ThermalInvoiceTemplate";
 import { InvoicePDFTemplate } from "../SalesHistory/InvoicePDFTemplate";
-import axiosInstance from "@store/services/axiosInstance";
-import { apiConfig } from "@config/api";
+import { InvoicePDFTemplateModern } from "../SalesHistory/InvoicePDFTemplateModern";
 
 // ── Sample data for the live receipt preview — never sent anywhere, just
 // rendered locally so toggling an element shows its effect immediately.
@@ -100,19 +94,22 @@ const INVOICE_COLORS = [
   "#C9962B", // gold
   "#B5651D", // orange
 ];
+const DEFAULT_INVOICE_COLOR = INVOICE_COLORS[4];
+// Server contract: exactly 6 hex digits with a leading '#' — no shorthand, no alpha, no rgb().
+const COLOR_HEX_REGEX = /^#[0-9A-Fa-f]{6}$/;
+// terms_conditions / notes: server cap is 2000 chars each.
+const FREE_TEXT_MAX_LENGTH = 2000;
 
 interface InvoiceSettings {
-  invoicePrefix: string;
-  numberOfDigits: string;
-  invoiceStartNumber: string;
   defaultTax: string;
   invoiceDueDays: string;
+  invoiceThemeColor: string;
   showCompanyLogo: boolean;
-  printThankYouMessage: boolean;
   defaultPaymentMethod: string;
   printInch: string;
   showItemDescription: boolean;
   showItemId: boolean;
+  showSerialNo: boolean;
   showCustomerDetails: boolean;
   showTaxDetails: boolean;
   showPaymentDetails: boolean;
@@ -121,6 +118,8 @@ interface InvoiceSettings {
   showNotes: boolean;
   notesText: string;
   showSignature: boolean;
+  showBankDetails: boolean;
+  invoiceTemplate: string;
 }
 
 interface SettingRowProps {
@@ -212,6 +211,87 @@ function Section({ title, subtitle, children }: SectionProps) {
   );
 }
 
+// Paper-size choices shown as selectable cards at the top of the settings
+// column — the printed layout depends on this, so it reads better as a visual
+// pick than as a dropdown buried inside "Print Layout".
+const TEMPLATE_TYPES = [
+  { value: "A4", label: "A4 Template", caption: "210 x 297 mm", icon: "doc" as const },
+  { value: "3", label: "3 inch Thermal Printer", caption: "72 mm width", icon: "printer" as const },
+  { value: "5", label: "5 inch Thermal Printer", caption: "120 mm width", icon: "printer" as const },
+];
+
+function TemplateTypeCard({
+  label, caption, icon, selected, onSelect,
+}: {
+  label: string; caption: string; icon: "doc" | "printer"; selected: boolean; onSelect: () => void;
+}) {
+  return (
+    <Box
+      onClick={onSelect}
+      role="button"
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1.25,
+        cursor: "pointer",
+        border: "2px solid",
+        borderColor: selected ? redTint : cardBorder,
+        borderRadius: 1.5,
+        px: 1.5,
+        py: 1.25,
+        bgcolor: selected ? "#fdf1f2" : "#fff",
+        transition: "border-color 0.15s ease, background-color 0.15s ease",
+        "&:hover": { borderColor: selected ? redTint : "#c5c8d2" },
+      }}
+    >
+      <Box
+        sx={{
+          width: 34,
+          height: 34,
+          flexShrink: 0,
+          borderRadius: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: selected ? "#fff" : "#f5f6fa",
+          color: selected ? redTint : subtleText,
+        }}
+      >
+        {icon === "doc"
+          ? <DescriptionOutlinedIcon fontSize="small" />
+          : <LocalPrintshopOutlinedIcon fontSize="small" />}
+      </Box>
+
+      <Box sx={{ minWidth: 0, flex: 1 }}>
+        <Typography sx={{ fontSize: 13, fontWeight: 700, color: headingText, lineHeight: 1.3 }}>
+          {label}
+        </Typography>
+        <Typography sx={{ fontSize: 11.5, color: subtleText, mt: 0.2 }}>
+          {caption}
+        </Typography>
+      </Box>
+
+      <Box
+        sx={{
+          width: 18,
+          height: 18,
+          flexShrink: 0,
+          borderRadius: 0.6,
+          border: "1.5px solid",
+          borderColor: selected ? redTint : "#cfd2db",
+          bgcolor: selected ? redTint : "#fff",
+          color: "#fff",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {selected && <CheckRoundedIcon sx={{ fontSize: 13 }} />}
+      </Box>
+    </Box>
+  );
+}
+
 function ThemeCard({
   label, description, variant, selected, onSelect,
 }: {
@@ -285,10 +365,10 @@ function ThemeCard({
 }
 
 function ImageUploadSlot({
-  label, description, imageUrl, uploading, shape = "square", onUpload, onRemove,
+  label, description, imageUrl, uploading, shape = "square", compact = false, onUpload, onRemove,
 }: {
   label: string; description: string; imageUrl: string; uploading: boolean;
-  shape?: "square" | "banner"; onUpload: (file: File) => void; onRemove: () => void;
+  shape?: "square" | "banner"; compact?: boolean; onUpload: (file: File) => void; onRemove: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -308,9 +388,13 @@ function ImageUploadSlot({
   };
 
   return (
-    <Box sx={{ flex: 1, minWidth: 200 }}>
-      <Typography sx={{ fontSize: 13, fontWeight: 700, color: headingText }}>{label}</Typography>
-      <Typography sx={{ fontSize: 11.5, color: subtleText, mt: 0.2, mb: 1 }}>{description}</Typography>
+    <Box sx={compact ? { width: "100%" } : { flex: 1, minWidth: 200 }}>
+      {!compact && (
+        <>
+          <Typography sx={{ fontSize: 13, fontWeight: 700, color: headingText }}>{label}</Typography>
+          <Typography sx={{ fontSize: 11.5, color: subtleText, mt: 0.2, mb: 1 }}>{description}</Typography>
+        </>
+      )}
 
       <input ref={inputRef} type="file" accept="image/*" hidden onChange={handleFile} />
 
@@ -318,7 +402,7 @@ function ImageUploadSlot({
         onClick={() => !uploading && inputRef.current?.click()}
         sx={{
           position: "relative",
-          height: shape === "banner" ? 84 : 100,
+          height: compact ? 56 : shape === "banner" ? 84 : 100,
           border: "2px dashed",
           borderColor: cardBorder,
           borderRadius: 1.5,
@@ -380,30 +464,6 @@ function ImageUploadSlot({
   );
 }
 
-const selectSx = {
-  fontSize: 13,
-  fontWeight: 600,
-  borderRadius: 1,
-  bgcolor: "#fafbfc",
-  "& .MuiOutlinedInput-notchedOutline": { borderColor: cardBorder },
-  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#c5c8d2" },
-  "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: redTint },
-  height: 40,
-};
-
-const textFieldSx = {
-  "& .MuiOutlinedInput-root": {
-    fontSize: 13,
-    fontWeight: 600,
-    borderRadius: 1,
-    bgcolor: "#fafbfc",
-    height: 40,
-    "& fieldset": { borderColor: cardBorder },
-    "&:hover fieldset": { borderColor: "#c5c8d2" },
-    "&.Mui-focused fieldset": { borderColor: redTint },
-  },
-};
-
 const TAX_LABEL_TO_CODE: Record<string, string> = {
   "GST 5%": "GST5",
   "GST 12%": "GST12",
@@ -427,32 +487,23 @@ const PAYMENT_CODE_TO_METHOD: Record<string, string> = Object.fromEntries(
   Object.entries(PAYMENT_METHOD_TO_CODE).map(([label, code]) => [code, label])
 );
 
-const RETAIL_PAYMENT_METHODS: Array<{ value: string; label: string }> = [
-  { value: "cash", label: "Cash" },
-  { value: "upi", label: "UPI" },
-  { value: "bank_transfer", label: "Bank Transfer" },
-  { value: "others", label: "Others" },
-];
-
-const RESTAURANT_PAYMENT_METHODS: Array<{ value: string; label: string }> = [
-  { value: "qr", label: "QR" },
-  { value: "cash", label: "Cash" },
-  { value: "card", label: "Card" },
-];
-
 function toUiSettings(api: InvoiceSettingsResponse): InvoiceSettings {
   return {
-    invoicePrefix: api.invoice_prefix,
-    numberOfDigits: String(api.invoice_digit_count),
-    invoiceStartNumber: String(api.invoice_start_number),
     defaultTax: TAX_LABEL_TO_CODE[api.default_tax_label] ?? "GST18",
     invoiceDueDays: String(api.invoice_due_days),
+    // Server normalizes to uppercase and only ever stores a valid #RRGGBB —
+    // but older rows may predate this field, so fall back to the UI default.
+    invoiceThemeColor: api.invoice_theme_color && COLOR_HEX_REGEX.test(api.invoice_theme_color)
+      ? api.invoice_theme_color
+      : DEFAULT_INVOICE_COLOR,
     showCompanyLogo: api.show_company_logo,
-    printThankYouMessage: api.print_thank_you_message,
     defaultPaymentMethod: PAYMENT_METHOD_TO_CODE[api.default_payment_method] ?? "cash",
     printInch: api.printer_inch === "A4" ? "A4" : api.printer_inch.startsWith("5") ? "5" : "3",
     showItemDescription: api.show_description,
     showItemId: api.show_item_id,
+    // Older rows predate this field — default to on, matching the prior
+    // always-shown behavior before the toggle existed.
+    showSerialNo: api.show_serial_no ?? true,
     showCustomerDetails: api.show_customer_details ?? true,
     showTaxDetails: api.show_tax_details ?? true,
     showPaymentDetails: api.show_payment_details ?? false,
@@ -461,22 +512,22 @@ function toUiSettings(api: InvoiceSettingsResponse): InvoiceSettings {
     showNotes: api.show_notes ?? false,
     notesText: api.notes ?? "",
     showSignature: api.show_signature ?? false,
+    showBankDetails: api.show_bank_details ?? true,
+    invoiceTemplate: api.invoice_template === "modern" ? "modern" : "classic",
   };
 }
 
 function toApiPayload(ui: InvoiceSettings): UpdateInvoiceSettingsPayload {
   return {
-    invoice_prefix: ui.invoicePrefix,
-    invoice_digit_count: parseInt(ui.numberOfDigits, 10) || 4,
-    invoice_start_number: parseInt(ui.invoiceStartNumber, 10) || 1,
     default_tax_label: TAX_CODE_TO_LABEL[ui.defaultTax] ?? ui.defaultTax,
     invoice_due_days: parseInt(ui.invoiceDueDays, 10) || 0,
     default_payment_method: PAYMENT_CODE_TO_METHOD[ui.defaultPaymentMethod] ?? ui.defaultPaymentMethod,
     printer_inch: ui.printInch === "A4" ? "A4" : `${ui.printInch} Inch`,
+    invoice_theme_color: ui.invoiceThemeColor,
     show_company_logo: ui.showCompanyLogo,
-    print_thank_you_message: ui.printThankYouMessage,
     show_description: ui.showItemDescription,
     show_item_id: ui.showItemId,
+    show_serial_no: ui.showSerialNo,
     show_customer_details: ui.showCustomerDetails,
     show_tax_details: ui.showTaxDetails,
     show_payment_details: ui.showPaymentDetails,
@@ -485,22 +536,22 @@ function toApiPayload(ui: InvoiceSettings): UpdateInvoiceSettingsPayload {
     show_notes: ui.showNotes,
     notes: ui.notesText,
     show_signature: ui.showSignature,
+    show_bank_details: ui.showBankDetails,
+    invoice_template: ui.invoiceTemplate,
   };
 }
 
 function getDefaultSettings(businessType: string): InvoiceSettings {
   return {
-    invoicePrefix: "INV",
-    numberOfDigits: "4",
-    invoiceStartNumber: "1",
     defaultTax: "GST18",
     invoiceDueDays: "15",
+    invoiceThemeColor: DEFAULT_INVOICE_COLOR,
     showCompanyLogo: true,
-    printThankYouMessage: true,
     defaultPaymentMethod: "cash",
     printInch: businessType === "Restaurant" ? "3" : "A4",
     showItemDescription: false,
     showItemId: false,
+    showSerialNo: true,
     showCustomerDetails: true,
     showTaxDetails: true,
     showPaymentDetails: false,
@@ -509,60 +560,55 @@ function getDefaultSettings(businessType: string): InvoiceSettings {
     showNotes: false,
     notesText: "",
     showSignature: false,
+    showBankDetails: true,
+    invoiceTemplate: "classic",
   };
 }
 
 export default function InvoiceSetting() {
   const dispatch = useAppDispatch();
   const businessType = useAppSelector(BusinessType);
-  const paymentMethodOptions =
-    businessType === "Restaurant" ? RESTAURANT_PAYMENT_METHODS : RETAIL_PAYMENT_METHODS;
 
   const [settings, setSettings] = useState<InvoiceSettings>(() => getDefaultSettings(businessType));
+  // Last-loaded-or-saved snapshot — diffed against `settings` at save time so
+  // the PUT only sends fields the user actually changed (server has no
+  // stripUnknown and validates the full body per-field, but more importantly
+  // the spec calls for a true partial update: saving only a color touch
+  // should only send that one key). Null until the first successful GET.
+  const baselineRef = useRef<InvoiceSettings | null>(null);
   // Preview-only visual density — not persisted to the backend yet.
   const [theme, setTheme] = useState<"compact" | "classic">("classic");
-  const [invoiceColor, setInvoiceColor] = useState<string>(INVOICE_COLORS[4]);
-  const [companyLogoUrl, setCompanyLogoUrl] = useState("");
-  const [companyLogoUploading, setCompanyLogoUploading] = useState(false);
-  const [headerImageUrl, setHeaderImageUrl] = useState("");
-  const [headerImageUploading, setHeaderImageUploading] = useState(false);
+  // Logo/header images aren't part of the invoice-settings schema (no upload
+  // field exists on that API) — these stay local/preview-only, same as the
+  // still-disabled Company Logo & Header upload UI above. The signature
+  // image is backed by the API (see below).
+  const [companyLogoUrl] = useState("");
+  const [headerImageUrl] = useState("");
+  const [signatureUrl, setSignatureUrl] = useState("");
   const [saved, setSaved] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const uploadInvoiceImage = async (
-    file: File,
-    setUrl: (url: string) => void,
-    setUploading: (v: boolean) => void
-  ) => {
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const response = await axiosInstance.post(apiConfig.uploadImage(), formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      const fileUrl =
-        response.data?.fileUrl ||
-        response.data?.data?.fileUrl ||
-        response.data?.url ||
-        response.data?.path ||
-        response.data?.location ||
-        (typeof response.data === "string" ? response.data : null);
-      if (!fileUrl) throw new Error("Upload did not return a file URL");
-      setUrl(fileUrl);
-    } catch {
-      setErrorMsg("Failed to upload image. Please try again.");
-    } finally {
-      setUploading(false);
-    }
-  };
-
   const { data, isLoading, isError } = useInvoiceSettings();
 
   useEffect(() => {
-    if (data) setSettings(toUiSettings(data));
+    if (data) {
+      const ui = toUiSettings(data);
+      setSettings(ui);
+      baselineRef.current = ui;
+      setSignatureUrl(data.signature_url ?? "");
+    }
   }, [data]);
+
+  const { mutate: uploadSignature, isPending: signatureUploading } = useUploadInvoiceSignature({
+    onSuccess: (updated) => setSignatureUrl(updated.signature_url ?? ""),
+    onError: () => setErrorMsg("Failed to upload signature. Please try again."),
+  });
+
+  const { mutate: removeSignature, isPending: signatureDeleting } = useDeleteInvoiceSignature({
+    onSuccess: () => setSignatureUrl(""),
+    onError: () => setErrorMsg("Failed to remove signature. Please try again."),
+  });
 
   useEffect(() => {
     if (isError) setErrorMsg("Failed to load invoice settings. Please refresh the page.");
@@ -575,7 +621,9 @@ export default function InvoiceSetting() {
       // in-flight GET can otherwise resolve after this PUT and overwrite the
       // cache with pre-save data, which silently reverted fields (e.g. Invoice
       // Type) back to their old value right after the "saved" toast appeared.
-      setSettings(toUiSettings(updated));
+      const ui = toUiSettings(updated);
+      setSettings(ui);
+      baselineRef.current = ui;
       // POS reads printer_inch straight from Redux (populated once at branch-select)
       // to decide A4-vs-thermal print template — without this the change here would
       // only take effect after the next login/branch switch.
@@ -593,7 +641,29 @@ export default function InvoiceSetting() {
   };
 
   const handleSave = () => {
-    saveSettings(toApiPayload(settings));
+    const fullPayload = toApiPayload(settings);
+
+    // No baseline yet (first-ever load failed, or this tenant has no row
+    // yet) — nothing to diff against, so the upsert needs the full payload.
+    if (!baselineRef.current) {
+      saveSettings(fullPayload);
+      return;
+    }
+
+    const baselinePayload = toApiPayload(baselineRef.current);
+    const diff: UpdateInvoiceSettingsPayload = {};
+    (Object.keys(fullPayload) as Array<keyof UpdateInvoiceSettingsPayload>).forEach((key) => {
+      if (fullPayload[key] !== baselinePayload[key]) {
+        (diff as Record<string, unknown>)[key] = fullPayload[key];
+      }
+    });
+
+    if (Object.keys(diff).length === 0) {
+      setSuccessMsg("No changes to save.");
+      return;
+    }
+
+    saveSettings(diff);
   };
 
   // Draft settings for the live receipt preview — reflects unsaved toggle
@@ -603,6 +673,7 @@ export default function InvoiceSetting() {
     show_tax_details: settings.showTaxDetails,
     show_description: settings.showItemDescription,
     show_item_id: settings.showItemId,
+    show_serial_no: settings.showSerialNo,
     show_customer_details: settings.showCustomerDetails,
     show_payment_details: settings.showPaymentDetails,
     show_terms_conditions: settings.showTermsConditions,
@@ -610,11 +681,12 @@ export default function InvoiceSetting() {
     show_notes: settings.showNotes,
     notes: settings.notesText,
     show_signature: settings.showSignature,
+    show_bank_details: settings.showBankDetails,
   };
 
-  // Auto-shrink the preview to whatever zoom fits the fixed-height preview
-  // panel — keeps the whole receipt visible with no internal scrollbar,
-  // no matter how tall the selected template/elements make it.
+  // Fit the preview to the panel's WIDTH only — keeps the receipt at a
+  // clearly readable size regardless of how tall it gets; the panel scrolls
+  // vertically instead of shrinking further to also fit the height.
   const previewViewportRef = useRef<HTMLDivElement | null>(null);
   const previewContentRef = useRef<HTMLDivElement | null>(null);
   const previewZoomRef = useRef(1);
@@ -626,14 +698,12 @@ export default function InvoiceSetting() {
     if (!viewport || !content) return;
 
     const fit = () => {
-      const availableHeight = viewport.clientHeight;
       const availableWidth = viewport.clientWidth;
       const rect = content.getBoundingClientRect();
-      if (!availableHeight || !availableWidth || !rect.height || !rect.width) return;
+      if (!availableWidth || !rect.width) return;
 
-      const naturalHeight = rect.height / previewZoomRef.current;
       const naturalWidth = rect.width / previewZoomRef.current;
-      const fitted = Math.min(availableHeight / naturalHeight, availableWidth / naturalWidth, 1);
+      const fitted = Math.min(availableWidth / naturalWidth, 1);
       const clamped = Math.max(fitted, 0.25);
 
       if (Math.abs(clamped - previewZoomRef.current) > 0.004) {
@@ -669,9 +739,11 @@ export default function InvoiceSetting() {
           alignItems: "start",
         }}
       >
-        {/* Left Column */}
+        {/* Left Column — scrolls independently of the page; the Save bar
+            sticks to the bottom of this scroll area only. */}
+        <Box sx={{ minHeight: 0, height: { lg: "calc(100vh - 150px)" }, overflowY: { lg: "auto" }, pr: { lg: 0.5 } }}>
         <Stack spacing={2}>
-           <Box sx={{ mb: 2.5 }}>
+           {/* <Box sx={{ mb: 2.5 }}>
         <Typography sx={{ fontSize: { xs: 22, md: 26 }, fontWeight: 800, color: headingText, lineHeight: 1.2 }}>
           Invoice settings
         </Typography>
@@ -680,7 +752,6 @@ export default function InvoiceSetting() {
         </Typography>
       </Box>
 
-          {/* Invoice Theme */}
           <Section title="Invoice Theme" subtitle="Choose a visual style for your thermal and A4 invoices">
             <Box sx={{ display: "flex", gap: 1.5, py: 1.5 }}>
               <ThemeCard
@@ -706,46 +777,12 @@ export default function InvoiceSetting() {
                 }}
               />
             </Box>
-          </Section>
+          </Section> */}
 
-          {/* Select Color — A4 invoice accent color only */}
-          {settings.printInch === "A4" && (
-            <Section title="Select Color" subtitle="Accent color for the A4 invoice template">
-              <Box sx={{ display: "flex", gap: 1.25, flexWrap: "wrap", py: 1.5 }}>
-                {INVOICE_COLORS.map((color) => {
-                  const isSelected = invoiceColor === color;
-                  return (
-                    <Box
-                      key={color}
-                      onClick={() => setInvoiceColor(color)}
-                      sx={{
-                        width: 46,
-                        height: 34,
-                        borderRadius: 1,
-                        bgcolor: color,
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        outline: "2px solid",
-                        outlineColor: isSelected ? headingText : "transparent",
-                        outlineOffset: 2,
-                        transition: "transform 0.1s ease, outline-color 0.15s ease",
-                        "&:hover": { transform: "scale(1.06)" },
-                      }}
-                    >
-                      {isSelected && (
-                        <CheckRoundedIcon sx={{ fontSize: 16, color: "#fff" }} />
-                      )}
-                    </Box>
-                  );
-                })}
-              </Box>
-            </Section>
-          )}
-
-          {/* Company Logo & Header */}
-          <Section title="Company Logo & Header" subtitle="Upload images to brand your invoices">
+          {/* Company Logo & Header — upload UI disabled for now; only the
+              "Show Company Logo in Invoice" toggle below is active until this
+              is wired up to persist logo/header images to the backend. */}
+          {/* <Section title="Company Logo & Header" subtitle="Upload images to brand your invoices">
             <Box sx={{ display: "flex", gap: 2, py: 1.5, flexWrap: "wrap" }}>
               <ImageUploadSlot
                 label="Company Logo"
@@ -768,52 +805,36 @@ export default function InvoiceSetting() {
                 />
               )}
             </Box>
-          </Section>
+          </Section> */}
 
-          {/* Invoice Numbering */}
-          <Section title="Invoice Numbering" subtitle="Configure the invoice ID format and sequence">
-            <SettingRow
-              icon={<LabelOutlinedIcon fontSize="small" />}
-              iconBg="#f0fdf4"
-              iconColor="#16a34a"
-              label="Invoice Prefix"
-              description="Prefix for invoice ID"
+          {/* Select Template Type — paper size lives above Print Layout so the
+              choice that drives every other print option is picked first. */}
+          <Section title="Select Template Type" subtitle="Select the print paper width">
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", sm: "repeat(auto-fit, minmax(210px, 1fr))" },
+                gap: 1.5,
+                py: 1.5,
+              }}
             >
-              <TextField
-                fullWidth
-                size="small"
-                value={settings.invoicePrefix}
-                onChange={(e) => update("invoicePrefix", e.target.value.toUpperCase())}
-                placeholder="INV"
-                sx={textFieldSx}
-              />
-            </SettingRow>
+              {TEMPLATE_TYPES
+                .filter((option) => !(option.value === "A4" && businessType === "Restaurant"))
+                .map((option) => (
+                  <TemplateTypeCard
+                    key={option.value}
+                    label={option.label}
+                    caption={option.caption}
+                    icon={option.icon}
+                    selected={settings.printInch === option.value}
+                    onSelect={() => update("printInch", option.value)}
+                  />
+                ))}
+            </Box>
           </Section>
 
           {/* Print Layout */}
           <Section title="Print Layout" subtitle="Customize what appears on printed invoices">
-            <SettingRow
-              icon={<TagRoundedIcon fontSize="small" />}
-              iconBg="#f0fdf4"
-              iconColor="#16a34a"
-              label="Invoice Type"
-              description="Select the print paper width"
-            >
-              <FormControl fullWidth size="small">
-                <Select
-                  value={settings.printInch}
-                  onChange={(e) => update("printInch", e.target.value)}
-                  sx={selectSx}
-                >
-                  {businessType !== "Restaurant" && <MenuItem value="A4">A4</MenuItem>}
-                  <MenuItem value="3">3 Inch</MenuItem>
-                  <MenuItem value="5">5 Inch</MenuItem>
-                </Select>
-              </FormControl>
-            </SettingRow>
-
-            <Divider sx={{ borderColor: "#f4f5f8" }} />
-
             <SettingRow
               icon={<ImageOutlinedIcon fontSize="small" />}
               iconBg="#fff7ed"
@@ -825,27 +846,6 @@ export default function InvoiceSetting() {
                 <Switch
                   checked={settings.showCompanyLogo}
                   onChange={(e) => update("showCompanyLogo", e.target.checked)}
-                  sx={{
-                    "& .MuiSwitch-switchBase.Mui-checked": { color: redTint },
-                    "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: redTint },
-                  }}
-                />
-              </Box>
-            </SettingRow>
-
-            <Divider sx={{ borderColor: "#f4f5f8" }} />
-
-            <SettingRow
-              icon={<FavoriteOutlinedIcon fontSize="small" />}
-              iconBg="#fff1f2"
-              iconColor={redTint}
-              label="Print Thank You Message"
-              description="Show thank you message at the bottom of invoice"
-            >
-              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                <Switch
-                  checked={settings.printThankYouMessage}
-                  onChange={(e) => update("printThankYouMessage", e.target.checked)}
                   sx={{
                     "& .MuiSwitch-switchBase.Mui-checked": { color: redTint },
                     "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: redTint },
@@ -881,13 +881,31 @@ export default function InvoiceSetting() {
               icon={<FormatListNumberedRoundedIcon fontSize="small" />}
               iconBg="#f0fdf4"
               iconColor="#16a34a"
-              label="Item Row Identifier"
-              description="Choose what the first column shows on the invoice"
+              label="Show Serial No"
+              description="Print an S.No column on the invoice"
             >
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 1 }}>
-                <Typography sx={{ fontSize: 12, fontWeight: 700, color: !settings.showItemId ? redTint : subtleText }}>
-                  S.No
-                </Typography>
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Switch
+                  checked={settings.showSerialNo}
+                  onChange={(e) => update("showSerialNo", e.target.checked)}
+                  sx={{
+                    "& .MuiSwitch-switchBase.Mui-checked": { color: redTint },
+                    "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: redTint },
+                  }}
+                />
+              </Box>
+            </SettingRow>
+
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
+
+            <SettingRow
+              icon={<FormatListNumberedRoundedIcon fontSize="small" />}
+              iconBg="#f0fdf4"
+              iconColor="#16a34a"
+              label="Show Item ID"
+              description="Add an Item ID column on the invoice"
+            >
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
                 <Switch
                   checked={settings.showItemId}
                   onChange={(e) => update("showItemId", e.target.checked)}
@@ -896,9 +914,6 @@ export default function InvoiceSetting() {
                     "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: redTint },
                   }}
                 />
-                <Typography sx={{ fontSize: 12, fontWeight: 700, color: settings.showItemId ? redTint : subtleText }}>
-                  Item ID
-                </Typography>
               </Box>
             </SettingRow>
 
@@ -967,6 +982,70 @@ export default function InvoiceSetting() {
 
             <Divider sx={{ borderColor: "#f4f5f8" }} />
 
+
+            <SettingRow
+              icon={<BorderColorOutlinedIcon fontSize="small" />}
+              iconBg="#eef4ff"
+              iconColor="#2563eb"
+              label="Authorized Signature"
+              description="Show a signature at the bottom of the invoice"
+            >
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Switch
+                  checked={settings.showSignature}
+                  onChange={(e) => update("showSignature", e.target.checked)}
+                  sx={{
+                    "& .MuiSwitch-switchBase.Mui-checked": { color: redTint },
+                    "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: redTint },
+                  }}
+                />
+              </Box>
+            </SettingRow>
+            {settings.showSignature && (
+              <SettingRow
+                icon={<BorderColorOutlinedIcon fontSize="small" />}
+                iconBg="#eef4ff"
+                iconColor="#2563eb"
+                label="Signature Image"
+                description="Upload the authorized signatory's signature"
+              >
+                <ImageUploadSlot
+                  compact
+                  label="Signature Image"
+                  description="Upload the authorized signatory's signature"
+                  imageUrl={signatureUrl}
+                  uploading={signatureUploading || signatureDeleting}
+                  shape="banner"
+                  onUpload={(file) => uploadSignature(file)}
+                  onRemove={() => removeSignature()}
+                />
+              </SettingRow>
+            )}
+
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
+
+            {/* Bank details are read-only, sourced from Company settings —
+                only whether they print on the invoice is editable here. */}
+            <SettingRow
+              icon={<AccountBalanceOutlinedIcon fontSize="small" />}
+              iconBg="#fffbeb"
+              iconColor="#d97706"
+              label="Show Bank Details"
+              description="Print bank account details on the invoice"
+            >
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Switch
+                  checked={settings.showBankDetails}
+                  onChange={(e) => update("showBankDetails", e.target.checked)}
+                  sx={{
+                    "& .MuiSwitch-switchBase.Mui-checked": { color: redTint },
+                    "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: redTint },
+                  }}
+                />
+              </Box>
+            </SettingRow>
+                        <Divider sx={{ borderColor: "#f4f5f8" }} />
+
             <SettingRow
               icon={<DescriptionOutlinedIcon fontSize="small" />}
               iconBg="#fff7ed"
@@ -994,8 +1073,8 @@ export default function InvoiceSetting() {
                   fullWidth
                   placeholder="Enter Terms & Conditions"
                   value={settings.termsConditionsText}
-                  onChange={(e) => e.target.value.length <= 500 && update("termsConditionsText", e.target.value)}
-                  helperText={`${settings.termsConditionsText.length}/500`}
+                  onChange={(e) => e.target.value.length <= FREE_TEXT_MAX_LENGTH && update("termsConditionsText", e.target.value)}
+                  helperText={`${settings.termsConditionsText.length}/${FREE_TEXT_MAX_LENGTH}`}
                   FormHelperTextProps={{ sx: { textAlign: "right", fontSize: 10.5, mx: 0 } }}
                   sx={{
                     "& .MuiOutlinedInput-root": {
@@ -1040,8 +1119,8 @@ export default function InvoiceSetting() {
                   fullWidth
                   placeholder="Enter Notes"
                   value={settings.notesText}
-                  onChange={(e) => e.target.value.length <= 500 && update("notesText", e.target.value)}
-                  helperText={`${settings.notesText.length}/500`}
+                  onChange={(e) => e.target.value.length <= FREE_TEXT_MAX_LENGTH && update("notesText", e.target.value)}
+                  helperText={`${settings.notesText.length}/${FREE_TEXT_MAX_LENGTH}`}
                   FormHelperTextProps={{ sx: { textAlign: "right", fontSize: 10.5, mx: 0 } }}
                   sx={{
                     "& .MuiOutlinedInput-root": {
@@ -1057,111 +1136,113 @@ export default function InvoiceSetting() {
               </Box>
             )}
 
-            <Divider sx={{ borderColor: "#f4f5f8" }} />
+          </Section>
 
-            <SettingRow
-              icon={<BorderColorOutlinedIcon fontSize="small" />}
-              iconBg="#eef4ff"
-              iconColor="#2563eb"
-              label="Authorized Signature"
-              description="Show a signature line at the bottom of the invoice"
-            >
-              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                <Switch
-                  checked={settings.showSignature}
-                  onChange={(e) => update("showSignature", e.target.checked)}
+          {/* Select Color — A4 invoice accent color only, follows Print
+              Layout since it only applies once Invoice Type is set to A4. */}
+          {settings.printInch === "A4" && (
+            <Section title="Select Color" subtitle="Accent color for the A4 invoice template">
+              <Box sx={{ display: "flex", gap: 1.25, flexWrap: "wrap", py: 1.5, pb: 2 }}>
+                {INVOICE_COLORS.map((color) => {
+                  const isSelected = settings.invoiceThemeColor.toUpperCase() === color.toUpperCase();
+                  return (
+                    <Box
+                      key={color}
+                      onClick={() => update("invoiceThemeColor", color)}
+                      sx={{
+                        width: 46,
+                        height: 34,
+                        borderRadius: 1,
+                        bgcolor: color,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        outline: "2px solid",
+                        outlineColor: isSelected ? headingText : "transparent",
+                        outlineOffset: 2,
+                        transition: "transform 0.1s ease, outline-color 0.15s ease",
+                        "&:hover": { transform: "scale(1.06)" },
+                      }}
+                    >
+                      {isSelected && (
+                        <CheckRoundedIcon sx={{ fontSize: 16, color: "#fff" }} />
+                      )}
+                    </Box>
+                  );
+                })}
+                <Box
+                  component="input"
+                  type="color"
+                  value={COLOR_HEX_REGEX.test(settings.invoiceThemeColor) ? settings.invoiceThemeColor : DEFAULT_INVOICE_COLOR}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => update("invoiceThemeColor", e.target.value.toUpperCase())}
                   sx={{
-                    "& .MuiSwitch-switchBase.Mui-checked": { color: redTint },
-                    "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: redTint },
+                    width: 46,
+                    height: 34,
+                    p: 0,
+                    border: "1px solid",
+                    borderColor: cardBorder,
+                    borderRadius: 1,
+                    cursor: "pointer",
+                    flexShrink: 0,
+                    "&::-webkit-color-swatch-wrapper": { padding: 0 },
+                    "&::-webkit-color-swatch": { border: "none", borderRadius: 1 },
                   }}
                 />
               </Box>
-            </SettingRow>
-          </Section>
+            </Section>
+          )}
 
-          {/* Payment & Rounding */}
-          <Section title="Payment Settings" subtitle="Default payment preferences and invoice due days">
-            {businessType !== "Restaurant" && (
-              <>
-                <SettingRow
-                  icon={<EventRoundedIcon fontSize="small" />}
-                  iconBg="#eef4ff"
-                  iconColor="#2563eb"
-                  label="Invoice Due Days"
-                  description="Default due days for credit invoices"
-                >
-                  <TextField
-                    fullWidth
-                    size="small"
-                    type="number"
-                    value={settings.invoiceDueDays}
-                    onChange={(e) => update("invoiceDueDays", e.target.value)}
-                    inputProps={{ min: 0 }}
-                    InputProps={{
-                      endAdornment: (
-                        <Typography sx={{ fontSize: 12, color: subtleText, pr: 1, whiteSpace: "nowrap" }}>
-                          days
-                        </Typography>
-                      ),
-                    }}
-                    sx={textFieldSx}
-                  />
-                </SettingRow>
-
-                <Divider sx={{ borderColor: "#f4f5f8" }} />
-              </>
-            )}
-
-            <SettingRow
-              icon={<CreditCardRoundedIcon fontSize="small" />}
-              iconBg="#faf5ff"
-              iconColor="#7c3aed"
-              label="Default Payment Method"
-              description="Select default payment method"
-            >
-              <FormControl fullWidth size="small">
-                <Select
-                  value={settings.defaultPaymentMethod}
-                  onChange={(e) => update("defaultPaymentMethod", e.target.value)}
-                  sx={selectSx}
-                >
-                  {paymentMethodOptions.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </SettingRow>
-          </Section>
-
-          {/* Tax Settings */}
-          <Section title="Tax Settings" subtitle="Define how taxes are computed and applied">
-            <SettingRow
-              icon={<GradingRoundedIcon fontSize="small" />}
-              iconBg="#fdecef"
-              iconColor={redTint}
-              label="Default Tax"
-              description="Default tax to apply in invoice"
-            >
-              <FormControl fullWidth size="small">
-                <Select
-                  value={settings.defaultTax}
-                  onChange={(e) => update("defaultTax", e.target.value)}
-                  sx={selectSx}
-                >
-                  <MenuItem value="none">None</MenuItem>
-                  <MenuItem value="GST5">GST 5%</MenuItem>
-                  <MenuItem value="GST12">GST 12%</MenuItem>
-                  <MenuItem value="GST18">GST 18%</MenuItem>
-                  <MenuItem value="GST28">GST 28%</MenuItem>
-                </Select>
-              </FormControl>
-            </SettingRow>
-          </Section>
         </Stack>
 
-        {/* Sample Receipt Preview */}
+          {/* Save bar — sticks to the bottom of this scroll area only
+              (not the full width under the preview), reduced padding. */}
+          <Box
+            sx={{
+              position: { lg: "sticky" },
+              bottom: { lg: 0 },
+              mt: 1.5,
+              py: 1,
+              px: 2,
+              borderRadius: 1,
+              border: "1px solid",
+              borderColor: cardBorder,
+              bgcolor: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 2,
+              flexWrap: "wrap",
+            }}
+          >
+            <Typography sx={{ fontSize: 13, color: subtleText }}>
+              Changes are applied to all new invoices generated after saving.
+            </Typography>
+            <Button
+              variant="contained"
+              startIcon={isSaving ? <CircularProgress size={16} sx={{ color: "#fff" }} /> : <SaveRoundedIcon />}
+              onClick={handleSave}
+              disabled={isSaving}
+              sx={{
+                px: 3,
+                py: 1,
+                borderRadius: 1,
+                bgcolor: saved ? "#1a7a3c" : redTint,
+                fontWeight: 700,
+                fontSize: 13,
+                boxShadow: "none",
+                transition: "background-color 0.3s",
+                "&:hover": { bgcolor: saved ? "#1a7a3c" : "#b1001d", boxShadow: "none" },
+                "&.Mui-disabled": { bgcolor: redTint, opacity: 0.7, color: "#fff" },
+              }}
+            >
+              {isSaving ? "Saving..." : saved ? "Saved!" : "Save Changes"}
+            </Button>
+          </Box>
+        </Box>
+
+        {/* Sample Receipt Preview — untouched by the left column's scroll;
+            keeps its own original sticky/height behavior. */}
         <Paper
           elevation={0}
           sx={{
@@ -1174,15 +1255,45 @@ export default function InvoiceSetting() {
             top: { lg: 16 },
           }}
         >
-          <Box sx={{ px: { xs: 2, md: 2.5 }, pt: 2, pb: 1 }}>
-            <Typography sx={{ fontSize: 13, fontWeight: 800, color: headingText, letterSpacing: 0.2 }}>
-              Sample Receipt Preview
-            </Typography>
-            <Typography sx={{ fontSize: 12, color: subtleText, mt: 0.3 }}>
-              {settings.printInch === "A4"
-                ? "Live preview based on your current selections (A4)"
-                : `Live preview based on your current selections (${settings.printInch} inch thermal)`}
-            </Typography>
+          <Box sx={{ px: { xs: 2, md: 2.5 }, pt: 2, pb: 1, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 1.5, flexWrap: "wrap" }}>
+            <Box>
+              <Typography sx={{ fontSize: 13, fontWeight: 800, color: headingText, letterSpacing: 0.2 }}>
+                Sample Receipt Preview
+              </Typography>
+              <Typography sx={{ fontSize: 12, color: subtleText, mt: 0.3 }}>
+                {settings.printInch === "A4"
+                  ? "Live preview based on your current selections (A4)"
+                  : `Live preview based on your current selections (${settings.printInch} inch thermal)`}
+              </Typography>
+            </Box>
+
+            {settings.printInch === "A4" && (
+              <Stack direction="row" sx={{ border: "1px solid", borderColor: cardBorder, borderRadius: 999, p: 0.4, gap: 0.4, flexShrink: 0 }}>
+                {(["classic", "modern"] as const).map((option) => {
+                  const selected = settings.invoiceTemplate === option;
+                  return (
+                    <Box
+                      key={option}
+                      onClick={() => update("invoiceTemplate", option)}
+                      sx={{
+                        px: 1.5,
+                        py: 0.4,
+                        borderRadius: 999,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        textTransform: "capitalize",
+                        cursor: "pointer",
+                        color: selected ? "#fff" : subtleText,
+                        bgcolor: selected ? redTint : "transparent",
+                        transition: "background-color 0.15s, color 0.15s",
+                      }}
+                    >
+                      {option}
+                    </Box>
+                  );
+                })}
+              </Stack>
+            )}
           </Box>
           <Divider sx={{ borderColor: "#f4f5f8" }} />
           <Box
@@ -1191,11 +1302,18 @@ export default function InvoiceSetting() {
               p: 2.5,
               bgcolor: "#F3F4F6",
               display: "flex",
-              alignItems: "center",
+              alignItems: "flex-start",
               justifyContent: "center",
-              overflow: "hidden",
-              height: { xs: "auto", lg: "calc(100vh - 260px)" },
-              minHeight: { xs: 320, lg: 480 },
+              overflowX: "hidden",
+              overflowY: "auto",
+              height: { xs: "auto", lg: "calc(100vh - 220px)" },
+              minHeight: { xs: 320, lg: 500 },
+              // App-wide CSS hides all scrollbars (index.css `::-webkit-scrollbar { display: none }`) —
+              // this panel needs its own visible one so users can tell there's more to scroll to.
+              "&::-webkit-scrollbar": { display: "block", width: 8 },
+              "&::-webkit-scrollbar-track": { background: "transparent" },
+              "&::-webkit-scrollbar-thumb": { background: "#c9ccd3", borderRadius: 4 },
+              "&::-webkit-scrollbar-thumb:hover": { background: "#aeb2ba" },
             }}
           >
             <Box
@@ -1207,14 +1325,27 @@ export default function InvoiceSetting() {
               }}
             >
               {settings.printInch === "A4" ? (
-                <InvoicePDFTemplate
-                  data={PREVIEW_DATA}
-                  settingsOverride={previewSettingsOverride}
-                  theme={theme}
-                  accentColor={invoiceColor}
-                  logoUrl={companyLogoUrl}
-                  headerImageUrl={headerImageUrl}
-                />
+                settings.invoiceTemplate === "modern" ? (
+                  <InvoicePDFTemplateModern
+                    data={PREVIEW_DATA}
+                    settingsOverride={previewSettingsOverride}
+                    theme={theme}
+                    accentColor={settings.invoiceThemeColor}
+                    logoUrl={companyLogoUrl}
+                    headerImageUrl={headerImageUrl}
+                    signatureUrl={signatureUrl}
+                  />
+                ) : (
+                  <InvoicePDFTemplate
+                    data={PREVIEW_DATA}
+                    settingsOverride={previewSettingsOverride}
+                    theme={theme}
+                    accentColor={settings.invoiceThemeColor}
+                    logoUrl={companyLogoUrl}
+                    headerImageUrl={headerImageUrl}
+                    signatureUrl={signatureUrl}
+                  />
+                )
               ) : (
                 <ThermalInvoiceTemplate
                   data={PREVIEW_DATA}
@@ -1227,48 +1358,6 @@ export default function InvoiceSetting() {
             </Box>
           </Box>
         </Paper>
-      </Box>
-
-      {/* Bottom Save Bar */}
-      <Box
-        sx={{
-          mt: 3,
-          py: 2,
-          px: { xs: 2, md: 2.5 },
-          borderRadius: 1,
-          border: "1px solid",
-          borderColor: cardBorder,
-          bgcolor: "#fff",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 2,
-          flexWrap: "wrap",
-        }}
-      >
-        <Typography sx={{ fontSize: 13, color: subtleText }}>
-          Changes are applied to all new invoices generated after saving.
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={isSaving ? <CircularProgress size={16} sx={{ color: "#fff" }} /> : <SaveRoundedIcon />}
-          onClick={handleSave}
-          disabled={isSaving}
-          sx={{
-            px: 3,
-            py: 1,
-            borderRadius: 1,
-            bgcolor: saved ? "#1a7a3c" : redTint,
-            fontWeight: 700,
-            fontSize: 13,
-            boxShadow: "none",
-            transition: "background-color 0.3s",
-            "&:hover": { bgcolor: saved ? "#1a7a3c" : "#b1001d", boxShadow: "none" },
-            "&.Mui-disabled": { bgcolor: redTint, opacity: 0.7, color: "#fff" },
-          }}
-        >
-          {isSaving ? "Saving..." : saved ? "Saved!" : "Save Changes"}
-        </Button>
       </Box>
 
       <SuccessToast

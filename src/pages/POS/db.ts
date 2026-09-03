@@ -10,6 +10,7 @@ export interface PosProduct {
   item_id:   string;   // primary key — always a non-null string
   item_uuid: string;
   item_name: string;
+  description?: string;   // absent when the menu item has no description
 
   // category  (category_id comes as number from API)
   category_id:   number;

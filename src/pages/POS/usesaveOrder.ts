@@ -168,6 +168,7 @@ export interface LineItem {
   uuid:    string;
   code:         string;
   description:  string;
+  itemDescription?: string;  // ✅ cashier-typed per-line note — sent as `description`
   qty:          number;
   unitPrice:    number;   // always BASE price (pre-tax)
   taxInclusive: boolean;  // ✅ needed so backend tax formula matches frontend
@@ -275,6 +276,7 @@ export function useSaveOrder() {
           item_uuid:      li.uuid,      // ✅ Always include item_uuid
           item_id:        li.code,
           item_name:      li.description,
+          description:    li.itemDescription || null,   // ✅ cashier-typed per-line note
           unit:           li.unit ?? "NOS",
           quantity:       li.qty,
           price:          li.sellPrice,      // ✅ selling price sent in payload
@@ -353,6 +355,7 @@ const updateOrder = useCallback(async (
         item_uuid:      li.uuid,
         item_id:        li.code,
         item_name:      li.description,
+        description:    li.itemDescription || null,
         unit:           li.unit ?? "NOS",
         quantity:       li.qty,
         price:          li.sellPrice,

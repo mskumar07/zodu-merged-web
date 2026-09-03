@@ -49,7 +49,9 @@ import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import ShareIcon              from "@mui/icons-material/Share";
 import QrCode2Icon            from "@mui/icons-material/QrCode2";
 import AccountBalanceIcon     from "@mui/icons-material/AccountBalance";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import PaymentsIcon           from "@mui/icons-material/Payments";
+import ReceiptIcon            from "@mui/icons-material/Receipt";
 import MoreHorizIcon          from "@mui/icons-material/MoreHoriz";
 import InfoOutlinedIcon       from "@mui/icons-material/InfoOutlined";
 import SwapHorizIcon          from "@mui/icons-material/SwapHoriz";
@@ -70,7 +72,9 @@ import {
   fetchSaleDetail,
 } from "../SalesHistory/useSaleshistory";
 import { InvoicePDFTemplate } from "../SalesHistory/InvoicePDFTemplate";
+import { InvoicePDFTemplateModern } from "../SalesHistory/InvoicePDFTemplateModern";
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "../SalesHistory/ThermalInvoiceTemplate";
+import { toPaymentTypeLabels } from "@pages/Settings/useInvoiceSettingApi";
 import DiscountModal          from "./DiscountModal";
 import NoteModal              from "./NotesModal";
 import { useAppSelector }     from "@store/store";
@@ -160,7 +164,26 @@ type PosMode = "SALE" | "QUOTATION";
 type Zone = "SEARCH" | "CUSTOMER" | "TABLE" | "FOOTER";
 type SearchFocus = "CODE";
 type FooterFocus = "DISCOUNT_PCT" | "DISCOUNT_AMT" | "PAYMENT_TYPE" | "REF_NO" | "RECEIVED" | "SAVE";
-type PaymentType = "Cash" | "UPI" | "Bank Transfer" | "Others";
+type PaymentType = "Cash" | "UPI" | "UPI + Cash" | "Cheque" | "Bank Transfer" | "Others";
+
+// Falls back to the original hardcoded four for branches whose settings predate the field.
+const DEFAULT_ENABLED_PAYMENT_TYPES: PaymentType[] = ["Cash", "UPI", "Bank Transfer", "Others"];
+const PAYMENT_TYPE_ICON: Record<PaymentType, typeof QrCode2Icon> = {
+  Cash: PaymentsIcon,
+  UPI: QrCode2Icon,
+  "UPI + Cash": AccountBalanceWalletIcon,
+  Cheque: ReceiptIcon,
+  "Bank Transfer": AccountBalanceIcon,
+  Others: MoreHorizIcon,
+};
+
+// `payment_types` is an array of canonical labels (set in POS settings' "Payment Types"
+// chip picker) controlling which payment chips appear at checkout. Falls back to the
+// original hardcoded four when unset, so existing branches keep their current behavior.
+function getEnabledPaymentTypes(raw: unknown): PaymentType[] {
+  const labels = toPaymentTypeLabels(raw);
+  return labels.length > 0 ? labels : DEFAULT_ENABLED_PAYMENT_TYPES;
+}
 
 function toLineItem(p: PosProduct): LineItem {
   const grossPrice = Number(p.sell_price) || 0;
@@ -172,7 +195,10 @@ function toLineItem(p: PosProduct): LineItem {
     qty: 1, unitPrice, sellPrice: grossPrice, taxInclusive,
     hsn: p.hsn_code ?? "", mrp: Number(p.mrp) || grossPrice,
     gstPct, category: p.category_name ?? "", unit: p.unit || "NOS", discount: 0,
-    itemDescription: "",
+    // Seed from the menu item's own description — snapshotted at add-to-cart
+    // time so the invoice shows the text current when this line was billed.
+    // The cashier can still edit it per line before checkout.
+    itemDescription: p.description ?? "",
   };
 }
 
@@ -244,6 +270,10 @@ function RetailPOSInner() {
   const zoduId   = useAppSelector(ZoduId);
   const branchId = useAppSelector(BranchId);
   const invoiceSettings = useAppSelector(InvoiceSettingsData);
+  const enabledPaymentTypes = useMemo(
+    () => getEnabledPaymentTypes(invoiceSettings?.payment_types),
+    [invoiceSettings?.payment_types]
+  );
   // Camera scanning only makes sense on a phone/tablet's own camera — desktop/laptop
   // relies on a hardware USB/Bluetooth scanner instead, so the camera button is hidden there.
   const isMobileOrTablet = useMemo(() => isMobileOrTabletDevice(), []);
@@ -349,7 +379,10 @@ const {
   const discountPctAmt = gstMode === "before"
     ? subtotal * discountPctVal / 100
     : (subtotal + grossGstAmount) * discountPctVal / 100;
-  const orderDiscountAmt = discountPctAmt + discountFlatAmt;
+  // Percentage and flat are the same single discount shown two ways (kept in
+  // sync in the modal), not two discounts stacked — mirrors the discount_type
+  // exclusivity already enforced when the order is saved (see discount_type below).
+  const orderDiscountAmt = discountPctVal > 0 ? discountPctAmt : discountFlatAmt;
 
   const gstAmount = useMemo(() => {
     if (subtotal === 0) return 0;
@@ -468,10 +501,22 @@ useEffect(() => {
   // (no saleId loaded yet), so this never clobbers values restored from an existing sale.
   useEffect(() => {
     if (!invoiceSettings || saleId) return;
-    setPaymentType(toPosPaymentType(invoiceSettings.default_payment_method));
+    const enabled = getEnabledPaymentTypes(invoiceSettings.payment_types);
+    const defaultType = toPosPaymentType(invoiceSettings.default_payment_method);
+    setPaymentType(enabled.includes(defaultType) ? defaultType : enabled[0]);
     setDueDate(addDaysToDate(invoiceDate, invoiceSettings.invoice_due_days || 0));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoiceSettings, saleId]);
+
+  // A sale restored from a saleId (or one open while the picker was edited in settings) can
+  // hold a payment type that's since been disabled — it has no chip to render and no matching
+  // <MenuItem>, which leaves the hidden Select blank and the keyboard nav with nothing to land
+  // on. Fall back to the first enabled type; a still-enabled selection is left alone.
+  useEffect(() => {
+    if (!enabledPaymentTypes.includes(paymentType)) {
+      setPaymentType(enabledPaymentTypes[0]);
+    }
+  }, [enabledPaymentTypes, paymentType]);
 
   const startEditQty = useCallback((code: string) => {
     setItems(prev => prev.map(i => i.code === code ? { ...i, editingQty: true, editingPrice: false, editingDiscount: false, qtyDraft: String(i.qty) } : { ...i, editingQty: false }));
@@ -488,8 +533,10 @@ useEffect(() => {
     setTimeout(() => { discountRefs.current[code]?.focus(); discountRefs.current[code]?.select(); }, 30);
   }, []);
 
+  // Server caps description at 1000 chars — trim client-side so it can never 400.
   const updateItemDescription = useCallback((code: string, value: string) => {
-    setItems(prev => prev.map(i => i.code === code ? { ...i, itemDescription: value } : i));
+    const trimmed = value.slice(0, 1000);
+    setItems(prev => prev.map(i => i.code === code ? { ...i, itemDescription: trimmed } : i));
   }, []);
 
   // Shared by manual suggestion clicks, Enter-to-add, and barcode/QR scans —
@@ -558,7 +605,7 @@ useEffect(() => {
         const gstPct       = Number(i.gst_percentage) || 0;
         const taxInclusive = Boolean(i.tax_inclusive);
         const unitPrice    = taxInclusive && gstPct > 0 ? grossPrice / (1 + gstPct / 100) : grossPrice;
-        return { code: i.item_id, description: i.item_name, qty: Number(i.quantity), unitPrice, sellPrice: grossPrice, gstPct, taxInclusive, uuid: i.item_uuid, hsn: i.hsn_code ?? "", mrp: Number(i.mrp || 0), unit: i.unit || "NOS", discount: Number(i.discount || 0), discountPct: Number(i.discount_percentage || 0), itemDescription: i.item_description ?? "" };
+        return { code: i.item_id, description: i.item_name, qty: Number(i.quantity), unitPrice, sellPrice: grossPrice, gstPct, taxInclusive, uuid: i.item_uuid, hsn: i.hsn_code ?? "", mrp: Number(i.mrp || 0), unit: i.unit || "NOS", discount: Number(i.discount || 0), discountPct: Number(i.discount_percentage || 0), itemDescription: i.description ?? "" };
       }));
       if (data.customer) {
         const c = data.customer;
@@ -610,7 +657,13 @@ useEffect(() => {
     const freshInvoiceDate = todayStr();
     setInvoiceDate(freshInvoiceDate);
     setDueDate(invoiceSettings ? addDaysToDate(freshInvoiceDate, invoiceSettings.invoice_due_days || 0) : "");
-    setPaymentType(invoiceSettings ? toPosPaymentType(invoiceSettings.default_payment_method) : "Cash");
+    if (invoiceSettings) {
+      const enabled = getEnabledPaymentTypes(invoiceSettings.payment_types);
+      const defaultType = toPosPaymentType(invoiceSettings.default_payment_method);
+      setPaymentType(enabled.includes(defaultType) ? defaultType : enabled[0]);
+    } else {
+      setPaymentType("Cash");
+    }
     setZone("SEARCH"); setSearchFocus("CODE");
     setCustomer(EMPTY_CUSTOMER); setSelectedApiCustomer(null); setCustomerQuery(""); clearCustomerResults(); setGstMode("after");
     setReceivedDirty(false);
@@ -637,7 +690,9 @@ console.log("test",serverHolds)
       taxInclusive:Boolean(i.tax_inclusive),
       unit:        i.unit ?? "NOS",
       discount:    Number(i.discount ?? 0),
-      itemDescription: i.item_description ?? "",
+      // The Hold API doesn't persist description — re-populate from the
+      // current menu-item catalogue rather than expecting it back from here.
+      itemDescription: allProducts.find(p => p.item_id === i.item_id)?.description ?? "",
     })),
     discount:    String(h.discount_type === "flat"       ? h.discount_value : 0),
     discountPct: String(h.discount_type === "percentage" ? h.discount_value : 0),
@@ -683,6 +738,9 @@ console.log("test",serverHolds)
         item_uuid:      i.uuid || null,
         item_id:        i.code,
         item_name:      i.description,
+        // Accepted for validation, but the Hold API doesn't persist it —
+        // resuming a hold re-populates each line from the menu-item catalogue.
+        description:    i.itemDescription || null,
         unit:           i.unit || null,
         quantity:       i.qty,
         price:          i.sellPrice,
@@ -1473,6 +1531,7 @@ console.log("test",serverHolds)
                                 <TextField
                                   value={item.itemDescription ?? ""}
                                   onChange={e => updateItemDescription(item.code, e.target.value)}
+                                  onKeyDown={e => e.stopPropagation()}
                                   placeholder="Add description..."
                                   size="small"
                                   variant="outlined"
@@ -1606,11 +1665,12 @@ console.log("test",serverHolds)
                                   value={item.itemDescription ?? ""}
                                   onChange={e => updateItemDescription(item.code, e.target.value)}
                                   onClick={e => e.stopPropagation()}
+                                  onKeyDown={e => e.stopPropagation()}
                                   placeholder="Add description..."
                                   size="medium"
                                   variant="outlined"
                                   fullWidth
-                                  
+
                                   multiline
                                   maxRows={3}
                                   sx={{
@@ -1922,9 +1982,9 @@ console.log("test",serverHolds)
                 <Typography sx={{ fontSize: 13, fontWeight: 800, letterSpacing: "0.06em", color: "#374151", mb: 2 }}>PAYMENT DETAILS</Typography>
 
                 <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0.75, mb: 2 }}>
-                  {(["UPI", "Bank Transfer", "Cash", "Others"] as PaymentType[]).map(val => {
+                  {enabledPaymentTypes.map(val => {
                     const selected = paymentType === val;
-                    const Icon = val === "UPI" ? QrCode2Icon : val === "Bank Transfer" ? AccountBalanceIcon : val === "Cash" ? PaymentsIcon : MoreHorizIcon;
+                    const Icon = PAYMENT_TYPE_ICON[val];
                     return (
                       <Box key={val} onClick={() => { setPaymentType(val); setZone("FOOTER"); setFooterFocus("PAYMENT_TYPE"); }}
                         sx={{
@@ -1944,7 +2004,7 @@ console.log("test",serverHolds)
                     percentage (1 = 100%), which was silently stretching this to full container width. */}
                 <Select value={paymentType} onChange={e => setPaymentType(e.target.value as PaymentType)} onFocus={() => { setZone("FOOTER"); setFooterFocus("PAYMENT_TYPE"); }}
                   sx={{ position: "absolute", width: "1px", height: "1px", opacity: 0, pointerEvents: "none" }} tabIndex={-1}>
-                  {["Cash", "UPI", "Bank Transfer", "Others"].map(val => <MenuItem key={val} value={val}>{val}</MenuItem>)}
+                  {enabledPaymentTypes.map(val => <MenuItem key={val} value={val}>{val}</MenuItem>)}
                 </Select>
 
                 <Box sx={{ mb: 2 }}>
@@ -2033,11 +2093,11 @@ console.log("test",serverHolds)
         <DiscountModal 
   open={discountModalOpen} 
   onClose={() => setDiscountModalOpen(false)} 
-  discountPct={discountPct} 
-  discount={discount} 
-  modeAccent={modeAccent} 
-  gstMode={gstMode} 
-  baseAmount={grandTotalRaw} 
+  discountPct={discountPct}
+  discount={discount}
+  modeAccent={modeAccent}
+  gstMode={gstMode}
+  baseAmount={grandTotalRaw + orderDiscountAmt}
   onApply={(pct, amt, mode) => { 
     setDiscountPct(pct); 
     setDiscount(amt); 
@@ -2220,7 +2280,11 @@ console.log("test",serverHolds)
 
         {savedPdfData && (
           <Box sx={{ position: "fixed", left: -10000, top: 0, width: 794, pointerEvents: "none", opacity: 0 }}>
-            <InvoicePDFTemplate ref={pdfRef} data={savedPdfData} />
+            {invoiceSettings?.invoice_template === "modern" ? (
+              <InvoicePDFTemplateModern ref={pdfRef} data={savedPdfData} />
+            ) : (
+              <InvoicePDFTemplate ref={pdfRef} data={savedPdfData} />
+            )}
           </Box>
         )}
         {savedPdfData && (

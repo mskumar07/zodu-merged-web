@@ -24,6 +24,8 @@ export interface HoldItemPayload {
   item_uuid?:      string | null;
   item_id:         string;
   item_name:       string;
+  // Accepted for validation only — the backend does not persist it on holds.
+  description?:    string | null;
   variant_id?:     string | null;
   variant_name?:   string | null;
   unit?:           string | null;
@@ -79,7 +81,9 @@ export interface ApiHoldItem {
   sgst:           number;
   tax_inclusive:  boolean;
   total_amount:   number;
-  item_description?: string;
+  // Not actually persisted by the Hold API — do not rely on this coming back;
+  // pos.tsx re-populates description from the menu-item catalogue on resume.
+  description?:   string;
 }
 
 export interface ApiHold {

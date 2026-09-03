@@ -1,0 +1,525 @@
+import { useAppSelector } from "@store/store";
+import { useTenantContext } from "@store/tenantContext";
+import { AllCompanies, InvoiceSettingsData } from "@store/slices/userSlice";
+import React from "react";
+
+// ── Inline style constants ────────────────────────────────────
+// A cleaner, minimal alternative to InvoicePDFTemplate — same data shape and
+// the same invoice-settings toggles, just a different visual layout (no
+// colored table header, thin-rule sections instead of boxed cards).
+const styles = {
+  page: {
+    width: "794px",
+    padding: "34px 38px",
+    background: "#fff",
+    fontFamily: "'Inter', 'Arial', sans-serif",
+    color: "#1F2937",
+    fontSize: "13px",
+    boxSizing: "border-box" as const,
+    position: "relative" as const,
+  },
+
+  header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" },
+  brandName: {
+    fontSize: "18px",
+    fontWeight: 800,
+    letterSpacing: "0.5px",
+    textTransform: "uppercase" as const,
+    margin: "0 0 8px 0",
+    lineHeight: 1.25,
+  },
+  headerMeta: { margin: "2px 0", fontSize: "11px", color: "#6B7280" },
+
+  invoiceRight: { textAlign: "right" as const },
+  invoiceTitle: { fontSize: "28px", fontWeight: 600, color: "#111827", margin: "0 0 12px 0" },
+  invoiceMetaRow: { display: "flex", justifyContent: "flex-end", gap: "10px", marginBottom: "3px" },
+  invoiceMetaLabel: { fontSize: "11px", color: "#6B7280", minWidth: "64px", textAlign: "right" as const },
+  invoiceMetaValue: { fontSize: "11px", color: "#111827", fontWeight: 600, minWidth: "90px", textAlign: "right" as const },
+
+  divider: { borderTop: "1px solid #E5E7EB", margin: "20px 0" },
+
+  infoGrid: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "24px" },
+  infoLabel: { fontSize: "10px", fontWeight: 700, color: "#6B7280", letterSpacing: "0.6px", textTransform: "uppercase" as const, margin: "0 0 6px 0" },
+  billName: { fontSize: "13px", fontWeight: 700, color: "#111827", margin: "0 0 3px 0" },
+  billMeta: { fontSize: "11px", color: "#4B5563", margin: "2px 0" },
+  dueBox: { textAlign: "right" as const },
+  dueValue: { fontSize: "17px", fontWeight: 800, color: "#111827", margin: "0 0 4px 0" },
+  statusBadge: {
+    display: "inline-block",
+    fontSize: "10px",
+    fontWeight: 700,
+    letterSpacing: "0.4px",
+    textTransform: "uppercase" as const,
+    padding: "2px 10px",
+    borderRadius: "20px",
+    background: "#DCFCE7",
+    color: "#16A34A",
+    marginBottom: "4px",
+  },
+
+  // Items table
+  table: { width: "100%", tableLayout: "fixed" as const, borderCollapse: "collapse" as const },
+  theadTh: {
+    padding: "0 8px 8px 0",
+    fontSize: "10px",
+    fontWeight: 700,
+    color: "#6B7280",
+    textAlign: "left" as const,
+    letterSpacing: "0.05em",
+    textTransform: "uppercase" as const,
+    borderBottom: "1.5px solid #111827",
+  },
+  theadThRight: {
+    padding: "0 0 8px 8px",
+    fontSize: "10px",
+    fontWeight: 700,
+    color: "#6B7280",
+    textAlign: "right" as const,
+    letterSpacing: "0.05em",
+    textTransform: "uppercase" as const,
+    borderBottom: "1.5px solid #111827",
+  },
+  theadThCenter: {
+    padding: "0 8px 8px 8px",
+    fontSize: "10px",
+    fontWeight: 700,
+    color: "#6B7280",
+    textAlign: "center" as const,
+    letterSpacing: "0.05em",
+    textTransform: "uppercase" as const,
+    borderBottom: "1.5px solid #111827",
+  },
+  td: { padding: "10px 8px 10px 0", fontSize: "11px", color: "#111827", verticalAlign: "top" as const, borderBottom: "1px solid #F1F3F5" },
+  tdRight: { padding: "10px 0 10px 8px", fontSize: "11px", color: "#111827", textAlign: "right" as const, verticalAlign: "top" as const, borderBottom: "1px solid #F1F3F5" },
+  tdCenter: { padding: "10px 8px", fontSize: "11px", color: "#111827", textAlign: "center" as const, verticalAlign: "top" as const, borderBottom: "1px solid #F1F3F5" },
+  itemName: { fontWeight: 600, fontSize: "11px", color: "#111827" },
+  itemSub: { fontSize: "10px", color: "#9CA3AF", marginTop: "2px", whiteSpace: "pre-line" as const },
+  tdItemId: { overflowWrap: "anywhere" as const, wordBreak: "break-all" as const },
+
+  // Summary
+  summaryWrap: { display: "flex", justifyContent: "flex-end" },
+  summaryBox: { width: "260px" },
+  summaryRow: { display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: "12px" },
+  summaryLabel: { color: "#6B7280" },
+  summaryValue: { color: "#111827", fontWeight: 500 },
+  summaryValueRed: { color: "#111827", fontWeight: 600 },
+  grandRow: { display: "flex", justifyContent: "space-between", padding: "10px 0 0 0", marginTop: "6px", borderTop: "1.5px solid #111827" },
+  grandLabel: { fontSize: "13px", fontWeight: 800, color: "#111827", letterSpacing: "0.04em", textTransform: "uppercase" as const },
+  grandValue: { fontSize: "15px", fontWeight: 800, color: "#111827" },
+  amountWords: { fontSize: "10px", color: "#9CA3AF", marginTop: "8px", textAlign: "right" as const, fontStyle: "italic" },
+
+  // GST breakdown
+  gstSection: { marginTop: "20px" },
+  gstLabel: { fontSize: "10px", fontWeight: 700, color: "#6B7280", letterSpacing: "0.6px", textTransform: "uppercase" as const, marginBottom: "8px" },
+  gstTh: { padding: "0 8px 6px 0", fontSize: "10px", fontWeight: 700, color: "#6B7280", textTransform: "uppercase" as const, borderBottom: "1px solid #E5E7EB" },
+  gstThRight: { padding: "0 0 6px 8px", fontSize: "10px", fontWeight: 700, color: "#6B7280", textTransform: "uppercase" as const, borderBottom: "1px solid #E5E7EB", textAlign: "right" as const },
+  gstTd: { padding: "6px 8px 6px 0", fontSize: "11px", color: "#111827", borderBottom: "1px solid #F1F3F5" },
+  gstTdRight: { padding: "6px 0 6px 8px", fontSize: "11px", color: "#111827", borderBottom: "1px solid #F1F3F5", textAlign: "right" as const },
+  gstTotalTd: { padding: "6px 8px 6px 0", fontSize: "11px", fontWeight: 700, color: "#111827", borderTop: "1.5px solid #111827", borderBottom: "none" },
+  gstTotalTdRight: { padding: "6px 0 6px 8px", fontSize: "11px", fontWeight: 700, color: "#111827", borderTop: "1.5px solid #111827", borderBottom: "none", textAlign: "right" as const },
+
+  noteLabel: { fontSize: "10px", fontWeight: 700, color: "#6B7280", letterSpacing: "0.6px", textTransform: "uppercase" as const, margin: "0 0 6px 0" },
+  noteText: { fontSize: "11px", color: "#374151", lineHeight: 1.6, margin: "1px 0" },
+  signBox: { textAlign: "right" as const },
+  signLabel: { fontSize: "12px", fontWeight: 700, color: "#111827", margin: "0" },
+  signRole: { fontSize: "10px", color: "#6B7280", margin: "1px 0 0 0" },
+
+  // Terms (left) + bank details (right) share one bordered table so the two blocks
+  // line up and read as a single footer panel rather than two stacked paragraphs.
+  footerTable: {
+    width: "100%",
+    tableLayout: "fixed" as const,
+    borderCollapse: "collapse" as const,
+    marginTop: "18px",
+    border: "1px solid #D1D5DB",
+  },
+  footerTh: {
+    padding: "7px 10px",
+    fontSize: "10px",
+    fontWeight: 700,
+    color: "#374151",
+    letterSpacing: "0.6px",
+    textTransform: "uppercase" as const,
+    textAlign: "left" as const,
+    background: "#F3F4F6",
+    border: "1px solid #D1D5DB",
+  },
+  footerTd: { padding: "10px", verticalAlign: "top" as const, border: "1px solid #D1D5DB" },
+
+  // Label/value pairs inside the bank cell — a nested table keeps the values in a
+  // straight column instead of the ragged "Account No.: 622214178" run-on lines.
+  bankTable: { width: "100%", borderCollapse: "collapse" as const },
+  bankLabelTd: { padding: "3px 10px 3px 0", fontSize: "11px", color: "#6B7280", whiteSpace: "nowrap" as const, verticalAlign: "top" as const, width: "38%" },
+  bankValueTd: { padding: "3px 0", fontSize: "11px", color: "#111827", fontWeight: 600, verticalAlign: "top" as const, overflowWrap: "anywhere" as const },
+};
+
+function SummaryRow({ label, value, bold, red }: { label: string; value: string; bold?: boolean; red?: boolean }) {
+  return (
+    <div style={styles.summaryRow}>
+      <span style={bold ? { ...styles.summaryLabel, fontWeight: 700, color: "#111827" } : styles.summaryLabel}>{label}</span>
+      <span style={red ? styles.summaryValueRed : bold ? { ...styles.summaryValue, fontWeight: 700 } : styles.summaryValue}>{value}</span>
+    </div>
+  );
+}
+
+function fmt(v: number | string) {
+  return `₹${Number(v).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function hasValue(v: unknown): v is string {
+  return typeof v === "string" && v.trim() !== "" && v.trim() !== "-" && v.trim() !== "—";
+}
+
+// ── Modern template ─────────────────────────────────────────────
+export const InvoicePDFTemplateModern = React.forwardRef(({ data, settingsOverride, theme = "classic", accentColor, logoUrl, headerImageUrl, signatureUrl }: any, ref: any) => {
+  const isCompact = theme === "compact";
+  const {
+    sale_id, date, due_date,
+    customer_name, customer_address, customer_mobile, customer_gstin,
+    payment_mode, payment_status,
+    items = [],
+    subtotal, discount, discount_label,
+    cgst, sgst,
+    round_off,
+    total,
+    amount_in_words,
+    gst_breakdown = [],
+  } = data;
+  const { profile, company, zoduId } = useTenantContext();
+  const companies = useAppSelector(AllCompanies);
+  const selectedCompany = companies.find(c => c.zodu_id === zoduId);
+  const reduxInvoiceSettings = useAppSelector(InvoiceSettingsData);
+  const invoiceSettings = settingsOverride ?? reduxInvoiceSettings;
+  const showCompanyLogo = invoiceSettings?.show_company_logo ?? false;
+  const showItemDescription = invoiceSettings?.show_description ?? false;
+  const showItemId = invoiceSettings?.show_item_id ?? false;
+  const showSerialNo = invoiceSettings?.show_serial_no ?? true;
+  const showCustomerDetails = invoiceSettings?.show_customer_details ?? true;
+  const showTaxDetails = invoiceSettings?.show_tax_details ?? true;
+  const showPaymentDetails = invoiceSettings?.show_payment_details ?? false;
+  const showTermsConditions = invoiceSettings?.show_terms_conditions ?? false;
+  const termsConditionsText = invoiceSettings?.terms_conditions ?? "";
+  const showNotes = invoiceSettings?.show_notes ?? false;
+  const notesText = invoiceSettings?.notes ?? "";
+  const showSignature = invoiceSettings?.show_signature ?? false;
+  const resolvedSignatureUrl = signatureUrl || invoiceSettings?.signature_url || "";
+  const showBankDetails = invoiceSettings?.show_bank_details ?? true;
+  // Only terms share the panel with the bank details — notes sit below the table.
+  const showTermsPanel = Boolean(showTermsConditions && termsConditionsText);
+  const resolvedAccentColor = accentColor || invoiceSettings?.invoice_theme_color || "#111827";
+
+  const showDiscount = discount && Number(discount) > 0;
+  const showRoundOff = round_off !== undefined && round_off !== null && Number(round_off) !== 0;
+
+  const addressParts = [
+    selectedCompany?.area_street_name || company?.address_line_1,
+    selectedCompany?.building_no || company?.address_line_2,
+    company?.city || selectedCompany?.city,
+    company?.district || selectedCompany?.district,
+    company?.state || selectedCompany?.state,
+    company?.pincode || selectedCompany?.pincode,
+  ].filter(Boolean);
+  const addressLine1 = addressParts.slice(0, 3).join(", ");
+  const addressLine2 = addressParts.slice(3).join(", ");
+
+  const co = {
+    name:          selectedCompany?.restaurant_name || selectedCompany?.business_name || selectedCompany?.store_name || selectedCompany?.company_name || profile?.restaurant_name || "Your Company Name",
+    gstin:         company?.gst_no || selectedCompany?.gst_no || "",
+    line1:         addressLine1,
+    line2:         addressLine2,
+    phone:         profile?.phone_number || selectedCompany?.phone_number || selectedCompany?.mobile_no || "",
+    email:         profile?.email || selectedCompany?.email || "",
+    bankName:      company?.bank_name || selectedCompany?.bank_name || "",
+    bankBranch:    company?.bank_branch || selectedCompany?.bank_branch || "",
+    accountHolder: company?.holder_name || selectedCompany?.holder_name || "",
+    accountNumber: company?.account_number || selectedCompany?.account_number || "",
+    branchIfsc:    company?.ifsc_code || selectedCompany?.ifsc_code || "",
+  };
+
+  // Only the fields that actually have a value get a row — an invoice with a blank
+  // "Branch & IFSC:" line looks like a rendering bug rather than missing data.
+  const bankRows: Array<[string, string]> = ([
+    ["Bank", co.bankName],
+    ["Branch", co.bankBranch],
+    ["Account Name", co.accountHolder],
+    ["Account No.", co.accountNumber],
+    ["IFSC", co.branchIfsc],
+  ] as Array<[string, string]>).filter(([, value]) => hasValue(value));
+
+  const statusLabel = payment_status === "fully_paid" || !payment_status ? "PAID" : String(payment_status).toUpperCase();
+  const statusColors = payment_status === "unpaid" || payment_status === "pending"
+    ? { background: "#FEF3C7", color: "#D97706" }
+    : payment_status === "partial"
+    ? { background: "#FEF9C3", color: "#CA8A04" }
+    : { background: "#DCFCE7", color: "#16A34A" };
+
+  return (
+    <div ref={ref} style={{ ...styles.page, padding: isCompact ? "20px 24px" : styles.page.padding }}>
+
+      {headerImageUrl && (
+        <img
+          src={headerImageUrl}
+          alt=""
+          style={{ width: "100%", maxHeight: isCompact ? 90 : 130, objectFit: "cover", marginBottom: isCompact ? 12 : 18, display: "block" }}
+        />
+      )}
+
+      {/* ── HEADER ───────────────────────────────────────────── */}
+      <div data-pdf-header style={styles.header}>
+        <div>
+          {showCompanyLogo && logoUrl && (
+            <img src={logoUrl} alt="" style={{ maxHeight: 40, maxWidth: 140, objectFit: "contain", marginBottom: 8, display: "block" }} />
+          )}
+          <h1 style={{ ...styles.brandName, color: resolvedAccentColor }}>{co.name}</h1>
+          {co.gstin && <p style={styles.headerMeta}>GSTIN: {co.gstin}</p>}
+          {co.line1 && <p style={styles.headerMeta}>{co.line1}</p>}
+          {co.line2 && <p style={styles.headerMeta}>{co.line2}</p>}
+          {co.phone && <p style={styles.headerMeta}>Phone: {co.phone}</p>}
+        </div>
+
+        <div style={styles.invoiceRight}>
+          <h2 style={styles.invoiceTitle}>Invoice</h2>
+          <div style={styles.invoiceMetaRow}>
+            <span style={styles.invoiceMetaLabel}>Invoice #</span>
+            <span style={styles.invoiceMetaValue}>{sale_id}</span>
+          </div>
+          <div style={styles.invoiceMetaRow}>
+            <span style={styles.invoiceMetaLabel}>Date:</span>
+            <span style={styles.invoiceMetaValue}>{date}</span>
+          </div>
+          {hasValue(due_date) && (
+            <div style={styles.invoiceMetaRow}>
+              <span style={styles.invoiceMetaLabel}>Due Date:</span>
+              <span style={styles.invoiceMetaValue}>{due_date}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div data-pdf-header-divider style={styles.divider} />
+
+      {/* ── BILLED TO / TOTAL DUE ───────────────────────────────── */}
+      {(showCustomerDetails || showPaymentDetails) && (
+        <>
+          <div style={styles.infoGrid}>
+            {showCustomerDetails && (
+              <div>
+                <p style={styles.infoLabel}>Billed To</p>
+                <h3 style={styles.billName}>{customer_name}</h3>
+                {hasValue(customer_gstin) && <p style={styles.billMeta}>GSTIN: {customer_gstin}</p>}
+                {hasValue(customer_address) && <p style={styles.billMeta}>{customer_address}</p>}
+                {hasValue(customer_mobile) && <p style={styles.billMeta}>Mobile: {customer_mobile}</p>}
+              </div>
+            )}
+
+            {showPaymentDetails && (
+              <div style={styles.dueBox}>
+                <p style={styles.infoLabel}>Total Due</p>
+                <p style={styles.dueValue}>{fmt(total)}</p>
+                <span style={{ ...styles.statusBadge, ...statusColors }}>{statusLabel}</span>
+                <p style={{ ...styles.billMeta, textAlign: "right" as const }}>Payment Mode: {payment_mode}</p>
+              </div>
+            )}
+          </div>
+          <div style={styles.divider} />
+        </>
+      )}
+
+      {/* ── ITEMS TABLE ──────────────────────────────────────── */}
+      <table style={styles.table}>
+        <colgroup>
+          {showSerialNo && <col style={{ width: "34px" }} />}
+          {showItemId && <col style={{ width: "84px" }} />}
+          <col />
+          {showTaxDetails && <col style={{ width: "60px" }} />}
+          {showTaxDetails && <col style={{ width: "44px" }} />}
+          <col style={{ width: "50px" }} />
+          <col style={{ width: "80px" }} />
+          <col style={{ width: "84px" }} />
+        </colgroup>
+        <thead data-pdf-repeat-thead>
+          <tr>
+            {showSerialNo && <th style={styles.theadTh}>SL</th>}
+            {showItemId && <th style={styles.theadTh}>Item ID</th>}
+            <th style={styles.theadTh}>Item</th>
+            {showTaxDetails && <th style={styles.theadThCenter}>HSN</th>}
+            {showTaxDetails && <th style={styles.theadThCenter}>Tax</th>}
+            <th style={styles.theadThCenter}>Qty</th>
+            <th style={styles.theadThRight}>Unit Price</th>
+            <th style={styles.theadThRight}>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item: any, i: number) => (
+            <tr key={i} data-pdf-keep-together>
+              {showSerialNo && <td style={styles.td}>{String(i + 1).padStart(2, "0")}</td>}
+              {showItemId && <td style={{ ...styles.td, ...styles.tdItemId }}>{item.item_id || "—"}</td>}
+              <td style={styles.td}>
+                <div style={styles.itemName}>{item.name}</div>
+                {showItemDescription && item.description && <div style={styles.itemSub}>{item.description}</div>}
+              </td>
+              {showTaxDetails && <td style={styles.tdCenter}>{item.hsn || "—"}</td>}
+              {showTaxDetails && <td style={styles.tdCenter}>{Number(item.tax).toFixed(0)}%</td>}
+              <td style={styles.tdCenter}>{item.qty}</td>
+              <td style={styles.tdRight}>{fmt(item.rate)}</td>
+              <td style={{ ...styles.tdRight, fontWeight: 700 }}>{fmt(item.total)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* ── SUMMARY (kept together across pages) ─────────────── */}
+      <div data-pdf-keep-together style={{ ...styles.summaryWrap, marginTop: isCompact ? 10 : 14 }}>
+        <div style={styles.summaryBox}>
+          <SummaryRow label="Subtotal" value={fmt(subtotal)} />
+
+          {showDiscount && (
+            <SummaryRow label={discount_label ?? "Discount"} value={`-${fmt(discount)}`} red />
+          )}
+
+          {showTaxDetails && (
+            <>
+              <SummaryRow label="CGST" value={fmt(cgst)} />
+              <SummaryRow label="SGST" value={fmt(sgst)} />
+            </>
+          )}
+
+          {showRoundOff && (
+            <SummaryRow label="Round Off" value={Number(round_off) > 0 ? `+${fmt(round_off)}` : fmt(round_off)} />
+          )}
+
+          <div style={styles.grandRow}>
+            <span style={styles.grandLabel}>Total</span>
+            <span style={styles.grandValue}>{fmt(total)}</span>
+          </div>
+
+          {amount_in_words && <p style={styles.amountWords}>Amount in words: {amount_in_words}</p>}
+        </div>
+      </div>
+
+      {/* ── HSN-WISE TAX BREAKDOWN (kept together across pages) ── */}
+      {showTaxDetails && gst_breakdown.length > 0 && (
+        <div data-pdf-keep-together style={{ ...styles.gstSection, marginTop: isCompact ? 16 : styles.gstSection.marginTop }}>
+          <p style={styles.gstLabel}>HSN-wise Tax Breakdown</p>
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th style={styles.gstTh}>HSN Code</th>
+                <th style={styles.gstThRight}>Taxable Value</th>
+                <th style={styles.gstThRight}>CGST Rate</th>
+                <th style={styles.gstThRight}>CGST Amount</th>
+                <th style={styles.gstThRight}>SGST Rate</th>
+                <th style={styles.gstThRight}>SGST Amount</th>
+                <th style={styles.gstThRight}>Total Tax</th>
+              </tr>
+            </thead>
+            <tbody>
+              {gst_breakdown.map((row: any, i: number) => (
+                <tr key={i} data-pdf-keep-together>
+                  <td style={{ ...styles.gstTd, fontWeight: 600 }}>{row.hsn || "—"}</td>
+                  <td style={styles.gstTdRight}>{fmt(row.taxable)}</td>
+                  <td style={styles.gstTdRight}>{row.cgstRate}%</td>
+                  <td style={styles.gstTdRight}>{fmt(row.cgstAmount)}</td>
+                  <td style={styles.gstTdRight}>{row.sgstRate}%</td>
+                  <td style={styles.gstTdRight}>{fmt(row.sgstAmount)}</td>
+                  <td style={{ ...styles.gstTdRight, fontWeight: 700 }}>{fmt(row.totalTaxAmount)}</td>
+                </tr>
+              ))}
+              {(() => {
+                const totalTaxable = gst_breakdown.reduce((sum: number, row: any) => sum + Number(row.taxable), 0);
+                const totalCgst = gst_breakdown.reduce((sum: number, row: any) => sum + Number(row.cgstAmount), 0);
+                const totalSgst = gst_breakdown.reduce((sum: number, row: any) => sum + Number(row.sgstAmount), 0);
+                const totalTax = gst_breakdown.reduce((sum: number, row: any) => sum + Number(row.totalTaxAmount), 0);
+                return (
+                  <tr>
+                    <td style={styles.gstTotalTd}>Total</td>
+                    <td style={styles.gstTotalTdRight}>{fmt(totalTaxable)}</td>
+                    <td style={styles.gstTotalTdRight}>—</td>
+                    <td style={styles.gstTotalTdRight}>{fmt(totalCgst)}</td>
+                    <td style={styles.gstTotalTdRight}>—</td>
+                    <td style={styles.gstTotalTdRight}>{fmt(totalSgst)}</td>
+                    <td style={styles.gstTotalTdRight}>{fmt(totalTax)}</td>
+                  </tr>
+                );
+              })()}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ── TERMS + PAYMENT INFO panel, then SIGNATURE (kept together) ── */}
+      <div data-pdf-keep-together style={{ marginTop: isCompact ? 18 : 26 }}>
+        {(showTermsPanel || showBankDetails) && (
+          <table style={styles.footerTable}>
+            <thead>
+              <tr>
+                {showTermsPanel && (
+                  <th style={{ ...styles.footerTh, width: showBankDetails ? "58%" : "100%" }}>
+                    Terms and Conditions
+                  </th>
+                )}
+                {showBankDetails && (
+                  <th style={{ ...styles.footerTh, width: showTermsPanel ? "42%" : "100%" }}>
+                    Payment Information
+                  </th>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                {showTermsPanel && (
+                  <td style={styles.footerTd}>
+                    <p style={{ ...styles.noteText, whiteSpace: "pre-line" as const, margin: 0 }}>
+                      {termsConditionsText}
+                    </p>
+                  </td>
+                )}
+                {showBankDetails && (
+                  <td style={styles.footerTd}>
+                    {bankRows.length > 0 ? (
+                      <table style={styles.bankTable}>
+                        <tbody>
+                          {bankRows.map(([label, value]) => (
+                            <tr key={label}>
+                              <td style={styles.bankLabelTd}>{label}</td>
+                              <td style={styles.bankValueTd}>{value}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <p style={{ ...styles.noteText, margin: 0 }}>Bank Details N/A</p>
+                    )}
+                  </td>
+                )}
+              </tr>
+            </tbody>
+          </table>
+        )}
+
+        {showNotes && notesText && (
+          <div style={{ marginTop: 14 }}>
+            <p style={styles.noteLabel}>Notes</p>
+            <p style={{ ...styles.noteText, whiteSpace: "pre-line" as const, margin: 0 }}>{notesText}</p>
+          </div>
+        )}
+
+        {showSignature && (
+          <div style={{ ...styles.signBox, marginTop: 18 }}>
+            {resolvedSignatureUrl && (
+              <img
+                src={resolvedSignatureUrl}
+                alt="Authorized signature"
+                style={{ maxHeight: 46, maxWidth: 180, objectFit: "contain", marginLeft: "auto", marginBottom: 4, display: "block" }}
+              />
+            )}
+            <p style={styles.signLabel}>{co.name}</p>
+            <p style={styles.signRole}>Authorized Signatory</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
+InvoicePDFTemplateModern.displayName = "InvoicePDFTemplateModern";

@@ -32,6 +32,7 @@ import {
   type HsnWiseTax,
 } from "./useSaleshistory";
 import { InvoicePDFTemplate } from "./InvoicePDFTemplate";
+import { InvoicePDFTemplateModern } from "./InvoicePDFTemplateModern";
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "./ThermalInvoiceTemplate";
 import { renderPaginatedInvoicePdf } from "@utils/pdfPagination";
 
@@ -453,6 +454,7 @@ export default function InvoiceDetailsModal({
     items: items.map((i: any) => ({
       item_id:   i.item_id,
       name:     i.item_name,
+      description: i.description,   // may be absent — item had no description at sale time
       category: i.variant_name ?? "",
       hsn:      i.hsn_code ?? "—",
       qty:      i.quantity,
@@ -1140,7 +1142,11 @@ export default function InvoiceDetailsModal({
 
       {/* Hidden PDF / thermal render targets */}
       <div style={{ position: "fixed", left: "-9999px", top: "-9999px", overflow: "hidden", pointerEvents: "none" }}>
-        <InvoicePDFTemplate ref={pdfRef} data={pdfData} />
+        {invoiceSettings?.invoice_template === "modern" ? (
+          <InvoicePDFTemplateModern ref={pdfRef} data={pdfData} />
+        ) : (
+          <InvoicePDFTemplate ref={pdfRef} data={pdfData} />
+        )}
         <ThermalInvoiceTemplate ref={thermalRef} data={pdfData} paperSize={thermalPaperSize} />
       </div>
 

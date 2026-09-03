@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -24,6 +24,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import DomainAddRoundedIcon from "@mui/icons-material/DomainAddRounded";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import SearchIcon from "@mui/icons-material/Search";
+import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
 import StorefrontIcon from "@mui/icons-material/Storefront";
 import RestaurantMenuIcon from "@mui/icons-material/RestaurantMenu";
@@ -113,6 +114,11 @@ export interface BusinessFormData {
   account_type: string;
   ifsc_code: string;
   can_use_for_branch: boolean;
+  // Newly picked file — sent as multipart alongside the rest of the form.
+  company_logo: File | null;
+  // The stored logo: a URL to keep it, or null to clear it. Left as the loaded
+  // value when untouched so the submit handler can tell "unchanged" from "cleared".
+  company_logo_url: string | null;
 }
 
 export type CompanyFormInitialData = Partial<
@@ -143,6 +149,8 @@ const EMPTY_FORM: BusinessFormData = {
   account_type: "",
   ifsc_code: "",
   can_use_for_branch: true,
+  company_logo: null,
+  company_logo_url: null,
 };
 
 interface Props {
@@ -189,6 +197,8 @@ export default function BusinessFormModal({
   const isEdit = Boolean(business);
   const [form, setForm] = useState<BusinessFormData>(EMPTY_FORM);
   const [stateSearch, setStateSearch] = useState("");
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -214,13 +224,55 @@ export default function BusinessFormModal({
         account_type: business.account_type ?? "",
         ifsc_code: business.ifsc_code ?? "",
         can_use_for_branch: true,
+        company_logo: null,
+        company_logo_url: business.company_logo_url ?? null,
       });
     } else {
       setForm(EMPTY_FORM);
     }
 
     setStateSearch("");
+    setLogoError(null);
   }, [open, business]);
+
+  // A picked file has no URL until it's uploaded, so preview it from an object URL
+  // and revoke it when the pick changes or the modal closes — otherwise every
+  // re-pick leaks a blob for the lifetime of the page.
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  useEffect(() => {
+    if (!form.company_logo) {
+      setLogoPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(form.company_logo);
+    setLogoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [form.company_logo]);
+
+  const logoSrc = logoPreview ?? form.company_logo_url;
+
+  const handleLogoPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setLogoError("Please choose an image file (JPG, PNG, etc.).");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setLogoError("Logo size should be below 2MB.");
+      return;
+    }
+    setLogoError(null);
+    setForm((prev) => ({ ...prev, company_logo: file }));
+  };
+
+  // Clears both the pending pick and the stored logo — company_logo_url: null is
+  // what tells the API to drop the one on the server.
+  const handleLogoRemove = () => {
+    setLogoError(null);
+    setForm((prev) => ({ ...prev, company_logo: null, company_logo_url: null }));
+  };
 
   const set =
     (key: keyof BusinessFormData) =>
@@ -233,6 +285,7 @@ export default function BusinessFormModal({
 
   const handleClose = () => {
     setStateSearch("");
+    setLogoError(null);
     onClose();
   };
 
@@ -291,6 +344,86 @@ export default function BusinessFormModal({
                 Basic Details
               </Typography>
               <Grid container spacing={2.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FieldLabel>Business Logo</FieldLabel>
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={handleLogoPick}
+                  />
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                    <Box
+                      onClick={() => logoInputRef.current?.click()}
+                      sx={{
+                        position: "relative",
+                        width: 84,
+                        height: 84,
+                        flexShrink: 0,
+                        border: "2px dashed #E2E8F0",
+                        borderRadius: "8px",
+                        bgcolor: "#F8FAFC",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        overflow: "hidden",
+                        "&:hover": { borderColor: "#af101a" },
+                      }}
+                    >
+                      {logoSrc ? (
+                        <>
+                          <Box
+                            component="img"
+                            src={logoSrc}
+                            alt="Business logo"
+                            sx={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }}
+                          />
+                          <Box
+                            onClick={(e) => { e.stopPropagation(); handleLogoRemove(); }}
+                            sx={{
+                              position: "absolute",
+                              top: 3,
+                              right: 3,
+                              width: 18,
+                              height: 18,
+                              borderRadius: "50%",
+                              bgcolor: "rgba(0,0,0,0.55)",
+                              color: "#fff",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              "&:hover": { bgcolor: "rgba(0,0,0,0.75)" },
+                            }}
+                          >
+                            <CloseIcon sx={{ fontSize: 12 }} />
+                          </Box>
+                        </>
+                      ) : (
+                        <>
+                          <ImageOutlinedIcon sx={{ fontSize: 22, color: "#9CA3AF" }} />
+                          <Typography sx={{ fontSize: 10.5, fontWeight: 600, color: "#9CA3AF", mt: 0.3 }}>
+                            Upload
+                          </Typography>
+                        </>
+                      )}
+                    </Box>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography sx={{ fontSize: 11.5, color: "#6B7280", lineHeight: 1.45 }}>
+                        PNG or JPG, up to 2MB.
+                        <br />
+                        Shown on invoices.
+                      </Typography>
+                      {logoError && (
+                        <Typography sx={{ fontSize: 11.5, color: "#af101a", fontWeight: 600, mt: 0.5 }}>
+                          {logoError}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <FieldLabel>Business Type *</FieldLabel>
                   <FormControl size="small" sx={{ ...inputSx, width: 220 }}>
