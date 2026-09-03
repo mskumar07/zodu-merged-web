@@ -10,6 +10,11 @@ import {
   Tooltip,
   Tabs,
   Tab,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  CircularProgress,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AddIcon from "@mui/icons-material/Add";
@@ -62,6 +67,35 @@ const theme = createTheme({
     // },
   },
 });
+
+// ─── Delete / Restore confirm dialog ───────────────────────────
+function CustomerStatusDialog({ open, isDelete, isPending, onConfirm, onCancel }: {
+  open: boolean; isDelete: boolean; isPending: boolean; onConfirm: () => void; onCancel: () => void;
+}) {
+  return (
+    <Dialog open={open} onClose={onCancel} maxWidth="xs" fullWidth slotProps={{ paper: { sx: { borderRadius: 2 } } }}>
+      <DialogTitle sx={{ fontWeight: 700, fontSize: 16, pb: 1 }}>
+        {isDelete ? "Inactive Customer" : "Restore Customer"}
+      </DialogTitle>
+      <DialogContent>
+        <Typography sx={{ fontSize: 14, color: "#374151" }}>
+          Are you sure you want to {isDelete ? "inactive" : "restore"} this customer?
+        </Typography>
+      </DialogContent>
+      <DialogActions sx={{ px: 2.5, pb: 2, gap: 1 }}>
+        <Button variant="outlined" onClick={onCancel} disabled={isPending}
+          sx={{ borderColor: "#E5E7EB", color: "#374151", fontWeight: 600, "&:hover": { borderColor: "#9CA3AF" } }}>
+          Cancel
+        </Button>
+        <Button variant="contained" onClick={onConfirm} disabled={isPending} disableElevation
+          startIcon={isPending ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : undefined}
+          sx={{ bgcolor: isDelete ? "#D2122E" : "#16A34A", color: "#fff", fontWeight: 700, "&:hover": { bgcolor: isDelete ? "#B00E26" : "#15803D" } }}>
+          {isDelete ? "Inactive" : "Restore"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
 
 interface Customer {
   id: string;
@@ -129,6 +163,7 @@ export default function CustomerManagement({
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [paymentTarget, setPaymentTarget] = useState<Customer | null>(null);
   const [toast, setToast] = useState<{ message: string; severity: "success" | "error" } | null>(null);
+  const [statusTarget, setStatusTarget] = useState<{ customer: Customer; isDelete: boolean } | null>(null);
 
   const sentinelRef       = useRef<HTMLTableRowElement>(null) as React.RefObject<HTMLTableRowElement>;
   const tableContainerRef = useRef<HTMLDivElement>(null)      as React.RefObject<HTMLDivElement>;
@@ -143,12 +178,13 @@ export default function CustomerManagement({
 
   const setCustomerActive = useSetCustomerActive({
     onSuccess: (customer) => {
+      setStatusTarget(null);
       setToast({
         message: customer.is_active ? "Customer restored successfully" : "Customer deleted successfully",
         severity: "success",
       });
     },
-    onError: (msg) => setToast({ message: msg, severity: "error" }),
+    onError: (msg) => { setStatusTarget(null); setToast({ message: msg, severity: "error" }); },
   });
 
   const apiCustomers = useMemo(
@@ -170,17 +206,19 @@ export default function CustomerManagement({
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   const handleDelete = useCallback((customer: Customer) => {
-    if (window.confirm("Delete this customer?")) {
-      setCustomerActive.mutate({ custUuid: customer.custUuid, isActive: false });
-      onDeleteCustomer?.(customer.id);
-    }
-  }, [onDeleteCustomer, setCustomerActive]);
+    setStatusTarget({ customer, isDelete: true });
+  }, []);
 
   const handleRestore = useCallback((customer: Customer) => {
-    if (window.confirm("Restore this customer?")) {
-      setCustomerActive.mutate({ custUuid: customer.custUuid, isActive: true });
-    }
-  }, [setCustomerActive]);
+    setStatusTarget({ customer, isDelete: false });
+  }, []);
+
+  const handleStatusConfirm = useCallback(() => {
+    if (!statusTarget) return;
+    const { customer, isDelete } = statusTarget;
+    setCustomerActive.mutate({ custUuid: customer.custUuid, isActive: !isDelete });
+    if (isDelete) onDeleteCustomer?.(customer.id);
+  }, [statusTarget, onDeleteCustomer, setCustomerActive]);
 
   const filtered: Customer[] = useMemo(() => {
     if (!apiCustomers || !Array.isArray(apiCustomers)) return [];
@@ -642,6 +680,14 @@ export default function CustomerManagement({
           message={toast?.message ?? ""}
           severity={toast?.severity ?? "success"}
           onClose={() => setToast(null)}
+        />
+
+        <CustomerStatusDialog
+          open={!!statusTarget}
+          isDelete={statusTarget?.isDelete ?? true}
+          isPending={setCustomerActive.isPending}
+          onConfirm={handleStatusConfirm}
+          onCancel={() => setStatusTarget(null)}
         />
 
         <AddNewCustomerDialog
