@@ -184,6 +184,8 @@ export interface SaleCustomer {
   city:           string | null;
   state:          string | null;
   pincode:        string | null;
+  shipping_address?:       string | null;
+  same_as_billing_address?: boolean | string | null;
 }
 
 export interface HsnWiseTax {

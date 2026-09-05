@@ -207,6 +207,9 @@ export interface SaveOrderParams {
   receivedAmount:    string;
   paymentType:       "Cash" | "UPI" | "Bank Transfer" | "Others";
   referenceNo:       string;
+  // POS settings — Stock Check. True only blocks the sale for insufficient
+  // stock when the branch has this toggle on; false lets it sell through.
+  stockCheckEnabled: boolean;
 }
 
 export interface SaveOrderResult {
@@ -271,6 +274,9 @@ export function useSaveOrder() {
         }),
 
         notes: null,
+
+        // POS settings — Stock Check
+        stock_check: params.stockCheckEnabled,
 
         items: params.items.map(li => ({
           item_uuid:      li.uuid,      // ✅ Always include item_uuid
@@ -350,6 +356,9 @@ const updateOrder = useCallback(async (
       }),
 
       notes: null,
+
+      // POS settings — Stock Check
+      stock_check: params.stockCheckEnabled,
 
       items: params.items.map(li => ({
         item_uuid:      li.uuid,

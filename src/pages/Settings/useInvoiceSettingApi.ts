@@ -66,6 +66,9 @@ export interface InvoiceSettingsResponse {
   // Which A4 invoice layout to render — "classic" (default) or "modern".
   // Irrelevant for thermal receipts, which only ever use the one layout.
   invoice_template: string;
+  // POS settings — "Additional Settings". Absent on rows that predate this field.
+  stock_check_enabled?: boolean;
+  customer_mandatory?: boolean;
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -101,6 +104,8 @@ export type UpdateInvoiceSettingsPayload = Partial<
     | "show_bank_details"
     | "payment_types"
     | "invoice_template"
+    | "stock_check_enabled"
+    | "customer_mandatory"
   >
 >;
 

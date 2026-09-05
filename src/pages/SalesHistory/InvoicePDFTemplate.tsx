@@ -69,6 +69,8 @@ const styles = {
   billLabel: { fontSize: "9px", fontWeight: 700, color: "#94A3B8", letterSpacing: "1px", marginBottom: "4px" },
   billName: { fontSize: "14px", fontWeight: 700, color: "#0F172A", margin: "0 0 4px 0" },
   billMeta: { fontSize: "11px", color: "#475569", margin: "2px 0" },
+  billCol: { flex: "1 1 0%", minWidth: 0, paddingRight: "16px" },
+  paymentCol: { flexShrink: 0, textAlign: "right" as const },
   paidBadge: {
     background: "#DCFCE7",
     color: "#16A34A",
@@ -117,6 +119,7 @@ const styles = {
     color: "#0F172A",
     borderBottom: "1px solid #E5E7EB",
     verticalAlign: "top" as const,
+    overflowWrap: "anywhere" as const,
   },
   tdRight: {
     padding: "8px 8px",
@@ -125,6 +128,9 @@ const styles = {
     borderBottom: "1px solid #E5E7EB",
     textAlign: "right" as const,
     verticalAlign: "top" as const,
+    // Currency values must never wrap mid-number — unlike free-text cells,
+    // there's no good place to break, so force a single line.
+    whiteSpace: "nowrap" as const,
   },
   tdCenter: {
     padding: "8px 8px",
@@ -133,12 +139,28 @@ const styles = {
     borderBottom: "1px solid #E5E7EB",
     textAlign: "center" as const,
     verticalAlign: "top" as const,
+    // HSN/Tax/Qty must stay on one line — wrapping (or overflowing) breaks
+    // alignment with the row next to it. Truncate with an ellipsis in the
+    // rare case a value is wider than the column, instead of letting it
+    // bleed into the next cell.
+    whiteSpace: "nowrap" as const,
+    overflow: "hidden" as const,
+    textOverflow: "ellipsis" as const,
   },
-  itemName: { fontWeight: 600, fontSize: "10px", color: "#0F172A" },
-  // Item IDs/SKUs are often long, unbroken alphanumeric codes with no spaces —
-  // without this they overflow the fixed-width column and visually run into
-  // the Item Name text next to them instead of wrapping onto a second line.
-  tdItemId: { overflowWrap: "anywhere" as const, wordBreak: "break-all" as const },
+  // Break only at word boundaries so the item title reads naturally — except
+  // for a single unbroken token wider than the column (garbage input, a SKU
+  // typed as the name), which falls back to a mid-word break instead of
+  // overflowing into the HSN column next to it.
+  itemName: { fontWeight: 600, fontSize: "10px", color: "#0F172A", overflowWrap: "break-word" as const, wordBreak: "normal" as const },
+  // Item IDs/SKUs must stay on one line, never wrap — truncate with an
+  // ellipsis if one is too long for the column rather than overflowing into
+  // the Item Name text next to it.
+  tdItemId: {
+    whiteSpace: "nowrap" as const,
+    overflow: "hidden" as const,
+    textOverflow: "ellipsis" as const,
+    fontSize: "9px",
+  },
   itemSub: { fontSize: "10px", color: "#6B7280", marginTop: "2px", lineHeight: 1.5, whiteSpace: "pre-line" as const },
 
   // Summary
@@ -199,6 +221,7 @@ const styles = {
     color: "#0F172A",
     borderBottom: "1px solid #F1F5F9",
     textAlign: "right" as const,
+    whiteSpace: "nowrap" as const,
   },
   gstTotalRow: { background: "#F8FAFC" },
   gstTotalTd: {
@@ -207,7 +230,7 @@ const styles = {
     fontWeight: 700,
     color: "#0F172A",
     borderTop: "1.5px solid #E5E7EB",
-    borderBottom: "none",
+    borderBottom: "1px solid #E5E7EB",
   },
   gstTotalTdRight: {
     padding: "8px 10px",
@@ -215,8 +238,9 @@ const styles = {
     fontWeight: 700,
     color: "#0F172A",
     borderTop: "1.5px solid #E5E7EB",
-    borderBottom: "none",
+    borderBottom: "1px solid #E5E7EB",
     textAlign: "right" as const,
+    whiteSpace: "nowrap" as const,
   },
   noteGrid: {
     display: "grid",
@@ -257,7 +281,6 @@ const styles = {
 
   // Footer
   footer: { marginTop: "18px" },
-  footerCopy: { fontSize: "10px", color: "#94A3B8", marginTop: "4px" },
   signBox: { textAlign: "right" as const },
   signLine: { borderTop: "1px solid #0F172A", width: "180px", marginLeft: "auto", marginBottom: "6px" },
   signLabel: { fontSize: "10px", fontWeight: 700, color: "#475569", letterSpacing: "1px", textTransform: "uppercase" as const },
@@ -302,6 +325,7 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
   const {
     sale_id, date, due_date,
     customer_name, customer_address, customer_mobile, customer_gstin,
+    customer_shipping_address,
     payment_mode, payment_status,
     items = [],
     subtotal, discount, discount_label,
@@ -311,9 +335,10 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
     amount_in_words,
     gst_breakdown = [],
   } = data;
-  const { profile, company, zoduId } = useTenantContext();
+  const { profile, company, zoduId, branchId } = useTenantContext();
   const companies = useAppSelector(AllCompanies);
   const selectedCompany = companies.find(c => c.zodu_id === zoduId);
+  const selectedBranch = selectedCompany?.branches?.find(b => b.branch_id === branchId);
   const reduxInvoiceSettings = useAppSelector(InvoiceSettingsData);
   const invoiceSettings = settingsOverride ?? reduxInvoiceSettings;
   const showCompanyLogo = invoiceSettings?.show_company_logo ?? false;
@@ -323,6 +348,7 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
   const showItemId = invoiceSettings?.show_item_id ?? false;
   const showSerialNo = invoiceSettings?.show_serial_no ?? true;
   const showCustomerDetails = invoiceSettings?.show_customer_details ?? true;
+  const showShipToDetails = showCustomerDetails && hasValue(customer_shipping_address);
   const showTaxDetails = invoiceSettings?.show_tax_details ?? true;
   const showPaymentDetails = invoiceSettings?.show_payment_details ?? false;
   const showTermsConditions = invoiceSettings?.show_terms_conditions ?? false;
@@ -334,6 +360,10 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
   // for an in-progress upload not yet saved) — real invoice rendering has no
   // such prop and falls back to the persisted value on invoiceSettings.
   const resolvedSignatureUrl = signatureUrl || invoiceSettings?.signature_url || "";
+  // Same prop-first-then-company-record fallback: the logo lives on the
+  // company (Company Details), not on invoice settings — real invoice
+  // rendering never passes `logoUrl` at all, it just reads the company row.
+  const resolvedLogoUrl = logoUrl || selectedCompany?.company_logo_url || "";
   const showBankDetails = invoiceSettings?.show_bank_details ?? true;
   // Same prop-first-then-persisted-settings fallback as signature: the Settings
   // page's live preview passes an in-progress (unsaved) color as `accentColor`;
@@ -343,16 +373,24 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
   const showDiscount = discount && Number(discount) > 0;
   const showRoundOff = round_off !== undefined && round_off !== null && Number(round_off) !== 0;
 
-  const addressParts = [
-    selectedCompany?.area_street_name || company?.address_line_1,
-    selectedCompany?.building_no || company?.address_line_2,
-    company?.city || selectedCompany?.city,
-    company?.district || selectedCompany?.district,
-    company?.state || selectedCompany?.state,
-    company?.pincode || selectedCompany?.pincode,
+  // The branch's own address takes priority — invoices are issued per branch
+  // and a branch's address can differ from the company's registered address.
+  // tbl_address only ever stores address_line_1/2, city, district, state and
+  // pincode (returned unprefixed on the branch record — there's no separate
+  // street-name/building-number column), so those are the only branch fields
+  // to read. Falls back to the company address for a branch missing its own.
+  const addressLine1Parts = [
+    selectedBranch?.address_line_1 || company?.address_line_1 || selectedCompany?.address_line_1,
+    selectedBranch?.address_line_2 || company?.address_line_2 || selectedCompany?.address_line_2,
   ].filter(Boolean);
-  const addressLine1 = addressParts.slice(0, 3).join(", ");
-  const addressLine2 = addressParts.slice(3).join(", ");
+  const addressLine2Parts = [
+    selectedBranch?.city || company?.city || selectedCompany?.city,
+    selectedBranch?.district || company?.district || selectedCompany?.district,
+    selectedBranch?.state || company?.state || selectedCompany?.state,
+    selectedBranch?.pincode || company?.pincode || selectedCompany?.pincode,
+  ].filter(Boolean);
+  const addressLine1 = addressLine1Parts.join(", ");
+  const addressLine2 = addressLine2Parts.join(", ");
 
   const co = {
     name:          selectedCompany?.restaurant_name || selectedCompany?.business_name || selectedCompany?.store_name || selectedCompany?.company_name || profile?.restaurant_name || "Your Company Name",
@@ -360,12 +398,22 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
     line1:         addressLine1,
     line2:         addressLine2,
     phone:         profile?.phone_number || selectedCompany?.phone_number || selectedCompany?.mobile_no || "",
-    bankName:      company?.bank_name || selectedCompany?.bank_name || "Bank Details N/A",
-    accountHolder: company?.holder_name || selectedCompany?.holder_name || "",
-    accountNumber: company?.account_number || selectedCompany?.account_number || "",
-    branchIfsc:    company?.ifsc_code || selectedCompany?.ifsc_code || "",
-    declaration:   "We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.",
+    bankName:      selectedBranch?.bank_name || company?.bank_name || selectedCompany?.bank_name || "Bank Details N/A",
+    bankBranch:    selectedBranch?.bank_branch || company?.bank_branch || selectedCompany?.bank_branch || "",
+    accountHolder: selectedBranch?.holder_name || company?.holder_name || selectedCompany?.holder_name || "",
+    accountNumber: selectedBranch?.account_number || company?.account_number || selectedCompany?.account_number || "",
+    branchIfsc:    selectedBranch?.ifsc_code || company?.ifsc_code || selectedCompany?.ifsc_code || "",
   };
+
+  // Only the fields that actually have a value get a row — a blank "Branch:"
+  // or "IFSC:" line looks like a rendering bug rather than missing data.
+  const bankRows: Array<[string, string]> = ([
+    ["Bank Name", co.bankName],
+    ["Account Holder", co.accountHolder],
+    ["A/c No.", co.accountNumber],
+    ["Branch", co.bankBranch],
+    ["IFSC", co.branchIfsc],
+  ] as Array<[string, string]>).filter(([, value]) => hasValue(value));
 
   return (
     <div ref={ref} style={{ ...styles.page, padding: isCompact ? "20px 24px" : styles.page.padding }}>
@@ -381,8 +429,8 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
       {/* ── HEADER ───────────────────────────────────────────── */}
       <div data-pdf-header style={styles.header}>
         <div>
-          {showCompanyLogo && logoUrl && (
-            <img src={logoUrl} alt="" style={{ maxHeight: 44, maxWidth: 140, objectFit: "contain", marginBottom: 8, display: "block" }} />
+          {showCompanyLogo && resolvedLogoUrl && (
+            <img src={resolvedLogoUrl} alt="" style={{ maxHeight: 44, maxWidth: 140, objectFit: "contain", marginBottom: 8, display: "block" }} />
           )}
           <h1 style={{ ...styles.brandName, color: resolvedAccentColor }}>{co.name}</h1>
           {co.gstin && <p style={styles.headerMeta}>GSTIN: {co.gstin}</p>}
@@ -422,7 +470,7 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
           marginBottom: isCompact ? 14 : styles.billBox.marginBottom,
         }}>
           {showCustomerDetails && (
-            <div>
+            <div style={styles.billCol}>
               <p style={styles.billLabel}>BILL TO</p>
               <h3 style={styles.billName}>{customer_name}</h3>
               {hasValue(customer_gstin) && (
@@ -437,8 +485,22 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
             </div>
           )}
 
+          {showShipToDetails && (
+            <div style={styles.billCol}>
+              <p style={styles.billLabel}>SHIP TO</p>
+              <h3 style={styles.billName}>{customer_name}</h3>
+              {hasValue(customer_gstin) && (
+                <p style={styles.billMeta}>GSTIN: {customer_gstin}</p>
+              )}
+              <p style={styles.billMeta}>{customer_shipping_address}</p>
+              {hasValue(customer_mobile) && (
+                <p style={styles.billMeta}>Mobile: {customer_mobile}</p>
+              )}
+            </div>
+          )}
+
           {showPaymentDetails && (
-            <div style={{ textAlign: "right" }}>
+            <div style={styles.paymentCol}>
               <span style={{
                 ...styles.paidBadge,
                 ...(payment_status === "unpaid" || payment_status === "pending"
@@ -458,15 +520,20 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
       {/* ── ITEMS TABLE ──────────────────────────────────────── */}
       <table style={{ ...styles.table, marginBottom: isCompact ? 16 : styles.table.marginBottom }}>
         <colgroup>
-          {showSerialNo && <col style={{ width: "40px" }} />}
-          {showItemId && <col style={{ width: "84px" }} />}
+          {showSerialNo && <col style={{ width: "30px" }} />}
+          {/* Wide enough for a typical SKU/item ID on one line without truncating. */}
+          {showItemId && <col style={{ width: "96px" }} />}
           <col />
-          <col style={{ width: "64px" }} />
-          <col style={{ width: "42px" }} />
+          {/* HSN codes run up to 8 digits under GST — must fit without truncation. */}
+          <col style={{ width: "68px" }} />
+          <col style={{ width: "36px" }} />
           <col style={{ width: "40px" }} />
-          <col style={{ width: "78px" }} />
-          <col style={{ width: "78px" }} />
-          <col style={{ width: "88px" }} />
+          {/* Amount columns are sized to fit large totals (up to 8-digit
+              rupee values) on one line — narrower widths let the nowrap
+              text overflow its cell and visually overlap the next column. */}
+          <col style={{ width: "106px" }} />
+          <col style={{ width: "106px" }} />
+          <col style={{ width: "120px" }} />
         </colgroup>
         <thead data-pdf-repeat-thead style={{ ...styles.thead, background: resolvedAccentColor }}>
           <tr>
@@ -550,18 +617,32 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
           <div style={{ borderTop: "2px solid #E5E7EB", margin: isCompact ? "6px 0" : "10px 0" }} />
 
           <SummaryRow label="Grand Total:" value={fmt(total)} large compact={isCompact} />
-
-          {amount_in_words && (
-            <p style={styles.amountWords}>Amount in words: {amount_in_words}</p>
-          )}
         </div>
       </div>
+
+      {/* Full page width, not the 300px summary box — a right-aligned phrase
+          this long wraps unnecessarily inside that narrow box even though
+          the rest of the page is empty. */}
+      {amount_in_words && (
+        <p style={{ ...styles.amountWords, marginTop: isCompact ? 4 : 6 }}>Amount in words: {amount_in_words}</p>
+      )}
 
       {/* ── HSN-WISE TAX BREAKDOWN (kept together across pages) ── */}
       {showTaxDetails && gst_breakdown.length > 0 && (
         <div data-pdf-keep-together style={{ ...styles.gstSection, marginTop: isCompact ? 18 : styles.gstSection.marginTop }}>
           <p style={styles.gstLabel}>HSN-wise Tax Breakdown</p>
           <table style={{ ...styles.table, marginBottom: 0 }}>
+            <colgroup>
+              <col style={{ width: "80px" }} />
+              {/* Amount columns get the bulk of the width so large totals
+                  never overflow their cell and overlap the next column. */}
+              <col />
+              <col style={{ width: "50px" }} />
+              <col />
+              <col style={{ width: "50px" }} />
+              <col />
+              <col />
+            </colgroup>
             <thead style={styles.gstThead}>
               <tr>
                 <th style={styles.gstTh}>HSN Code</th>
@@ -612,11 +693,6 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
       <div data-pdf-keep-together>
         <div style={{ ...styles.noteGrid, marginTop: isCompact ? 14 : styles.noteGrid.marginTop, gap: isCompact ? "16px" : styles.noteGrid.gap }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-            <div>
-              <p style={styles.noteLabel}>Declaration</p>
-              <p style={styles.noteText}>{co.declaration}</p>
-            </div>
-
             {showTermsConditions && termsConditionsText && (
               <div>
                 <p style={styles.noteLabel}>Terms &amp; Conditions</p>
@@ -635,34 +711,21 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
           {showBankDetails && (
             <div style={styles.bankBox}>
               <p style={styles.noteLabel}>Company&apos;s Bank Details</p>
-              <div style={styles.bankRow}>
-                <span style={styles.bankKey}>Bank Name</span>
-                <span style={styles.bankValue}>{co.bankName}</span>
-              </div>
-              {hasValue(co.accountHolder) && (
-                <div style={styles.bankRow}>
-                  <span style={styles.bankKey}>Account Holder</span>
-                  <span style={styles.bankValue}>{co.accountHolder}</span>
+              {bankRows.map(([label, value], i) => (
+                <div
+                  key={label}
+                  style={i === bankRows.length - 1 ? { ...styles.bankRow, marginBottom: 0 } : styles.bankRow}
+                >
+                  <span style={styles.bankKey}>{label}</span>
+                  <span style={styles.bankValue}>{value}</span>
                 </div>
-              )}
-              <div style={styles.bankRow}>
-                <span style={styles.bankKey}>A/c No.</span>
-                <span style={styles.bankValue}>{co.accountNumber}</span>
-              </div>
-              <div style={{ ...styles.bankRow, marginBottom: 0 }}>
-                <span style={styles.bankKey}>Branch &amp; IFSC</span>
-                <span style={styles.bankValue}>{co.branchIfsc}</span>
-              </div>
+              ))}
             </div>
           )}
         </div>
 
         {/* ── FOOTER ─────────────────────────────────────────── */}
         <div style={{ ...styles.footer, marginTop: isCompact ? 16 : styles.footer.marginTop }}>
-          <p style={styles.footerCopy}>
-            © 2024 {co.name}. Authorised Signatory Required.
-          </p>
-
           {showSignature && (
             <div style={styles.signBox}>
               {resolvedSignatureUrl && (

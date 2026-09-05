@@ -51,6 +51,7 @@ export interface Branch {
   area_street_name?: string;
   address_line_1?: string;
   address_line_2?: string;
+  pincode?: string;
   same_as_address?: boolean;
   same_as_bank_details?: boolean;
 }
@@ -77,6 +78,8 @@ export interface CompanyWithBranches {
   mail_id?: string;        // ✅ API field name
   area_street_name?: string;
   building_no?: string;
+  address_line_1?: string;
+  address_line_2?: string;
   pincode?: string;
   account_number?: string;
   account_type?: string;
@@ -292,6 +295,7 @@ export interface InvoiceSettings {
   show_notes: boolean;
   notes: string;
   show_signature: boolean;
+  signature_url?: string | null;
   show_bank_details: boolean;
   // Payment types offered at POS checkout, as canonical labels
   // (e.g. ["Cash", "UPI", "UPI + Cash", "Others"]). Stored server-side as TEXT[].
@@ -299,6 +303,9 @@ export interface InvoiceSettings {
   payment_types?: string[];
   // Which A4 invoice layout to render — "classic" (default) or "modern".
   invoice_template?: string;
+  // POS settings — "Additional Settings". Absent on rows that predate this field.
+  stock_check_enabled?: boolean;
+  customer_mandatory?: boolean;
   active: boolean;
   created_at?: string;
   updated_at?: string;

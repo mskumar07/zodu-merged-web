@@ -10,6 +10,7 @@ import {
   Paper,
   Select,
   Stack,
+  Switch,
   TextField,
   Typography,
 } from "@mui/material";
@@ -21,6 +22,8 @@ import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
 import FormatListNumberedRoundedIcon from "@mui/icons-material/FormatListNumberedRounded";
 import TagRoundedIcon from "@mui/icons-material/TagRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
+import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
+import GroupRoundedIcon from "@mui/icons-material/GroupRounded";
 import SuccessToast from "@components/Common/SuccessToast";
 import { useAppDispatch, useAppSelector } from "@store/store";
 import { BusinessType, setInvoiceSettings } from "@store/slices/userSlice";
@@ -101,6 +104,8 @@ interface PosSettings {
   invoiceDueDays: string;
   defaultPaymentMethod: string;
   posPaymentTypes: PaymentTypeLabel[];
+  stockCheckEnabled: boolean;
+  customerMandatory: boolean;
 }
 
 function getDefaultPosSettings(): PosSettings {
@@ -112,6 +117,8 @@ function getDefaultPosSettings(): PosSettings {
     invoiceDueDays: "15",
     defaultPaymentMethod: "cash",
     posPaymentTypes: DEFAULT_POS_PAYMENT_TYPES,
+    stockCheckEnabled: false,
+    customerMandatory: false,
   };
 }
 
@@ -242,6 +249,7 @@ export default function PosSetting() {
   // Last-loaded-or-saved snapshot — diffed at save time so the PUT (shared
   // with the Invoice settings tab) only sends the fields owned by this tab.
   const baselineRef = useRef<PosSettings | null>(null);
+
   const [saved, setSaved] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -258,6 +266,8 @@ export default function PosSetting() {
         invoiceDueDays: String(data.invoice_due_days),
         defaultPaymentMethod: PAYMENT_METHOD_TO_CODE[data.default_payment_method] ?? "cash",
         posPaymentTypes: parsePosPaymentTypes(data.payment_types),
+        stockCheckEnabled: data.stock_check_enabled ?? false,
+        customerMandatory: data.customer_mandatory ?? false,
       };
       setSettings(ui);
       baselineRef.current = ui;
@@ -278,6 +288,8 @@ export default function PosSetting() {
         invoiceDueDays: String(updated.invoice_due_days),
         defaultPaymentMethod: PAYMENT_METHOD_TO_CODE[updated.default_payment_method] ?? "cash",
         posPaymentTypes: parsePosPaymentTypes(updated.payment_types),
+        stockCheckEnabled: updated.stock_check_enabled ?? false,
+        customerMandatory: updated.customer_mandatory ?? false,
       };
       setSettings(ui);
       baselineRef.current = ui;
@@ -333,6 +345,8 @@ export default function PosSetting() {
       invoice_due_days: parseInt(settings.invoiceDueDays, 10) || 0,
       default_payment_method: PAYMENT_CODE_TO_METHOD[settings.defaultPaymentMethod] ?? settings.defaultPaymentMethod,
       payment_types: toPaymentTypesPayload(settings.posPaymentTypes, settings.defaultPaymentMethod),
+      stock_check_enabled: settings.stockCheckEnabled,
+      customer_mandatory: settings.customerMandatory,
     };
 
     if (!baselineRef.current) {
@@ -348,6 +362,8 @@ export default function PosSetting() {
       invoice_due_days: parseInt(baselineRef.current.invoiceDueDays, 10) || 0,
       default_payment_method: PAYMENT_CODE_TO_METHOD[baselineRef.current.defaultPaymentMethod] ?? baselineRef.current.defaultPaymentMethod,
       payment_types: toPaymentTypesPayload(baselineRef.current.posPaymentTypes, baselineRef.current.defaultPaymentMethod),
+      stock_check_enabled: baselineRef.current.stockCheckEnabled,
+      customer_mandatory: baselineRef.current.customerMandatory,
     };
 
     const diff: UpdateInvoiceSettingsPayload = {};
@@ -600,6 +616,45 @@ export default function PosSetting() {
                 ))}
               </Select>
             </FormControl>
+          </SettingRow>
+        </Section>
+
+        <Section
+          title="Additional Settings"
+          subtitle="Configure additional POS behaviours"
+          gridColumn={{ md: "1" }}
+          gridRow={{ md: "3" }}
+        >
+          <SettingRow
+            icon={<Inventory2RoundedIcon fontSize="small" />}
+            iconBg="#fff7ed"
+            iconColor="#ea580c"
+            label="Stock Check"
+            description="Check stock availability while adding items in POS"
+          >
+            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+              <Switch
+                checked={settings.stockCheckEnabled}
+                onChange={(e) => update("stockCheckEnabled", e.target.checked)}
+              />
+            </Box>
+          </SettingRow>
+
+          <Divider sx={{ borderColor: "#f4f5f8" }} />
+
+          <SettingRow
+            icon={<GroupRoundedIcon fontSize="small" />}
+            iconBg="#faf5ff"
+            iconColor="#7c3aed"
+            label="Customer Mandatory"
+            description="Make customer selection mandatory in POS"
+          >
+            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+              <Switch
+                checked={settings.customerMandatory}
+                onChange={(e) => update("customerMandatory", e.target.checked)}
+              />
+            </Box>
           </SettingRow>
         </Section>
       </Box>

@@ -100,9 +100,9 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
         {
           key: "name",
           label: "Item Name",
-          width: 220,
+          width: 320,
           render: (product) => (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, maxWidth: 220 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, maxWidth: 320 }}>
               <Avatar
                 src={product.imageUrl}
                 variant="rounded"
@@ -119,8 +119,8 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
                       fontSize: 13,
                       color: TABLE_TEXT_COLOR,
                       whiteSpace: "normal",
-                      wordBreak: "break-all",
-                      width: 175,
+                      wordBreak: "break-word",
+                      width: 260,
                     }}
                   >
                     {product.name}
@@ -133,7 +133,7 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
                     color: TABLE_TEXT_COLOR,
                     whiteSpace: "normal",
                     wordBreak: "break-word",
-                    maxWidth: 165,
+                    maxWidth: 260,
                   }}
                 >
                   {product.category}
@@ -145,6 +145,7 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
         {
           key: "purchase_price",
           label: "Purchase Price",
+          width: 120,
           align: "right",
           render: (product) => (
             <Typography variant="body2" fontWeight={600} sx={{ fontSize: 13, color: TABLE_TEXT_COLOR }}>
@@ -155,6 +156,7 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
         {
           key: "mrp",
           label: "MRP",
+          width: 100,
           align: "right",
           render: (product) => (
             <Typography variant="body2" sx={{ fontSize: 13, color: TABLE_TEXT_COLOR }}>
@@ -165,6 +167,7 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
         {
           key: "rate",
           label: "Rate",
+          width: 100,
           align: "right",
           render: (product) => (
             <Typography variant="body2" fontWeight={600} sx={{ fontSize: 13, color: TABLE_TEXT_COLOR }}>

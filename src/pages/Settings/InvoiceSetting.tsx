@@ -39,6 +39,7 @@ import {
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "../SalesHistory/ThermalInvoiceTemplate";
 import { InvoicePDFTemplate } from "../SalesHistory/InvoicePDFTemplate";
 import { InvoicePDFTemplateModern } from "../SalesHistory/InvoicePDFTemplateModern";
+import { numberToWords } from "@utils/numberToWords";
 
 // ── Sample data for the live receipt preview — never sent anywhere, just
 // rendered locally so toggling an element shows its effect immediately.
@@ -54,6 +55,7 @@ const PREVIEW_CGST_RATE = 2.5;
 const PREVIEW_SGST_RATE = 2.5;
 const PREVIEW_CGST_AMT = Math.round(PREVIEW_TAXABLE * PREVIEW_CGST_RATE) / 100;
 const PREVIEW_SGST_AMT = PREVIEW_CGST_AMT;
+const PREVIEW_GRAND_TOTAL = PREVIEW_TAXABLE + PREVIEW_CGST_AMT + PREVIEW_SGST_AMT;
 const PREVIEW_DATA = {
   sale_id: "PREVIEW-0001",
   date: new Date().toLocaleDateString("en-GB"),
@@ -71,8 +73,9 @@ const PREVIEW_DATA = {
   cgst: PREVIEW_CGST_AMT,
   sgst: PREVIEW_SGST_AMT,
   round_off: 0,
-  total: PREVIEW_TAXABLE + PREVIEW_CGST_AMT + PREVIEW_SGST_AMT,
-  grand_total: PREVIEW_TAXABLE + PREVIEW_CGST_AMT + PREVIEW_SGST_AMT,
+  total: PREVIEW_GRAND_TOTAL,
+  grand_total: PREVIEW_GRAND_TOTAL,
+  amount_in_words: `${numberToWords(Math.round(PREVIEW_GRAND_TOTAL))} Rupees Only`,
   gst_breakdown: [
     { hsn: "1234", cgstRate: PREVIEW_CGST_RATE, sgstRate: PREVIEW_SGST_RATE, cgstAmount: PREVIEW_CGST_AMT, sgstAmount: PREVIEW_SGST_AMT, taxable: PREVIEW_TAXABLE, totalTaxAmount: PREVIEW_CGST_AMT + PREVIEW_SGST_AMT },
   ],
@@ -402,7 +405,7 @@ function ImageUploadSlot({
         onClick={() => !uploading && inputRef.current?.click()}
         sx={{
           position: "relative",
-          height: compact ? 56 : shape === "banner" ? 84 : 100,
+          height: compact ? (shape === "banner" ? 84 : 56) : shape === "banner" ? 84 : 100,
           border: "2px dashed",
           borderColor: cardBorder,
           borderRadius: 1.5,
@@ -594,19 +597,49 @@ export default function InvoiceSetting() {
   useEffect(() => {
     if (data) {
       const ui = toUiSettings(data);
-      setSettings(ui);
+      // Capture the prior baseline *before* it's overwritten below — the
+      // setSettings updater runs after this effect returns, so reading
+      // baselineRef.current from inside it would see the new value we're
+      // about to assign, not the one it should be diffed against.
+      const previousBaseline = baselineRef.current;
+      // Merge rather than overwrite: uploading/removing a signature refreshes
+      // this same query-cache entry mid-edit, and a blind overwrite here was
+      // reverting any toggle the user had changed but not yet saved — e.g.
+      // switching "Authorized Signature" on right before uploading the image
+      // snapped it back off as soon as the upload's response landed.
+      setSettings((prev) => {
+        if (!previousBaseline) return ui;
+        // Built via fromEntries rather than indexed assignment on a typed
+        // object — TS can't verify a `merged[key] = prev[key]` write is safe
+        // when `key` is a union of every settings key, even though it is.
+        return Object.fromEntries(
+          (Object.keys(ui) as Array<keyof InvoiceSettings>).map((key) => [
+            key,
+            prev[key] !== previousBaseline[key] ? prev[key] : ui[key],
+          ])
+        ) as unknown as InvoiceSettings;
+      });
       baselineRef.current = ui;
       setSignatureUrl(data.signature_url ?? "");
     }
   }, [data]);
 
   const { mutate: uploadSignature, isPending: signatureUploading } = useUploadInvoiceSignature({
-    onSuccess: (updated) => setSignatureUrl(updated.signature_url ?? ""),
+    onSuccess: (updated) => {
+      setSignatureUrl(updated.signature_url ?? "");
+      // Real invoices (POS, sale history) read the signature from Redux, not
+      // this page's query cache — without this dispatch the new image would
+      // only show up after the next login/branch switch.
+      dispatch(setInvoiceSettings(updated));
+    },
     onError: () => setErrorMsg("Failed to upload signature. Please try again."),
   });
 
   const { mutate: removeSignature, isPending: signatureDeleting } = useDeleteInvoiceSignature({
-    onSuccess: () => setSignatureUrl(""),
+    onSuccess: (updated) => {
+      setSignatureUrl("");
+      dispatch(setInvoiceSettings(updated));
+    },
     onError: () => setErrorMsg("Failed to remove signature. Please try again."),
   });
 
@@ -1002,13 +1035,7 @@ export default function InvoiceSetting() {
               </Box>
             </SettingRow>
             {settings.showSignature && (
-              <SettingRow
-                icon={<BorderColorOutlinedIcon fontSize="small" />}
-                iconBg="#eef4ff"
-                iconColor="#2563eb"
-                label="Signature Image"
-                description="Upload the authorized signatory's signature"
-              >
+              <Box sx={{ pb: 2 }}>
                 <ImageUploadSlot
                   compact
                   label="Signature Image"
@@ -1019,7 +1046,7 @@ export default function InvoiceSetting() {
                   onUpload={(file) => uploadSignature(file)}
                   onRemove={() => removeSignature()}
                 />
-              </SettingRow>
+              </Box>
             )}
 
             <Divider sx={{ borderColor: "#f4f5f8" }} />
@@ -1171,24 +1198,6 @@ export default function InvoiceSetting() {
                     </Box>
                   );
                 })}
-                <Box
-                  component="input"
-                  type="color"
-                  value={COLOR_HEX_REGEX.test(settings.invoiceThemeColor) ? settings.invoiceThemeColor : DEFAULT_INVOICE_COLOR}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => update("invoiceThemeColor", e.target.value.toUpperCase())}
-                  sx={{
-                    width: 46,
-                    height: 34,
-                    p: 0,
-                    border: "1px solid",
-                    borderColor: cardBorder,
-                    borderRadius: 1,
-                    cursor: "pointer",
-                    flexShrink: 0,
-                    "&::-webkit-color-swatch-wrapper": { padding: 0 },
-                    "&::-webkit-color-swatch": { border: "none", borderRadius: 1 },
-                  }}
-                />
               </Box>
             </Section>
           )}
@@ -1353,6 +1362,7 @@ export default function InvoiceSetting() {
                   settingsOverride={previewSettingsOverride}
                   theme={theme}
                   logoUrl={companyLogoUrl}
+                  signatureUrl={signatureUrl}
                 />
               )}
             </Box>

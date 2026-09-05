@@ -188,7 +188,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
         purchase_price: values.purchasePrice ? Number(values.purchasePrice) : null,
         mrp:            values.mrp           ? Number(values.mrp)           : null,
         sell_price:     values.rate          ? Number(values.rate)          : null,
-        gst_type:       values.gstId         ? Number(values.gstId)         : null,
+        gst_type:       values.gstId && values.gstId !== 'none' ? Number(values.gstId) : null,
         tax_incl_type:  values.taxInclusion === 'Incl.',
         hsn_code:       values.hsn     || null,
         barcode:        values.barcode || null,
@@ -244,6 +244,16 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
   const { data: unitOptions = [], isLoading: unitsLoading }      = useUnitList();
   const invoiceSettings = useAppSelector(InvoiceSettingsData);
   const defaultGstOption = gstOptions.find((g) => g.label === invoiceSettings?.default_tax_label);
+  // gst_type is the numeric gst_id (see GstOption) — the dropdown must offer
+  // these real, branch-configured rates rather than a fixed label list, or
+  // the id the user "picks" won't match anything and gst_type saves as null.
+  const gstSelectOptions = useMemo(
+    () => [
+      { value: "none", label: "None" },
+      ...gstOptions.map((g) => ({ value: String(g.value), label: g.label })),
+    ],
+    [gstOptions]
+  );
 
   // Default the tax rate from invoice settings when adding a new item (not editing).
   useEffect(() => {
@@ -874,22 +884,10 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
       <Label text="Tax Type"/>
       <FormControl fullWidth size="small" error={touch.gstId && Boolean(err.gstId)}>
         <Autocomplete
-          options={[
-            { value: "none", label: "None" },
-            { value: "GST5", label: "GST 5%" },
-            { value: "GST12", label: "GST 12%" },
-            { value: "GST18", label: "GST 18%" },
-            { value: "GST28", label: "GST 28%" },
-          ]}
+          options={gstSelectOptions}
           getOptionLabel={(g) => g.label}
           isOptionEqualToValue={(a, b) => String(a.value) === String(b.value)}
-          value={[
-            { value: "none", label: "None" },
-            { value: "GST5", label: "GST 5%" },
-            { value: "GST12", label: "GST 12%" },
-            { value: "GST18", label: "GST 18%" },
-            { value: "GST28", label: "GST 28%" },
-          ].find(g => String(g.value) === String(formik.values.gstId)) ?? null}
+          value={gstSelectOptions.find(g => String(g.value) === String(formik.values.gstId)) ?? null}
           onChange={(_e, newValue) => formik.setFieldValue('gstId', newValue ? String(newValue.value) : '')}
           loading={gstLoading}
           noOptionsText="No tax types found"

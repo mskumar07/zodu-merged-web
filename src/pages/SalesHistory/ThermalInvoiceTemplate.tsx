@@ -557,6 +557,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
       settingsOverride,
       theme = "classic",
       logoUrl,
+      signatureUrl,
     }: {
       data: any;
       paperSize?: ThermalPaperSize;
@@ -568,12 +569,16 @@ export const ThermalInvoiceTemplate = React.forwardRef(
       theme?: "compact" | "classic";
       /** Uploaded company logo — falls back to a plain ★ when not set. */
       logoUrl?: string;
+      /** Preview-only in-progress signature upload — real printing falls back
+       * to the persisted value on invoiceSettings (see resolvedSignatureUrl). */
+      signatureUrl?: string;
     },
     ref: any
   ) => {
-    const { profile, company, zoduId } = useTenantContext();
+    const { profile, company, zoduId, branchId } = useTenantContext();
     const companies = useAppSelector(AllCompanies);
     const selectedCompany = companies.find(c => c.zodu_id === zoduId);
+    const selectedBranch = selectedCompany?.branches?.find(b => b.branch_id === branchId);
     const reduxInvoiceSettings = useAppSelector(InvoiceSettingsData);
     const invoiceSettings = settingsOverride ?? reduxInvoiceSettings;
     const compact = theme === "compact";
@@ -586,6 +591,14 @@ export const ThermalInvoiceTemplate = React.forwardRef(
     const showNotes = invoiceSettings?.show_notes ?? false;
     const notesText = invoiceSettings?.notes ?? "";
     const showSignature = invoiceSettings?.show_signature ?? false;
+    // `signatureUrl` is an explicit prop (used by the Settings-page live preview
+    // for an in-progress upload not yet saved) — real invoice rendering has no
+    // such prop and falls back to the persisted value on invoiceSettings.
+    const resolvedSignatureUrl = signatureUrl || invoiceSettings?.signature_url || "";
+    // Same prop-first-then-company-record fallback: the logo lives on the
+    // company (Company Details), not on invoice settings — real invoice
+    // rendering never passes `logoUrl` at all, it just reads the company row.
+    const resolvedLogoUrl = logoUrl || selectedCompany?.company_logo_url || "";
     const cfg = PAPER[paperSize];
     // 3" rolls are too narrow for a 5-column item grid — items stack onto
     // two lines and the GST summary/totals switch to compact single-column text.
@@ -630,17 +643,25 @@ export const ThermalInvoiceTemplate = React.forwardRef(
     }
 
     // ── Company info ──
-    const addressParts = [
-      selectedCompany?.area_street_name || company?.address_line_1,
-      selectedCompany?.building_no || company?.address_line_2,
-      company?.city || selectedCompany?.city,
-      company?.district || selectedCompany?.district,
-      company?.state || selectedCompany?.state,
-      company?.pincode || selectedCompany?.pincode,
+    // The branch's own address takes priority — invoices are issued per branch
+    // and a branch's address can differ from the company's registered address.
+    // tbl_address only ever stores address_line_1/2, city, district, state and
+    // pincode (returned unprefixed on the branch record — there's no separate
+    // street-name/building-number column), so those are the only branch fields
+    // to read. Falls back to the company address for a branch missing its own.
+    const addressLine1Parts = [
+      selectedBranch?.address_line_1 || company?.address_line_1 || selectedCompany?.address_line_1,
+      selectedBranch?.address_line_2 || company?.address_line_2 || selectedCompany?.address_line_2,
     ].filter(Boolean);
-    
-    const addressLine1 = addressParts.slice(0, 3).join(", ");
-    const addressLine2 = addressParts.slice(3).join(", ");
+    const addressLine2Parts = [
+      selectedBranch?.city || company?.city || selectedCompany?.city,
+      selectedBranch?.district || company?.district || selectedCompany?.district,
+      selectedBranch?.state || company?.state || selectedCompany?.state,
+      selectedBranch?.pincode || company?.pincode || selectedCompany?.pincode,
+    ].filter(Boolean);
+
+    const addressLine1 = addressLine1Parts.join(", ");
+    const addressLine2 = addressLine2Parts.join(", ");
     const companyName  = selectedCompany?.restaurant_name || selectedCompany?.business_name || selectedCompany?.store_name || selectedCompany?.company_name || profile?.restaurant_name || "Your Company";
     const companyGstin = company?.gst_no || selectedCompany?.gst_no || "";
     const companyPhone = profile?.phone_number || selectedCompany?.phone_number || selectedCompany?.mobile_no || "";
@@ -699,9 +720,9 @@ export const ThermalInvoiceTemplate = React.forwardRef(
         {/* ── HEADER ── */}
         <div style={{ textAlign: "center", marginBottom: compact ? 2 : 6 }}>
           {showCompanyLogo && (
-            logoUrl ? (
+            resolvedLogoUrl ? (
               <img
-                src={logoUrl}
+                src={resolvedLogoUrl}
                 alt=""
                 style={{ maxHeight: cfg.headerFontSize * 2.2, maxWidth: "60%", marginBottom: 4, objectFit: "contain" }}
               />
@@ -1041,6 +1062,13 @@ export const ThermalInvoiceTemplate = React.forwardRef(
           )}
           {showSignature && (
             <div style={{ marginTop: 14 }}>
+              {resolvedSignatureUrl && (
+                <img
+                  src={resolvedSignatureUrl}
+                  alt="Authorized signature"
+                  style={{ maxHeight: 40, maxWidth: "60%", objectFit: "contain", margin: "0 auto 4px", display: "block" }}
+                />
+              )}
               <div style={{ borderTop: "1px solid #000", width: "70%", margin: "0 auto 4px" }} />
               <div style={{ fontSize: fs - 1, fontWeight: 700 }}>Authorized Signatory</div>
             </div>

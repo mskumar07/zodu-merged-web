@@ -59,6 +59,7 @@ import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import jsPDF                  from "jspdf";
 import { renderPaginatedInvoicePdf } from "@utils/pdfPagination";
+import { numberToWords } from "@utils/numberToWords";
 import { useLocation }        from "react-router-dom";
 import CustomerLedgerDialog   from "../Customer/CustomerLedgerDialog";
 import AddNewCustomerDialog   from "@pages/Customer/Addnewcustomerdialog";
@@ -253,10 +254,6 @@ function Highlight({ text, query }: { text: string; query: string }) {
       {text.slice(index + query.length)}
     </>
   );
-}
-
-function toWords(n: number): string {
-  return n.toLocaleString("en-IN");
 }
 
 const queryClient = new QueryClient();
@@ -544,13 +541,23 @@ useEffect(() => {
   // This is the single source of truth for qty — callers must not re-set it afterwards,
   // or a repeat scan/Enter of the same item stops incrementing.
   const addProductLine = useCallback((p: PosProduct) => {
+    if (invoiceSettings?.stock_check_enabled) {
+      const existingQty = items.find(i => i.code === p.item_id)?.qty ?? 0;
+      if (existingQty + 1 > p.stock_qty) {
+        setToastSeverity('error');
+        setScanMsg(p.stock_qty > 0
+          ? `Only ${p.stock_qty} in stock for "${p.item_name}"`
+          : `"${p.item_name}" is out of stock`);
+        return;
+      }
+    }
     setItems(prev => {
       const idx = prev.findIndex(i => i.code === p.item_id);
       if (idx >= 0) { const e = prev[idx]; return [{ ...e, qty: e.qty + 1, uuid: p.item_uuid }, ...prev.filter((_, i) => i !== idx)]; }
       return [toLineItem(p), ...prev];
     });
     setFlashRow(p.item_id); setTimeout(() => setFlashRow(null), 700);
-  }, []);
+  }, [items, invoiceSettings]);
 
   const doAddItem = useCallback((itemId: string) => {
     const p = suggestions.find(s => s.item_id === itemId);
@@ -821,13 +828,46 @@ console.log("test",serverHolds)
     if (dueDateInputRef.current) { dueDateInputRef.current.showPicker(); dueDateInputRef.current.focus(); }
   };
 
-  const updateQty  = (code: string, delta: number) =>
+  const updateQty  = (code: string, delta: number) => {
+    if (delta > 0 && invoiceSettings?.stock_check_enabled) {
+      const item = items.find(i => i.code === code);
+      const stockQty = allProducts.find(p => p.item_id === code)?.stock_qty;
+      if (item && stockQty !== undefined && item.qty + delta > stockQty) {
+        setToastSeverity('error');
+        setScanMsg(stockQty > 0
+          ? `Only ${stockQty} in stock for "${item.description}"`
+          : `"${item.description}" is out of stock`);
+        return;
+      }
+    }
     setItems(prev => prev.map(i => {
       if (i.code !== code) return i;
       const qty = Math.max(1, i.qty + delta);
       const discount = i.discountPct ? parseFloat(((i.discountPct * qty * i.sellPrice) / 100).toFixed(2)) : i.discount;
       return { ...i, qty, discount };
     }));
+  };
+
+  // Commits a typed quantity (qty box blur/Enter/Tab) — shared so both call
+  // sites apply the same stock cap instead of duplicating the clamp logic.
+  const commitQtyDraft = (code: string, rawValue: string) => {
+    let newQty = Math.max(1, parseFloat(rawValue) || 1);
+    if (invoiceSettings?.stock_check_enabled) {
+      const stockQty = allProducts.find(p => p.item_id === code)?.stock_qty;
+      if (stockQty !== undefined && newQty > stockQty) {
+        newQty = Math.max(1, stockQty);
+        setToastSeverity('error');
+        setScanMsg(stockQty > 0
+          ? `Only ${stockQty} in stock — quantity capped at ${newQty}`
+          : `Item is out of stock`);
+      }
+    }
+    setItems(prev => prev.map(i => {
+      if (i.code !== code) return i;
+      const discount = i.discountPct ? parseFloat(((i.discountPct * newQty * i.sellPrice) / 100).toFixed(2)) : i.discount;
+      return { ...i, qty: newQty, discount, editingQty: false, qtyDraft: undefined };
+    }));
+  };
 
   const removeItem = (code: string) => {
     setItems(prev => {
@@ -869,9 +909,14 @@ console.log("test",serverHolds)
 
   const handleSave = useCallback(async () => {
     if (items.length === 0 || saving) return;
+    if (invoiceSettings?.customer_mandatory && !customer.id) {
+      setSaveResult({ open: true, success: false, message: "Please select a customer before completing this sale." });
+      return;
+    }
+    const stockCheckEnabled = !!invoiceSettings?.stock_check_enabled;
     const result = saleId
-      ? await updateOrder(saleId, { zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, dueDate: dueDateEnabled ? dueDate : "", discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo })
-      : await saveOrder({ zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, dueDate: dueDateEnabled ? dueDate : "", discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo });
+      ? await updateOrder(saleId, { zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, dueDate: dueDateEnabled ? dueDate : "", discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo, stockCheckEnabled })
+      : await saveOrder({ zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, dueDate: dueDateEnabled ? dueDate : "", discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo, stockCheckEnabled });
     if (result.success) {
       console.log("save Result",result)
       const order    = result.order as any;
@@ -891,7 +936,7 @@ console.log("test",serverHolds)
       setSavedOrderSnapshot(null);
       setSaveResult({ open: true, success: false, message: result.message });
     }
-  }, [items, customer, invoiceDate, dueDate, dueDateEnabled, discountPct, discount, gstMode, roundoffValue, posMode, receivedAmount, paymentType, referenceNo, printEnabled, saving, saveOrder, updateOrder, handleClear, saleId, saleIdFromUrl]);
+  }, [items, customer, invoiceDate, dueDate, dueDateEnabled, discountPct, discount, gstMode, roundoffValue, posMode, receivedAmount, paymentType, referenceNo, printEnabled, saving, saveOrder, updateOrder, handleClear, saleId, saleIdFromUrl, invoiceSettings]);
 
   const handleThermalPrint = useCallback(() => {
     if (!thermalRef.current) return;
@@ -1099,6 +1144,7 @@ console.log("test",serverHolds)
     const customerAddress = saleCustomer?.address?.trim() || "-";
     const customerMobile = saleCustomer?.mobile?.trim() ? `+91 ${saleCustomer.mobile}` : "-";
     const customerGstin = saleCustomer?.gstin?.trim() || "-";
+    const customerShippingAddress = saleCustomer?.shippingAddress?.trim() || "";
     const hasDiscount = Number(order.discount_amount ?? 0) > 0;
     const discountLabel = order.discount_type === "percentage"
       ? `Discount (${Number(order.discount_value ?? 0)}%)`
@@ -1117,6 +1163,7 @@ console.log("test",serverHolds)
       customer_address: customerAddress,
       customer_mobile: customerMobile,
       customer_gstin: customerGstin,
+      customer_shipping_address: customerShippingAddress,
       payment_mode: payment?.transaction_type ?? paymentType,
       payment_status: order.payment_status,
       items: saleItems.map((item) => ({
@@ -1140,7 +1187,7 @@ console.log("test",serverHolds)
       sgst_pct: savedHsnBreakdown[0]?.sgstRate ?? 0,
       round_off: order.round_off,
       total: totalAmount,
-      amount_in_words: `${toWords(Math.round(totalAmount))} Rupees Only`,
+      amount_in_words: `${numberToWords(Math.round(totalAmount))} Rupees Only`,
       gst_breakdown: savedHsnBreakdown,
       company: undefined,
     };
@@ -1257,8 +1304,8 @@ console.log("test",serverHolds)
       {item.editingQty ? (
         <TextField inputRef={el => { qtyRefs.current[item.code] = el; }} value={item.qtyDraft ?? ""}
           onChange={e => setItems(prev => prev.map(i => i.code === item.code ? { ...i, qtyDraft: e.target.value.replace(/[^0-9.]/g, "") } : i))}
-          onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = qtyRefs.current[item.code]; const newQty = Math.max(1, parseFloat(el?.value ?? "") || 1); setItems(prev => prev.map(i => { if (i.code !== item.code) return i; const discount = i.discountPct ? parseFloat(((i.discountPct * newQty * i.sellPrice) / 100).toFixed(2)) : i.discount; return { ...i, qty: newQty, discount, editingQty: false, qtyDraft: undefined }; })); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
-          onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); const newQty = Math.max(1, parseFloat((e.target as HTMLInputElement).value) || 1); editCancelledRef.current = true; setItems(prev => prev.map(i => { if (i.code !== item.code) return i; const discount = i.discountPct ? parseFloat(((i.discountPct * newQty * i.sellPrice) / 100).toFixed(2)) : i.discount; return { ...i, qty: newQty, discount, editingQty: false, qtyDraft: undefined }; })); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingQty: false, qtyDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
+          onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = qtyRefs.current[item.code]; commitQtyDraft(item.code, el?.value ?? ""); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
+          onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; commitQtyDraft(item.code, (e.target as HTMLInputElement).value); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingQty: false, qtyDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
           size="small" inputProps={{ step: "any", style: { textAlign: "center", fontWeight: 800, fontSize: 14, padding: "2px 2px", width: 48 } }}
           sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#1976D2", borderWidth: 2 } }, width: 64 }} />
       ) : (

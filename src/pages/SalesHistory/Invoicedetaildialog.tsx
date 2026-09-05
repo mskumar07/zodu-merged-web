@@ -22,6 +22,7 @@ import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import RestaurantMenuOutlinedIcon from "@mui/icons-material/RestaurantMenuOutlined";
 import jsPDF                  from "jspdf";
 import { useNavigate }        from "react-router-dom";
+import { numberToWords }      from "@utils/numberToWords";
 import {
   fetchSaleDetail,
   fetchRestaurantSaleDetail,
@@ -103,11 +104,6 @@ function INR(v: number | string) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
-}
-
-function toWords(n: number): string {
-  // lightweight — just shows the number if words lib not available
-  return n.toLocaleString("en-IN");
 }
 
 // printer_inch is stored as "3 Inch" / "4 Inch" / "5 Inch"; ThermalPaperSize only accepts "3" | "4" | "5".
@@ -311,6 +307,8 @@ export default function InvoiceDetailsModal({
     customer?.address_line1, customer?.address_line2,
     customer?.city, customer?.state, customer?.pincode,
   ].filter(Boolean).join(", ") || "—";
+  const customerShippingAddress = customer?.shipping_address?.trim();
+  const hasShippingAddress = !!customerShippingAddress;
 
   // ── PDF generation ────────────────────────────────────────
   const generatePDF = async (): Promise<jsPDF | null> => {
@@ -449,6 +447,7 @@ export default function InvoiceDetailsModal({
     customer_address:  customerAddress,
     customer_mobile:   customerMobile,
     customer_gstin:    customerGstin,
+    customer_shipping_address: hasShippingAddress ? customerShippingAddress : null,
     payment_mode:      history?.[0]?.transaction_type ?? "Cash",
     payment_status:    sale?.payment_status,
     items: items.map((i: any) => ({
@@ -472,7 +471,7 @@ export default function InvoiceDetailsModal({
     sgst_pct:       Number(hsnWiseTax[0]?.sgst_percent ?? 0) || 2.5,
     round_off:      hasRoundOff ? sale?.round_off : null,
     total:          originalTotal,
-    amount_in_words: `${toWords(Math.round(originalTotal))} Rupees Only`,
+    amount_in_words: `${numberToWords(Math.round(originalTotal))} Rupees Only`,
     gst_breakdown: hsnWiseTax.map((row) => ({
       hsn:            row.hsn_code,
       taxable:        row.taxable_value,
@@ -577,6 +576,9 @@ export default function InvoiceDetailsModal({
                     { label: "Mobile No.",    value: customerMobile },
                     { label: "GSTIN",         value: customerGstin },
                     { label: "Address",       value: customerAddress, small: true },
+                    ...(hasShippingAddress
+                      ? [{ label: "Shipping Address", value: customerShippingAddress, small: true }]
+                      : []),
                   ].map(({ label, value, bold, small }) => (
                     <Box key={label}>
                       <Typography sx={{
@@ -633,6 +635,11 @@ export default function InvoiceDetailsModal({
                             {item.variant_name && (
                               <Typography sx={{ fontSize: 11, color: "#94A3B8", mt: 0.2 }}>
                                 {item.variant_name}
+                              </Typography>
+                            )}
+                            {(invoiceSettings?.show_description ?? false) && item.description && (
+                              <Typography sx={{ fontSize: 10, color: "#6B7280", mt: 0.25, lineHeight: 1.5, whiteSpace: "pre-line" }}>
+                                {item.description}
                               </Typography>
                             )}
                           </TD>
