@@ -179,6 +179,17 @@ function hasValue(v: unknown): v is string {
   return typeof v === "string" && v.trim() !== "" && v.trim() !== "-" && v.trim() !== "—";
 }
 
+// Rate suffix for the CGST/SGST summary labels — e.g. "CGST (2.5%)". Only
+// meaningful when every HSN slab on the bill carries the same rate; a
+// mixed-rate bill keeps the plain label and shows each rate in the
+// HSN-wise table instead.
+function gstRateSuffix(rows: any[], key: "cgstRate" | "sgstRate") {
+  const rates = Array.from(new Set(rows.map((row: any) => Number(row[key]))));
+  if (rates.length !== 1 || !Number.isFinite(rates[0])) return "";
+  return ` (${rates[0]}%)`;
+}
+
+
 // ── Modern template ─────────────────────────────────────────────
 export const InvoicePDFTemplateModern = React.forwardRef(({ data, settingsOverride, theme = "classic", accentColor, logoUrl, headerImageUrl, signatureUrl }: any, ref: any) => {
   const isCompact = theme === "compact";
@@ -415,12 +426,11 @@ export const InvoicePDFTemplateModern = React.forwardRef(({ data, settingsOverri
             <SummaryRow label={discount_label ?? "Discount"} value={`-${fmt(discount)}`} red />
           )}
 
-          {showTaxDetails && (
-            <>
-              <SummaryRow label="CGST" value={fmt(cgst)} />
-              <SummaryRow label="SGST" value={fmt(sgst)} />
-            </>
-          )}
+          {/* Tax totals are part of the bill amount, not the "Tax Details"
+              breakdown — the setting only controls the per-item HSN/Tax
+              columns and the HSN-wise table below. */}
+          <SummaryRow label={`CGST${gstRateSuffix(gst_breakdown, "cgstRate")}`} value={fmt(cgst)} />
+          <SummaryRow label={`SGST${gstRateSuffix(gst_breakdown, "sgstRate")}`} value={fmt(sgst)} />
 
           {showRoundOff && (
             <SummaryRow label="Round Off" value={Number(round_off) > 0 ? `+${fmt(round_off)}` : fmt(round_off)} />

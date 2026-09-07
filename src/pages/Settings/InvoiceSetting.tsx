@@ -978,7 +978,7 @@ export default function InvoiceSetting() {
               iconBg="#fdecef"
               iconColor={redTint}
               label="Tax Details (GST Summary)"
-              description="Show CGST/SGST breakdown and tax summary"
+              description="Show the item tax column and HSN-wise tax breakdown"
             >
               <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
                 <Switch

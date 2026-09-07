@@ -319,6 +319,17 @@ function hasValue(v: unknown): v is string {
   return typeof v === "string" && v.trim() !== "" && v.trim() !== "-" && v.trim() !== "—";
 }
 
+// Rate suffix for the CGST/SGST summary labels — e.g. "CGST (2.5%)". Only
+// meaningful when every HSN slab on the bill carries the same rate; a
+// mixed-rate bill keeps the plain label and shows each rate in the
+// HSN-wise table instead.
+function gstRateSuffix(rows: any[], key: "cgstRate" | "sgstRate") {
+  const rates = Array.from(new Set(rows.map((row: any) => Number(row[key]))));
+  if (rates.length !== 1 || !Number.isFinite(rates[0])) return "";
+  return ` (${rates[0]}%)`;
+}
+
+
 // ── Main template ─────────────────────────────────────────────
 export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, theme = "classic", accentColor, logoUrl, headerImageUrl, signatureUrl }: any, ref: any) => {
   const isCompact = theme === "compact";
@@ -526,7 +537,7 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
           <col />
           {/* HSN codes run up to 8 digits under GST — must fit without truncation. */}
           <col style={{ width: "68px" }} />
-          <col style={{ width: "36px" }} />
+          {showTaxDetails && <col style={{ width: "36px" }} />}
           <col style={{ width: "40px" }} />
           {/* Amount columns are sized to fit large totals (up to 8-digit
               rupee values) on one line — narrower widths let the nowrap
@@ -545,7 +556,9 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
             )}
             <th style={{ ...styles.theadTh, padding: isCompact ? "6px 8px" : styles.theadTh.padding }}>Item Name</th>
             <th style={{ ...styles.theadThCenter, padding: isCompact ? "6px 8px" : styles.theadThCenter.padding }}>HSN</th>
-            <th style={{ ...styles.theadThCenter, padding: isCompact ? "6px 8px" : styles.theadThCenter.padding }}>Tax</th>
+            {showTaxDetails && (
+              <th style={{ ...styles.theadThCenter, padding: isCompact ? "6px 8px" : styles.theadThCenter.padding }}>Tax</th>
+            )}
             <th style={{ ...styles.theadThCenter, padding: isCompact ? "6px 8px" : styles.theadThCenter.padding }}>QTY</th>
             <th style={{ ...styles.theadThRight, padding: isCompact ? "6px 8px" : styles.theadThRight.padding }}>MRP</th>
             <th style={{ ...styles.theadThRight, padding: isCompact ? "6px 8px" : styles.theadThRight.padding }}>Rate</th>
@@ -575,7 +588,9 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
                 )} */}
               </td>
               <td style={{ ...styles.tdCenter, padding: isCompact ? "5px 8px" : styles.tdCenter.padding }}>{item.hsn || "—"}</td>
-              <td style={{ ...styles.tdCenter, padding: isCompact ? "5px 8px" : styles.tdCenter.padding }}>{Number(item.tax).toFixed(0)}%</td>
+              {showTaxDetails && (
+                <td style={{ ...styles.tdCenter, padding: isCompact ? "5px 8px" : styles.tdCenter.padding }}>{Number(item.tax).toFixed(0)}%</td>
+              )}
               <td style={{ ...styles.tdCenter, padding: isCompact ? "5px 8px" : styles.tdCenter.padding }}>{item.qty}</td>
               <td style={{ ...styles.tdRight, padding: isCompact ? "5px 8px" : styles.tdRight.padding }}>{fmt(item.mrp ?? item.rate)}</td>
               <td style={{ ...styles.tdRight, padding: isCompact ? "5px 8px" : styles.tdRight.padding }}>{fmt(item.rate)}</td>
@@ -599,12 +614,11 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
             />
           )}
 
-          {showTaxDetails && (
-            <>
-              <SummaryRow label="CGST:" value={fmt(cgst)} compact={isCompact} />
-              <SummaryRow label="SGST:" value={fmt(sgst)} compact={isCompact} />
-            </>
-          )}
+          {/* Tax totals are part of the bill amount, not the "Tax Details"
+              breakdown — the setting only controls the per-item Tax column
+              and the HSN-wise table below. */}
+          <SummaryRow label={`CGST${gstRateSuffix(gst_breakdown, "cgstRate")}:`} value={fmt(cgst)} compact={isCompact} />
+          <SummaryRow label={`SGST${gstRateSuffix(gst_breakdown, "sgstRate")}:`} value={fmt(sgst)} compact={isCompact} />
 
           {showRoundOff && (
             <SummaryRow
