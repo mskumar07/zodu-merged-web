@@ -73,13 +73,40 @@ class PosDatabase extends Dexie {
 
 export const db = new PosDatabase();
 
-// ── Staleness helper ──────────────────────────────────────────
+// ── Staleness helpers ─────────────────────────────────────────
 const STALE_MS = 8 * 60 * 60 * 1000;
+
+/**
+ * Bump whenever the normalised PosProduct shape changes — a new field, a
+ * changed type, a different default.
+ *
+ * The age check alone cannot see a shape change: rows cached before a deploy
+ * keep their old shape and are served for up to eight more hours, which is the
+ * IndexedDB version of the stale-permissions bug. Comparing the version
+ * stamped at write time against this constant forces one refetch instead.
+ *
+ * v1 — first versioned catalogue. Rows written before this carry no version
+ *      and are treated as stale on the next load.
+ */
+export const CURRENT_CATALOGUE_VERSION = 1;
+
+const versionKey = (branchId: string) => `schemaVersion_${branchId}`;
+const lastSyncKey = (branchId: string) => `lastSync_${branchId}`;
 
 export async function isCatalogueStale(branchId: string): Promise<boolean> {
   try {
-    const row = await db.meta.get(`lastSync_${branchId}`);
+    const row = await db.meta.get(lastSyncKey(branchId));
     if (!row) return true;
+
+    const versionRow = await db.meta.get(versionKey(branchId));
+    if (Number(versionRow?.value) !== CURRENT_CATALOGUE_VERSION) {
+      console.warn(
+        `[POS] cached catalogue for ${branchId} is v${versionRow?.value ?? 0}, expected ` +
+          `v${CURRENT_CATALOGUE_VERSION} — refetching instead of serving the cached shape.`
+      );
+      return true;
+    }
+
     return Date.now() - Number(row.value) > STALE_MS;
   } catch {
     return true;
@@ -87,11 +114,14 @@ export async function isCatalogueStale(branchId: string): Promise<boolean> {
 }
 
 export async function markSynced(branchId: string): Promise<void> {
-  await db.meta.put({ key: `lastSync_${branchId}`, value: Date.now() });
+  await db.meta.bulkPut([
+    { key: lastSyncKey(branchId), value: Date.now() },
+    { key: versionKey(branchId), value: CURRENT_CATALOGUE_VERSION },
+  ]);
 }
 
 export async function clearSyncMeta(branchId: string): Promise<void> {
-  await db.meta.delete(`lastSync_${branchId}`);
+  await db.meta.bulkDelete([lastSyncKey(branchId), versionKey(branchId)]);
 }
 
 // ── Normalise raw API row → correct types before IDB write ────

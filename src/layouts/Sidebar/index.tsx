@@ -32,6 +32,7 @@ import { useAppDispatch, useAppSelector } from "@store/store";
 import { clearAuthData, BusinessType, RoleAccess } from "@store/slices/userSlice";
 import { tokenStore } from "@pages/auth/Authapi";
 import { db } from "@pages/POS/db";
+import { resetSessionReconciliation } from "@hooks/useReconcilePersistedSession";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "react-router-dom";
 
@@ -142,6 +143,9 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
     queryClient.clear();
     tokenStore.clear();
     dispatch(clearAuthData());
+    // The next sign-in in this same page load has to reconcile its session
+    // again — the guard is module scoped, not component scoped.
+    resetSessionReconciliation();
     navigate("/login");
   };
 

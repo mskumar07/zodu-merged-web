@@ -13,7 +13,8 @@ import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { useAppDispatch, useAppSelector } from "@store/store";
 import { addUserData, AllCompanies, UserProfile, setRoleAccess, setInvoiceSettings, setPosSettings } from "@store/slices/userSlice";
-import { authApis, type Branch, type CompanyWithBranches } from "@pages/auth/Authapi";
+import { type Branch, type CompanyWithBranches } from "@pages/auth/Authapi";
+import { loadBranchSession } from "@pages/auth/loadBranchSession";
 import SubscriptionExpiredModal from "@components/Modals/SubscriptionExpiredModal";
 import SuccessToast from "@components/Common/SuccessToast";
 import zlogo from "../../../assets/zlogo.png";
@@ -327,34 +328,28 @@ const SelectBranch: React.FC = () => {
   const [expiredCompany, setExpiredCompany] = useState<CompanyWithBranches | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Permissions are scoped per zodu_id + branch_id and only resolvable once a
-  // branch is chosen, so they're fetched here rather than carried on login.
-  const loadRoleAccess = async (zoduId: string, branchId: string) => {
-    try {
-      const roleAccess = await authApis.getRoleAccess(zoduId, branchId);
-      dispatch(setRoleAccess(roleAccess));
-    } catch {
-      dispatch(setRoleAccess([]));
-    }
-  };
+  // Permissions and settings are both scoped per zodu_id + branch_id and only
+  // resolvable once a branch is chosen, so they're fetched here rather than
+  // carried on login — through the same loader the login fast paths and the
+  // boot-time reconciliation use.
+  //
+  // A settings failure (a 400 means no access to this company's settings) keeps
+  // the user on this page so the error toast is visible, instead of navigating
+  // to a dashboard whose POS and invoice templates would fall back to defaults.
+  const loadSession = async (zoduId: string, branchId: string): Promise<boolean> => {
+    const result = await loadBranchSession(dispatch, zoduId, branchId);
 
-  // Settings are scoped per zodu_id + branch_id too. A 400 here means the
-  // user doesn't have access to this company's settings; stay on this page
-  // so the error toast is visible instead of navigating away immediately.
-  const loadSettings = async (zoduId: string, branchId: string): Promise<boolean> => {
-    try {
-      const res = await authApis.getSettings(zoduId, branchId);
-      dispatch(setInvoiceSettings(res.settings?.invoice ?? null));
-      // Same call carries the POS block — the POS screen reads its sale-type
-      // tabs from here rather than making a second request on every open.
-      dispatch(setPosSettings(res.settings?.pos ?? null));
-      return true;
-    } catch (err: any) {
+    if (!result.roleAccessOk) dispatch(setRoleAccess([]));
+
+    if (!result.settingsOk) {
       dispatch(setInvoiceSettings(null));
       dispatch(setPosSettings(null));
+      const err = result.error as { response?: { data?: { error?: string } } } | undefined;
       setErrorMsg(err?.response?.data?.error || "Failed to load settings");
       return false;
     }
+
+    return true;
   };
 
   const handleSelectBranch = async (
@@ -367,9 +362,7 @@ const SelectBranch: React.FC = () => {
       return;
     }
     dispatch(addUserData({ branchId, branchName, zoduId: company.zodu_id, businessType: company.business_type ?? "" }));
-    await loadRoleAccess(company.zodu_id, branchId);
-    const settingsOk = await loadSettings(company.zodu_id, branchId);
-    if (!settingsOk) return;
+    if (!(await loadSession(company.zodu_id, branchId))) return;
     navigate("/dashboard", { replace: true });
   };
 
@@ -388,9 +381,8 @@ const SelectBranch: React.FC = () => {
         businessType: onlyCompany.business_type ?? "",
       })
     );
-    loadRoleAccess(onlyCompany.zodu_id, onlyBranch.branch_id).then(async () => {
-      const settingsOk = await loadSettings(onlyCompany.zodu_id, onlyBranch.branch_id);
-      if (settingsOk) navigate("/dashboard", { replace: true });
+    loadSession(onlyCompany.zodu_id, onlyBranch.branch_id).then((ok) => {
+      if (ok) navigate("/dashboard", { replace: true });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companies, dispatch, navigate, fromSwitch]);

@@ -77,7 +77,7 @@ import { InvoicePDFTemplate } from "../SalesHistory/InvoicePDFTemplate";
 import { InvoicePDFTemplateModern } from "../SalesHistory/InvoicePDFTemplateModern";
 import { InvoicePDFTemplateModern2 } from "../SalesHistory/InvoicePDFTemplateModern2";
 import InvoiceCopyActions from "@components/Common/InvoiceCopyActions";
-import { normalizeInvoiceCopyTypes } from "@utils/invoiceCopyTypes";
+import { invoiceCopyTypesForSale, normalizeInvoiceCopyTypes } from "@utils/invoiceCopyTypes";
 import { isProformaSaleType, isQuotationSaleType } from "@utils/saleType";
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "../SalesHistory/ThermalInvoiceTemplate";
 import { toPaymentTypeLabels } from "@pages/Settings/useInvoiceSettingApi";
@@ -228,6 +228,43 @@ function saleTypeToPosMode(saleType: string | null | undefined): PosMode {
   if (isProformaSaleType(saleType)) return "PROFORMA";
   return "SALE";
 }
+/**
+ * Cart table columns, shared by the scrolling body table and the pinned totals
+ * row so the two can never drift apart.
+ *
+ * Pixels, not percentages: a rupee value has a floor width, and percentage
+ * columns fall under it on a laptop — ₹2,25,000.00 then wraps mid-number and
+ * collides with the column next to it. Only DESCRIPTION flexes, absorbing
+ * whatever width is left. Below `md` the screen renders cards instead of this
+ * table, so these widths only have to hold from ~900px up.
+ *
+ * Each budget is the widest value the column shows plus the 8px-a-side cell
+ * padding from the theme above: ₹2,25,000.00 at 13px needs ~88px, so 108.
+ */
+const CART_COL_WIDTHS: (number | "auto")[] = [
+  4,      // active-row accent bar
+  96,     // ITEM ID — free text, wraps
+  "auto", // DESCRIPTION — takes the remaining width
+  104,    // TAX AMT (GST %)
+  92,     // MRP
+  104,    // QTY stepper
+  118,    // RATE input
+  108,    // UNIT PRICE
+  84,     // DISC % input
+  112,    // TOTAL
+  40,     // remove button
+];
+
+function CartColGroup() {
+  return (
+    <colgroup>
+      {CART_COL_WIDTHS.map((width, i) => (
+        <col key={i} style={{ width: width === "auto" ? "auto" : `${width}px` }} />
+      ))}
+    </colgroup>
+  );
+}
+
 type Zone = "SEARCH" | "CUSTOMER" | "TABLE" | "FOOTER";
 type SearchFocus = "CODE";
 type FooterFocus = "DISCOUNT_PCT" | "DISCOUNT_AMT" | "PAYMENT_TYPE" | "REF_NO" | "RECEIVED" | "SAVE";
@@ -1367,6 +1404,12 @@ console.log("test",serverHolds)
     return doc;
   }, []);
 
+  // What the just-saved document offers in its Download/Print/Share menus — a
+  // quotation prints unmarked, an invoice or proforma gets the configured
+  // copies. `invoiceCopyTypes` above still drives the Vehicle No field, which
+  // follows the setting rather than the document.
+  const savedCopyTypes = invoiceCopyTypesForSale(invoiceSettings?.invoice_copy_types, savedPdfData?.sale_type);
+
   const handleDownloadInvoice = useCallback(async (copies: string[] = []) => {
     if (!savedPdfData) return;
     setDownloadLoading(true);
@@ -1505,7 +1548,7 @@ console.log("test",serverHolds)
     ) : (
       <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditPrice(item.code); }}
         sx={{ display: "inline-flex", alignItems: "center", gap: 0.3, px: 0.6, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #1976D2" : "1.5px dashed transparent", bgcolor: isActive ? "#E3F2FD" : "transparent", "&:hover": { border: "1.5px dashed #1976D2", bgcolor: "#E3F2FD", "& .pedit": { opacity: 1 } }, transition: "all 0.15s" }}>
-        <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", wordBreak: "break-word" }}>{INR(item.sellPrice)}</Typography>
+        <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", whiteSpace: "nowrap" }}>{INR(item.sellPrice)}</Typography>
         <EditIcon className="pedit" sx={{ fontSize: 10, color: "#1976D2", opacity: isActive ? 0.6 : 0, transition: "opacity 0.15s", flexShrink: 0 }} />
       </Box>
     )
@@ -1842,25 +1885,22 @@ console.log("test",serverHolds)
               <>
                 <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden", scrollbarWidth: "thin", scrollbarColor: "#ea9999 #F3F4F6", "&::-webkit-scrollbar": { width: "8px" }, "&::-webkit-scrollbar-track": { backgroundColor: "#F3F4F6", borderRadius: "4px" }, "&::-webkit-scrollbar-thumb": { backgroundColor: "#ea9999", borderRadius: "4px", "&:hover": { backgroundColor: "#A50D26" } } }}>
                   <Table size="small" stickyHeader sx={{ borderCollapse: "separate", tableLayout: "fixed", width: "100%" }}>
-                    <colgroup>
-                      <col style={{ width: "0.8%" }} /><col style={{ width: "8%" }} /><col style={{ width: "22%" }} />
-                      <col style={{ width: "10%" }} /><col style={{ width: "6%" }} />
-                      <col style={{ width: "10%" }} /><col style={{ width: "10%" }} /><col style={{ width: "7%" }} />
-                      <col style={{ width: "7%" }} /><col style={{ width: "10%" }} /><col style={{ width: "3%" }} />
-                    </colgroup>
+                    <CartColGroup />
                     <TableHead>
                       <TableRow sx={{ "& .MuiTableCell-root": { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", px: 1 } }}>
-                        <TableCell sx={{ width: "0.8%", p: 0 }} />
-                        <TableCell sx={{ width: "8%", fontSize: 12 }}>ITEM ID</TableCell>
-                        <TableCell sx={{ width: "22%", fontSize: 12 }}>DESCRIPTION</TableCell>
-                        <TableCell align="right" sx={{ width: "10%", fontSize: 12 }}>TAX AMT (GST %)</TableCell>
-                        <TableCell align="right" sx={{ width: "6%", fontSize: 12 }}>MRP (₹)</TableCell>
-                        <TableCell align="center" sx={{ width: "10%", fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.4 }}>QTY <Kbd>Q</Kbd></Box></TableCell>
-                        <TableCell align="right" sx={{ width: "10%", fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>RATE <Kbd>P</Kbd></Box></TableCell>
-                        <TableCell align="right" sx={{ width: "7%", fontSize: 12 }}>UNIT PRICE</TableCell>
-                        <TableCell align="right" sx={{ width: "7%", fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>DISC % <Kbd>D</Kbd></Box></TableCell>
-                        <TableCell align="right" sx={{ width: "10%", fontSize: 12 }}>TOTAL</TableCell>
-                        <TableCell sx={{ width: "3%" }} />
+                        <TableCell sx={{ p: 0 }} />
+                        <TableCell sx={{ fontSize: 12 }}>ITEM ID</TableCell>
+                        <TableCell sx={{ fontSize: 12 }}>DESCRIPTION</TableCell>
+                        {/* "TAX AMT (GST %)" never fit this column and printed as an
+                            ellipsis — the per-row chip carries the rate anyway. */}
+                        <TableCell align="right" sx={{ fontSize: 12 }}>TAX (GST%)</TableCell>
+                        <TableCell align="right" sx={{ fontSize: 12 }}>MRP (₹)</TableCell>
+                        <TableCell align="center" sx={{ fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.4 }}>QTY <Kbd>Q</Kbd></Box></TableCell>
+                        <TableCell align="right" sx={{ fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>RATE <Kbd>P</Kbd></Box></TableCell>
+                        <TableCell align="right" sx={{ fontSize: 12 }}>UNIT PRICE</TableCell>
+                        <TableCell align="right" sx={{ fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>DISC % <Kbd>D</Kbd></Box></TableCell>
+                        <TableCell align="right" sx={{ fontSize: 12 }}>TOTAL</TableCell>
+                        <TableCell />
                       </TableRow>
                     </TableHead>
                     <TableBody ref={tableBodyRef}>
@@ -1883,13 +1923,21 @@ console.log("test",serverHolds)
                             <TableRow data-rowcode={item.code} onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); }}
                               sx={{ bgcolor: flashRow === item.code ? "#FFF1F3" : isActive ? "#E3F2FD" : "transparent", cursor: "pointer", transition: "background 0.2s", "&:hover": { bgcolor: isActive ? "#E3F2FD" : "#F5F5F5" } }}>
                               <TableCell sx={{ p: 0 }}><Box sx={{ width: 4, minHeight: 40, bgcolor: isActive ? "#1976D2" : "transparent", borderRadius: "0 2px 2px 0", transition: "background 0.2s" }} /></TableCell>
-                              <TableCell>
-                                <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#374151", whiteSpace: "nowrap", overflow: "visible" }}>
+                              <TableCell sx={{ overflow: "hidden" }}>
+                                {/* Item IDs are free text and are often wordy
+                                    ("Oil Extraction 20KG"). Wrap inside the column
+                                    rather than letting one spill across the
+                                    description next to it; `title` keeps the full
+                                    value reachable on hover. */}
+                                <Typography
+                                  title={item.code}
+                                  sx={{ fontSize: 12, fontWeight: 700, color: "#374151", lineHeight: 1.3, overflowWrap: "anywhere" }}
+                                >
                                   {item.code}
                                 </Typography>
                               </TableCell>
                               <TableCell>
-                                <Typography sx={{ fontSize: 13, fontWeight: isActive ? 800 : 700, color: "#1A1A2E", lineHeight: 1.3 }}>{item.description}</Typography>
+                                <Typography sx={{ fontSize: 13, fontWeight: isActive ? 800 : 700, color: "#1A1A2E", lineHeight: 1.3, overflowWrap: "anywhere" }}>{item.description}</Typography>
                                 {item.category && <Typography sx={{ fontSize: 10, fontWeight: 700, color: CAT_COLOR[item.category] ?? "#6B7280" }}>{item.category}</Typography>}
                                 <TextField
                                   value={item.itemDescription ?? ""}
@@ -1912,10 +1960,10 @@ console.log("test",serverHolds)
                                 />
                               </TableCell>
                               <TableCell align="right">
-                                <Typography sx={{ fontSize: 13, color: "#374151", fontWeight: 700, lineHeight: 1.2, wordBreak: "break-word" }}>{INR(itemGst)}</Typography>
+                                <Typography sx={{ fontSize: 13, color: "#374151", fontWeight: 700, lineHeight: 1.2, whiteSpace: "nowrap" }}>{INR(itemGst)}</Typography>
                                 <Box component="span" sx={{ display: "inline-block", fontSize: 9.5, fontWeight: 700, color: "#6B7280", bgcolor: "#F3F4F6", borderRadius: 999, px: 0.7, py: 0.05, mt: 0.2 }}>GST {item.gstPct}%</Box>
                               </TableCell>
-                              <TableCell align="right"><Typography sx={{ fontSize: 13, color: "#9CA3AF", wordBreak: "break-word" }}>₹{item.mrp.toLocaleString("en-IN")}</Typography></TableCell>
+                              <TableCell align="right"><Typography sx={{ fontSize: 13, color: "#9CA3AF", whiteSpace: "nowrap" }}>₹{item.mrp.toLocaleString("en-IN")}</Typography></TableCell>
 
                               {/* QTY */}
                               <TableCell align="center" onClick={e => e.stopPropagation()}>
@@ -1928,7 +1976,7 @@ console.log("test",serverHolds)
                               </TableCell>
 
                               {/* UNIT PRICE EX.TAX */}
-                              <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", wordBreak: "break-word" }}>{INR(item.unitPrice)}</Typography></TableCell>
+                              <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", whiteSpace: "nowrap" }}>{INR(item.unitPrice)}</Typography></TableCell>
 
                               {/* DISCOUNT % */}
                               <TableCell align="right" onClick={e => e.stopPropagation()}>
@@ -1937,7 +1985,7 @@ console.log("test",serverHolds)
 
                               {/* TOTAL */}
                               <TableCell align="right">
-                                <Typography sx={{ fontSize: 13, fontWeight: 700, color: isActive ? "#0D47A1" : "#1A1A2E", wordBreak: "break-word" }}>{INR(itemTotal)}</Typography>
+                                <Typography sx={{ fontSize: 13, fontWeight: 700, color: isActive ? "#0D47A1" : "#1A1A2E", whiteSpace: "nowrap" }}>{INR(itemTotal)}</Typography>
                               </TableCell>
                               <TableCell onClick={e => e.stopPropagation()}><IconButton size="small" onClick={() => removeItem(item.code)} sx={{ color: "#D1D5DB", "&:hover": { color: "#C8102E", bgcolor: "#FEE2E2" } }}><DeleteOutlineIcon sx={{ fontSize: 15 }} /></IconButton></TableCell>
                             </TableRow>
@@ -1950,28 +1998,23 @@ console.log("test",serverHolds)
 
                 {/* Total row pinned to bottom */}
                 <Table size="small" sx={{ borderCollapse: "separate", flexShrink: 0, tableLayout: "fixed", width: "100%" }}>
-                  <colgroup>
-                    <col style={{ width: "0.8%" }} /><col style={{ width: "8%" }} /><col style={{ width: "22%" }} />
-                    <col style={{ width: "10%" }} /><col style={{ width: "6%" }} />
-                    <col style={{ width: "10%" }} /><col style={{ width: "10%" }} /><col style={{ width: "7%" }} />
-                    <col style={{ width: "7%" }} /><col style={{ width: "10%" }} /><col style={{ width: "3%" }} />
-                  </colgroup>
+                  <CartColGroup />
                   <TableBody>
                     <TableRow sx={{ bgcolor: "#F8FAFC", "& .MuiTableCell-root": { borderTop: "2px solid #E5E7EB", borderBottom: "none", py: 1, height: 34, bgcolor: "#F8FAFC" } }}>
                       <TableCell sx={{ p: 0 }} /><TableCell />
                       <TableCell><Typography sx={{ fontSize: 13, fontWeight: 800, color: "#374151" }}>Total</Typography></TableCell>
-                      <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", wordBreak: "break-word" }}>{INR(items.length > 0 ? totalGstRow : 0)}</Typography></TableCell>
+                      <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", whiteSpace: "nowrap" }}>{INR(items.length > 0 ? totalGstRow : 0)}</Typography></TableCell>
                       <TableCell align="right" />
                       <TableCell align="center"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{items.length > 0 ? totalUnits : 0}</Typography></TableCell>
                       <TableCell align="right" />
-                      <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", wordBreak: "break-word" }}>{INR(items.length > 0 ? subtotal : 0)}</Typography></TableCell>
+                      <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", whiteSpace: "nowrap" }}>{INR(items.length > 0 ? subtotal : 0)}</Typography></TableCell>
                       <TableCell align="right">
                         {items.length > 0 && itemDiscountTotal > 0
                           ? <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#C8102E" }}>- {INR(itemDiscountTotal)}</Typography>
                           : <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#D1D5DB" }}>—</Typography>
                         }
                       </TableCell>
-                      <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 700, color: "#000", wordBreak: "break-word" }}>{INR(items.length > 0 ? totalAmtRow : 0)}</Typography></TableCell>
+                      <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 700, color: "#000", whiteSpace: "nowrap" }}>{INR(items.length > 0 ? totalAmtRow : 0)}</Typography></TableCell>
                       <TableCell />
                     </TableRow>
                   </TableBody>
@@ -2193,7 +2236,7 @@ console.log("test",serverHolds)
               {/* TOTAL AMOUNT highlighted bar */}
               <Box sx={{ bgcolor: modeTheme.totalBg, border: `1px solid ${modeTheme.totalBorder}`, borderRadius: 2, px: 1.5, py: 1.1, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", rowGap: 0.25, columnGap: 1, mb: 2 }}>
                 <Typography sx={{ fontSize: 13, fontWeight: 800, letterSpacing: "0.05em", color: modeTheme.totalText, whiteSpace: "nowrap" }}>TOTAL AMOUNT</Typography>
-                <Typography sx={{ fontSize: 20, fontWeight: 900, color: modeTheme.totalText, wordBreak: "break-word" }}>{INR(grandTotal)}</Typography>
+                <Typography sx={{ fontSize: 20, fontWeight: 900, color: modeTheme.totalText, whiteSpace: "nowrap" }}>{INR(grandTotal)}</Typography>
               </Box>
 
               {!isNonSaleDoc && (
@@ -2479,7 +2522,7 @@ console.log("test",serverHolds)
                       fullWidth
                       label="Download"
                       icon={<Download sx={{ fontSize: 18 }} />}
-                      copyTypes={invoiceCopyTypes}
+                      copyTypes={savedCopyTypes}
                       onRun={handleDownloadInvoice}
                       busy={downloadLoading}
                       disabled={!savedPdfData}
@@ -2493,7 +2536,7 @@ console.log("test",serverHolds)
                       fullWidth
                       label="Share"
                       icon={<ShareIcon sx={{ fontSize: 18 }} />}
-                      copyTypes={invoiceCopyTypes}
+                      copyTypes={savedCopyTypes}
                       onRun={handleShareInvoice}
                       busy={shareLoading}
                       disabled={!savedPdfData}
@@ -2508,7 +2551,7 @@ console.log("test",serverHolds)
                         fullWidth
                         label="Print"
                         icon={<PrintOutlinedIcon sx={{ fontSize: 18 }} />}
-                        copyTypes={invoiceCopyTypes}
+                        copyTypes={savedCopyTypes}
                         onRun={handlePrintInvoice}
                         busy={printLoading}
                         disabled={invoiceSettings?.printer_inch === "A4" && !savedPdfData}

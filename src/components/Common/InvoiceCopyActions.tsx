@@ -13,13 +13,18 @@ import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
  * the rest: one entry per copy type configured in Invoice Settings, plus "All
  * Copies" (only meaningful, and only offered, when more than one is configured)
  * which produces every copy in a single document.
+ *
+ * A document that carries no copy marking at all — a quotation — passes an
+ * empty `copyTypes`: the caret and its menu drop away and the button body runs
+ * the single unmarked document.
  */
 export interface InvoiceCopyActionsProps {
   /** Verb shown on the button and prefixed onto every menu entry, e.g. "Download". */
   label: string;
   /** Leading icon for the button body and the per-copy menu entries. */
   icon: ReactNode;
-  /** Copy types from Invoice Settings, already ordered and non-empty in practice. */
+  /** Copy types from Invoice Settings, already ordered. Empty means the
+   *  document takes no copy marking, and the caret is not rendered. */
   copyTypes: string[];
   /**
    * Runs the action. `copies` holds the copy types to produce, in order — one
@@ -49,6 +54,10 @@ export default function InvoiceCopyActions({
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   // "All Copies" only earns a row when there is more than one copy to gather.
   const showAllCopies = copyTypes.length > 1;
+  // Nothing to choose between when no copy markings apply (a quotation) — the
+  // button body alone runs the one unmarked document, and the caret would open
+  // an empty menu.
+  const showMenu = copyTypes.length > 0;
 
   const run = (copies: string[]) => {
     setAnchorEl(null);
@@ -69,31 +78,33 @@ export default function InvoiceCopyActions({
             // Flex rather than fullWidth: the caret sits in the same row, so a
             // 100%-wide body would push it out of the slot the host gave us.
             ...(fullWidth ? { flex: 1, minWidth: 0 } : null),
-            // Fuse the two halves into one control.
-            borderTopRightRadius: 0,
-            borderBottomRightRadius: 0,
+            // Fuse the two halves into one control — square only the edge the
+            // caret abuts, so a button standing on its own keeps both corners.
+            ...(showMenu ? { borderTopRightRadius: 0, borderBottomRightRadius: 0 } : null),
           }}
         >
           {label}
         </Button>
-        <Button
-          onClick={(e) => setAnchorEl(e.currentTarget)}
-          disabled={disabled || busy}
-          aria-label={`More ${label.toLowerCase()} options`}
-          sx={{
-            ...buttonSx,
-            minWidth: 34,
-            width: 34,
-            flexShrink: 0,
-            px: 0,
-            borderTopLeftRadius: 0,
-            borderBottomLeftRadius: 0,
-            // A hairline seam so the caret reads as a separate target.
-            borderLeft: "1px solid rgba(0,0,0,0.12)",
-          }}
-        >
-          <KeyboardArrowDownRoundedIcon sx={{ fontSize: 18 }} />
-        </Button>
+        {showMenu && (
+          <Button
+            onClick={(e) => setAnchorEl(e.currentTarget)}
+            disabled={disabled || busy}
+            aria-label={`More ${label.toLowerCase()} options`}
+            sx={{
+              ...buttonSx,
+              minWidth: 34,
+              width: 34,
+              flexShrink: 0,
+              px: 0,
+              borderTopLeftRadius: 0,
+              borderBottomLeftRadius: 0,
+              // A hairline seam so the caret reads as a separate target.
+              borderLeft: "1px solid rgba(0,0,0,0.12)",
+            }}
+          >
+            <KeyboardArrowDownRoundedIcon sx={{ fontSize: 18 }} />
+          </Button>
+        )}
       </Box>
 
       <Menu

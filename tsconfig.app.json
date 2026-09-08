@@ -38,5 +38,8 @@
       "@config/*": ["./src/config/*"] // Z-T71
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  // Tests are typechecked by `vitest` (which supplies its own globals and
+  // types), not by the app build.
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

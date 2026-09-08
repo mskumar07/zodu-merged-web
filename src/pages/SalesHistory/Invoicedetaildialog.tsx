@@ -39,7 +39,7 @@ import { InvoicePDFTemplateModern2 } from "./InvoicePDFTemplateModern2";
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "./ThermalInvoiceTemplate";
 import { renderPaginatedInvoicePdf } from "@utils/pdfPagination";
 import InvoiceCopyActions from "@components/Common/InvoiceCopyActions";
-import { normalizeInvoiceCopyTypes } from "@utils/invoiceCopyTypes";
+import { invoiceCopyTypesForSale } from "@utils/invoiceCopyTypes";
 import { isNonBindingSaleType, saleDocumentLabel } from "@utils/saleType";
 
 // ─────────────────────────────────────────────────────────────
@@ -327,7 +327,7 @@ export default function InvoiceDetailsModal({
   // update, because the DOM has to carry the right marking at the moment
   // html2canvas reads it.
   const [renderCopyType, setRenderCopyType] = useState<string | null>(null);
-  const copyTypes = normalizeInvoiceCopyTypes(invoiceSettings?.invoice_copy_types);
+  const copyTypes = invoiceCopyTypesForSale(invoiceSettings?.invoice_copy_types, sale?.sale_type);
 
   /**
    * Renders one PDF containing each requested copy in turn. An empty list means

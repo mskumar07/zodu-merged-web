@@ -137,7 +137,7 @@ const styles = {
   grandRow: { display: "flex", justifyContent: "space-between", padding: "10px 0 0 0", marginTop: "6px", borderTop: "1.5px solid #111827" },
   grandLabel: { fontSize: "13px", fontWeight: 800, color: "#111827", letterSpacing: "0.04em", textTransform: "uppercase" as const },
   grandValue: { fontSize: "15px", fontWeight: 800, color: "#111827" },
-  amountWords: { fontSize: "12px", color: "#6B7280", marginTop: "8px", textAlign: "left" as const, fontStyle: "italic", width: "100%" },
+  amountWords: { fontSize: "14px", fontWeight: 700, color: "#6B7280", marginTop: "8px", textAlign: "left" as const, fontStyle: "italic", width: "100%" },
 
   // GST breakdown
   gstSection: { marginTop: "20px" },
@@ -148,6 +148,12 @@ const styles = {
   gstTdRight: { padding: "6px 0 6px 8px", fontSize: "11px", color: "#111827", borderBottom: "1px solid #F1F3F5", textAlign: "right" as const, whiteSpace: "nowrap" as const },
   gstTotalTd: { padding: "6px 8px 6px 0", fontSize: "11px", fontWeight: 700, color: "#111827", borderTop: "1.5px solid #111827", borderBottom: "1px solid #111827" },
   gstTotalTdRight: { padding: "6px 0 6px 8px", fontSize: "11px", fontWeight: 700, color: "#111827", borderTop: "1.5px solid #111827", borderBottom: "1px solid #111827", textAlign: "right" as const, whiteSpace: "nowrap" as const },
+
+  // Notes (left) and the signature (right) share one borderless table row so the
+  // signature sits beside the notes on the right margin instead of below them.
+  closingTable: { width: "100%", tableLayout: "fixed" as const, borderCollapse: "collapse" as const, marginTop: "14px" },
+  closingNotesTd: { width: "62%", padding: "0 12px 0 0", verticalAlign: "top" as const },
+  closingSignTd: { width: "38%", padding: 0, verticalAlign: "bottom" as const },
 
   noteLabel: { fontSize: "10px", fontWeight: 700, color: "#6B7280", letterSpacing: "0.6px", textTransform: "uppercase" as const, margin: "0 0 6px 0" },
   noteText: { fontSize: "11px", color: "#374151", lineHeight: 1.6, margin: "1px 0" },
@@ -622,25 +628,36 @@ export const InvoicePDFTemplateModern2 = React.forwardRef(({ data, settingsOverr
           </table>
         )}
 
-        {showNotes && notesText && (
-          <div style={{ marginTop: 14 }}>
-            <p style={styles.noteLabel}>Notes</p>
-            <p style={{ ...styles.noteText, whiteSpace: "pre-line" as const, margin: 0 }}>{notesText}</p>
-          </div>
-        )}
-
-        {showSignature && (
-          <div style={{ ...styles.signBox, marginTop: 18 }}>
-            {resolvedSignatureUrl && (
-              <img
-                src={resolvedSignatureUrl}
-                alt="Authorized signature"
-                style={{ maxHeight: 46, maxWidth: 180, objectFit: "contain", marginLeft: "auto", marginBottom: 4, display: "block" }}
-              />
-            )}
-            <p style={styles.signLabel}>{co.name}</p>
-            <p style={styles.signRole}>Authorized Signatory</p>
-          </div>
+        {((showNotes && notesText) || showSignature) && (
+          <table style={styles.closingTable}>
+            <tbody>
+              <tr>
+                <td style={styles.closingNotesTd}>
+                  {showNotes && notesText && (
+                    <>
+                      <p style={styles.noteLabel}>Notes</p>
+                      <p style={{ ...styles.noteText, whiteSpace: "pre-line" as const, margin: 0 }}>{notesText}</p>
+                    </>
+                  )}
+                </td>
+                <td style={styles.closingSignTd}>
+                  {showSignature && (
+                    <div style={styles.signBox}>
+                      {resolvedSignatureUrl && (
+                        <img
+                          src={resolvedSignatureUrl}
+                          alt="Authorized signature"
+                          style={{ maxHeight: 46, maxWidth: 180, objectFit: "contain", marginLeft: "auto", marginBottom: 4, display: "block" }}
+                        />
+                      )}
+                      <p style={styles.signLabel}>{co.name}</p>
+                      <p style={styles.signRole}>Authorized Signatory</p>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            </tbody>
+          </table>
         )}
       </div>
     </div>

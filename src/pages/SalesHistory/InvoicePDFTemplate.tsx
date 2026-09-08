@@ -34,7 +34,12 @@ const styles = {
   },
   headerMeta: { margin: "2px 0", fontSize: "11px", color: "#475569" },
 
-  invoiceRight: { textAlign: "right" as const },
+  // Document meta — invoice no./date sit at the right margin of the Bill To row
+  // rather than beside the company block, so they print once at the top of the
+  // document instead of repeating in the header band on every page.
+  // `marginLeft: auto` pins the column right even when Bill To is switched off
+  // and it is the only column in the row.
+  metaCol: { textAlign: "right" as const, flexShrink: 0, marginLeft: "auto" },
   // Copy marking — the document's heading: centred under the company block and
   // sized to be read at a glance, not tucked into the right corner.
   copyTypeMark: { fontSize: "17px", fontWeight: 800, letterSpacing: "0.18em", color: "#374151", textTransform: "uppercase" as const, textAlign: "center" as const, margin: "0 0 16px 0" },
@@ -177,7 +182,7 @@ const styles = {
   summaryValueRed: { fontSize: "12px", color: "#000000", fontWeight: 600 },
   grandLabel: { fontSize: "14px", fontWeight: 800, color: "#0F172A" },
   grandValue: { fontSize: "18px", fontWeight: 900, color: "#000000" },
-  amountWords: { fontSize: "13px", color: "#475569", marginTop: "8px", textAlign: "left" as const, fontStyle: "italic", width: "100%" },
+  amountWords: { fontSize: "15px", fontWeight: 700, color: "#475569", marginTop: "8px", textAlign: "left" as const, fontStyle: "italic", width: "100%" },
 
   // GST breakdown
   gstSection: { marginTop: "20px" },
@@ -462,31 +467,6 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
             {co.line2 && <p style={styles.headerMeta}>{co.line2}</p>}
             {co.phone && <p style={styles.headerMeta}>Phone: {co.phone}</p>}
           </div>
-
-          <div style={styles.invoiceRight}>
-            <div style={styles.invoiceMetaRow}>
-              <span style={styles.invoiceMetaLabel}>{`${documentLabel} #:`}</span>
-              <span style={styles.invoiceMetaValue}>{sale_id}</span>
-            </div>
-            <div style={styles.invoiceMetaRow}>
-              <span style={styles.invoiceMetaLabel}>Date:</span>
-              <span style={styles.invoiceMetaValue}>{date}</span>
-            </div>
-            {hasValue(due_date) && (
-              <div style={styles.invoiceMetaRow}>
-                <span style={styles.invoiceMetaLabel}>Due Date:</span>
-                <span style={styles.invoiceMetaValue}>{due_date}</span>
-              </div>
-            )}
-            {showVehicleNo && (
-              <div style={styles.invoiceMetaRow}>
-                <span style={styles.invoiceMetaLabel}>Vehicle No:</span>
-                <span style={styles.invoiceMetaValue}>
-                  {hasValue(vehicle_no) ? vehicle_no : <span style={styles.vehicleNoBlank}>&nbsp;</span>}
-                </span>
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
@@ -500,46 +480,75 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
         {copyType && <div style={styles.copyTypeMark}>{String(copyType).toUpperCase()}</div>}
       </div>
 
-      {/* ── BILL TO ───────────────────────────────────────────── */}
-      {(showCustomerDetails || showPaymentDetails) && (
-        <div style={{
-          ...styles.billBox,
-          padding: isCompact ? "10px 14px" : styles.billBox.padding,
-          marginTop: isCompact ? 10 : styles.billBox.marginTop,
-          marginBottom: isCompact ? 14 : styles.billBox.marginBottom,
-        }}>
-          {showCustomerDetails && (
-            <div style={styles.billCol}>
-              <p style={styles.billLabel}>BILL TO</p>
-              <h3 style={styles.billName}>{customer_name}</h3>
-              {hasValue(customer_gstin) && (
-                <p style={styles.billMeta}>GSTIN: {customer_gstin}</p>
-              )}
-              {hasValue(customer_address) && (
-                <p style={styles.billMeta}>{customer_address}</p>
-              )}
-              {hasValue(customer_mobile) && (
-                <p style={styles.billMeta}>Mobile: {customer_mobile}</p>
-              )}
+      {/* ── BILL TO + DOCUMENT META ─────────────────────────────
+          One row: customer on the left, the invoice no./date column parked at
+          the right margin beside it rather than in the header above. The row
+          always renders — the document number and date print even with both
+          customer and payment details switched off. */}
+      <div style={{
+        ...styles.billBox,
+        padding: isCompact ? "10px 14px" : styles.billBox.padding,
+        marginTop: isCompact ? 10 : styles.billBox.marginTop,
+        marginBottom: isCompact ? 14 : styles.billBox.marginBottom,
+      }}>
+        {showCustomerDetails && (
+          <div style={styles.billCol}>
+            <p style={styles.billLabel}>BILL TO</p>
+            <h3 style={styles.billName}>{customer_name}</h3>
+            {hasValue(customer_gstin) && (
+              <p style={styles.billMeta}>GSTIN: {customer_gstin}</p>
+            )}
+            {hasValue(customer_address) && (
+              <p style={styles.billMeta}>{customer_address}</p>
+            )}
+            {hasValue(customer_mobile) && (
+              <p style={styles.billMeta}>Mobile: {customer_mobile}</p>
+            )}
+          </div>
+        )}
+
+        {showShipToDetails && (
+          <div style={styles.billCol}>
+            <p style={styles.billLabel}>SHIP TO</p>
+            <h3 style={styles.billName}>{customer_name}</h3>
+            {hasValue(customer_gstin) && (
+              <p style={styles.billMeta}>GSTIN: {customer_gstin}</p>
+            )}
+            <p style={styles.billMeta}>{customer_shipping_address}</p>
+            {hasValue(customer_mobile) && (
+              <p style={styles.billMeta}>Mobile: {customer_mobile}</p>
+            )}
+          </div>
+        )}
+
+        <div style={styles.metaCol}>
+          <div style={styles.invoiceMetaRow}>
+            <span style={styles.invoiceMetaLabel}>{`${documentLabel} #:`}</span>
+            <span style={styles.invoiceMetaValue}>{sale_id}</span>
+          </div>
+          <div style={styles.invoiceMetaRow}>
+            <span style={styles.invoiceMetaLabel}>Date:</span>
+            <span style={styles.invoiceMetaValue}>{date}</span>
+          </div>
+          {hasValue(due_date) && (
+            <div style={styles.invoiceMetaRow}>
+              <span style={styles.invoiceMetaLabel}>Due Date:</span>
+              <span style={styles.invoiceMetaValue}>{due_date}</span>
+            </div>
+          )}
+          {showVehicleNo && (
+            <div style={styles.invoiceMetaRow}>
+              <span style={styles.invoiceMetaLabel}>Vehicle No:</span>
+              <span style={styles.invoiceMetaValue}>
+                {hasValue(vehicle_no) ? vehicle_no : <span style={styles.vehicleNoBlank}>&nbsp;</span>}
+              </span>
             </div>
           )}
 
-          {showShipToDetails && (
-            <div style={styles.billCol}>
-              <p style={styles.billLabel}>SHIP TO</p>
-              <h3 style={styles.billName}>{customer_name}</h3>
-              {hasValue(customer_gstin) && (
-                <p style={styles.billMeta}>GSTIN: {customer_gstin}</p>
-              )}
-              <p style={styles.billMeta}>{customer_shipping_address}</p>
-              {hasValue(customer_mobile) && (
-                <p style={styles.billMeta}>Mobile: {customer_mobile}</p>
-              )}
-            </div>
-          )}
-
+          {/* The payment badge sits under the meta rows in the same
+              right-hand column — it shares their right margin. */}
           {showPaymentDetails && (
-            <div style={styles.paymentCol}>
+            <div style={{ ...styles.paymentCol, marginTop: "10px" }}>
               <span style={{
                 ...styles.paidBadge,
                 ...(payment_status === "unpaid" || payment_status === "pending"
@@ -554,7 +563,7 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
             </div>
           )}
         </div>
-      )}
+      </div>
 
       {/* ── ITEMS TABLE ──────────────────────────────────────── */}
       <table style={{ ...styles.table, marginBottom: isCompact ? 16 : styles.table.marginBottom }}>
@@ -742,37 +751,43 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
             )}
           </div>
 
-          {showBankDetails && (
-            <div style={styles.bankBox}>
-              <p style={styles.noteLabel}>Company&apos;s Bank Details</p>
-              {bankRows.map(([label, value], i) => (
-                <div
-                  key={label}
-                  style={i === bankRows.length - 1 ? { ...styles.bankRow, marginBottom: 0 } : styles.bankRow}
-                >
-                  <span style={styles.bankKey}>{label}</span>
-                  <span style={styles.bankValue}>{value}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+          {/* Bank details and the signature share the right column so the
+              signature sits beside the notes instead of on a row of its own. */}
+          <div>
+            {showBankDetails && (
+              <div style={styles.bankBox}>
+                <p style={styles.noteLabel}>Company&apos;s Bank Details</p>
+                {bankRows.map(([label, value], i) => (
+                  <div
+                    key={label}
+                    style={i === bankRows.length - 1 ? { ...styles.bankRow, marginBottom: 0 } : styles.bankRow}
+                  >
+                    <span style={styles.bankKey}>{label}</span>
+                    <span style={styles.bankValue}>{value}</span>
+                  </div>
+                ))}
+              </div>
+            )}
 
-        {/* ── FOOTER ─────────────────────────────────────────── */}
-        <div style={{ ...styles.footer, marginTop: isCompact ? 16 : styles.footer.marginTop }}>
-          {showSignature && (
-            <div style={styles.signBox}>
-              {resolvedSignatureUrl && (
-                <img
-                  src={resolvedSignatureUrl}
-                  alt="Authorized signature"
-                  style={{ maxHeight: 46, maxWidth: 180, objectFit: "contain", marginLeft: "auto", marginBottom: 4, display: "block" }}
-                />
-              )}
-              <div style={styles.signLine} />
-              <p style={styles.signLabel}>Authorized Signatory</p>
-            </div>
-          )}
+            {showSignature && (
+              <div
+                style={{
+                  ...styles.signBox,
+                  marginTop: showBankDetails ? (isCompact ? 16 : styles.footer.marginTop) : 0,
+                }}
+              >
+                {resolvedSignatureUrl && (
+                  <img
+                    src={resolvedSignatureUrl}
+                    alt="Authorized signature"
+                    style={{ maxHeight: 46, maxWidth: 180, objectFit: "contain", marginLeft: "auto", marginBottom: 4, display: "block" }}
+                  />
+                )}
+                <div style={styles.signLine} />
+                <p style={styles.signLabel}>Authorized Signatory</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

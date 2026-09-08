@@ -31,7 +31,12 @@ const styles = {
   },
   headerMeta: { margin: "2px 0", fontSize: "11px", color: "#6B7280" },
 
-  invoiceRight: { textAlign: "right" as const },
+  // Document meta — invoice no./date sit at the right margin of the Billed To
+  // row rather than beside the company block, so they print once at the top of
+  // the document instead of repeating in the header band on every page.
+  // `marginLeft: auto` pins the column right even when Billed To is switched
+  // off and it is the only column in the row.
+  metaCol: { textAlign: "right" as const, flexShrink: 0, marginLeft: "auto" },
   // Copy marking — the document's heading: centred under the company block and
   // sized to be read at a glance, not tucked into the right corner.
   copyTypeMark: { fontSize: "17px", fontWeight: 800, letterSpacing: "0.18em", color: "#374151", textTransform: "uppercase" as const, textAlign: "center" as const, margin: "0 0 18px 0" },
@@ -121,7 +126,7 @@ const styles = {
   grandRow: { display: "flex", justifyContent: "space-between", padding: "10px 0 0 0", marginTop: "6px", borderTop: "1.5px solid #111827" },
   grandLabel: { fontSize: "13px", fontWeight: 800, color: "#111827", letterSpacing: "0.04em", textTransform: "uppercase" as const },
   grandValue: { fontSize: "15px", fontWeight: 800, color: "#111827" },
-  amountWords: { fontSize: "12px", color: "#6B7280", marginTop: "8px", textAlign: "left" as const, fontStyle: "italic", width: "100%" },
+  amountWords: { fontSize: "14px", fontWeight: 700, color: "#6B7280", marginTop: "8px", textAlign: "left" as const, fontStyle: "italic", width: "100%" },
 
   // GST breakdown
   gstSection: { marginTop: "20px" },
@@ -132,6 +137,12 @@ const styles = {
   gstTdRight: { padding: "6px 0 6px 8px", fontSize: "11px", color: "#111827", borderBottom: "1px solid #F1F3F5", textAlign: "right" as const, whiteSpace: "nowrap" as const },
   gstTotalTd: { padding: "6px 8px 6px 0", fontSize: "11px", fontWeight: 700, color: "#111827", borderTop: "1.5px solid #111827", borderBottom: "1px solid #111827" },
   gstTotalTdRight: { padding: "6px 0 6px 8px", fontSize: "11px", fontWeight: 700, color: "#111827", borderTop: "1.5px solid #111827", borderBottom: "1px solid #111827", textAlign: "right" as const, whiteSpace: "nowrap" as const },
+
+  // Notes (left) and the signature (right) share one borderless table row so the
+  // signature sits beside the notes on the right margin instead of below them.
+  closingTable: { width: "100%", tableLayout: "fixed" as const, borderCollapse: "collapse" as const, marginTop: "14px" },
+  closingNotesTd: { width: "62%", padding: "0 12px 0 0", verticalAlign: "top" as const },
+  closingSignTd: { width: "38%", padding: 0, verticalAlign: "bottom" as const },
 
   noteLabel: { fontSize: "10px", fontWeight: 700, color: "#6B7280", letterSpacing: "0.6px", textTransform: "uppercase" as const, margin: "0 0 6px 0" },
   noteText: { fontSize: "11px", color: "#374151", lineHeight: 1.6, margin: "1px 0" },
@@ -330,31 +341,6 @@ export const InvoicePDFTemplateModern = React.forwardRef(({ data, settingsOverri
             {co.line2 && <p style={styles.headerMeta}>{co.line2}</p>}
             {co.phone && <p style={styles.headerMeta}>Phone: {co.phone}</p>}
           </div>
-
-          <div style={styles.invoiceRight}>
-            <div style={styles.invoiceMetaRow}>
-              <span style={styles.invoiceMetaLabel}>{`${documentLabel} #`}</span>
-              <span style={styles.invoiceMetaValue}>{sale_id}</span>
-            </div>
-            <div style={styles.invoiceMetaRow}>
-              <span style={styles.invoiceMetaLabel}>Date:</span>
-              <span style={styles.invoiceMetaValue}>{date}</span>
-            </div>
-            {hasValue(due_date) && (
-              <div style={styles.invoiceMetaRow}>
-                <span style={styles.invoiceMetaLabel}>Due Date:</span>
-                <span style={styles.invoiceMetaValue}>{due_date}</span>
-              </div>
-            )}
-            {showVehicleNo && (
-              <div style={styles.invoiceMetaRow}>
-                <span style={styles.invoiceMetaLabel}>Vehicle No:</span>
-                <span style={styles.invoiceMetaValue}>
-                  {hasValue(vehicle_no) ? vehicle_no : <span style={styles.vehicleNoBlank}>&nbsp;</span>}
-                </span>
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
@@ -368,42 +354,69 @@ export const InvoicePDFTemplateModern = React.forwardRef(({ data, settingsOverri
         {copyType && <div style={styles.copyTypeMark}>{String(copyType).toUpperCase()}</div>}
       </div>
 
-      {/* ── BILLED TO / TOTAL DUE ───────────────────────────────── */}
-      {(showCustomerDetails || showPaymentDetails) && (
-        <>
-          <div style={styles.infoGrid}>
-            {showCustomerDetails && (
-              <div style={styles.billCol}>
-                <p style={styles.infoLabel}>Billed To</p>
-                <h3 style={styles.billName}>{customer_name}</h3>
-                {hasValue(customer_gstin) && <p style={styles.billMeta}>GSTIN: {customer_gstin}</p>}
-                {hasValue(customer_address) && <p style={styles.billMeta}>{customer_address}</p>}
-                {hasValue(customer_mobile) && <p style={styles.billMeta}>Mobile: {customer_mobile}</p>}
-              </div>
-            )}
-
-            {showShipToDetails && (
-              <div style={styles.billCol}>
-                <p style={styles.infoLabel}>Ship To</p>
-                <h3 style={styles.billName}>{customer_name}</h3>
-                {hasValue(customer_gstin) && <p style={styles.billMeta}>GSTIN: {customer_gstin}</p>}
-                <p style={styles.billMeta}>{customer_shipping_address}</p>
-                {hasValue(customer_mobile) && <p style={styles.billMeta}>Mobile: {customer_mobile}</p>}
-              </div>
-            )}
-
-            {showPaymentDetails && (
-              <div style={styles.dueBox}>
-                <p style={styles.infoLabel}>Total Due</p>
-                <p style={styles.dueValue}>{fmt(total)}</p>
-                <span style={{ ...styles.statusBadge, ...statusColors }}>{statusLabel}</span>
-                <p style={{ ...styles.billMeta, textAlign: "right" as const }}>Payment Mode: {payment_mode}</p>
-              </div>
-            )}
+      {/* ── BILLED TO + DOCUMENT META ────────────────────────────
+          One row: customer on the left, the invoice no./date column parked at
+          the right margin beside it rather than in the header above. The row
+          always renders — the document number and date print even with both
+          customer and payment details switched off. */}
+      <div style={styles.infoGrid}>
+        {showCustomerDetails && (
+          <div style={styles.billCol}>
+            <p style={styles.infoLabel}>Billed To</p>
+            <h3 style={styles.billName}>{customer_name}</h3>
+            {hasValue(customer_gstin) && <p style={styles.billMeta}>GSTIN: {customer_gstin}</p>}
+            {hasValue(customer_address) && <p style={styles.billMeta}>{customer_address}</p>}
+            {hasValue(customer_mobile) && <p style={styles.billMeta}>Mobile: {customer_mobile}</p>}
           </div>
-          <div style={styles.divider} />
-        </>
-      )}
+        )}
+
+        {showShipToDetails && (
+          <div style={styles.billCol}>
+            <p style={styles.infoLabel}>Ship To</p>
+            <h3 style={styles.billName}>{customer_name}</h3>
+            {hasValue(customer_gstin) && <p style={styles.billMeta}>GSTIN: {customer_gstin}</p>}
+            <p style={styles.billMeta}>{customer_shipping_address}</p>
+            {hasValue(customer_mobile) && <p style={styles.billMeta}>Mobile: {customer_mobile}</p>}
+          </div>
+        )}
+
+        <div style={styles.metaCol}>
+          <div style={styles.invoiceMetaRow}>
+            <span style={styles.invoiceMetaLabel}>{`${documentLabel} #`}</span>
+            <span style={styles.invoiceMetaValue}>{sale_id}</span>
+          </div>
+          <div style={styles.invoiceMetaRow}>
+            <span style={styles.invoiceMetaLabel}>Date:</span>
+            <span style={styles.invoiceMetaValue}>{date}</span>
+          </div>
+          {hasValue(due_date) && (
+            <div style={styles.invoiceMetaRow}>
+              <span style={styles.invoiceMetaLabel}>Due Date:</span>
+              <span style={styles.invoiceMetaValue}>{due_date}</span>
+            </div>
+          )}
+          {showVehicleNo && (
+            <div style={styles.invoiceMetaRow}>
+              <span style={styles.invoiceMetaLabel}>Vehicle No:</span>
+              <span style={styles.invoiceMetaValue}>
+                {hasValue(vehicle_no) ? vehicle_no : <span style={styles.vehicleNoBlank}>&nbsp;</span>}
+              </span>
+            </div>
+          )}
+
+          {/* Total Due sits under the meta rows in the same right-hand
+              column — it shares their right margin. */}
+          {showPaymentDetails && (
+            <div style={{ ...styles.dueBox, marginTop: "12px" }}>
+              <p style={styles.infoLabel}>Total Due</p>
+              <p style={styles.dueValue}>{fmt(total)}</p>
+              <span style={{ ...styles.statusBadge, ...statusColors }}>{statusLabel}</span>
+              <p style={{ ...styles.billMeta, textAlign: "right" as const }}>Payment Mode: {payment_mode}</p>
+            </div>
+          )}
+        </div>
+      </div>
+      <div style={styles.divider} />
 
       {/* ── ITEMS TABLE ──────────────────────────────────────── */}
       <table style={styles.table}>
@@ -588,25 +601,36 @@ export const InvoicePDFTemplateModern = React.forwardRef(({ data, settingsOverri
           </table>
         )}
 
-        {showNotes && notesText && (
-          <div style={{ marginTop: 14 }}>
-            <p style={styles.noteLabel}>Notes</p>
-            <p style={{ ...styles.noteText, whiteSpace: "pre-line" as const, margin: 0 }}>{notesText}</p>
-          </div>
-        )}
-
-        {showSignature && (
-          <div style={{ ...styles.signBox, marginTop: 18 }}>
-            {resolvedSignatureUrl && (
-              <img
-                src={resolvedSignatureUrl}
-                alt="Authorized signature"
-                style={{ maxHeight: 46, maxWidth: 180, objectFit: "contain", marginLeft: "auto", marginBottom: 4, display: "block" }}
-              />
-            )}
-            <p style={styles.signLabel}>{co.name}</p>
-            <p style={styles.signRole}>Authorized Signatory</p>
-          </div>
+        {((showNotes && notesText) || showSignature) && (
+          <table style={styles.closingTable}>
+            <tbody>
+              <tr>
+                <td style={styles.closingNotesTd}>
+                  {showNotes && notesText && (
+                    <>
+                      <p style={styles.noteLabel}>Notes</p>
+                      <p style={{ ...styles.noteText, whiteSpace: "pre-line" as const, margin: 0 }}>{notesText}</p>
+                    </>
+                  )}
+                </td>
+                <td style={styles.closingSignTd}>
+                  {showSignature && (
+                    <div style={styles.signBox}>
+                      {resolvedSignatureUrl && (
+                        <img
+                          src={resolvedSignatureUrl}
+                          alt="Authorized signature"
+                          style={{ maxHeight: 46, maxWidth: 180, objectFit: "contain", marginLeft: "auto", marginBottom: 4, display: "block" }}
+                        />
+                      )}
+                      <p style={styles.signLabel}>{co.name}</p>
+                      <p style={styles.signRole}>Authorized Signatory</p>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            </tbody>
+          </table>
         )}
       </div>
     </div>

@@ -1,38 +1,26 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import type { RootState } from "@store/store";
 import type { AuthUser, CompanyDetails, CompanyWithBranches, InvoiceSettings, PosSettings, RoleAccessItem } from "@pages/auth/Authapi";
+import {
+  INITIAL_USER_STATE,
+  type PermissionsSyncStatus,
+  type Userstate,
+} from "@store/persistedUserState";
 
-interface Userstate {
-  branchId: string;
-  branchName: string;
-  zoduId: string;
-  businessType: string;
-  companies: CompanyWithBranches[];
-  accessToken: string | null;
-  refreshToken: string | null;
-  profile: AuthUser | null;
-  company: CompanyDetails | null;
-  roleAccess: RoleAccessItem[];
-  invoiceSettings: InvoiceSettings | null;
-  posSettings: PosSettings | null;
-  isAuthenticated: boolean;
-}
+// The slice's shape and its persisted form live together in persistedUserState
+// so the boot-time reconciliation can be unit tested without the store.
+export type { PermissionsSyncStatus, Userstate };
 
-const initialState: Userstate = {
-  branchId: "",
-  branchName: "",
-  zoduId: "",
-  businessType: "",
-  companies: [],
-  accessToken: null,
-  refreshToken: null,
-  profile: null,
-  company: null,
-  roleAccess: [],
-  invoiceSettings: null,
-  posSettings: null,
-  isAuthenticated: false,
-};
+const initialState: Userstate = INITIAL_USER_STATE;
+
+/**
+ * What the selectors below need off the root state.
+ *
+ * Deliberately not `RootState` from the store: the store's type is inferred
+ * from this reducer, so importing it back here closes a type cycle that
+ * configureStore then cannot resolve. Every RootState is structurally one of
+ * these, so callers are unaffected.
+ */
+type UserRootState = { user: Userstate };
 
 const userSlice = createSlice({
   name: "userSlice",
@@ -67,6 +55,10 @@ const userSlice = createSlice({
         action.payload.refreshToken &&
         action.payload.profile
       );
+      // A fresh login is the one moment permissions are known to be current, so
+      // nothing has to be reconciled behind it.
+      state.permissionsStatus = "ready";
+      state.permissionsBlocking = false;
     },
     setCompanies: (state, action: PayloadAction<CompanyWithBranches[]>) => {
       state.companies = action.payload;
@@ -79,6 +71,29 @@ const userSlice = createSlice({
     },
     setPosSettings: (state, action: PayloadAction<PosSettings | null>) => {
       state.posSettings = action.payload;
+    },
+
+    // ── Boot-time reconciliation of a restored session ──────────────────
+    // Driven by useReconcilePersistedSession: the persisted permission fields
+    // are an optimistic cache, so every restored session refetches them.
+
+    permissionsRefreshStarted: (state) => {
+      state.permissionsStatus = "refreshing";
+    },
+    /** Called after setRoleAccess/setInvoiceSettings/setPosSettings have landed. */
+    permissionsRefreshSucceeded: (state) => {
+      state.permissionsStatus = "ready";
+      state.permissionsBlocking = false;
+    },
+    /**
+     * The refetch failed (offline, 401, server error). The session is left
+     * intact — we never log a valid user out over a failed refresh — but if
+     * there was no trustworthy cache to fall back on, `permissionsBlocking`
+     * stays true and the caller shows a retry instead of rendering the app
+     * with permissions that never loaded.
+     */
+    permissionsRefreshFailed: (state) => {
+      state.permissionsStatus = "error";
     },
     clearAuthData: (state) => {
       state.accessToken = null;
@@ -94,24 +109,39 @@ const userSlice = createSlice({
       state.branchName = "";
       state.zoduId = "";
       state.businessType = "";
+      state.permissionsStatus = "ready";
+      state.permissionsBlocking = false;
     },
   },
 });
 
-export const { addUserData, setAuthData, setCompanies, setRoleAccess, setInvoiceSettings, setPosSettings, clearAuthData } = userSlice.actions;
+export const {
+  addUserData,
+  setAuthData,
+  setCompanies,
+  setRoleAccess,
+  setInvoiceSettings,
+  setPosSettings,
+  permissionsRefreshStarted,
+  permissionsRefreshSucceeded,
+  permissionsRefreshFailed,
+  clearAuthData,
+} = userSlice.actions;
 
-export const BranchId = (state: RootState) => state.user.branchId;
-export const BranchName = (state: RootState) => state.user.branchName;
-export const ZoduId = (state: RootState) => state.user.zoduId;
-export const BusinessType = (state: RootState) => state.user.businessType;
-export const AllCompanies = (state: RootState) => state.user.companies;
-export const AuthToken = (state: RootState) => state.user.accessToken;
-export const RefreshToken = (state: RootState) => state.user.refreshToken;
-export const UserProfile = (state: RootState) => state.user.profile;
-export const UserCompany = (state: RootState) => state.user.company;
-export const RoleAccess = (state: RootState) => state.user.roleAccess;
-export const InvoiceSettingsData = (state: RootState) => state.user.invoiceSettings;
-export const PosSettingsData = (state: RootState) => state.user.posSettings;
-export const IsAuthenticated = (state: RootState) => state.user.isAuthenticated;
+export const BranchId = (state: UserRootState) => state.user.branchId;
+export const BranchName = (state: UserRootState) => state.user.branchName;
+export const ZoduId = (state: UserRootState) => state.user.zoduId;
+export const BusinessType = (state: UserRootState) => state.user.businessType;
+export const AllCompanies = (state: UserRootState) => state.user.companies;
+export const AuthToken = (state: UserRootState) => state.user.accessToken;
+export const RefreshToken = (state: UserRootState) => state.user.refreshToken;
+export const UserProfile = (state: UserRootState) => state.user.profile;
+export const UserCompany = (state: UserRootState) => state.user.company;
+export const RoleAccess = (state: UserRootState) => state.user.roleAccess;
+export const InvoiceSettingsData = (state: UserRootState) => state.user.invoiceSettings;
+export const PosSettingsData = (state: UserRootState) => state.user.posSettings;
+export const IsAuthenticated = (state: UserRootState) => state.user.isAuthenticated;
+export const PermissionsStatus = (state: UserRootState) => state.user.permissionsStatus;
+export const PermissionsBlocking = (state: UserRootState) => state.user.permissionsBlocking;
 
 export default userSlice.reducer;

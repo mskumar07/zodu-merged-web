@@ -4,40 +4,51 @@ import type { TypedUseSelectorHook } from "react-redux";
 import POSReducer from "./slices/POSslice";
 import userReducer from "./slices/userSlice";
 import { apiSlice } from "./services/apiSlice";
+import {
+  CURRENT_USER_STATE_VERSION,
+  INITIAL_USER_STATE,
+  USER_STORAGE_KEY,
+  reconcilePersistedUserState,
+  toPersistedUserState,
+  type LoadUserStateResult,
+} from "./persistedUserState";
 
-const USER_STORAGE_KEY = "zodu_user_state";
-
-function loadUserState() {
+function readStorage(key: string): string | null {
   try {
-    const savedState = localStorage.getItem(USER_STORAGE_KEY);
-    const parsedState = savedState ? JSON.parse(savedState) : undefined;
-    const accessToken = parsedState?.accessToken ?? localStorage.getItem("access_token");
-    const refreshToken = parsedState?.refreshToken ?? localStorage.getItem("refresh_token");
-    const profile = parsedState?.profile ?? null;
-
-    if (!accessToken || !refreshToken || !profile) {
-      return undefined;
-    }
-
-    const zoduId = parsedState?.zoduId ?? profile.zodu_id ?? "";
-    // If businessType was not saved (old sessions), derive it from the stored companies array
-    const storedBusinessType = parsedState?.businessType ?? "";
-    const derivedBusinessType = storedBusinessType ||
-      ((parsedState?.companies ?? []).find((c: any) => c.zodu_id === zoduId)?.business_type ?? "");
-
-    return {
-      ...parsedState,
-      accessToken,
-      refreshToken,
-      profile,
-      zoduId,
-      branchId: parsedState?.branchId ?? profile.branch_id ?? "",
-      businessType: derivedBusinessType,
-      isAuthenticated: true,
-    };
+    return localStorage.getItem(key);
   } catch {
-    return undefined;
+    // Private-mode/quota failures must not stop the app from booting.
+    return null;
   }
+}
+
+/**
+ * Restores the persisted `user` slice.
+ *
+ * The parsing and trust decisions live in reconcilePersistedUserState (pure,
+ * unit tested); this only supplies the strings and reports what happened.
+ */
+export function loadUserState(): LoadUserStateResult {
+  const result = reconcilePersistedUserState(readStorage(USER_STORAGE_KEY), {
+    // Tokens have always also been written under these standalone keys by
+    // tokenStore, and are the only thing left for sessions whose blob predates
+    // the combined format.
+    accessToken: readStorage("access_token"),
+    refreshToken: readStorage("refresh_token"),
+  });
+
+  // Rollout health: how many sessions come back stale after a deploy, and
+  // whether anyone is hitting corrupt storage.
+  if (result.outcome === "restored-stale") {
+    console.warn(
+      `[session] persisted user state is v${result.storedVersion}, expected v${CURRENT_USER_STATE_VERSION} — ` +
+        "permissions, invoice and POS settings dropped and will be refetched before the app renders."
+    );
+  } else if (result.outcome === "invalid-json") {
+    console.warn("[session] persisted user state was unreadable — starting logged out.");
+  }
+
+  return result;
 }
 
 export const store = configureStore({
@@ -47,7 +58,9 @@ export const store = configureStore({
     [apiSlice.reducerPath]: apiSlice.reducer,
   },
   preloadedState: {
-    user: loadUserState(),
+    // A concrete slice state either way: reconcile returns undefined when there
+    // is nothing to restore, which is exactly the slice's initial state.
+    user: loadUserState().state ?? INITIAL_USER_STATE,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(apiSlice.middleware),
@@ -55,7 +68,12 @@ export const store = configureStore({
 
 store.subscribe(() => {
   try {
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(store.getState().user));
+    // Only the allow-listed fields are written, stamped with the schema version
+    // the next boot compares against. Transient sync bookkeeping stays in memory.
+    localStorage.setItem(
+      USER_STORAGE_KEY,
+      JSON.stringify(toPersistedUserState(store.getState().user))
+    );
   } catch {
     // Ignore storage write failures so the app keeps working.
   }
