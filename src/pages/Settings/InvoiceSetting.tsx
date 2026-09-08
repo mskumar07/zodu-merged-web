@@ -11,11 +11,13 @@ import {
   Typography,
 } from "@mui/material";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
+import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import LocalPrintshopOutlinedIcon from "@mui/icons-material/LocalPrintshopOutlined";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import SubjectRoundedIcon from "@mui/icons-material/SubjectRounded";
 import FormatListNumberedRoundedIcon from "@mui/icons-material/FormatListNumberedRounded";
 import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
+import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
@@ -26,6 +28,7 @@ import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlined";
 import SuccessToast from "@components/Common/SuccessToast";
+import SelectableTypeCard from "@components/Common/SelectableTypeCard";
 import { useAppDispatch, useAppSelector } from "@store/store";
 import { BusinessType, setInvoiceSettings } from "@store/slices/userSlice";
 import {
@@ -33,13 +36,17 @@ import {
   useUpdateInvoiceSettings,
   useUploadInvoiceSignature,
   useDeleteInvoiceSignature,
+  INVOICE_COPY_TYPE_LABELS,
+  type InvoiceCopyTypeLabel,
   type InvoiceSettingsResponse,
   type UpdateInvoiceSettingsPayload,
 } from "./useInvoiceSettingApi";
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "../SalesHistory/ThermalInvoiceTemplate";
 import { InvoicePDFTemplate } from "../SalesHistory/InvoicePDFTemplate";
 import { InvoicePDFTemplateModern } from "../SalesHistory/InvoicePDFTemplateModern";
+import { InvoicePDFTemplateModern2 } from "../SalesHistory/InvoicePDFTemplateModern2";
 import { numberToWords } from "@utils/numberToWords";
+import { normalizeInvoiceCopyTypes } from "@utils/invoiceCopyTypes";
 
 // ── Sample data for the live receipt preview — never sent anywhere, just
 // rendered locally so toggling an element shows its effect immediately.
@@ -114,6 +121,8 @@ interface InvoiceSettings {
   showItemId: boolean;
   showSerialNo: boolean;
   showCustomerDetails: boolean;
+  showShippingAddress: boolean;
+  invoiceCopyTypes: InvoiceCopyTypeLabel[];
   showTaxDetails: boolean;
   showPaymentDetails: boolean;
   showTermsConditions: boolean;
@@ -218,82 +227,10 @@ function Section({ title, subtitle, children }: SectionProps) {
 // column — the printed layout depends on this, so it reads better as a visual
 // pick than as a dropdown buried inside "Print Layout".
 const TEMPLATE_TYPES = [
-  { value: "A4", label: "A4 Template", caption: "210 x 297 mm", icon: "doc" as const },
-  { value: "3", label: "3 inch Thermal Printer", caption: "72 mm width", icon: "printer" as const },
-  { value: "5", label: "5 inch Thermal Printer", caption: "120 mm width", icon: "printer" as const },
+  { value: "A4", label: "A4 Template", caption: "210 x 297 mm", icon: <DescriptionOutlinedIcon fontSize="small" /> },
+  { value: "3", label: "3 inch Thermal Printer", caption: "72 mm width", icon: <LocalPrintshopOutlinedIcon fontSize="small" /> },
+  { value: "5", label: "5 inch Thermal Printer", caption: "120 mm width", icon: <LocalPrintshopOutlinedIcon fontSize="small" /> },
 ];
-
-function TemplateTypeCard({
-  label, caption, icon, selected, onSelect,
-}: {
-  label: string; caption: string; icon: "doc" | "printer"; selected: boolean; onSelect: () => void;
-}) {
-  return (
-    <Box
-      onClick={onSelect}
-      role="button"
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        gap: 1.25,
-        cursor: "pointer",
-        border: "2px solid",
-        borderColor: selected ? redTint : cardBorder,
-        borderRadius: 1.5,
-        px: 1.5,
-        py: 1.25,
-        bgcolor: selected ? "#fdf1f2" : "#fff",
-        transition: "border-color 0.15s ease, background-color 0.15s ease",
-        "&:hover": { borderColor: selected ? redTint : "#c5c8d2" },
-      }}
-    >
-      <Box
-        sx={{
-          width: 34,
-          height: 34,
-          flexShrink: 0,
-          borderRadius: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          bgcolor: selected ? "#fff" : "#f5f6fa",
-          color: selected ? redTint : subtleText,
-        }}
-      >
-        {icon === "doc"
-          ? <DescriptionOutlinedIcon fontSize="small" />
-          : <LocalPrintshopOutlinedIcon fontSize="small" />}
-      </Box>
-
-      <Box sx={{ minWidth: 0, flex: 1 }}>
-        <Typography sx={{ fontSize: 13, fontWeight: 700, color: headingText, lineHeight: 1.3 }}>
-          {label}
-        </Typography>
-        <Typography sx={{ fontSize: 11.5, color: subtleText, mt: 0.2 }}>
-          {caption}
-        </Typography>
-      </Box>
-
-      <Box
-        sx={{
-          width: 18,
-          height: 18,
-          flexShrink: 0,
-          borderRadius: 0.6,
-          border: "1.5px solid",
-          borderColor: selected ? redTint : "#cfd2db",
-          bgcolor: selected ? redTint : "#fff",
-          color: "#fff",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        {selected && <CheckRoundedIcon sx={{ fontSize: 13 }} />}
-      </Box>
-    </Box>
-  );
-}
 
 function ThemeCard({
   label, description, variant, selected, onSelect,
@@ -490,6 +427,32 @@ const PAYMENT_CODE_TO_METHOD: Record<string, string> = Object.fromEntries(
   Object.entries(PAYMENT_METHOD_TO_CODE).map(([label, code]) => [code, label])
 );
 
+// The A4 layouts a user can pick between. `value` is what's persisted in
+// `invoice_template` and what the render sites switch on; `label` is only the
+// chip text, so "modern2" can read as "Modern 2" without renaming the stored
+// value. An unrecognised stored value falls back to "classic".
+// One glyph per copy marking — three similar words read faster with an icon
+// than as plain text. Keyed by the exact INVOICE_COPY_TYPE_LABELS values.
+const COPY_TYPE_ICONS: Record<InvoiceCopyTypeLabel, React.ReactElement> = {
+  Original: <DescriptionOutlinedIcon fontSize="small" />,
+  Duplicate: <ContentCopyOutlinedIcon fontSize="small" />,
+  Transport: <LocalShippingOutlinedIcon fontSize="small" />,
+};
+
+// Who each copy is for — the three words alone don't say it. These are the
+// GST copies: recipient's, supplier's and transporter's.
+const COPY_TYPE_CAPTIONS: Record<InvoiceCopyTypeLabel, string> = {
+  Original: "Recipient's copy",
+  Duplicate: "Supplier's copy",
+  Transport: "Transporter's copy",
+};
+
+const INVOICE_TEMPLATE_OPTIONS = [
+  { value: "classic", label: "Classic" },
+  { value: "modern", label: "Modern" },
+  { value: "modern2", label: "Modern 2" },
+] as const;
+
 function toUiSettings(api: InvoiceSettingsResponse): InvoiceSettings {
   return {
     defaultTax: TAX_LABEL_TO_CODE[api.default_tax_label] ?? "GST18",
@@ -508,6 +471,10 @@ function toUiSettings(api: InvoiceSettingsResponse): InvoiceSettings {
     // always-shown behavior before the toggle existed.
     showSerialNo: api.show_serial_no ?? true,
     showCustomerDetails: api.show_customer_details ?? true,
+    // Rows predating this field default to on — before the toggle existed the
+    // Ship To block always printed when the customer had a shipping address.
+    showShippingAddress: api.show_shipping_address ?? true,
+    invoiceCopyTypes: normalizeInvoiceCopyTypes(api.invoice_copy_types),
     showTaxDetails: api.show_tax_details ?? true,
     showPaymentDetails: api.show_payment_details ?? false,
     showTermsConditions: api.show_terms_conditions ?? false,
@@ -516,7 +483,9 @@ function toUiSettings(api: InvoiceSettingsResponse): InvoiceSettings {
     notesText: api.notes ?? "",
     showSignature: api.show_signature ?? false,
     showBankDetails: api.show_bank_details ?? true,
-    invoiceTemplate: api.invoice_template === "modern" ? "modern" : "classic",
+    invoiceTemplate: INVOICE_TEMPLATE_OPTIONS.some(o => o.value === api.invoice_template)
+      ? api.invoice_template
+      : "classic",
   };
 }
 
@@ -532,6 +501,8 @@ function toApiPayload(ui: InvoiceSettings): UpdateInvoiceSettingsPayload {
     show_item_id: ui.showItemId,
     show_serial_no: ui.showSerialNo,
     show_customer_details: ui.showCustomerDetails,
+    show_shipping_address: ui.showShippingAddress,
+    invoice_copy_types: ui.invoiceCopyTypes,
     show_tax_details: ui.showTaxDetails,
     show_payment_details: ui.showPaymentDetails,
     show_terms_conditions: ui.showTermsConditions,
@@ -556,6 +527,8 @@ function getDefaultSettings(businessType: string): InvoiceSettings {
     showItemId: false,
     showSerialNo: true,
     showCustomerDetails: true,
+    showShippingAddress: true,
+    invoiceCopyTypes: ["Original"],
     showTaxDetails: true,
     showPaymentDetails: false,
     showTermsConditions: false,
@@ -668,6 +641,22 @@ export default function InvoiceSetting() {
     onError: (msg) => setErrorMsg(msg),
   });
 
+  const toggleCopyType = (value: InvoiceCopyTypeLabel) => {
+    setSettings((prev) => {
+      const isSelected = prev.invoiceCopyTypes.includes(value);
+      // Never let the last one go — the direct Download/Print action prints
+      // whichever copy is first, so an empty list would leave it with nothing.
+      if (isSelected && prev.invoiceCopyTypes.length === 1) return prev;
+      const invoiceCopyTypes = isSelected
+        ? prev.invoiceCopyTypes.filter((v) => v !== value)
+        // Rebuilt from the canonical list so the saved order is always
+        // Original → Duplicate → Transport regardless of click order.
+        : INVOICE_COPY_TYPE_LABELS.filter((v) => v === value || prev.invoiceCopyTypes.includes(v));
+      return { ...prev, invoiceCopyTypes: [...invoiceCopyTypes] };
+    });
+    setSaved(false);
+  };
+
   const update = <K extends keyof InvoiceSettings>(key: K, value: InvoiceSettings[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
     setSaved(false);
@@ -686,8 +675,15 @@ export default function InvoiceSetting() {
     const baselinePayload = toApiPayload(baselineRef.current);
     const diff: UpdateInvoiceSettingsPayload = {};
     (Object.keys(fullPayload) as Array<keyof UpdateInvoiceSettingsPayload>).forEach((key) => {
-      if (fullPayload[key] !== baselinePayload[key]) {
-        (diff as Record<string, unknown>)[key] = fullPayload[key];
+      const next = fullPayload[key];
+      const prev = baselinePayload[key];
+      // Array-valued keys (invoice_copy_types) are never `===` even when
+      // unchanged — comparing by value keeps them out of an unrelated save.
+      const changed = Array.isArray(next) || Array.isArray(prev)
+        ? JSON.stringify(next) !== JSON.stringify(prev)
+        : next !== prev;
+      if (changed) {
+        (diff as Record<string, unknown>)[key] = next;
       }
     });
 
@@ -708,6 +704,8 @@ export default function InvoiceSetting() {
     show_item_id: settings.showItemId,
     show_serial_no: settings.showSerialNo,
     show_customer_details: settings.showCustomerDetails,
+    show_shipping_address: settings.showShippingAddress,
+    invoice_copy_types: settings.invoiceCopyTypes,
     show_payment_details: settings.showPaymentDetails,
     show_terms_conditions: settings.showTermsConditions,
     terms_conditions: settings.termsConditionsText,
@@ -854,7 +852,7 @@ export default function InvoiceSetting() {
               {TEMPLATE_TYPES
                 .filter((option) => !(option.value === "A4" && businessType === "Restaurant"))
                 .map((option) => (
-                  <TemplateTypeCard
+                  <SelectableTypeCard
                     key={option.value}
                     label={option.label}
                     caption={option.caption}
@@ -970,6 +968,89 @@ export default function InvoiceSetting() {
                 />
               </Box>
             </SettingRow>
+
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
+
+            <SettingRow
+              icon={<LocalShippingOutlinedIcon fontSize="small" />}
+              iconBg="#eef4ff"
+              iconColor="#2563eb"
+              label="Shipping Address"
+              description="Show the Ship To block when the customer has a shipping address"
+            >
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Switch
+                  checked={settings.showShippingAddress}
+                  // Ship To sits inside the customer block, so it can only show
+                  // while Customer Details is on.
+                  disabled={!settings.showCustomerDetails}
+                  onChange={(e) => update("showShippingAddress", e.target.checked)}
+                  sx={{
+                    "& .MuiSwitch-switchBase.Mui-checked": { color: redTint },
+                    "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: redTint },
+                  }}
+                />
+              </Box>
+            </SettingRow>
+
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
+
+            {/* Copy types are a multi-select, not a switch — the row's own
+                layout is used instead of SettingRow so the chips can run the
+                full width under the label rather than squeeze into its
+                right-hand control slot. */}
+            <Box sx={{ py: 2 }}>
+              <Stack direction="row" spacing={2} alignItems="flex-start">
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 1.5,
+                    bgcolor: "#eef4ff",
+                    color: "#2563eb",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <ContentCopyOutlinedIcon fontSize="small" />
+                </Box>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText }}>
+                    Invoice Copy Types
+                  </Typography>
+                  <Typography sx={{ fontSize: 12, color: subtleText, mt: 0.3, mb: 1.5 }}>
+                    Copies offered in the Download and Print menus. The first one prints on a direct click.
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: { xs: "1fr", sm: "repeat(auto-fit, minmax(190px, 1fr))" },
+                      gap: 1.5,
+                    }}
+                  >
+                    {INVOICE_COPY_TYPE_LABELS.map((option) => {
+                      const selected = settings.invoiceCopyTypes.includes(option);
+                      return (
+                        <SelectableTypeCard
+                          key={option}
+                          label={option}
+                          caption={COPY_TYPE_CAPTIONS[option]}
+                          icon={COPY_TYPE_ICONS[option]}
+                          selected={selected}
+                          // The last remaining copy can't be turned off — the
+                          // Download/Print menus need something to offer, and
+                          // the server rejects an empty list.
+                          disabled={selected && settings.invoiceCopyTypes.length === 1}
+                          onSelect={() => toggleCopyType(option)}
+                        />
+                      );
+                    })}
+                  </Box>
+                </Box>
+              </Stack>
+            </Box>
 
             <Divider sx={{ borderColor: "#f4f5f8" }} />
 
@@ -1278,7 +1359,7 @@ export default function InvoiceSetting() {
 
             {settings.printInch === "A4" && (
               <Stack direction="row" sx={{ border: "1px solid", borderColor: cardBorder, borderRadius: 999, p: 0.4, gap: 0.4, flexShrink: 0 }}>
-                {(["classic", "modern"] as const).map((option) => {
+                {INVOICE_TEMPLATE_OPTIONS.map(({ value: option, label: optionLabel }) => {
                   const selected = settings.invoiceTemplate === option;
                   return (
                     <Box
@@ -1290,14 +1371,14 @@ export default function InvoiceSetting() {
                         borderRadius: 999,
                         fontSize: 12,
                         fontWeight: 700,
-                        textTransform: "capitalize",
+                        whiteSpace: "nowrap",
                         cursor: "pointer",
                         color: selected ? "#fff" : subtleText,
                         bgcolor: selected ? redTint : "transparent",
                         transition: "background-color 0.15s, color 0.15s",
                       }}
                     >
-                      {option}
+                      {optionLabel}
                     </Box>
                   );
                 })}
@@ -1334,7 +1415,17 @@ export default function InvoiceSetting() {
               }}
             >
               {settings.printInch === "A4" ? (
-                settings.invoiceTemplate === "modern" ? (
+                settings.invoiceTemplate === "modern2" ? (
+                  <InvoicePDFTemplateModern2
+                    data={PREVIEW_DATA}
+                    settingsOverride={previewSettingsOverride}
+                    theme={theme}
+                    accentColor={settings.invoiceThemeColor}
+                    logoUrl={companyLogoUrl}
+                    headerImageUrl={headerImageUrl}
+                    signatureUrl={signatureUrl}
+                  />
+                ) : settings.invoiceTemplate === "modern" ? (
                   <InvoicePDFTemplateModern
                     data={PREVIEW_DATA}
                     settingsOverride={previewSettingsOverride}

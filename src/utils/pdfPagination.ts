@@ -198,6 +198,9 @@ function findSafeSliceHeight(
  */
 export async function renderPaginatedInvoicePdf(
   container: HTMLElement,
+  // When given, pages are appended to this document instead of a fresh one —
+  // lets several invoice copies (Original, Duplicate, …) end up in one file.
+  appendTo?: jsPDF | null,
 ): Promise<jsPDF | null> {
   const headerEl = container.querySelector("[data-pdf-header]") as HTMLElement | null;
   const headerDividerEl = container.querySelector("[data-pdf-header-divider]") as HTMLElement | null;
@@ -268,7 +271,7 @@ export async function renderPaginatedInvoicePdf(
     }
   }
 
-  const pdf = new jsPDF({
+  const pdf = appendTo ?? new jsPDF({
     orientation: "p",
     unit: "mm",
     format: "a4",
@@ -360,7 +363,9 @@ export async function renderPaginatedInvoicePdf(
     const imgData = trimmedPageCanvas.toDataURL("image/jpeg", PDF_IMAGE_QUALITY);
     const sliceHeightMm = toMm(trimmedPageCanvas.height);
 
-    if (pageIndex > 0) {
+    // Appending into an existing document needs a page break before its first
+    // page too — that document already has content on its current page.
+    if (pageIndex > 0 || appendTo) {
       pdf.addPage();
     }
 

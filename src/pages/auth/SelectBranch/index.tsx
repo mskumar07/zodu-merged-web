@@ -12,7 +12,7 @@ import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { useAppDispatch, useAppSelector } from "@store/store";
-import { addUserData, AllCompanies, UserProfile, setRoleAccess, setInvoiceSettings } from "@store/slices/userSlice";
+import { addUserData, AllCompanies, UserProfile, setRoleAccess, setInvoiceSettings, setPosSettings } from "@store/slices/userSlice";
 import { authApis, type Branch, type CompanyWithBranches } from "@pages/auth/Authapi";
 import SubscriptionExpiredModal from "@components/Modals/SubscriptionExpiredModal";
 import SuccessToast from "@components/Common/SuccessToast";
@@ -345,9 +345,13 @@ const SelectBranch: React.FC = () => {
     try {
       const res = await authApis.getSettings(zoduId, branchId);
       dispatch(setInvoiceSettings(res.settings?.invoice ?? null));
+      // Same call carries the POS block — the POS screen reads its sale-type
+      // tabs from here rather than making a second request on every open.
+      dispatch(setPosSettings(res.settings?.pos ?? null));
       return true;
     } catch (err: any) {
       dispatch(setInvoiceSettings(null));
+      dispatch(setPosSettings(null));
       setErrorMsg(err?.response?.data?.error || "Failed to load settings");
       return false;
     }

@@ -1,7 +1,8 @@
 /**
  * InvoiceDetailsModal.tsx
  */
-import { useRef } from "react";
+import { useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useAppSelector } from "@store/store";
 import { InvoiceSettingsData } from "@store/slices/userSlice";
 import {
@@ -34,8 +35,12 @@ import {
 } from "./useSaleshistory";
 import { InvoicePDFTemplate } from "./InvoicePDFTemplate";
 import { InvoicePDFTemplateModern } from "./InvoicePDFTemplateModern";
+import { InvoicePDFTemplateModern2 } from "./InvoicePDFTemplateModern2";
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "./ThermalInvoiceTemplate";
 import { renderPaginatedInvoicePdf } from "@utils/pdfPagination";
+import InvoiceCopyActions from "@components/Common/InvoiceCopyActions";
+import { normalizeInvoiceCopyTypes } from "@utils/invoiceCopyTypes";
+import { isNonBindingSaleType, saleDocumentLabel } from "@utils/saleType";
 
 // ─────────────────────────────────────────────────────────────
 // Styled helpers
@@ -290,7 +295,10 @@ export default function InvoiceDetailsModal({
     ? `Discount (${Number(sale.discount_value)}%${discountGstModeLabel ? ` · ${discountGstModeLabel}` : ""})`
     : "Discount";
 
-  const isQuotation    = sale?.sale_type === "quotation";
+  // Quotations and proformas are non-binding: they carry no payment, so the
+  // dialog names itself after the document and drops the payment sections.
+  const documentLabel  = saleDocumentLabel(sale?.sale_type);
+  const isNonBinding   = isNonBindingSaleType(sale?.sale_type);
   const totalReturned  = returnHistory.reduce((s: number, r: any) => s + Number(r.return_amount), 0);
   const originalTotal  = Number(sale?.total_amount ?? 0);
   const adjustedTotal  = originalTotal - totalReturned;
@@ -308,20 +316,56 @@ export default function InvoiceDetailsModal({
     customer?.city, customer?.state, customer?.pincode,
   ].filter(Boolean).join(", ") || "—";
   const customerShippingAddress = customer?.shipping_address?.trim();
-  const hasShippingAddress = !!customerShippingAddress;
+  // Gates both the on-screen Shipping Address field and the Ship To block on
+  // the printed invoice. Absent on rows predating the toggle — default on.
+  const showShippingAddress = invoiceSettings?.show_shipping_address ?? true;
+  const hasShippingAddress = !!customerShippingAddress && showShippingAddress;
 
   // ── PDF generation ────────────────────────────────────────
-  const generatePDF = async (): Promise<jsPDF | null> => {
+  // Which copy marking the hidden templates are currently rendering. Driven
+  // synchronously (see generatePdfForCopies) rather than by a normal state
+  // update, because the DOM has to carry the right marking at the moment
+  // html2canvas reads it.
+  const [renderCopyType, setRenderCopyType] = useState<string | null>(null);
+  const copyTypes = normalizeInvoiceCopyTypes(invoiceSettings?.invoice_copy_types);
+
+  /**
+   * Renders one PDF containing each requested copy in turn. An empty list means
+   * "no copy marking at all" — the pre-copy-types behavior.
+   */
+  const generatePdfForCopies = async (copies: string[]): Promise<jsPDF | null> => {
     if (!pdfRef.current) return null;
-    return renderPaginatedInvoicePdf(pdfRef.current);
+    const list: Array<string | null> = copies.length > 0 ? copies : [null];
+    let doc: jsPDF | null = null;
+    try {
+      for (const copy of list) {
+        // flushSync, not a plain setState: the marking must be in the DOM
+        // before the capture below reads it, and React would otherwise batch
+        // the update until after this handler finishes.
+        flushSync(() => setRenderCopyType(copy));
+        doc = await renderPaginatedInvoicePdf(pdfRef.current, doc);
+        if (!doc) return null;
+      }
+    } finally {
+      flushSync(() => setRenderCopyType(null));
+    }
+    return doc;
+  };
+
+  // "Invoice_INV-001_Original.pdf" for one copy, "..._All_Copies.pdf" for the lot.
+  const copyFileName = (copies: string[]) => {
+    const base = `Invoice_${sale?.sale_id ?? "invoice"}`;
+    if (copies.length === 0) return `${base}.pdf`;
+    if (copies.length === 1) return `${base}_${copies[0]}.pdf`;
+    return `${base}_All_Copies.pdf`;
   };
 
   // ── Share handler ─────────────────────────────────────────
-  const handleShare = async () => {
-    const pdf = await generatePDF();
+  const handleShare = async (copies: string[]) => {
+    const pdf = await generatePdfForCopies(copies);
     if (!pdf) return;
 
-    const fileName = `Invoice_${sale?.sale_id ?? "invoice"}.pdf`;
+    const fileName = copyFileName(copies);
     const blob     = pdf.output("blob");
     const file     = new File([blob], fileName, { type: "application/pdf" });
 
@@ -354,20 +398,32 @@ export default function InvoiceDetailsModal({
   };
 
   // ── Download handler ──────────────────────────────────────
-  const handleDownload = async () => {
-    const pdf = await generatePDF();
-    pdf?.save(`Invoice_${sale?.sale_id ?? "invoice"}.pdf`);
+  const handleDownload = async (copies: string[]) => {
+    const pdf = await generatePdfForCopies(copies);
+    pdf?.save(copyFileName(copies));
   };
 
   // ── Thermal print handler ───────────────────────────────────
-  const handleThermalPrint = () => {
+  const handleThermalPrint = (copies: string[]) => {
     if (!thermalRef.current) return;
     // Use actual printable widths (roll width minus hardware margins) to prevent right-side clipping
     const paperMmMap: Record<ThermalPaperSize, number> = { "3": 72, "4": 96, "5": 120 };
     const mm = paperMmMap[thermalPaperSize];
     // outerHTML (not innerHTML) — the ref'd div carries the base font-family/color/weight
     // inline styles; innerHTML would drop them and fall back to the browser's thin default font.
-    const content = thermalRef.current.outerHTML;
+    // One capture per requested copy, each re-rendered synchronously so it
+    // carries its own marking, then joined with hard page breaks.
+    const list: Array<string | null> = copies.length > 0 ? copies : [null];
+    const parts: string[] = [];
+    try {
+      for (const copy of list) {
+        flushSync(() => setRenderCopyType(copy));
+        parts.push(thermalRef.current.outerHTML);
+      }
+    } finally {
+      flushSync(() => setRenderCopyType(null));
+    }
+    const content = parts.join('<div style="page-break-after:always"></div>');
     const printWindow = window.open("", "_blank", "width=500,height=700");
     if (!printWindow) return;
     printWindow.document.write(`<!DOCTYPE html>
@@ -402,12 +458,12 @@ export default function InvoiceDetailsModal({
   // browser's print dialog on the generated PDF without ever navigating away
   // (a hidden iframe, not a new tab); any thermal width (3"/5", "4" handled
   // defensively) prints the thermal receipt.
-  const handlePrint = async () => {
+  const handlePrint = async (copies: string[]) => {
     if (invoiceSettings?.printer_inch !== "A4") {
-      handleThermalPrint();
+      handleThermalPrint(copies);
       return;
     }
-    const pdf = await generatePDF();
+    const pdf = await generatePdfForCopies(copies);
     if (!pdf) return;
     const blob = pdf.output("blob");
     const url = URL.createObjectURL(blob);
@@ -441,6 +497,10 @@ export default function InvoiceDetailsModal({
   // ── PDF data ──────────────────────────────────────────────
   const pdfData = {
     sale_id:           sale?.sale_id,
+    // Drives the "QUOTATION" vs "INVOICE" heading in the print templates.
+    sale_type:         sale?.sale_type,
+    // Printed on the transport copy only; a blank rule when the sale has none.
+    vehicle_no:        sale?.vehicle_no ?? null,
     date:              sale?.sale_date_fmt,
     due_date:          null,
     customer_name:     customerName,
@@ -513,7 +573,7 @@ export default function InvoiceDetailsModal({
               : <ReceiptLongOutlinedIcon sx={{ color: "#D0021B", fontSize: 20 }} />}
           </Box>
           <Typography sx={{ fontSize: 18, fontWeight: 800, color: "#0F172A" }}>
-            {isRestaurant ? "Order Details" : "Invoice Details"}
+            {isRestaurant ? "Order Details" : `${documentLabel} Details`}
           </Typography>
           <Chip
             label={isRestaurant ? (sale?.public_order_no ?? sale?.sale_id ?? "—") : (sale?.sale_id ?? "—")}
@@ -748,7 +808,7 @@ export default function InvoiceDetailsModal({
                   large
                 />
 
-                {!isQuotation && !isRestaurant && paidAmount > 0 && (
+                {!isNonBinding && !isRestaurant && paidAmount > 0 && (
                   <SRow
                     label="Paid Amount"
                     value={INR(paidAmount)}
@@ -756,7 +816,7 @@ export default function InvoiceDetailsModal({
                   />
                 )}
 
-                {!isQuotation && !isRestaurant && adjustedBalance > 0 && (
+                {!isNonBinding && !isRestaurant && adjustedBalance > 0 && (
                   <SRow
                     label="Balance Due"
                     value={INR(adjustedBalance)}
@@ -776,7 +836,7 @@ export default function InvoiceDetailsModal({
             </Box>
 
             {/* 4 ── Payment history ─────────────────────────── */}
-            {(isRestaurant || (!isQuotation && history.length > 0)) && (
+            {(isRestaurant || (!isNonBinding && history.length > 0)) && (
               <Box>
                 <SectionTitle>Payment History</SectionTitle>
                 <TableContainer component={Paper} elevation={0}
@@ -1149,12 +1209,14 @@ export default function InvoiceDetailsModal({
 
       {/* Hidden PDF / thermal render targets */}
       <div style={{ position: "fixed", left: "-9999px", top: "-9999px", overflow: "hidden", pointerEvents: "none" }}>
-        {invoiceSettings?.invoice_template === "modern" ? (
-          <InvoicePDFTemplateModern ref={pdfRef} data={pdfData} />
+        {invoiceSettings?.invoice_template === "modern2" ? (
+          <InvoicePDFTemplateModern2 ref={pdfRef} data={pdfData} copyType={renderCopyType} />
+        ) : invoiceSettings?.invoice_template === "modern" ? (
+          <InvoicePDFTemplateModern ref={pdfRef} data={pdfData} copyType={renderCopyType} />
         ) : (
-          <InvoicePDFTemplate ref={pdfRef} data={pdfData} />
+          <InvoicePDFTemplate ref={pdfRef} data={pdfData} copyType={renderCopyType} />
         )}
-        <ThermalInvoiceTemplate ref={thermalRef} data={pdfData} paperSize={thermalPaperSize} />
+        <ThermalInvoiceTemplate ref={thermalRef} data={pdfData} paperSize={thermalPaperSize} copyType={renderCopyType} />
       </div>
 
       {/* ── Footer actions ─────────────────────────────────── */}
@@ -1178,28 +1240,33 @@ export default function InvoiceDetailsModal({
 
         <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
 
-          {/* Share */}
-          <Tooltip title="Share invoice">
-            <IconButton
-              onClick={handleShare}
-              sx={{
-                border: "1px solid #E2E8F0",
-                borderRadius: "10px",
-                p: 1,
-                color: "#475569",
-                bgcolor: "#fff",
-                "&:hover": { bgcolor: "#F1F5F9", borderColor: "#CBD5E1" },
-              }}
-            >
-              <ShareIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Tooltip>
+          {/* Share — body shares the first copy, caret offers the rest */}
+          <InvoiceCopyActions
+            label="Share"
+            icon={<ShareIcon sx={{ fontSize: 17 }} />}
+            copyTypes={copyTypes}
+            onRun={handleShare}
+            buttonSx={{
+              border: "1px solid #E2E8F0",
+              bgcolor: "#fff",
+              color: "#475569",
+              fontWeight: 700,
+              fontSize: 13,
+              px: 2,
+              py: 1,
+              borderRadius: "10px",
+              textTransform: "none",
+              "&:hover": { bgcolor: "#F1F5F9", borderColor: "#CBD5E1" },
+            }}
+          />
 
-          {/* Download */}
-          <Button
-            startIcon={<DownloadIcon sx={{ fontSize: 17 }} />}
-            onClick={handleDownload}
-            sx={{
+          {/* Download — body downloads the first copy, caret offers the rest */}
+          <InvoiceCopyActions
+            label="Download"
+            icon={<DownloadIcon sx={{ fontSize: 17 }} />}
+            copyTypes={copyTypes}
+            onRun={handleDownload}
+            buttonSx={{
               bgcolor: "#F1F5F9",
               color: "#0F172A",
               fontWeight: 700,
@@ -1210,15 +1277,15 @@ export default function InvoiceDetailsModal({
               textTransform: "none",
               "&:hover": { bgcolor: "#E2E8F0" },
             }}
-          >
-            Download
-          </Button>
+          />
 
-          {/* Print */}
-          <Button
-            startIcon={<PrintIcon sx={{ fontSize: 17 }} />}
-            onClick={handlePrint}
-            sx={{
+          {/* Print — same split behavior */}
+          <InvoiceCopyActions
+            label="Print"
+            icon={<PrintIcon sx={{ fontSize: 17 }} />}
+            copyTypes={copyTypes}
+            onRun={handlePrint}
+            buttonSx={{
               bgcolor: "#D0021B",
               color: "#fff",
               fontWeight: 700,
@@ -1230,9 +1297,7 @@ export default function InvoiceDetailsModal({
               boxShadow: "0 8px 20px -4px rgba(208,2,27,0.3)",
               "&:hover": { bgcolor: "#B00218", boxShadow: "0 8px 20px -4px rgba(208,2,27,0.45)" },
             }}
-          >
-            Print Invoice
-          </Button>
+          />
 
         </Box>
       </DialogActions>

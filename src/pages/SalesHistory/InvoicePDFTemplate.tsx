@@ -2,6 +2,7 @@ import { useAppSelector } from "@store/store";
 import { useTenantContext } from "@store/tenantContext";
 import { AllCompanies, InvoiceSettingsData } from "@store/slices/userSlice";
 import React from "react";
+import { saleDocumentLabel } from "@utils/saleType";
 
 // ── Inline style constants ────────────────────────────────────
 const styles = {
@@ -34,13 +35,12 @@ const styles = {
   headerMeta: { margin: "2px 0", fontSize: "11px", color: "#475569" },
 
   invoiceRight: { textAlign: "right" as const },
-  invoiceTitle: {
-    fontSize: "22px",
-    fontWeight: 800,
-    color: "#0F172A",
-    margin: "0 0 10px 0",
-    letterSpacing: "2px",
-  },
+  // Copy marking — the document's heading: centred under the company block and
+  // sized to be read at a glance, not tucked into the right corner.
+  copyTypeMark: { fontSize: "17px", fontWeight: 800, letterSpacing: "0.18em", color: "#374151", textTransform: "uppercase" as const, textAlign: "center" as const, margin: "0 0 16px 0" },
+  // Blank rule for a vehicle number the sale does not carry — the transport
+  // copy is filled in by hand at dispatch.
+  vehicleNoBlank: { display: "inline-block", minWidth: "88px", borderBottom: "1px solid #9CA3AF" },
   invoiceMetaRow: {
     display: "flex",
     justifyContent: "flex-end",
@@ -177,7 +177,7 @@ const styles = {
   summaryValueRed: { fontSize: "12px", color: "#000000", fontWeight: 600 },
   grandLabel: { fontSize: "14px", fontWeight: 800, color: "#0F172A" },
   grandValue: { fontSize: "18px", fontWeight: 900, color: "#000000" },
-  amountWords: { fontSize: "10px", color: "#64748B", marginTop: "8px", textAlign: "right" as const, fontStyle: "italic" },
+  amountWords: { fontSize: "13px", color: "#475569", marginTop: "8px", textAlign: "left" as const, fontStyle: "italic", width: "100%" },
 
   // GST breakdown
   gstSection: { marginTop: "20px" },
@@ -331,7 +331,7 @@ function gstRateSuffix(rows: any[], key: "cgstRate" | "sgstRate") {
 
 
 // ── Main template ─────────────────────────────────────────────
-export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, theme = "classic", accentColor, logoUrl, headerImageUrl, signatureUrl }: any, ref: any) => {
+export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, theme = "classic", accentColor, logoUrl, headerImageUrl, signatureUrl, copyType }: any, ref: any) => {
   const isCompact = theme === "compact";
   const {
     sale_id, date, due_date,
@@ -345,7 +345,10 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
     total,
     amount_in_words,
     gst_breakdown = [],
+    sale_type,
+    vehicle_no,
   } = data;
+  const documentLabel = saleDocumentLabel(sale_type);
   const { profile, company, zoduId, branchId } = useTenantContext();
   const companies = useAppSelector(AllCompanies);
   const selectedCompany = companies.find(c => c.zodu_id === zoduId);
@@ -359,7 +362,11 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
   const showItemId = invoiceSettings?.show_item_id ?? false;
   const showSerialNo = invoiceSettings?.show_serial_no ?? true;
   const showCustomerDetails = invoiceSettings?.show_customer_details ?? true;
-  const showShipToDetails = showCustomerDetails && hasValue(customer_shipping_address);
+  // Ship To is gated by its own setting on top of the customer-details one it
+  // lives inside. Absent on rows predating the toggle — default on, matching
+  // the previous always-print-when-present behavior.
+  const showShippingAddress = invoiceSettings?.show_shipping_address ?? true;
+  const showShipToDetails = showCustomerDetails && showShippingAddress && hasValue(customer_shipping_address);
   const showTaxDetails = invoiceSettings?.show_tax_details ?? true;
   const showPaymentDetails = invoiceSettings?.show_payment_details ?? false;
   const showTermsConditions = invoiceSettings?.show_terms_conditions ?? false;
@@ -380,6 +387,11 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
   // page's live preview passes an in-progress (unsaved) color as `accentColor`;
   // real invoice rendering has no such prop and uses the saved theme color.
   const resolvedAccentColor = accentColor || invoiceSettings?.invoice_theme_color || "#D0021B";
+  // A transport copy travels with the goods, so it is the only copy that
+  // carries the vehicle number — the recipient's and supplier's copies leave
+  // the row out entirely. Falls back to a blank rule to fill in by hand when
+  // the sale carries no vehicle number.
+  const showVehicleNo = String(copyType ?? "").trim().toLowerCase() === "transport";
 
   const showDiscount = discount && Number(discount) > 0;
   const showRoundOff = round_off !== undefined && round_off !== null && Number(round_off) !== 0;
@@ -438,39 +450,55 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
       )}
 
       {/* ── HEADER ───────────────────────────────────────────── */}
-      <div data-pdf-header style={styles.header}>
-        <div>
-          {showCompanyLogo && resolvedLogoUrl && (
-            <img src={resolvedLogoUrl} alt="" style={{ maxHeight: 44, maxWidth: 140, objectFit: "contain", marginBottom: 8, display: "block" }} />
-          )}
-          <h1 style={{ ...styles.brandName, color: resolvedAccentColor }}>{co.name}</h1>
-          {co.gstin && <p style={styles.headerMeta}>GSTIN: {co.gstin}</p>}
-          {co.line1 && <p style={styles.headerMeta}>{co.line1}</p>}
-          {co.line2 && <p style={styles.headerMeta}>{co.line2}</p>}
-          {co.phone && <p style={styles.headerMeta}>Phone: {co.phone}</p>}
-        </div>
+      <div data-pdf-header>
+        <div style={styles.header}>
+          <div>
+            {showCompanyLogo && resolvedLogoUrl && (
+              <img src={resolvedLogoUrl} alt="" style={{ maxHeight: 44, maxWidth: 140, objectFit: "contain", marginBottom: 8, display: "block" }} />
+            )}
+            <h1 style={{ ...styles.brandName, color: resolvedAccentColor }}>{co.name}</h1>
+            {co.gstin && <p style={styles.headerMeta}>GSTIN: {co.gstin}</p>}
+            {co.line1 && <p style={styles.headerMeta}>{co.line1}</p>}
+            {co.line2 && <p style={styles.headerMeta}>{co.line2}</p>}
+            {co.phone && <p style={styles.headerMeta}>Phone: {co.phone}</p>}
+          </div>
 
-        <div style={styles.invoiceRight}>
-          <h2 style={styles.invoiceTitle}>INVOICE</h2>
-          <div style={styles.invoiceMetaRow}>
-            <span style={styles.invoiceMetaLabel}>Invoice #:</span>
-            <span style={styles.invoiceMetaValue}>{sale_id}</span>
-          </div>
-          <div style={styles.invoiceMetaRow}>
-            <span style={styles.invoiceMetaLabel}>Date:</span>
-            <span style={styles.invoiceMetaValue}>{date}</span>
-          </div>
-          {hasValue(due_date) && (
+          <div style={styles.invoiceRight}>
             <div style={styles.invoiceMetaRow}>
-              <span style={styles.invoiceMetaLabel}>Due Date:</span>
-              <span style={styles.invoiceMetaValue}>{due_date}</span>
+              <span style={styles.invoiceMetaLabel}>{`${documentLabel} #:`}</span>
+              <span style={styles.invoiceMetaValue}>{sale_id}</span>
             </div>
-          )}
+            <div style={styles.invoiceMetaRow}>
+              <span style={styles.invoiceMetaLabel}>Date:</span>
+              <span style={styles.invoiceMetaValue}>{date}</span>
+            </div>
+            {hasValue(due_date) && (
+              <div style={styles.invoiceMetaRow}>
+                <span style={styles.invoiceMetaLabel}>Due Date:</span>
+                <span style={styles.invoiceMetaValue}>{due_date}</span>
+              </div>
+            )}
+            {showVehicleNo && (
+              <div style={styles.invoiceMetaRow}>
+                <span style={styles.invoiceMetaLabel}>Vehicle No:</span>
+                <span style={styles.invoiceMetaValue}>
+                  {hasValue(vehicle_no) ? vehicle_no : <span style={styles.vehicleNoBlank}>&nbsp;</span>}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Red divider */}
-      <div data-pdf-header-divider style={{ ...styles.redDivider, borderTop: `2px solid ${resolvedAccentColor}` }} />
+      {/* Red divider, then the copy marking ("ORIGINAL" / "DUPLICATE" /
+          "TRANSPORT") centred beneath it. Both live in the element the
+          paginator measures the repeating header band against, so the marking
+          is carried onto continuation pages rather than printing once. */}
+      <div data-pdf-header-divider>
+        <div style={{ ...styles.redDivider, borderTop: `2px solid ${resolvedAccentColor}` }} />
+        {/* <div style={{ ...styles.copyTypeMark, fontSize: "12px", letterSpacing: "0.12em", margin: "0 0 4px 0" }}>{documentLabel.toUpperCase()}</div> */}
+        {copyType && <div style={styles.copyTypeMark}>{String(copyType).toUpperCase()}</div>}
+      </div>
 
       {/* ── BILL TO ───────────────────────────────────────────── */}
       {(showCustomerDetails || showPaymentDetails) && (
@@ -634,9 +662,9 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
         </div>
       </div>
 
-      {/* Full page width, not the 300px summary box — a right-aligned phrase
-          this long wraps unnecessarily inside that narrow box even though
-          the rest of the page is empty. */}
+      {/* Full page width, not the 300px summary box — a phrase this long
+          wraps unnecessarily inside that narrow box even though the rest of
+          the page is empty. Left-aligned so it runs the whole width. */}
       {amount_in_words && (
         <p style={{ ...styles.amountWords, marginTop: isCompact ? 4 : 6 }}>Amount in words: {amount_in_words}</p>
       )}
@@ -651,9 +679,7 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
               {/* Amount columns get the bulk of the width so large totals
                   never overflow their cell and overlap the next column. */}
               <col />
-              <col style={{ width: "50px" }} />
               <col />
-              <col style={{ width: "50px" }} />
               <col />
               <col />
             </colgroup>
@@ -661,10 +687,8 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
               <tr>
                 <th style={styles.gstTh}>HSN Code</th>
                 <th style={styles.gstThRight}>Taxable Value</th>
-                <th style={styles.gstThRight}>CGST Rate</th>
-                <th style={styles.gstThRight}>CGST Amount</th>
-                <th style={styles.gstThRight}>SGST Rate</th>
-                <th style={styles.gstThRight}>SGST Amount</th>
+                <th style={styles.gstThRight}>CGST</th>
+                <th style={styles.gstThRight}>SGST</th>
                 <th style={styles.gstThRight}>Total Tax</th>
               </tr>
             </thead>
@@ -673,9 +697,7 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
                 <tr key={i} data-pdf-keep-together>
                   <td style={{ ...styles.gstTd, fontWeight: 600 }}>{row.hsn || "—"}</td>
                   <td style={styles.gstTdRight}>{fmt(row.taxable)}</td>
-                  <td style={styles.gstTdRight}>{row.cgstRate}%</td>
                   <td style={styles.gstTdRight}>{fmt(row.cgstAmount)}</td>
-                  <td style={styles.gstTdRight}>{row.sgstRate}%</td>
                   <td style={styles.gstTdRight}>{fmt(row.sgstAmount)}</td>
                   <td style={{ ...styles.gstTdRight, fontWeight: 700 }}>{fmt(row.totalTaxAmount)}</td>
                 </tr>
@@ -690,9 +712,7 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
                   <tr style={styles.gstTotalRow}>
                     <td style={{ ...styles.gstTotalTd }}>Total</td>
                     <td style={styles.gstTotalTdRight}>{fmt(totalTaxable)}</td>
-                    <td style={styles.gstTotalTdRight}>—</td>
                     <td style={styles.gstTotalTdRight}>{fmt(totalCgst)}</td>
-                    <td style={styles.gstTotalTdRight}>—</td>
                     <td style={styles.gstTotalTdRight}>{fmt(totalSgst)}</td>
                     <td style={styles.gstTotalTdRight}>{fmt(totalTax)}</td>
                   </tr>

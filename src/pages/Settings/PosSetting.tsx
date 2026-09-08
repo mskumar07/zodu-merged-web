@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Box,
   Button,
   Chip,
@@ -24,9 +25,13 @@ import TagRoundedIcon from "@mui/icons-material/TagRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
 import GroupRoundedIcon from "@mui/icons-material/GroupRounded";
+import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
+import RequestQuoteOutlinedIcon from "@mui/icons-material/RequestQuoteOutlined";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import SuccessToast from "@components/Common/SuccessToast";
+import SelectableTypeCard from "@components/Common/SelectableTypeCard";
 import { useAppDispatch, useAppSelector } from "@store/store";
-import { BusinessType, setInvoiceSettings } from "@store/slices/userSlice";
+import { BusinessType, setInvoiceSettings, setPosSettings } from "@store/slices/userSlice";
 import {
   useInvoiceSettings,
   useUpdateInvoiceSettings,
@@ -35,6 +40,12 @@ import {
   type PaymentTypeLabel,
   type UpdateInvoiceSettingsPayload,
 } from "./useInvoiceSettingApi";
+import {
+  usePosSettings,
+  useUpdatePosSettings,
+  POS_TYPE_LABELS,
+  type PosTypeLabel,
+} from "./usePosSettingApi";
 
 const redTint = "#ca0022";
 const headingText = "#1d2533";
@@ -95,6 +106,20 @@ function defaultMethodAsPaymentType(methodCode: string): PaymentTypeLabel | null
   const label = PAYMENT_CODE_TO_METHOD[methodCode] ?? methodCode;
   return POS_PAYMENT_TYPE_OPTIONS.find((l) => l.toLowerCase() === label.toLowerCase()) ?? null;
 }
+
+// One glyph and one line of "what is this for" per sale type — three document
+// names alone don't say how they differ at the till.
+const POS_TYPE_ICONS: Record<PosTypeLabel, React.ReactElement> = {
+  Invoice: <ReceiptLongRoundedIcon fontSize="small" />,
+  Quotation: <RequestQuoteOutlinedIcon fontSize="small" />,
+  Proforma: <DescriptionOutlinedIcon fontSize="small" />,
+};
+
+const POS_TYPE_CAPTIONS: Record<PosTypeLabel, string> = {
+  Invoice: "Billed sale — takes payment",
+  Quotation: "Price offer — no payment",
+  Proforma: "Draft bill — no payment",
+};
 
 interface PosSettings {
   invoicePrefix: string;
@@ -179,17 +204,13 @@ interface SectionProps {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
-  gridColumn?: Record<string, string>;
-  gridRow?: Record<string, string>;
 }
 
-function Section({ title, subtitle, children, gridColumn, gridRow }: SectionProps) {
+function Section({ title, subtitle, children }: SectionProps) {
   return (
     <Paper
       elevation={0}
       sx={{
-        gridColumn,
-        gridRow,
         borderRadius: 1,
         border: "1px solid",
         borderColor: cardBorder,
@@ -250,11 +271,26 @@ export default function PosSetting() {
   // with the Invoice settings tab) only sends the fields owned by this tab.
   const baselineRef = useRef<PosSettings | null>(null);
 
+  // Sale types live on their own endpoint (/pos-settings), not on the invoice
+  // settings row, so they get their own state, baseline and PUT — both fields
+  // always travel together (see saveSaleTypes).
+  const [posTypes, setPosTypes] = useState<PosTypeLabel[]>(["Invoice"]);
+  const [defaultPosType, setDefaultPosType] = useState<PosTypeLabel>("Invoice");
+  const posBaselineRef = useRef<{ posTypes: PosTypeLabel[]; defaultPosType: PosTypeLabel } | null>(null);
+  // The server's own wording for a rejected combination — shown next to the
+  // checkboxes rather than as a toast, since it names the offending field.
+  const [posTypeError, setPosTypeError] = useState<string | null>(null);
+
   const [saved, setSaved] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useInvoiceSettings();
+  const {
+    data: posData,
+    isLoading: isPosLoading,
+    isError: isPosError,
+  } = usePosSettings();
 
   useEffect(() => {
     if (data) {
@@ -275,8 +311,20 @@ export default function PosSetting() {
   }, [data]);
 
   useEffect(() => {
-    if (isError) setErrorMsg("Failed to load POS settings. Please refresh the page.");
-  }, [isError]);
+    if (posData) {
+      setPosTypes(posData.pos_types);
+      setDefaultPosType(posData.default_pos_type);
+      posBaselineRef.current = {
+        posTypes: posData.pos_types,
+        defaultPosType: posData.default_pos_type,
+      };
+      setPosTypeError(null);
+    }
+  }, [posData]);
+
+  useEffect(() => {
+    if (isError || isPosError) setErrorMsg("Failed to load POS settings. Please refresh the page.");
+  }, [isError, isPosError]);
 
   const { mutate: saveSettings, isPending: isSaving } = useUpdateInvoiceSettings({
     onSuccess: (updated) => {
@@ -303,6 +351,43 @@ export default function PosSetting() {
     },
     onError: (msg) => setErrorMsg(msg),
   });
+
+  const { mutate: savePosTypes, isPending: isSavingPosTypes } = useUpdatePosSettings({
+    onSuccess: (updated) => {
+      setPosTypes(updated.pos_types);
+      setDefaultPosType(updated.default_pos_type);
+      posBaselineRef.current = {
+        posTypes: updated.pos_types,
+        defaultPosType: updated.default_pos_type,
+      };
+      setPosTypeError(null);
+      // The POS screen renders its sale-type tabs from Redux (populated at
+      // branch-select), so push the new values there — otherwise the tabs only
+      // change after the next login or branch switch.
+      dispatch(setPosSettings(updated));
+      setSaved(true);
+      setSuccessMsg("POS settings updated successfully");
+      setTimeout(() => setSaved(false), 2000);
+    },
+    onError: (msg) => setPosTypeError(msg),
+  });
+
+  // Unchecking the current default moves it to the first type still enabled —
+  // the PUT must always carry a default that is one of pos_types, and blocking
+  // the uncheck instead would just leave the user stuck.
+  const togglePosType = (value: PosTypeLabel) => {
+    const isSelected = posTypes.includes(value);
+    // At least one type has to stay on: the POS needs a tab to open, and the
+    // server rejects an empty array anyway.
+    if (isSelected && posTypes.length === 1) return;
+    const next = isSelected
+      ? posTypes.filter((v) => v !== value)
+      : POS_TYPE_LABELS.filter((v) => v === value || posTypes.includes(v));
+    setPosTypes(next);
+    if (!next.includes(defaultPosType)) setDefaultPosType(next[0]);
+    setPosTypeError(null);
+    setSaved(false);
+  };
 
   const update = <K extends keyof PosSettings>(key: K, value: PosSettings[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
@@ -336,7 +421,26 @@ export default function PosSetting() {
     return selected;
   };
 
+  const posTypesDirty = () => {
+    const baseline = posBaselineRef.current;
+    if (!baseline) return true;
+    return (
+      JSON.stringify(baseline.posTypes) !== JSON.stringify(posTypes) ||
+      baseline.defaultPosType !== defaultPosType
+    );
+  };
+
   const handleSave = () => {
+    // Sale types go to their own endpoint. Both fields are sent every time,
+    // even when only one changed: the server validates default_pos_type against
+    // the pos_types in the same request and falls back to the stored list
+    // otherwise, which is what makes a partial update fail.
+    const saveSaleTypes = posTypesDirty();
+    if (saveSaleTypes) {
+      setPosTypeError(null);
+      savePosTypes({ pos_types: posTypes, default_pos_type: defaultPosType });
+    }
+
     const fullPayload: UpdateInvoiceSettingsPayload = {
       invoice_prefix: settings.invoicePrefix,
       invoice_digit_count: parseInt(settings.numberOfDigits, 10) || 4,
@@ -353,6 +457,7 @@ export default function PosSetting() {
       saveSettings(fullPayload);
       return;
     }
+
 
     const baselinePayload: UpdateInvoiceSettingsPayload = {
       invoice_prefix: baselineRef.current.invoicePrefix,
@@ -391,14 +496,14 @@ export default function PosSetting() {
     }
 
     if (Object.keys(diff).length === 0) {
-      setSuccessMsg("No changes to save.");
+      if (!saveSaleTypes) setSuccessMsg("No changes to save.");
       return;
     }
 
     saveSettings(diff);
   };
 
-  if (isLoading) {
+  if (isLoading || isPosLoading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
         <CircularProgress size={28} sx={{ color: redTint }} />
@@ -408,255 +513,350 @@ export default function PosSetting() {
 
   return (
     <Box>
+      {/* Two independent column stacks, not grid cells: these sections have
+          very different heights, and fixed cell placement left a visible hole
+          beside the shorter column. */}
       <Box
         sx={{
           display: "grid",
           gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-          gridTemplateRows: { md: "auto auto" },
           gap: 2,
           alignItems: "start",
         }}
       >
-        <Section title="Invoice Numbering" subtitle="Configure the invoice ID format and sequence">
-          <SettingRow
-            icon={<LabelOutlinedIcon fontSize="small" />}
-            iconBg="#f0fdf4"
-            iconColor="#16a34a"
-            label="Invoice Prefix"
-            description="Prefix for invoice ID"
+        <Stack spacing={2}>
+          <Section title="Invoice Numbering" subtitle="Configure the invoice ID format and sequence">
+            <SettingRow
+              icon={<LabelOutlinedIcon fontSize="small" />}
+              iconBg="#f0fdf4"
+              iconColor="#16a34a"
+              label="Invoice Prefix"
+              description="Prefix for invoice ID"
+            >
+              <TextField
+                fullWidth
+                size="small"
+                value={settings.invoicePrefix}
+                onChange={(e) => update("invoicePrefix", e.target.value.toUpperCase())}
+                placeholder="INV"
+                inputProps={{ maxLength: 20 }}
+                sx={textFieldSx}
+              />
+            </SettingRow>
+
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
+
+            <SettingRow
+              icon={<FormatListNumberedRoundedIcon fontSize="small" />}
+              iconBg="#eef4ff"
+              iconColor="#2563eb"
+              label="Digit Count"
+              description="Coming soon — saved, but doesn't change invoice numbering yet"
+            >
+              <TextField
+                fullWidth
+                size="small"
+                type="number"
+                value={settings.numberOfDigits}
+                onChange={(e) => update("numberOfDigits", e.target.value)}
+                inputProps={{ min: 1, max: 10 }}
+                sx={textFieldSx}
+              />
+            </SettingRow>
+
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
+
+            <SettingRow
+              icon={<TagRoundedIcon fontSize="small" />}
+              iconBg="#eef4ff"
+              iconColor="#2563eb"
+              label="Start Number"
+              description="Coming soon — saved, but doesn't change invoice numbering yet"
+            >
+              <TextField
+                fullWidth
+                size="small"
+                type="number"
+                value={settings.invoiceStartNumber}
+                onChange={(e) => update("invoiceStartNumber", e.target.value)}
+                inputProps={{ min: 0 }}
+                sx={textFieldSx}
+              />
+            </SettingRow>
+          </Section>
+
+          <Section
+            title="Tax Settings"
+            subtitle="Define how taxes are computed and applied"
           >
-            <TextField
-              fullWidth
-              size="small"
-              value={settings.invoicePrefix}
-              onChange={(e) => update("invoicePrefix", e.target.value.toUpperCase())}
-              placeholder="INV"
-              inputProps={{ maxLength: 20 }}
-              sx={textFieldSx}
-            />
-          </SettingRow>
+            <SettingRow
+              icon={<GradingRoundedIcon fontSize="small" />}
+              iconBg="#fdecef"
+              iconColor={redTint}
+              label="Default Tax"
+              description="Default tax to apply in invoice"
+            >
+              <FormControl fullWidth size="small">
+                <Select
+                  value={settings.defaultTax}
+                  onChange={(e) => update("defaultTax", e.target.value)}
+                  sx={selectSx}
+                >
+                  <MenuItem value="none">None</MenuItem>
+                  <MenuItem value="GST5">GST 5%</MenuItem>
+                  <MenuItem value="GST12">GST 12%</MenuItem>
+                  <MenuItem value="GST18">GST 18%</MenuItem>
+                  <MenuItem value="GST28">GST 28%</MenuItem>
+                </Select>
+              </FormControl>
+            </SettingRow>
+          </Section>
 
-          <Divider sx={{ borderColor: "#f4f5f8" }} />
-
-          <SettingRow
-            icon={<FormatListNumberedRoundedIcon fontSize="small" />}
-            iconBg="#eef4ff"
-            iconColor="#2563eb"
-            label="Digit Count"
-            description="Coming soon — saved, but doesn't change invoice numbering yet"
+          <Section
+            title="Additional Settings"
+            subtitle="Configure additional POS behaviours"
           >
-            <TextField
-              fullWidth
-              size="small"
-              type="number"
-              value={settings.numberOfDigits}
-              onChange={(e) => update("numberOfDigits", e.target.value)}
-              inputProps={{ min: 1, max: 10 }}
-              sx={textFieldSx}
-            />
-          </SettingRow>
-
-          <Divider sx={{ borderColor: "#f4f5f8" }} />
-
-          <SettingRow
-            icon={<TagRoundedIcon fontSize="small" />}
-            iconBg="#eef4ff"
-            iconColor="#2563eb"
-            label="Start Number"
-            description="Coming soon — saved, but doesn't change invoice numbering yet"
-          >
-            <TextField
-              fullWidth
-              size="small"
-              type="number"
-              value={settings.invoiceStartNumber}
-              onChange={(e) => update("invoiceStartNumber", e.target.value)}
-              inputProps={{ min: 0 }}
-              sx={textFieldSx}
-            />
-          </SettingRow>
-        </Section>
-
-        <Section
-          title="Tax Settings"
-          subtitle="Define how taxes are computed and applied"
-          gridColumn={{ md: "1" }}
-          gridRow={{ md: "2" }}
-        >
-          <SettingRow
-            icon={<GradingRoundedIcon fontSize="small" />}
-            iconBg="#fdecef"
-            iconColor={redTint}
-            label="Default Tax"
-            description="Default tax to apply in invoice"
-          >
-            <FormControl fullWidth size="small">
-              <Select
-                value={settings.defaultTax}
-                onChange={(e) => update("defaultTax", e.target.value)}
-                sx={selectSx}
-              >
-                <MenuItem value="none">None</MenuItem>
-                <MenuItem value="GST5">GST 5%</MenuItem>
-                <MenuItem value="GST12">GST 12%</MenuItem>
-                <MenuItem value="GST18">GST 18%</MenuItem>
-                <MenuItem value="GST28">GST 28%</MenuItem>
-              </Select>
-            </FormControl>
-          </SettingRow>
-        </Section>
-
-        <Section
-          title="Payment Settings"
-          subtitle="Default payment preferences and invoice due days"
-          gridColumn={{ md: "2" }}
-          gridRow={{ md: "1 / 3" }}
-        >
-          <Box sx={{ py: 2 }}>
-            <Stack direction="row" spacing={2} alignItems="flex-start">
-              <Box
-                sx={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 1.5,
-                  bgcolor: "#e8f7ee",
-                  color: "#1a7a3c",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                <PaymentsRoundedIcon fontSize="small" />
-              </Box>
-              <Box sx={{ minWidth: 0, flex: 1 }}>
-                <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText }}>
-                  Payment Types
-                </Typography>
-                <Typography sx={{ fontSize: 12, color: subtleText, mt: 0.3, mb: 1.5 }}>
-                  Only the selected types appear at POS checkout
-                </Typography>
-                <Stack direction="row" flexWrap="wrap" gap={1}>
-                  {POS_PAYMENT_TYPE_OPTIONS.map((option) => {
-                    const selected = settings.posPaymentTypes.includes(option);
-                    return (
-                      <Chip
-                        key={option}
-                        label={option}
-                        clickable
-                        onClick={() => togglePaymentType(option)}
-                        sx={{
-                          fontSize: 12.5,
-                          fontWeight: 700,
-                          borderRadius: 1,
-                          bgcolor: selected ? "#fdecef" : "#fafbfc",
-                          color: selected ? redTint : headingText,
-                          border: "1px solid",
-                          borderColor: selected ? "#f6c3cb" : cardBorder,
-                          "&:hover": { bgcolor: selected ? "#fbdde2" : "#f4f5f8" },
-                        }}
-                      />
-                    );
-                  })}
-                </Stack>
-              </Box>
-            </Stack>
-          </Box>
-
-          <Divider sx={{ borderColor: "#f4f5f8" }} />
-
-          {businessType !== "Restaurant" && (
-            <>
-              <SettingRow
-                icon={<EventRoundedIcon fontSize="small" />}
-                iconBg="#eef4ff"
-                iconColor="#2563eb"
-                label="Invoice Due Days"
-                description="Default due days for credit invoices"
-              >
-                <TextField
-                  fullWidth
-                  size="small"
-                  type="number"
-                  value={settings.invoiceDueDays}
-                  onChange={(e) => update("invoiceDueDays", e.target.value)}
-                  inputProps={{ min: 0 }}
-                  InputProps={{
-                    endAdornment: (
-                      <Typography sx={{ fontSize: 12, color: subtleText, pr: 1, whiteSpace: "nowrap" }}>
-                        days
-                      </Typography>
-                    ),
-                  }}
-                  sx={textFieldSx}
+            <SettingRow
+              icon={<Inventory2RoundedIcon fontSize="small" />}
+              iconBg="#fff7ed"
+              iconColor="#ea580c"
+              label="Stock Check"
+              description="Check stock availability while adding items in POS"
+            >
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Switch
+                  checked={settings.stockCheckEnabled}
+                  onChange={(e) => update("stockCheckEnabled", e.target.checked)}
                 />
-              </SettingRow>
+              </Box>
+            </SettingRow>
 
-              <Divider sx={{ borderColor: "#f4f5f8" }} />
-            </>
-          )}
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
 
-          <SettingRow
-            icon={<CreditCardRoundedIcon fontSize="small" />}
-            iconBg="#faf5ff"
-            iconColor="#7c3aed"
-            label="Default Payment Method"
-            description="Select default payment method"
+            <SettingRow
+              icon={<GroupRoundedIcon fontSize="small" />}
+              iconBg="#faf5ff"
+              iconColor="#7c3aed"
+              label="Customer Mandatory"
+              description="Make customer selection mandatory in POS"
+            >
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Switch
+                  checked={settings.customerMandatory}
+                  onChange={(e) => update("customerMandatory", e.target.checked)}
+                />
+              </Box>
+            </SettingRow>
+          </Section>
+        </Stack>
+
+        <Stack spacing={2}>
+          <Section
+            title="Sale Types"
+            subtitle="Which document types the POS offers, and which one it opens on"
           >
-            <FormControl fullWidth size="small">
-              <Select
-                value={settings.defaultPaymentMethod}
-                onChange={(e) => update("defaultPaymentMethod", e.target.value)}
-                sx={selectSx}
-              >
-                {paymentMethodOptions.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </SettingRow>
-        </Section>
+            <Box sx={{ py: 2 }}>
+              <Stack direction="row" spacing={2} alignItems="flex-start">
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 1.5,
+                    bgcolor: "#eef4ff",
+                    color: "#2563eb",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <ReceiptLongRoundedIcon fontSize="small" />
+                </Box>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText }}>
+                    Enabled Sale Types
+                  </Typography>
+                  <Typography sx={{ fontSize: 12, color: subtleText, mt: 0.3, mb: 0.5 }}>
+                    Only the selected types get a tab in POS — at least one stays on
+                  </Typography>
+                  <Box
+                    sx={{
+                      mt: 1.5,
+                      display: "grid",
+                      gridTemplateColumns: { xs: "1fr", sm: "repeat(auto-fit, minmax(190px, 1fr))" },
+                      gap: 1.5,
+                    }}
+                  >
+                    {POS_TYPE_LABELS.map((option) => {
+                      const checked = posTypes.includes(option);
+                      return (
+                        <SelectableTypeCard
+                          key={option}
+                          label={option}
+                          caption={POS_TYPE_CAPTIONS[option]}
+                          icon={POS_TYPE_ICONS[option]}
+                          badge={option === defaultPosType ? "DEFAULT" : undefined}
+                          selected={checked}
+                          // The last remaining type can't be turned off — POS needs
+                          // a tab to open on, and the server rejects an empty list.
+                          disabled={checked && posTypes.length === 1}
+                          onSelect={() => togglePosType(option)}
+                        />
+                      );
+                    })}
+                  </Box>
 
-        <Section
-          title="Additional Settings"
-          subtitle="Configure additional POS behaviours"
-          gridColumn={{ md: "1" }}
-          gridRow={{ md: "3" }}
-        >
-          <SettingRow
-            icon={<Inventory2RoundedIcon fontSize="small" />}
-            iconBg="#fff7ed"
-            iconColor="#ea580c"
-            label="Stock Check"
-            description="Check stock availability while adding items in POS"
-          >
-            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-              <Switch
-                checked={settings.stockCheckEnabled}
-                onChange={(e) => update("stockCheckEnabled", e.target.checked)}
-              />
+                  {posTypeError && (
+                    <Alert severity="error" sx={{ mt: 1, fontSize: 12, py: 0.25, alignItems: "center" }}>
+                      {posTypeError}
+                    </Alert>
+                  )}
+                </Box>
+              </Stack>
             </Box>
-          </SettingRow>
 
-          <Divider sx={{ borderColor: "#f4f5f8" }} />
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
 
-          <SettingRow
-            icon={<GroupRoundedIcon fontSize="small" />}
-            iconBg="#faf5ff"
-            iconColor="#7c3aed"
-            label="Customer Mandatory"
-            description="Make customer selection mandatory in POS"
+            <SettingRow
+              icon={<GradingRoundedIcon fontSize="small" />}
+              iconBg="#f0fdf4"
+              iconColor="#16a34a"
+              label="Default Sale Type"
+              description="The tab POS opens on for a new sale"
+            >
+              <FormControl fullWidth size="small">
+                <Select
+                  value={defaultPosType}
+                  onChange={(e) => {
+                    setDefaultPosType(e.target.value as PosTypeLabel);
+                    setPosTypeError(null);
+                    setSaved(false);
+                  }}
+                  sx={selectSx}
+                >
+                  {/* Only enabled types are offered — the server rejects a default
+                      that isn't one of pos_types, so it can't be picked here. */}
+                  {posTypes.map((option) => (
+                    <MenuItem key={option} value={option}>
+                      {option}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </SettingRow>
+          </Section>
+
+          <Section
+            title="Payment Settings"
+            subtitle="Default payment preferences and invoice due days"
           >
-            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-              <Switch
-                checked={settings.customerMandatory}
-                onChange={(e) => update("customerMandatory", e.target.checked)}
-              />
+            <Box sx={{ py: 2 }}>
+              <Stack direction="row" spacing={2} alignItems="flex-start">
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 1.5,
+                    bgcolor: "#e8f7ee",
+                    color: "#1a7a3c",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <PaymentsRoundedIcon fontSize="small" />
+                </Box>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText }}>
+                    Payment Types
+                  </Typography>
+                  <Typography sx={{ fontSize: 12, color: subtleText, mt: 0.3, mb: 1.5 }}>
+                    Only the selected types appear at POS checkout
+                  </Typography>
+                  <Stack direction="row" flexWrap="wrap" gap={1}>
+                    {POS_PAYMENT_TYPE_OPTIONS.map((option) => {
+                      const selected = settings.posPaymentTypes.includes(option);
+                      return (
+                        <Chip
+                          key={option}
+                          label={option}
+                          clickable
+                          onClick={() => togglePaymentType(option)}
+                          sx={{
+                            fontSize: 12.5,
+                            fontWeight: 700,
+                            borderRadius: 1,
+                            bgcolor: selected ? "#fdecef" : "#fafbfc",
+                            color: selected ? redTint : headingText,
+                            border: "1px solid",
+                            borderColor: selected ? "#f6c3cb" : cardBorder,
+                            "&:hover": { bgcolor: selected ? "#fbdde2" : "#f4f5f8" },
+                          }}
+                        />
+                      );
+                    })}
+                  </Stack>
+                </Box>
+              </Stack>
             </Box>
-          </SettingRow>
-        </Section>
+
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
+
+            {businessType !== "Restaurant" && (
+              <>
+                <SettingRow
+                  icon={<EventRoundedIcon fontSize="small" />}
+                  iconBg="#eef4ff"
+                  iconColor="#2563eb"
+                  label="Invoice Due Days"
+                  description="Default due days for credit invoices"
+                >
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="number"
+                    value={settings.invoiceDueDays}
+                    onChange={(e) => update("invoiceDueDays", e.target.value)}
+                    inputProps={{ min: 0 }}
+                    InputProps={{
+                      endAdornment: (
+                        <Typography sx={{ fontSize: 12, color: subtleText, pr: 1, whiteSpace: "nowrap" }}>
+                          days
+                        </Typography>
+                      ),
+                    }}
+                    sx={textFieldSx}
+                  />
+                </SettingRow>
+
+                <Divider sx={{ borderColor: "#f4f5f8" }} />
+              </>
+            )}
+
+            <SettingRow
+              icon={<CreditCardRoundedIcon fontSize="small" />}
+              iconBg="#faf5ff"
+              iconColor="#7c3aed"
+              label="Default Payment Method"
+              description="Select default payment method"
+            >
+              <FormControl fullWidth size="small">
+                <Select
+                  value={settings.defaultPaymentMethod}
+                  onChange={(e) => update("defaultPaymentMethod", e.target.value)}
+                  sx={selectSx}
+                >
+                  {paymentMethodOptions.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </SettingRow>
+          </Section>
+        </Stack>
       </Box>
 
       {/* Bottom Save Bar */}
@@ -681,9 +881,9 @@ export default function PosSetting() {
         </Typography>
         <Button
           variant="contained"
-          startIcon={isSaving ? <CircularProgress size={16} sx={{ color: "#fff" }} /> : <SaveRoundedIcon />}
+          startIcon={isSaving || isSavingPosTypes ? <CircularProgress size={16} sx={{ color: "#fff" }} /> : <SaveRoundedIcon />}
           onClick={handleSave}
-          disabled={isSaving}
+          disabled={isSaving || isSavingPosTypes}
           sx={{
             px: 3,
             py: 1,
@@ -697,7 +897,7 @@ export default function PosSetting() {
             "&.Mui-disabled": { bgcolor: redTint, opacity: 0.7, color: "#fff" },
           }}
         >
-          {isSaving ? "Saving..." : saved ? "Saved!" : "Save Changes"}
+          {isSaving || isSavingPosTypes ? "Saving..." : saved ? "Saved!" : "Save Changes"}
         </Button>
       </Box>
 

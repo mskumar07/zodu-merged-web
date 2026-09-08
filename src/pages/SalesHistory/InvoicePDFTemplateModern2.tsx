@@ -5,9 +5,13 @@ import React from "react";
 import { saleDocumentLabel } from "@utils/saleType";
 
 // ── Inline style constants ────────────────────────────────────
-// A cleaner, minimal alternative to InvoicePDFTemplate — same data shape and
-// the same invoice-settings toggles, just a different visual layout (no
-// colored table header, thin-rule sections instead of boxed cards).
+// "Modern 2" — same data shape and the same invoice-settings toggles as
+// InvoicePDFTemplateModern, with three layout differences:
+//   1. the company block is centred instead of sitting on the left,
+//   2. the right-corner Invoice # / Date / Due Date stack is gone — those
+//      fields run as one centred line under the document title instead,
+//   3. the footer panel puts Bank Details on the left and Terms and
+//      Conditions on the right (Modern has them the other way round).
 const styles = {
   page: {
     width: "794px",
@@ -20,29 +24,41 @@ const styles = {
     position: "relative" as const,
   },
 
-  header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" },
+  // Centred company block — a single column, so nothing sits at the right corner.
+  header: { textAlign: "center" as const },
   brandName: {
-    fontSize: "18px",
+    fontSize: "22px",
     fontWeight: 800,
     letterSpacing: "0.5px",
     textTransform: "uppercase" as const,
     margin: "0 0 8px 0",
     lineHeight: 1.25,
   },
-  headerMeta: { margin: "2px 0", fontSize: "11px", color: "#6B7280" },
+  // Two full-width lines under the company name — the address parts joined into
+  // one and the contact/GSTIN parts into the other, rather than one short
+  // centred line per field leaving most of the 718px content width unused.
+  headerMeta: { margin: "3px 0", fontSize: "11.5px", color: "#6B7280", lineHeight: 1.5, width: "100%" },
 
-  invoiceRight: { textAlign: "right" as const },
+  divider: { borderTop: "1px solid #E5E7EB", margin: "20px 0" },
+
+  // Document meta — invoice no., date and the company GSTIN as label/value
+  // rows, sharing a row with Billed To at the right margin rather than the
+  // centred company block above. Label and value are right-aligned over fixed
+  // widths so every row ends flush on the page margin, lining the block up
+  // with the summary totals further down; left-aligned values inside a wider
+  // box would leave the whole block visibly inset from that edge.
+  // `marginLeft: auto` pins the column right even when Billed To is off and
+  // it is the only column in the row.
+  metaCol: { textAlign: "right" as const, flexShrink: 0, marginLeft: "auto" },
   // Copy marking — the document's heading: centred under the company block and
   // sized to be read at a glance, not tucked into the right corner.
   copyTypeMark: { fontSize: "17px", fontWeight: 800, letterSpacing: "0.18em", color: "#374151", textTransform: "uppercase" as const, textAlign: "center" as const, margin: "0 0 18px 0" },
   // Blank rule for a vehicle number the sale does not carry — the transport
   // copy is filled in by hand at dispatch.
   vehicleNoBlank: { display: "inline-block", minWidth: "88px", borderBottom: "1px solid #9CA3AF" },
-  invoiceMetaRow: { display: "flex", justifyContent: "flex-end", gap: "10px", marginBottom: "3px" },
-  invoiceMetaLabel: { fontSize: "11px", color: "#6B7280", minWidth: "64px", textAlign: "right" as const },
-  invoiceMetaValue: { fontSize: "11px", color: "#111827", fontWeight: 600, minWidth: "90px", textAlign: "right" as const },
-
-  divider: { borderTop: "1px solid #E5E7EB", margin: "20px 0" },
+  metaRow: { display: "flex", justifyContent: "flex-end", alignItems: "baseline", gap: "12px", marginBottom: "3px" },
+  metaLabel: { fontSize: "11.5px", color: "#6B7280", minWidth: "64px", textAlign: "right" as const },
+  metaValue: { fontSize: "11.5px", color: "#111827", fontWeight: 700, minWidth: "112px", textAlign: "right" as const, overflowWrap: "anywhere" as const },
 
   infoGrid: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "24px" },
   infoLabel: { fontSize: "10px", fontWeight: 700, color: "#6B7280", letterSpacing: "0.6px", textTransform: "uppercase" as const, margin: "0 0 6px 0" },
@@ -139,8 +155,9 @@ const styles = {
   signLabel: { fontSize: "12px", fontWeight: 700, color: "#111827", margin: "0" },
   signRole: { fontSize: "10px", color: "#6B7280", margin: "1px 0 0 0" },
 
-  // Terms (left) + bank details (right) share one bordered table so the two blocks
-  // line up and read as a single footer panel rather than two stacked paragraphs.
+  // Bank details (left) + terms (right) share one bordered table so the two
+  // blocks line up and read as a single footer panel rather than two stacked
+  // paragraphs.
   footerTable: {
     width: "100%",
     tableLayout: "fixed" as const,
@@ -196,8 +213,8 @@ function gstRateSuffix(rows: any[], key: "cgstRate" | "sgstRate") {
 }
 
 
-// ── Modern template ─────────────────────────────────────────────
-export const InvoicePDFTemplateModern = React.forwardRef(({ data, settingsOverride, theme = "classic", accentColor, logoUrl, headerImageUrl, signatureUrl, copyType }: any, ref: any) => {
+// ── Modern 2 template ───────────────────────────────────────────
+export const InvoicePDFTemplateModern2 = React.forwardRef(({ data, settingsOverride, theme = "classic", accentColor, logoUrl, headerImageUrl, signatureUrl, copyType }: any, ref: any) => {
   const isCompact = theme === "compact";
   const {
     sale_id, date, due_date,
@@ -299,6 +316,18 @@ export const InvoicePDFTemplateModern = React.forwardRef(({ data, settingsOverri
     ["IFSC", co.branchIfsc],
   ] as Array<[string, string]>).filter(([, value]) => hasValue(value));
 
+  // Contact line under the centred company name — phone and email read as one
+  // run rather than two near-empty lines on a company that has both.
+  // Line 1: the whole address as one run. Line 2: phone and email. Both centred
+  // but full-width, so a two-line header block fills the page instead of
+  // stacking short lines down the middle. GSTIN is deliberately not here — it
+  // belongs to the meta column below, not to the company block.
+  const addressLine = [co.line1, co.line2].filter(Boolean).join(", ");
+  const contactLine = [
+    co.phone && `Phone: ${co.phone}`,
+    co.email && `Email: ${co.email}`,
+  ].filter(Boolean).join("  |  ");
+
   const statusLabel = payment_status === "fully_paid" || !payment_status ? "PAID" : String(payment_status).toUpperCase();
   const statusColors = payment_status === "unpaid" || payment_status === "pending"
     ? { background: "#FEF3C7", color: "#D97706" }
@@ -317,44 +346,15 @@ export const InvoicePDFTemplateModern = React.forwardRef(({ data, settingsOverri
         />
       )}
 
-      {/* ── HEADER ───────────────────────────────────────────── */}
+      {/* ── HEADER — company details centred, nothing at the right corner ── */}
       <div data-pdf-header>
         <div style={styles.header}>
-          <div>
-            {showCompanyLogo && resolvedLogoUrl && (
-              <img src={resolvedLogoUrl} alt="" style={{ maxHeight: 40, maxWidth: 140, objectFit: "contain", marginBottom: 8, display: "block" }} />
-            )}
-            <h1 style={{ ...styles.brandName, color: resolvedAccentColor }}>{co.name}</h1>
-            {co.gstin && <p style={styles.headerMeta}>GSTIN: {co.gstin}</p>}
-            {co.line1 && <p style={styles.headerMeta}>{co.line1}</p>}
-            {co.line2 && <p style={styles.headerMeta}>{co.line2}</p>}
-            {co.phone && <p style={styles.headerMeta}>Phone: {co.phone}</p>}
-          </div>
-
-          <div style={styles.invoiceRight}>
-            <div style={styles.invoiceMetaRow}>
-              <span style={styles.invoiceMetaLabel}>{`${documentLabel} #`}</span>
-              <span style={styles.invoiceMetaValue}>{sale_id}</span>
-            </div>
-            <div style={styles.invoiceMetaRow}>
-              <span style={styles.invoiceMetaLabel}>Date:</span>
-              <span style={styles.invoiceMetaValue}>{date}</span>
-            </div>
-            {hasValue(due_date) && (
-              <div style={styles.invoiceMetaRow}>
-                <span style={styles.invoiceMetaLabel}>Due Date:</span>
-                <span style={styles.invoiceMetaValue}>{due_date}</span>
-              </div>
-            )}
-            {showVehicleNo && (
-              <div style={styles.invoiceMetaRow}>
-                <span style={styles.invoiceMetaLabel}>Vehicle No:</span>
-                <span style={styles.invoiceMetaValue}>
-                  {hasValue(vehicle_no) ? vehicle_no : <span style={styles.vehicleNoBlank}>&nbsp;</span>}
-                </span>
-              </div>
-            )}
-          </div>
+          {showCompanyLogo && resolvedLogoUrl && (
+            <img src={resolvedLogoUrl} alt="" style={{ maxHeight: 48, maxWidth: 160, objectFit: "contain", margin: "0 auto 8px auto", display: "block" }} />
+          )}
+          {/* <h1 style={{ ...styles.brandName, color: resolvedAccentColor }}>{co.name}</h1> */}
+          {addressLine && <p style={styles.headerMeta}>{addressLine}</p>}
+          {contactLine && <p style={styles.headerMeta}>{contactLine}</p>}
         </div>
       </div>
 
@@ -368,42 +368,76 @@ export const InvoicePDFTemplateModern = React.forwardRef(({ data, settingsOverri
         {copyType && <div style={styles.copyTypeMark}>{String(copyType).toUpperCase()}</div>}
       </div>
 
-      {/* ── BILLED TO / TOTAL DUE ───────────────────────────────── */}
-      {(showCustomerDetails || showPaymentDetails) && (
-        <>
-          <div style={styles.infoGrid}>
-            {showCustomerDetails && (
-              <div style={styles.billCol}>
-                <p style={styles.infoLabel}>Billed To</p>
-                <h3 style={styles.billName}>{customer_name}</h3>
-                {hasValue(customer_gstin) && <p style={styles.billMeta}>GSTIN: {customer_gstin}</p>}
-                {hasValue(customer_address) && <p style={styles.billMeta}>{customer_address}</p>}
-                {hasValue(customer_mobile) && <p style={styles.billMeta}>Mobile: {customer_mobile}</p>}
-              </div>
-            )}
-
-            {showShipToDetails && (
-              <div style={styles.billCol}>
-                <p style={styles.infoLabel}>Ship To</p>
-                <h3 style={styles.billName}>{customer_name}</h3>
-                {hasValue(customer_gstin) && <p style={styles.billMeta}>GSTIN: {customer_gstin}</p>}
-                <p style={styles.billMeta}>{customer_shipping_address}</p>
-                {hasValue(customer_mobile) && <p style={styles.billMeta}>Mobile: {customer_mobile}</p>}
-              </div>
-            )}
-
-            {showPaymentDetails && (
-              <div style={styles.dueBox}>
-                <p style={styles.infoLabel}>Total Due</p>
-                <p style={styles.dueValue}>{fmt(total)}</p>
-                <span style={{ ...styles.statusBadge, ...statusColors }}>{statusLabel}</span>
-                <p style={{ ...styles.billMeta, textAlign: "right" as const }}>Payment Mode: {payment_mode}</p>
-              </div>
-            )}
+      {/* ── BILLED TO + DOCUMENT META ────────────────────────────
+          One row: customer on the left, the invoice no./date/GSTIN column
+          parked at the right margin beside it rather than on a row of its
+          own. `marginLeft: auto` keeps that column flush right even when
+          Billed To is switched off and it is the only column in the row. */}
+      <div style={{ ...styles.infoGrid, marginBottom: isCompact ? 12 : 0 }}>
+        {showCustomerDetails && (
+          <div style={styles.billCol}>
+            <p style={styles.infoLabel}>Billed To</p>
+            <h3 style={styles.billName}>{customer_name}</h3>
+            {hasValue(customer_gstin) && <p style={styles.billMeta}>GSTIN: {customer_gstin}</p>}
+            {hasValue(customer_address) && <p style={styles.billMeta}>{customer_address}</p>}
+            {hasValue(customer_mobile) && <p style={styles.billMeta}>Mobile: {customer_mobile}</p>}
           </div>
-          <div style={styles.divider} />
-        </>
-      )}
+        )}
+
+        {showShipToDetails && (
+          <div style={styles.billCol}>
+            <p style={styles.infoLabel}>Ship To</p>
+            <h3 style={styles.billName}>{customer_name}</h3>
+            {hasValue(customer_gstin) && <p style={styles.billMeta}>GSTIN: {customer_gstin}</p>}
+            <p style={styles.billMeta}>{customer_shipping_address}</p>
+            {hasValue(customer_mobile) && <p style={styles.billMeta}>Mobile: {customer_mobile}</p>}
+          </div>
+        )}
+
+        <div style={styles.metaCol}>
+          <div style={styles.metaRow}>
+            <span style={styles.metaLabel}>{`${documentLabel} #`}</span>
+            <span style={styles.metaValue}>{sale_id}</span>
+          </div>
+          <div style={styles.metaRow}>
+            <span style={styles.metaLabel}>Date</span>
+            <span style={styles.metaValue}>{date}</span>
+          </div>
+          {hasValue(due_date) && (
+            <div style={styles.metaRow}>
+              <span style={styles.metaLabel}>Due Date</span>
+              <span style={styles.metaValue}>{due_date}</span>
+            </div>
+          )}
+          {co.gstin && (
+            <div style={styles.metaRow}>
+              <span style={styles.metaLabel}>GSTIN</span>
+              <span style={styles.metaValue}>{co.gstin}</span>
+            </div>
+          )}
+          {showVehicleNo && (
+            <div style={styles.metaRow}>
+              <span style={styles.metaLabel}>Vehicle No</span>
+              <span style={styles.metaValue}>
+                {hasValue(vehicle_no) ? vehicle_no : <span style={styles.vehicleNoBlank}>&nbsp;</span>}
+              </span>
+            </div>
+          )}
+
+          {/* Total Due sits under the meta rows in the same right-hand
+              column — it shares their right margin. */}
+          {showPaymentDetails && (
+            <div style={{ ...styles.dueBox, marginTop: "12px" }}>
+              <p style={styles.infoLabel}>Total Due</p>
+              <p style={styles.dueValue}>{fmt(total)}</p>
+              <span style={{ ...styles.statusBadge, ...statusColors }}>{statusLabel}</span>
+              <p style={{ ...styles.billMeta, textAlign: "right" as const }}>Payment Mode: {payment_mode}</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={styles.divider} />
 
       {/* ── ITEMS TABLE ──────────────────────────────────────── */}
       <table style={styles.table}>
@@ -538,33 +572,26 @@ export const InvoicePDFTemplateModern = React.forwardRef(({ data, settingsOverri
         </div>
       )}
 
-      {/* ── TERMS + PAYMENT INFO panel, then SIGNATURE (kept together) ── */}
+      {/* ── BANK DETAILS (left) + TERMS (right), then SIGNATURE ── */}
       <div data-pdf-keep-together style={{ marginTop: isCompact ? 18 : 26 }}>
-        {(showTermsPanel || showBankDetails) && (
+        {(showBankDetails || showTermsPanel) && (
           <table style={styles.footerTable}>
             <thead>
               <tr>
+                {showBankDetails && (
+                  <th style={{ ...styles.footerTh, width: showTermsPanel ? "42%" : "100%" }}>
+                    Bank Details
+                  </th>
+                )}
                 {showTermsPanel && (
                   <th style={{ ...styles.footerTh, width: showBankDetails ? "58%" : "100%" }}>
                     Terms and Conditions
-                  </th>
-                )}
-                {showBankDetails && (
-                  <th style={{ ...styles.footerTh, width: showTermsPanel ? "42%" : "100%" }}>
-                    Payment Information
                   </th>
                 )}
               </tr>
             </thead>
             <tbody>
               <tr>
-                {showTermsPanel && (
-                  <td style={styles.footerTd}>
-                    <p style={{ ...styles.noteText, whiteSpace: "pre-line" as const, margin: 0 }}>
-                      {termsConditionsText}
-                    </p>
-                  </td>
-                )}
                 {showBankDetails && (
                   <td style={styles.footerTd}>
                     {bankRows.length > 0 ? (
@@ -581,6 +608,13 @@ export const InvoicePDFTemplateModern = React.forwardRef(({ data, settingsOverri
                     ) : (
                       <p style={{ ...styles.noteText, margin: 0 }}>Bank Details N/A</p>
                     )}
+                  </td>
+                )}
+                {showTermsPanel && (
+                  <td style={styles.footerTd}>
+                    <p style={{ ...styles.noteText, whiteSpace: "pre-line" as const, margin: 0 }}>
+                      {termsConditionsText}
+                    </p>
                   </td>
                 )}
               </tr>
@@ -613,4 +647,4 @@ export const InvoicePDFTemplateModern = React.forwardRef(({ data, settingsOverri
   );
 });
 
-InvoicePDFTemplateModern.displayName = "InvoicePDFTemplateModern";
+InvoicePDFTemplateModern2.displayName = "InvoicePDFTemplateModern2";

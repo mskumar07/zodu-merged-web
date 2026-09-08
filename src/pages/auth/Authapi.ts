@@ -288,6 +288,10 @@ export interface InvoiceSettings {
   show_item_id: boolean;
   show_serial_no: boolean;
   show_customer_details: boolean;
+  // Whether the Ship To block is printed. Absent on rows that predate this
+  // field — treat a missing value as true, which is how invoices behaved
+  // before the toggle existed.
+  show_shipping_address?: boolean;
   show_tax_details: boolean;
   show_payment_details: boolean;
   show_terms_conditions: boolean;
@@ -301,6 +305,10 @@ export interface InvoiceSettings {
   // (e.g. ["Cash", "UPI", "UPI + Cash", "Others"]). Stored server-side as TEXT[].
   // Absent on rows that predate this field.
   payment_types?: string[];
+  // Which copy markings the user can download/print ("Original" | "Duplicate" |
+  // "Transport"). Absent on rows that predate this field — treat a missing or
+  // empty value as ["Original"].
+  invoice_copy_types?: string[];
   // Which A4 invoice layout to render — "classic" (default) or "modern".
   invoice_template?: string;
   // POS settings — "Additional Settings". Absent on rows that predate this field.
@@ -311,9 +319,23 @@ export interface InvoiceSettings {
   updated_at?: string;
 }
 
+// Sale types the POS offers for this branch, and which one it opens on.
+// Absent on branches with no POS-settings row yet — treat that as the default
+// of every type enabled with Invoice first (see normalizePosSettings).
+export interface PosSettings {
+  zodu_id?: string;
+  branch_id?: string;
+  pos_types?: string[];
+  default_pos_type?: string;
+  active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface BranchSettingsResponse {
   settings: {
     invoice: InvoiceSettings;
+    pos?: PosSettings;
   };
 }
 

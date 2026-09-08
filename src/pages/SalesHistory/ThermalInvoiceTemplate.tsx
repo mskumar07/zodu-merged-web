@@ -437,6 +437,8 @@ import { useAppSelector } from "@store/store";
 import { useTenantContext } from "@store/tenantContext";
 import { AllCompanies, InvoiceSettingsData } from "@store/slices/userSlice";
 import type { InvoiceSettings as ThermalInvoiceSettings } from "@pages/auth/Authapi";
+import { saleDocumentLabel } from "@utils/saleType";
+import { normalizeInvoiceCopyTypes } from "@utils/invoiceCopyTypes";
 
 // ── Paper-size config ──────────────────────────────────────────────────────
 
@@ -558,6 +560,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
       theme = "classic",
       logoUrl,
       signatureUrl,
+      copyType,
     }: {
       data: any;
       paperSize?: ThermalPaperSize;
@@ -572,6 +575,9 @@ export const ThermalInvoiceTemplate = React.forwardRef(
       /** Preview-only in-progress signature upload — real printing falls back
        * to the persisted value on invoiceSettings (see resolvedSignatureUrl). */
       signatureUrl?: string;
+      /** Copy marking to print ("Original" | "Duplicate" | "Transport").
+       * Omitted when no specific copy was asked for. */
+      copyType?: string | null;
     },
     ref: any
   ) => {
@@ -626,7 +632,14 @@ export const ThermalInvoiceTemplate = React.forwardRef(
       grand_total,
       final_amount,
       gst_breakdown = [],
+      sale_type,
+      vehicle_no,
     } = data;
+    const documentLabel = saleDocumentLabel(sale_type);
+    // A transport copy travels with the goods, so it carries the vehicle number.
+    // Shown whenever "Transport" is a configured copy type — a blank rule to
+    // fill in by hand when the sale carries no number.
+    const showVehicleNo = normalizeInvoiceCopyTypes(invoiceSettings?.invoice_copy_types).includes("Transport");
 
     // Time fallback logic
     const rawTime = time || sale_time || saleTime || billing_time || created_at || createdAt;
@@ -759,11 +772,27 @@ export const ThermalInvoiceTemplate = React.forwardRef(
         <Dashes tight={compact} />
 
         {/* ── INVOICE META ── */}
+        {/* <div style={{ textAlign: "center", fontWeight: 700, fontSize: fs - 1, letterSpacing: 1, marginBottom: 3 }}>
+          {documentLabel.toUpperCase()}
+        </div> */}
+        {copyType && (
+          <div style={{ textAlign: "center", fontWeight: 800, fontSize: fs - 1, letterSpacing: 1, marginBottom: 3 }}>
+            {String(copyType).toUpperCase()}
+          </div>
+        )}
         <div style={{ marginBottom: 4 }}>
-          <ReceiptRow label="Receipt #" value={String(sale_id ?? "")} fontSize={fs} tight={compact} />
+          <ReceiptRow label={documentLabel === "Invoice" ? "Receipt #" : `${documentLabel} #`} value={String(sale_id ?? "")} fontSize={fs} tight={compact} />
           <ReceiptRow label="Date & Time" value={`${date ?? ""}  ${displayTime}`} fontSize={fs} tight={compact} />
           {showPaymentDetails && payment_mode && (
             <ReceiptRow label="Payment Mode" value={String(payment_mode)} fontSize={fs} tight={compact} />
+          )}
+          {showVehicleNo && (
+            <ReceiptRow
+              label="Vehicle No"
+              value={vehicle_no ? String(vehicle_no) : "________"}
+              fontSize={fs}
+              tight={compact}
+            />
           )}
         </div>
 

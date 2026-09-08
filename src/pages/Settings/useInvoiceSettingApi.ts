@@ -30,6 +30,13 @@ export const PAYMENT_TYPE_LABELS = [
 ] as const;
 export type PaymentTypeLabel = (typeof PAYMENT_TYPE_LABELS)[number];
 
+// The copy markings an invoice can be printed as. A GST invoice is issued in
+// multiple copies — the recipient's, the transporter's and the supplier's — and
+// each carries the same content under a different heading. These are the exact
+// labels stored in and returned by `invoice_copy_types`.
+export const INVOICE_COPY_TYPE_LABELS = ["Original", "Duplicate", "Transport"] as const;
+export type InvoiceCopyTypeLabel = (typeof INVOICE_COPY_TYPE_LABELS)[number];
+
 export interface InvoiceSettingsResponse {
   id: number;
   zodu_id: string;
@@ -50,6 +57,10 @@ export interface InvoiceSettingsResponse {
   show_item_id: boolean;
   show_serial_no: boolean;
   show_customer_details: boolean;
+  // Whether the Ship To block is printed. Absent on rows that predate this
+  // field — treat a missing value as true, which is how invoices behaved
+  // before the toggle existed.
+  show_shipping_address?: boolean;
   show_tax_details: boolean;
   show_payment_details: boolean;
   show_terms_conditions: boolean;
@@ -63,6 +74,10 @@ export interface InvoiceSettingsResponse {
   // "Others") and the column is a TEXT[] with a matching CHECK constraint, so this is an
   // array of labels, never a comma-separated string of codes.
   payment_types: PaymentTypeLabel[];
+  // Which copy markings the user can download/print — a subset of
+  // INVOICE_COPY_TYPE_LABELS. Absent on rows that predate this field; treat a
+  // missing or empty value as ["Original"].
+  invoice_copy_types?: InvoiceCopyTypeLabel[];
   // Which A4 invoice layout to render — "classic" (default) or "modern".
   // Irrelevant for thermal receipts, which only ever use the one layout.
   invoice_template: string;
@@ -94,6 +109,7 @@ export type UpdateInvoiceSettingsPayload = Partial<
     | "show_item_id"
     | "show_serial_no"
     | "show_customer_details"
+    | "show_shipping_address"
     | "show_tax_details"
     | "show_payment_details"
     | "show_terms_conditions"
@@ -103,6 +119,7 @@ export type UpdateInvoiceSettingsPayload = Partial<
     | "show_signature"
     | "show_bank_details"
     | "payment_types"
+    | "invoice_copy_types"
     | "invoice_template"
     | "stock_check_enabled"
     | "customer_mandatory"

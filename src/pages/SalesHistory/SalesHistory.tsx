@@ -33,6 +33,7 @@ import DataTable           from "@utils/DataTable";
 import StatCard            from "@components/StatCard";
 import { useNavigate }     from "react-router-dom";
 import { useModulePermission } from "@hooks/useModulePermission";
+import { isProformaSaleType, isQuotationSaleType } from "@utils/saleType";
 
 // ─── Formatter ────────────────────────────────────────────────
 const INR = (v: number) =>
@@ -72,7 +73,7 @@ const TABLE_TEXT_COLOR = "#374151";
  * Map every possible backend payment_status to a UI label.
  * ✅ "returned" and "partial_return" were unhandled → fell through to "Unpaid"
  */
-type UIStatus = "Paid" | "Partial" | "Unpaid" | "Returned" | "Partial Return" | "Quotation";
+type UIStatus = "Paid" | "Partial" | "Unpaid" | "Returned" | "Partial Return" | "Quotation" | "Proforma";
 
 const STATUS_CONFIG: Record<
   UIStatus,
@@ -84,6 +85,7 @@ const STATUS_CONFIG: Record<
   "Returned":       { color: "#6B21A8", bg: "#F3E8FF", dot: "#7C3AED" },
   "Partial Return": { color: "#0369A1", bg: "#E0F2FE", dot: "#0284C7" },
   "Quotation":      { color: "#475569", bg: "#F1F5F9", dot: "#64748B" },
+  "Proforma":       { color: "#0F766E", bg: "#CCFBF1", dot: "#14B8A6" },
 };
 
 function mapStatus(s: PaymentStatus): UIStatus {
@@ -110,7 +112,22 @@ function getPosEditUrl(sale: Sale): string {
 }
 
 function isQuotationSale(sale: Sale): boolean {
-  return sale.sale_type?.toLowerCase() === "q";
+  return isQuotationSaleType(sale.sale_type);
+}
+
+function isProformaSale(sale: Sale): boolean {
+  return isProformaSaleType(sale.sale_type);
+}
+
+/**
+ * Quotations and proformas carry no payment, so the Payment column shows the
+ * document type in place of a payment status and the rest of the row hides
+ * the balance, the Mark as Paid button and the return action.
+ */
+function nonBindingStatus(sale: Sale): UIStatus | null {
+  if (isQuotationSale(sale)) return "Quotation";
+  if (isProformaSale(sale)) return "Proforma";
+  return null;
 }
 
 function StatusBadge({ status }: { status: UIStatus }) {
@@ -376,9 +393,9 @@ export default function SalesHistoryPage() {
       width: 120,
       render: (sale: Sale) => {
         const fullyReturned = isFullyReturnedSale(sale);
-        const isQuotation   = isQuotationSale(sale);
+        const isNonBinding  = nonBindingStatus(sale) !== null;
         const balance       = Number(sale.balance_amount);
-        const hasBalance    = balance > 0 && !fullyReturned && !isQuotation;
+        const hasBalance    = balance > 0 && !fullyReturned && !isNonBinding;
         const dueDate       = sale.due_date;
         return (
           <Box>
@@ -410,8 +427,8 @@ export default function SalesHistoryPage() {
           );
         }
         const fullyReturned = isFullyReturnedSale(sale);
-        const isQuotation = isQuotationSale(sale);
-        const status = fullyReturned ? "Returned" : isQuotation ? "Quotation" : mapStatus(sale.payment_status);
+        const nonBinding = nonBindingStatus(sale);
+        const status = fullyReturned ? "Returned" : (nonBinding ?? mapStatus(sale.payment_status));
         const isReturned = status === "Returned" || status === "Partial Return";
         const returnCount = Number(sale.return_count ?? 0);
         return (
@@ -421,7 +438,7 @@ export default function SalesHistoryPage() {
                 <StatusBadge status={status} />
               </Box>
               <Box sx={{ width: 110 }}>
-                {status !== "Paid" && !isReturned && !isQuotation && !isCancelledTab && (
+                {status !== "Paid" && !isReturned && !nonBinding && !isCancelledTab && (
                   <Button
                     size="small" variant="contained" color="primary" disableElevation
                     disabled={!canEdit}
@@ -478,12 +495,12 @@ export default function SalesHistoryPage() {
       width: 110,
       render: (sale: Sale) => {
         const fullyReturned = isFullyReturnedSale(sale);
-        const isQuotation = isQuotationSale(sale);
+        const isNonBinding = nonBindingStatus(sale) !== null;
         const status = fullyReturned ? "Returned" : mapStatus(sale.payment_status);
         const isReturned = status === "Returned";
         return (
           <Stack direction="row" justifyContent="flex-end" gap={0.3}>
-            {!isQuotation && !isRestaurant && (
+            {!isNonBinding && !isRestaurant && (
               <Tooltip title={isReturned ? "Fully returned" : !canEdit ? "You don't have permission to edit" : "Sales Return"}>
                 <span>
                   <IconButton

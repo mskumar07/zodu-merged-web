@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { RootState } from "@store/store";
-import type { AuthUser, CompanyDetails, CompanyWithBranches, InvoiceSettings, RoleAccessItem } from "@pages/auth/Authapi";
+import type { AuthUser, CompanyDetails, CompanyWithBranches, InvoiceSettings, PosSettings, RoleAccessItem } from "@pages/auth/Authapi";
 
 interface Userstate {
   branchId: string;
@@ -14,6 +14,7 @@ interface Userstate {
   company: CompanyDetails | null;
   roleAccess: RoleAccessItem[];
   invoiceSettings: InvoiceSettings | null;
+  posSettings: PosSettings | null;
   isAuthenticated: boolean;
 }
 
@@ -29,6 +30,7 @@ const initialState: Userstate = {
   company: null,
   roleAccess: [],
   invoiceSettings: null,
+  posSettings: null,
   isAuthenticated: false,
 };
 
@@ -75,6 +77,9 @@ const userSlice = createSlice({
     setInvoiceSettings: (state, action: PayloadAction<InvoiceSettings | null>) => {
       state.invoiceSettings = action.payload;
     },
+    setPosSettings: (state, action: PayloadAction<PosSettings | null>) => {
+      state.posSettings = action.payload;
+    },
     clearAuthData: (state) => {
       state.accessToken = null;
       state.refreshToken = null;
@@ -83,6 +88,7 @@ const userSlice = createSlice({
       state.companies = [];
       state.roleAccess = [];
       state.invoiceSettings = null;
+      state.posSettings = null;
       state.isAuthenticated = false;
       state.branchId = "";
       state.branchName = "";
@@ -92,7 +98,7 @@ const userSlice = createSlice({
   },
 });
 
-export const { addUserData, setAuthData, setCompanies, setRoleAccess, setInvoiceSettings, clearAuthData } = userSlice.actions;
+export const { addUserData, setAuthData, setCompanies, setRoleAccess, setInvoiceSettings, setPosSettings, clearAuthData } = userSlice.actions;
 
 export const BranchId = (state: RootState) => state.user.branchId;
 export const BranchName = (state: RootState) => state.user.branchName;
@@ -105,6 +111,7 @@ export const UserProfile = (state: RootState) => state.user.profile;
 export const UserCompany = (state: RootState) => state.user.company;
 export const RoleAccess = (state: RootState) => state.user.roleAccess;
 export const InvoiceSettingsData = (state: RootState) => state.user.invoiceSettings;
+export const PosSettingsData = (state: RootState) => state.user.posSettings;
 export const IsAuthenticated = (state: RootState) => state.user.isAuthenticated;
 
 export default userSlice.reducer;

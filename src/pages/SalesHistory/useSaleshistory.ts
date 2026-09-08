@@ -47,6 +47,9 @@ export interface Sale {
   notes:           string | null;
   round_off?:      string | number | null;
   due_date?:       string | null;
+  // Printed on the transport copy of the invoice; null when the sale was
+  // saved without one.
+  vehicle_no?:     string | null;
 
   // formatted dates from TO_CHAR
   sale_date_fmt:   string;
