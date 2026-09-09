@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useForceRefreshProducts, usePosSearch, usePosProducts } from "./useposproducts";
 import type { PosProduct } from "./db";
 import { useSaveOrder, SALE_TYPE_BY_POS_MODE, type SaveOrderResult } from "./usesaveOrder";
@@ -60,6 +60,8 @@ import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import jsPDF                  from "jspdf";
 import { renderPaginatedInvoicePdf } from "@utils/pdfPagination";
+import { setUnsavedWork } from "@utils/appUpdate";
+import { SALE_DEPENDENT_KEYS, publishSaleSaved } from "@utils/dataSync";
 import { numberToWords } from "@utils/numberToWords";
 import { useLocation }        from "react-router-dom";
 import CustomerLedgerDialog   from "../Customer/CustomerLedgerDialog";
@@ -360,15 +362,17 @@ function Highlight({ text, query }: { text: string; query: string }) {
   );
 }
 
-const queryClient = new QueryClient();
 const CAT_COLOR: Record<string, string> = { Beans: "#92400E", Drinks: "#1D4ED8", Equipment: "#065F46", Accessories: "#5B21B6", Milk: "#9D174D", Syrups: "#B45309" };
 
 export default function RetailPOS() {
-  return <QueryClientProvider client={queryClient}><RetailPOSInner /></QueryClientProvider>;
+  // No QueryClientProvider here on purpose: POS shares the app-wide cache from
+  // main.tsx, so saving a sale can invalidate the Dashboard and Sales History.
+  return <RetailPOSInner />;
 }
 
 function RetailPOSInner() {
   const dispatch = useAppDispatch();
+  const queryClient = useQueryClient();
   const zoduId   = useAppSelector(ZoduId);
   const branchId = useAppSelector(BranchId);
   const invoiceSettings = useAppSelector(InvoiceSettingsData);
@@ -1093,6 +1097,13 @@ console.log("test",serverHolds)
       : await saveOrder({ zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, dueDate: dueDateEnabled ? dueDate : "", discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo: savedVehicleNo, stockCheckEnabled });
     if (result.success) {
       console.log("save Result",result)
+      // The Dashboard and Sales History are now showing figures that predate
+      // this sale. Invalidate rather than refetch: whichever of those screens
+      // is mounted refetches immediately, the rest refetch when next opened.
+      for (const queryKey of SALE_DEPENDENT_KEYS) {
+        void queryClient.invalidateQueries({ queryKey });
+      }
+      publishSaleSaved();
       const order    = result.order as any;
       const totalAmt = parseFloat(order?.total_amount ?? "0");
       const paidAmt  = parseFloat(order?.paid_amount  ?? "0");
@@ -1112,7 +1123,7 @@ console.log("test",serverHolds)
       setSavedOrderSnapshot(null);
       setSaveResult({ open: true, success: false, message: result.message });
     }
-  }, [items, customer, invoiceDate, dueDate, dueDateEnabled, discountPct, discount, gstMode, roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo, printEnabled, saving, saveOrder, updateOrder, handleClear, saleId, saleIdFromUrl, invoiceSettings]);
+  }, [items, customer, invoiceDate, dueDate, dueDateEnabled, discountPct, discount, gstMode, roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo, printEnabled, saving, saveOrder, updateOrder, handleClear, saleId, saleIdFromUrl, invoiceSettings, queryClient]);
 
   const handleThermalPrint = useCallback((copies: string[] = []) => {
     if (!thermalRef.current) return;
@@ -1280,6 +1291,13 @@ console.log("test",serverHolds)
     return s + round2(i.qty * i.unitPrice + itemGst - (i.discount ?? 0));
   }, 0);
   const empty       = items.length === 0;
+
+  // A cart in progress is unsaved work: the deploy watcher must not reload the
+  // tab out from under a half-built bill, so it waits for the user instead.
+  useEffect(() => {
+    setUnsavedWork("pos-cart", items.length > 0);
+    return () => setUnsavedWork("pos-cart", false);
+  }, [items.length]);
 
   const savedHsnBreakdown = useMemo(() => {
     const saleItems = (savedOrderSnapshot?.result.items as any[]) ?? [];

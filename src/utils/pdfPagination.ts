@@ -30,6 +30,21 @@ const PDF_MIN_SLICE_HEIGHT_PX = 40;
 // it "doesn't fit" and gets bumped whole to a fresh page, even when there's
 // plenty of room.
 const PDF_KEEP_TOGETHER_TOLERANCE_PX = 16;
+/**
+ * How far a document is allowed to be scaled down to keep it on one page.
+ *
+ * A page holds ~1069 CSS px of content once the bottom gap is reserved, but an
+ * A4 sheet is 1123 px tall and an invoice is routinely a little over: the
+ * declaration/bank/signature block is a keep-together section, so a document
+ * even 20 px too tall moves that whole block to a second page and leaves a
+ * third of the first page blank. That reads as a bug — the preview shows one
+ * page, the PDF is two, mostly empty.
+ *
+ * So a document that is close enough is drawn once, scaled to fit. 0.85 caps
+ * the shrink at 15%, which takes 11px body text to a still-legible ~9.4px;
+ * anything taller than that genuinely needs a second page and gets one.
+ */
+const PDF_SINGLE_PAGE_MIN_SCALE = 0.85;
 const PDF_ROW_WHITE_THRESHOLD = 245;
 
 function isCanvasRowBlank(
@@ -293,6 +308,36 @@ export async function renderPaginatedInvoicePdf(
   const theadGapPx = theadImgData ? Math.max(0, Math.round(PDF_THEAD_GAP_MM * pxPerMm)) : 0;
   const headerOverheadPx = headerImgData ? headerHeightPx + headerGapPx : 0;
   const headerOverheadMm = headerImgData ? headerHeightMm + PDF_HEADER_GAP_MM : 0;
+
+  // ── Single-page rescue ───────────────────────────────────────────────
+  // Before paginating at all: if the whole document is only slightly taller
+  // than one page, scale it down onto a single page instead of spilling a
+  // near-empty second one. Both dimensions scale together, so nothing is
+  // distorted — the page simply gains a little side margin.
+  if (
+    canvas.height > renderedPageHeightPx &&
+    canvas.height <= renderedPageHeightPx / PDF_SINGLE_PAGE_MIN_SCALE
+  ) {
+    const fitScale = renderedPageHeightPx / canvas.height;
+    const imgWidthMm = pageWidth * fitScale;
+    const imgHeightMm = toMm(canvas.height) * fitScale;
+    const imgData = canvas.toDataURL("image/jpeg", PDF_IMAGE_QUALITY);
+
+    if (appendTo) {
+      pdf.addPage();
+    }
+    pdf.addImage(
+      imgData,
+      "JPEG",
+      (pageWidth - imgWidthMm) / 2,
+      0,
+      imgWidthMm,
+      imgHeightMm,
+      undefined,
+      "MEDIUM",
+    );
+    return pdf;
+  }
 
   for (let sourceY = 0, pageIndex = 0; sourceY < canvas.height; pageIndex += 1) {
     const isFirstPage = pageIndex === 0;

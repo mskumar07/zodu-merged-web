@@ -73,6 +73,15 @@ class PosDatabase extends Dexie {
 
 export const db = new PosDatabase();
 
+// A Dexie schema upgrade cannot run while another tab still holds the database
+// open on the previous version — it blocks silently and indefinitely. Closing
+// here lets the upgrading tab through; reloading puts this one on the new
+// bundle, which is where the newer schema came from in the first place.
+db.on("versionchange", () => {
+  db.close();
+  window.location.reload();
+});
+
 // ── Staleness helpers ─────────────────────────────────────────
 const STALE_MS = 8 * 60 * 60 * 1000;
 

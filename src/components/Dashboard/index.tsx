@@ -1,4 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { SALE_DEPENDENT_KEYS, subscribeSaleSaved } from "@utils/dataSync";
 import LottieLoader from "@components/LottieLoader";
 import { createTheme, ThemeProvider, CssBaseline } from "@mui/material";
 import Box from "@mui/material/Box";
@@ -542,6 +544,20 @@ export default function DashboardLayout() {
   const alertQuery        = useInventoryAlerts(zoduId, branchId, businessType ?? "");
   const ordersQuery       = useOrders(zoduId, branchId, isRestaurant);
   const [invoiceDialog, setInvoiceDialog] = useState<string | null>(null);
+
+  // A sale rung up in another tab of this browser — the till beside the
+  // manager's dashboard — refreshes these figures at once, rather than leaving
+  // them until the next poll.
+  const queryClient = useQueryClient();
+  useEffect(
+    () =>
+      subscribeSaleSaved(() => {
+        for (const queryKey of SALE_DEPENDENT_KEYS) {
+          void queryClient.invalidateQueries({ queryKey });
+        }
+      }),
+    [queryClient],
+  );
 
   const stats     = statsQuery.data;
   const sales     = flatPages(salesQuery)   as SaleRow[];

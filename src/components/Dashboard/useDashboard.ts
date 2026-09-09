@@ -25,6 +25,22 @@ export const dashboardKeys = {
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 
+/**
+ * The Dashboard is a wall display as much as a page: it is left open while
+ * sales are rung up elsewhere, so it cannot wait to be remounted.
+ *
+ * A sale rung up in this browser invalidates these keys immediately (see
+ * utils/dataSync.ts). The poll is the safety net for everything that message
+ * cannot reach — another till, another device, a payment recorded by someone
+ * else. `refetchIntervalInBackground` is left off, so a hidden tab stops
+ * polling and catches up on focus instead of hammering the API all night.
+ */
+const LIVE_REFRESH = {
+  staleTime: 15_000,
+  refetchInterval: 30_000,
+  refetchOnWindowFocus: true,
+} as const;
+
 function getBusinessSegment(businessType: string): string {
   return businessType.toLowerCase() === "restaurant" ? "restaurant" : "retail";
 }
@@ -40,7 +56,7 @@ export function useStats(zodu_id: string, branch_id: string, businessType: strin
         : fetchJSON(`${API_BASE}/retail/api/dashboard/stats?zodu_id=${zodu_id}&branch_id=${branch_id}`),
     select: (res) => res.data,
     enabled: !!zodu_id && !!branch_id,
-    staleTime: 30_000,
+    ...LIVE_REFRESH,
   });
 }
 
@@ -63,7 +79,7 @@ function makeInfiniteQuery(
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last: any) =>
       last.pagination.hasMore ? last.pagination.nextCursor : undefined,
-    staleTime: 30_000,
+    ...LIVE_REFRESH,
   } satisfies Partial<UseInfiniteQueryOptions>;
 }
 
@@ -96,7 +112,7 @@ export function useReminders(zodu_id: string, branch_id: string, businessType: s
     initialPageParam: 1,
     getNextPageParam: (last: any) =>
       last.pagination.hasMore ? last.pagination.page + 1 : undefined,
-    staleTime: 30_000,
+    ...LIVE_REFRESH,
     enabled: !!zodu_id && !!branch_id,
   });
 }
@@ -121,7 +137,7 @@ export function useRestaurantTopItems(zodu_id: string, branch_id: string, isRest
       last.pagination.page < last.pagination.totalPages
         ? last.pagination.page + 1
         : undefined,
-    staleTime: 30_000,
+    ...LIVE_REFRESH,
     enabled: isRestaurant,
   });
 }
@@ -139,7 +155,7 @@ export function useOrders(zodu_id: string, branch_id: string, isRestaurant: bool
       last.pagination.page < last.pagination.totalPages
         ? last.pagination.page + 1
         : undefined,
-    staleTime: 30_000,
+    ...LIVE_REFRESH,
     enabled: isRestaurant,
   });
 }
