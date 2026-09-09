@@ -57,6 +57,7 @@ import InfoOutlinedIcon       from "@mui/icons-material/InfoOutlined";
 import SwapHorizIcon          from "@mui/icons-material/SwapHoriz";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import jsPDF                  from "jspdf";
 import { renderPaginatedInvoicePdf } from "@utils/pdfPagination";
 import { numberToWords } from "@utils/numberToWords";
@@ -459,6 +460,7 @@ function RetailPOSInner() {
   const [addCustomerOpen,         setAddCustomerOpen]         = useState(false);
   const [addItemOpen,             setAddItemOpen]             = useState(false);
   const [cameraScanOpen,          setCameraScanOpen]          = useState(false);
+  const [previewOpen,             setPreviewOpen]             = useState(false);
   const [scanMsg,                 setScanMsg]                 = useState("");
   const [toastSeverity,           setToastSeverity]           = useState<'success' | 'error'>('success');
   const [downloadLoading,         setDownloadLoading]         = useState(false);
@@ -1387,6 +1389,91 @@ console.log("test",serverHolds)
   }, [savedHsnBreakdown, savedOrderSnapshot, paymentType]);
 
   /**
+   * The bill as it stands in the cart, in the shape the print templates read.
+   * Nothing here is saved yet, so the figures come from the same memos that
+   * feed the SUMMARY card — what the preview shows is what the screen shows.
+   */
+  const previewPdfData = useMemo(() => {
+    if (items.length === 0) return null;
+
+    // Per-item GST, computed exactly as the `gstAmount` memo does, so the
+    // slabs below add up to the tax total shown on screen.
+    const itemGst = (i: LineItem) => {
+      const base = i.qty * i.unitPrice;
+      if (gstMode === "before" && subtotal > 0) {
+        const share = orderDiscountAmt * (base / subtotal);
+        return round2(Math.max(0, base - share) * i.gstPct / 100);
+      }
+      return round2(base * i.gstPct / 100);
+    };
+
+    const hsnMap: Record<string, {
+      hsn: string; taxable: number;
+      cgstRate: number; cgstAmount: number;
+      sgstRate: number; sgstAmount: number;
+      totalTaxAmount: number;
+    }> = {};
+    for (const i of items) {
+      const hsn = i.hsn?.trim() || "-";
+      const key = `${hsn}|${i.gstPct}`;
+      const gst = itemGst(i);
+      if (!hsnMap[key]) {
+        hsnMap[key] = {
+          hsn, taxable: 0,
+          cgstRate: i.gstPct / 2, cgstAmount: 0,
+          sgstRate: i.gstPct / 2, sgstAmount: 0,
+          totalTaxAmount: 0,
+        };
+      }
+      hsnMap[key].taxable += round2(i.qty * i.unitPrice) - (i.discount ?? 0);
+      hsnMap[key].cgstAmount += gst / 2;
+      hsnMap[key].sgstAmount += gst / 2;
+      hsnMap[key].totalTaxAmount += gst;
+    }
+    const gstBreakdown = Object.values(hsnMap);
+
+    return {
+      sale_id: "PREVIEW",
+      sale_type: SALE_TYPE_BY_POS_MODE[posMode],
+      vehicle_no: posMode === "QUOTATION" ? "" : vehicleNo,
+      date: invoiceDate ? formatDateDisplay(invoiceDate) : "",
+      due_date: dueDateEnabled && dueDate ? formatDateDisplay(dueDate) : null,
+      customer_name: customer.name.trim() || "Walk-In",
+      customer_address: customer.address.trim() || "-",
+      customer_mobile: customer.mobile.trim() ? `+91 ${customer.mobile.trim()}` : "-",
+      customer_gstin: customer.gstin.trim() || "-",
+      customer_shipping_address: customer.shippingAddress.trim(),
+      payment_mode: paymentType,
+      payment_status: null,
+      items: items.map(i => ({
+        item_id: i.code,
+        name: i.description,
+        category: i.category ?? "",
+        description: i.itemDescription || "",
+        hsn: i.hsn?.trim() || "-",
+        qty: i.qty,
+        mrp: i.mrp,
+        rate: i.unitPrice,
+        tax: i.gstPct,
+        total: round2(i.qty * i.unitPrice + itemGst(i) - (i.discount ?? 0)),
+      })),
+      subtotal,
+      discount: orderDiscountAmt > 0 ? orderDiscountAmt : null,
+      discount_label: discountPctVal > 0 ? `Discount (${discountPctVal}%)` : "Discount",
+      cgst: gstBreakdown.reduce((sum, row) => sum + row.cgstAmount, 0),
+      sgst: gstBreakdown.reduce((sum, row) => sum + row.sgstAmount, 0),
+      cgst_pct: gstBreakdown[0]?.cgstRate ?? 0,
+      sgst_pct: gstBreakdown[0]?.sgstRate ?? 0,
+      round_off: roundoffValue,
+      total: grandTotal,
+      amount_in_words: `${numberToWords(grandTotal)} Rupees Only`,
+      gst_breakdown: gstBreakdown,
+      company: undefined,
+    };
+  }, [items, subtotal, gstMode, orderDiscountAmt, discountPctVal, roundoffValue, grandTotal,
+      customer, invoiceDate, dueDate, dueDateEnabled, paymentType, posMode, vehicleNo]);
+
+  /**
    * One PDF holding each requested copy in turn. An empty list means "no copy
    * marking" — the behavior from before copy types existed.
    */
@@ -1657,8 +1744,16 @@ console.log("test",serverHolds)
                 })}
               </Box>
 
-              {!isNonSaleDoc && (
-                <Box sx={{ display: "flex", gap: { xs: 0.5, md: 0.75 }, flexShrink: 0 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, md: 0.75 }, flexShrink: 0 }}>
+                <Button size="small" disabled={items.length === 0}
+                  startIcon={<VisibilityOutlinedIcon sx={{ fontSize: { xs: 13, md: 16 } }} />}
+                  onClick={() => setPreviewOpen(true)}
+                  sx={{ minWidth: { xs: 0, md: 90 }, height: { xs: 24, md: 26 }, px: { xs: 0.75, md: 1 }, borderRadius: 1.25, border: "1px solid #E5E7EB", bgcolor: "#F3F4F6", color: "#4B5563", fontSize: { xs: 9, md: 10 }, fontWeight: 800, "&:hover": { bgcolor: "#E5E7EB" }, "&.Mui-disabled": { bgcolor: "#F9FAFB", color: "#D1D5DB" } }}>
+                  PREVIEW
+                </Button>
+
+                {!isNonSaleDoc && (
+                  <>
                   <Button size="small" disabled={holdSaving || items.length === 0}
                     startIcon={holdSaving ? <CircularProgress size={10} /> : <PauseCircleOutlineIcon sx={{ fontSize: { xs: 13, md: 16 } }} />}
                     onClick={handleHold}
@@ -1671,8 +1766,9 @@ console.log("test",serverHolds)
                       RECALL
                     </Button>
                   </Badge>
-                </Box>
-              )}
+                  </>
+                )}
+              </Box>
             </Box>
 
             {/* Search row */}
@@ -2181,7 +2277,7 @@ console.log("test",serverHolds)
                   sx={{ display: "flex", alignItems: "center", gap: 0.6, bgcolor: modeTheme.chipBg, border: `1px solid ${modeTheme.accent}`, borderRadius: 1.5, px: 1, py: 0.4, transition: "all 0.2s", cursor: "pointer", whiteSpace: "nowrap", position: "relative" }}>
                   <CalendarTodayIcon sx={{ fontSize: 14, color: modeTheme.accent, flexShrink: 0 }} />
                   <Typography sx={{ fontSize: 10, color: modeTheme.accent, fontWeight: 700, letterSpacing: "0.04em" }}>
-                    {posTypeLabel.toUpperCase()} DATE
+                    DATE
                   </Typography>
                   <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: modeTheme.accent, whiteSpace: "nowrap" }}>
                     {invoiceDate ? formatDateDisplay(invoiceDate) : "Select date"}
@@ -2612,6 +2708,35 @@ console.log("test",serverHolds)
             <ThermalInvoiceTemplate ref={thermalRef} data={savedPdfData} paperSize={thermalPaperSize} copyType={renderCopyType} />
           </Box>
         )}
+
+        {/* INVOICE PREVIEW — the cart as it will print, before it is saved */}
+        <Dialog open={previewOpen} onClose={() => setPreviewOpen(false)} fullWidth maxWidth="lg"
+          PaperProps={{ sx: { borderRadius: 3, maxHeight: "92vh" } }}>
+          <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2.5, py: 1.5, borderBottom: "1px solid #F1F5F9" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <VisibilityOutlinedIcon sx={{ fontSize: 20, color: modeAccent }} />
+              <Typography sx={{ fontWeight: 800, fontSize: 16 }}>{posTypeLabel} Preview</Typography>
+              <Typography sx={{ fontSize: 12, color: "#9CA3AF" }}>Not saved yet</Typography>
+            </Box>
+            <IconButton size="small" onClick={() => setPreviewOpen(false)}><CloseIcon sx={{ fontSize: 18 }} /></IconButton>
+          </DialogTitle>
+          <DialogContent sx={{ bgcolor: "#F1F5F9", p: 2, overflow: "auto" }}>
+            {previewPdfData && (
+              <Box sx={{ width: 794, mx: "auto", bgcolor: "#fff", boxShadow: "0 8px 30px rgba(15,23,42,0.12)" }}>
+                {invoiceSettings?.invoice_template === "modern2" ? (
+                  <InvoicePDFTemplateModern2 data={previewPdfData} />
+                ) : invoiceSettings?.invoice_template === "modern" ? (
+                  <InvoicePDFTemplateModern data={previewPdfData} />
+                ) : (
+                  <InvoicePDFTemplate data={previewPdfData} />
+                )}
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ px: 2.5, py: 1.5, borderTop: "1px solid #F1F5F9" }}>
+            <Button onClick={() => setPreviewOpen(false)} sx={{ fontWeight: 700, color: "#6B7280" }}>Close</Button>
+          </DialogActions>
+        </Dialog>
 
         <CustomerLedgerDialog open={customerLedgerOpen} onClose={() => setCustomerLedgerOpen(false)} custUuid={customer.id} customerName={customer.name || "Walk-in"} />
         <AddNewCustomerDialog
