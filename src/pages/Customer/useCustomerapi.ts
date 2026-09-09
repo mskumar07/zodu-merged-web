@@ -339,10 +339,12 @@ export function useInfiniteCustomers(search: string, isActive: boolean = true) {
   });
 }
 
-// ─── Payload builder — now accepts separate custName + cpyName ─
+// ─── Payload builder ──────────────────────────────────────────
+// One name covers a person or a business and is stored as cust_name; cpy_name
+// is no longer collected, and every screen that reads it already falls back to
+// cust_name.
 export function buildCustomerPayload(form: {
-  custName:     string;   // ✅ person name  → cust_name
-  cpyName:      string;   // ✅ company name → cpy_name
+  custName:     string;   // person or business name → cust_name
   mobile:       string;
   email:        string;
   gstin:        string;
@@ -374,7 +376,7 @@ export function buildCustomerPayload(form: {
     branch_id: branchId,
 
     cust_name:  form.custName.trim() || null,
-    cpy_name:   form.cpyName.trim()  || null,
+    cpy_name:   null,
 
     mobile_no:  form.mobile.trim() ? [form.mobile.trim()] : [],
     email_id:   form.email.trim()  ? [form.email.trim()]  : [],
@@ -395,7 +397,6 @@ export function buildCustomerPayload(form: {
 export function buildUpdateCustomerPayload(
   form: {
     custName:     string;
-    cpyName:      string;
     mobile:       string;
     email:        string;
     gstin:        string;

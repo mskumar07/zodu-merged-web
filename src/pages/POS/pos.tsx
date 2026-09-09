@@ -447,7 +447,8 @@ function RetailPOSInner() {
   const invoiceCopyTypes = normalizeInvoiceCopyTypes(invoiceSettings?.invoice_copy_types);
   // The transport copy travels with the goods and prints a Vehicle No row, so
   // the cashier only needs somewhere to type it when that copy is enabled.
-  const showVehicleNo = invoiceCopyTypes.includes("Transport");
+  // A quotation ships nothing, so it never asks for a vehicle number.
+  const showVehicleNo = invoiceCopyTypes.includes("Transport") && posMode !== "QUOTATION";
   const [invoiceDate,    setInvoiceDate]    = useState(todayStr());
   const [dueDate,        setDueDate]        = useState("");
   const [orderNote,      setOrderNote]      = useState("");
@@ -1082,9 +1083,12 @@ console.log("test",serverHolds)
       return;
     }
     const stockCheckEnabled = !!invoiceSettings?.stock_check_enabled;
+    // Quotations hide the Vehicle No field, so drop anything typed before the
+    // cashier switched to that tab rather than storing it on the quotation.
+    const savedVehicleNo = posMode === "QUOTATION" ? "" : vehicleNo;
     const result = saleId
-      ? await updateOrder(saleId, { zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, dueDate: dueDateEnabled ? dueDate : "", discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo, stockCheckEnabled })
-      : await saveOrder({ zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, dueDate: dueDateEnabled ? dueDate : "", discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo, stockCheckEnabled });
+      ? await updateOrder(saleId, { zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, dueDate: dueDateEnabled ? dueDate : "", discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo: savedVehicleNo, stockCheckEnabled })
+      : await saveOrder({ zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, dueDate: dueDateEnabled ? dueDate : "", discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo: savedVehicleNo, stockCheckEnabled });
     if (result.success) {
       console.log("save Result",result)
       const order    = result.order as any;
@@ -1096,7 +1100,7 @@ console.log("test",serverHolds)
         result: result as SaveOrderResult,
         customer: { ...customer },
         saleType: SALE_TYPE_BY_POS_MODE[posMode],
-        vehicleNo,
+        vehicleNo: savedVehicleNo,
         descriptions: Object.fromEntries(items.map(i => [i.code, i.itemDescription || ""])),
       });
       setSaveResult({ open: true, success: true, message: result.message, grandTotal: totalAmt, change, saleId: savedSaleId });

@@ -11,6 +11,10 @@ export const MAX_AMOUNT               = 99999999999.99;
 
 const amountField = (label: string) =>
   Yup.number()
+    // A blank input means "not given", not "not a number", so it casts to
+    // undefined: an optional field then passes, and a required one reports
+    // which field is missing instead of complaining about the empty string.
+    .transform((value, original) => (original === '' || original === null ? undefined : value))
     .typeError(`Enter a valid ${label}`)
     .min(0, 'Cannot be negative')
     .max(MAX_AMOUNT, `${label} cannot exceed ${MAX_AMOUNT.toLocaleString('en-IN')}`);
@@ -45,8 +49,10 @@ export const addItemSchema = Yup.object({
 
   unit: Yup.number().required(),
 
-  purchasePrice: amountField('purchase price').required('Purchase price is required'),
-  mrp:           amountField('MRP').required('MRP is required'),
+  // Purchase price and MRP are frequently unknown when an item is first
+  // catalogued, so only the selling rate is required.
+  purchasePrice: amountField('purchase price').optional(),
+  mrp:           amountField('MRP').optional(),
   rate:          amountField('selling rate').required('Selling rate is required'),
 
   // gstId is the API-driven GST dropdown value (string of gst id)

@@ -3,6 +3,7 @@ import { useTenantContext } from "@store/tenantContext";
 import { AllCompanies, InvoiceSettingsData } from "@store/slices/userSlice";
 import React from "react";
 import { saleDocumentLabel } from "@utils/saleType";
+import { gstSummaryRows } from "@utils/gstSummary";
 
 // ── Inline style constants ────────────────────────────────────
 // "Modern 2" — same data shape and the same invoice-settings toggles as
@@ -15,7 +16,7 @@ import { saleDocumentLabel } from "@utils/saleType";
 const styles = {
   page: {
     width: "794px",
-    padding: "34px 38px",
+    padding: "8px 38px 34px 38px",
     background: "#fff",
     fontFamily: "'Inter', 'Arial', sans-serif",
     color: "#1F2937",
@@ -37,7 +38,7 @@ const styles = {
   // Two full-width lines under the company name — the address parts joined into
   // one and the contact/GSTIN parts into the other, rather than one short
   // centred line per field leaving most of the 718px content width unused.
-  headerMeta: { margin: "3px 0", fontSize: "11.5px", color: "#6B7280", lineHeight: 1.5, width: "100%" },
+  headerMeta: { margin: "3px 0", fontSize: "13px", color: "#6B7280", lineHeight: 1.5, width: "100%" },
 
   divider: { borderTop: "1px solid #E5E7EB", margin: "20px 0" },
 
@@ -57,8 +58,8 @@ const styles = {
   // copy is filled in by hand at dispatch.
   vehicleNoBlank: { display: "inline-block", minWidth: "88px", borderBottom: "1px solid #9CA3AF" },
   metaRow: { display: "flex", justifyContent: "flex-end", alignItems: "baseline", gap: "12px", marginBottom: "3px" },
-  metaLabel: { fontSize: "11.5px", color: "#6B7280", minWidth: "64px", textAlign: "right" as const },
-  metaValue: { fontSize: "11.5px", color: "#111827", fontWeight: 700, minWidth: "112px", textAlign: "right" as const, overflowWrap: "anywhere" as const },
+  metaLabel: { fontSize: "13px", color: "#6B7280", minWidth: "64px", textAlign: "right" as const },
+  metaValue: { fontSize: "13px", color: "#111827", fontWeight: 700, minWidth: "112px", textAlign: "right" as const, overflowWrap: "anywhere" as const },
 
   infoGrid: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "24px" },
   infoLabel: { fontSize: "10px", fontWeight: 700, color: "#6B7280", letterSpacing: "0.6px", textTransform: "uppercase" as const, margin: "0 0 6px 0" },
@@ -151,13 +152,13 @@ const styles = {
 
   // Notes (left) and the signature (right) share one borderless table row so the
   // signature sits beside the notes on the right margin instead of below them.
-  closingTable: { width: "100%", tableLayout: "fixed" as const, borderCollapse: "collapse" as const, marginTop: "14px" },
+  closingTable: { width: "100%", tableLayout: "fixed" as const, borderCollapse: "collapse" as const, marginTop: "42px" },
   closingNotesTd: { width: "62%", padding: "0 12px 0 0", verticalAlign: "top" as const },
   closingSignTd: { width: "38%", padding: 0, verticalAlign: "bottom" as const },
 
   noteLabel: { fontSize: "10px", fontWeight: 700, color: "#6B7280", letterSpacing: "0.6px", textTransform: "uppercase" as const, margin: "0 0 6px 0" },
   noteText: { fontSize: "11px", color: "#374151", lineHeight: 1.6, margin: "1px 0" },
-  signBox: { textAlign: "right" as const },
+  signBox: { textAlign: "right" as const, paddingTop: "40px" },
   signLabel: { fontSize: "12px", fontWeight: 700, color: "#111827", margin: "0" },
   signRole: { fontSize: "10px", color: "#6B7280", margin: "1px 0 0 0" },
 
@@ -208,16 +209,6 @@ function hasValue(v: unknown): v is string {
   return typeof v === "string" && v.trim() !== "" && v.trim() !== "-" && v.trim() !== "—";
 }
 
-// Rate suffix for the CGST/SGST summary labels — e.g. "CGST (2.5%)". Only
-// meaningful when every HSN slab on the bill carries the same rate; a
-// mixed-rate bill keeps the plain label and shows each rate in the
-// HSN-wise table instead.
-function gstRateSuffix(rows: any[], key: "cgstRate" | "sgstRate") {
-  const rates = Array.from(new Set(rows.map((row: any) => Number(row[key]))));
-  if (rates.length !== 1 || !Number.isFinite(rates[0])) return "";
-  return ` (${rates[0]}%)`;
-}
-
 
 // ── Modern 2 template ───────────────────────────────────────────
 export const InvoicePDFTemplateModern2 = React.forwardRef(({ data, settingsOverride, theme = "classic", accentColor, logoUrl, headerImageUrl, signatureUrl, copyType }: any, ref: any) => {
@@ -238,6 +229,9 @@ export const InvoicePDFTemplateModern2 = React.forwardRef(({ data, settingsOverr
     vehicle_no,
   } = data;
   const documentLabel = saleDocumentLabel(sale_type);
+  // One CGST/SGST pair per GST slab, so a bill mixing 5% and 18% items states
+  // each rate beside its own amount instead of lumping them into one figure.
+  const taxSummaryRows = gstSummaryRows(gst_breakdown, cgst, sgst);
   const { profile, company, zoduId, branchId } = useTenantContext();
   const companies = useAppSelector(AllCompanies);
   const selectedCompany = companies.find(c => c.zodu_id === zoduId);
@@ -348,7 +342,7 @@ export const InvoicePDFTemplateModern2 = React.forwardRef(({ data, settingsOverr
         <img
           src={headerImageUrl}
           alt=""
-          style={{ width: "100%", maxHeight: isCompact ? 90 : 130, objectFit: "cover", marginBottom: isCompact ? 12 : 18, display: "block" }}
+          style={{ width: "100%", maxHeight: isCompact ? 90 : 130, objectFit: "cover", marginBottom: isCompact ? 8 : 14, display: "block" }}
         />
       )}
 
@@ -356,7 +350,7 @@ export const InvoicePDFTemplateModern2 = React.forwardRef(({ data, settingsOverr
       <div data-pdf-header>
         <div style={styles.header}>
           {showCompanyLogo && resolvedLogoUrl && (
-            <img src={resolvedLogoUrl} alt="" style={{ maxHeight: 48, maxWidth: 160, objectFit: "contain", margin: "0 auto 8px auto", display: "block" }} />
+            <img src={resolvedLogoUrl} alt="" style={{ maxHeight: isCompact ? 105 : 132, maxWidth: isCompact ? 330 : 380, objectFit: "contain", margin: "0 auto 2px auto", display: "block" }} />
           )}
           {/* <h1 style={{ ...styles.brandName, color: resolvedAccentColor }}>{co.name}</h1> */}
           {addressLine && <p style={styles.headerMeta}>{addressLine}</p>}
@@ -506,8 +500,9 @@ export const InvoicePDFTemplateModern2 = React.forwardRef(({ data, settingsOverr
           {/* Tax totals are part of the bill amount, not the "Tax Details"
               breakdown — the setting only controls the per-item HSN/Tax
               columns and the HSN-wise table below. */}
-          <SummaryRow label={`CGST${gstRateSuffix(gst_breakdown, "cgstRate")}`} value={fmt(cgst)} />
-          <SummaryRow label={`SGST${gstRateSuffix(gst_breakdown, "sgstRate")}`} value={fmt(sgst)} />
+          {taxSummaryRows.map((row) => (
+            <SummaryRow key={row.label} label={row.label} value={fmt(row.amount)} />
+          ))}
 
           {showRoundOff && (
             <SummaryRow label="Round Off" value={Number(round_off) > 0 ? `+${fmt(round_off)}` : fmt(round_off)} />

@@ -22,15 +22,16 @@ export function isNonBindingSaleType(saleType: unknown): boolean {
   return isQuotationSaleType(saleType) || isProformaSaleType(saleType);
 }
 
-/** The three document types a sale can be printed as, keyed off `sale_type`. */
-export type SaleDocumentLabel = "Invoice" | "Quotation" | "Proforma";
+/** The two document types a sale can be printed as, keyed off `sale_type`. */
+export type SaleDocumentLabel = "Invoice" | "Quotation";
 
 /**
- * What to call this document on a printed copy. Anything that isn't a
- * quotation or a proforma is an ordinary sale, which prints as an invoice —
- * the orders API stores that as "retail".
+ * What to call this document on a printed copy. Only quotations print under
+ * their own name; proformas print as an invoice, the same as an ordinary sale
+ * — the orders API stores that as "retail". Proformas stay non-binding on the
+ * screens that check `isProformaSaleType`; this only changes what they are
+ * called.
  */
 export function saleDocumentLabel(saleType: unknown): SaleDocumentLabel {
-  if (isQuotationSaleType(saleType)) return "Quotation";
-  return isProformaSaleType(saleType) ? "Proforma" : "Invoice";
+  return isQuotationSaleType(saleType) ? "Quotation" : "Invoice";
 }

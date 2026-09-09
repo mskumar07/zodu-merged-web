@@ -41,6 +41,7 @@ import { renderPaginatedInvoicePdf } from "@utils/pdfPagination";
 import InvoiceCopyActions from "@components/Common/InvoiceCopyActions";
 import { invoiceCopyTypesForSale } from "@utils/invoiceCopyTypes";
 import { isNonBindingSaleType, saleDocumentLabel } from "@utils/saleType";
+import { gstSummaryRows } from "@utils/gstSummary";
 
 // ─────────────────────────────────────────────────────────────
 // Styled helpers
@@ -276,6 +277,20 @@ export default function InvoiceDetailsModal({
       itemDiscount: acc.itemDiscount + Number(row.item_wise_discount_amount ?? 0),
     }),
     { taxable: 0, cgst: 0, sgst: 0, itemDiscount: 0 },
+  );
+
+  // One CGST/SGST pair per GST slab, the same as the printed copy: a bill
+  // mixing 5% and 18% items cannot state a single CGST figure, so each rate
+  // is stated beside its own amount.
+  const taxSummaryRows = gstSummaryRows(
+    hsnWiseTax.map((row) => ({
+      cgstRate:   row.cgst_percent,
+      cgstAmount: row.cgst_amount,
+      sgstRate:   row.sgst_percent,
+      sgstAmount: row.sgst_amount,
+    })),
+    hsnTotals.cgst,
+    hsnTotals.sgst,
   );
 
   // ── Derived values ────────────────────────────────────────
@@ -768,8 +783,9 @@ export default function InvoiceDetailsModal({
 
                 {hsnWiseTax.length > 0 ? (
                   <>
-                    <SRow label="CGST Total" value={INR(hsnTotals.cgst)} />
-                    <SRow label="SGST Total" value={INR(hsnTotals.sgst)} />
+                    {taxSummaryRows.map((row) => (
+                      <SRow key={row.label} label={row.label} value={INR(row.amount)} />
+                    ))}
                   </>
                 ) : (
                   <SRow label="Total Tax" value={INR(Number(sale.total_tax ?? 0))} />

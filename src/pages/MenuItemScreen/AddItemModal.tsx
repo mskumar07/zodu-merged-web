@@ -839,7 +839,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                   </FormControl>
                 </Box>
                 <Box>
-                  <Label text="Purchase Price" required />
+                  <Label text="Purchase Price" />
                   <TextField fullWidth size="small" type="text" inputMode="decimal" placeholder="0.00"
                     {...formik.getFieldProps('purchasePrice')}
                     onChange={handleAmountChange('purchasePrice')}
@@ -849,7 +849,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                     InputProps={{ startAdornment: <InputAdornment position="start"><Typography variant="body2" color="text.disabled" fontWeight={600}>₹</Typography></InputAdornment>, sx: inputSx }} />
                 </Box>
                 <Box>
-                  <Label text="MRP" required />
+                  <Label text="MRP" />
                   <TextField fullWidth size="small" type="text" inputMode="decimal" placeholder="0.00"
                     {...formik.getFieldProps('mrp')}
                     onChange={handleAmountChange('mrp')}

@@ -597,6 +597,12 @@ export const ThermalInvoiceTemplate = React.forwardRef(
     const showNotes = invoiceSettings?.show_notes ?? false;
     const notesText = invoiceSettings?.notes ?? "";
     const showSignature = invoiceSettings?.show_signature ?? false;
+    // Item-line and bank toggles the A4 templates already honour — the receipt
+    // read none of them, so switching them in Invoice Settings did nothing here.
+    const showSerialNo = invoiceSettings?.show_serial_no ?? true;
+    const showItemId = invoiceSettings?.show_item_id ?? false;
+    const showItemDescription = invoiceSettings?.show_description ?? false;
+    const showBankDetails = invoiceSettings?.show_bank_details ?? false;
     // `signatureUrl` is an explicit prop (used by the Settings-page live preview
     // for an in-progress upload not yet saved) — real invoice rendering has no
     // such prop and falls back to the persisted value on invoiceSettings.
@@ -609,6 +615,9 @@ export const ThermalInvoiceTemplate = React.forwardRef(
     // 3" rolls are too narrow for a 5-column item grid — items stack onto
     // two lines and the GST summary/totals switch to compact single-column text.
     const narrow = paperSize === "3";
+    // S.No is the leading grid track, so hiding it means dropping that track —
+    // otherwise the remaining columns keep its width as a blank gutter.
+    const itemGridCols = showSerialNo ? cfg.gridCols : cfg.gridCols.split(" ").slice(1).join(" ");
 
     const {
       sale_id,
@@ -679,6 +688,16 @@ export const ThermalInvoiceTemplate = React.forwardRef(
     const companyGstin = company?.gst_no || selectedCompany?.gst_no || "";
     const companyPhone = profile?.phone_number || selectedCompany?.phone_number || selectedCompany?.mobile_no || "";
 
+    // Only fields that carry a value get a row — a blank "IFSC" line reads as a
+    // rendering fault rather than missing data.
+    const bankRows: Array<[string, string]> = ([
+      ["Bank", selectedBranch?.bank_name || company?.bank_name || selectedCompany?.bank_name || ""],
+      ["Holder", selectedBranch?.holder_name || company?.holder_name || selectedCompany?.holder_name || ""],
+      ["A/c No.", selectedBranch?.account_number || company?.account_number || selectedCompany?.account_number || ""],
+      ["Branch", selectedBranch?.bank_branch || company?.bank_branch || selectedCompany?.bank_branch || ""],
+      ["IFSC", selectedBranch?.ifsc_code || company?.ifsc_code || selectedCompany?.ifsc_code || ""],
+    ] as Array<[string, string]>).filter(([, value]) => String(value ?? "").trim() !== "");
+
     const discountVal = discount !== undefined && discount !== null ? Number(discount) : 0;
     const showDiscount = discountVal > 0;
     
@@ -737,7 +756,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
               <img
                 src={resolvedLogoUrl}
                 alt=""
-                style={{ maxHeight: cfg.headerFontSize * 2.2, maxWidth: "60%", marginBottom: 4, objectFit: "contain" }}
+                style={{ maxHeight: cfg.headerFontSize * 3.2, maxWidth: "78%", marginBottom: 4, objectFit: "contain" }}
               />
             ) : (
               <div style={{ fontSize: cfg.headerFontSize * 2, lineHeight: 1, marginBottom: 4 }}>
@@ -818,21 +837,21 @@ export const ThermalInvoiceTemplate = React.forwardRef(
         {/* ── ITEMS TABLE HEADER ── */}
         {narrow ? (
           <div style={{ display: "flex", fontSize: fs - 1, fontWeight: 700, marginBottom: 4, gap: 6 }}>
-            <span style={{ minWidth: 16 }}>#</span>
+            {showSerialNo && <span style={{ minWidth: 16 }}>#</span>}
             <span>Particular</span>
           </div>
         ) : (
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: cfg.gridCols,
+              gridTemplateColumns: itemGridCols,
               fontSize: fs - 1,
               fontWeight: 700,
               marginBottom: 4,
               gap: "0 4px",
             }}
           >
-            <span>S.No</span>
+            {showSerialNo && <span>S.No</span>}
             <span>Particular</span>
             <span style={{ textAlign: "center" }}>QTY</span>
             <span style={{ textAlign: "right" }}>RATE</span>
@@ -848,12 +867,12 @@ export const ThermalInvoiceTemplate = React.forwardRef(
             {narrow ? (
               <>
                 <div style={{ display: "flex", gap: 6, fontSize: ifs }}>
-                  <span style={{ minWidth: 16, fontWeight: 600 }}>{i + 1}</span>
+                  {showSerialNo && <span style={{ minWidth: 16, fontWeight: 600 }}>{i + 1}</span>}
                   <span style={{ flex: 1, fontWeight: 700, wordBreak: "break-word", lineHeight: compact ? 1.15 : 1.35 }}>
                     {item.name}
                   </span>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: 22, fontSize: Math.max(ifs - 1, 11) }}>
+                <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: showSerialNo ? 22 : 0, fontSize: Math.max(ifs - 1, 11) }}>
                   <span>{item.qty} x {fmt(item.rate)}</span>
                   <span style={{ fontWeight: 700 }}>{fmt(item.total)}</span>
                 </div>
@@ -862,22 +881,32 @@ export const ThermalInvoiceTemplate = React.forwardRef(
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: cfg.gridCols,
+                  gridTemplateColumns: itemGridCols,
                   fontSize: ifs,
                   gap: "0 4px",
                   alignItems: "start",
                 }}
               >
-                <span style={{ fontWeight: 600, paddingTop: 1 }}>{i + 1}</span>
-                <span
-                  style={{
-                    fontWeight: 700,
-                    wordBreak: "break-word",
-                    lineHeight: compact ? 1.15 : 1.4,
-                  }}
-                >
-                  {item.name}
-                </span>
+                {showSerialNo && <span style={{ fontWeight: 600, paddingTop: 1 }}>{i + 1}</span>}
+                <div>
+                  <div
+                    style={{
+                      fontWeight: 700,
+                      wordBreak: "break-word",
+                      lineHeight: compact ? 1.15 : 1.4,
+                    }}
+                  >
+                    {item.name}
+                  </div>
+                  {showItemId && item.item_id && (
+                    <div style={{ fontSize: fs - 2, marginTop: 1, lineHeight: 1.3 }}>{item.item_id}</div>
+                  )}
+                  {showItemDescription && item.description && (
+                    <div style={{ fontSize: fs - 2, marginTop: 1, lineHeight: 1.3, whiteSpace: "pre-line" as const }}>
+                      {item.description}
+                    </div>
+                  )}
+                </div>
                 <span style={{ textAlign: "center", fontWeight: 600, paddingTop: 1 }}>
                   {item.qty}
                 </span>
@@ -887,6 +916,18 @@ export const ThermalInvoiceTemplate = React.forwardRef(
                 <span style={{ textAlign: "right", fontWeight: 700, paddingTop: 1 }}>
                   {fmt(item.total)}
                 </span>
+              </div>
+            )}
+
+            {narrow && showItemId && item.item_id && (
+              <div style={{ fontSize: fs - 2, paddingLeft: showSerialNo ? 22 : 0, marginTop: 1, lineHeight: 1.3 }}>
+                {item.item_id}
+              </div>
+            )}
+
+            {narrow && showItemDescription && item.description && (
+              <div style={{ fontSize: fs - 2, paddingLeft: showSerialNo ? 22 : 0, marginTop: 1, lineHeight: 1.3, whiteSpace: "pre-line" as const }}>
+                {item.description}
               </div>
             )}
 
@@ -987,10 +1028,10 @@ export const ThermalInvoiceTemplate = React.forwardRef(
                     {narrow ? "Taxable" : "Taxable Amt"}
                   </th>
                   <th style={{ border: "1px solid #000", padding: narrow ? "1px 2px" : "2px 3px", fontWeight: 700, textAlign: "right" }}>
-                    {narrow ? "CGST" : `CGST (${gstSlabList[0]?.cgstRate ?? 0}%)`}
+                    {narrow || gstSlabList.length > 1 ? "CGST" : `CGST (${gstSlabList[0]?.cgstRate ?? 0}%)`}
                   </th>
                   <th style={{ border: "1px solid #000", padding: narrow ? "1px 2px" : "2px 3px", fontWeight: 700, textAlign: "right" }}>
-                    {narrow ? "SGST" : `SGST (${gstSlabList[0]?.sgstRate ?? 0}%)`}
+                    {narrow || gstSlabList.length > 1 ? "SGST" : `SGST (${gstSlabList[0]?.sgstRate ?? 0}%)`}
                   </th>
                   <th style={{ border: "1px solid #000", padding: narrow ? "1px 2px" : "2px 3px", fontWeight: 700, textAlign: "right" }}>
                     {narrow ? "Total" : "Total GST"}
@@ -1053,6 +1094,17 @@ export const ThermalInvoiceTemplate = React.forwardRef(
 
         <Dashes tight={compact} />
 
+        {showBankDetails && bankRows.length > 0 && (
+          <>
+            <div style={{ fontSize: fs - 1, fontWeight: 700, marginBottom: 2 }}>Bank Details</div>
+            {bankRows.map(([label, value]) => (
+              <ReceiptRow key={label} label={label} value={value} fontSize={fs - 1} tight={compact} />
+            ))}
+            <div style={{ marginBottom: 4 }} />
+            <Dashes tight={compact} />
+          </>
+        )}
+
         {showTermsConditions && termsConditionsText && (
           <>
             <div style={{ fontSize: fs - 1, fontWeight: 700, marginBottom: 2 }}>Terms &amp; Conditions</div>
@@ -1090,7 +1142,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
             <div style={{ marginTop: 6, fontSize: fs, letterSpacing: 4 }}>─── ★ ───</div>
           )}
           {showSignature && (
-            <div style={{ marginTop: 14 }}>
+            <div style={{ marginTop: compact ? 26 : 36 }}>
               {resolvedSignatureUrl && (
                 <img
                   src={resolvedSignatureUrl}
