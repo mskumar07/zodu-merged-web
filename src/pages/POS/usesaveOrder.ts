@@ -210,6 +210,17 @@ export interface SaveOrderParams {
   // Vehicle number for the transport copy of the invoice — empty when the
   // branch does not print that copy, or when the cashier left it blank.
   vehicleNo:         string;
+  // Manual override for the running number, as a positive integer — not the
+  // rendered id. The server numbers the sale with it and rolls its own
+  // sequence forward to match, so future auto-numbers continue from there and
+  // no separate sequence call is needed. Null (the normal case) means "assign
+  // the next one yourself". The same field name covers all three sale types.
+  // Create only: PUT /update/orders does not accept it yet.
+  invoiceNo:         number | null;
+  // The buyer's purchase-order reference and its date. Both optional — B2B
+  // customers quote them, walk-in sales never do.
+  poNumber:          string;
+  poDate:            string;
   // POS settings — Stock Check. True only blocks the sale for insufficient
   // stock when the branch has this toggle on; false lets it sell through.
   stockCheckEnabled: boolean;
@@ -288,6 +299,11 @@ export function useSaveOrder() {
 
         notes: null,
         vehicle_no: params.vehicleNo?.trim() || null,
+        // Omitted entirely for normal auto-numbering — sending null is not the
+        // same thing as leaving it out.
+        ...(params.invoiceNo != null && { invoice_no: params.invoiceNo }),
+        purchase_order_no:   params.poNumber?.trim() || null,
+        purchase_order_date: params.poDate || null,
 
         // POS settings — Stock Check
         stock_check: params.stockCheckEnabled,
@@ -372,6 +388,10 @@ const updateOrder = useCallback(async (
 
       notes: null,
       vehicle_no: params.vehicleNo?.trim() || null,
+      // No invoice_no here: the update endpoint does not accept an override
+      // yet, and an existing sale already has its number.
+      purchase_order_no:   params.poNumber?.trim() || null,
+      purchase_order_date: params.poDate || null,
 
       // POS settings — Stock Check
       stock_check: params.stockCheckEnabled,

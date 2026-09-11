@@ -25,6 +25,7 @@ import {
 } from "./usePuchaseapi";
 import PurchasePaymentDialog from "./purchasePaymentDialog";
 import { useModulePermission } from "@hooks/useModulePermission";
+import { closeFromControlsOnly } from "@utils/dialog";
 
 const theme = createTheme({
   palette: {
@@ -461,7 +462,7 @@ export default function PurchaseScreen() {
         )}
 
         {/* ── Delete Confirm Dialog ── */}
-        <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)}>
+        <Dialog open={!!deleteTarget} onClose={closeFromControlsOnly(() => setDeleteTarget(null))}>
           <DialogTitle sx={{ fontWeight: 700 }}>Delete Purchase</DialogTitle>
           <DialogContent>
             <Typography sx={{ fontSize: 14, color: "#475569" }}>

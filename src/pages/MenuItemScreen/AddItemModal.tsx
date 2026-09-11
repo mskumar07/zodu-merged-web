@@ -40,6 +40,7 @@ import {
   type AddMenuItemResponse,
 } from './useMenuItemApi';
 import AddCategoryDialog from './AddCategoryDialog';
+import { closeFromControlsOnly } from "@utils/dialog";
 
 interface AddItemModalProps {
   open:      boolean;
@@ -490,7 +491,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
 
   return (
     <>
-      <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth
+      <Dialog open={open} onClose={closeFromControlsOnly(handleClose)} maxWidth="md" fullWidth
         PaperProps={{ sx: { borderRadius: 1.5, boxShadow: '0 32px 80px rgba(0,0,0,0.22)', maxHeight: '92vh' } }}
         BackdropProps={{ sx: { bgcolor: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(3px)' } }}>
 

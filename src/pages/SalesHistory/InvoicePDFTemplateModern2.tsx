@@ -215,6 +215,7 @@ export const InvoicePDFTemplateModern2 = React.forwardRef(({ data, settingsOverr
   const isCompact = theme === "compact";
   const {
     sale_id, date, due_date,
+    po_number, po_date,
     customer_name, customer_address, customer_mobile, customer_gstin,
     customer_shipping_address,
     payment_mode, payment_status,
@@ -407,6 +408,20 @@ export const InvoicePDFTemplateModern2 = React.forwardRef(({ data, settingsOverr
             <div style={styles.metaRow}>
               <span style={styles.metaLabel}>Due Date</span>
               <span style={styles.metaValue}>{due_date}</span>
+            </div>
+          )}
+          {/* The buyer's own purchase-order reference — printed only when
+              they gave one, since most counter sales have none. */}
+          {hasValue(po_number) && (
+            <div style={styles.metaRow}>
+              <span style={styles.metaLabel}>PO No</span>
+              <span style={styles.metaValue}>{po_number}</span>
+            </div>
+          )}
+          {hasValue(po_date) && (
+            <div style={styles.metaRow}>
+              <span style={styles.metaLabel}>PO Date</span>
+              <span style={styles.metaValue}>{po_date}</span>
             </div>
           )}
           {co.gstin && (

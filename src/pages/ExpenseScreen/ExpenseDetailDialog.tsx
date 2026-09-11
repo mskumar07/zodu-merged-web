@@ -23,6 +23,7 @@ import AddNewExpenseDialog from "./AddNewExpenseDialog";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useModulePermission } from "@hooks/useModulePermission";
+import { closeFromControlsOnly } from "@utils/dialog";
 
 const INR = (v: number | string) =>
   new Intl.NumberFormat("en-IN", {
@@ -320,7 +321,7 @@ export default function ExpenseDetailDialog({ expenseId, onClose, onEditSuccess 
   return (
     <Dialog
       open={!!expenseId}
-      onClose={onClose}
+      onClose={closeFromControlsOnly(onClose)}
       maxWidth="lg"
       fullWidth
       PaperProps={{ sx: { borderRadius: 2.5, maxHeight: "92vh", fontFamily: '"Inter", sans-serif' } }}

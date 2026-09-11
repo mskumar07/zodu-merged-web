@@ -7,7 +7,10 @@
  *    customer_phone — uses sale_id, cust_name, sale_date_fmt, created_at_fmt)
  *  - SaleItem updated: item_id/item_name instead of product_id/product_name
  *  - PaymentHistoryRow updated to match tbl_sale_payment columns
- *  - postMarkPayment now calls POST /api/sales/:sale_id/payment (correct endpoint)
+ *  - postMarkPayment now calls POST /api/sales/:sale_uuid/payment (correct endpoint)
+ *  - The retail detail, delete and payment endpoints address a sale by its
+ *    `sale_uuid`, never its `sale_id`: an id such as "MA/228" carries a "/"
+ *    that splits the URL path and 404s. `sale_id` stays the display value.
  *  - MarkPaymentPayload updated: transaction_type instead of payment_mode,
  *    no paid_date / notes (not in tbl_sale_payment schema)
  *  - fetchHistory uses customer_search instead of invoice_no
@@ -50,11 +53,17 @@ export interface Sale {
   // Printed on the transport copy of the invoice; null when the sale was
   // saved without one.
   vehicle_no?:     string | null;
+  // The buyer's own purchase-order reference, captured at POS. Both null on a
+  // counter sale, which quotes no PO.
+  purchase_order_no?:   string | null;
+  purchase_order_date?: string | null;
 
   // formatted dates from TO_CHAR
   sale_date_fmt:   string;
   sale_time_fmt:   string;
   created_at_fmt:  string;
+  due_date_fmt?:            string | null;
+  purchase_order_date_fmt?: string | null;
 
   // customer fields (joined from tbl_customer, null for walk-in)
   cust_uuid:              string | null;
@@ -229,11 +238,12 @@ export interface Filters {
   cancelled_order?: boolean;  // true = cancelled tab, false = orders/invoice tab
 }
 
-/** Payload for POST /api/sales/:sale_id/payment */
+/** Payload for POST /api/sales/:sale_uuid/payment */
 export interface MarkPaymentPayload {
   zodu_id:          string;
   branch_id:        string;
-  sale_id:          string;
+  // Goes in the URL path only — never in the body.
+  sale_uuid:        string;
   paid_amount:      number;
   transaction_type: string;   // "Cash" | "Card" | "UPI" | "Credit"
   transaction_id?:  string | null;
@@ -307,15 +317,17 @@ export async function fetchHistory(page: number, filters: Filters): Promise<Hist
 }
 
 /**
- * GET /retail/api/sales/:sale_id — full sale detail (retail).
+ * GET /retail/api/sales/:sale_uuid — full sale detail (retail).
+ *
+ * Addressed by `sale_uuid`, which every sale object the API returns carries.
+ * A UUID is unique across sale types, so no `sale_type` is sent.
  */
-export async function fetchSaleDetail(sale_id: string): Promise<SaleDetail> {
+export async function fetchSaleDetail(sale_uuid: string): Promise<SaleDetail> {
   const { zoduId, branchId } = getTenantContext();
   const { data } = await axios.get<{ success: boolean; data: SaleDetail }>(
-    `${API_BASE}/retail/api/sales/${sale_id}`,
+    `${API_BASE}/retail/api/sales/${sale_uuid}`,
     { params: { zodu_id: zoduId, branch_id: branchId } }
   );
-  console.log(data)
   return data.data;
 }
 
@@ -332,15 +344,15 @@ export async function fetchRestaurantSaleDetail(sale_id: string): Promise<SaleDe
 }
 
 /**
- * POST /api/sales/:sale_id/payment — record a new payment.
+ * POST /api/sales/:sale_uuid/payment — record a new payment.
  * ✅ Correct endpoint — was /api/payments/add (wrong)
  */
 export async function postMarkPayment(
   payload: MarkPaymentPayload
 ): Promise<MarkPaymentResponse> {
-  const { sale_id, ...body } = payload;
+  const { sale_uuid, ...body } = payload;
   const { data } = await axios.post<MarkPaymentResponse>(
-    `${API_BASE}/retail/api/sales/${sale_id}/payment`,
+    `${API_BASE}/retail/api/sales/${sale_uuid}/payment`,
     body
   );
   return data;
@@ -449,27 +461,34 @@ export async function fetchRestaurantSummary(filters: Filters): Promise<Restaura
 export const salesQueryKeys = {
   history: (branchId: string, filters: Filters) => ["sales-history", branchId, filters] as const,
   summary: (branchId: string, filters: Filters) => ["sales-summary", branchId, filters] as const,
-  detail:  (sale_id: string)  => ["sale", sale_id]          as const,
+  // Retail: sale_uuid. Restaurant: the order id its detail endpoint takes.
+  detail:  (id: string)       => ["sale", id]               as const,
   returns: () => ["sales-returns"] as const,
 };
 
 
 
 
+/**
+ * DELETE /{retail|restaurant}/api/sales/:id
+ *
+ * `id` is the `sale_uuid` for retail — unique across sale types, so there is no
+ * wrong record to hit and no `sale_type` to send. Restaurant still addresses an
+ * order by its own order id; that endpoint is unchanged.
+ */
 export async function deleteSale(
-  sale_id: string,
+  id: string,
   isRestaurant = false,
   items?: Array<{ item_id: string; qty: number }> | null,
 ): Promise<{ success: boolean; message: string }> {
   const { zoduId, branchId } = getTenantContext();
   const base = isRestaurant ? "restaurant" : "retail";
-
   const params = { zodu_id: zoduId, branch_id: branchId };
 
   const body = isRestaurant && items && items.length > 0 ? { items } : undefined;
 
   const { data } = await axios.delete(
-    `${API_BASE}/${base}/api/sales/${sale_id}`,
+    `${API_BASE}/${base}/api/sales/${id}`,
     { params, data: body },
   );
 

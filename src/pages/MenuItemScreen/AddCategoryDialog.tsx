@@ -25,6 +25,7 @@ import {
   type Category, type CategoryRow,
 } from './useMenuItemApi';
 import SuccessToast from '@components/Common/SuccessToast';
+import { closeFromControlsOnly } from "@utils/dialog";
 
 // ── Props ─────────────────────────────────────────────────────
 
@@ -193,7 +194,7 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
     <>
       <Dialog
         open={open}
-        onClose={handleClose}
+        onClose={closeFromControlsOnly(handleClose)}
         maxWidth="xs"
         fullWidth
         PaperProps={{ sx: { borderRadius: 1.5, boxShadow: '0 24px 60px rgba(0,0,0,0.2)' } }}

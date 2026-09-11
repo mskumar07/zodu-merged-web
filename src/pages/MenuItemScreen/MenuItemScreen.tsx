@@ -31,6 +31,7 @@ import {
   useHardDeleteMenuItem,
   useUpdateMenuItemStatus,
 } from './useMenuItemApi';
+import { closeFromControlsOnly } from "@utils/dialog";
 
 const queryClient = new QueryClient();
 
@@ -385,7 +386,7 @@ function MenuItemScreen() {
           </Box>
 
           {/* 🔥 DELETE DIALOG */}
-          <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)}>
+          <Dialog open={!!deleteTarget} onClose={closeFromControlsOnly(() => setDeleteTarget(null))}>
             <DialogTitle>Delete Item</DialogTitle>
             <DialogContent>
               <Typography>Are you sure you want to delete this item?</Typography>

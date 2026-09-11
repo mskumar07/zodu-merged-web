@@ -42,7 +42,12 @@ export interface InvoiceSettingsResponse {
   zodu_id: string;
   branch_id: string;
   invoice_prefix: string;
-  invoice_digit_count: number;
+  // Whether the prefix is actually applied. Absent on rows that predate the
+  // toggle — treat a missing value as "on when the text is non-empty", which
+  // is how numbering behaved before it existed. The invoice *suffix* and its
+  // toggle are not here: they live on the POS settings row alongside the
+  // quotation and proforma affixes.
+  invoice_prefix_enabled?: boolean;
   invoice_start_number: number;
   default_tax_label: string;
   invoice_due_days: number;
@@ -96,7 +101,7 @@ export type UpdateInvoiceSettingsPayload = Partial<
   Pick<
     InvoiceSettingsResponse,
     | "invoice_prefix"
-    | "invoice_digit_count"
+    | "invoice_prefix_enabled"
     | "invoice_start_number"
     | "default_tax_label"
     | "invoice_due_days"

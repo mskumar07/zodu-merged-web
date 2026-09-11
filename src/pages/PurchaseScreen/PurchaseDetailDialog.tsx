@@ -20,6 +20,7 @@ import { useState } from "react";
 import { usePurchaseById, type PurchaseDetail } from "./usePuchaseapi";
 import AddNewPurchaseDialog from "./Addnewpuechasedialog";
 import { useModulePermission } from "@hooks/useModulePermission";
+import { closeFromControlsOnly } from "@utils/dialog";
 
 const INR = (v: number | string) =>
   new Intl.NumberFormat("en-IN", {
@@ -418,7 +419,7 @@ export default function PurchaseDetailDialog({ purchaseId, onClose }: Props) {
   return (
     <Dialog
       open={!!purchaseId}
-      onClose={onClose}
+      onClose={closeFromControlsOnly(onClose)}
       maxWidth="lg"
       fullWidth
       PaperProps={{

@@ -68,7 +68,8 @@ function TH({ children, align = "left" }: { children: React.ReactNode; align?: "
 
 export default function SalesReturnDialog({ sale, onClose, onSuccess }: Props) {
   const queryClient = useQueryClient();
-  const saleId = sale.sale_id;
+  // The detail endpoint (and its cache key) address a sale by uuid.
+  const saleId = sale.sale_uuid;
   const saleUuid = sale.sale_uuid;
   
   const { data, isLoading } = useQuery({

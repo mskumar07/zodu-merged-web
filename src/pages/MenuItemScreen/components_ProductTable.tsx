@@ -76,19 +76,31 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
       setOpenDialog(true);
     };
 
+    // Every column carries a width. DataTable lays out with `table-layout:
+    // fixed`, where columns left without one split all the spare width evenly —
+    // which handed it to Status and Actions while the price columns, capped
+    // too narrow, spilled their figures into the next column. With a width on
+    // each, spare width is shared out in proportion instead, and below the sum
+    // (≈1110px) the table scrolls sideways. Budgets include the 24px of cell
+    // padding: a price like ₹99,99,66,666.33 at 13px needs ~110px, hence 140.
     const columns = React.useMemo<ColumnDef<Product>[]>(
       () => [
         {
           key: "id",
           label: "Item ID",
+          width: 150,
           render: (product) => (
             <Typography
               variant="body2"
               fontWeight={600}
+              title={product.id}
               sx={{
                 color: "#1976d2",
                 fontSize: 13,
                 cursor: "pointer",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
                 "&:hover": { textDecoration: "underline" },
               }}
               onClick={() => handleViewProduct(product)}
@@ -100,9 +112,11 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
         {
           key: "name",
           label: "Item Name",
-          width: 320,
+          width: 260,
           render: (product) => (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, maxWidth: 320 }}>
+            // Sized by the column, not by fixed inner widths: a hard 260px on
+            // the name overran the cell and ran into Purchase Price.
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
               <Avatar
                 src={product.imageUrl}
                 variant="rounded"
@@ -110,7 +124,7 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
               >
                 {product.name[0]}
               </Avatar>
-              <Box>
+              <Box sx={{ minWidth: 0 }}>
                 <Tooltip title={product.description || ""} disableHoverListener={!product.description}>
                   <Typography
                     fontWeight={600}
@@ -120,7 +134,6 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
                       color: TABLE_TEXT_COLOR,
                       whiteSpace: "normal",
                       wordBreak: "break-word",
-                      width: 260,
                     }}
                   >
                     {product.name}
@@ -133,7 +146,6 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
                     color: TABLE_TEXT_COLOR,
                     whiteSpace: "normal",
                     wordBreak: "break-word",
-                    maxWidth: 260,
                   }}
                 >
                   {product.category}
@@ -145,10 +157,10 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
         {
           key: "purchase_price",
           label: "Purchase Price",
-          width: 120,
+          width: 140,
           align: "right",
           render: (product) => (
-            <Typography variant="body2" fontWeight={600} sx={{ fontSize: 13, color: TABLE_TEXT_COLOR }}>
+            <Typography variant="body2" fontWeight={600} sx={{ fontSize: 13, color: TABLE_TEXT_COLOR, whiteSpace: "nowrap" }}>
               {formatINR(product.purchase_price)}
             </Typography>
           ),
@@ -156,10 +168,10 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
         {
           key: "mrp",
           label: "MRP",
-          width: 100,
+          width: 140,
           align: "right",
           render: (product) => (
-            <Typography variant="body2" sx={{ fontSize: 13, color: TABLE_TEXT_COLOR }}>
+            <Typography variant="body2" sx={{ fontSize: 13, color: TABLE_TEXT_COLOR, whiteSpace: "nowrap" }}>
               {formatINR(product.mrp)}
             </Typography>
           ),
@@ -167,10 +179,10 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
         {
           key: "rate",
           label: "Rate",
-          width: 100,
+          width: 140,
           align: "right",
           render: (product) => (
-            <Typography variant="body2" fontWeight={600} sx={{ fontSize: 13, color: TABLE_TEXT_COLOR }}>
+            <Typography variant="body2" fontWeight={600} sx={{ fontSize: 13, color: TABLE_TEXT_COLOR, whiteSpace: "nowrap" }}>
               {formatINR(product.rate)}
             </Typography>
           ),
@@ -178,6 +190,8 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
         {
           key: "hsn",
           label: "HSN",
+          width: 100,
+          align: "center",
           render: (product) => (
             <Typography variant="body2" sx={{ fontSize: 13, color: TABLE_TEXT_COLOR }}>
               {product.hsn}
@@ -187,6 +201,8 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
         {
           key: "status",
           label: "Status",
+          width: 80,
+          align: "center",
           render: (product) => (
             <Switch
               checked={product.status === "active"}
@@ -202,6 +218,7 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
         {
           key: "actions",
           label: "Actions",
+          width: 100,
           align: "center",
           render: (product) => (
             <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>

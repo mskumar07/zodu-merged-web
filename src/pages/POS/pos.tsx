@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useForceRefreshProducts, usePosSearch, usePosProducts } from "./useposproducts";
 import type { PosProduct } from "./db";
 import { useSaveOrder, SALE_TYPE_BY_POS_MODE, type SaveOrderResult } from "./usesaveOrder";
+import { useDocSequence, docSequenceQueryKeys, type DocType } from "@pages/Settings/useDocSequenceApi";
 import {
   useCustomerSearch,
   type ApiCustomer,
@@ -95,6 +96,27 @@ import CurrencyRupeeIcon      from "@mui/icons-material/CurrencyRupee";
 
 const INR = (v: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(v);
+
+/**
+ * A formatted amount that may wrap, but only between digit groups. An ordinary
+ * figure fits its cart column on one line; an extreme one such as
+ * ₹1,52,53,72,88,08,423.73 breaks after a comma inside its own column instead
+ * of running over the column next to it. `<wbr>` adds no characters, so a
+ * copied value is unchanged.
+ */
+function Amount({ value }: { value: string }) {
+  const groups = value.split(",");
+  return (
+    <>
+      {groups.map((group, i) => (
+        <React.Fragment key={i}>
+          {group}
+          {i < groups.length - 1 && <>,<wbr /></>}
+        </React.Fragment>
+      ))}
+    </>
+  );
+}
 // Round-half-up to 2 decimals — matches the value the user sees per row, so totals summed
 // from these match the sum of the displayed rows instead of drifting from unrounded sums.
 const round2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
@@ -161,6 +183,12 @@ interface SavedOrderSnapshot {
   // Vehicle number for the transport copy — not persisted by the backend yet,
   // so it is captured here and merged into the print data below.
   vehicleNo: string;
+  // The typed document number and the buyer's PO reference, captured the same
+  // way and for the same reason — the print data needs them whether or not the
+  // save response echoes them back.
+  invoiceNo: string;
+  poNumber: string;
+  poDate: string;
   // Manually-typed item descriptions aren't persisted by the backend yet, so
   // they're captured here (keyed by item code) at save-time and merged back
   // into the print data below rather than round-tripped through the API.
@@ -186,6 +214,12 @@ const POS_MODE_BY_TYPE: Record<PosTypeLabel, PosMode> = {
   Invoice: "SALE",
   Quotation: "QUOTATION",
   Proforma: "PROFORMA",
+};
+// Which of the retail service's counters each tab numbers from.
+const DOC_TYPE_BY_POS_MODE: Record<PosMode, DocType> = {
+  SALE: "INV",
+  QUOTATION: "QUO",
+  PROFORMA: "PRO",
 };
 const POS_TYPE_BY_MODE: Record<PosMode, PosTypeLabel> = {
   SALE: "Invoice",
@@ -233,40 +267,63 @@ function saleTypeToPosMode(saleType: string | null | undefined): PosMode {
 }
 /**
  * Cart table columns, shared by the scrolling body table and the pinned totals
- * row so the two can never drift apart.
+ * row so the two can never drift apart. Three kinds, so each column grows only
+ * if its content can use the room:
  *
- * Pixels, not percentages: a rupee value has a floor width, and percentage
- * columns fall under it on a laptop — ₹2,25,000.00 then wraps mid-number and
- * collides with the column next to it. Only DESCRIPTION flexes, absorbing
- * whatever width is left. Below `md` the screen renders cards instead of this
- * table, so these widths only have to hold from ~900px up.
+ *   px      — content of fixed size: the accent bar, the qty stepper, the
+ *             discount input and the remove button. A wider screen gives them
+ *             nothing they could use.
+ *   %       — the rupee columns, which widen with the table so large figures
+ *             keep breathing room.
+ *   "auto"  — DESCRIPTION alone, which takes whatever is left. It is the one
+ *             column whose content (name, category, a note field) benefits
+ *             from every extra pixel.
  *
- * Each budget is the widest value the column shows plus the 8px-a-side cell
- * padding from the theme above: ₹2,25,000.00 at 13px needs ~88px, so 108.
+ * A percentage column would otherwise fall under a rupee value's floor on a
+ * narrow screen (₹2,25,000.00 at 13px needs ~88px plus 16px of cell padding),
+ * so the table never renders narrower than CART_TABLE_MIN_WIDTH: the
+ * percentages are sized so every column meets its floor at exactly that width,
+ * leaving DESCRIPTION ~127px there, and below it the table scrolls sideways
+ * rather than squeezing. Below `md` the screen renders cards instead.
  */
-const CART_COL_WIDTHS: (number | "auto")[] = [
-  4,      // active-row accent bar
-  96,     // ITEM ID — free text, wraps
-  "auto", // DESCRIPTION — takes the remaining width
-  104,    // TAX AMT (GST %)
-  92,     // MRP
-  104,    // QTY stepper
-  118,    // RATE input
-  108,    // UNIT PRICE
-  84,     // DISC % input
-  112,    // TOTAL
-  40,     // remove button
+const CART_TABLE_MIN_WIDTH = 920;
+
+const CART_COL_WIDTHS: (number | string)[] = [
+  4,       // active-row accent bar
+  "10%",   // ITEM ID — one line; longer ids ellipsize, full value on hover
+  "auto",  // DESCRIPTION — everything the other columns don't claim
+  "10.5%", // TAX AMT (GST %)
+  150,     // QTY stepper — − [input sized to its digits] +
+  "11.8%", // RATE input
+  "11.8%", // UNIT PRICE
+  80,      // DISC % input — only ever a short input or "—"
+  "12.3%", // TOTAL
+  40,      // remove button
 ];
 
 function CartColGroup() {
   return (
     <colgroup>
       {CART_COL_WIDTHS.map((width, i) => (
-        <col key={i} style={{ width: width === "auto" ? "auto" : `${width}px` }} />
+        <col key={i} style={{ width: typeof width === "number" ? `${width}px` : width }} />
       ))}
     </colgroup>
   );
 }
+
+/**
+ * Scrollbar styling for the cart body, and for the totals row under it. The
+ * totals row never scrolls, but it reserves the same gutter (`stable`), so its
+ * columns end exactly where the body's do whether or not the list overflows.
+ */
+const cartScrollbarSx = {
+  scrollbarGutter: "stable",
+  scrollbarWidth: "thin",
+  scrollbarColor: "#ea9999 #F3F4F6",
+  "&::-webkit-scrollbar": { width: "8px", height: "8px" },
+  "&::-webkit-scrollbar-track": { backgroundColor: "#F3F4F6", borderRadius: "4px" },
+  "&::-webkit-scrollbar-thumb": { backgroundColor: "#ea9999", borderRadius: "4px", "&:hover": { backgroundColor: "#A50D26" } },
+} as const;
 
 type Zone = "SEARCH" | "CUSTOMER" | "TABLE" | "FOOTER";
 type SearchFocus = "CODE";
@@ -342,7 +399,7 @@ function paymentStatus(grand: number, received: number) {
 function Kbd({ children }: { children: React.ReactNode }) {
   return (
     <Box component="span" sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", bgcolor: "#D3D3D3", border: "1px solid #D3D3D3", borderRadius: "4px", px: 0.6, py: 0.1, minWidth: 18 }}>
-      <Typography sx={{ fontSize: 9, fontWeight: 700, fontFamily: "monospace", color: "#696969", lineHeight: 1.4 }}>{children}</Typography>
+      <Typography sx={{ fontSize: 9, fontWeight: 700, color: "#696969", lineHeight: 1.4 }}>{children}</Typography>
     </Box>
   );
 }
@@ -384,10 +441,11 @@ function RetailPOSInner() {
   // default is one of its members, even for a branch with no POS row yet.
   const storedPosSettings = useAppSelector(PosSettingsData);
   const { data: fetchedPosSettings } = usePosSettings();
-  const { pos_types: enabledPosTypes, default_pos_type: defaultPosType } = useMemo(
+  const posSettings = useMemo(
     () => normalizePosSettings(fetchedPosSettings ?? storedPosSettings),
     [fetchedPosSettings, storedPosSettings],
   );
+  const { pos_types: enabledPosTypes, default_pos_type: defaultPosType } = posSettings;
   useEffect(() => {
     if (!fetchedPosSettings) return;
     const stored = normalizePosSettings(storedPosSettings);
@@ -431,7 +489,10 @@ function RetailPOSInner() {
 
   const location        = useLocation();
   const query           = new URLSearchParams(location.search);
-  const saleIdFromUrl   = query.get("saleId");
+  // Reopening a saved document: the list links here with its sale_uuid, which
+  // is what the detail endpoint takes. (Old `?saleId=INV-228` links are ignored
+  // rather than sent to an endpoint that no longer accepts a display id.)
+  const saleUuidFromUrl = query.get("saleUuid");
   const saleTypeFromUrl = query.get("saleType");
 
   const [posMode,        setPosMode]        = useState<PosMode>(() => POS_MODE_BY_TYPE[defaultPosType]);
@@ -450,12 +511,35 @@ function RetailPOSInner() {
   const thermalPaperSize: ThermalPaperSize = toThermalPaperSize(invoiceSettings?.printer_inch);
   // Copy markings offered in the success modal's Download/Print menus.
   const invoiceCopyTypes = normalizeInvoiceCopyTypes(invoiceSettings?.invoice_copy_types);
+  // Only branches that sell against buyer purchase orders collect the PO
+  // reference, so the two fields are off unless POS settings ask for them.
+  // A PO answers an invoice, never a quotation or proforma — those are what the
+  // buyer raises their PO against — so they never ask for one.
+  const showPurchaseOrder = posSettings.purchase_order_enabled === true && posMode === "SALE";
+  // Parking a bill is a counter workflow some branches don't want offered at
+  // all. Off hides the buttons, the F9 shortcut and the recall dialog alike —
+  // a branch that has never saved the setting keeps them, as it always had.
+  const holdEnabled = posSettings.hold_enabled !== false;
   // The transport copy travels with the goods and prints a Vehicle No row, so
   // the cashier only needs somewhere to type it when that copy is enabled.
   // A quotation ships nothing, so it never asks for a vehicle number.
   const showVehicleNo = invoiceCopyTypes.includes("Transport") && posMode !== "QUOTATION";
   const [invoiceDate,    setInvoiceDate]    = useState(todayStr());
   const [dueDate,        setDueDate]        = useState("");
+  // Buyer's purchase-order reference. B2B customers quote their own PO on the
+  // invoice they pay against, so both are free-form and always optional.
+  const [poNumber,       setPoNumber]       = useState("");
+  const [poDate,         setPoDate]         = useState("");
+  // Manual override for the running number — digits only, because that is what
+  // the create endpoint takes. Untouched, the server assigns the next number
+  // itself and this stays empty. `invoiceNoTouched` is what tells the two
+  // apart; `invoiceNoEditing` only controls whether the field is writable.
+  const [invoiceNo,      setInvoiceNo]      = useState("");
+  const [invoiceNoTouched, setInvoiceNoTouched] = useState(false);
+  const [invoiceNoEditing, setInvoiceNoEditing] = useState(false);
+  // The number an already-saved document carries, shown read-only when one is
+  // reopened for editing — the update endpoint cannot renumber a sale.
+  const [loadedSaleNo,   setLoadedSaleNo]   = useState("");
   const [orderNote,      setOrderNote]      = useState("");
   const [customer,       setCustomer]       = useState<Customer>(EMPTY_CUSTOMER);
   const [selectedApiCustomer, setSelectedApiCustomer] = useState<ApiCustomer | null>(null);
@@ -503,7 +587,7 @@ const {
   data: serverHolds = [],
   isLoading: holdsLoading,
   refetch: refetchHolds,
-} = useHoldOrders(zoduId, branchId); 
+} = useHoldOrders(zoduId, branchId, holdEnabled);
 
   const { mutateAsync: saveHoldApi, isPending: holdSaving } = useSaveHold(zoduId, branchId);
   const { mutateAsync: deleteHoldApi }                       = useDeleteHold(zoduId, branchId);
@@ -563,7 +647,154 @@ const {
   const posTypeLabel   = POS_TYPE_BY_MODE[posMode];
   const modeTheme      = POS_MODE_THEME[posMode];
   const status        = paymentStatus(grandTotal, received);
-  const dueDateEnabled = !isNonSaleDoc && received < grandTotal - 0.01;
+  // True only when the customer still owes something on a real sale. A paid-up
+  // bill (or an overpaid one) has no balance and no due date, so both rows drop
+  // out of the sidebar rather than sitting there reading zero.
+  const hasBalanceDue = !isNonSaleDoc && received < grandTotal - 0.01;
+
+  // The id the next document will actually be issued under, straight from the
+  // branch's counter. The server owns the whole string — prefix, separator,
+  // running number, suffix — so nothing here rebuilds or parses it; a format
+  // change on the backend needs no change on this screen.
+  //
+  // The read is free of side effects: it neither reserves the number nor
+  // advances the counter, so a sale abandoned mid-cart burns nothing, and
+  // another till on the same branch may take this number first. That is why it
+  // is labelled "Next", and why it is refetched after every save.
+  const { data: docSequence } = useDocSequence(DOC_TYPE_BY_POS_MODE[posMode], !saleId);
+
+  /**
+   * The prefix and suffix the active tab numbers under. Each sale type has its
+   * own pair, and they come from two different endpoints: only the invoice
+   * *prefix* is an invoice-settings field — every suffix, and the quotation and
+   * proforma prefixes, are stored with the POS settings.
+   */
+  const activeAffixes = useMemo(() => {
+    const pick = (text: string | null | undefined, enabled: boolean | undefined) => {
+      const value = text?.trim() || "";
+      // A missing flag means the row predates the toggles, where an affix
+      // applied whenever it had text.
+      return (enabled ?? !!value) && value ? value : "";
+    };
+    if (posMode === "QUOTATION") {
+      return {
+        prefix: pick(posSettings.quotation_prefix, posSettings.quotation_prefix_enabled),
+        suffix: pick(posSettings.quotation_suffix, posSettings.quotation_suffix_enabled),
+      };
+    }
+    if (posMode === "PROFORMA") {
+      return {
+        prefix: pick(posSettings.proforma_prefix, posSettings.proforma_prefix_enabled),
+        suffix: pick(posSettings.proforma_suffix, posSettings.proforma_suffix_enabled),
+      };
+    }
+    return {
+      prefix: pick(invoiceSettings?.invoice_prefix, invoiceSettings?.invoice_prefix_enabled),
+      suffix: pick(posSettings.invoice_suffix, posSettings.invoice_suffix_enabled),
+    };
+  }, [posMode, posSettings, invoiceSettings?.invoice_prefix, invoiceSettings?.invoice_prefix_enabled]);
+
+  /**
+   * Dresses a running number in the active tab's affixes for display.
+   *
+   * Joined with nothing between: any separator is part of the affix the user
+   * typed in Settings, so "/26-27" and "-26-27" and "26-27" all render exactly
+   * as entered rather than picking up a dash this code chose for them.
+   *
+   * The server composes `next_id` itself, but only as far as it has caught up:
+   * it applies the prefix and does not yet apply any suffix. So each affix is
+   * added only when it is not already there — which keeps this correct whether
+   * or not the backend is doing the same work, and stops a prefix appearing
+   * twice the day it starts applying suffixes too.
+   */
+  const withAffixes = useCallback((base: string) => {
+    if (!base) return "";
+    let id = base;
+    const { prefix, suffix } = activeAffixes;
+    if (suffix && !id.endsWith(suffix)) id = `${id}${suffix}`;
+    if (prefix && !id.startsWith(prefix)) id = `${prefix}${id}`;
+    return id;
+  }, [activeAffixes]);
+
+  /**
+   * How wide the running number prints — 3 for "006/Q26-27", 0 for "INV-145".
+   * The counter carries no pad-width field, so it is read back off the id the
+   * server composed: strip the affixes this tab adds, then take the digit run
+   * that spells out `next_seq`. Falls back to 0, i.e. leave numbers as typed.
+   */
+  const seqPadWidth = useMemo(() => {
+    const seq = docSequence?.next_seq;
+    const id = docSequence?.next_id;
+    if (!seq || !id) return 0;
+    const { prefix, suffix } = activeAffixes;
+    let body = id;
+    if (prefix && body.startsWith(prefix)) body = body.slice(prefix.length);
+    if (suffix && body.endsWith(suffix)) body = body.slice(0, -suffix.length);
+    const run = body.match(/\d+/g)?.find((digits) => parseInt(digits, 10) === seq);
+    return run ? run.length : 0;
+  }, [docSequence?.next_seq, docSequence?.next_id, activeAffixes]);
+
+  /**
+   * A running number written the way the counter prints it, so the field and
+   * the preview never disagree about the same document ("6" vs "006"). Leading
+   * zeros are cosmetic — everything downstream parses with radix 10.
+   */
+  const padSeq = useCallback(
+    (n: number | string) => String(n).padStart(seqPadWidth, "0"),
+    [seqPadWidth],
+  );
+
+  // Only a new document can be numbered by hand — the update endpoint takes no
+  // override, and a saved sale already has its id.
+  const canOverrideNumber = !saleId;
+
+  /** The override as the API wants it: a positive integer, or null for auto. */
+  const invoiceNoOverride = useMemo(() => {
+    if (!canOverrideNumber || !invoiceNoTouched) return null;
+    const n = parseInt(invoiceNo, 10);
+    return Number.isInteger(n) && n > 0 ? n : null;
+  }, [canOverrideNumber, invoiceNoTouched, invoiceNo]);
+
+  // What a typed override will actually be issued as — the field itself holds
+  // bare digits while it is being typed, because that is all the create
+  // endpoint takes.
+  const overridePreview = invoiceNoOverride ? withAffixes(padSeq(invoiceNoOverride)) : "";
+
+  /**
+   * What the number row shows:
+   *   editing a saved sale → its own id, read-only
+   *   mid-edit             → the bare digits being typed, since the field only
+   *                          accepts the running number
+   *   edited, done         → those digits dressed in the tab's prefix and
+   *                          suffix, so a renumbered document reads the same
+   *                          way as an auto-numbered one
+   *   otherwise            → the counter's next id, e.g. "INV/228"
+   */
+  const displayInvoiceNo = saleId
+    ? loadedSaleNo
+    : invoiceNoEditing ? invoiceNo
+    : invoiceNoTouched ? (overridePreview || invoiceNo)
+    : withAffixes(docSequence?.next_id ?? "");
+
+  // The row is named for the document either way. Untouched it is still only
+  // the counter's forecast — another till can take the number first — but the
+  // label stays "Invoice No" / "Quotation No" / "Proforma No" rather than
+  // switching wording under the cashier mid-sale.
+  const invoiceNoLabel = `${posTypeLabel} No`;
+
+  // Mid-edit the value is only the digits, so the tab's prefix and suffix are
+  // drawn around them as fixed text — the cashier still sees "MA/" + "229"
+  // rather than a bare number that looks like a different kind of id. Same
+  // size and weight as the field so the two halves read as one string.
+  const affixAdornmentSx = {
+    fontSize: 12.5, fontWeight: 700, letterSpacing: "0.02em",
+    color: "#9CA3AF", whiteSpace: "nowrap",
+  } as const;
+  // The input shrinks to its digits while editing, so the affixes sit flush
+  // against them instead of at the far edges of the box. The field sets
+  // tabular figures, so every digit is exactly `ch` wide (plus the spacing).
+  const invoiceNoDigits = Math.max(invoiceNo.length, 1);
+  const invoiceNoEditWidth = `calc(${invoiceNoDigits}ch + ${invoiceNoDigits * 0.02}em + 2px)`;
   // ────────────────────────────────────────────────────────────────────────────
 
   const [saveResult, setSaveResult] = useState<{
@@ -578,6 +809,8 @@ const {
   const refNoRef          = useRef<HTMLInputElement>(null);
   const receivedRef       = useRef<HTMLInputElement>(null);
   const dueDateInputRef   = useRef<HTMLInputElement | null>(null);
+  const poDateInputRef    = useRef<HTMLInputElement | null>(null);
+  const invoiceNoInputRef = useRef<HTMLInputElement | null>(null);
   const tableBodyRef      = useRef<HTMLTableSectionElement>(null);
   const qtyRefs           = useRef<Record<string, HTMLInputElement | null>>({});
   const priceRefs         = useRef<Record<string, HTMLInputElement | null>>({});
@@ -592,9 +825,9 @@ const {
   useEffect(() => { forceRefresh(); }, []);
   useEffect(() => { codeRef.current?.focus(); }, []);
   useEffect(() => {
-    setSaleId(saleIdFromUrl);
+    setSaleId(saleUuidFromUrl);
     if (saleTypeFromUrl) setPosMode(saleTypeToPosMode(saleTypeFromUrl));
-  }, [saleIdFromUrl, saleTypeFromUrl]);
+  }, [saleUuidFromUrl, saleTypeFromUrl]);
 
   // Open on the branch's default sale type, and never sit on a tab that has
   // since been turned off in Settings. Reopening a saved document is exempt —
@@ -610,6 +843,19 @@ const {
     }
     setPosMode((prev) => (enabledPosTypes.includes(POS_TYPE_BY_MODE[prev]) ? prev : POS_MODE_BY_TYPE[defaultPosType]));
   }, [enabledPosTypes, defaultPosType, saleId]);
+
+  /**
+   * Each sale type numbers from its own counter, so a number typed for one is
+   * meaningless on another — without this, an override entered on Invoice
+   * stayed on screen after switching to Quotation or Proforma and would have
+   * been sent as that type's number. Dropping it falls back to the tab's own
+   * "Next" forecast, which the doc-sequence query has already refetched.
+   */
+  useEffect(() => {
+    setInvoiceNo("");
+    setInvoiceNoTouched(false);
+    setInvoiceNoEditing(false);
+  }, [posMode]);
 
   useEffect(() => {
     if (zone === "TABLE" && activeRowIdx >= 0) {
@@ -773,7 +1019,8 @@ useEffect(() => {
   useEffect(() => {
     if (!saleId) return;
     const loadSale = async () => {
-      const data = await fetchSaleDetail(saleIdFromUrl!);
+      // A uuid names exactly one record, so no sale type rides along.
+      const data = await fetchSaleDetail(saleUuidFromUrl!);
       const sale = data.sale;
       setPosMode(saleTypeToPosMode(sale.sale_type));
       setSaleId(sale.sale_uuid);
@@ -802,9 +1049,15 @@ useEffect(() => {
         setReferenceNo(last.transaction_id || "");
         setPaymentType((last.transaction_type as any) || "Cash");
       }
-      setVehicleNo((sale as any).vehicle_no ?? "");
+      setVehicleNo(sale.vehicle_no ?? "");
+      setPoNumber(sale.purchase_order_no ?? "");
+      setPoDate(formatDateForInput(sale.purchase_order_date_fmt || sale.purchase_order_date || ""));
+      // A saved document already has its number — show that rather than a
+      // forecast of the next one. It is not an override: renumbering an
+      // existing sale is not something the update endpoint supports.
+      setLoadedSaleNo(sale.sale_id || "");
       setInvoiceDate(formatDateForInput(sale.sale_date_fmt));
-      setDueDate(formatDateForInput((sale as any).due_date_fmt || (sale as any).due_date));
+      setDueDate(formatDateForInput(sale.due_date_fmt || sale.due_date || ""));
     };
     loadSale();
   }, [saleId]);
@@ -832,6 +1085,8 @@ useEffect(() => {
 
   const handleClear = useCallback(() => {
     setItems([]); setDiscount("0"); setDiscountPct("0"); setReferenceNo(""); setVehicleNo("");
+    setPoNumber(""); setPoDate("");
+    setInvoiceNo(""); setInvoiceNoTouched(false); setInvoiceNoEditing(false); setLoadedSaleNo("");
     setReceivedAmount(""); setCodeInput(""); setActiveRowIdx(-1); setOrderNote("");
     const freshInvoiceDate = todayStr();
     setInvoiceDate(freshInvoiceDate);
@@ -1003,6 +1258,10 @@ console.log("test",serverHolds)
     if (dueDateInputRef.current) { dueDateInputRef.current.showPicker(); dueDateInputRef.current.focus(); }
   };
 
+  const handleOpenPoDatePicker = () => {
+    if (poDateInputRef.current) { poDateInputRef.current.showPicker(); poDateInputRef.current.focus(); }
+  };
+
   const updateQty  = (code: string, delta: number) => {
     if (delta > 0 && invoiceSettings?.stock_check_enabled) {
       const item = items.find(i => i.code === code);
@@ -1092,9 +1351,13 @@ console.log("test",serverHolds)
     // Quotations hide the Vehicle No field, so drop anything typed before the
     // cashier switched to that tab rather than storing it on the quotation.
     const savedVehicleNo = posMode === "QUOTATION" ? "" : vehicleNo;
+    // Same reasoning as the vehicle number above: with the PO fields hidden,
+    // nothing typed before the toggle was turned off belongs on the document.
+    const savedPoNumber  = showPurchaseOrder ? poNumber.trim() : "";
+    const savedPoDate    = showPurchaseOrder ? poDate : "";
     const result = saleId
-      ? await updateOrder(saleId, { zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, dueDate: dueDateEnabled ? dueDate : "", discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo: savedVehicleNo, stockCheckEnabled })
-      : await saveOrder({ zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, dueDate: dueDateEnabled ? dueDate : "", discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo: savedVehicleNo, stockCheckEnabled });
+      ? await updateOrder(saleId, { zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, dueDate: hasBalanceDue ? dueDate : "", discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo: savedVehicleNo, stockCheckEnabled, invoiceNo: invoiceNoOverride, poNumber: savedPoNumber, poDate: savedPoDate })
+      : await saveOrder({ zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, dueDate: hasBalanceDue ? dueDate : "", discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo: savedVehicleNo, stockCheckEnabled, invoiceNo: invoiceNoOverride, poNumber: savedPoNumber, poDate: savedPoDate });
     if (result.success) {
       console.log("save Result",result)
       // The Dashboard and Sales History are now showing figures that predate
@@ -1103,17 +1366,27 @@ console.log("test",serverHolds)
       for (const queryKey of SALE_DEPENDENT_KEYS) {
         void queryClient.invalidateQueries({ queryKey });
       }
+      // This sale just consumed a number, so the "Next" preview in the SUMMARY
+      // card is now one behind. Only this tab's counter moved.
+      void queryClient.invalidateQueries({
+        queryKey: docSequenceQueryKeys.detail(zoduId ?? "", branchId ?? "", DOC_TYPE_BY_POS_MODE[posMode]),
+      });
       publishSaleSaved();
       const order    = result.order as any;
       const totalAmt = parseFloat(order?.total_amount ?? "0");
       const paidAmt  = parseFloat(order?.paid_amount  ?? "0");
       const change   = paidAmt > totalAmt ? paidAmt - totalAmt : 0;
-      const savedSaleId = String(order?.sale_id ?? saleIdFromUrl ?? "").trim() || undefined;
+      const savedSaleId = String(order?.sale_id ?? loadedSaleNo ?? "").trim() || undefined;
       setSavedOrderSnapshot({
         result: result as SaveOrderResult,
         customer: { ...customer },
         saleType: SALE_TYPE_BY_POS_MODE[posMode],
         vehicleNo: savedVehicleNo,
+        // What the document will be numbered, for the print data to fall back
+        // on if the response carries no id of its own.
+        invoiceNo: overridePreview || displayInvoiceNo,
+        poNumber: savedPoNumber,
+        poDate: savedPoDate,
         descriptions: Object.fromEntries(items.map(i => [i.code, i.itemDescription || ""])),
       });
       setSaveResult({ open: true, success: true, message: result.message, grandTotal: totalAmt, change, saleId: savedSaleId });
@@ -1123,7 +1396,7 @@ console.log("test",serverHolds)
       setSavedOrderSnapshot(null);
       setSaveResult({ open: true, success: false, message: result.message });
     }
-  }, [items, customer, invoiceDate, dueDate, dueDateEnabled, discountPct, discount, gstMode, roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo, printEnabled, saving, saveOrder, updateOrder, handleClear, saleId, saleIdFromUrl, invoiceSettings, queryClient]);
+  }, [items, customer, invoiceDate, dueDate, hasBalanceDue, discountPct, discount, gstMode, roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo, invoiceNoOverride, displayInvoiceNo, overridePreview, poNumber, poDate, showPurchaseOrder, printEnabled, saving, saveOrder, updateOrder, handleClear, saleId, loadedSaleNo, invoiceSettings, queryClient]);
 
   const handleThermalPrint = useCallback((copies: string[] = []) => {
     if (!thermalRef.current) return;
@@ -1187,7 +1460,13 @@ console.log("test",serverHolds)
       if (e.key === "F6") { e.preventDefault(); setDiscountModalOpen(true); return; }
       if (e.key === "F7") { e.preventDefault(); setNoteModalOpen(true); return; }
       if (e.key === "F8") { e.preventDefault(); handleSave(); return; }
-      if (e.key === "F9" && posMode === "SALE") { e.preventDefault(); handleHold(); return; }
+      if (e.key === "F9" && posMode === "SALE" && holdEnabled) { e.preventDefault(); handleHold(); return; }
+
+      // The document-number and PO fields are free-form metadata, not part of
+      // the SEARCH → TABLE → FOOTER key walk. Past the F-key shortcuts above,
+      // typing in them belongs to the input: without this, Enter would fire
+      // Add Item and the arrow keys would jump zones mid-edit.
+      if (active?.closest("[data-pos-meta-fields]")) return;
 
       const editingItem = items.find(i => i.editingQty || i.editingPrice || i.editingDiscount);
       if (editingItem) {
@@ -1261,7 +1540,7 @@ console.log("test",serverHolds)
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [zone, searchFocus, activeRowIdx, footerFocus, showSuggestions, suggestions, suggestionIdx, customerSuggestionsOpen, customerResults, customerSuggestionIdx, items, posMode, handleAddItem, handleClear, handleHold, handleSave, selectSuggestion, handleSelectCustomer, startEditQty, startEditPrice, startEditDiscount]);
+  }, [zone, searchFocus, activeRowIdx, footerFocus, showSuggestions, suggestions, suggestionIdx, customerSuggestionsOpen, customerResults, customerSuggestionIdx, items, posMode, holdEnabled, handleAddItem, handleClear, handleHold, handleSave, selectSuggestion, handleSelectCustomer, startEditQty, startEditPrice, startEditDiscount]);
 
   const isFooterActive = (f: FooterFocus) => zone === "FOOTER" && footerFocus === f;
   const footerOutline  = (f: FooterFocus) => ({ outline: isFooterActive(f) ? "2.5px solid #C8102E" : "2.5px solid transparent", outlineOffset: 2, transition: "outline 0.12s" });
@@ -1365,11 +1644,21 @@ console.log("test",serverHolds)
 
 
     return {
-      sale_id: order.sale_id,
+      // The server's number wins — it is the one the sale is filed under. A
+      // cashier-typed number only stands in if the response carries none.
+      // Dressed the same way the SUMMARY card dresses it: withAffixes only
+      // adds what the id does not already carry, so a prefix the server
+      // applied itself is left alone and only the suffix it does not yet
+      // apply gets appended.
+      sale_id: withAffixes(order.sale_id ?? order.invoice_no ?? savedOrderSnapshot?.invoiceNo ?? ""),
       // Drives the "QUOTATION" vs "INVOICE" heading in the print templates.
       sale_type: order.sale_type ?? savedOrderSnapshot?.saleType,
       // Printed on the transport copy; blank rule when it was left empty.
       vehicle_no: order.vehicle_no ?? savedOrderSnapshot?.vehicleNo,
+      po_number: order.purchase_order_no ?? savedOrderSnapshot?.poNumber,
+      // The API may echo a full ISO timestamp; normalize before formatting so
+      // the day part doesn't come back with the time still attached.
+      po_date: formatDateDisplay(formatDateForInput(order.purchase_order_date ?? savedOrderSnapshot?.poDate)),
       date: order.sale_date,
       due_date: order.due_date ?? null,
       customer_name: customerName,
@@ -1404,7 +1693,7 @@ console.log("test",serverHolds)
       gst_breakdown: savedHsnBreakdown,
       company: undefined,
     };
-  }, [savedHsnBreakdown, savedOrderSnapshot, paymentType]);
+  }, [savedHsnBreakdown, savedOrderSnapshot, paymentType, withAffixes]);
 
   /**
    * The bill as it stands in the cart, in the shape the print templates read.
@@ -1451,11 +1740,15 @@ console.log("test",serverHolds)
     const gstBreakdown = Object.values(hsnMap);
 
     return {
-      sale_id: "PREVIEW",
+      // The dressed id, not the bare digits the override field holds — the
+      // print templates show this where the document number goes.
+      sale_id: overridePreview || displayInvoiceNo || "PREVIEW",
       sale_type: SALE_TYPE_BY_POS_MODE[posMode],
       vehicle_no: posMode === "QUOTATION" ? "" : vehicleNo,
+      po_number: showPurchaseOrder ? poNumber : "",
+      po_date: showPurchaseOrder && poDate ? formatDateDisplay(poDate) : "",
       date: invoiceDate ? formatDateDisplay(invoiceDate) : "",
-      due_date: dueDateEnabled && dueDate ? formatDateDisplay(dueDate) : null,
+      due_date: hasBalanceDue && dueDate ? formatDateDisplay(dueDate) : null,
       customer_name: customer.name.trim() || "Walk-In",
       customer_address: customer.address.trim() || "-",
       customer_mobile: customer.mobile.trim() ? `+91 ${customer.mobile.trim()}` : "-",
@@ -1489,7 +1782,8 @@ console.log("test",serverHolds)
       company: undefined,
     };
   }, [items, subtotal, gstMode, orderDiscountAmt, discountPctVal, roundoffValue, grandTotal,
-      customer, invoiceDate, dueDate, dueDateEnabled, paymentType, posMode, vehicleNo]);
+      customer, invoiceDate, dueDate, hasBalanceDue, paymentType, posMode, vehicleNo,
+      displayInvoiceNo, overridePreview, poNumber, poDate, showPurchaseOrder]);
 
   /**
    * One PDF holding each requested copy in turn. An empty list means "no copy
@@ -1633,8 +1927,10 @@ console.log("test",serverHolds)
           onChange={e => setItems(prev => prev.map(i => i.code === item.code ? { ...i, qtyDraft: e.target.value.replace(/[^0-9.]/g, "") } : i))}
           onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = qtyRefs.current[item.code]; commitQtyDraft(item.code, el?.value ?? ""); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
           onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; commitQtyDraft(item.code, (e.target as HTMLInputElement).value); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingQty: false, qtyDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
-          size="small" inputProps={{ step: "any", style: { textAlign: "center", fontWeight: 800, fontSize: 14, padding: "2px 2px", width: 48 } }}
-          sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#1976D2", borderWidth: 2 } }, width: 64 }} />
+          // Sized to what is being typed (min 2, max 8 digits' worth), so a
+          // 6-digit quantity shows whole instead of clipping in a fixed box.
+          size="small" inputProps={{ step: "any", style: { textAlign: "center", fontWeight: 800, fontSize: 14, padding: "2px 4px", width: `${Math.min(Math.max((item.qtyDraft ?? "").length, 2), 8) + 0.5}ch`, fontVariantNumeric: "tabular-nums" } }}
+          sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#1976D2", borderWidth: 2 } } }} />
       ) : (
         <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditQty(item.code); }}
           sx={{ minWidth: 30, textAlign: "center", fontWeight: 800, fontSize: 14, px: 0.4, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #1976D2" : "1.5px dashed transparent", bgcolor: isActive ? "#E3F2FD" : "transparent", "&:hover": { border: "1.5px dashed #1976D2", bgcolor: "#E3F2FD" }, transition: "all 0.15s" }}>{item.qty}</Box>
@@ -1656,8 +1952,8 @@ console.log("test",serverHolds)
       </Box>
     ) : (
       <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditPrice(item.code); }}
-        sx={{ display: "inline-flex", alignItems: "center", gap: 0.3, px: 0.6, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #1976D2" : "1.5px dashed transparent", bgcolor: isActive ? "#E3F2FD" : "transparent", "&:hover": { border: "1.5px dashed #1976D2", bgcolor: "#E3F2FD", "& .pedit": { opacity: 1 } }, transition: "all 0.15s" }}>
-        <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", whiteSpace: "nowrap" }}>{INR(item.sellPrice)}</Typography>
+        sx={{ display: "inline-flex", alignItems: "center", gap: 0.3, maxWidth: "100%", px: 0.6, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #1976D2" : "1.5px dashed transparent", bgcolor: isActive ? "#E3F2FD" : "transparent", "&:hover": { border: "1.5px dashed #1976D2", bgcolor: "#E3F2FD", "& .pedit": { opacity: 1 } }, transition: "all 0.15s" }}>
+        <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", minWidth: 0 }}><Amount value={INR(item.sellPrice)} /></Typography>
         <EditIcon className="pedit" sx={{ fontSize: 10, color: "#1976D2", opacity: isActive ? 0.6 : 0, transition: "opacity 0.15s", flexShrink: 0 }} />
       </Box>
     )
@@ -1763,14 +2059,7 @@ console.log("test",serverHolds)
               </Box>
 
               <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, md: 0.75 }, flexShrink: 0 }}>
-                <Button size="small" disabled={items.length === 0}
-                  startIcon={<VisibilityOutlinedIcon sx={{ fontSize: { xs: 13, md: 16 } }} />}
-                  onClick={() => setPreviewOpen(true)}
-                  sx={{ minWidth: { xs: 0, md: 90 }, height: { xs: 24, md: 26 }, px: { xs: 0.75, md: 1 }, borderRadius: 1.25, border: "1px solid #E5E7EB", bgcolor: "#F3F4F6", color: "#4B5563", fontSize: { xs: 9, md: 10 }, fontWeight: 800, "&:hover": { bgcolor: "#E5E7EB" }, "&.Mui-disabled": { bgcolor: "#F9FAFB", color: "#D1D5DB" } }}>
-                  PREVIEW
-                </Button>
-
-                {!isNonSaleDoc && (
+                {!isNonSaleDoc && holdEnabled && (
                   <>
                   <Button size="small" disabled={holdSaving || items.length === 0}
                     startIcon={holdSaving ? <CircularProgress size={10} /> : <PauseCircleOutlineIcon sx={{ fontSize: { xs: 13, md: 16 } }} />}
@@ -1834,7 +2123,7 @@ console.log("test",serverHolds)
                               sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 1.5, py: 0.75, cursor: "pointer", gap: 1.5, bgcolor: idx === suggestionIdx ? "#EFF6FF" : "#fff", borderBottom: "1px solid #F3F4F6", borderLeft: idx === suggestionIdx ? "3px solid #3B82F6" : "3px solid transparent", "&:hover": { bgcolor: "#F9FAFB", borderLeft: "3px solid #6B7280" }, transition: "all 0.08s" }}>
                               <Box sx={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 1 }}>
                                 <Box sx={{ flexShrink: 0, bgcolor: "#F3F4F6", border: "1px solid #E5E7EB", borderRadius: 1, px: 0.7, py: 0.15 }}>
-                                  <Typography sx={{ fontSize: 10, fontWeight: 700, fontFamily: "monospace", color: "#374151", whiteSpace: "nowrap" }}>{p.item_id}</Typography>
+                                  <Typography sx={{ fontSize: 10, fontWeight: 700, color: "#374151", whiteSpace: "nowrap" }}>{p.item_id}</Typography>
                                 </Box>
                                 <Typography sx={{ fontSize: 13, fontWeight: 500, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                   <Highlight text={p.item_name} query={codeInput} />
@@ -1958,10 +2247,10 @@ console.log("test",serverHolds)
                                 short value (e.g. "—" for no discount) no longer leaves a whole
                                 half-width cell looking empty. */}
                             <Box sx={{ display: "flex", flexWrap: "wrap", rowGap: 0.6, columnGap: 2 }}>
-                              <Box>
+                              {/* <Box>
                                 <Typography sx={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase" }}>MRP</Typography>
                                 <Typography sx={{ fontSize: 12.5, color: "#9CA3AF" }}>₹{item.mrp.toLocaleString("en-IN")}</Typography>
-                              </Box>
+                              </Box> */}
                               <Box>
                                 <Typography sx={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase" }}>Unit Price</Typography>
                                 <Typography sx={{ fontSize: 12.5, color: "#374151", fontWeight: 600 }}>{INR(item.unitPrice)}</Typography>
@@ -2000,8 +2289,12 @@ console.log("test",serverHolds)
                 )}
               </Box>
             ) : (
-              <>
-                <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden", scrollbarWidth: "thin", scrollbarColor: "#ea9999 #F3F4F6", "&::-webkit-scrollbar": { width: "8px" }, "&::-webkit-scrollbar-track": { backgroundColor: "#F3F4F6", borderRadius: "4px" }, "&::-webkit-scrollbar-thumb": { backgroundColor: "#ea9999", borderRadius: "4px", "&:hover": { backgroundColor: "#A50D26" } } }}>
+              /* One horizontal scroller around the body and the totals row, so
+                 below CART_TABLE_MIN_WIDTH they slide sideways together and stay
+                 column-aligned; above it neither scrolls and the columns just
+                 widen. The body scrolls vertically inside it. */
+              <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflowX: "auto", overflowY: "hidden", ...cartScrollbarSx, scrollbarGutter: "auto" }}>
+                <Box sx={{ flex: 1, minHeight: 0, minWidth: CART_TABLE_MIN_WIDTH, overflowY: "auto", overflowX: "hidden", ...cartScrollbarSx }}>
                   <Table size="small" stickyHeader sx={{ borderCollapse: "separate", tableLayout: "fixed", width: "100%" }}>
                     <CartColGroup />
                     <TableHead>
@@ -2012,7 +2305,7 @@ console.log("test",serverHolds)
                         {/* "TAX AMT (GST %)" never fit this column and printed as an
                             ellipsis — the per-row chip carries the rate anyway. */}
                         <TableCell align="right" sx={{ fontSize: 12 }}>TAX (GST%)</TableCell>
-                        <TableCell align="right" sx={{ fontSize: 12 }}>MRP (₹)</TableCell>
+                        {/* <TableCell align="right" sx={{ fontSize: 12 }}>MRP (₹)</TableCell> */}
                         <TableCell align="center" sx={{ fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.4 }}>QTY <Kbd>Q</Kbd></Box></TableCell>
                         <TableCell align="right" sx={{ fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>RATE <Kbd>P</Kbd></Box></TableCell>
                         <TableCell align="right" sx={{ fontSize: 12 }}>UNIT PRICE</TableCell>
@@ -2024,7 +2317,12 @@ console.log("test",serverHolds)
                     <TableBody ref={tableBodyRef}>
                       {items.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={11} align="center" sx={{ py: 6 }}>
+                          {/* Span exactly the columns the colgroup declares. A
+                              hard-coded count went stale when MRP was dropped:
+                              the spare 11th column had no <col> width, so under
+                              the fixed layout it took half the free space from
+                              DESCRIPTION and left a blank strip at the right. */}
+                          <TableCell colSpan={CART_COL_WIDTHS.length} align="center" sx={{ py: 6 }}>
                             <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, color: "#D1D5DB" }}>
                               <KeyboardReturnIcon sx={{ fontSize: 32 }} />
                               <Typography sx={{ fontSize: 13 }}>Search and add items above</Typography>
@@ -2042,14 +2340,15 @@ console.log("test",serverHolds)
                               sx={{ bgcolor: flashRow === item.code ? "#FFF1F3" : isActive ? "#E3F2FD" : "transparent", cursor: "pointer", transition: "background 0.2s", "&:hover": { bgcolor: isActive ? "#E3F2FD" : "#F5F5F5" } }}>
                               <TableCell sx={{ p: 0 }}><Box sx={{ width: 4, minHeight: 40, bgcolor: isActive ? "#1976D2" : "transparent", borderRadius: "0 2px 2px 0", transition: "background 0.2s" }} /></TableCell>
                               <TableCell sx={{ overflow: "hidden" }}>
-                                {/* Item IDs are free text and are often wordy
-                                    ("Oil Extraction 20KG"). Wrap inside the column
-                                    rather than letting one spill across the
-                                    description next to it; `title` keeps the full
-                                    value reachable on hover. */}
+                                {/* Always one line, so every row keeps the same
+                                    height. The column fits a full barcode; a
+                                    wordier id ("Oil Extraction 20KG") ends in an
+                                    ellipsis instead of spilling across the
+                                    description, and `title` keeps the full value
+                                    reachable on hover. */}
                                 <Typography
                                   title={item.code}
-                                  sx={{ fontSize: 12, fontWeight: 700, color: "#374151", lineHeight: 1.3, overflowWrap: "anywhere" }}
+                                  sx={{ fontSize: 12, fontWeight: 700, color: "#374151", lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
                                 >
                                   {item.code}
                                 </Typography>
@@ -2078,10 +2377,10 @@ console.log("test",serverHolds)
                                 />
                               </TableCell>
                               <TableCell align="right">
-                                <Typography sx={{ fontSize: 13, color: "#374151", fontWeight: 700, lineHeight: 1.2, whiteSpace: "nowrap" }}>{INR(itemGst)}</Typography>
+                                <Typography sx={{ fontSize: 13, color: "#374151", fontWeight: 700, lineHeight: 1.2 }}><Amount value={INR(itemGst)} /></Typography>
                                 <Box component="span" sx={{ display: "inline-block", fontSize: 9.5, fontWeight: 700, color: "#6B7280", bgcolor: "#F3F4F6", borderRadius: 999, px: 0.7, py: 0.05, mt: 0.2 }}>GST {item.gstPct}%</Box>
                               </TableCell>
-                              <TableCell align="right"><Typography sx={{ fontSize: 13, color: "#9CA3AF", whiteSpace: "nowrap" }}>₹{item.mrp.toLocaleString("en-IN")}</Typography></TableCell>
+                              {/* <TableCell align="right"><Typography sx={{ fontSize: 13, color: "#9CA3AF", whiteSpace: "nowrap" }}>₹{item.mrp.toLocaleString("en-IN")}</Typography></TableCell> */}
 
                               {/* QTY */}
                               <TableCell align="center" onClick={e => e.stopPropagation()}>
@@ -2094,7 +2393,7 @@ console.log("test",serverHolds)
                               </TableCell>
 
                               {/* UNIT PRICE EX.TAX */}
-                              <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", whiteSpace: "nowrap" }}>{INR(item.unitPrice)}</Typography></TableCell>
+                              <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}><Amount value={INR(item.unitPrice)} /></Typography></TableCell>
 
                               {/* DISCOUNT % */}
                               <TableCell align="right" onClick={e => e.stopPropagation()}>
@@ -2103,7 +2402,7 @@ console.log("test",serverHolds)
 
                               {/* TOTAL */}
                               <TableCell align="right">
-                                <Typography sx={{ fontSize: 13, fontWeight: 700, color: isActive ? "#0D47A1" : "#1A1A2E", whiteSpace: "nowrap" }}>{INR(itemTotal)}</Typography>
+                                <Typography sx={{ fontSize: 13, fontWeight: 700, color: isActive ? "#0D47A1" : "#1A1A2E" }}><Amount value={INR(itemTotal)} /></Typography>
                               </TableCell>
                               <TableCell onClick={e => e.stopPropagation()}><IconButton size="small" onClick={() => removeItem(item.code)} sx={{ color: "#D1D5DB", "&:hover": { color: "#C8102E", bgcolor: "#FEE2E2" } }}><DeleteOutlineIcon sx={{ fontSize: 15 }} /></IconButton></TableCell>
                             </TableRow>
@@ -2115,29 +2414,31 @@ console.log("test",serverHolds)
                 </Box>
 
                 {/* Total row pinned to bottom */}
-                <Table size="small" sx={{ borderCollapse: "separate", flexShrink: 0, tableLayout: "fixed", width: "100%" }}>
+                <Box sx={{ flexShrink: 0, minWidth: CART_TABLE_MIN_WIDTH, overflowY: "hidden", overflowX: "hidden", ...cartScrollbarSx }}>
+                <Table size="small" sx={{ borderCollapse: "separate", tableLayout: "fixed", width: "100%" }}>
                   <CartColGroup />
                   <TableBody>
                     <TableRow sx={{ bgcolor: "#F8FAFC", "& .MuiTableCell-root": { borderTop: "2px solid #E5E7EB", borderBottom: "none", py: 1, height: 34, bgcolor: "#F8FAFC" } }}>
                       <TableCell sx={{ p: 0 }} /><TableCell />
                       <TableCell><Typography sx={{ fontSize: 13, fontWeight: 800, color: "#374151" }}>Total</Typography></TableCell>
-                      <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", whiteSpace: "nowrap" }}>{INR(items.length > 0 ? totalGstRow : 0)}</Typography></TableCell>
-                      <TableCell align="right" />
+                      {/* One cell per column, in header order — see CART_COL_WIDTHS. */}
+                      <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}><Amount value={INR(items.length > 0 ? totalGstRow : 0)} /></Typography></TableCell>
                       <TableCell align="center"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{items.length > 0 ? totalUnits : 0}</Typography></TableCell>
                       <TableCell align="right" />
-                      <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", whiteSpace: "nowrap" }}>{INR(items.length > 0 ? subtotal : 0)}</Typography></TableCell>
+                      <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}><Amount value={INR(items.length > 0 ? subtotal : 0)} /></Typography></TableCell>
                       <TableCell align="right">
                         {items.length > 0 && itemDiscountTotal > 0
-                          ? <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#C8102E" }}>- {INR(itemDiscountTotal)}</Typography>
+                          ? <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#C8102E" }}>- <Amount value={INR(itemDiscountTotal)} /></Typography>
                           : <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#D1D5DB" }}>—</Typography>
                         }
                       </TableCell>
-                      <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 700, color: "#000", whiteSpace: "nowrap" }}>{INR(items.length > 0 ? totalAmtRow : 0)}</Typography></TableCell>
+                      <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 700, color: "#000" }}><Amount value={INR(items.length > 0 ? totalAmtRow : 0)} /></Typography></TableCell>
                       <TableCell />
                     </TableRow>
                   </TableBody>
                 </Table>
-              </>
+                </Box>
+              </Box>
             )}
           </Paper>
 
@@ -2187,7 +2488,7 @@ console.log("test",serverHolds)
                                   {c.cpy_name && <Typography sx={{ fontSize: 11, fontWeight: 600, color: c.cust_name ? "#6B7280" : "#1F2937", lineHeight: 1.3 }}>{c.cust_name ? `🏢 ${c.cpy_name}` : c.cpy_name}</Typography>}
                                   <Typography sx={{ fontSize: 10, color: "#9CA3AF", mt: 0.2 }}>{primaryMobile(c)}{c.city ? ` • ${c.city}` : ""}</Typography>
                                 </Box>
-                                {c.gst && <Typography sx={{ fontSize: 9, fontWeight: 700, color: "#6B7280", fontFamily: "monospace", whiteSpace: "nowrap" }}>{c.gst}</Typography>}
+                                {c.gst && <Typography sx={{ fontSize: 9, fontWeight: 700, color: "#6B7280", whiteSpace: "nowrap" }}>{c.gst}</Typography>}
                               </Box>
                             ))}
                           </Box>
@@ -2213,7 +2514,7 @@ console.log("test",serverHolds)
                     ),
                   }}
                   sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.75, fontSize: 12, bgcolor: "#F8FAFC", "& fieldset": { borderColor: "#E2E8F0" } } }}
-                  inputProps={{ style: { padding: "7px 12px", fontWeight: 600, fontFamily: "monospace", letterSpacing: "0.03em" } }}
+                  inputProps={{ style: { padding: "7px 12px", fontWeight: 600, letterSpacing: "0.03em" } }}
                 />
                 {showVehicleNo && (
                   <TextField
@@ -2232,7 +2533,7 @@ console.log("test",serverHolds)
                       ),
                     }}
                     sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.75, fontSize: 12, bgcolor: "#F8FAFC", "& fieldset": { borderColor: "#E2E8F0" }, "&:hover fieldset": { borderColor: modeAccent }, "&.Mui-focused fieldset": { borderColor: modeAccent } } }}
-                    inputProps={{ style: { padding: "7px 12px", fontWeight: 600, fontFamily: "monospace", letterSpacing: "0.03em" }, maxLength: 20 }}
+                    inputProps={{ style: { padding: "7px 12px", fontWeight: 600, letterSpacing: "0.03em" }, maxLength: 20 }}
                   />
                 )}
                 <Button size="small" variant="contained" onClick={() => setAddCustomerOpen(true)} sx={{ bgcolor: modeAccent, fontSize: 11, fontWeight: 800, borderRadius: 1.5, px: 1.5, py: 0.85, whiteSpace: "nowrap", "&:hover": { bgcolor: modeTheme.accentHover } }}>{customer.id ? "Edit Customer" : "+ Add New"}</Button>
@@ -2253,7 +2554,7 @@ console.log("test",serverHolds)
                   {customer.name && <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#1F2937", lineHeight: 1.25 }}>{customer.name}</Typography>}
                   {customer.mobile && <Typography sx={{ fontSize: 11, color: "#6B7280", mt: 0.1 }}>{customer.mobile}</Typography>}
                   <Typography sx={{ fontSize: 10, color: "#9CA3AF", mt: 0.1 }}>{customer.address || "No address on file"}</Typography>
-                  {customer.gstin && <Typography sx={{ fontSize: 9, color: "#6B7280", fontFamily: "monospace", mt: 0.1 }}>GSTIN: {customer.gstin}</Typography>}
+                  {customer.gstin && <Typography sx={{ fontSize: 9, color: "#6B7280", mt: 0.1 }}>GSTIN: {customer.gstin}</Typography>}
                 </Box>
 
                 <Box sx={{ border: "1px solid #E5E7EB", borderRadius: 2, p: 0.85, bgcolor: "#F9FAFB", position: "relative" }}>
@@ -2302,6 +2603,136 @@ console.log("test",serverHolds)
                   </Typography>
                   <input ref={inputRef} type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} style={{ position: "absolute", opacity: 0, pointerEvents: "none" }} />
                 </Box>
+              </Box>
+
+              {/* Document number and — when POS settings collect it — the
+                  buyer's PO reference. These are optional metadata rather than
+                  figures, so they sit above the money rows in one boxed
+                  group. */}
+              <Box data-pos-meta-fields sx={{ border: "1px solid #E5E7EB", borderRadius: 2, p: 1.25, mb: 1.75, display: "grid", gridTemplateColumns: "auto minmax(0, 1fr)", columnGap: 2, rowGap: 1, alignItems: "center" }}>
+                <Box sx={{ display: "contents" }}>
+                  <Typography sx={{ gridColumn: 1, fontSize: 13.5, color: "#6B7280", whiteSpace: "nowrap" }}>{invoiceNoLabel}</Typography>
+                  <TextField
+                    inputRef={invoiceNoInputRef}
+                    value={displayInvoiceNo}
+                    // Digits only while overriding: the endpoint takes the
+                    // running number, and the rendered id around it is the
+                    // server's to compose.
+                    onChange={(e) => { setInvoiceNoTouched(true); setInvoiceNo(e.target.value.replace(/[^0-9]/g, "")); }}
+                    placeholder={docSequence || saleId ? "Auto" : "Loading…"}
+                    size="small"
+                    InputProps={{
+                      readOnly: !invoiceNoEditing,
+                      startAdornment: invoiceNoEditing && activeAffixes.prefix ? (
+                        <InputAdornment position="start" disablePointerEvents sx={{ mr: 0 }}>
+                          <Typography sx={affixAdornmentSx}>{activeAffixes.prefix}</Typography>
+                        </InputAdornment>
+                      ) : undefined,
+                      // The suffix (mid-edit) and the renumber button share the
+                      // end of the field, so the button sits inside the box and
+                      // the row stays the same width as the PO fields below.
+                      endAdornment: canOverrideNumber || (invoiceNoEditing && activeAffixes.suffix) ? (
+                        <InputAdornment position="end" sx={{ ml: 0 }}>
+                          {invoiceNoEditing && activeAffixes.suffix && (
+                            <Typography sx={{ ...affixAdornmentSx, pointerEvents: "none" }}>{activeAffixes.suffix}</Typography>
+                          )}
+                          {/* Renumbering only applies to a new document —
+                              reopening a saved one shows its id with no way
+                              to change it. */}
+                          {canOverrideNumber && (
+                            <Tooltip title={invoiceNoEditing ? "Done" : `Set ${posTypeLabel.toLowerCase()} number`}>
+                              <IconButton
+                                size="small"
+                                disabled={!docSequence}
+                                onClick={() => {
+                                  const next = !invoiceNoEditing;
+                                  setInvoiceNoEditing(next);
+                                  // Seed with the number the counter would have
+                                  // used, padded as it prints, so skipping ahead
+                                  // is a one-character edit and the field still
+                                  // reads as the id it was showing a moment ago.
+                                  if (next) {
+                                    setInvoiceNoTouched(true);
+                                    setInvoiceNo(docSequence?.next_seq ? padSeq(docSequence.next_seq) : "");
+                                    setTimeout(() => invoiceNoInputRef.current?.focus(), 10);
+                                  } else {
+                                    // Done: re-pad whatever was typed, so "12"
+                                    // settles as "012" rather than looking like
+                                    // another id.
+                                    const typed = parseInt(invoiceNo, 10);
+                                    if (Number.isInteger(typed) && typed > 0) setInvoiceNo(padSeq(typed));
+                                  }
+                                }}
+                                sx={{ ml: 0.5, p: 0.4, borderRadius: 1, color: invoiceNoEditing ? modeAccent : "#9CA3AF", bgcolor: invoiceNoEditing ? modeBg : "transparent", "&:hover": { color: modeAccent, bgcolor: modeBg }, "&.Mui-disabled": { color: "#D1D5DB" } }}>
+                                <EditIcon sx={{ fontSize: 14 }} />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </InputAdornment>
+                      ) : undefined,
+                    }}
+                    inputMode={invoiceNoEditing ? "numeric" : undefined}
+                    // With the button inside, the right padding is the
+                    // button's own margin rather than the input's 10px.
+                    sx={{ gridColumn: 2, width: "100%", minWidth: 0, "& .MuiOutlinedInput-root": { borderRadius: 1.5, bgcolor: invoiceNoEditing ? "#fff" : "#F8FAFC", ...(canOverrideNumber && { pr: 0.5 }), ...(invoiceNoEditing && { justifyContent: "flex-end", pl: 1.25 }), "& fieldset": { borderColor: "#E5E7EB" }, "&:hover fieldset": { borderColor: invoiceNoEditing ? modeAccent : "#E5E7EB" }, "&.Mui-focused fieldset": { borderColor: modeAccent } } }}
+                    inputProps={{ style: { padding: invoiceNoEditing ? "6px 0" : canOverrideNumber ? "6px 0 6px 10px" : "6px 10px", width: invoiceNoEditing ? invoiceNoEditWidth : undefined, fontSize: 12.5, fontWeight: 900, color: "#111827", textAlign: "right", letterSpacing: "0.02em" }, maxLength: 12 }}
+                  />
+                </Box>
+
+                {/* Overriding is not just this one document: the server rolls
+                    its counter to match, so everything after continues from
+                    here. Worth saying before they save. */}
+                {/* {invoiceNoTouched && canOverrideNumber && (
+                  <Typography sx={{ gridColumn: "1 / -1", fontSize: 10.5, color: invoiceNoOverride ? "#6B7280" : "#C8102E", mt: -0.5, textAlign: "right", lineHeight: 1.4 }}>
+                    {invoiceNoOverride
+                      ? <>Saves as <Box component="span" sx={{ fontWeight: 800, color: "#111827" }}>{overridePreview}</Box> · next is {invoiceNoOverride + 1}</>
+                      : "Enter a whole number above zero"}
+                  </Typography>
+                )} */}
+
+                {showPurchaseOrder && (
+                <Box sx={{ display: "contents" }}>
+                  <Typography sx={{ gridColumn: 1, fontSize: 13.5, color: "#6B7280", whiteSpace: "nowrap" }}>PO Number</Typography>
+                  <TextField
+                    value={poNumber}
+                    onChange={(e) => setPoNumber(e.target.value.toUpperCase())}
+                    placeholder="PO Number"
+                    size="small"
+                    autoComplete="off"
+                    sx={{ gridColumn: 2, width: "100%", minWidth: 0, "& .MuiOutlinedInput-root": { borderRadius: 1.5, bgcolor: "#fff", "& fieldset": { borderColor: "#E5E7EB" }, "&:hover fieldset": { borderColor: modeAccent }, "&.Mui-focused fieldset": { borderColor: modeAccent } } }}
+                    inputProps={{ style: { padding: "6px 10px", fontSize: 12.5, fontWeight: 700, color: "#111827", textAlign: "right", letterSpacing: "0.02em" }, maxLength: 40 }}
+                  />
+                </Box>
+                )}
+
+                {showPurchaseOrder && (
+                <Box sx={{ display: "contents" }}>
+                  <Typography sx={{ gridColumn: 1, fontSize: 13.5, color: "#6B7280", whiteSpace: "nowrap" }}>PO Date</Typography>
+                  <Box
+                    onClick={handleOpenPoDatePicker}
+                    sx={{ position: "relative", display: "flex", alignItems: "center", gap: 0.6, gridColumn: 2, minWidth: 0, height: 31, px: 1.25, borderRadius: 1.5, border: "1px solid #E5E7EB", bgcolor: "#fff", cursor: "pointer", "&:hover": { borderColor: modeAccent } }}>
+                    <CalendarTodayIcon sx={{ fontSize: 14, color: poDate ? modeAccent : "#9CA3AF", flexShrink: 0 }} />
+                    <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: poDate ? "#111827" : "#9CA3AF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {poDate ? formatDateDisplay(poDate) : "Select date"}
+                    </Typography>
+                    {poDate && (
+                      <IconButton
+                        size="small"
+                        onClick={(e) => { e.stopPropagation(); setPoDate(""); }}
+                        sx={{ p: 0.2, ml: "auto", color: "#9CA3AF", "&:hover": { color: modeAccent } }}>
+                        <CloseIcon sx={{ fontSize: 12 }} />
+                      </IconButton>
+                    )}
+                    <input
+                      ref={poDateInputRef}
+                      type="date"
+                      value={poDate}
+                      onChange={(e) => setPoDate(e.target.value)}
+                      style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
+                    />
+                  </Box>
+                </Box>
+                )}
               </Box>
 
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.6 }}>
@@ -2378,12 +2809,14 @@ console.log("test",serverHolds)
                     />
                   </Box>
 
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography sx={{ fontSize: 13.5, color: "#6B7280" }}>Balance Due</Typography>
-                    <Typography sx={{ fontSize: 15, fontWeight: 800, color: received >= grandTotal ? "#16A34A" : "#C8102E" }}>
-                      {INR(Math.max(0, grandTotal - received))}
-                    </Typography>
-                  </Box>
+                  {hasBalanceDue && (
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <Typography sx={{ fontSize: 13.5, color: "#6B7280" }}>Balance Due</Typography>
+                      <Typography sx={{ fontSize: 15, fontWeight: 800, color: "#C8102E" }}>
+                        {INR(grandTotal - received)}
+                      </Typography>
+                    </Box>
+                  )}
                 </>
               )}
             </Paper>
@@ -2426,57 +2859,72 @@ console.log("test",serverHolds)
                     sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.5, "& fieldset": { borderColor: isFooterActive("REF_NO") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("REF_NO") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" } } }} />
                 </Box>
 
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2.10 }}>
-                  <Typography sx={{ fontSize: 11.5, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.05em" }}>PAYMENT STATUS</Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 800, color: status.color, letterSpacing: "0.03em" }}>{status.label}</Typography>
-                </Box>
-
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.50 }}>
-                  <Typography sx={{ fontSize: 11.5, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.05em" }}>DUE DATE</Typography>
-                  <Box
-                    onClick={() => { if (dueDateEnabled) { setZone("FOOTER"); handleOpenDueDatePicker(); } }}
-                    sx={{
-                      position: "relative",
-                      display: "flex", alignItems: "center", gap: 0.6,
-                      minWidth: 140, height: 33,
-                      px: 1.25,
-                      borderRadius: 1.5,
-                      border: "1px solid",
-                      borderColor: dueDateEnabled ? "#E5E7EB" : "#E2E8F0",
-                      bgcolor: dueDateEnabled ? "#fff" : "#F8FAFC",
-                      cursor: dueDateEnabled ? "pointer" : "default",
-                      "&:hover": { borderColor: dueDateEnabled ? "#C8102E" : "#E2E8F0" },
-                    }}
-                  >
-                    <CalendarTodayIcon sx={{ fontSize: 14, color: dueDateEnabled ? "#6B7280" : "#CBD5E1" }} />
-                    <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: dueDateEnabled ? "#111827" : "#94A3B8" }}>
-                      {dueDate ? formatDateDisplay(dueDate) : "Select date"}
-                    </Typography>
-                    <input
-                      ref={dueDateInputRef}
-                      type="date"
-                      value={dueDate}
-                      onChange={(e) => setDueDate(e.target.value)}
-                      disabled={!dueDateEnabled}
-                      min={invoiceDate}
-                      style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
-                    />
+                {/* Status and due date share one row — the date only exists
+                    when there is a balance, and it is that balance the status
+                    describes, so they read best side by side. */}
+                <Box sx={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 1.5, mb: 0.5 }}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography sx={{ fontSize: 11.5, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.05em", mb: 0.75, whiteSpace: "nowrap" }}>PAYMENT STATUS</Typography>
+                    {/* Same height as the date box, so the two values line up. */}
+                    <Typography sx={{ height: 33, display: "flex", alignItems: "center", fontSize: 14, fontWeight: 800, color: status.color, letterSpacing: "0.03em" }}>{status.label}</Typography>
                   </Box>
+
+                  {hasBalanceDue && (
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography sx={{ fontSize: 11.5, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.05em", mb: 0.75, whiteSpace: "nowrap" }}>DUE DATE</Typography>
+                      <Box
+                        onClick={() => { setZone("FOOTER"); handleOpenDueDatePicker(); }}
+                        sx={{
+                          position: "relative",
+                          display: "flex", alignItems: "center", gap: 0.6,
+                          minWidth: 140, height: 33,
+                          px: 1.25,
+                          borderRadius: 1.5,
+                          border: "1px solid #E5E7EB",
+                          bgcolor: "#fff",
+                          cursor: "pointer",
+                          "&:hover": { borderColor: "#C8102E" },
+                        }}
+                      >
+                        <CalendarTodayIcon sx={{ fontSize: 14, color: "#6B7280" }} />
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "#111827" }}>
+                          {dueDate ? formatDateDisplay(dueDate) : "Select date"}
+                        </Typography>
+                        <input
+                          ref={dueDateInputRef}
+                          type="date"
+                          value={dueDate}
+                          onChange={(e) => setDueDate(e.target.value)}
+                          min={invoiceDate}
+                          style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
+                        />
+                      </Box>
+                    </Box>
+                  )}
                 </Box>
               </Paper>
             )}
 
           </Box>
 
-            {/* Note button (kept alongside payment/summary controls) */}
-            <Button onClick={() => setNoteModalOpen(true)} variant="outlined" startIcon={<NoteAltOutlinedIcon sx={{ fontSize: 14 }} />}
-              sx={{ justifyContent: "flex-start", borderRadius: 2, py: 0.85, px: 1.5, fontSize: 12, fontWeight: 700, color: hasNote ? "#16A34A" : "#6B7280", borderColor: hasNote ? "#86EFAC" : "#E5E7EB", borderWidth: hasNote ? 1.5 : 1, bgcolor: hasNote ? "#F0FDF4" : "#FAFAFA", "&:hover": { borderColor: "#6EE7B7", bgcolor: "#F0FDF4", color: "#16A34A" }, transition: "all 0.18s", textTransform: "none", gap: 0.5 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flex: 1 }}>
-                <span>Note</span>
-                <Box component="span" sx={{ fontSize: 9, opacity: 0.55 }}>[F7]</Box>
-              </Box>
-              {hasNote && <Chip label="Added" size="small" sx={{ height: 18, fontSize: 10, fontWeight: 700, bgcolor: "#DCFCE7", color: "#166534", border: "none", ml: 0.5 }} />}
-            </Button>
+            {/* Note + Preview row (kept alongside payment/summary controls) */}
+            <Box sx={{ display: "flex", gap: 1 }}>
+              {/* <Button onClick={() => setNoteModalOpen(true)} variant="outlined" startIcon={<NoteAltOutlinedIcon sx={{ fontSize: 14 }} />}
+                sx={{ flex: 1, minWidth: 0, justifyContent: "flex-start", borderRadius: 2, py: 0.85, px: 1.5, fontSize: 12, fontWeight: 700, color: hasNote ? "#16A34A" : "#6B7280", borderColor: hasNote ? "#86EFAC" : "#E5E7EB", borderWidth: hasNote ? 1.5 : 1, bgcolor: hasNote ? "#F0FDF4" : "#FAFAFA", "&:hover": { borderColor: "#6EE7B7", bgcolor: "#F0FDF4", color: "#16A34A" }, transition: "all 0.18s", textTransform: "none", gap: 0.5 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flex: 1 }}>
+                  <span>Note</span>
+                  <Box component="span" sx={{ fontSize: 9, opacity: 0.55 }}>[F7]</Box>
+                </Box>
+                {hasNote && <Chip label="Added" size="small" sx={{ height: 18, fontSize: 10, fontWeight: 700, bgcolor: "#DCFCE7", color: "#166534", border: "none", ml: 0.5 }} />}
+              </Button> */}
+
+              {/* Same outlined shape as Note so the pair reads as one row.
+                  An empty cart has nothing to preview, hence the disabled state. */}
+              <Button onClick={() => setPreviewOpen(true)} disabled={items.length === 0} variant="outlined" startIcon={<VisibilityOutlinedIcon sx={{ fontSize: 14 }} />}
+                sx={{ flex: 1, minWidth: 0, justifyContent: "flex-start", borderRadius: 2, py: 0.85, px: 1.5, fontSize: 12, fontWeight: 700, color: "#6B7280", borderColor: "#E5E7EB", bgcolor: "#FAFAFA", "&:hover": { borderColor: modeAccent, bgcolor: modeBg, color: modeAccent }, "&.Mui-disabled": { bgcolor: "#F9FAFB", color: "#C7CDD6", borderColor: "#EEF1F5" }, transition: "all 0.18s", textTransform: "none", gap: 0.5 }}>
+                Preview
+              </Button>
+            </Box>
 
             {/* PRINT + SAVE row */}
             <Box sx={{ display: "flex", gap: 1, alignItems: "stretch" }}>
@@ -2519,7 +2967,7 @@ console.log("test",serverHolds)
         <NoteModal open={noteModalOpen} onClose={() => setNoteModalOpen(false)} orderNote={orderNote} onApply={note => setOrderNote(note)} />
 
         {/* HOLD DIALOG */}
-        <Dialog open={holdDialogOpen} onClose={() => setHoldDialogOpen(false)} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: "16px", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" } }}>
+        <Dialog open={holdDialogOpen && holdEnabled} onClose={() => setHoldDialogOpen(false)} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: "16px", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" } }}>
           <Box sx={{ px: 3, py: 0.5, borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <Typography sx={{ fontSize: 18, fontWeight: 800 }}>Hold Orders</Typography>
             <IconButton onClick={() => setHoldDialogOpen(false)} sx={{ color: "#6B7280", "&:hover": { bgcolor: "#F3F4F6", color: "#111827" } }}><CloseIcon /></IconButton>

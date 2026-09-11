@@ -275,7 +275,10 @@ export interface InvoiceSettings {
   zodu_id: string;
   branch_id: string;
   invoice_prefix: string;
-  invoice_digit_count: number;
+  // Whether the prefix is applied. Absent on rows that predate the toggle —
+  // see InvoiceSettingsResponse in useInvoiceSettingApi.ts for how a missing
+  // flag is read. The suffix and its toggle live on the POS settings row.
+  invoice_prefix_enabled?: boolean;
   invoice_start_number: number;
   default_tax_label: string;
   invoice_due_days: number;
@@ -327,6 +330,10 @@ export interface PosSettings {
   branch_id?: string;
   pos_types?: string[];
   default_pos_type?: string;
+  // Whether POS shows the buyer's purchase-order number/date fields.
+  purchase_order_enabled?: boolean;
+  // Whether POS offers Hold/Recall. Treat a missing value as on.
+  hold_enabled?: boolean;
   active?: boolean;
   created_at?: string;
   updated_at?: string;

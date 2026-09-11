@@ -20,12 +20,12 @@ import CreditCardRoundedIcon from "@mui/icons-material/CreditCardRounded";
 import EventRoundedIcon from "@mui/icons-material/EventRounded";
 import PaymentsRoundedIcon from "@mui/icons-material/PaymentsRounded";
 import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
-import FormatListNumberedRoundedIcon from "@mui/icons-material/FormatListNumberedRounded";
 import TagRoundedIcon from "@mui/icons-material/TagRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
 import GroupRoundedIcon from "@mui/icons-material/GroupRounded";
 import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
+import PauseCircleOutlineRoundedIcon from "@mui/icons-material/PauseCircleOutlineRounded";
 import RequestQuoteOutlinedIcon from "@mui/icons-material/RequestQuoteOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import SuccessToast from "@components/Common/SuccessToast";
@@ -44,8 +44,13 @@ import {
   usePosSettings,
   useUpdatePosSettings,
   POS_TYPE_LABELS,
+  DEFAULT_QUOTATION_PREFIX,
+  DEFAULT_PROFORMA_PREFIX,
+  POS_PREFIX_MAX_LENGTH,
   type PosTypeLabel,
+  type PosSettingsResponse,
 } from "./usePosSettingApi";
+import DocSequenceDialog from "./DocSequenceDialog";
 
 const redTint = "#ca0022";
 const headingText = "#1d2533";
@@ -123,7 +128,7 @@ const POS_TYPE_CAPTIONS: Record<PosTypeLabel, string> = {
 
 interface PosSettings {
   invoicePrefix: string;
-  numberOfDigits: string;
+  invoicePrefixEnabled: boolean;
   invoiceStartNumber: string;
   defaultTax: string;
   invoiceDueDays: string;
@@ -136,7 +141,7 @@ interface PosSettings {
 function getDefaultPosSettings(): PosSettings {
   return {
     invoicePrefix: "INV",
-    numberOfDigits: "4",
+    invoicePrefixEnabled: true,
     invoiceStartNumber: "1",
     defaultTax: "GST18",
     invoiceDueDays: "15",
@@ -144,6 +149,33 @@ function getDefaultPosSettings(): PosSettings {
     posPaymentTypes: DEFAULT_POS_PAYMENT_TYPES,
     stockCheckEnabled: false,
     customerMandatory: false,
+  };
+}
+
+/**
+ * One sale type's id affixes. Grouped because the four values are always read,
+ * compared and sent together — and because Quotation and Proforma need the
+ * identical set.
+ */
+interface DocAffixes {
+  prefix: string;
+  prefixEnabled: boolean;
+  suffix: string;
+  suffixEnabled: boolean;
+}
+
+/** Matches the server's defaults: prefix on, suffix off and empty. */
+function defaultAffixes(prefix: string): DocAffixes {
+  return { prefix, prefixEnabled: true, suffix: "", suffixEnabled: false };
+}
+
+function toAffixes(row: PosSettingsResponse, kind: "quotation" | "proforma"): DocAffixes {
+  const fallback = kind === "quotation" ? DEFAULT_QUOTATION_PREFIX : DEFAULT_PROFORMA_PREFIX;
+  return {
+    prefix: row[`${kind}_prefix`] ?? fallback,
+    prefixEnabled: row[`${kind}_prefix_enabled`] !== false,
+    suffix: row[`${kind}_suffix`] ?? "",
+    suffixEnabled: row[`${kind}_suffix_enabled`] === true,
   };
 }
 
@@ -197,6 +229,105 @@ function SettingRow({ icon, iconBg = "#fdecef", iconColor = redTint, label, desc
         {children}
       </Box>
     </Box>
+  );
+}
+
+/**
+ * The prefix and suffix rows for one sale type. Quotation and Proforma need
+ * an identical pair, and duplicating four fields of JSX twice is how the two
+ * drift apart.
+ */
+function AffixRows({
+  label, iconBg, iconColor, value, defaultPrefix, textFieldSx, onChange,
+}: {
+  label: string;
+  iconBg: string;
+  iconColor: string;
+  value: DocAffixes;
+  defaultPrefix: string;
+  textFieldSx: object;
+  onChange: (next: DocAffixes) => void;
+}) {
+  return (
+    <>
+      <SettingRow
+        icon={<LabelOutlinedIcon fontSize="small" />}
+        iconBg={iconBg}
+        iconColor={iconColor}
+        label={`${label} Prefix`}
+        description={`Leading text on the ${label.toLowerCase()} ID`}
+      >
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Switch
+            checked={value.prefixEnabled}
+            onChange={(e) => onChange({ ...value, prefixEnabled: e.target.checked })}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            disabled={!value.prefixEnabled}
+            value={value.prefix}
+            onChange={(e) => onChange({ ...value, prefix: e.target.value.toUpperCase() })}
+            placeholder={defaultPrefix}
+            inputProps={{ maxLength: POS_PREFIX_MAX_LENGTH }}
+            sx={textFieldSx}
+          />
+        </Stack>
+      </SettingRow>
+
+      <Divider sx={{ borderColor: "#f4f5f8" }} />
+
+      <SuffixRow
+        label={label}
+        iconBg={iconBg}
+        iconColor={iconColor}
+        suffix={value.suffix}
+        enabled={value.suffixEnabled}
+        textFieldSx={textFieldSx}
+        onChange={(suffix, suffixEnabled) => onChange({ ...value, suffix, suffixEnabled })}
+      />
+    </>
+  );
+}
+
+/**
+ * One sale type's suffix row. Split out from AffixRows because Invoice needs
+ * it on its own: its prefix is still an invoice-settings field, while every
+ * suffix — Invoice's included — is stored on the POS settings row.
+ */
+function SuffixRow({
+  label, iconBg, iconColor, suffix, enabled, textFieldSx, onChange,
+}: {
+  label: string;
+  iconBg: string;
+  iconColor: string;
+  suffix: string;
+  enabled: boolean;
+  textFieldSx: object;
+  onChange: (suffix: string, enabled: boolean) => void;
+}) {
+  return (
+    <SettingRow
+      icon={<LabelOutlinedIcon fontSize="small" />}
+      iconBg={iconBg}
+      iconColor={iconColor}
+      label={`${label} Suffix`}
+      description="Include any separator, e.g. /26-27 · doesn't change generated IDs yet"
+    >
+      <Stack direction="row" spacing={1} alignItems="center">
+        <Switch checked={enabled} onChange={(e) => onChange(suffix, e.target.checked)} />
+        <TextField
+          fullWidth
+          size="small"
+          disabled={!enabled}
+          value={suffix}
+          onChange={(e) => onChange(e.target.value.toUpperCase(), enabled)}
+          placeholder="/26-27"
+          inputProps={{ maxLength: POS_PREFIX_MAX_LENGTH }}
+          sx={textFieldSx}
+        />
+      </Stack>
+    </SettingRow>
   );
 }
 
@@ -276,10 +407,35 @@ export default function PosSetting() {
   // always travel together (see saveSaleTypes).
   const [posTypes, setPosTypes] = useState<PosTypeLabel[]>(["Invoice"]);
   const [defaultPosType, setDefaultPosType] = useState<PosTypeLabel>("Invoice");
-  const posBaselineRef = useRef<{ posTypes: PosTypeLabel[]; defaultPosType: PosTypeLabel } | null>(null);
+  // Quotation and proforma number from their own affixes, stored on this same
+  // endpoint. The invoice pair lives on the invoice-settings row above.
+  const [quotationAffix, setQuotationAffix] = useState<DocAffixes>(() => defaultAffixes(DEFAULT_QUOTATION_PREFIX));
+  const [proformaAffix, setProformaAffix] = useState<DocAffixes>(() => defaultAffixes(DEFAULT_PROFORMA_PREFIX));
+  // The invoice suffix is stored here too, even though the invoice prefix is
+  // still an invoice-settings field — so the row in Invoice Numbering below
+  // saves on this endpoint rather than with its neighbours.
+  const [invoiceSuffix, setInvoiceSuffix] = useState({ suffix: "", enabled: false });
+  // Whether POS asks for the buyer's PO reference. A POS behaviour rather than
+  // a numbering one, but it is stored on the same /pos-settings row, so it
+  // rides along with that state, baseline and PUT.
+  const [purchaseOrderEnabled, setPurchaseOrderEnabled] = useState(false);
+  // Whether POS offers Hold/Recall. Defaults on: the buttons existed before
+  // this toggle did, so a branch that has never saved one keeps them.
+  const [holdEnabled, setHoldEnabled] = useState(true);
+  const posBaselineRef = useRef<{
+    posTypes: PosTypeLabel[];
+    defaultPosType: PosTypeLabel;
+    quotationAffix: DocAffixes;
+    proformaAffix: DocAffixes;
+    invoiceSuffix: { suffix: string; enabled: boolean };
+    purchaseOrderEnabled: boolean;
+    holdEnabled: boolean;
+  } | null>(null);
   // The server's own wording for a rejected combination — shown next to the
   // checkboxes rather than as a toast, since it names the offending field.
   const [posTypeError, setPosTypeError] = useState<string | null>(null);
+
+  const [seqDialogOpen, setSeqDialogOpen] = useState(false);
 
   const [saved, setSaved] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -296,7 +452,9 @@ export default function PosSetting() {
     if (data) {
       const ui: PosSettings = {
         invoicePrefix: data.invoice_prefix,
-        numberOfDigits: String(data.invoice_digit_count),
+        // No stored flag means the row predates the toggles: fall back to
+        // "on when there is text", which matches how it numbered before.
+        invoicePrefixEnabled: data.invoice_prefix_enabled ?? !!data.invoice_prefix,
         invoiceStartNumber: String(data.invoice_start_number),
         defaultTax: TAX_LABEL_TO_CODE[data.default_tax_label] ?? "GST18",
         invoiceDueDays: String(data.invoice_due_days),
@@ -314,9 +472,24 @@ export default function PosSetting() {
     if (posData) {
       setPosTypes(posData.pos_types);
       setDefaultPosType(posData.default_pos_type);
+      const quo = toAffixes(posData, "quotation");
+      const pro = toAffixes(posData, "proforma");
+      const inv = { suffix: posData.invoice_suffix ?? "", enabled: posData.invoice_suffix_enabled === true };
+      const po = posData.purchase_order_enabled === true;
+      const hold = posData.hold_enabled !== false;
+      setQuotationAffix(quo);
+      setProformaAffix(pro);
+      setInvoiceSuffix(inv);
+      setPurchaseOrderEnabled(po);
+      setHoldEnabled(hold);
       posBaselineRef.current = {
         posTypes: posData.pos_types,
         defaultPosType: posData.default_pos_type,
+        quotationAffix: quo,
+        proformaAffix: pro,
+        invoiceSuffix: inv,
+        purchaseOrderEnabled: po,
+        holdEnabled: hold,
       };
       setPosTypeError(null);
     }
@@ -330,7 +503,9 @@ export default function PosSetting() {
     onSuccess: (updated) => {
       const ui: PosSettings = {
         invoicePrefix: updated.invoice_prefix,
-        numberOfDigits: String(updated.invoice_digit_count),
+        // No stored flag means the row predates the toggles: fall back to
+        // "on when there is text", which matches how it numbered before.
+        invoicePrefixEnabled: updated.invoice_prefix_enabled ?? !!updated.invoice_prefix,
         invoiceStartNumber: String(updated.invoice_start_number),
         defaultTax: TAX_LABEL_TO_CODE[updated.default_tax_label] ?? "GST18",
         invoiceDueDays: String(updated.invoice_due_days),
@@ -356,9 +531,24 @@ export default function PosSetting() {
     onSuccess: (updated) => {
       setPosTypes(updated.pos_types);
       setDefaultPosType(updated.default_pos_type);
+      const quo = toAffixes(updated, "quotation");
+      const pro = toAffixes(updated, "proforma");
+      const inv = { suffix: updated.invoice_suffix ?? "", enabled: updated.invoice_suffix_enabled === true };
+      const po = updated.purchase_order_enabled === true;
+      const hold = updated.hold_enabled !== false;
+      setQuotationAffix(quo);
+      setProformaAffix(pro);
+      setInvoiceSuffix(inv);
+      setPurchaseOrderEnabled(po);
+      setHoldEnabled(hold);
       posBaselineRef.current = {
         posTypes: updated.pos_types,
         defaultPosType: updated.default_pos_type,
+        quotationAffix: quo,
+        proformaAffix: pro,
+        invoiceSuffix: inv,
+        purchaseOrderEnabled: po,
+        holdEnabled: hold,
       };
       setPosTypeError(null);
       // The POS screen renders its sale-type tabs from Redux (populated at
@@ -421,12 +611,32 @@ export default function PosSetting() {
     return selected;
   };
 
+  /**
+   * Sale types whose prefix now matches the invoice prefix. The backend allows
+   * it, so this is a warning and never blocks a save — but two types sharing a
+   * prefix means two documents can display the same id text (both "INV-144"),
+   * which is worth steering people away from.
+   */
+  const collidingPrefixes = (() => {
+    const invoice = settings.invoicePrefixEnabled ? settings.invoicePrefix.trim().toLowerCase() : "";
+    if (!invoice) return [];
+    const hits: string[] = [];
+    if (quotationAffix.prefixEnabled && quotationAffix.prefix.trim().toLowerCase() === invoice) hits.push("Quotation");
+    if (proformaAffix.prefixEnabled && proformaAffix.prefix.trim().toLowerCase() === invoice) hits.push("Proforma");
+    return hits;
+  })();
+
   const posTypesDirty = () => {
     const baseline = posBaselineRef.current;
     if (!baseline) return true;
     return (
       JSON.stringify(baseline.posTypes) !== JSON.stringify(posTypes) ||
-      baseline.defaultPosType !== defaultPosType
+      baseline.defaultPosType !== defaultPosType ||
+      JSON.stringify(baseline.quotationAffix) !== JSON.stringify(quotationAffix) ||
+      JSON.stringify(baseline.proformaAffix) !== JSON.stringify(proformaAffix) ||
+      JSON.stringify(baseline.invoiceSuffix) !== JSON.stringify(invoiceSuffix) ||
+      baseline.purchaseOrderEnabled !== purchaseOrderEnabled ||
+      baseline.holdEnabled !== holdEnabled
     );
   };
 
@@ -438,12 +648,27 @@ export default function PosSetting() {
     const saveSaleTypes = posTypesDirty();
     if (saveSaleTypes) {
       setPosTypeError(null);
-      savePosTypes({ pos_types: posTypes, default_pos_type: defaultPosType });
+      savePosTypes({
+        pos_types: posTypes,
+        default_pos_type: defaultPosType,
+        invoice_suffix: invoiceSuffix.suffix,
+        invoice_suffix_enabled: invoiceSuffix.enabled,
+        quotation_prefix: quotationAffix.prefix,
+        quotation_prefix_enabled: quotationAffix.prefixEnabled,
+        quotation_suffix: quotationAffix.suffix,
+        quotation_suffix_enabled: quotationAffix.suffixEnabled,
+        proforma_prefix: proformaAffix.prefix,
+        proforma_prefix_enabled: proformaAffix.prefixEnabled,
+        proforma_suffix: proformaAffix.suffix,
+        proforma_suffix_enabled: proformaAffix.suffixEnabled,
+        purchase_order_enabled: purchaseOrderEnabled,
+        hold_enabled: holdEnabled,
+      });
     }
 
     const fullPayload: UpdateInvoiceSettingsPayload = {
       invoice_prefix: settings.invoicePrefix,
-      invoice_digit_count: parseInt(settings.numberOfDigits, 10) || 4,
+      invoice_prefix_enabled: settings.invoicePrefixEnabled,
       invoice_start_number: parseInt(settings.invoiceStartNumber, 10) || 1,
       default_tax_label: TAX_CODE_TO_LABEL[settings.defaultTax] ?? settings.defaultTax,
       invoice_due_days: parseInt(settings.invoiceDueDays, 10) || 0,
@@ -461,7 +686,7 @@ export default function PosSetting() {
 
     const baselinePayload: UpdateInvoiceSettingsPayload = {
       invoice_prefix: baselineRef.current.invoicePrefix,
-      invoice_digit_count: parseInt(baselineRef.current.numberOfDigits, 10) || 4,
+      invoice_prefix_enabled: baselineRef.current.invoicePrefixEnabled,
       invoice_start_number: parseInt(baselineRef.current.invoiceStartNumber, 10) || 1,
       default_tax_label: TAX_CODE_TO_LABEL[baselineRef.current.defaultTax] ?? baselineRef.current.defaultTax,
       invoice_due_days: parseInt(baselineRef.current.invoiceDueDays, 10) || 0,
@@ -525,44 +750,85 @@ export default function PosSetting() {
         }}
       >
         <Stack spacing={2}>
-          <Section title="Invoice Numbering" subtitle="Configure the invoice ID format and sequence">
+          <Section title="Document Numbering" subtitle="Configure the ID format and sequence for each sale type">
+            {/* Each affix carries its own switch: turning one off keeps the
+                text on file, so a branch can drop a suffix for a season and
+                bring the same one back without retyping it. */}
             <SettingRow
               icon={<LabelOutlinedIcon fontSize="small" />}
               iconBg="#f0fdf4"
               iconColor="#16a34a"
               label="Invoice Prefix"
-              description="Prefix for invoice ID"
+              description="Leading text on the invoice ID"
             >
-              <TextField
-                fullWidth
-                size="small"
-                value={settings.invoicePrefix}
-                onChange={(e) => update("invoicePrefix", e.target.value.toUpperCase())}
-                placeholder="INV"
-                inputProps={{ maxLength: 20 }}
-                sx={textFieldSx}
-              />
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Switch
+                  checked={settings.invoicePrefixEnabled}
+                  onChange={(e) => update("invoicePrefixEnabled", e.target.checked)}
+                />
+                <TextField
+                  fullWidth
+                  size="small"
+                  disabled={!settings.invoicePrefixEnabled}
+                  value={settings.invoicePrefix}
+                  onChange={(e) => update("invoicePrefix", e.target.value.toUpperCase())}
+                  placeholder="INV"
+                  inputProps={{ maxLength: 20 }}
+                  sx={textFieldSx}
+                />
+              </Stack>
             </SettingRow>
 
             <Divider sx={{ borderColor: "#f4f5f8" }} />
 
-            <SettingRow
-              icon={<FormatListNumberedRoundedIcon fontSize="small" />}
+            {/* Sits with the invoice prefix, but saves on the POS settings
+                endpoint alongside the quotation and proforma suffixes — hence
+                its own state rather than `settings`. */}
+            <SuffixRow
+              label="Invoice"
+              iconBg="#fff7ed"
+              iconColor="#ea580c"
+              suffix={invoiceSuffix.suffix}
+              enabled={invoiceSuffix.enabled}
+              textFieldSx={textFieldSx}
+              onChange={(suffix, enabled) => { setInvoiceSuffix({ suffix, enabled }); setSaved(false); }}
+            />
+
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
+
+            {/* Quotation and proforma ids are numbered from their own affixes.
+                Same prefix/suffix + toggle shape as the invoice pair above,
+                and — like the invoice suffix — they save on the POS settings
+                endpoint rather than with the invoice settings. */}
+            <AffixRows
+              label="Quotation"
               iconBg="#eef4ff"
               iconColor="#2563eb"
-              label="Digit Count"
-              description="Coming soon — saved, but doesn't change invoice numbering yet"
-            >
-              <TextField
-                fullWidth
-                size="small"
-                type="number"
-                value={settings.numberOfDigits}
-                onChange={(e) => update("numberOfDigits", e.target.value)}
-                inputProps={{ min: 1, max: 10 }}
-                sx={textFieldSx}
-              />
-            </SettingRow>
+              value={quotationAffix}
+              defaultPrefix={DEFAULT_QUOTATION_PREFIX}
+              textFieldSx={textFieldSx}
+              onChange={(next) => { setQuotationAffix(next); setSaved(false); }}
+            />
+
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
+
+            <AffixRows
+              label="Proforma"
+              iconBg="#faf5ff"
+              iconColor="#7c3aed"
+              value={proformaAffix}
+              defaultPrefix={DEFAULT_PROFORMA_PREFIX}
+              textFieldSx={textFieldSx}
+              onChange={(next) => { setProformaAffix(next); setSaved(false); }}
+            />
+
+            {collidingPrefixes.length > 0 && (
+              <Alert severity="warning" sx={{ mb: 2, fontSize: 12, py: 0.25, alignItems: "center" }}>
+                {collidingPrefixes.join(" and ")} {collidingPrefixes.length > 1 ? "share" : "shares"}
+                {" "}the invoice prefix &ldquo;{settings.invoicePrefix.trim()}&rdquo;, so those documents
+                will show the same ID text. Allowed, but easy to mix up.
+              </Alert>
+            )}
 
             <Divider sx={{ borderColor: "#f4f5f8" }} />
 
@@ -582,6 +848,30 @@ export default function PosSetting() {
                 inputProps={{ min: 0 }}
                 sx={textFieldSx}
               />
+            </SettingRow>
+
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
+
+            {/* The live counter, not a setting: it is read and written on its
+                own endpoint and takes effect immediately, so it opens a dialog
+                with its own confirmation instead of riding on Save below. */}
+            <SettingRow
+              icon={<TagRoundedIcon fontSize="small" />}
+              iconBg="#fef2f2"
+              iconColor={redTint}
+              label="Correct Sequence"
+              description="Fix the running number when documents were skipped"
+            >
+              <Box sx={{ display: "flex", justifyContent: { xs: "flex-start", sm: "flex-end" } }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setSeqDialogOpen(true)}
+                  sx={{ textTransform: "none", fontWeight: 700, borderRadius: 1.5 }}
+                >
+                  Adjust numbering
+                </Button>
+              </Box>
             </SettingRow>
           </Section>
 
@@ -644,6 +934,40 @@ export default function PosSetting() {
                 <Switch
                   checked={settings.customerMandatory}
                   onChange={(e) => update("customerMandatory", e.target.checked)}
+                />
+              </Box>
+            </SettingRow>
+
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
+
+            <SettingRow
+              icon={<ReceiptLongRoundedIcon fontSize="small" />}
+              iconBg="#ecfdf5"
+              iconColor="#059669"
+              label="Purchase Order"
+              description="Capture the buyer's PO number and date in POS"
+            >
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Switch
+                  checked={purchaseOrderEnabled}
+                  onChange={(e) => { setPurchaseOrderEnabled(e.target.checked); setSaved(false); }}
+                />
+              </Box>
+            </SettingRow>
+
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
+
+            <SettingRow
+              icon={<PauseCircleOutlineRoundedIcon fontSize="small" />}
+              iconBg="#eff6ff"
+              iconColor="#2563eb"
+              label="Hold & Recall"
+              description="Let the cashier park a bill and pick it up again later"
+            >
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Switch
+                  checked={holdEnabled}
+                  onChange={(e) => { setHoldEnabled(e.target.checked); setSaved(false); }}
                 />
               </Box>
             </SettingRow>
@@ -900,6 +1224,12 @@ export default function PosSetting() {
           {isSaving || isSavingPosTypes ? "Saving..." : saved ? "Saved!" : "Save Changes"}
         </Button>
       </Box>
+
+      <DocSequenceDialog
+        open={seqDialogOpen}
+        onClose={() => setSeqDialogOpen(false)}
+        onSaved={(msg) => setSuccessMsg(msg)}
+      />
 
       <SuccessToast
         message={successMsg || ""}

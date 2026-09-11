@@ -643,6 +643,8 @@ export const ThermalInvoiceTemplate = React.forwardRef(
       gst_breakdown = [],
       sale_type,
       vehicle_no,
+      po_number,
+      po_date,
     } = data;
     const documentLabel = saleDocumentLabel(sale_type);
     // A transport copy travels with the goods, so it carries the vehicle number.
@@ -802,6 +804,14 @@ export const ThermalInvoiceTemplate = React.forwardRef(
         <div style={{ marginBottom: 4 }}>
           <ReceiptRow label={documentLabel === "Invoice" ? "Receipt #" : `${documentLabel} #`} value={String(sale_id ?? "")} fontSize={fs} tight={compact} />
           <ReceiptRow label="Date & Time" value={`${date ?? ""}  ${displayTime}`} fontSize={fs} tight={compact} />
+          {/* Only a B2B sale carries a purchase order, so the rows stay off
+              the roll unless one was entered. */}
+          {po_number && (
+            <ReceiptRow label="PO No" value={String(po_number)} fontSize={fs} tight={compact} />
+          )}
+          {po_date && (
+            <ReceiptRow label="PO Date" value={String(po_date)} fontSize={fs} tight={compact} />
+          )}
           {showPaymentDetails && payment_mode && (
             <ReceiptRow label="Payment Mode" value={String(payment_mode)} fontSize={fs} tight={compact} />
           )}

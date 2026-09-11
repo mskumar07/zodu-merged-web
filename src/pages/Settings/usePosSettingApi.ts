@@ -28,10 +28,40 @@ export interface PosSettingsResponse {
   branch_id: string;
   pos_types: PosTypeLabel[];
   default_pos_type: PosTypeLabel;
+  // Id affixes for the sale types. The invoice *prefix* is the one exception —
+  // it stays on the invoice-settings row — but every suffix, and the quotation
+  // and proforma prefixes, live here. All absent on rows that predate the
+  // fields; see the defaults below.
+  //
+  // The prefix toggles are live: off drops the prefix from the id entirely
+  // ("QUO-004" becomes "004"). The suffixes are stored but NOT yet applied to
+  // generated ids.
+  invoice_suffix?: string;
+  invoice_suffix_enabled?: boolean;
+  quotation_prefix?: string;
+  quotation_prefix_enabled?: boolean;
+  quotation_suffix?: string;
+  quotation_suffix_enabled?: boolean;
+  proforma_prefix?: string;
+  proforma_prefix_enabled?: boolean;
+  proforma_suffix?: string;
+  proforma_suffix_enabled?: boolean;
+  // Whether POS collects the buyer's purchase-order reference (number + date).
+  // Absent on rows that predate the toggle — treat that as off, since the
+  // fields are only meaningful for branches that sell B2B.
+  purchase_order_enabled?: boolean;
+  // Whether POS offers Hold/Recall. Absent on rows that predate the toggle —
+  // treat that as on, which is how POS behaved before it existed.
+  hold_enabled?: boolean;
   active: boolean;
   created_at?: string;
   updated_at?: string;
 }
+
+export const DEFAULT_QUOTATION_PREFIX = "QUO";
+export const DEFAULT_PROFORMA_PREFIX = "PRO";
+/** The server caps both at 20 characters. */
+export const POS_PREFIX_MAX_LENGTH = 20;
 
 // Both fields always travel together: the server checks `default_pos_type`
 // against the `pos_types` in the same request, falling back to the stored list
@@ -39,6 +69,18 @@ export interface PosSettingsResponse {
 export interface UpdatePosSettingsPayload {
   pos_types: PosTypeLabel[];
   default_pos_type: PosTypeLabel;
+  invoice_suffix?: string;
+  invoice_suffix_enabled?: boolean;
+  quotation_prefix?: string;
+  quotation_prefix_enabled?: boolean;
+  quotation_suffix?: string;
+  quotation_suffix_enabled?: boolean;
+  proforma_prefix?: string;
+  proforma_prefix_enabled?: boolean;
+  proforma_suffix?: string;
+  proforma_suffix_enabled?: boolean;
+  purchase_order_enabled?: boolean;
+  hold_enabled?: boolean;
 }
 
 // ─── Normalizing ──────────────────────────────────────────────
@@ -70,6 +112,28 @@ export function normalizePosSettings(raw: unknown): PosSettingsResponse {
     ...(row as unknown as PosSettingsResponse),
     pos_types: posTypes,
     default_pos_type: rawDefault && posTypes.includes(rawDefault) ? rawDefault : posTypes[0],
+    // A branch with no row yet, or one saved before these existed, numbers from
+    // the server's own defaults — mirror them so the settings form and the id
+    // preview agree before anything is ever saved. Both prefix toggles default
+    // on, matching the server.
+    invoice_suffix: typeof row.invoice_suffix === "string" ? row.invoice_suffix : "",
+    invoice_suffix_enabled: row.invoice_suffix_enabled === true,
+    quotation_prefix:
+      typeof row.quotation_prefix === "string" ? row.quotation_prefix : DEFAULT_QUOTATION_PREFIX,
+    quotation_prefix_enabled: row.quotation_prefix_enabled !== false,
+    quotation_suffix: typeof row.quotation_suffix === "string" ? row.quotation_suffix : "",
+    quotation_suffix_enabled: row.quotation_suffix_enabled === true,
+    proforma_prefix:
+      typeof row.proforma_prefix === "string" ? row.proforma_prefix : DEFAULT_PROFORMA_PREFIX,
+    proforma_prefix_enabled: row.proforma_prefix_enabled !== false,
+    proforma_suffix: typeof row.proforma_suffix === "string" ? row.proforma_suffix : "",
+    proforma_suffix_enabled: row.proforma_suffix_enabled === true,
+    // Off unless the row says otherwise: a branch that never asked for the PO
+    // fields shouldn't suddenly grow two of them at POS.
+    purchase_order_enabled: row.purchase_order_enabled === true,
+    // On unless the row says otherwise — Hold/Recall predates this toggle, so
+    // a branch that never saw it must keep the buttons it already has.
+    hold_enabled: row.hold_enabled !== false,
   };
 }
 

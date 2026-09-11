@@ -21,6 +21,7 @@ import ExpenseDetailDialog from "./ExpenseDetailDialog";
 import ExpenseStats from "./ExpenseStats";
 import CategoryTab from "@pages/MenuItemScreen/CategoryTab";
 import { useModulePermission } from "@hooks/useModulePermission";
+import { closeFromControlsOnly } from "@utils/dialog";
 
 const theme = createTheme({
   palette: {
@@ -473,7 +474,7 @@ export default function ExpenseScreen() {
           onEditSuccess={() => { setDetailExpenseId(null); refetch(); refetchSummary(); }}
         />
 
-        <Dialog open={!!deleteTarget} onClose={() => !isDeleting && setDeleteTarget(null)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+        <Dialog open={!!deleteTarget} onClose={closeFromControlsOnly(() => !isDeleting && setDeleteTarget(null))} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
           <DialogTitle sx={{ fontSize: 16, fontWeight: 700 }}>Delete Expense</DialogTitle>
           <DialogContent>
             <Typography sx={{ fontSize: 13, color: "#374151" }}>

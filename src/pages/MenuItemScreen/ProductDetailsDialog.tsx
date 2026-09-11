@@ -22,6 +22,7 @@ import LabelIcon from "@mui/icons-material/Label";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { useMenuItemDetail } from "./useMenuItemApi";
+import { closeFromControlsOnly } from "@utils/dialog";
 
 interface Props {
   open: boolean;
@@ -141,7 +142,7 @@ export default function ProductDetailsDialog({ open, itemUuid, onClose, onEdit, 
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={closeFromControlsOnly(onClose)}
       maxWidth="sm"
       fullWidth
       PaperProps={{

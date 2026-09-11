@@ -145,11 +145,13 @@ async function deleteHold(holdUuid: string): Promise<void> {
  * The dialog can call `refetch` manually when it opens to get
  * the very latest data immediately.
  */
-export function useHoldOrders(zoduId: string, branchId: string) {
+export function useHoldOrders(zoduId: string, branchId: string, enabled = true) {
   return useQuery({
     queryKey:             holdKeys.all(zoduId, branchId),
     queryFn:              () => fetchHolds(zoduId, branchId),
-    enabled:              !!zoduId && !!branchId,   // always on — badge stays live
+    // On by default so the badge stays live; a branch with Hold/Recall turned
+    // off in POS settings passes false rather than fetching a list it can't show.
+    enabled:              enabled && !!zoduId && !!branchId,
     staleTime:            0,                         // always refetch on focus/mount
     refetchOnWindowFocus: false,
     retry:                1,

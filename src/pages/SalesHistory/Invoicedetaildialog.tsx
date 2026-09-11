@@ -211,17 +211,24 @@ function SRow({
 // ─────────────────────────────────────────────────────────────
 interface Props {
   open?: boolean;
+  /**
+   * What the detail endpoint is addressed by: the row's `sale_uuid` for
+   * retail (unique across invoices, quotations and proformas, so no sale type
+   * is needed), or the order id for restaurant. Never the display `sale_id`.
+   */
   saleId: string;
   onClose: () => void;
   isRestaurant?: boolean;
   isCancelledTab?: boolean;
 }
 
-function getPosEditUrl(saleId: string | undefined, saleType: string | null | undefined): string {
+// POS reopens the sale through the detail endpoint, which takes sale_uuid.
+// saleType only picks the POS tab to open on; it is never sent to the API.
+function getPosEditUrl(saleUuid: string | undefined, saleType: string | null | undefined): string {
   const params = new URLSearchParams();
 
-  if (saleId) {
-    params.set("saleId", saleId);
+  if (saleUuid) {
+    params.set("saleUuid", saleUuid);
   }
   if (saleType) {
     params.set("saleType", saleType);
@@ -516,6 +523,9 @@ export default function InvoiceDetailsModal({
     sale_type:         sale?.sale_type,
     // Printed on the transport copy only; a blank rule when the sale has none.
     vehicle_no:        sale?.vehicle_no ?? null,
+    // The buyer's PO reference, so a reprint from here matches what POS printed.
+    po_number:         sale?.purchase_order_no ?? null,
+    po_date:           sale?.purchase_order_date_fmt ?? sale?.purchase_order_date ?? null,
     date:              sale?.sale_date_fmt,
     due_date:          null,
     customer_name:     customerName,
@@ -612,7 +622,7 @@ export default function InvoiceDetailsModal({
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           {!isRestaurant && !isCancelledTab && (
             <Tooltip title="Edit in POS">
-              <IconButton size="small" onClick={() => navigate(getPosEditUrl(sale?.sale_id, sale?.sale_type))}
+              <IconButton size="small" onClick={() => navigate(getPosEditUrl(sale?.sale_uuid, sale?.sale_type))}
                 sx={{ color: "#2563EB", bgcolor: "#EFF6FF", "&:hover": { bgcolor: "#DBEAFE" }, borderRadius: "50%", width: 32, height: 32 }}>
                 <EditIcon sx={{ fontSize: 16 }} />
               </IconButton>

@@ -1,7 +1,7 @@
 /**
  * MarkPaymentDialog.tsx
  * Payment collection form.
- * Calls POST /api/sales/:sale_id/payment via postMarkPayment.
+ * Calls POST /api/sales/:sale_uuid/payment via postMarkPayment.
  * On success → invalidates sales-history + sale detail cache → triggers refetch.
  */
 import { useState } from "react";
@@ -80,7 +80,7 @@ export default function MarkPaymentDialog({ sale, onClose, onSuccess }: Props) {
 
       // ✅ Invalidate the specific sale detail cache
       queryClient.invalidateQueries({
-        queryKey: salesQueryKeys.detail(sale.sale_id),
+        queryKey: salesQueryKeys.detail(sale.sale_uuid),
       });
 
       // ✅ Call parent's onSuccess so SalesHistoryPage can trigger its own refetch
@@ -110,7 +110,7 @@ export default function MarkPaymentDialog({ sale, onClose, onSuccess }: Props) {
     mutation.mutate({
       zodu_id:          getZoduId(),
       branch_id:        getBranchId(),
-      sale_id:          sale.sale_id,
+      sale_uuid:        sale.sale_uuid,
       paid_amount:      amount,
       transaction_type: form.transaction_type,
       transaction_id:   form.transaction_id || null,

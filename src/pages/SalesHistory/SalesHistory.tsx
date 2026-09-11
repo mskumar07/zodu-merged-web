@@ -105,8 +105,10 @@ function isFullyReturnedSale(sale: Sale): boolean {
   return totalAmount > 0 && totalReturned >= totalAmount - 0.01;
 }
 
+// POS reopens the sale through the detail endpoint, which takes sale_uuid.
+// saleType only picks the POS tab to open on; it is never sent to the API.
 function getPosEditUrl(sale: Sale): string {
-  const params = new URLSearchParams({ saleId: sale.sale_id });
+  const params = new URLSearchParams({ saleUuid: sale.sale_uuid });
   if (sale.sale_type) params.set("saleType", sale.sale_type);
   return `/pos?${params.toString()}`;
 }
@@ -232,7 +234,9 @@ export default function SalesHistoryPage() {
     setAppliedFilters(emptyFilters(activeTab === "cancelled"));
   };
 
-  const [invoiceDialog, setInvoiceDialog] = useState<string | null>(null);
+  // The id alone no longer identifies a sale: an invoice and a quotation can
+  // display the same text, so the row's type rides along to the lookup.
+  const [invoiceDialog, setInvoiceDialog] = useState<{ id: string } | null>(null);
   const [paymentDialog, setPaymentDialog] = useState<Sale   | null>(null);
   const [returnDialog,  setReturnDialog]  = useState<Sale   | null>(null);
   const [deleteDialog,  setDeleteDialog]  = useState<Sale   | null>(null);
@@ -279,7 +283,7 @@ export default function SalesHistoryPage() {
         <Typography
           fontWeight={600} color="#1976d2"
           sx={{ cursor: "pointer", fontSize: BODY_FONT_SIZE }}
-          onClick={() => setInvoiceDialog(isRestaurant ? sale.api_order_id! : sale.sale_id)}
+          onClick={() => setInvoiceDialog({ id: isRestaurant ? sale.api_order_id! : sale.sale_uuid })}
         >
           {isRestaurant ? (sale.public_order_no ?? sale.sale_id) : sale.sale_id}
         </Typography>
@@ -796,7 +800,7 @@ export default function SalesHistoryPage() {
 
       {/* Dialogs */}
       {invoiceDialog && (
-        <InvoiceDetailDialog saleId={invoiceDialog} onClose={() => setInvoiceDialog(null)} isRestaurant={isRestaurant} isCancelledTab={isCancelledTab} />
+        <InvoiceDetailDialog saleId={invoiceDialog.id} onClose={() => setInvoiceDialog(null)} isRestaurant={isRestaurant} isCancelledTab={isCancelledTab} />
       )}
 
       {paymentDialog && (
@@ -873,7 +877,7 @@ export default function SalesHistoryPage() {
               try {
                 const deleteId = isRestaurant
                   ? (deleteDialog.api_order_id ?? deleteDialog.sale_id)
-                  : deleteDialog.sale_id;
+                  : deleteDialog.sale_uuid;
                 await deleteSale(deleteId, isRestaurant, isRestaurant ? deleteDialog.items : undefined);
                 setDeleteDialog(null);
                 refetch();

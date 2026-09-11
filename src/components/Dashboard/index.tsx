@@ -417,6 +417,10 @@ function stockStatusBadge(status: string) {
 type SaleRow = {
   sale_uuid: string; sale_id: string; sale_date: string; sale_time: string;
   total_amount: string; payment_status: string; customer_name: string;
+  // Pins the detail lookup to the right record now that two sale types can
+  // share an id text. Absent on a response that predates the field, in which
+  // case the lookup falls back to its old "most recent match" behaviour.
+  sale_type?: string | null;
 };
 
 // Restaurant Orders
@@ -543,7 +547,7 @@ export default function DashboardLayout() {
   const remindQuery       = useReminders(zoduId, branchId, businessType ?? "", 20);
   const alertQuery        = useInventoryAlerts(zoduId, branchId, businessType ?? "");
   const ordersQuery       = useOrders(zoduId, branchId, isRestaurant);
-  const [invoiceDialog, setInvoiceDialog] = useState<string | null>(null);
+  const [invoiceDialog, setInvoiceDialog] = useState<{ id: string } | null>(null);
 
   // A sale rung up in another tab of this browser — the till beside the
   // manager's dashboard — refreshes these figures at once, rather than leaving
@@ -576,13 +580,14 @@ export default function DashboardLayout() {
   const loadMoreOrders   = useCallback(() => ordersQuery.fetchNextPage(),  [ordersQuery]);
 
 
-  const handleInvoice = (saleId: string) => setInvoiceDialog(saleId);
+  // Opened by sale_uuid — the detail endpoint's address, not the display id.
+  const handleInvoice = (saleUuid: string) => setInvoiceDialog({ id: saleUuid });
 
 const salesCols: ColDef<SaleRow>[] = [
   { key: "date",     label: "Date",       minWidth: 110,
     render: r => <Typography sx={{ fontSize: 12, color: "#64748B" }}>{r.sale_date} {r.sale_time}</Typography> },
   { key: "inv",      label: "Invoice ID", minWidth: 100,
-    render: r => <Typography onClick={() => handleInvoice(r.sale_id)} sx={{ fontSize: 12, fontWeight: 600, color: "#1976d2",cursor:"pointer" }}>{r.sale_id}</Typography> },
+    render: r => <Typography onClick={() => handleInvoice(r.sale_uuid)} sx={{ fontSize: 12, fontWeight: 600, color: "#1976d2",cursor:"pointer" }}>{r.sale_id}</Typography> },
   { key: "customer", label: "Customer",
     render: r => <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{r.customer_name || "—"}</Typography> },
   { key: "amount",   label: "Amount", align: "right",
@@ -816,7 +821,7 @@ const salesCols: ColDef<SaleRow>[] = [
         </Box>
       </Box>
           {invoiceDialog && (
-        <InvoiceDetailsModal saleId={invoiceDialog} onClose={() => setInvoiceDialog(null)} />
+        <InvoiceDetailsModal saleId={invoiceDialog.id} onClose={() => setInvoiceDialog(null)} />
       )}
     </ThemeProvider>
   );
