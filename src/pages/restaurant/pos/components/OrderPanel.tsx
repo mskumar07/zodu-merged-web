@@ -12,6 +12,10 @@ import PauseCircleOutlineIcon from "@mui/icons-material/PauseCircleOutline";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
 import QrCode2Icon from "@mui/icons-material/QrCode2";
 import MoneyIcon from "@mui/icons-material/Money";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
+import ReceiptIcon from "@mui/icons-material/Receipt";
+import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import KitchenIcon from "@mui/icons-material/Kitchen";
 import EditIcon from "@mui/icons-material/Edit";
 import CloseIcon from "@mui/icons-material/Close";
@@ -30,6 +34,8 @@ export interface Totals {
   grandTotal: number;
 }
 
+export type PaymentMethod = "Card" | "QR" | "Cash" | "UPI" | "UPI + Cash" | "Cheque" | "Bank Transfer" | "Others";
+
 interface Props {
   order: RestaurantOrder;
   cartItems: RestaurantCartItem[];
@@ -42,7 +48,10 @@ interface Props {
   onCustomerClick: () => void;
   onOrderTypeChange: (key: "DineIn" | "Delivery" | "PickUp") => void;
   onDiscountClick: () => void;
-  onPaymentMethodChange: (method: "Card" | "QR" | "Cash") => void;
+  onPaymentMethodChange: (method: PaymentMethod) => void;
+  // Which payment buttons to show, in order — driven by POS Settings' Payment
+  // Types picker. Falls back to the original Card/QR/Cash trio when omitted.
+  enabledPaymentTypes?: PaymentMethod[];
   onSendToKDS: () => void;
   onPaid: () => void;
   onIncrement: (item: RestaurantCartItem) => void;
@@ -59,15 +68,21 @@ interface Props {
   onClearCart: () => void;
 }
 
-const PAYMENT_METHODS: Array<{
-  key: "Card" | "QR" | "Cash";
+const ALL_PAYMENT_METHODS: Array<{
+  key: PaymentMethod;
   label: string;
   icon: React.ReactNode;
 }> = [
-  { key: "Card", label: "Card", icon: <CreditCardIcon sx={{ fontSize: 15 }} /> },
-  { key: "QR",   label: "QR",   icon: <QrCode2Icon sx={{ fontSize: 15 }} /> },
-  { key: "Cash", label: "Cash", icon: <MoneyIcon sx={{ fontSize: 15 }} /> },
+  { key: "Card",          label: "Card",          icon: <CreditCardIcon sx={{ fontSize: 15 }} /> },
+  { key: "Cash",          label: "Cash",           icon: <MoneyIcon sx={{ fontSize: 15 }} /> },
+  { key: "UPI",           label: "UPI",            icon: <QrCode2Icon sx={{ fontSize: 15 }} /> },
+  { key: "UPI + Cash",    label: "UPI + Cash",     icon: <AccountBalanceWalletIcon sx={{ fontSize: 15 }} /> },
+  { key: "Cheque",        label: "Cheque",         icon: <ReceiptIcon sx={{ fontSize: 15 }} /> },
+  { key: "Bank Transfer", label: "Bank Transfer",  icon: <AccountBalanceIcon sx={{ fontSize: 15 }} /> },
+  { key: "Others",        label: "Others",         icon: <MoreHorizIcon sx={{ fontSize: 15 }} /> },
 ];
+
+const DEFAULT_PAYMENT_TYPES: PaymentMethod[] = ["Card", "Cash"];
 
 const ORDER_TYPES: Array<{
   key: "DineIn" | "Delivery" | "PickUp";
@@ -82,7 +97,7 @@ const ORDER_TYPES: Array<{
 const OrderPanel: React.FC<Props> = ({
   order, cartItems, totals, isLoading, orderSummary, runningOrderTotal, runningOrderTotals,
   onTableClick, onCustomerClick, onOrderTypeChange, onDiscountClick,
-  onPaymentMethodChange, onSendToKDS, onPaid,
+  onPaymentMethodChange, enabledPaymentTypes, onSendToKDS, onPaid,
   onIncrement, onDecrement, onRemove, onHold,
   isEditingSummary, onEditSummary, onCancelEditSummary,
   onSummaryIncrement, onSummaryDecrement, onSummaryRemove, onSendEditedKDS,
@@ -640,28 +655,30 @@ const OrderPanel: React.FC<Props> = ({
 
       {/* ── Payment method: non-DineIn always, DineIn only on Summary tab with KOT data (hidden while editing) ── */}
       {!isEditingSummary && (!isDineIn || (isDineIn && activeTab === "summary" && orderSummary.length > 0)) && (
-        <Box sx={{ px: 1.5, py: 1, borderTop: "1px solid #f3f4f6", display: "flex", gap: 0.8, flexShrink: 0 }}>
-          {PAYMENT_METHODS.map((pm) => {
-            const active = order.paymentMethod === pm.key;
-            return (
-              <Box
-                key={pm.key}
-                onClick={() => onPaymentMethodChange(pm.key)}
-                sx={{
-                  flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-                  gap: 0.5, py: 0.7, borderRadius: "8px",
-                  border:  active ? "1.5px solid #d32f2f" : "1.5px solid #e5e7eb",
-                  bgcolor: active ? "#fff5f5" : "#fff",
-                  color:   active ? "#d32f2f" : "#6b7280",
-                  cursor: "pointer", transition: "all 0.15s",
-                  "&:hover": { border: "1.5px solid #fca5a5", bgcolor: "#fef2f2" },
-                }}
-              >
-                {pm.icon}
-                <Typography sx={{ fontSize: "0.68rem", fontWeight: active ? 700 : 400 }}>{pm.label}</Typography>
-              </Box>
-            );
-          })}
+        <Box sx={{ px: 1.5, py: 1, borderTop: "1px solid #f3f4f6", display: "flex", flexWrap: "wrap", gap: 0.8, flexShrink: 0 }}>
+          {ALL_PAYMENT_METHODS
+            .filter((pm) => (enabledPaymentTypes ?? DEFAULT_PAYMENT_TYPES).includes(pm.key))
+            .map((pm) => {
+              const active = order.paymentMethod === pm.key;
+              return (
+                <Box
+                  key={pm.key}
+                  onClick={() => onPaymentMethodChange(pm.key)}
+                  sx={{
+                    flex: "1 1 auto", minWidth: 84, display: "flex", alignItems: "center", justifyContent: "center",
+                    gap: 0.5, py: 0.7, px: 1, borderRadius: "8px",
+                    border:  active ? "1.5px solid #d32f2f" : "1.5px solid #e5e7eb",
+                    bgcolor: active ? "#fff5f5" : "#fff",
+                    color:   active ? "#d32f2f" : "#6b7280",
+                    cursor: "pointer", transition: "all 0.15s",
+                    "&:hover": { border: "1.5px solid #fca5a5", bgcolor: "#fef2f2" },
+                  }}
+                >
+                  {pm.icon}
+                  <Typography sx={{ fontSize: "0.68rem", fontWeight: active ? 700 : 400, whiteSpace: "nowrap" }}>{pm.label}</Typography>
+                </Box>
+              );
+            })}
         </Box>
       )}
 

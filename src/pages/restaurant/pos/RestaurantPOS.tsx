@@ -51,7 +51,8 @@ import {
 
 import CategoryNav          from "./components/CategoryNav";
 import ProductCard          from "./components/ProductCard";
-import OrderPanel, { type Totals } from "./components/OrderPanel";
+import OrderPanel, { type Totals, type PaymentMethod } from "./components/OrderPanel";
+import { toPaymentTypeLabels } from "@pages/Settings/useInvoiceSettingApi";
 import TableModal           from "./components/modals/TableModal";
 import VariantModal         from "./components/modals/VariantModal";
 import DiscountModal        from "./components/modals/DiscountModal";
@@ -157,6 +158,14 @@ const RestaurantPOS: React.FC = () => {
 
   const invoiceSettings = useAppSelector(InvoiceSettingsData);
 
+  // Which payment buttons the billing panel shows, driven by POS Settings' Payment
+  // Types picker (payment_types) — same source retail POS reads from. Falls back to
+  // Card/Cash when unset, since a branch may predate this field.
+  const enabledPaymentTypes = useMemo<PaymentMethod[]>(() => {
+    const labels = toPaymentTypeLabels(invoiceSettings?.payment_types);
+    return labels.length > 0 ? (labels as PaymentMethod[]) : ["Card", "Cash"];
+  }, [invoiceSettings?.payment_types]);
+
   // ── State ────────────────────────────────────────────────────────────────
   const [order,        setOrder       ] = useState<RestaurantOrder>(buildInitialOrder());
   const [cartItems,    setCartItems   ] = useState<RestaurantCartItem[]>([]);
@@ -183,14 +192,17 @@ const RestaurantPOS: React.FC = () => {
 
   // Seed the default payment method from invoice settings once loaded, without
   // overriding a method the user has already picked for the current order.
+  // Only seeds when the default is actually one of the buttons shown at
+  // checkout (e.g. "QR" can still be picked in Settings but has no billing
+  // panel button) — otherwise the order stays on the safe Cash default.
   useEffect(() => {
-    const defaultMethod = invoiceSettings?.default_payment_method;
-    if (defaultMethod === "Card" || defaultMethod === "QR" || defaultMethod === "Cash") {
+    const defaultMethod = invoiceSettings?.default_payment_method as PaymentMethod | undefined;
+    if (defaultMethod && enabledPaymentTypes.includes(defaultMethod)) {
       setOrder((prev) =>
         prev.paymentMethod === "Cash" ? { ...prev, paymentMethod: defaultMethod } : prev
       );
     }
-  }, [invoiceSettings]);
+  }, [invoiceSettings, enabledPaymentTypes]);
 
   // ── Auto-scroll refs ─────────────────────────────────────────────────────
   const menuScrollRef    = useRef<HTMLDivElement>(null);
@@ -691,7 +703,7 @@ const RestaurantPOS: React.FC = () => {
     }
   };
 
-  const handlePay = async (payMethod: "Card" | "QR" | "Cash") => {
+  const handlePay = async (payMethod: PaymentMethod) => {
     try {
       if (order.orderType === "DineIn") {
         if (!order.tableNumber) { setErrorMsg("Select a table first"); return; }
@@ -1191,10 +1203,10 @@ const RestaurantPOS: React.FC = () => {
                         key={item.menu_id}
                         item={item}
                         qty={getCartQty(item.menu_id)}
-                        onAdd={() => handleProductClick(item)}
-                        onIncrement={() => incrementByProduct(item)}
-                        onDecrement={() => decrementByProduct(item)}
-                        onSetQty={(n) => setQtyByProduct(item, n)}
+                        onAdd={handleProductClick}
+                        onIncrement={incrementByProduct}
+                        onDecrement={decrementByProduct}
+                        onSetQty={setQtyByProduct}
                       />
                     ))}
                   </Box>
@@ -1330,6 +1342,7 @@ const RestaurantPOS: React.FC = () => {
           }
           onDiscountClick={() => setShowDiscount(true)}
           onPaymentMethodChange={(m) => setOrder((p) => ({ ...p, paymentMethod: m }))}
+          enabledPaymentTypes={enabledPaymentTypes}
           onSendToKDS={handleSendToKDS}
           onPaid={() => handlePay(order.paymentMethod)}
           onIncrement={incrementCart}

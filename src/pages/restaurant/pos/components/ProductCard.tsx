@@ -7,10 +7,10 @@ import { getItemPrice } from "../api/restaurantPosApi";
 interface Props {
   item: RestaurantMenuItem;
   qty: number;
-  onAdd: () => void;
-  onIncrement: () => void;
-  onDecrement: () => void;
-  onSetQty?: (qty: number) => void;
+  onAdd: (item: RestaurantMenuItem) => void;
+  onIncrement: (item: RestaurantMenuItem) => void;
+  onDecrement: (item: RestaurantMenuItem) => void;
+  onSetQty?: (item: RestaurantMenuItem, qty: number) => void;
 }
 
 const FOOD_TYPE: Record<string, { dot: string; bg: string }> = {
@@ -53,7 +53,7 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
   function commitInput() {
     const parsed = parseInt(inputVal, 10);
     if (!isNaN(parsed) && parsed > 0) {
-      onSetQty?.(parsed);
+      onSetQty?.(item, parsed);
     } else {
       setInputVal(String(qty));
     }
@@ -61,7 +61,7 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
 
   return (
     <Box
-      onClick={() => { if (!isUnavailable) { setAttemptedAdd(true); onAdd(); } }}
+      onClick={() => { if (!isUnavailable) { setAttemptedAdd(true); onAdd(item); } }}
       sx={{
         bgcolor:       "#fff",
         borderRadius:  "12px",
@@ -271,7 +271,7 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
                 }}
               >
                 <Box
-                  onClick={() => onDecrement()}
+                  onClick={() => onDecrement(item)}
                   sx={{
                     width:          30,
                     height:         "100%",
@@ -318,7 +318,7 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
                 />
 
                 <Box
-                  onClick={() => onIncrement()}
+                  onClick={() => onIncrement(item)}
                   sx={{
                     width:          30,
                     height:         "100%",
@@ -340,7 +340,7 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
             ) : (
               /* Add button — same width as stepper */
               <Box
-                onClick={e => { e.stopPropagation(); setAttemptedAdd(true); onAdd(); }}
+                onClick={e => { e.stopPropagation(); setAttemptedAdd(true); onAdd(item); }}
                 sx={{
                   display:        "flex",
                   alignItems:     "center",
@@ -371,4 +371,7 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
   );
 };
 
-export default ProductCard;
+// Memoized: the menu grid can hold hundreds of these, and only the item/qty
+// props actually change per card — everything else (order type, cart totals,
+// panel state) lives in sibling components and shouldn't force a re-render here.
+export default React.memo(ProductCard);
