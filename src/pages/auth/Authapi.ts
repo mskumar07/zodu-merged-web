@@ -493,6 +493,15 @@ export const authApis = {
       api.put(`/auth/api/branch/edit/${zoduId}/${branchId}`, payload)
     ),
 
+  // DELETE /auth/api/branch/:zodu_id/:branch_id — cascades across every service
+  // (retail, restaurant, employee, payroll, checklist, auth) and cannot be undone.
+  // On a mid-purge failure the backend stops safely and reports which services
+  // already had their rows removed via `partial_results`.
+  deleteBranch: (zoduId: string, branchId: string) =>
+    unwrap<{ message?: string; results?: unknown }>(
+      api.delete(`/auth/api/branch/${zoduId}/${branchId}`)
+    ),
+
   // GET /auth/api/role-access?zodu_id=...&branch_id=... — called once a branch is
   // selected, since permissions are scoped per zodu_id + branch_id rather than
   // returned with the login response.

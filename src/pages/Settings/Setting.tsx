@@ -50,13 +50,16 @@ import {
   type CompanyWithBranches,
 } from "@pages/auth/Authapi";
 import BranchFormModal, { type BranchFormData } from "./BranchFormModal";
+import DeleteBranchDialog from "./DeleteBranchDialog";
 import BusinessFormModal, { type BusinessFormData } from "./CompanyFormModal";
 import InvoiceSetting from "./InvoiceSetting";
+import RestaurantInvoiceSetting from "./RestaurantInvoiceSetting";
 import PosSetting from "./PosSetting";
+import RestaurantPosSetting from "./RestaurantPosSetting";
 import RoleManagement from "@pages/auth/Role/RoleManagement";
-import { useAppDispatch } from "@store/store";
+import { useAppDispatch, useAppSelector } from "@store/store";
 import { useModulePermission } from "@hooks/useModulePermission";
-import { setCompanies } from "@store/slices/userSlice";
+import { setCompanies, BusinessType } from "@store/slices/userSlice";
 
 const PHONE_REGEX = /^[0-9]{10}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -251,6 +254,7 @@ export default function Setting() {
   const { canCreate, canEdit, canDelete } = useModulePermission("Settings");
   const queryClient = useQueryClient();
   const dispatch = useAppDispatch();
+  const businessType = useAppSelector(BusinessType);
   const [activeTab, setActiveTab] = useState<SettingsTab>("company");
   const [expandedCompanyIds, setExpandedCompanyIds] = useState<string[]>([]);
   const [branchModalOpen, setBranchModalOpen] = useState(false);
@@ -262,6 +266,9 @@ export default function Setting() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [viewingCompany, setViewingCompany] = useState<CompanyWithBranches | null>(null);
   const [viewingBranch, setViewingBranch] = useState<Branch | null>(null);
+  const [deletingBranch, setDeletingBranch] = useState<Branch | null>(null);
+  const [deleteBranchCompanyId, setDeleteBranchCompanyId] = useState<string>("");
+  const [deleteBranchCompanyName, setDeleteBranchCompanyName] = useState<string>("");
 // Find the company object when opening the branch modal
   const openAddBranch = (companyId: string) => {
     setEditingBranch(null);
@@ -280,7 +287,20 @@ export default function Setting() {
     setBranchModalOpen(false);
     setEditingBranch(null);
   };
-  
+
+  const openDeleteBranch = (branch: Branch, companyId: string, companyName: string) => {
+    setDeletingBranch(branch);
+    setDeleteBranchCompanyId(companyId);
+    setDeleteBranchCompanyName(companyName);
+  };
+
+  const closeDeleteBranch = () => {
+    if (deleteBranchMutation.isPending) return;
+    setDeletingBranch(null);
+    setDeleteBranchCompanyId("");
+    setDeleteBranchCompanyName("");
+  };
+
   const openAddCompany = () => {
     setEditingCompany(null);
     setCompanyModalOpen(true);
@@ -365,6 +385,22 @@ export default function Setting() {
     },
     onError: (error: Error) => {
       setSubmitError(error.message || "Unable to update branch.");
+    },
+  });
+
+  const deleteBranchMutation = useMutation({
+    mutationFn: (params: { zoduId: string; branchId: string }) =>
+      authApis.deleteBranch(params.zoduId, params.branchId),
+    onSuccess: async (data) => {
+      await queryClient.invalidateQueries({ queryKey: ["settings", "companies"] });
+      closeDeleteBranch();
+      setSuccessMessage(data?.message || "Branch deleted successfully.");
+    },
+    onError: (error: any) => {
+      closeDeleteBranch();
+      setSubmitError(
+        error?.response?.data?.error || error?.message || "Unable to delete branch. Please try again."
+      );
     },
   });
 
@@ -1106,7 +1142,14 @@ export default function Setting() {
                                         </Tooltip>
                                         <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"}>
                                           <span>
-                                            <IconButton size="small" disabled={!canDelete} sx={{ color: "#D2122E", "&:hover": { bgcolor: "#D2122E22" } }}>
+                                            <IconButton
+                                              size="small"
+                                              disabled={!canDelete}
+                                              sx={{ color: "#D2122E", "&:hover": { bgcolor: "#D2122E22" } }}
+                                              onClick={() =>
+                                                openDeleteBranch(branch, company.zodu_id, company.company_name ?? "")
+                                              }
+                                            >
                                               <DeleteOutlineRoundedIcon fontSize="small" />
                                             </IconButton>
                                           </span>
@@ -1213,9 +1256,9 @@ export default function Setting() {
             </Stack>
           ))}
 
-          {activeTab === "invoice" && <InvoiceSetting />}
+          {activeTab === "invoice" && (businessType === "Restaurant" ? <RestaurantInvoiceSetting /> : <InvoiceSetting />)}
 
-          {activeTab === "pos" && <PosSetting />}
+          {activeTab === "pos" && (businessType === "Restaurant" ? <RestaurantPosSetting /> : <PosSetting />)}
 
           {/* {activeTab === "user" && (
             <Paper
@@ -1251,6 +1294,21 @@ export default function Setting() {
           )}
         </Stack>
       </Box>
+
+<DeleteBranchDialog
+  open={Boolean(deletingBranch)}
+  branch={deletingBranch}
+  companyName={deleteBranchCompanyName}
+  loading={deleteBranchMutation.isPending}
+  onClose={closeDeleteBranch}
+  onConfirm={() => {
+    if (!deletingBranch) return;
+    deleteBranchMutation.mutate({
+      zoduId: deleteBranchCompanyId,
+      branchId: deletingBranch.branch_id,
+    });
+  }}
+/>
 
 <BranchFormModal
   open={branchModalOpen}

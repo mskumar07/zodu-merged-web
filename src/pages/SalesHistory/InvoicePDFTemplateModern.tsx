@@ -307,8 +307,12 @@ export const InvoicePDFTemplateModern = React.forwardRef(({ data, settingsOverri
     ["IFSC", co.branchIfsc],
   ] as Array<[string, string]>).filter(([, value]) => hasValue(value));
 
-  const statusLabel = payment_status === "fully_paid" || !payment_status ? "PAID" : String(payment_status).toUpperCase();
-  const statusColors = payment_status === "unpaid" || payment_status === "pending"
+  const statusLabel = payment_status === false
+    ? "UNPAID"
+    : payment_status === "fully_paid" || payment_status === true || payment_status == null || payment_status === ""
+    ? "PAID"
+    : String(payment_status).toUpperCase();
+  const statusColors = payment_status === "unpaid" || payment_status === "pending" || payment_status === false
     ? { background: "#FEF3C7", color: "#D97706" }
     : payment_status === "partial"
     ? { background: "#FEF9C3", color: "#CA8A04" }

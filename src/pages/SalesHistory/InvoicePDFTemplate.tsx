@@ -551,13 +551,17 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
             <div style={{ ...styles.paymentCol, marginTop: "10px" }}>
               <span style={{
                 ...styles.paidBadge,
-                ...(payment_status === "unpaid" || payment_status === "pending"
+                ...(payment_status === "unpaid" || payment_status === "pending" || payment_status === false
                   ? { background: "#FEF3C7", color: "#D97706" }
                   : payment_status === "partial"
                   ? { background: "#FEF9C3", color: "#CA8A04" }
                   : {}),
               }}>
-                {payment_status === "fully_paid" || !payment_status ? "PAID" : payment_status.toUpperCase()}
+                {payment_status === false
+                  ? "UNPAID"
+                  : payment_status === "fully_paid" || payment_status === true || payment_status == null || payment_status === ""
+                  ? "PAID"
+                  : String(payment_status).toUpperCase()}
               </span>
               <p style={styles.paymentMode}>Payment Mode: {payment_mode}</p>
             </div>
