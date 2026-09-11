@@ -1,7 +1,9 @@
 import React, {
   useState, useMemo, useCallback, useRef, useEffect,
 } from "react";
+import { flushSync } from "react-dom";
 import LottieLoader from "@components/LottieLoader";
+import { ThermalInvoiceTemplate, type ThermalPaperSize } from "@pages/SalesHistory/ThermalInvoiceTemplate";
 import {
   Box, Typography, TextField, InputAdornment, Chip, CircularProgress, Divider,
 } from "@mui/material";
@@ -13,18 +15,19 @@ import RestoreIcon from "@mui/icons-material/Restore";
 import type { HoldOrder, RunningOrder, RunningOrderOrderedItem } from "./api/restaurantPosApi";
 import TableBarIcon from "@mui/icons-material/TableBar";
 import SuccessToast from "@components/Common/SuccessToast";
-import HardwareScannerInput from "@components/Common/HardwareScannerInput";
 import CameraBarcodeScanner from "@components/Common/CameraBarcodeScanner";
 import { useHardwareScannerListener } from "@components/Common/useHardwareScannerListener";
 import { isMobileOrTabletDevice } from "@components/Common/deviceType";
 import CameraAltOutlinedIcon from "@mui/icons-material/CameraAltOutlined";
+import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
+import CloseIcon from "@mui/icons-material/Close";
 import zoduLogo from "@assets/zlogo.png";
 
 import { useAppSelector } from "../../../store/store";
 import { BranchId, ZoduId, BranchName, AllCompanies, UserProfile, addUserData, setRoleAccess, InvoiceSettingsData } from "@store/slices/userSlice";
 import { authApis } from "@pages/auth/Authapi";
 import { useAppDispatch } from "@store/store";
-import { MenuItem, Select, IconButton, Avatar, Badge } from "@mui/material";
+import { MenuItem, Select, IconButton, Avatar, Badge, Tooltip } from "@mui/material";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 
 import {
@@ -93,6 +96,51 @@ function buildInitialOrder(): RestaurantOrder {
     paymentMethod: "Cash",
     notes:         "",
   };
+}
+
+// ─── Receipt printing ───────────────────────────────────────────────────────
+
+// Per-device preference for printing the bill automatically once a payment succeeds.
+const AUTO_PRINT_STORAGE_KEY = "restaurantPos.autoPrint";
+
+function readAutoPrintPref(): boolean {
+  try {
+    return localStorage.getItem(AUTO_PRINT_STORAGE_KEY) !== "false";
+  } catch {
+    return true;
+  }
+}
+
+// printer_inch is stored as "3 Inch" / "5 Inch" (Restaurant Invoice Settings only offers
+// thermal widths); anything unrecognised falls back to the 3" roll.
+function toThermalPaperSize(printerInch: string | undefined): ThermalPaperSize {
+  if (printerInch?.startsWith("4")) return "4";
+  if (printerInch?.startsWith("5")) return "5";
+  return "3";
+}
+
+// Printable widths (roll width minus hardware margins) — same values retail POS prints at.
+const RECEIPT_WIDTH_MM: Record<ThermalPaperSize, number> = { "3": 72, "4": 96, "5": 120 };
+
+// One bill line, normalised from either a cart item or an already-sent KOT item.
+interface ReceiptLine {
+  itemId:    string;
+  name:      string;
+  variant:   string | null;
+  qty:       number;
+  price:     number;
+  gstPct:    number;
+  inclusive: boolean;
+}
+
+// The order/bill number the server filed the payment under, when the response carries one.
+function pickOrderNo(res: unknown, fallback: string): string {
+  const asObject = (v: unknown) =>
+    v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+  const body = asObject(res);
+  const src  = asObject(body?.data) ?? asObject(body?.Data) ?? body;
+  const no   = src?.invoice_no ?? src?.bill_no ?? src?.sale_id ?? src?.api_order_id ?? src?.order_id;
+  return no != null && no !== "" ? String(no) : fallback;
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -189,6 +237,20 @@ const RestaurantPOS: React.FC = () => {
   // only deleted from the server once the order is actually sent to KDS, paid, or re-held
   const [activeHoldId, setActiveHoldId] = useState<string | null>(null);
 
+  // Print toggle — when on, the bill prints automatically after a successful payment,
+  // on the paper size picked in Invoice Settings.
+  const [printEnabled, setPrintEnabled] = useState<boolean>(readAutoPrintPref);
+  const [receiptData,  setReceiptData ] = useState<Record<string, unknown> | null>(null);
+  const receiptRef = useRef<HTMLDivElement>(null);
+  const thermalPaperSize = toThermalPaperSize(invoiceSettings?.printer_inch);
+
+  const handleTogglePrint = useCallback(() => {
+    setPrintEnabled((prev) => {
+      const next = !prev;
+      try { localStorage.setItem(AUTO_PRINT_STORAGE_KEY, String(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
 
   // Seed the default payment method from invoice settings once loaded, without
   // overriding a method the user has already picked for the current order.
@@ -437,15 +499,27 @@ const RestaurantPOS: React.FC = () => {
   // (variant prompt, stock check, cart vs. edit-summary). Mirrors handleProductClick's
   // logic rather than calling it directly, so the success toast only fires on an actual
   // add — not when a variant prompt opens or the item turns out to be out of stock.
+  const allMenuItems = useMemo(
+    () => (fullMenuData ?? categories).flatMap((c) => c.items),
+    [fullMenuData, categories]
+  );
+
+  const findItemByCode = useCallback(
+    (code: string) => {
+      const lower = code.trim().toLowerCase();
+      if (!lower) return undefined;
+      return allMenuItems.find(
+        (i) => i.menu_id?.toLowerCase() === lower || i.qr_code?.toLowerCase() === lower
+      );
+    },
+    [allMenuItems]
+  );
+
   const handleScanCode = useCallback(
     (rawCode: string) => {
       const code = rawCode.trim();
       if (!code) return;
-      const lower = code.toLowerCase();
-      const allItems = (fullMenuData ?? categories).flatMap((c) => c.items);
-      const product = allItems.find(
-        (i) => i.menu_id?.toLowerCase() === lower || i.qr_code?.toLowerCase() === lower
-      );
+      const product = findItemByCode(code);
       if (!product) {
         setErrorMsg(`No item found for scanned code "${code}"`);
         return;
@@ -459,8 +533,25 @@ const RestaurantPOS: React.FC = () => {
       if (isEditingSummary) addToSummary(product); else addToCart(product);
       setSuccessMsg(priorQty > 0 ? `"${product.menu_name}" qty increased to ${priorQty + 1}` : `Added "${product.menu_name}"`);
     },
-    [fullMenuData, categories, isEditingSummary, addToCart, addToSummary, isOutOfStock, getCartQty]
+    [findItemByCode, isEditingSummary, addToCart, addToSummary, isOutOfStock, getCartQty]
   );
+
+  // Enter in the combined search/scan box (typed, or sent by a hardware scanner with the
+  // box focused): an exact item ID / barcode / QR match is added straight to the order and
+  // the box clears; anything else stays in the box as a name search filtering the menu.
+  const handleSearchEnter = useCallback(() => {
+    const code = searchQuery.trim();
+    if (!code) return;
+    if (findItemByCode(code)) {
+      handleScanCode(code);
+      setSearchQuery("");
+      return;
+    }
+    const lower = code.toLowerCase();
+    if (!allMenuItems.some((i) => i.menu_name?.toLowerCase().includes(lower))) {
+      setErrorMsg(`No item found for "${code}"`);
+    }
+  }, [searchQuery, findItemByCode, handleScanCode, allMenuItems]);
 
   // Whether any dialog is currently open — the page-level scanner listener below must
   // stay off while one is, so it doesn't fight with a dialog's own scan handling.
@@ -703,15 +794,143 @@ const RestaurantPOS: React.FC = () => {
     }
   };
 
+  // ── Receipt ───────────────────────────────────────────────────────────────
+  // The bill being paid, in the shape ThermalInvoiceTemplate reads. Built before the
+  // payment call because resetOrder() clears the cart as soon as it succeeds.
+  const buildReceiptData = (payMethod: PaymentMethod, t: Totals) => {
+    const lines: ReceiptLine[] = cartItems.length > 0
+      ? cartItems.map((ci) => ({
+          itemId:    ci.product.menu_id,
+          name:      ci.product.menu_name,
+          variant:   ci.product.variant_name ?? null,
+          qty:       ci.quantity,
+          price:     getItemPrice(ci.product),
+          gstPct:    parseFloat(ci.product.gst_tax) || 0,
+          inclusive: ci.product.tax_include_or_exclude ?? false,
+        }))
+      : runningOrderSummary.map((it) => ({
+          itemId:    it.item_id,
+          name:      it.item_name,
+          variant:   null,
+          qty:       it.qty,
+          price:     it.price,
+          gstPct:    parseFloat(String(it.gst_tax ?? 0)) || 0,
+          inclusive: it.tax_include_or_exclude ?? false,
+        }));
+
+    // GST slabs, taxed the same way calcTax / calcSummaryTotals tax them on screen.
+    const slabs = new Map<number, { hsn: string; taxable: number; cgstRate: number; sgstRate: number; cgstAmount: number; sgstAmount: number; totalTaxAmount: number }>();
+    for (const l of lines) {
+      const gross   = l.price * l.qty;
+      const taxable = l.inclusive ? gross / (1 + l.gstPct / 100) : gross;
+      const tax     = l.inclusive ? gross - taxable : (gross * l.gstPct) / 100;
+      const slab = slabs.get(l.gstPct) ?? {
+        hsn: "-", taxable: 0, cgstRate: l.gstPct / 2, sgstRate: l.gstPct / 2,
+        cgstAmount: 0, sgstAmount: 0, totalTaxAmount: 0,
+      };
+      slab.taxable        += taxable;
+      slab.cgstAmount     += tax / 2;
+      slab.sgstAmount     += tax / 2;
+      slab.totalTaxAmount += tax;
+      slabs.set(l.gstPct, slab);
+    }
+    const gstBreakdown = Array.from(slabs.values());
+    const now = new Date();
+
+    return {
+      sale_id:         order.orderId,
+      date:            now.toLocaleDateString("en-GB"),
+      time:            now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
+      customer_name:   order.customerName.trim() || "Walk-In",
+      customer_mobile: order.customerPhone.trim() || "-",
+      customer_gstin:  "-",
+      payment_mode:    payMethod,
+      items: lines.map((l) => ({
+        item_id:      l.itemId,
+        name:         l.name,
+        variant_name: l.variant,
+        qty:          l.qty,
+        rate:         l.price,
+        tax:          l.gstPct,
+        total:        l.price * l.qty,
+      })),
+      subtotal:       t.subtotal,
+      discount:       t.discount > 0 ? t.discount : null,
+      discount_label: order.discountType === "Percent" ? `Discount (${order.discountValue}%)` : "Discount",
+      cgst:           gstBreakdown.reduce((s, r) => s + r.cgstAmount, 0),
+      sgst:           gstBreakdown.reduce((s, r) => s + r.sgstAmount, 0),
+      total:          t.grandTotal,
+      gst_breakdown:  gstBreakdown,
+    };
+  };
+
+  // Prints the rendered receipt through a hidden iframe rather than window.open: this
+  // runs after the payment request resolves, by which point the click that started it
+  // may no longer count as a user gesture and a popup blocker would swallow a new window.
+  const printReceipt = () => {
+    const node = receiptRef.current;
+    if (!node) return;
+    const mm = RECEIPT_WIDTH_MM[thermalPaperSize];
+
+    const iframe = document.createElement("iframe");
+    Object.assign(iframe.style, { position: "fixed", right: "0", bottom: "0", width: "0", height: "0", border: "0" });
+    document.body.appendChild(iframe);
+    const win = iframe.contentWindow;
+    const doc = iframe.contentDocument;
+    if (!win || !doc) { iframe.remove(); return; }
+
+    // outerHTML (not innerHTML) — the template's root div carries the base font inline styles.
+    doc.open();
+    doc.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Receipt</title>
+  <style>
+    @page { size: ${mm}mm auto; margin: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: ${mm}mm;
+      background: #fff;
+      color: #000;
+      font-family: 'Courier New','Consolas','Lucida Console',monospace;
+      font-weight: 600;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    @media print { html, body { width: ${mm}mm; } }
+  </style>
+</head>
+<body>${node.outerHTML}</body>
+</html>`);
+    doc.close();
+
+    const cleanup = () => iframe.remove();
+    win.addEventListener("afterprint", () => setTimeout(cleanup, 0));
+    setTimeout(cleanup, 60000);
+
+    // Give the logo/signature images a moment to load so they aren't blank on the roll.
+    const images = Array.from(doc.images).map((img) =>
+      img.complete ? Promise.resolve() : new Promise<void>((r) => { img.onload = img.onerror = () => r(); })
+    );
+    Promise.race([Promise.all(images), new Promise((r) => setTimeout(r, 1500))]).then(() => {
+      win.focus();
+      win.print();
+    });
+  };
+
   const handlePay = async (payMethod: PaymentMethod) => {
     try {
+      let receipt: ReturnType<typeof buildReceiptData>;
+      let res: unknown;
       if (order.orderType === "DineIn") {
         if (!order.tableNumber) { setErrorMsg("Select a table first"); return; }
         const discType = order.discountType === "Amount" ? "FLAT" : "PERCENT";
         const t = cartItems.length > 0
           ? totals
           : calcSummaryTotals(runningOrderSummary, discType, order.discountValue);
-        await completeOrder({
+        receipt = buildReceiptData(payMethod, t);
+        res = await completeOrder({
           api_order_id:    order.orderId,
           zodu_id:         zoduId,
           branch_id:       branchId,
@@ -729,7 +948,8 @@ const RestaurantPOS: React.FC = () => {
           total_tax:       t.taxAmount,
         });
       } else {
-        await addOrder({
+        receipt = buildReceiptData(payMethod, totals);
+        res = await addOrder({
           zodu_id:         zoduId,
           kot_no:          order.kotNo ?? "KOT-1",
           branch_id:       branchId,
@@ -756,6 +976,16 @@ const RestaurantPOS: React.FC = () => {
       }
       setSuccessMsg("Payment successful!");
       resetOrder();
+
+      if (printEnabled) {
+        // The payment already went through — a print problem must not read as a failed payment.
+        try {
+          flushSync(() => setReceiptData({ ...receipt, sale_id: pickOrderNo(res, receipt.sale_id) }));
+          printReceipt();
+        } catch {
+          setErrorMsg("Payment successful, but the bill could not be printed");
+        }
+      }
     } catch {
       setErrorMsg("Payment failed. Please try again.");
     }
@@ -970,84 +1200,6 @@ const RestaurantPOS: React.FC = () => {
 
         <Box sx={{ flex: 1 }} />
 
-        {/* Search */}
-        <TextField
-          size="small"
-          placeholder="Search dishes by name..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          sx={{
-            width: { xs: 140, sm: 200, md: 240 },
-            "& .MuiOutlinedInput-root": {
-              borderRadius: "8px",
-              bgcolor: "#f9fafb",
-              height: 34,
-              fontSize: "0.82rem",
-            },
-          }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon sx={{ color: "#9ca3af", fontSize: 17 }} />
-              </InputAdornment>
-            ),
-          }}
-        />
-
-        {/* Scan bar — barcode/QR scan adds the matching item directly */}
-        <HardwareScannerInput
-          onScan={handleScanCode}
-          placeholder="Click, then scan…"
-          sx={{
-            width: { xs: 110, sm: 150, md: 170 },
-            "& .MuiOutlinedInput-root": {
-              borderRadius: "8px",
-              bgcolor: "#f9fafb",
-              height: 34,
-              fontSize: "0.82rem",
-            },
-          }}
-        />
-        {isMobileOrTablet && (
-          <IconButton
-            size="small"
-            onClick={() => setShowCameraScan(true)}
-            title="Scan with camera"
-            sx={{ border: "1px solid #e5e7eb", borderRadius: "8px", width: 34, height: 34, color: "#d32f2f" }}
-          >
-            <CameraAltOutlinedIcon sx={{ fontSize: 17 }} />
-          </IconButton>
-        )}
-
-        {/* Favourites toggle */}
-        <Box
-          onClick={() => setFilterMode(filterMode === "Favourites" ? "All" : "Favourites")}
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 0.5,
-            px: 1.2,
-            py: 0.55,
-            mr: 2,
-            borderRadius: "20px",
-            border: filterMode === "Favourites" ? "1.5px solid #f59e0b" : "1.5px solid #e5e7eb",
-            bgcolor: filterMode === "Favourites" ? "#fffbeb" : "#fff",
-            color: filterMode === "Favourites" ? "#d97706" : "#6b7280",
-            fontSize: "0.75rem",
-            fontWeight: filterMode === "Favourites" ? 700 : 500,
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-            transition: "all 0.15s",
-            flexShrink: 0,
-            "&:hover": { border: "1.5px solid #f59e0b", color: "#d97706" },
-          }}
-        >
-          <StarIcon sx={{ fontSize: 14 }} />
-          <Typography sx={{ fontSize: "0.75rem", fontWeight: "inherit", lineHeight: 1 }}>
-            Favourites
-          </Typography>
-        </Box>
-
         {/* Branch dropdown */}
         <Select
           size="small"
@@ -1104,13 +1256,109 @@ const RestaurantPOS: React.FC = () => {
         {/* ── Center: search + product grid ── */}
         <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0, minWidth: 0 }}>
 
+          {/* ── Toolbar: combined search / scan + favourites (stays put while the menu scrolls) ── */}
+          <Box
+            sx={{
+              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              px: 2,
+              pt: 1.5,
+              pb: 1,
+            }}
+          >
+            <TextField
+              size="small"
+              fullWidth
+              autoComplete="off"
+              placeholder="Search dishes by name, item ID — or scan a barcode/QR…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); handleSearchEnter(); }
+                if (e.key === "Escape") setSearchQuery("");
+              }}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "8px",
+                  bgcolor: "#fff",
+                  height: 38,
+                  fontSize: "0.85rem",
+                  "& fieldset": { borderColor: "#e5e7eb" },
+                  "&:hover fieldset": { borderColor: "#d32f2f" },
+                  "&.Mui-focused fieldset": { borderColor: "#d32f2f" },
+                },
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <QrCodeScannerIcon sx={{ color: "#d32f2f", fontSize: 18 }} />
+                  </InputAdornment>
+                ),
+                endAdornment: searchQuery ? (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => setSearchQuery("")} sx={{ p: 0.3 }}>
+                      <CloseIcon sx={{ fontSize: 15, color: "#9ca3af" }} />
+                    </IconButton>
+                  </InputAdornment>
+                ) : (
+                  <InputAdornment position="end">
+                    <SearchIcon sx={{ fontSize: 17, color: "#d1d5db" }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            {isMobileOrTablet && (
+              <Tooltip title="Scan with camera">
+                <IconButton
+                  size="small"
+                  onClick={() => setShowCameraScan(true)}
+                  sx={{ flexShrink: 0, bgcolor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px", width: 38, height: 38, color: "#d32f2f" }}
+                >
+                  <CameraAltOutlinedIcon sx={{ fontSize: 18 }} />
+                </IconButton>
+              </Tooltip>
+            )}
+
+            {/* Favourites toggle */}
+            <Box
+              onClick={() => setFilterMode(filterMode === "Favourites" ? "All" : "Favourites")}
+              sx={{
+                height: 38,
+                display: "flex",
+                alignItems: "center",
+                gap: 0.5,
+                px: 1.5,
+                borderRadius: "8px",
+                border: filterMode === "Favourites" ? "1.5px solid #f59e0b" : "1px solid #e5e7eb",
+                bgcolor: filterMode === "Favourites" ? "#fffbeb" : "#fff",
+                color: filterMode === "Favourites" ? "#d97706" : "#6b7280",
+                fontWeight: filterMode === "Favourites" ? 700 : 500,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                transition: "all 0.15s",
+                flexShrink: 0,
+                "&:hover": { border: "1.5px solid #f59e0b", color: "#d97706" },
+              }}
+            >
+              <StarIcon sx={{ fontSize: 16 }} />
+              <Typography sx={{ fontSize: "0.8rem", fontWeight: "inherit", lineHeight: 1 }}>
+                Favourites
+              </Typography>
+            </Box>
+          </Box>
+
           {/* Scrollable product grid */}
           <Box
             ref={menuScrollRef}
             sx={{
               flex: 1,
               overflowY: "auto",
-              p: 2,
+              px: 2,
+              pt: 0.5,
+              pb: 2,
               "&::-webkit-scrollbar": { width: 5 },
               "&::-webkit-scrollbar-track": { bgcolor: "transparent" },
               "&::-webkit-scrollbar-thumb": { bgcolor: "#e5e7eb", borderRadius: 3 },
@@ -1357,8 +1605,17 @@ const RestaurantPOS: React.FC = () => {
           onSummaryRemove={removeSummaryItem}
           onSendEditedKDS={handleSendEditedKDS}
           onClearCart={() => setCartItems([])}
+          printEnabled={printEnabled}
+          onTogglePrint={handleTogglePrint}
         />
       </Box>
+
+      {/* Off-screen receipt — captured by printReceipt() after a successful payment */}
+      {receiptData && (
+        <Box sx={{ position: "fixed", left: -10000, top: 0, pointerEvents: "none", opacity: 0 }}>
+          <ThermalInvoiceTemplate ref={receiptRef} data={receiptData} paperSize={thermalPaperSize} />
+        </Box>
+      )}
 
       {/* ════ Modals ════ */}
       <CameraBarcodeScanner

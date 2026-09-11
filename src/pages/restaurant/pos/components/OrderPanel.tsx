@@ -20,6 +20,7 @@ import KitchenIcon from "@mui/icons-material/Kitchen";
 import EditIcon from "@mui/icons-material/Edit";
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteSweepOutlinedIcon from "@mui/icons-material/DeleteSweepOutlined";
+import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 import type {
   RestaurantCartItem,
   RestaurantOrder,
@@ -66,6 +67,9 @@ interface Props {
   onSummaryRemove: (idx: number) => void;
   onSendEditedKDS: () => void;
   onClearCart: () => void;
+  // When on, the bill prints automatically after a successful payment.
+  printEnabled: boolean;
+  onTogglePrint: () => void;
 }
 
 const ALL_PAYMENT_METHODS: Array<{
@@ -101,7 +105,7 @@ const OrderPanel: React.FC<Props> = ({
   onIncrement, onDecrement, onRemove, onHold,
   isEditingSummary, onEditSummary, onCancelEditSummary,
   onSummaryIncrement, onSummaryDecrement, onSummaryRemove, onSendEditedKDS,
-  onClearCart,
+  onClearCart, printEnabled, onTogglePrint,
 }) => {
   const isDineIn = order.orderType === "DineIn";
   const totalQty = cartItems.reduce((s, i) => s + i.quantity, 0);
@@ -711,6 +715,44 @@ const OrderPanel: React.FC<Props> = ({
             }}
           >
             <PauseCircleOutlineIcon sx={{ fontSize: 20 }} />
+          </Box>
+        </Tooltip>
+
+        <Tooltip title={printEnabled ? "Print bill after payment: ON" : "Print bill after payment: OFF"} placement="top">
+          <Box
+            onClick={onTogglePrint}
+            role="switch"
+            aria-checked={printEnabled}
+            sx={{
+              height: 40,
+              px: 1,
+              display: "flex",
+              alignItems: "center",
+              gap: 0.6,
+              borderRadius: "8px",
+              border: "1px solid #e5e7eb",
+              cursor: "pointer",
+              flexShrink: 0,
+              userSelect: "none",
+              "&:hover": { bgcolor: "#f9fafb" },
+            }}
+          >
+            <Box
+              sx={{
+                width: 30,
+                height: 16,
+                borderRadius: 999,
+                bgcolor: printEnabled ? "#d32f2f" : "#d1d5db",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: printEnabled ? "flex-end" : "flex-start",
+                px: 0.25,
+                transition: "background 0.15s",
+              }}
+            >
+              <Box sx={{ width: 12, height: 12, borderRadius: "50%", bgcolor: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.25)" }} />
+            </Box>
+            <PrintOutlinedIcon sx={{ fontSize: 17, color: printEnabled ? "#d32f2f" : "#9ca3af" }} />
           </Box>
         </Tooltip>
 
