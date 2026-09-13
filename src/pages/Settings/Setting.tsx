@@ -294,11 +294,19 @@ export default function Setting() {
     setDeleteBranchCompanyName(companyName);
   };
 
-  const closeDeleteBranch = () => {
-    if (deleteBranchMutation.isPending) return;
+  // The delete mutation's own callbacks call this directly: they run while the
+  // mutation still reads as pending, so closeDeleteBranch's guard would leave
+  // the dialog open after the branch was deleted.
+  const resetDeleteBranch = () => {
     setDeletingBranch(null);
     setDeleteBranchCompanyId("");
     setDeleteBranchCompanyName("");
+  };
+
+  // User dismissal — blocked while the delete is in flight.
+  const closeDeleteBranch = () => {
+    if (deleteBranchMutation.isPending) return;
+    resetDeleteBranch();
   };
 
   const openAddCompany = () => {
@@ -393,11 +401,11 @@ export default function Setting() {
       authApis.deleteBranch(params.zoduId, params.branchId),
     onSuccess: async (data) => {
       await queryClient.invalidateQueries({ queryKey: ["settings", "companies"] });
-      closeDeleteBranch();
+      resetDeleteBranch();
       setSuccessMessage(data?.message || "Branch deleted successfully.");
     },
     onError: (error: any) => {
-      closeDeleteBranch();
+      resetDeleteBranch();
       setSubmitError(
         error?.response?.data?.error || error?.message || "Unable to delete branch. Please try again."
       );

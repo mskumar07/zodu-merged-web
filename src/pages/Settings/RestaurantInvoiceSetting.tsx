@@ -32,6 +32,7 @@ import {
   useUpdateInvoiceSettings,
   useUploadInvoiceSignature,
   useDeleteInvoiceSignature,
+  useCompanyLogoUrl,
   type InvoiceSettingsResponse,
   type UpdateInvoiceSettingsPayload,
 } from "./useInvoiceSettingApi";
@@ -429,7 +430,8 @@ export default function RestaurantInvoiceSetting() {
   const [settings, setSettings] = useState<InvoiceSettings>(getDefaultSettings);
   const baselineRef = useRef<InvoiceSettings | null>(null);
   const [theme] = useState<"compact" | "classic">("classic");
-  const [companyLogoUrl] = useState("");
+  // The logo lives on the company (Company Details), not on invoice settings.
+  const companyLogoUrl = useCompanyLogoUrl();
   const [signatureUrl, setSignatureUrl] = useState("");
   const [saved, setSaved] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);

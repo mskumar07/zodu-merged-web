@@ -292,6 +292,9 @@ const styles = {
   // Gap above the signature, whether it follows the bank box or starts the column.
   footer: { marginTop: "58px" },
   signBox: { textAlign: "right" as const },
+  // The blank band above the signature line — room to sign by hand, and where
+  // an uploaded signature sits.
+  signSpace: { height: "56px", display: "flex", alignItems: "flex-end", justifyContent: "flex-end", marginBottom: "4px" },
   signLine: { borderTop: "1px solid #0F172A", width: "180px", marginLeft: "auto", marginBottom: "6px" },
   signLabel: { fontSize: "10px", fontWeight: 700, color: "#475569", letterSpacing: "1px", textTransform: "uppercase" as const },
 };
@@ -796,13 +799,15 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
                   marginTop: isCompact ? 20 : styles.footer.marginTop,
                 }}
               >
-                {resolvedSignatureUrl && (
-                  <img
-                    src={resolvedSignatureUrl}
-                    alt="Authorized signature"
-                    style={{ maxHeight: 46, maxWidth: 180, objectFit: "contain", marginLeft: "auto", marginBottom: 4, display: "block" }}
-                  />
-                )}
+                <div style={styles.signSpace}>
+                  {resolvedSignatureUrl && (
+                    <img
+                      src={resolvedSignatureUrl}
+                      alt="Authorized signature"
+                      style={{ maxHeight: 46, maxWidth: 180, objectFit: "contain", display: "block" }}
+                    />
+                  )}
+                </div>
                 <div style={styles.signLine} />
                 <p style={styles.signLabel}>Authorized Signatory</p>
               </div>

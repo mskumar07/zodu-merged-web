@@ -499,6 +499,13 @@ function fmt(v: number | string) {
   })}`;
 }
 
+/** 2 from "2.000", 1.5 from "1.500" — quantities arrive as fixed-scale
+ * decimals, and the trailing zeros are just noise on the roll. */
+function fmtQty(v: number | string) {
+  const n = Number(v ?? 0);
+  return Number.isFinite(n) ? String(Number(n.toFixed(3))) : String(v ?? "");
+}
+
 function Dashes({ tight }: { tight?: boolean }) {
   return (
     <div
@@ -570,7 +577,8 @@ export const ThermalInvoiceTemplate = React.forwardRef(
       settingsOverride?: Partial<ThermalInvoiceSettings> | null;
       /** Visual density of the layout — "compact" tightens spacing throughout. */
       theme?: "compact" | "classic";
-      /** Uploaded company logo — falls back to a plain ★ when not set. */
+      /** Uploaded company logo — falls back to the company record's logo;
+       * nothing is printed in its place when neither is set. */
       logoUrl?: string;
       /** Preview-only in-progress signature upload — real printing falls back
        * to the persisted value on invoiceSettings (see resolvedSignatureUrl). */
@@ -753,18 +761,12 @@ export const ThermalInvoiceTemplate = React.forwardRef(
       >
         {/* ── HEADER ── */}
         <div style={{ textAlign: "center", marginBottom: compact ? 2 : 6 }}>
-          {showCompanyLogo && (
-            resolvedLogoUrl ? (
-              <img
-                src={resolvedLogoUrl}
-                alt=""
-                style={{ maxHeight: cfg.headerFontSize * 3.2, maxWidth: "78%", marginBottom: 4, objectFit: "contain" }}
-              />
-            ) : (
-              <div style={{ fontSize: cfg.headerFontSize * 2, lineHeight: 1, marginBottom: 4 }}>
-                ★
-              </div>
-            )
+          {showCompanyLogo && resolvedLogoUrl && (
+            <img
+              src={resolvedLogoUrl}
+              alt=""
+              style={{ maxHeight: cfg.headerFontSize * 3.2, maxWidth: "78%", marginBottom: 4, objectFit: "contain" }}
+            />
           )}
           <div
             style={{
@@ -883,7 +885,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
                   </span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: showSerialNo ? 22 : 0, fontSize: Math.max(ifs - 1, 11) }}>
-                  <span>{item.qty} x {fmt(item.rate)}</span>
+                  <span>{fmtQty(item.qty)} x {fmt(item.rate)}</span>
                   <span style={{ fontWeight: 700 }}>{fmt(item.total)}</span>
                 </div>
               </>
@@ -918,7 +920,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
                   )}
                 </div>
                 <span style={{ textAlign: "center", fontWeight: 600, paddingTop: 1 }}>
-                  {item.qty}
+                  {fmtQty(item.qty)}
                 </span>
                 <span style={{ textAlign: "right", fontWeight: 600, paddingTop: 1 }}>
                   {fmt(item.rate)}
@@ -964,7 +966,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
         {/* ── T.QTY / TOTAL, DISCOUNT & BILL TOTAL ── */}
         {narrow ? (
           <div style={{ marginBottom: 4 }}>
-            <ReceiptRow label="T.Qty" value={String(totalQty)} fontSize={fs} tight={compact} />
+            <ReceiptRow label="T.Qty" value={fmtQty(totalQty)} fontSize={fs} tight={compact} />
             <ReceiptRow label="Total" value={fmt(subtotal)} fontSize={fs} tight={compact} />
             {showDiscount && (
               <ReceiptRow label={discountText} value={fmt(discountVal)} fontSize={fs} tight={compact} />
@@ -977,7 +979,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
           </div>
         ) : (
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", fontSize: fs, lineHeight: 1.6, marginBottom: 4 }}>
-            <span style={{ fontWeight: 700 }}>T.Qty: {totalQty}</span>
+            <span style={{ fontWeight: 700 }}>T.Qty: {fmtQty(totalQty)}</span>
 
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
@@ -1148,9 +1150,6 @@ export const ThermalInvoiceTemplate = React.forwardRef(
             THANK YOU FOR SHOPPING!
           </div>
           <div style={{ marginTop: 3, fontSize: fs - 1 }}>Please visit again</div>
-          {showCompanyLogo && (
-            <div style={{ marginTop: 6, fontSize: fs, letterSpacing: 4 }}>─── ★ ───</div>
-          )}
           {showSignature && (
             <div style={{ marginTop: compact ? 26 : 36 }}>
               {resolvedSignatureUrl && (

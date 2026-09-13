@@ -1,6 +1,7 @@
 import axios from "axios";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getTenantContext, getAccessToken } from "@store/tenantContext";
+import { authApis } from "@pages/auth/Authapi";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5001";
 
@@ -13,6 +14,23 @@ function getApi() {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });
+}
+
+// ─── Company logo ─────────────────────────────────────────────
+
+/**
+ * The current company's logo, for the invoice previews. It lives on the
+ * company record (Company Details), not on invoice settings, and only
+ * GET /my-companies carries it. Shares the Company Details query key, so a
+ * logo saved there shows up here without a reload.
+ */
+export function useCompanyLogoUrl(): string {
+  const { data: companies } = useQuery({
+    queryKey: ["settings", "companies"],
+    queryFn: authApis.getMyCompanies,
+  });
+  const { zoduId } = getTenantContext();
+  return companies?.find((c) => c.zodu_id === zoduId)?.company_logo_url ?? "";
 }
 
 // ─── Types ────────────────────────────────────────────────────

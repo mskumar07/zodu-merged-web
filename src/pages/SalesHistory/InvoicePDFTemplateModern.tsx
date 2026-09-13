@@ -150,9 +150,12 @@ const styles = {
 
   noteLabel: { fontSize: "10px", fontWeight: 700, color: "#6B7280", letterSpacing: "0.6px", textTransform: "uppercase" as const, margin: "0 0 6px 0" },
   noteText: { fontSize: "11px", color: "#374151", lineHeight: 1.6, margin: "1px 0" },
-  signBox: { textAlign: "right" as const, paddingTop: "40px" },
+  signBox: { textAlign: "right" as const, paddingTop: "12px" },
   signLabel: { fontSize: "12px", fontWeight: 700, color: "#111827", margin: "0" },
   signRole: { fontSize: "10px", color: "#6B7280", margin: "1px 0 0 0" },
+  // The blank band between "for <company>" and "Authorized Signatory" — room
+  // to sign by hand, and where an uploaded signature sits.
+  signSpace: { height: "56px", display: "flex", alignItems: "flex-end", justifyContent: "flex-end", margin: "4px 0" },
 
   // Terms (left) + bank details (right) share one bordered table so the two blocks
   // line up and read as a single footer panel rather than two stacked paragraphs.
@@ -635,14 +638,16 @@ export const InvoicePDFTemplateModern = React.forwardRef(({ data, settingsOverri
                 <td style={styles.closingSignTd}>
                   {showSignature && (
                     <div style={styles.signBox}>
-                      {resolvedSignatureUrl && (
-                        <img
-                          src={resolvedSignatureUrl}
-                          alt="Authorized signature"
-                          style={{ maxHeight: 46, maxWidth: 180, objectFit: "contain", marginLeft: "auto", marginBottom: 4, display: "block" }}
-                        />
-                      )}
-                      <p style={styles.signLabel}>{co.name}</p>
+                      {co.name && <p style={styles.signLabel}>for {co.name}</p>}
+                      <div style={styles.signSpace}>
+                        {resolvedSignatureUrl && (
+                          <img
+                            src={resolvedSignatureUrl}
+                            alt="Authorized signature"
+                            style={{ maxHeight: 46, maxWidth: 180, objectFit: "contain", display: "block" }}
+                          />
+                        )}
+                      </div>
                       <p style={styles.signRole}>Authorized Signatory</p>
                     </div>
                   )}

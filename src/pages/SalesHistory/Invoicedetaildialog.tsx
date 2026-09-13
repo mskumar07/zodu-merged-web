@@ -37,11 +37,12 @@ import { InvoicePDFTemplate } from "./InvoicePDFTemplate";
 import { InvoicePDFTemplateModern } from "./InvoicePDFTemplateModern";
 import { InvoicePDFTemplateModern2 } from "./InvoicePDFTemplateModern2";
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "./ThermalInvoiceTemplate";
-import { renderPaginatedInvoicePdf } from "@utils/pdfPagination";
+import { renderPaginatedInvoicePdf, renderThermalReceiptPdf } from "@utils/pdfPagination";
+import { THERMAL_PRINTABLE_MM, THERMAL_ROLL_MM, printThermalCopies } from "@utils/thermalPrint";
 import InvoiceCopyActions from "@components/Common/InvoiceCopyActions";
 import { invoiceCopyTypesForSale } from "@utils/invoiceCopyTypes";
 import { isNonBindingSaleType, saleDocumentLabel } from "@utils/saleType";
-import { gstSummaryRows } from "@utils/gstSummary";
+import { gstSummaryRows, gstBreakdownFromLines } from "@utils/gstSummary";
 
 // ─────────────────────────────────────────────────────────────
 // Styled helpers
@@ -355,8 +356,14 @@ export default function InvoiceDetailsModal({
    * Renders one PDF containing each requested copy in turn. An empty list means
    * "no copy marking at all" — the pre-copy-types behavior.
    */
+  // A restaurant bill is a thermal receipt — Restaurant Invoice Settings offers
+  // no A4 — so its Download/Share PDF is that receipt at the configured roll
+  // width, the same document Print puts on paper, not the A4 template.
+  const pdfIsThermal = isRestaurant && invoiceSettings?.printer_inch !== "A4";
+
   const generatePdfForCopies = async (copies: string[]): Promise<jsPDF | null> => {
-    if (!pdfRef.current) return null;
+    const target = pdfIsThermal ? thermalRef : pdfRef;
+    if (!target.current) return null;
     const list: Array<string | null> = copies.length > 0 ? copies : [null];
     let doc: jsPDF | null = null;
     try {
@@ -365,7 +372,14 @@ export default function InvoiceDetailsModal({
         // before the capture below reads it, and React would otherwise batch
         // the update until after this handler finishes.
         flushSync(() => setRenderCopyType(copy));
-        doc = await renderPaginatedInvoicePdf(pdfRef.current, doc);
+        doc = pdfIsThermal
+          ? await renderThermalReceiptPdf(
+              target.current,
+              THERMAL_ROLL_MM[thermalPaperSize],
+              THERMAL_PRINTABLE_MM[thermalPaperSize],
+              doc,
+            )
+          : await renderPaginatedInvoicePdf(target.current, doc);
         if (!doc) return null;
       }
     } finally {
@@ -374,9 +388,10 @@ export default function InvoiceDetailsModal({
     return doc;
   };
 
-  // "Invoice_INV-001_Original.pdf" for one copy, "..._All_Copies.pdf" for the lot.
+  // "Invoice_INV-001_Original.pdf" / "Quotation_QT-001.pdf" for one copy,
+  // "..._All_Copies.pdf" for the lot — named after the document, like its heading.
   const copyFileName = (copies: string[]) => {
-    const base = `Invoice_${sale?.sale_id ?? "invoice"}`;
+    const base = `${documentLabel}_${sale?.sale_id ?? documentLabel.toLowerCase()}`;
     if (copies.length === 0) return `${base}.pdf`;
     if (copies.length === 1) return `${base}_${copies[0]}.pdf`;
     return `${base}_All_Copies.pdf`;
@@ -399,8 +414,8 @@ export default function InvoiceDetailsModal({
       try {
         await navigator.share({
           files: [file],
-          title: `Invoice ${sale?.sale_id}`,
-          text:  `Invoice from ${sale?.sale_id}`,
+          title: `${documentLabel} ${sale?.sale_id}`,
+          text:  `${documentLabel} from ${sale?.sale_id}`,
         });
         return;
       } catch (err: any) {
@@ -426,53 +441,13 @@ export default function InvoiceDetailsModal({
   };
 
   // ── Thermal print handler ───────────────────────────────────
-  const handleThermalPrint = (copies: string[]) => {
+  const handleThermalPrint = async (copies: string[]) => {
     if (!thermalRef.current) return;
-    // Use actual printable widths (roll width minus hardware margins) to prevent right-side clipping
-    const paperMmMap: Record<ThermalPaperSize, number> = { "3": 72, "4": 96, "5": 120 };
-    const mm = paperMmMap[thermalPaperSize];
-    // outerHTML (not innerHTML) — the ref'd div carries the base font-family/color/weight
-    // inline styles; innerHTML would drop them and fall back to the browser's thin default font.
-    // One capture per requested copy, each re-rendered synchronously so it
-    // carries its own marking, then joined with hard page breaks.
-    const list: Array<string | null> = copies.length > 0 ? copies : [null];
-    const parts: string[] = [];
-    try {
-      for (const copy of list) {
-        flushSync(() => setRenderCopyType(copy));
-        parts.push(thermalRef.current.outerHTML);
-      }
-    } finally {
-      flushSync(() => setRenderCopyType(null));
-    }
-    const content = parts.join('<div style="page-break-after:always"></div>');
-    const printWindow = window.open("", "_blank", "width=500,height=700");
-    if (!printWindow) return;
-    printWindow.document.write(`<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <title>Receipt</title>
-  <style>
-    @page { size: ${mm}mm auto; margin: 0; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      width: ${mm}mm;
-      background: #fff;
-      color: #000;
-      font-family: 'Courier New','Consolas','Lucida Console',monospace;
-      font-weight: 600;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    @media print { html, body { width: ${mm}mm; } }
-  </style>
-</head>
-<body>${content}</body>
-</html>`);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => { printWindow.print(); printWindow.close(); }, 300);
+    await printThermalCopies(
+      thermalRef.current,
+      copies.length > 0 ? copies : [null],
+      (copy) => flushSync(() => setRenderCopyType(copy)),
+    );
   };
 
   // ── Print handler ─────────────────────────────────────────
@@ -482,7 +457,7 @@ export default function InvoiceDetailsModal({
   // defensively) prints the thermal receipt.
   const handlePrint = async (copies: string[]) => {
     if (invoiceSettings?.printer_inch !== "A4") {
-      handleThermalPrint(copies);
+      await handleThermalPrint(copies);
       return;
     }
     const pdf = await generatePdfForCopies(copies);
@@ -517,8 +492,28 @@ export default function InvoiceDetailsModal({
   };
 
   // ── PDF data ──────────────────────────────────────────────
+  // The restaurant sale_date_fmt is "DD Mon YYYY HH12:MI AM" — it already
+  // carries the time, so the receipt printed it twice (once inside the date,
+  // once as its own time). Split it back into a date and a time.
+  const TRAILING_TIME = /[\s,]+(\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?)\s*$/i;
+  const saleDateFmt   = sale?.sale_date_fmt ?? "";
+  const printDate     = saleDateFmt.replace(TRAILING_TIME, "");
+  const printTime     = sale?.sale_time_fmt || saleDateFmt.match(TRAILING_TIME)?.[1] || null;
+
+  // Restaurant menu items rarely carry an HSN code, and the server's HSN-wise
+  // summary skips every line without one — so the printed GST summary came out
+  // empty. Rebuild the slabs from the lines, the way the POS taxed them.
+  const restaurantGstBreakdown = isRestaurant
+    ? gstBreakdownFromLines(items.map((i: any) => ({
+        price:     Number(i.price ?? 0),
+        qty:       Number(i.quantity ?? 0),
+        gstPct:    Number(i.gst_percentage ?? 0) || 0,
+        inclusive: i.tax_inclusive === true,
+      })))
+    : null;
+
   const pdfData = {
-    sale_id:           sale?.sale_id,
+    sale_id:           isRestaurant ? (sale?.public_order_no ?? sale?.sale_id) : sale?.sale_id,
     // Drives the "QUOTATION" vs "INVOICE" heading in the print templates.
     sale_type:         sale?.sale_type,
     // Printed on the transport copy only; a blank rule when the sale has none.
@@ -526,7 +521,8 @@ export default function InvoiceDetailsModal({
     // The buyer's PO reference, so a reprint from here matches what POS printed.
     po_number:         sale?.purchase_order_no ?? null,
     po_date:           sale?.purchase_order_date_fmt ?? sale?.purchase_order_date ?? null,
-    date:              sale?.sale_date_fmt,
+    date:              printDate,
+    time:              printTime,
     due_date:          null,
     customer_name:     customerName,
     customer_address:  customerAddress,
@@ -550,14 +546,14 @@ export default function InvoiceDetailsModal({
     subtotal:       sale?.subtotal,
     discount:       hasDiscount ? sale?.discount_amount : null,
     discount_label: discountLabel,
-    cgst:           hsnTotals.cgst,
-    sgst:           hsnTotals.sgst,
+    cgst:           restaurantGstBreakdown ? restaurantGstBreakdown.reduce((s, r) => s + r.cgstAmount, 0) : hsnTotals.cgst,
+    sgst:           restaurantGstBreakdown ? restaurantGstBreakdown.reduce((s, r) => s + r.sgstAmount, 0) : hsnTotals.sgst,
     cgst_pct:       Number(hsnWiseTax[0]?.cgst_percent ?? 0) || 2.5,
     sgst_pct:       Number(hsnWiseTax[0]?.sgst_percent ?? 0) || 2.5,
     round_off:      hasRoundOff ? sale?.round_off : null,
     total:          originalTotal,
     amount_in_words: `${numberToWords(Math.round(originalTotal))} Rupees Only`,
-    gst_breakdown: hsnWiseTax.map((row) => ({
+    gst_breakdown: restaurantGstBreakdown ?? hsnWiseTax.map((row) => ({
       hsn:            row.hsn_code,
       taxable:        row.taxable_value,
       cgstRate:       Number(row.cgst_percent).toFixed(2),

@@ -82,7 +82,8 @@ import { InvoicePDFTemplateModern } from "../SalesHistory/InvoicePDFTemplateMode
 import { InvoicePDFTemplateModern2 } from "../SalesHistory/InvoicePDFTemplateModern2";
 import InvoiceCopyActions from "@components/Common/InvoiceCopyActions";
 import { invoiceCopyTypesForSale, normalizeInvoiceCopyTypes } from "@utils/invoiceCopyTypes";
-import { isProformaSaleType, isQuotationSaleType } from "@utils/saleType";
+import { isProformaSaleType, isQuotationSaleType, saleDocumentLabel } from "@utils/saleType";
+import { printThermalCopies } from "@utils/thermalPrint";
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "../SalesHistory/ThermalInvoiceTemplate";
 import { toPaymentTypeLabels } from "@pages/Settings/useInvoiceSettingApi";
 import { normalizePosSettings, usePosSettings, type PosTypeLabel } from "@pages/Settings/usePosSettingApi";
@@ -1398,54 +1399,14 @@ console.log("test",serverHolds)
     }
   }, [items, customer, invoiceDate, dueDate, hasBalanceDue, discountPct, discount, gstMode, roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo, invoiceNoOverride, displayInvoiceNo, overridePreview, poNumber, poDate, showPurchaseOrder, printEnabled, saving, saveOrder, updateOrder, handleClear, saleId, loadedSaleNo, invoiceSettings, queryClient]);
 
-  const handleThermalPrint = useCallback((copies: string[] = []) => {
+  const handleThermalPrint = useCallback(async (copies: string[] = []) => {
     if (!thermalRef.current) return;
-    // Use actual printable widths (roll width minus hardware margins) to prevent right-side clipping
-    const paperMmMap: Record<ThermalPaperSize, number> = { "3": 72, "4": 96, "5": 120 };
-    const mm = paperMmMap[thermalPaperSize];
-    // outerHTML (not innerHTML) — the ref'd div carries the base font-family/color/weight
-    // inline styles; innerHTML would drop them and fall back to the browser's thin default font.
-    // One capture per requested copy, each re-rendered synchronously so it
-    // carries its own marking, then joined with hard page breaks.
-    const list: Array<string | null> = copies.length > 0 ? copies : [null];
-    const parts: string[] = [];
-    try {
-      for (const copy of list) {
-        flushSync(() => setRenderCopyType(copy));
-        parts.push(thermalRef.current.outerHTML);
-      }
-    } finally {
-      flushSync(() => setRenderCopyType(null));
-    }
-    const content = parts.join('<div style="page-break-after:always"></div>');
-    const printWindow = window.open("", "_blank", "width=500,height=700");
-    if (!printWindow) return;
-    printWindow.document.write(`<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <title>Receipt</title>
-  <style>
-    @page { size: ${mm}mm auto; margin: 0; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      width: ${mm}mm;
-      background: #fff;
-      color: #000;
-      font-family: 'Courier New','Consolas','Lucida Console',monospace;
-      font-weight: 600;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    @media print { html, body { width: ${mm}mm; } }
-  </style>
-</head>
-<body>${content}</body>
-</html>`);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => { printWindow.print(); printWindow.close(); }, 300);
-  }, [thermalRef, thermalPaperSize]);
+    await printThermalCopies(
+      thermalRef.current,
+      copies.length > 0 ? copies : [null],
+      (copy) => flushSync(() => setRenderCopyType(copy)),
+    );
+  }, [thermalRef]);
 
   const FOOTER_ORDER: FooterFocus[] = ["DISCOUNT_PCT", "DISCOUNT_AMT", "PAYMENT_TYPE", "REF_NO", "RECEIVED", "SAVE"];
 
@@ -1819,7 +1780,9 @@ console.log("test",serverHolds)
     try {
       const pdf = await generatePdfForCopies(copies);
       if (!pdf) return;
-      const base = `Invoice_${savedPdfData.sale_id ?? saveResult?.saleId ?? "invoice"}`;
+      // Named after the document, like its heading: "Quotation_QT-001.pdf".
+      const label = saleDocumentLabel(savedPdfData.sale_type);
+      const base = `${label}_${savedPdfData.sale_id ?? saveResult?.saleId ?? label.toLowerCase()}`;
       const fileName = copies.length === 0 ? `${base}.pdf`
         : copies.length === 1 ? `${base}_${copies[0]}.pdf`
         : `${base}_All_Copies.pdf`;
@@ -1837,7 +1800,8 @@ console.log("test",serverHolds)
       const pdf = await generatePdfForCopies(copies);
       if (!pdf) return;
 
-      const base = `Invoice_${savedPdfData.sale_id ?? saveResult?.saleId ?? "invoice"}`;
+      const label = saleDocumentLabel(savedPdfData.sale_type);
+      const base = `${label}_${savedPdfData.sale_id ?? saveResult?.saleId ?? label.toLowerCase()}`;
       const fileName = copies.length === 0 ? `${base}.pdf`
         : copies.length === 1 ? `${base}_${copies[0]}.pdf`
         : `${base}_All_Copies.pdf`;
@@ -1848,8 +1812,8 @@ console.log("test",serverHolds)
         try {
           await navigator.share({
             files: [file],
-            title: `Invoice ${savedPdfData.sale_id ?? ""}`.trim(),
-            text: `Invoice from ${savedPdfData.sale_id ?? "POS"}`,
+            title: `${label} ${savedPdfData.sale_id ?? ""}`.trim(),
+            text: `${label} from ${savedPdfData.sale_id ?? "POS"}`,
           });
           return;
         } catch (error: any) {

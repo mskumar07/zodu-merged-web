@@ -13,6 +13,50 @@ export interface GstSummaryRow {
   amount: number;
 }
 
+/** One bill line, as far as working out its GST goes. */
+export interface GstLine {
+  price: number;
+  qty: number;
+  gstPct: number;
+  /** true when `price` already includes GST. */
+  inclusive: boolean;
+}
+
+export interface GstBreakdownRow {
+  hsn: string;
+  taxable: number;
+  cgstRate: number;
+  sgstRate: number;
+  cgstAmount: number;
+  sgstAmount: number;
+  totalTaxAmount: number;
+}
+
+/**
+ * The `gst_breakdown` the print templates read, built from the bill's own
+ * lines — one row per GST rate, the tax split evenly into CGST and SGST. For
+ * bills with no HSN-wise breakdown to go on: restaurant menu items rarely
+ * carry an HSN code, and the server's HSN-wise summary skips any line without.
+ */
+export function gstBreakdownFromLines(lines: GstLine[]): GstBreakdownRow[] {
+  const slabs = new Map<number, GstBreakdownRow>();
+  for (const l of lines) {
+    const gross   = l.price * l.qty;
+    const taxable = l.inclusive ? gross / (1 + l.gstPct / 100) : gross;
+    const tax     = l.inclusive ? gross - taxable : (gross * l.gstPct) / 100;
+    const slab = slabs.get(l.gstPct) ?? {
+      hsn: "-", taxable: 0, cgstRate: l.gstPct / 2, sgstRate: l.gstPct / 2,
+      cgstAmount: 0, sgstAmount: 0, totalTaxAmount: 0,
+    };
+    slab.taxable        += taxable;
+    slab.cgstAmount     += tax / 2;
+    slab.sgstAmount     += tax / 2;
+    slab.totalTaxAmount += tax;
+    slabs.set(l.gstPct, slab);
+  }
+  return Array.from(slabs.values());
+}
+
 interface GstSlabTotal {
   cgstRate: number;
   sgstRate: number;

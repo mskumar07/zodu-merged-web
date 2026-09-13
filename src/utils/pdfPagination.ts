@@ -78,7 +78,8 @@ function isCanvasRowBlank(
   return true;
 }
 
-function trimCanvasBottom(canvas: HTMLCanvasElement): HTMLCanvasElement {
+/** Drops trailing blank rows — never below `minHeight` px. */
+function trimCanvasBottom(canvas: HTMLCanvasElement, minHeight = 0): HTMLCanvasElement {
   const context = canvas.getContext("2d");
   if (!context) {
     return canvas;
@@ -88,7 +89,11 @@ function trimCanvasBottom(canvas: HTMLCanvasElement): HTMLCanvasElement {
   const pixels = context.getImageData(0, 0, width, height).data;
   let lastContentRow = height - 1;
 
-  while (lastContentRow > 0 && isCanvasRowBlank(pixels, width, lastContentRow)) {
+  while (
+    lastContentRow > 0 &&
+    lastContentRow + 1 > minHeight &&
+    isCanvasRowBlank(pixels, width, lastContentRow)
+  ) {
     lastContentRow -= 1;
   }
 
@@ -159,6 +164,162 @@ function cropCanvasBand(
   );
 
   return band;
+}
+
+// ── Sharp images ─────────────────────────────────────────────────────
+// The page is captured as a 1.6× JPEG — fine for text, but an image such as a
+// logo is fine detail (small lettering, curved edges) and came out soft and
+// blotchy. So each <img> is left out of that capture and drawn into the PDF on
+// its own, from the uploaded file, as a PNG.
+
+// Resolution an image is drawn at, per CSS px of its box: a ~150 px logo
+// becomes ~600 px across ~40 mm — well over 300 dpi — without carrying a
+// 4000 px original into every PDF.
+const PDF_IMAGE_OVERLAY_SCALE = 4;
+
+let overlayAliasSeq = 0;
+
+interface ImageOverlay {
+  /** The image's box in the captured canvas, in canvas px. */
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  /** The box as the browser shows it (object-fit applied), at overlay resolution. */
+  canvas: HTMLCanvasElement;
+  dataUrl: string;
+  /** Lets jsPDF store the image once however many pages repeat it. */
+  alias: string;
+}
+
+function loadCorsImage(src: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+/**
+ * The image at `src` drawn into a canvas the size of its box, fitted the way
+ * the browser fits it (object-fit fill / contain / cover). Null when the file
+ * can't be read back — served without CORS headers — and the image then stays
+ * in the page capture as before.
+ */
+async function renderImageBox(
+  src: string,
+  fit: string,
+  boxWidth: number,
+  boxHeight: number,
+): Promise<HTMLCanvasElement | null> {
+  if (!src) return null;
+  const img = await loadCorsImage(src);
+  if (!img || !img.naturalWidth || !img.naturalHeight) return null;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(boxWidth * PDF_IMAGE_OVERLAY_SCALE));
+  canvas.height = Math.max(1, Math.round(boxHeight * PDF_IMAGE_OVERLAY_SCALE));
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+  context.imageSmoothingQuality = "high";
+
+  let drawWidth = canvas.width;
+  let drawHeight = canvas.height;
+  if (fit === "contain" || fit === "scale-down" || fit === "cover") {
+    const scaleX = canvas.width / img.naturalWidth;
+    const scaleY = canvas.height / img.naturalHeight;
+    const scale = fit === "cover" ? Math.max(scaleX, scaleY) : Math.min(scaleX, scaleY);
+    drawWidth = img.naturalWidth * scale;
+    drawHeight = img.naturalHeight * scale;
+  }
+  context.drawImage(img, (canvas.width - drawWidth) / 2, (canvas.height - drawHeight) / 2, drawWidth, drawHeight);
+
+  try {
+    context.getImageData(0, 0, 1, 1); // throws on a tainted canvas
+  } catch {
+    return null;
+  }
+  return canvas;
+}
+
+/** Every visible, loaded <img> in `container`, keyed by its index among the container's <img>s. */
+async function collectImageOverlays(
+  container: HTMLElement,
+  containerRect: DOMRect,
+): Promise<Map<number, ImageOverlay>> {
+  const overlays = new Map<number, ImageOverlay>();
+  const jobs = Array.from(container.querySelectorAll("img"), (el, index) => {
+    // Measured now, before any await, along with the rest of the layout.
+    const rect = el.getBoundingClientRect();
+    const fit = getComputedStyle(el).objectFit;
+    if (!el.complete || rect.width < 1 || rect.height < 1) return Promise.resolve();
+    return renderImageBox(el.currentSrc || el.src, fit, rect.width, rect.height).then((canvas) => {
+      if (!canvas) return;
+      overlays.set(index, {
+        left: (rect.left - containerRect.left) * PDF_CAPTURE_SCALE,
+        top: (rect.top - containerRect.top) * PDF_CAPTURE_SCALE,
+        width: rect.width * PDF_CAPTURE_SCALE,
+        height: rect.height * PDF_CAPTURE_SCALE,
+        canvas,
+        dataUrl: canvas.toDataURL("image/png"),
+        alias: `pdf-image-${++overlayAliasSeq}`,
+      });
+    });
+  });
+  await Promise.all(jobs);
+  return overlays;
+}
+
+/** html2canvas onclone hook leaving the overlaid images out of the capture (their space kept). */
+function hideOverlaidImages(overlays: Map<number, ImageOverlay>) {
+  return (_doc: Document, clone: HTMLElement) => {
+    clone.querySelectorAll("img").forEach((img, index) => {
+      if (overlays.has(index)) img.style.visibility = "hidden";
+    });
+  };
+}
+
+/**
+ * Draws the part of each image that falls in canvas rows [bandTop, bandBottom)
+ * — one page's slice of the capture — with that band's top at (x0, y0) mm.
+ */
+function drawImageOverlays(
+  pdf: jsPDF,
+  overlays: Map<number, ImageOverlay>,
+  bandTop: number,
+  bandBottom: number,
+  x0: number,
+  y0: number,
+  mmPerPx: number,
+) {
+  for (const o of overlays.values()) {
+    const top = Math.max(o.top, bandTop);
+    const bottom = Math.min(o.top + o.height, bandBottom);
+    if (bottom - top < 1) continue;
+
+    let data = o.dataUrl;
+    let alias: string | undefined = o.alias;
+    if (top !== o.top || bottom !== o.top + o.height) {
+      // An image a page break runs through — only its rows in this band.
+      const ratio = o.canvas.height / o.height;
+      const part = cropCanvasBand(o.canvas, Math.round((top - o.top) * ratio), Math.round((bottom - o.top) * ratio));
+      if (!part) continue;
+      data = part.toDataURL("image/png");
+      alias = undefined;
+    }
+    pdf.addImage(
+      data,
+      "PNG",
+      x0 + o.left * mmPerPx,
+      y0 + (top - bandTop) * mmPerPx,
+      o.width * mmPerPx,
+      (bottom - top) * mmPerPx,
+      alias,
+      "FAST",
+    );
+  }
 }
 
 function findSafeSliceHeight(
@@ -250,13 +411,23 @@ export async function renderPaginatedInvoicePdf(
       : theadBottomPx;
   }
 
+  // Images go into the PDF on their own, sharp — measured here with the rest of
+  // the layout, never split by a page break, and left out of the capture.
+  const overlays = await collectImageOverlays(container, containerRect);
+  for (const o of overlays.values()) {
+    keepTogetherRanges.push({ start: Math.round(o.top), end: Math.round(o.top + o.height) });
+  }
+  const overlayBottomPx = Math.max(0, ...Array.from(overlays.values(), (o) => Math.ceil(o.top + o.height)));
+
   const capturedCanvas = await html2canvas(container, {
     scale: PDF_CAPTURE_SCALE,
     useCORS: true,
     backgroundColor: "#ffffff",
     logging: false,
+    onclone: hideOverlaidImages(overlays),
   });
-  const canvas = trimCanvasBottom(capturedCanvas);
+  // An image at the very bottom is blank in the capture — don't trim it away.
+  const canvas = trimCanvasBottom(capturedCanvas, overlayBottomPx);
 
   let headerImgData: string | null = null;
   let headerHeightPx = 0;
@@ -336,6 +507,7 @@ export async function renderPaginatedInvoicePdf(
       undefined,
       "MEDIUM",
     );
+    drawImageOverlays(pdf, overlays, 0, canvas.height, (pageWidth - imgWidthMm) / 2, 0, fitScale / pxPerMm);
     return pdf;
   }
 
@@ -401,7 +573,11 @@ export async function renderPaginatedInvoicePdf(
     }
 
     const trimmedPageCanvas = trimCanvasBottom(pageCanvas);
-    if (trimmedPageCanvas.height <= 1 && pageIndex > 0) {
+    // A slice that's blank only because its image was left out of the capture still prints.
+    const sliceHasImage = Array.from(overlays.values()).some(
+      (o) => o.top < sourceY + sliceHeight && o.top + o.height > sourceY,
+    );
+    if (trimmedPageCanvas.height <= 1 && pageIndex > 0 && !sliceHasImage) {
       break;
     }
 
@@ -417,6 +593,7 @@ export async function renderPaginatedInvoicePdf(
     let cursorMm = 0;
     if (!isFirstPage && headerImgData) {
       pdf.addImage(headerImgData, "JPEG", 0, 0, pageWidth, headerHeightMm, undefined, "MEDIUM");
+      drawImageOverlays(pdf, overlays, 0, headerHeightPx, 0, 0, 1 / pxPerMm);
       cursorMm = headerOverheadMm;
     }
 
@@ -435,9 +612,56 @@ export async function renderPaginatedInvoicePdf(
       undefined,
       "MEDIUM",
     );
+    drawImageOverlays(pdf, overlays, sourceY, sourceY + sliceHeight, 0, cursorMm, 1 / pxPerMm);
 
     sourceY += sliceHeight;
   }
 
+  return pdf;
+}
+
+/**
+ * Renders a thermal receipt into a PDF shaped like the roll it prints on: one
+ * page the full roll width and exactly as tall as the receipt, with the
+ * receipt (laid out at the printable width) centred on it — no A4 margins, no
+ * page break through the middle of a bill, and printed as-is it lands inside
+ * the head's printable band. Pass `appendTo` to add this receipt as a further
+ * page (several copies — Original, Duplicate, … — in one file).
+ */
+export async function renderThermalReceiptPdf(
+  container: HTMLElement,
+  rollMm: number,
+  printableMm: number,
+  appendTo?: jsPDF | null,
+): Promise<jsPDF> {
+  const overlays = await collectImageOverlays(container, container.getBoundingClientRect());
+  const canvas = await html2canvas(container, {
+    scale: PDF_CAPTURE_SCALE,
+    useCORS: true,
+    backgroundColor: "#ffffff",
+    logging: false,
+    onclone: hideOverlaidImages(overlays),
+  });
+  const heightMm = (canvas.height / canvas.width) * printableMm;
+  const format: [number, number] = [rollMm, heightMm];
+  // jsPDF swaps a [w, h] format to match the orientation, so a receipt shorter
+  // than it is wide needs "l" to keep its width.
+  const orientation = heightMm >= rollMm ? "p" : "l";
+
+  const pdf = appendTo ?? new jsPDF({ orientation, unit: "mm", format, compress: true });
+  if (appendTo) {
+    pdf.addPage(format, orientation);
+  }
+  pdf.addImage(
+    canvas.toDataURL("image/jpeg", PDF_IMAGE_QUALITY),
+    "JPEG",
+    (rollMm - printableMm) / 2,
+    0,
+    printableMm,
+    heightMm,
+    undefined,
+    "MEDIUM",
+  );
+  drawImageOverlays(pdf, overlays, 0, canvas.height, (rollMm - printableMm) / 2, 0, printableMm / canvas.width);
   return pdf;
 }

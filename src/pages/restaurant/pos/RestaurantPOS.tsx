@@ -4,6 +4,8 @@ import React, {
 import { flushSync } from "react-dom";
 import LottieLoader from "@components/LottieLoader";
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "@pages/SalesHistory/ThermalInvoiceTemplate";
+import { gstBreakdownFromLines } from "@utils/gstSummary";
+import { captureThermalReceipt, writeThermalPrint } from "@utils/thermalPrint";
 import {
   Box, Typography, TextField, InputAdornment, Chip, CircularProgress, Divider,
 } from "@mui/material";
@@ -80,7 +82,7 @@ const ADD_ORDER_TYPE_MAP: Record<string, string> = {
 
 function buildInitialOrder(): RestaurantOrder {
   return {
-    orderId:       `ORD-${Date.now()}`,
+    orderId:       "",
     tableNumber:   null,
     kotNo:         null,
     items:         [],
@@ -119,9 +121,6 @@ function toThermalPaperSize(printerInch: string | undefined): ThermalPaperSize {
   return "3";
 }
 
-// Printable widths (roll width minus hardware margins) — same values retail POS prints at.
-const RECEIPT_WIDTH_MM: Record<ThermalPaperSize, number> = { "3": 72, "4": 96, "5": 120 };
-
 // One bill line, normalised from either a cart item or an already-sent KOT item.
 interface ReceiptLine {
   itemId:    string;
@@ -133,14 +132,19 @@ interface ReceiptLine {
   inclusive: boolean;
 }
 
-// The order/bill number the server filed the payment under, when the response carries one.
-function pickOrderNo(res: unknown, fallback: string): string {
+// The public order number the server filed the payment under (public_order_no).
+// Where it sits depends on the endpoint: /api/completeorder (Dine-In) answers
+// { orderData: { public_order_no } }, /orders/add/orders (Takeaway / Delivery)
+// answers { order: { public_order_no } } with the inserted row.
+function pickOrderNo(res: unknown): string {
   const asObject = (v: unknown) =>
     v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
   const body = asObject(res);
-  const src  = asObject(body?.data) ?? asObject(body?.Data) ?? body;
-  const no   = src?.invoice_no ?? src?.bill_no ?? src?.sale_id ?? src?.api_order_id ?? src?.order_id;
-  return no != null && no !== "" ? String(no) : fallback;
+  for (const src of [body, asObject(body?.data), asObject(body?.Data), asObject(body?.orderData)]) {
+    const no = src?.public_order_no ?? asObject(src?.order)?.public_order_no;
+    if (no != null && no !== "") return String(no);
+  }
+  return "";
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -819,27 +823,11 @@ const RestaurantPOS: React.FC = () => {
         }));
 
     // GST slabs, taxed the same way calcTax / calcSummaryTotals tax them on screen.
-    const slabs = new Map<number, { hsn: string; taxable: number; cgstRate: number; sgstRate: number; cgstAmount: number; sgstAmount: number; totalTaxAmount: number }>();
-    for (const l of lines) {
-      const gross   = l.price * l.qty;
-      const taxable = l.inclusive ? gross / (1 + l.gstPct / 100) : gross;
-      const tax     = l.inclusive ? gross - taxable : (gross * l.gstPct) / 100;
-      const slab = slabs.get(l.gstPct) ?? {
-        hsn: "-", taxable: 0, cgstRate: l.gstPct / 2, sgstRate: l.gstPct / 2,
-        cgstAmount: 0, sgstAmount: 0, totalTaxAmount: 0,
-      };
-      slab.taxable        += taxable;
-      slab.cgstAmount     += tax / 2;
-      slab.sgstAmount     += tax / 2;
-      slab.totalTaxAmount += tax;
-      slabs.set(l.gstPct, slab);
-    }
-    const gstBreakdown = Array.from(slabs.values());
+    const gstBreakdown = gstBreakdownFromLines(lines);
     const now = new Date();
 
     return {
-      sale_id:         order.orderId,
-      date:            now.toLocaleDateString("en-GB"),
+      date:           now.toLocaleDateString("en-GB"),
       time:            now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
       customer_name:   order.customerName.trim() || "Walk-In",
       customer_mobile: order.customerPhone.trim() || "-",
@@ -867,56 +855,26 @@ const RestaurantPOS: React.FC = () => {
   // Prints the rendered receipt through a hidden iframe rather than window.open: this
   // runs after the payment request resolves, by which point the click that started it
   // may no longer count as a user gesture and a popup blocker would swallow a new window.
-  const printReceipt = () => {
+  const printReceipt = async () => {
     const node = receiptRef.current;
     if (!node) return;
-    const mm = RECEIPT_WIDTH_MM[thermalPaperSize];
+    const image = await captureThermalReceipt(node);
 
     const iframe = document.createElement("iframe");
     Object.assign(iframe.style, { position: "fixed", right: "0", bottom: "0", width: "0", height: "0", border: "0" });
     document.body.appendChild(iframe);
     const win = iframe.contentWindow;
-    const doc = iframe.contentDocument;
-    if (!win || !doc) { iframe.remove(); return; }
+    if (!win) { iframe.remove(); return; }
 
-    // outerHTML (not innerHTML) — the template's root div carries the base font inline styles.
-    doc.open();
-    doc.write(`<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <title>Receipt</title>
-  <style>
-    @page { size: ${mm}mm auto; margin: 0; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      width: ${mm}mm;
-      background: #fff;
-      color: #000;
-      font-family: 'Courier New','Consolas','Lucida Console',monospace;
-      font-weight: 600;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    @media print { html, body { width: ${mm}mm; } }
-  </style>
-</head>
-<body>${node.outerHTML}</body>
-</html>`);
-    doc.close();
+    await writeThermalPrint(win, [image]);
 
+    // After the write — opening the document drops listeners already on its window.
     const cleanup = () => iframe.remove();
     win.addEventListener("afterprint", () => setTimeout(cleanup, 0));
     setTimeout(cleanup, 60000);
 
-    // Give the logo/signature images a moment to load so they aren't blank on the roll.
-    const images = Array.from(doc.images).map((img) =>
-      img.complete ? Promise.resolve() : new Promise<void>((r) => { img.onload = img.onerror = () => r(); })
-    );
-    Promise.race([Promise.all(images), new Promise((r) => setTimeout(r, 1500))]).then(() => {
-      win.focus();
-      win.print();
-    });
+    win.focus();
+    win.print();
   };
 
   const handlePay = async (payMethod: PaymentMethod) => {
@@ -980,8 +938,8 @@ const RestaurantPOS: React.FC = () => {
       if (printEnabled) {
         // The payment already went through — a print problem must not read as a failed payment.
         try {
-          flushSync(() => setReceiptData({ ...receipt, sale_id: pickOrderNo(res, receipt.sale_id) }));
-          printReceipt();
+          flushSync(() => setReceiptData({ ...receipt, sale_id: pickOrderNo(res) }));
+          await printReceipt();
         } catch {
           setErrorMsg("Payment successful, but the bill could not be printed");
         }

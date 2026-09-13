@@ -36,6 +36,7 @@ import {
   useUpdateInvoiceSettings,
   useUploadInvoiceSignature,
   useDeleteInvoiceSignature,
+  useCompanyLogoUrl,
   INVOICE_COPY_TYPE_LABELS,
   type InvoiceCopyTypeLabel,
   type InvoiceSettingsResponse,
@@ -554,11 +555,12 @@ export default function InvoiceSetting() {
   const baselineRef = useRef<InvoiceSettings | null>(null);
   // Preview-only visual density — not persisted to the backend yet.
   const [theme, setTheme] = useState<"compact" | "classic">("classic");
-  // Logo/header images aren't part of the invoice-settings schema (no upload
-  // field exists on that API) — these stay local/preview-only, same as the
-  // still-disabled Company Logo & Header upload UI above. The signature
-  // image is backed by the API (see below).
-  const [companyLogoUrl] = useState("");
+  // The logo lives on the company (Company Details), not on invoice settings,
+  // so the preview shows the one stored there. Header images aren't part of
+  // the invoice-settings schema — preview-only, same as the still-disabled
+  // Company Logo & Header upload UI above. The signature image is backed by
+  // the API (see below).
+  const companyLogoUrl = useCompanyLogoUrl();
   const [headerImageUrl] = useState("");
   const [signatureUrl, setSignatureUrl] = useState("");
   const [saved, setSaved] = useState(false);
