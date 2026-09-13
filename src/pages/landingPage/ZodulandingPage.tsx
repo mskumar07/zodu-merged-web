@@ -1,23 +1,22 @@
 import React, { useState } from "react";
 import {
   Box, Button, Container, Typography, Stack, Divider,
-  Link, IconButton, Accordion, AccordionSummary, AccordionDetails,
-  Avatar,
-  Grid,
+   IconButton
+  
 } from "@mui/material";
 import { createTheme, ThemeProvider, alpha } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import GlobalStyles from "@mui/material/GlobalStyles";
 
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
-import Inventory2Icon from "@mui/icons-material/Inventory2";
+
 import GroupsIcon from "@mui/icons-material/Groups";
-import AnalyticsIcon from "@mui/icons-material/Analytics";
+
 import StoreIcon from "@mui/icons-material/Store";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import AddIcon from "@mui/icons-material/Add";
-import StarIcon from "@mui/icons-material/Star";
+
+
 import FacebookIcon from "@mui/icons-material/Facebook";
 import InstagramIcon from "@mui/icons-material/Instagram";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
@@ -31,7 +30,7 @@ import SpeedIcon from "@mui/icons-material/Speed";
 import StorefrontIcon from "@mui/icons-material/Storefront";
 import RestaurantIcon from "@mui/icons-material/Restaurant";
 import LocalGroceryStoreIcon from "@mui/icons-material/LocalGroceryStore";
-import LocalPharmacyIcon from "@mui/icons-material/LocalPharmacy";
+
 import SpaIcon from "@mui/icons-material/Spa";
 import MiscellaneousServicesIcon from "@mui/icons-material/MiscellaneousServices";
 import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined";
@@ -49,11 +48,11 @@ import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
 import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
 import AppleIcon from "@mui/icons-material/Apple";
-import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+
 import SmartphoneIcon from "@mui/icons-material/Smartphone";
 import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import CloudDoneIcon from "@mui/icons-material/CloudDone";
-import AccessTimeIcon from "@mui/icons-material/AccessTime";
+
 import { useNavigate } from "react-router-dom";
 import heroImg from "../../assets/heroImg.png";
 import zlogo from "../../assets/zlogo.png";
@@ -74,19 +73,11 @@ import showcaseBilling from "../../assets/wzd__1.png";
 import showcaseInventory from "../../assets/wzd_2.png";
 import showcaseReports from "../../assets/wzd__3.png";
 import showcaseTeam from "../../assets/wzd__4.png";
-import posShot1 from "../../assets/Feature/POS.png";
-import posShot2 from "../../assets/Feature/POS2.png";
-import posShot3 from "../../assets/Feature/POS3.png";
+
 // import pos4 from "../../assets/Feature/pos4.png";
 // import pos7 from "../../assets/Feature/pos7.png";
 // import pos6 from "../../assets/Feature/pos6.png";
-import invShot1 from "../../assets/Feature/Inventory.png";
-import invShot2 from "../../assets/Feature/Inventory2.png";
-import invShot3 from "../../assets/Feature/Invenotry3.png";
-import reportShot1 from "../../assets/Feature/Report.png";
-import reportShot2 from "../../assets/Feature/Report2.png";
-import reportShot3 from "../../assets/Feature/Report3.png";
-import reportShot4 from "../../assets/Feature/Report4.png";
+
 import barShot1 from "../../assets/Feature/bar1.png";
 import barShot2 from "../../assets/Feature/bar2.png";
 import barShot3 from "../../assets/Feature/bar3.png";
@@ -97,20 +88,7 @@ import mobileShot3 from "../../assets/Feature/mobile3.png";
 import employeeShot1 from "../../assets/Feature/employee1.png";
 import employeeShot2 from "../../assets/Feature/employee3.png";
 import employeeShot3 from "../../assets/Feature/employee4.png";
-import attendanceShot1 from "../../assets/Feature/attendance1.png";
-import attendanceShot2 from "../../assets/Feature/attendance2.png";
-import attendanceShot3 from "../../assets/Feature/attendance3.png";
-import gstShot1 from "../../assets/Feature/gst1.png";
-import gstShot2 from "../../assets/Feature/gst2.png";
-import gstShot3 from "../../assets/Feature/gst3.png";
-import gstShot4 from "../../assets/Feature/gst4.png";
-import cusShot1 from "../../assets/Feature/cus1.png";
-import cusShot2 from "../../assets/Feature/cus2.png";
-import cusShot3 from "../../assets/Feature/cus3.png";
-import cusShot4 from "../../assets/Feature/cus4.png";
-import locShot1 from "../../assets/Feature/loc1.png";
-import locShot2 from "../../assets/Feature/loc2.png";
-import locShot3 from "../../assets/Feature/loc3.png";
+
 import digiShot1 from "../../assets/Feature/digi1.png";
 import digiShot2 from "../../assets/Feature/digi2.png";
 import digiShot3 from "../../assets/Feature/digi3.png";
@@ -118,12 +96,6 @@ import taskShot1 from "../../assets/Feature/task1.png";
 import taskShot2 from "../../assets/Feature/task2.png";
 import taskShot3 from "../../assets/Feature/task3.png";
 
-import AssessmentIcon from '@mui/icons-material/Assessment';
-
-import LocalShippingIcon from '@mui/icons-material/LocalShipping';
-import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
-import RequestQuoteIcon from '@mui/icons-material/RequestQuote';
-import BarChartIcon from '@mui/icons-material/BarChart';
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import BoltOutlinedIcon from "@mui/icons-material/BoltOutlined";
 import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
@@ -161,11 +133,50 @@ import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import PaymentsRemindersImage from "../../assets/Landingpage/Payments-reminders.jpeg";
-import GSTComplianceImage from '../../assets/Landingpage/GST-Compliance-Reports.jpeg';
+
 import ExpenseManagementImage from "../../assets/Landingpage/Expense-management.jpeg";
 import purchaseManagementImg from "../../assets/Landingpage/purchase-management.jpeg";
 import reportsAnalyticsImg from '../../assets/Landingpage/reportsAnalyticsImg.png';
 import reportsAnalyticsFullyTransparentImg from "../../assets/Landingpage/reports-analytics-fully-transparent.png";
+import attendanceImage1 from "../../assets/Landingpage/Attendence-management.png";
+import CustomerManagementImage1 from "../../assets/Landingpage/Customer-management1.png";
+import GSTComplianceImage2 from "../../assets/Landingpage/Gst-compliance&reports.png";
+import inventoryImage1 from "../../assets/Landingpage/inventory-management.png";
+
+import posbilling1 from "../../assets/Landingpage/pos-billing1.png";
+import PaymentsRemindersImage2 from "../../assets/Landingpage/payments&reminder.png";
+import purchaseManagementImg2 from "../../assets/Landingpage/purchase-management1.png";
+import ExpenseManagementImage2 from "../../assets/Landingpage/Expense-management1.png";
+
+import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
+
+import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
+import PeopleOutlineOutlinedIcon from '@mui/icons-material/PeopleOutlineOutlined';
+import PaymentOutlinedIcon from '@mui/icons-material/PaymentOutlined';
+
+import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
+
+import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
+import customerMgmtImg from '../../assets/Landingpage/Customer-management-(3).png';
+import expenseImg2 from '../../assets/Landingpage/Expense-management.png'; 
+import gstReportImg from '../../assets/Landingpage/GST-report.png';
+import purchaseImg3 from '../../assets/Landingpage/purchase-management3.png';
+
+import paymentsImg from '../../assets/Landingpage/payment-reminder.png';
+import WomanIcon from '@mui/icons-material/Woman';
+
+import { Avatar } from '@mui/material';
+import CheckIcon from '@mui/icons-material/Check';
+import posbilling1Mobile from "../../assets/Landingpage/pos-billing-mobile.jpeg";
+import inventoryImage1Mobile from "../../assets/Landingpage/inventory-mobile.jpeg";
+import attendanceImage1Mobile from "../../assets/Landingpage/attendance-mobile.jpeg";
+import heroImg1 from '../../assets/Landingpage/Hero-section.jpeg';
+
+
+import { Card} from '@mui/material';
+import SendIcon from '@mui/icons-material/Send';
+
 // ── Design Tokens ───────────────────────────────────────────
 // ──────────────────
 const PRIMARY       = "#d32f2f";
@@ -487,8 +498,8 @@ const plans = [
   {
     name: "Starter",
     tagline: "Perfect for new & small businesses",
-    monthly: "₹199",
-    yearly: "₹189",
+    monthly: "₹299",
+    yearly: "₹249",
     popular: false,
     cta: "Start Free Trial",
     items: [
@@ -749,208 +760,37 @@ const ZoduLandingPage: React.FC = () => {
         </Box>
 
         {/* ── HERO ─────────────────────────────────────────────────────────── */}
-        <Box sx={{
-          overflow: "hidden",
-          bgcolor: "#fff",
-          position: "relative",
-          minHeight: {md: "auto"},
-          display: { md: "flex" },
-          flexDirection: { md: "column" },
-          mb: { xs: 6, md: 4 }
-        }}>
-          <Box sx={{
-            position: "absolute",
-            top: 52,
-            right: 72,
-            width: 132,
-            height: 90,
-            opacity: 0.45,
-            backgroundImage: `radial-gradient(${alpha(PRIMARY, 0.35)} 1.6px, transparent 1.6px)`,
-            backgroundSize: "15px 15px",
-            pointerEvents: "none",
-            display: { xs: "none", md: "block" },
-            zIndex: 0,
-          }} />
 
-          {/* Two-column layout with a bigger right-side image */}
-          <Box sx={{
-            position: "relative",
-            zIndex: 1,
-            display: "flex",
-            flexDirection: { xs: "column", md: "row" },
-            flex: { md: 1 },
-            alignItems: "center",
-            justifyContent: "space-between",
-            maxWidth: 1360,
-            mx: "auto",
+   <Box sx={{
+      width: "100%",
+      mt: 0, // Navbar kku apram gap illama top-la otti varanum
+      pt: 0,
+      mb: { xs: 4, md: 4 },
+      px: 0,
+      mx: 0,
+      overflow: "hidden",
+    }}>
+      <Box component="div" sx={{
+        width: "100%",
+        borderRadius: 0, // Full edge flat fit
+        overflow: "hidden",
+        position: "relative",
+        bgcolor: "#fff",
+      }}>
+        <Box
+          component="img"
+          src={heroImg1}
+          alt="Zodu business management platform"
+          sx={{
             width: "100%",
-            px: { xs: 3, sm: 5, md: 5 },
-            minHeight: { md: "clamp(500px, calc(100vh - 170px), 590px)" },
-          }}>
-
-            {/* LEFT — text (Compact and clean) */}
-            <Box sx={{
-              flex: { md: "0 0 42%" }, // 
-              display: "flex", alignItems: "center",
-              py: { xs: 4, md: 4 },
-              order: { xs: 2, md: 1 },
-            }}>
-              <Box sx={{
-                maxWidth: 520, width: "100%",
-                textAlign: { xs: "center", md: "left" },
-              }}>
-
-                {/* Trust badge */}
-                <Box sx={{
-                  display: "inline-flex", alignItems: "center", gap: 0.8,
-                  bgcolor: alpha(PRIMARY, 0.09), color: PRIMARY,
-                  px: 1.8, py: 0.7, borderRadius: "999px",
-                  fontSize: "0.75rem", fontWeight: 700, mb: 2,
-                  border: `1px solid ${alpha(PRIMARY, 0.22)}`,
-                  boxShadow: `0 10px 24px ${alpha(PRIMARY, 0.08)}`,
-                }}>
-                  <VerifiedIcon sx={{ fontSize: 14 }} />
-                  Trusted by 10,000+ Businesses Across India
-                </Box>
-
-                {/* Headline - Standard neat size */}
-                <Typography sx={{
-                  fontSize: { xs: "2.3rem", md: "3.1rem" },
-                  fontWeight: 900, color: DARK,
-                  lineHeight: 1.08, letterSpacing: "-0.035em",
-                  mb: 1.5,
-                }}>
-                  Smart Billing &amp;<br />
-                  <Box component="span" sx={{ color: "#2563eb", position: "relative", display: "inline-block" }}>
-                    Business Management
-                    {/* <Box component="span" sx={{
-                      position: "absolute",
-                      left: 4,
-                      right: 8,
-                      bottom: { xs: -4, md: -7 },
-                      height: { xs: 4, md: 6 },
-                      borderRadius: "999px",
-                      bgcolor: "rgba(30,58,138,0.15)",
-                    }} /> */}
-                  </Box>
-                </Typography>
-
-                {/* Subtext */}
-                <Typography sx={{
-                  fontSize: { xs: "0.98rem", md: "1.02rem" },
-                  color: "#5B6475", lineHeight: 1.6, mb: 2.2, maxWidth: 480,
-                  mx: { xs: "auto", md: 0 },
-                }}>
-                  All-in-one POS solution to bill, manage, analyse and grow your business effortlessly. No tech skills required.
-                </Typography>
-
-                {/* CTAs */}
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1.4} mb={{ xs: 3.5, md: 2 }} justifyContent={{ xs: "center", md: "flex-start" }}>
-                  <Button
-                    variant="contained" size="large"
-                    endIcon={<ArrowForwardIcon />}
-                    onClick={() => navigate("/signup")}
-                    sx={{
-                      bgcolor: PRIMARY, color: "#fff",
-                      px: 3.2, py: 1.2, borderRadius: "12px",
-                      fontSize: "0.95rem", fontWeight: 700,
-                      boxShadow: `0 6px 20px ${alpha(PRIMARY, 0.38)}`,
-                      "&:hover": { bgcolor: PRIMARY_DARK, boxShadow: `0 10px 28px ${alpha(PRIMARY, 0.48)}` },
-                    }}
-                  >
-                    Start Free Trial
-                  </Button>
-                  <Button
-                    variant="outlined" size="large"
-                    sx={{
-                      borderColor: "#D1D5DB", color: DARK,
-                      px: 3.2, py: 1.2, borderRadius: "12px",
-                      fontSize: "0.95rem", fontWeight: 600,
-                      "&:hover": { borderColor: PRIMARY, color: PRIMARY, bgcolor: "transparent" },
-                    }}
-                  >
-                    Book a Demo
-                  </Button>
-                </Stack>
-              </Box>
-            </Box>
-
-            {/* RIGHT — hero image (Made larger and prominent) */}
-            <Box sx={{
-              flex: { md: "0 0 56%" }, // 👈 Image space-a perusaa aakkirukken
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "flex-end",
-              overflow: "hidden",
-              order: { xs: 1, md: 2 },
-              minHeight: { xs: 340, sm: 480, md: "auto" },
-              py: { xs: 2.5, md: 0 },
-            }}>
-              <Box sx={{
-                position: "relative",
-                width: "100%",
-                maxWidth: { xs: 520, sm: 720, md: 740 }, // 👈 Image max-width perusaa irukkum
-              }}>
-                <Box
-                  component="img"
-                  src={heroImg}
-                  alt="Zodu business management platform"
-                  sx={{
-                    width: "100%",
-                    maxHeight: { xs: 420, sm: 620, md: "clamp(480px, calc(100vh - 140px), 660px)" }, // 👈 Image height perusaa fix pannirukken
-                    objectFit: "contain",
-                    objectPosition: "center",
-                    display: "block",
-                    filter: "drop-shadow(0 18px 26px rgba(15,23,42,0.12))",
-                  }}
-                />
-              </Box>
-            </Box>
-          </Box>
-
-          {/* ── Trust bar ── */}
-          <Box sx={{ bgcolor: "#F9FAFB", px: { xs: 2, md: 3 }, py: { xs: 1.4, md: 1.2 }, flexShrink: 0 }}>
-            <Box sx={{
-              display: "flex",
-              flexWrap: { xs: "wrap", md: "nowrap" },
-              bgcolor: "#fff",
-              border: `1px solid ${BORDER}`,
-              borderRadius: "14px",
-              boxShadow: "0 1px 8px rgba(0,0,0,0.05)",
-              overflow: "hidden",
-              maxWidth: 1280, mx: "auto",
-            }}>
-              {[
-                { icon: <CloudIcon sx={{ fontSize: 24, color: PRIMARY }} />,                  label: "Cloud-Based",       sub: "Access from anywhere, anytime"                    },
-                { icon: <LockIcon sx={{ fontSize: 24, color: PRIMARY }} />,                   label: "Bank-Level Security", sub: "Your data is 100% protected with advanced security" },
-                { icon: <NotificationsOutlinedIcon sx={{ fontSize: 24, color: PRIMARY }} />,  label: "Smart Notifications", sub: "Stay updated on what matters most"                },
-                { icon: <SyncIcon sx={{ fontSize: 24, color: PRIMARY }} />,                   label: "Auto Sync",         sub: "All data synced in real-time"                     },
-                { icon: <SupportAgentIcon sx={{ fontSize: 24, color: PRIMARY }} />,           label: "Dedicated Support",   sub: "We're here to help you succeed"                   },
-              ].map((b, i) => (
-                <Stack
-                  key={b.label}
-                  direction="row"
-                  alignItems="center"
-                  spacing={1.5}
-                  sx={{
-                    flex: { md: 1 },
-                    width: { xs: i === 4 ? "100%" : "50%", md: "auto" },
-                    px: { xs: 2.5, md: 3 },
-                    py: { xs: 1.2, md: 1 },
-                    borderRight: { md: i < 4 ? `1px solid ${BORDER}` : "none" },
-                    borderBottom: { xs: i < 4 ? `1px solid ${BORDER}` : "none", md: "none" },
-                  }}
-                >
-                  {b.icon}
-                  <Box>
-                    <Typography sx={{ fontSize: "0.8rem", fontWeight: 700, color: DARK, lineHeight: 1.25 }}>{b.label}</Typography>
-                    <Typography sx={{ fontSize: "0.66rem", color: GRAY, lineHeight: 1.35, mt: 0.2 }}>{b.sub}</Typography>
-                  </Box>
-                </Stack>
-              ))}
-            </Box>
-          </Box>
-        </Box>
+            height: "auto",
+            display: "block",
+            objectFit: "cover",
+          }}
+        />
+      </Box>
+    </Box>
+  
 
         {/* ── STATS BAR ────────────────────────────────────────────────────── */}
         {/* <Box sx={{
@@ -1024,1187 +864,700 @@ const ZoduLandingPage: React.FC = () => {
 
        
  {/* ── MODULE SUITE (9 MODULES) ─────────────────────────────────────── */}
-<Box sx={{ bgcolor: '#f8fafc', minHeight: 'auto', py: 4 , pb: { xs: 8, md: 12 },px: { xs: 2, sm: 3, md: 4 },}}>
-      <Container maxWidth="xl" sx={{ px: 0, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-        {/* SECTION HEADINGS */}
-        <Box textAlign="center" mb={4}>
-          <Typography sx={{ color: "#dc2626", fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", mb: 0.5 }}>
-            WHAT ZODU DOES FOR YOU
-          </Typography>
-          <Typography sx={{ fontSize: { xs: "1.5rem", md: "1.85rem" }, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.025em", mb: 0.5, lineHeight: 1.15 }}>
-            Stop Working Harder. Start Working Smarter.
-          </Typography>
-          <Typography sx={{ fontSize: "0.85rem", color: "#64748b", maxWidth: 550, mx: "auto", lineHeight: 1.4 }}>
-            Every feature in Zodu is built around one goal — save you time, eliminate errors, and help your business grow faster.
-          </Typography>
-        </Box>
 
-        {/* 3-Column Layout Grid (Grid v2 syntax) */}
-        <Grid container spacing={1.25} alignItems="stretch">
-          
-         {/* 1. POS BILLING */}
-      <Grid size={{ xs: 12, sm: 6, md: 4 }} sx={{ display: "flex" }}>
-  <Box sx={{ bgcolor: "#fff", p: 1, borderRadius: "16px", border: "1px solid #e2e8f0", width: "100%", height: { xs: "auto", md: "192px" }, minHeight: 0, boxSizing: "border-box", overflow: { xs: "visible", md: "hidden" }, display: "flex", flexDirection: "column", boxShadow: "0 4px 20px rgba(15,23,42,0.04)" }}>
-      {/* Header */}
-      <Box sx={{ display: "flex", gap: 1, mb: 0.35, alignItems: "center", flexShrink: 0 }}>
-        <Box sx={{ width: 34, height: 34, borderRadius: "12px", bgcolor: "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <AddShoppingCartIcon sx={{ color: "#dc2626", fontSize: "1.15rem" }} />
-        </Box>
-        <Box sx={{ minWidth: 0 }}>
-          <Typography sx={{ fontWeight: 800, fontSize: "0.8rem", color: "#0f172a", lineHeight: 1.2 }}>POS Billing</Typography>
-          <Typography sx={{ fontSize: "0.6rem", color: "#64748b", lineHeight: 1.25 }}>Bill in seconds — even during your busiest rush.</Typography>
-        </Box>
-      </Box>
-
-      {/* Main Container Split */}
-      <Box sx={{ flex: 1, minHeight: 0, display: "flex", gap: 1, alignItems: "stretch" }}>
-
-        {/* Left Side: Two White Sub-cards */}
-        <Box sx={{ flex: 1.1, minHeight: 0, display: "flex", flexDirection: "column", gap: 0.6 }}>
-
-          {/* Today's Sales Card */}
-          <Box sx={{ flex: 1, minHeight: 0, bgcolor: "#fff", p: 0.8, borderRadius: "10px", border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.03)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Box>
-              <Typography sx={{ fontSize: "0.58rem", color: "#64748b", fontWeight: 600, lineHeight: 1.2 }}>Today's Sales</Typography>
-              <Typography sx={{ fontSize: "0.8rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, my: 0.15 }}>₹ 12,458</Typography>
-              <Typography sx={{ fontSize: "0.58rem", color: "#16a34a", fontWeight: 700, lineHeight: 1.2 }}>↑ 12.5%</Typography>
-            </Box>
-            <Box sx={{ width: "50px", height: 20, flexShrink: 0 }}>
-              <svg width="100%" height="100%" viewBox="0 0 100 28" preserveAspectRatio="none">
-                <polyline points="0,22 15,18 30,20 45,10 60,14 75,4 90,8 100,2" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </Box>
-          </Box>
-
-          {/* Total Orders Card */}
-          <Box sx={{ flex: 1, minHeight: 0, bgcolor: "#fff", p: 0.8, borderRadius: "10px", border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.03)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Box>
-              <Typography sx={{ fontSize: "0.58rem", color: "#64748b", fontWeight: 600, lineHeight: 1.2 }}>Total Orders</Typography>
-              <Typography sx={{ fontSize: "0.8rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, my: 0.15 }}>128</Typography>
-              <Typography sx={{ fontSize: "0.58rem", color: "#16a34a", fontWeight: 700, lineHeight: 1.2 }}>↑ 8.3%</Typography>
-            </Box>
-            <Box sx={{ width: "50px", height: 20, display: "flex", alignItems: "flex-end", gap: "3px", flexShrink: 0 }}>
-              <Box sx={{ width: "12%", height: "45%", bgcolor: "#fca5a5", borderRadius: "2px" }} />
-              <Box sx={{ width: "12%", height: "65%", bgcolor: "#fca5a5", borderRadius: "2px" }} />
-              <Box sx={{ width: "12%", height: "35%", bgcolor: "#fca5a5", borderRadius: "2px" }} />
-              <Box sx={{ width: "12%", height: "100%", bgcolor: "#dc2626", borderRadius: "2px" }} />
-              <Box sx={{ width: "12%", height: "55%", bgcolor: "#fca5a5", borderRadius: "2px" }} />
-              <Box sx={{ width: "12%", height: "80%", bgcolor: "#fca5a5", borderRadius: "2px" }} />
-            </Box>
-          </Box>
-
-        </Box>
-
-        {/* Right Side: Mockup Image */}
-        <Box sx={{ flex: 1.1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Box
-            component="img"
-            src={posbilling}
-            alt="POS Mockup"
-            sx={{
-              maxWidth: "100%",
-              maxHeight: "100%",
-              width: "auto",
-              height: "auto",
-              objectFit: "contain"
-            }}
-          />
-        </Box>
-
-      </Box>
-  </Box>
-</Grid>
-
-      
-         
- {/* 2. INVENTORY MANAGEMENT */}
-  <Grid size={{ xs: 12, sm: 6, md: 4 }} sx={{ display: "flex" }}>
-    <Box sx={{ bgcolor: "#fff", p: 1, borderRadius: "16px", border: "1px solid #e2e8f0", width: "100%", height: { xs: "auto", md: "192px" }, minHeight: 0, boxSizing: "border-box", overflow: { xs: "visible", md: "hidden" }, display: "flex", flexDirection: "column", boxShadow: "0 4px 20px rgba(15,23,42,0.04)" }}>
-        {/* Header */}
-        <Box sx={{ display: "flex", gap: 1, mb: 0.35, alignItems: "center", flexShrink: 0 }}>
-          <Box sx={{ width: 34, height: 34, borderRadius: "12px", bgcolor: "#dcfce7", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <Inventory2OutlinedIcon sx={{ color: "#16a34a", fontSize: "1.15rem" }} />
-          </Box>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography sx={{ fontWeight: 800, fontSize: "0.8rem", color: "#0f172a", lineHeight: 1.2 }}>Inventory Management</Typography>
-            <Typography sx={{ fontSize: "0.6rem", color: "#64748b", lineHeight: 1.25 }}>Never run out of a best-seller again.</Typography>
-          </Box>
-        </Box>
-
-        {/* Main Container Split: Left 3 Stacked Cards / Right Big Image */}
-        <Box sx={{ flex: 1, minHeight: 0, display: "flex", gap: 1, alignItems: "stretch" }}>
-
-          {/* Left Side: Three Stacked Kutty Sub-cards */}
-          <Box sx={{ flex: 1.1, minHeight: 0, display: "flex", flexDirection: "column", gap: 0.35 }}>
-
-            {/* 1. Stock Overview Card */}
-            <Box sx={{ flex: 1, minHeight: 0, bgcolor: "#fff", p: 0.7, borderRadius: "10px", border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.03)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <Box>
-                <Typography sx={{ fontSize: "0.52rem", color: "#64748b", fontWeight: 600, lineHeight: 1.2 }}>Stock Overview</Typography>
-                <Typography sx={{ fontSize: "0.7rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, my: 0.1 }}>1,250</Typography>
-                <Typography sx={{ fontSize: "0.48rem", color: "#16a34a", fontWeight: 700, lineHeight: 1.2 }}>● In Stock</Typography>
-              </Box>
-              <Box sx={{ width: "22px", height: "22px", borderRadius: "50%", background: "conic-gradient(#16a34a 0% 70%, #ca8a04 70% 85%, #dc2626 85% 100%)", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Box sx={{ width: "10px", height: "10px", borderRadius: "50%", bgcolor: "#fff" }} />
-              </Box>
-            </Box>
-
-            {/* 2. Low Stock Items Card */}
-            <Box sx={{ flex: 1, minHeight: 0, bgcolor: "#fff", p: 0.7, borderRadius: "10px", border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.03)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <Box>
-                <Typography sx={{ fontSize: "0.52rem", color: "#64748b", fontWeight: 600, lineHeight: 1.2 }}>Low Stock Items</Typography>
-                <Typography sx={{ fontSize: "0.7rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, my: 0.1 }}>4</Typography>
-                <Typography sx={{ fontSize: "0.48rem", color: "#2563eb", fontWeight: 700, cursor: "pointer", lineHeight: 1.2 }}>View all →</Typography>
-              </Box>
-            </Box>
-
-            {/* 3. Total Stock Value Card */}
-            <Box sx={{ flex: 1, minHeight: 0, bgcolor: "#fff", p: 0.7, borderRadius: "10px", border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.03)", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-              <Typography sx={{ fontSize: "0.52rem", color: "#64748b", fontWeight: 600, lineHeight: 1.2 }}>Total Stock Value</Typography>
-              <Typography sx={{ fontSize: "0.7rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, my: 0.1 }}>₹ 48,248</Typography>
-              <Typography sx={{ fontSize: "0.48rem", color: "#16a34a", fontWeight: 700, lineHeight: 1.2 }}>↑ 10.3%</Typography>
-            </Box>
-
-          </Box>
-
-          {/* Right Side: Big Clear Warehouse Image Container */}
-          <Box sx={{ flex: 1.2, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "#f8fafc", borderRadius: "12px", border: "1px solid #f1f5f9", p: 0.8, overflow: "hidden" }}>
-            <Box
-              component="img"
-              src={inventoryImage}
-              alt="Inventory Mockup"
-              sx={{
-                maxWidth: "100%",
-                maxHeight: "100%",
-                width: "auto",
-                height: "auto",
-                objectFit: "contain",
-              }}
-            />
-          </Box>
-
-        </Box>
-    </Box>
-  </Grid>
-
-          {/* 3. ATTENDANCE MANAGEMENT */}
-       <Grid size={{ xs: 12, sm: 6, md: 4 }} sx={{ display: "flex" }}>
-  <Box sx={{ bgcolor: "#fff", p: 1, borderRadius: "16px", border: "1px solid #e2e8f0", width: "100%", height: { xs: "auto", md: "192px" }, minHeight: 0, boxSizing: "border-box", overflow: { xs: "visible", md: "hidden" }, display: "flex", flexDirection: "column", boxShadow: "0 4px 20px rgba(15,23,42,0.04)" }}>
-      {/* Header */}
-      <Box sx={{ display: "flex", gap: 1, mb: 0.35, alignItems: "center", flexShrink: 0 }}>
-        <Box sx={{ width: 34, height: 34, borderRadius: "12px", bgcolor: "#ede9fe", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <AccessTimeIcon sx={{ color: "#7c3aed", fontSize: "1.15rem" }} />
-        </Box>
-        <Box sx={{ minWidth: 0 }}>
-          <Typography sx={{ fontWeight: 800, fontSize: "0.8rem", color: "#0f172a", lineHeight: 1.2 }}>Attendance Management</Typography>
-          <Typography sx={{ fontSize: "0.6rem", color: "#64748b", lineHeight: 1.25 }}>Track time, attendance & leaves accurately.</Typography>
-        </Box>
-      </Box>
-
-      {/* Main Content Split: Phone Mockup on Left, Calendar on Right */}
-      <Box sx={{ flex: 1, minHeight: 0, display: "flex", gap: 1, alignItems: "stretch" }}>
-
-        {/* Left Side: Phone Mockup Image Container */}
-        <Box sx={{ flex: 1.1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "#f8fafc", p: 0.8, borderRadius: "12px", border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.03)", overflow: "hidden" }}>
-          <Box
-            component="img"
-            src={attendanceImage}
-            alt="Attendance Phone Mockup"
-            sx={{
-              maxWidth: "100%",
-              maxHeight: "100%",
-              width: "auto",
-              height: "auto",
-              objectFit: "contain",
-              transformOrigin: "center"
-            }}
-          />
-        </Box>
-
-        {/* Right Side: Calendar Container */}
-        <Box sx={{ flex: 0.9, minHeight: 0, p: 1, borderRadius: "12px", bgcolor: "#f8fafc", border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.03)", display: "flex", flexDirection: "column", justifyContent: "space-between", overflow: "hidden" }}>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.6, flexShrink: 0 }}>
-            <Typography sx={{ fontSize: "0.68rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2 }}>May 2024</Typography>
-            <Box sx={{ display: "flex", gap: 0.6 }}>
-              <Typography sx={{ fontSize: "0.6rem", color: "#94a3b8", cursor: "pointer", lineHeight: 1.2 }}>{"<"}</Typography>
-              <Typography sx={{ fontSize: "0.6rem", color: "#94a3b8", cursor: "pointer", lineHeight: 1.2 }}>{">"}</Typography>
-            </Box>
-          </Box>
-
-          <Grid container spacing={0.3} textAlign="center" sx={{ my: "auto" }}>
-            {['S','M','T','W','T','F','S'].map((d, i) => (
-              <Grid size={{ xs: 1.7 }} key={i}>
-                <Typography sx={{ fontSize: "0.5rem", color: "#94a3b8", fontWeight: 700, mb: 0.3, lineHeight: 1.2 }}>{d}</Typography>
-              </Grid>
-            ))}
-            {Array.from({length: 28}, (_, i) => i + 1).map((num) => (
-              <Grid size={{ xs: 1.7 }} key={num} sx={{ my: "2px" }}>
-                <Typography sx={{ fontSize: "0.48rem", fontWeight: num === 21 ? 800 : 500, color: num === 21 ? "#fff" : "#334155", bgcolor: num === 21 ? "#7c3aed" : "transparent", borderRadius: "50%", width: 15, height: 15, mx: "auto", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {num}
-                </Typography>
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
-
-      </Box>
-  </Box>
-</Grid>
-
-{/* 4.Customer Management */}
-  <Grid size={{ xs: 12, sm: 6, md: 4 }} sx={{ display: "flex" }}>
-  <Box
-    sx={{
-      bgcolor: "#fff",
-      p: 1.5,
-      borderRadius: "16px",
-      border: "1px solid #e2e8f0",
+<Box sx={{
       width: "100%",
-      height: { xs: "auto", md: "192px" },
-      minHeight: 0,
-      boxSizing: "border-box",
-      overflow: { xs: "visible", md: "hidden" },
+      height: "auto",
+      bgcolor: "#f8fafc",
       display: "flex",
       flexDirection: "column",
-      boxShadow: "0 4px 20px rgba(15,23,42,0.04)",
-    }}
-  >
-      {/* Header */}
-      <Box sx={{ display: "flex", gap: 1, mb: 1, alignItems: "center", flexShrink: 0 }}>
-        <Box
-          sx={{
-            width: 32,
-            height: 32,
-            borderRadius: "8px",
-            bgcolor: "#ccfbf1",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
-          <GroupIcon sx={{ color: "#0d9488", fontSize: "1.1rem" }} />
-        </Box>
-        <Box sx={{ minWidth: 0 }}>
-          <Typography
-            sx={{
-              fontWeight: 800,
-              fontSize: "0.85rem",
-              color: "#0f172a",
-              lineHeight: 1.2,
-            }}
-          >
-            Customer Management
+      alignItems: "center",
+      pt: { xs: 1, md: 2 },
+      pb: { xs: 2, md: 1 },
+      px: { xs: 1, sm: 2, md: 3 },
+      overflowX: "hidden",
+      boxSizing: "border-box"
+    }}>
+      <Box sx={{ width: "100%", maxWidth: "1440px", display: "flex", flexDirection: "column", gap: { xs: 1, md: 1.5 }, mx: "auto" }}>
+
+        {/* 1. TOP HEADER AREA */}
+        <Box sx={{ textAlign: "center", mt: 0, mb: 0.5, px: { xs: 1, sm: 0 } }}>
+          <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.6, bgcolor: "#fee2e2", px: 1.4, py: 0.25, borderRadius: 5, mb: 0.6 }}>
+            <Box component="span" sx={{ width: 4, height: 4, borderRadius: "50%", bgcolor: "error.main" }} />
+            <Typography variant="subtitle2" sx={{ color: "error.main", fontWeight: 700, textTransform: "uppercase", fontSize: { xs: "0.55rem", sm: "0.65rem" }, letterSpacing: "0.8px" }}>
+              WHAT ZODU DOES FOR YOU
+            </Typography>
+            <Box component="span" sx={{ width: 4, height: 4, borderRadius: "50%", bgcolor: "error.main" }} />
+          </Box>
+
+          <Typography variant="h3" sx={{ fontWeight: 800, color: "#1e293b", fontSize: { xs: "0.95rem", sm: "1.2rem", md: "1.5rem" }, mb: 0.5, lineHeight: 1.25, letterSpacing: "-0.3px" }}>
+            Everything You Need to Run Your Business Smarter
           </Typography>
-          <Typography sx={{ fontSize: "0.6rem", color: "#64748b", lineHeight: 1.2 }}>
-            Build stronger relationships that last.
+
+          <Typography variant="body1" sx={{ color: "#64748b", maxWidth: 700, mx: "auto", fontSize: { xs: "0.7rem", sm: "0.78rem", md: "0.85rem" }, lineHeight: 1.4, mb: 1, px: { xs: 1, sm: 0 } }}>
+            From billing and inventory to payments, GST, staff, and insights — Zodu brings every essential operation into one connected platform.
           </Typography>
-        </Box>
-      </Box>
 
-      {/* Content wrapper */}
-      <Box sx={{ flex: 1, minHeight: 0, display: "flex", gap: 1.2 }}>
-
-        {/* Left Side: Clean, readable text proportions with zero awkward gaps */}
-        <Box sx={{ flex: 1.1, minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-
-          {/* Top Profile Card */}
-          <Box
-            sx={{
-              p: 0.6,
-              borderRadius: "8px",
-              bgcolor: "#f8fafc",
-              border: "1px solid #f1f5f9",
-              display: "flex",
-              alignItems: "center",
-              gap: 0.8,
-            }}
-          >
-            <Box
-              component="img"
-              src={womenImage}
-              alt="Emma Watson"
-              sx={{
-                width: 24,
-                height: 24,
-                borderRadius: "50%",
-                objectFit: "cover",
-                flexShrink: 0,
-              }}
-            />
-            <Box sx={{ overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-              <Typography
-                sx={{
-                  fontWeight: 800,
-                  fontSize: "0.7rem",
-                  color: "#0f172a",
-                  lineHeight: 1.2,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                Emma Watson
-              </Typography>
-              <Typography
-                sx={{
-                  fontSize: "0.5rem",
-                  color: "#0d9488",
-                  fontWeight: 700,
-                  bgcolor: "#ccfbf1",
-                  px: 0.5,
-                  py: 0.1,
-                  borderRadius: "4px",
-                  lineHeight: 1.2,
-                }}
-              >
-                Premium
-              </Typography>
+          {/* 2. CATEGORY TAB / FILTER NAVIGATION */}
+          <Stack direction="row" spacing={0.6} justifyContent="center" alignItems="center" sx={{ mb: 0.5, flexWrap: "wrap", gap: 0.6 }}>
+            <Box component="button" sx={{ display: "inline-flex", alignItems: "center", gap: "6px", bgcolor: "error.main", color: "#fff", borderRadius: 5, border: "none", textTransform: "none", fontSize: { xs: "0.55rem", sm: "0.7rem" }, fontWeight: 600, py: { xs: 0.3, sm: 0.4 }, px: { xs: 0.8, sm: 1.2 }, cursor: "pointer", whiteSpace: "nowrap" }}>
+              <ShoppingCartOutlinedIcon sx={{ fontSize: { xs: "11px", sm: "13px" }, color: "#fff" }} />
+              All Features
             </Box>
-          </Box>
-
-          {/* Middle Metrics Row */}
-          <Box sx={{ display: "flex", gap: 0.8 }}>
-            <Box sx={{ flex: 1, p: 0.5, borderRadius: "8px", bgcolor: "#f8fafc", border: "1px solid #f1f5f9" }}>
-              <Typography sx={{ fontSize: "0.5rem", color: "#64748b", fontWeight: 600, lineHeight: 1.2 }}>
-                Total Orders
-              </Typography>
-              <Typography sx={{ fontSize: "0.75rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, mt: 0.2 }}>
-                24
-              </Typography>
-            </Box>
-            <Box sx={{ flex: 1, p: 0.5, borderRadius: "8px", bgcolor: "#f8fafc", border: "1px solid #f1f5f9" }}>
-              <Typography sx={{ fontSize: "0.5rem", color: "#64748b", fontWeight: 600, lineHeight: 1.2 }}>
-                Total Outstanding
-              </Typography>
-              <Typography sx={{ fontSize: "0.75rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, mt: 0.2 }}>
-                ₹48,250
-              </Typography>
-            </Box>
-          </Box>
-
-          {/* Bottom Outstanding & Pay Now Row */}
-          <Box
-            sx={{
-              p: 0.6,
-              borderRadius: "8px",
-              bgcolor: "#f8fafc",
-              border: "1px solid #f1f5f9",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <Box>
-              <Typography sx={{ fontSize: "0.5rem", color: "#64748b", fontWeight: 600, lineHeight: 1.2 }}>
-                Outstanding
-              </Typography>
-              <Typography sx={{ fontSize: "0.75rem", fontWeight: 800, color: "#dc2626", lineHeight: 1.2, mt: 0.2 }}>
-                ₹2,850
-              </Typography>
-            </Box>
-            <Box
-              sx={{
-                bgcolor: "#16a34a",
-                color: "#fff",
-                px: 1.5,
-                py: 0.5,
-                borderRadius: "6px",
-                fontSize: "0.65rem",
-                fontWeight: 700,
-                cursor: "pointer",
-                textAlign: "center",
-                "&:hover": { bgcolor: "#15803d" },
-              }}
-            >
-              Pay Now
-            </Box>
-          </Box>
-
-        </Box>
-
-        {/* Right Side: Image Card */}
-        <Box
-          sx={{
-            flex: 1.3,
-            minHeight: 0,
-            p: 0.3,
-            borderRadius: "10px",
-            bgcolor: "#f8fafc",
-            border: "1px solid #f1f5f9",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            overflow: "hidden",
-          }}
-        >
-          <Box
-            component="img"
-            src={CustomerManagementImage}
-            alt="Customer Management"
-            sx={{
-              width: "100%",
-              height: "100%",
-              objectFit: "contain",
-              objectPosition: "bottom center",
-              borderRadius: "8px",
-            }}
-          />
-        </Box>
-      </Box>
-  </Box> 
-</Grid>
-
-    {/* 5. PAYMENTS & REMINDERS */}
- <Grid size={{ xs: 12, sm: 6, md: 4 }} sx={{ display: "flex" }}>
-  <Box
-    sx={{
-      bgcolor: "#fff",
-      p: 1,
-      borderRadius: "16px",
-      border: "1px solid #e2e8f0",
-      width: "100%",
-      height: { xs: "auto", md: "192px" },
-      minHeight: 0,
-      boxSizing: "border-box",
-      overflow: { xs: "visible", md: "hidden" },
-      display: "flex",
-      flexDirection: "column",
-      boxShadow: "0 4px 20px rgba(15,23,42,0.04)",
-    }}
-  >
-    {/* Header with proper bottom margin */}
-    <Box sx={{ display: "flex", gap: 1, mb: 0.5, alignItems: "center", flexShrink: 0 }}>
-      <Box
-        sx={{
-          width: 34,
-          height: 34,
-          borderRadius: "12px",
-          bgcolor: "#ffedd5",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
-        <AccountBalanceWalletIcon sx={{ color: "#ea580c", fontSize: "1.15rem" }} />
-      </Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography
-          sx={{
-            fontWeight: 800,
-            fontSize: "0.8rem",
-            color: "#0f172a",
-            lineHeight: 1.2,
-          }}
-        >
-          Payments & Reminders
-        </Typography>
-        <Typography sx={{ fontSize: "0.6rem", color: "#64748b", lineHeight: 1.25 }}>
-          Get paid on time, every time.
-        </Typography>
-      </Box>
-    </Box>
-
-    {/* Content wrapper */}
-    <Box sx={{ flex: 1, minHeight: 0, display: "flex", gap: 0.8 }}>
-
-      {/* Left Side: Metrics & Reminders */}
-      <Box sx={{ flex: 1.1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-
-        {/* Top Row: Outstanding & Next Reminder side-by-side */}
-        <Box sx={{ display: "flex", gap: 0.6, flexShrink: 0 }}>
-          <Box
-            sx={{
-              flex: 1,
-              p: 0.5,
-              borderRadius: "8px",
-              bgcolor: "#f8fafc",
-              border: "1px solid #f1f5f9",
-            }}
-          >
-            <Typography sx={{ fontSize: "0.45rem", color: "#64748b", fontWeight: 600, lineHeight: 1.1 }}>
-              Outstanding
-            </Typography>
-            <Typography sx={{ fontSize: "0.65rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, mt: 0.1 }}>
-              ₹ 18,750
-            </Typography>
-          </Box>
-
-          <Box
-            sx={{
-              flex: 1,
-              p: 0.5,
-              borderRadius: "8px",
-              bgcolor: "#f8fafc",
-              border: "1px solid #f1f5f9",
-            }}
-          >
-            <Typography sx={{ fontSize: "0.45rem", color: "#64748b", fontWeight: 600, lineHeight: 1.1 }}>
-              Next Reminder
-            </Typography>
-            <Typography sx={{ fontSize: "0.65rem", fontWeight: 800, color: "#ea580c", lineHeight: 1.2, mt: 0.1 }}>
-              In 2 days
-            </Typography>
-          </Box>
-        </Box>
-
-        {/* Bottom Recent Reminders Card with increased top margin */}
-        <Box
-          sx={{
-            p: 0.6,
-            mt: 1, // Increased margin-top for more visible spacing
-            borderRadius: "8px",
-            bgcolor: "#f8fafc",
-            border: "1px solid #f1f5f9",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            flex: 1,
-            minHeight: 0,
-          }}
-        >
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography sx={{ fontSize: "0.48rem", color: "#64748b", fontWeight: 700, lineHeight: 1.1 }}>
-              Recent Reminders
-            </Typography>
-            <Box
-              sx={{
-                width: 18,
-                height: 18,
-                borderRadius: "50%",
-                bgcolor: "#ffedd5",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <NotificationsNoneIcon sx={{ fontSize: "0.65rem", color: "#ea580c" }} />
-            </Box>
-          </Box>
-
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.3 }}>
-              <DescriptionOutlinedIcon sx={{ fontSize: "0.55rem", color: "#64748b" }} />
-              <Typography sx={{ fontSize: "0.45rem", fontWeight: 700, color: "#0f172a" }}>ABC Retail</Typography>
-            </Box>
-            <Typography sx={{ fontSize: "0.42rem", color: "#64748b", fontWeight: 500 }}>In 2 days</Typography>
-          </Box>
-
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.3 }}>
-              <DescriptionOutlinedIcon sx={{ fontSize: "0.55rem", color: "#64748b" }} />
-              <Typography sx={{ fontSize: "0.45rem", fontWeight: 700, color: "#0f172a" }}>XYZ Store</Typography>
-            </Box>
-            <Typography sx={{ fontSize: "0.42rem", color: "#64748b", fontWeight: 500 }}>In 5 days</Typography>
-          </Box>
-
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.3 }}>
-              <DescriptionOutlinedIcon sx={{ fontSize: "0.55rem", color: "#64748b" }} />
-              <Typography sx={{ fontSize: "0.45rem", fontWeight: 700, color: "#0f172a" }}>John's Cafe</Typography>
-            </Box>
-            <Typography sx={{ fontSize: "0.42rem", color: "#64748b", fontWeight: 500 }}>In 7 days</Typography>
-          </Box>
-        </Box>
-
-      </Box>
-
-      {/* Right Side: Full & Enlarged Image Card */}
-      <Box
-        sx={{
-          flex: 1.3,
-          minHeight: 0,
-          p: 0.2,
-          borderRadius: "10px",
-          bgcolor: "#f8fafc",
-          border: "1px solid #f1f5f9",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "hidden",
-        }}
-      >
-        <Box
-          component="img"
-          src={PaymentsRemindersImage}
-          alt="Payments & Reminders"
-          sx={{
-            width: "100%",
-            height: "100%",
-            objectFit: "contain",
-            objectPosition: "center",
-            borderRadius: "8px",
-          }}
-        />
-      </Box>
-
-    </Box>
-  </Box>
-</Grid>
-          {/* 6. GST COMPLIANCE & REPORTS */}
- <Grid size={{ xs: 12, sm: 6, md: 4 }} sx={{ display: "flex" }}>
-  <Box
-    sx={{
-      bgcolor: "#fff",
-      p: 1.2,
-      borderRadius: "16px",
-      border: "1px solid #e2e8f0",
-      width: "100%",
-      height: { xs: "auto", md: "192px" },
-      boxSizing: "border-box",
-      overflow: "hidden",
-      display: "flex",
-      flexDirection: "column",
-      justifyContent: "space-between",
-      boxShadow: "0 4px 20px rgba(15,23,42,0.04)",
-    }}
-  >
-    {/* Header */}
-    <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexShrink: 0 }}>
-      <Box
-        sx={{
-          width: 34,
-          height: 34,
-          borderRadius: "10px",
-          bgcolor: "#e0f2fe",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
-        <ReceiptLongIcon sx={{ color: "#0284c7", fontSize: "1.15rem" }} />
-      </Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography sx={{ fontWeight: 800, fontSize: "0.8rem", color: "#0f172a", lineHeight: 1.2 }}>
-          GST Compliance & Reports
-        </Typography>
-        <Typography sx={{ fontSize: "0.6rem", color: "#64748b", lineHeight: 1.25 }}>
-          Stay 100% compliant with GST.
-        </Typography>
-      </Box>
-    </Box>
-
-    {/* Main Body */}
-    <Box sx={{ display: "flex", gap: 0.6, flex: 1, mt: 0.8, alignItems: "center" }}>
-      
-      {/* Left Side: Image Box */}
-      <Box
-        sx={{
-          flex: 0.9,
-          height: "100%",
-          borderRadius: "10px",
-          bgcolor: "#f8fafc",
-          border: "1px solid #f1f5f9",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "hidden",
-        }}
-      >
-        <Box
-          component="img"
-          src={reportsAnalyticsImg}
-          alt="GST Compliance & Reports"
-          sx={{
-            width: "100%",
-            height: "100%",
-            objectFit: "contain",
-          }}
-        />
-      </Box>
-
-      {/* Right Side: Metrics Box */}
-      <Box sx={{ flex: 1.5, display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
-        
-        {/* Top Status Row */}
-        <Box sx={{ display: "flex", gap: 0.4 }}>
-          {[
-            { title: "GSTR-1", status: "Filed", date: "May 2024", icon: <CheckCircleIcon sx={{ fontSize: "0.6rem", color: "#16a34a" }} /> },
-            { title: "GSTR-3B", status: "Filed", date: "May 2024", icon: <CheckCircleIcon sx={{ fontSize: "0.6rem", color: "#16a34a" }} /> },
-            { title: "E-Way", status: "Gen.", date: "128", icon: <LocalShippingOutlinedIcon sx={{ fontSize: "0.6rem", color: "#0284c7" }} /> },
-          ].map((item, idx) => (
-            <Box
-              key={idx}
-              sx={{
-                flex: 1,
-                p: 0.35,
-                px: 0.4,
-                borderRadius: "8px",
-                bgcolor: "#f8fafc",
-                border: "1px solid #f1f5f9",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-              }}
-            >
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Typography sx={{ fontSize: "0.48rem", fontWeight: 800, color: "#0f172a" }}>{item.title}</Typography>
-                {item.icon}
-              </Box>
-              <Box sx={{ mt: 0.15 }}>
-                <Typography sx={{ fontSize: "0.42rem", color: "#64748b", fontWeight: 600, lineHeight: 1.1 }}>{item.status}</Typography>
-                <Typography sx={{ fontSize: "0.48rem", color: "#0f172a", fontWeight: 700, lineHeight: 1.1 }}>{item.date}</Typography>
-              </Box>
-            </Box>
-          ))}
-        </Box>
-
-        {/* Bottom Financials Row: Split into two individual inner cards to close the gap */}
-        <Box sx={{ display: "flex", gap: 0.4, mt: 0.4 }}>
-          {/* ITC Available Card */}
-          <Box
-            sx={{
-              flex: 1,
-              p: 0.4,
-              px: 0.6,
-              borderRadius: "8px",
-              bgcolor: "#f8fafc",
-              border: "1px solid #f1f5f9",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-            }}
-          >
-            <Typography sx={{ fontSize: "0.48rem", color: "#64748b", fontWeight: 600 }}>ITC Available</Typography>
-            <Typography sx={{ fontSize: "0.68rem", fontWeight: 800, color: "#0f172a", mt: 0.2 }}>₹ 24,780</Typography>
-          </Box>
-
-          {/* Tax Payable Card */}
-          <Box
-            sx={{
-              flex: 1,
-              p: 0.4,
-              px: 0.6,
-              borderRadius: "8px",
-              bgcolor: "#f8fafc",
-              border: "1px solid #f1f5f9",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-            }}
-          >
-            <Typography sx={{ fontSize: "0.48rem", color: "#64748b", fontWeight: 600 }}>Tax Payable</Typography>
-            <Typography sx={{ fontSize: "0.68rem", fontWeight: 800, color: "#dc2626", mt: 0.2 }}>₹ 7,640</Typography>
-          </Box>
-        </Box>
-
-      </Box>
-    </Box>
-  </Box>
-</Grid>
-                    
-                    {/* 7. EXPENSE MANAGEMENT */}
-     <Grid size={{ xs: 12, sm: 6, md: 4 }} sx={{ display: "flex" }}>
-  <Box
-    sx={{
-      bgcolor: "#fff",
-      p: 1,
-      borderRadius: "16px",
-      border: "1px solid #e2e8f0",
-      width: "100%",
-      height: { xs: "auto", md: "192px" },
-      minHeight: 0,
-      boxSizing: "border-box",
-      overflow: { xs: "visible", md: "hidden" },
-      display: "flex",
-      flexDirection: "column",
-      boxShadow: "0 4px 20px rgba(15,23,42,0.04)",
-    }}
-  >
-    {/* Header with proper bottom margin */}
-    <Box sx={{ display: "flex", gap: 1, mb: 0.6, alignItems: "center", flexShrink: 0 }}>
-      <Box
-        sx={{
-          width: 34,
-          height: 34,
-          borderRadius: "12px",
-          bgcolor: "#eff6ff",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
-        <AccountBalanceWalletIcon sx={{ color: "#2563eb", fontSize: "1.15rem" }} />
-      </Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography sx={{ fontWeight: 800, fontSize: "0.8rem", color: "#0f172a", lineHeight: 1.2 }}>
-          Expense Management
-        </Typography>
-        <Typography sx={{ fontSize: "0.6rem", color: "#64748b", lineHeight: 1.25 }}>
-          Track expenses & control costs.
-        </Typography>
-      </Box>
-    </Box>
-
-    {/* Main Two-Column Split Layout */}
-    <Box sx={{ flex: 1, minHeight: 0, display: "flex", gap: 0.8, alignItems: "stretch" }}>
-      
-      {/* Left Column: Contains BOTH the Top 3 Metrics AND Categories stacked inside the left partition width */}
-      <Box sx={{ flex: 1.2, minHeight: 0, display: "flex", flexDirection: "column", gap: 0.35 }}>
-        
-        {/* Top 3 Metric Cards stacked side by side inside left half */}
-        <Box sx={{ display: "flex", gap: 0.4, flexShrink: 0 }}>
-          <Box sx={{ flex: 1.1, p: 0.4, px: 0.5, borderRadius: "8px", bgcolor: "#f8fafc", border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.03)", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-            <Typography sx={{ fontSize: "0.42rem", color: "#64748b", fontWeight: 600, lineHeight: 1.1 }}>Today's Exp</Typography>
-            <Typography sx={{ fontSize: "0.58rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, mt: 0.05 }}>₹ 2,350</Typography>
-          </Box>
-          <Box sx={{ flex: 1.1, p: 0.4, px: 0.5, borderRadius: "8px", bgcolor: "#f8fafc", border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.03)", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-            <Typography sx={{ fontSize: "0.42rem", color: "#64748b", fontWeight: 600, lineHeight: 1.1 }}>This Month</Typography>
-            <Typography sx={{ fontSize: "0.58rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, mt: 0.05 }}>₹ 28,450</Typography>
-          </Box>
-          <Box sx={{ flex: 1, p: 0.4, px: 0.5, borderRadius: "8px", bgcolor: "#f8fafc", border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.03)", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-            <Typography sx={{ fontSize: "0.42rem", color: "#64748b", fontWeight: 600, lineHeight: 1.1 }}>vs Last</Typography>
-            <Typography sx={{ fontSize: "0.52rem", fontWeight: 800, color: "#16a34a", lineHeight: 1.2, mt: 0.05 }}>↓ 8.4%</Typography>
-          </Box>
-        </Box>
-
-        {/* Bottom Categories Box inside left half */}
-        <Box
-          sx={{
-            flex: 1,
-            minHeight: 0,
-            p: 0.5,
-            px: 0.7,
-            borderRadius: "10px",
-            bgcolor: "#f8fafc",
-            border: "1px solid #f1f5f9",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            overflow: "hidden",
-          }}
-        >
-          <Typography sx={{ fontSize: "0.48rem", color: "#64748b", fontWeight: 700, mb: 0.3, lineHeight: 1.1, flexShrink: 0 }}>
-            Top Expense Categories
-          </Typography>
-          <Stack spacing={0.35}>
             {[
-              { label: "Rent", pct: 65, amt: "₹ 12,000", color: "#2563eb", icon: <HomeOutlinedIcon sx={{ fontSize: "0.55rem", color: "#334155" }} /> },
-              { label: "Utilities", pct: 35, amt: "₹ 6,250", color: "#3b82f6", icon: <BoltOutlinedIcon sx={{ fontSize: "0.55rem", color: "#334155" }} /> },
-            ].map((c) => (
-              <Box key={c.label}>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.1 }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.3 }}>
-                    {c.icon}
-                    <Typography sx={{ fontSize: "0.45rem", color: "#334155", fontWeight: 600, lineHeight: 1.2 }}>{c.label}</Typography>
-                  </Box>
-                  <Typography sx={{ fontSize: "0.45rem", fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>{c.amt}</Typography>
-                </Box>
-                <Box sx={{ height: 2.2, borderRadius: "999px", bgcolor: "#e2e8f0", overflow: "hidden" }}>
-                  <Box sx={{ height: "100%", width: `${c.pct}%`, borderRadius: "999px", bgcolor: c.color }} />
-                </Box>
+              { label: 'Billing', icon: <ShoppingCartOutlinedIcon sx={{ fontSize: "12px", color: "#ef4444" }} /> },
+              { label: 'Inventory', icon: <Inventory2OutlinedIcon sx={{ fontSize: "12px", color: "#22c55e" }} /> },
+              { label: 'Staff', icon: <AccessTimeOutlinedIcon sx={{ fontSize: "12px", color: "#3b82f6" }} /> },
+              { label: 'Customers', icon: <PeopleOutlineOutlinedIcon sx={{ fontSize: "12px", color: "#3b82f6" }} /> },
+              { label: 'Reports', icon: <DescriptionOutlinedIcon sx={{ fontSize: "12px", color: "#ef4444" }} /> }
+            ].map((tab, idx) => (
+              <Box key={idx} component="button" sx={{ display: "inline-flex", alignItems: "center", gap: "6px", border: "1px solid #e2e8f0", color: "#64748b", bgcolor: "#fff", borderRadius: 5, textTransform: "none", fontSize: { xs: "0.55rem", sm: "0.7rem" }, fontWeight: 600, py: { xs: 0.3, sm: 0.4 }, px: { xs: 0.8, sm: 1.2 }, cursor: "pointer", whiteSpace: "nowrap" }}>
+                {tab.icon}
+                {tab.label}
               </Box>
             ))}
           </Stack>
         </Box>
 
-      </Box>
-
-      {/* Right Column: Full Height Image Box */}
-      <Box
-        sx={{
-          flex: 1.3,
-          minHeight: 0,
-          p: 0.5,
-          borderRadius: "12px",
-          bgcolor: "#f8fafc",
-          border: "1px solid #f1f5f9",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+        {/* 3. MAIN SECTION CONTAINER (Top 3 Cards) */}
+        <Box sx={{
           display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "hidden",
-        }}
-      >
-        <Box
-          component="img"
-          src={ExpenseManagementImage}
-          alt="Expense Management"
-          sx={{
-            width: "100%",
-            height: "100%",
-            objectFit: "contain",
-            objectPosition: "center",
-          }}
-        />
-      </Box>
+          flexDirection: { xs: "column", sm: "column", md: "row" },
+          gap: { xs: 1, md: "8px" },
+          width: "100%",
+          alignItems: "stretch"
+        }}>
 
-    </Box>
-  </Box>
-</Grid>
-          
-       {/* 8. PURCHASE MANAGEMENT */}
-{/* 8. PURCHASE MANAGEMENT */}
-<Grid size={{ xs: 12, sm: 6, md: 4 }} sx={{ display: "flex" }}>
-  <Box
-    sx={{
-      bgcolor: "#fff",
-      p: 1.2,
-      borderRadius: "16px",
-      border: "1px solid #e2e8f0",
-      width: "100%",
-      height: { xs: "auto", md: "192px" },
-      boxSizing: "border-box",
-      overflow: "hidden",
-      display: "flex",
-      flexDirection: "column",
-      boxShadow: "0 4px 20px rgba(15,23,42,0.04)",
-    }}
-  >
-    {/* Header */}
-    <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexShrink: 0, mb: 1 }}>
-      <Box
-        sx={{
-          width: 34,
-          height: 34,
-          borderRadius: "12px",
-          bgcolor: "#f3e8ff",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
-        <AddShoppingCartIcon sx={{ color: "#9333ea", fontSize: "1.15rem" }} />
-      </Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography sx={{ fontWeight: 800, fontSize: "0.8rem", color: "#0f172a", lineHeight: 1.2 }}>
-          Purchase Management
-        </Typography>
-        <Typography sx={{ fontSize: "0.6rem", color: "#64748b", lineHeight: 1.25 }}>
-          Buy smart, manage suppliers & track orders.
-        </Typography>
-      </Box>
-    </Box>
-
-    {/* Content wrapper: Left metrics stack & Right full image side-by-side */}
-    <Box sx={{ display: "flex", gap: 0.8, flex: 1, minHeight: 0, alignItems: "stretch" }}>
-      
-      {/* Left Side: Metrics Stack */}
-      <Box sx={{ flex: 1.3, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 0.45, minHeight: 0 }}>
-        <Box sx={{ p: 0.4, px: 0.6, borderRadius: "8px", bgcolor: "#f8fafc", border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.03)", display: "flex", flexDirection: "column", justifyContent: "center", flex: 1, minHeight: 0 }}>
-          <Typography sx={{ fontSize: "0.45rem", color: "#64748b", fontWeight: 600, lineHeight: 1.1 }}>Total Purchases</Typography>
-          <Typography sx={{ fontSize: "0.62rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, mt: 0.1 }}>₹ 1,25,000</Typography>
-        </Box>
-
-        <Box sx={{ p: 0.4, px: 0.6, borderRadius: "8px", bgcolor: "#f8fafc", border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.03)", display: "flex", flexDirection: "column", justifyContent: "center", flex: 1, minHeight: 0 }}>
-          <Typography sx={{ fontSize: "0.45rem", color: "#64748b", fontWeight: 600, lineHeight: 1.1 }}>Purchase Orders</Typography>
-          <Typography sx={{ fontSize: "0.62rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, mt: 0.1 }}>12</Typography>
-        </Box>
-
-        <Box sx={{ p: 0.4, px: 0.6, borderRadius: "8px", bgcolor: "#f8fafc", border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.03)", display: "flex", flexDirection: "column", justifyContent: "center", flex: 1, minHeight: 0 }}>
-          <Typography sx={{ fontSize: "0.45rem", color: "#64748b", fontWeight: 600, lineHeight: 1.1 }}>Pending Receipts</Typography>
-          <Typography sx={{ fontSize: "0.62rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, mt: 0.1 }}>5</Typography>
-        </Box>
-      </Box>
-
-      {/* Right Side: Full Image Card */}
-      <Box
-        sx={{
-          flex: 1.4,
-          minHeight: 0,
-          p: 0.5,
-          borderRadius: "10px",
-          bgcolor: "#f8fafc",
-          border: "1px solid #f1f5f9",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
-          overflow: "hidden",
-        }}
-      >
-        <Box
-          component="img"
-          src={purchaseManagementImg}
-          alt="Purchase Management"
-          sx={{
-            width: "100%",
-            height: "100%",
-            objectFit: "contain",
-            objectPosition: "center",
-          }}
-        />
-      </Box>
-
-    </Box>
-  </Box>
-</Grid>
-          
-          {/* 9. REPORTS & ANALYTICS */}
- {/* 9. REPORTS & ANALYTICS */}
-<Grid size={{ xs: 12, sm: 6, md: 4 }} sx={{ display: "flex" }}>
-  <Box
-    sx={{
-      bgcolor: "#fff",
-      p: 1.2,
-      borderRadius: "16px",
-      border: "1px solid #e2e8f0",
-      width: "100%",
-      height: { xs: "auto", md: "192px" },
-      boxSizing: "border-box",
-      overflow: "hidden",
-      display: "flex",
-      flexDirection: "column",
-      boxShadow: "0 4px 20px rgba(15,23,42,0.04)",
-    }}
-  >
-    {/* Header */}
-    <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexShrink: 0, mb: 1 }}>
-      <Box
-        sx={{
-          width: 34,
-          height: 34,
-          borderRadius: "10px",
-          bgcolor: "#fee2e2",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
-        <BarChartIcon sx={{ color: "#dc2626", fontSize: "1.15rem" }} />
-      </Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography sx={{ fontWeight: 800, fontSize: "0.8rem", color: "#0f172a", lineHeight: 1.2 }}>
-          Reports & Analytics
-        </Typography>
-        <Typography sx={{ fontSize: "0.6rem", color: "#64748b", lineHeight: 1.25 }}>
-          Know your numbers before your day even ends.
-        </Typography>
-      </Box>
-    </Box>
-
-    {/* Main Body: Left Metrics Stack & Right Image Box */}
-    <Box sx={{ display: "flex", gap: 0.8, flex: 1, minHeight: 0, alignItems: "stretch" }}>
-      
-      {/* Left Side: Metrics Stacked Vertically */}
-      <Box sx={{ flex: 1.3, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 0.45, minHeight: 0 }}>
-        
-        {/* Top Metrics Row */}
-        <Box sx={{ display: "flex", gap: 0.4 }}>
-          {/* Total Sales */}
-          <Box
-            sx={{
-              flex: 1.3,
-              p: 0.35,
-              px: 0.4,
-              borderRadius: "8px",
-              bgcolor: "#f8fafc",
-              border: "1px solid #f1f5f9",
+          {/* POS Billing Card */}
+          <Box sx={{ flex: { xs: "1 1 100%", md: "0 0 56%" }, width: "100%", display: "flex" }}>
+            <Card sx={{
+              bgcolor: "#fff",
+              borderRadius: 2.2,
+              border: "1px solid #e2e8f0",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.03)",
+              width: "100%",
+              height: { xs: "210px", sm: "300px", md: "330px" },
+              overflow: "hidden",
+              p: 0,
               display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-            }}
-          >
-            <Typography sx={{ fontSize: "0.45rem", color: "#64748b", fontWeight: 600, lineHeight: 1.1 }}>Total Sales</Typography>
-            <Typography sx={{ fontSize: "0.58rem", fontWeight: 800, color: "#0f172a", mt: 0.1, lineHeight: 1.1 }}>₹ 2,45,780</Typography>
-            <Typography sx={{ fontSize: "0.42rem", color: "#16a34a", fontWeight: 700, mt: 0.1, lineHeight: 1.1 }}>↑ 20.4%</Typography>
-          </Box>
-
-          {/* Total Orders */}
-          <Box
-            sx={{
-              flex: 1,
-              p: 0.35,
-              px: 0.4,
-              borderRadius: "8px",
-              bgcolor: "#f8fafc",
-              border: "1px solid #f1f5f9",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-            }}
-          >
-            <Typography sx={{ fontSize: "0.45rem", color: "#64748b", fontWeight: 600, lineHeight: 1.1 }}>Total Orders</Typography>
-            <Typography sx={{ fontSize: "0.58rem", fontWeight: 800, color: "#0f172a", mt: 0.1, lineHeight: 1.1 }}>1,248</Typography>
-            <Typography sx={{ fontSize: "0.42rem", color: "#16a34a", fontWeight: 700, mt: 0.1, lineHeight: 1.1 }}>↑ 18.6%</Typography>
-          </Box>
-        </Box>
-
-        {/* Bottom Sales by Category Card */}
-        <Box
-          sx={{
-            flex: 1,
-            p: 0.4,
-            px: 0.6,
-            borderRadius: "8px",
-            bgcolor: "#f8fafc",
-            border: "1px solid #f1f5f9",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            gap: 0.35,
-          }}
-        >
-          <Typography sx={{ fontSize: "0.48rem", color: "#64748b", fontWeight: 700, lineHeight: 1.1 }}>Sales by Category</Typography>
-          
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            {/* Donut Chart */}
-            <Box
-              sx={{
-                width: 20,
-                height: 20,
-                borderRadius: "50%",
-                background: "conic-gradient(#2563eb 0% 60%, #ef4444 60% 85%, #f97316 85% 100%)",
-                flexShrink: 0,
-                display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
+              alignItems: { xs: "stretch", sm: "center" },
+              justifyContent: "center",
+              position: "relative"
+            }}>
+              {/* Mobile-only header — icon + title, no description/checklist/button/stats */}
+              <Box sx={{
+                display: { xs: "flex", sm: "none" },
                 alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Box sx={{ width: 11, height: 11, borderRadius: "50%", bgcolor: "#fff" }} />
-            </Box>
+                gap: 0.6,
+                px: 1,
+                py: 0.7,
+                borderBottom: "1px solid #f1f5f9",
+                flexShrink: 0,
+              }}>
+                <Box sx={{ width: 20, height: 20, borderRadius: 1, bgcolor: "#fee2e2", color: "#e11d48", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <ShoppingCartOutlinedIcon sx={{ fontSize: "11px" }} />
+                </Box>
+                <Typography sx={{ fontWeight: 800, color: "#1e293b", fontSize: "0.68rem", lineHeight: 1.3 }}>
+                  POS Billing
+                </Typography>
+              </Box>
 
-            {/* Percentages */}
-            <Box sx={{ display: "flex", gap: 0.6, alignItems: "center" }}>
-              <Typography sx={{ fontSize: "0.45rem", fontWeight: 700, color: "#2563eb" }}>60%</Typography>
-              <Typography sx={{ fontSize: "0.45rem", fontWeight: 700, color: "#ef4444" }}>25%</Typography>
-              <Typography sx={{ fontSize: "0.45rem", fontWeight: 700, color: "#f97316" }}>15%</Typography>
+              {/* Mobile-only image (falls back to desktop image if none supplied) */}
+              {(posbilling1Mobile || posbilling1) && (
+                <Box
+                  component="img"
+                  src={posbilling1Mobile || posbilling1}
+                  alt="POS Billing Preview"
+                  sx={{
+                    display: { xs: "block", sm: "none" },
+                    width: "100%",
+                    flex: 1,
+                    minHeight: 0,
+                    objectFit: "contain",
+                    bgcolor: "#f8fafc",
+                  }}
+                />
+              )}
+              {/* Tablet / Desktop image — matches reference exactly */}
+              {posbilling1 && (
+                <Box
+                  component="img"
+                  src={posbilling1}
+                  alt="POS Billing Preview"
+                  sx={{
+                    display: { xs: "none", sm: "block" },
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    objectPosition: "right center",
+                  }}
+                />
+              )}
+
+              <Box sx={{ position: "absolute", top: 0, left: 0, width: { xs: "58%", sm: "52%", md: "42%" }, height: "100%", p: { xs: 1, sm: 1.5, md: 2.2 }, pt: { xs: 1, sm: 1.5, md: 2 }, display: { xs: "none", sm: "flex" }, flexDirection: "column", justifyContent: "space-between", zIndex: 2 }}>
+
+                <Box>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.6, mb: { xs: 0.2, sm: 0.4, md: 0.5 } }}>
+                    <Box sx={{ width: { xs: 20, sm: 22, md: 24 }, height: { xs: 20, sm: 22, md: 24 }, borderRadius: 1, bgcolor: "#fee2e2", color: "#e11d48", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <ShoppingCartOutlinedIcon sx={{ fontSize: { xs: "11px", sm: "13px", md: "14px" } }} />
+                    </Box>
+                    <Typography variant="h6" sx={{ fontWeight: 800, color: "#1e293b", fontSize: { xs: "0.68rem", sm: "0.8rem", md: "0.95rem" }, lineHeight: 1.3 }}>
+                      POS Billing
+                    </Typography>
+                  </Box>
+
+                  
+
+                  {/* <Stack spacing={{ xs: 0.4, sm: 0.6, md: 0.5 }} sx={{ mb: { xs: 0.8, sm: 1, md: 1.2 } }}>
+                    {[
+                      "Quick billing & barcode scanning",
+                      "Supports multiple payment methods",
+                      "Works offline too",
+                      "Perfect for retail, restaurant, pharmacy and more"
+                    ].map((text, idx) => (
+                      <Box key={idx} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                        <Box component="span" sx={{ width: { xs: 11, sm: 13, md: 13 }, height: { xs: 11, sm: 13, md: 13 }, borderRadius: "50%", bgcolor: "#e11d48", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: { xs: "6px", sm: "7px", md: "8px" }, fontWeight: "bold", flexShrink: 0 }}>✓</Box>
+                        <Typography sx={{ fontSize: { xs: "0.46rem", sm: "0.54rem", md: "0.6rem" }, color: "#334155", fontWeight: 500, lineHeight: 1.4 }}>{text}</Typography>
+                      </Box>
+                    ))}
+                  </Stack> */}
+                  <Stack 
+  spacing={{ xs: 0.6, sm: 0.8, md: 0.8 }} 
+  sx={{ mb: { xs: 1.5, sm: 2, md: 2.5 } }} // Increased bottom margin
+>
+  {[
+    "Quick billing & barcode scanning",
+    "Supports multiple payment methods",
+    "Works offline too",
+    "Perfect for retail, restaurant, pharmacy and more"
+  ].map((text, idx) => (
+    <Box key={idx} sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+      <Box 
+        component="span" 
+        sx={{ 
+          width: { xs: 12, sm: 14, md: 15 }, 
+          height: { xs: 12, sm: 14, md: 15 }, 
+          borderRadius: "50%", 
+          bgcolor: "#e11d48", 
+          color: "#fff", 
+          display: "flex", 
+          alignItems: "center", 
+          justifyContent: "center", 
+          fontSize: { xs: "7px", sm: "8px", md: "9px" }, 
+          fontWeight: "bold", 
+          flexShrink: 0 
+        }}
+      >
+        ✓
+      </Box>
+      <Typography 
+        sx={{ 
+          fontSize: { xs: "0.52rem", sm: "0.6rem", md: "0.68rem" }, 
+          color: "#334155", 
+          fontWeight: 500, 
+          lineHeight: 1.45 
+        }}
+      >
+        {text}
+      </Typography>
+    </Box>
+  ))}
+</Stack>
+<Box
+  component="button"
+  sx={{
+    bgcolor: "#f43f5e",
+    color: "#fff",
+    fontWeight: 700,
+    fontSize: { xs: "0.6rem", sm: "0.72rem", md: "0.82rem" }, // Increased font size
+    py: { xs: 0.5, sm: 0.65, md: 0.8 }, // Increased vertical padding
+    px: { xs: 1.4, sm: 1.8, md: 2.2 }, // Increased horizontal padding
+    borderRadius: "50px",
+    border: "none",
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "fit-content",
+    gap: "6px",
+    boxShadow: "0 3px 8px rgba(244, 63, 94, 0.3)", // Added subtle matching shadow for depth
+    mt: { xs: 1, sm: 1.2, md: 1.5 },
+    '&:hover': { 
+      bgcolor: "#e11d48",
+      transform: "translateY(-1px)",
+      boxShadow: "0 5px 12px rgba(244, 63, 94, 0.4)"
+    },
+    transition: "all 0.2s ease"
+  }}
+>
+  Learn More <span style={{ fontSize: "1.1em" }}>→</span>
+</Box>
+                </Box>
+
+                {/* Mini stats strip - matches reference bottom-left stats */}
+                <Box sx={{
+                  display: "flex",
+                  bgcolor: "#ffffff",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "8px",
+                  boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
+                  px: { xs: 0.8, md: 1 },
+                  py: { xs: 0.5, md: 0.7 },
+                  mt: 1,
+                  width: "fit-content",
+                  maxWidth: "100%"
+                }}>
+                  {[
+                    { value: "₹ 12,458", delta: "↑ 12.5%", label: "Today's Sales" },
+                    { value: "128", delta: "↑ 8.3%", label: "Total Orders" },
+                    { value: "₹ 2,850", delta: null, label: "Avg. Order Value" }
+                  ].map((stat, i, arr) => (
+                    <Box key={i} sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      px: { xs: 0.6, md: 0.9 },
+                      borderRight: i < arr.length - 1 ? "1px solid #e2e8f0" : "none"
+                    }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: "3px" }}>
+                        <Typography sx={{ fontSize: { xs: "0.55rem", md: "0.62rem" }, fontWeight: 800, color: "#0f172a", whiteSpace: "nowrap" }}>{stat.value}</Typography>
+                        {stat.delta && (
+                          <Typography sx={{ fontSize: { xs: "0.4rem", md: "0.44rem" }, fontWeight: 700, color: "#16a34a" }}>{stat.delta}</Typography>
+                        )}
+                      </Box>
+                      <Typography sx={{ fontSize: { xs: "0.38rem", md: "0.42rem" }, color: "#64748b", fontWeight: 500, whiteSpace: "nowrap" }}>{stat.label}</Typography>
+                    </Box>
+                  ))}
+                </Box>
+
+              </Box>
+            </Card>
+          </Box>
+
+          {/* Right Side: Inventory & Attendance Stacked Cards */}
+<Box sx={{ flex: { xs: "1 1 100%", md: "0 0 calc(44% - 8px)" }, width: "100%", display: "flex" }}>
+  <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "space-between", width: "100%", gap: { xs: 1, md: "8px" } }}>
+
+    {/* Inventory Card */}
+    <Card sx={{ bgcolor: "#fff", borderRadius: 2.2, border: "1px solid #e2e8f0", boxShadow: "0 2px 6px rgba(0,0,0,0.03)", width: "100%", height: { xs: "240px", sm: "200px", md: "161px" }, overflow: "hidden", p: 0, display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: { xs: "stretch", sm: "center" }, justifyContent: "center", position: "relative" }}>
+      {/* Mobile-only header — icon + title */}
+      <Box sx={{ display: { xs: "flex", sm: "none" }, alignItems: "center", gap: 0.6, px: 1, py: 0.6, borderBottom: "1px solid #f1f5f9", flexShrink: 0, bgcolor: "#fff", zIndex: 3 }}>
+        <Box sx={{ width: 20, height: 20, borderRadius: 1, bgcolor: "#dcfce7", color: "#22c55e", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Inventory2OutlinedIcon sx={{ fontSize: "11px" }} />
+        </Box>
+        <Typography sx={{ fontWeight: 800, color: "#1e293b", fontSize: "0.6rem", lineHeight: 1.3 }}>
+          Inventory Management
+        </Typography>
+      </Box>
+
+      {/* Mobile Image (Matches Card Width 100%) */}
+      {(inventoryImage1Mobile || inventoryImage1) && (
+        <Box
+          component="img"
+          src={inventoryImage1Mobile || inventoryImage1}
+          alt="Inventory Preview"
+          sx={{ display: { xs: "block", sm: "none" }, width: "100%", height: "calc(100% - 31px)", objectFit: "cover", bgcolor: "#f8fafc" }}
+        />
+      )}
+
+      {/* Desktop Image (Cover as original) */}
+      {inventoryImage1 && (
+        <Box
+          component="img"
+          src={inventoryImage1}
+          alt="Inventory Preview"
+          sx={{ display: { xs: "none", sm: "block" }, width: "100%", height: "100%", objectFit: "cover", objectPosition: "right center" }}
+        />
+      )}
+
+      {/* Desktop Overlay Content */}
+      <Box sx={{ position: "absolute", top: 0, left: 0, width: { xs: "58%", sm: "52%", md: "58%" }, height: "100%", p: { xs: 1, sm: 1.2, md: 1 }, pt: { xs: 1, sm: 1.2, md: 1 }, display: { xs: "none", sm: "flex" }, flexDirection: "column", justifyContent: "flex-start", zIndex: 2 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: { xs: 0.2, sm: 0.3, md: 0.2 } }}>
+          <Box sx={{ width: { xs: 22, sm: 26, md: 28 }, height: { xs: 22, sm: 26, md: 28 }, borderRadius: 1.2, bgcolor: "#dcfce7", color: "#22c55e", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Inventory2OutlinedIcon sx={{ fontSize: { xs: "12px", sm: "14px", md: "16px" } }} />
+          </Box>
+          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#1e293b", fontSize: { xs: "0.6rem", sm: "0.72rem", md: "0.75rem" }, lineHeight: 1.3 }}>
+            Inventory Management
+          </Typography>
+        </Box>
+
+        <Stack spacing={{ xs: 0.3, sm: 0.4, md: 0.3 }} sx={{ mb: { xs: 0.4, sm: 0.5, md: 0.35 } }}>
+          {[
+            "Real-time stock tracking",
+            "Low stock alerts",
+            "Multi-location inventory",
+            "Barcode & batch management"
+          ].map((text, idx) => (
+            <Box key={idx} sx={{ display: "flex", alignItems: "center", gap: 0.4 }}>
+              <Box component="span" sx={{ width: { xs: 10, sm: 11, md: 11 }, height: { xs: 10, sm: 11, md: 11 }, borderRadius: "50%", bgcolor: "#22c55e", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: { xs: "6px", sm: "7px", md: "7px" }, fontWeight: "bold", flexShrink: 0 }}>✓</Box>
+              <Typography sx={{ fontSize: { xs: "0.48rem", sm: "0.58rem", md: "0.53rem" }, color: "#334155", fontWeight: 500, lineHeight: 1.35 }}>{text}</Typography>
+            </Box>
+          ))}
+        </Stack>
+
+        <Typography sx={{ color: "#e11d48", fontWeight: 700, fontSize: { xs: "0.5rem", sm: "0.58rem", md: "0.52rem" }, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "2px", lineHeight: 1.3, '&:hover': { opacity: 0.8 } }}>
+          Learn More →
+        </Typography>
+      </Box>
+    </Card>
+
+    {/* Attendance Card */}
+    <Card sx={{ bgcolor: "#fff", borderRadius: 2.2, border: "1px solid #e2e8f0", boxShadow: "0 2px 6px rgba(0,0,0,0.03)", width: "100%", height: { xs: "240px", sm: "200px", md: "161px" }, overflow: "hidden", p: 0, display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: { xs: "stretch", sm: "center" }, justifyContent: "center", position: "relative" }}>
+      {/* Mobile-only header — icon + title */}
+      <Box sx={{ display: { xs: "flex", sm: "none" }, alignItems: "center", gap: 0.6, px: 1, py: 0.6, borderBottom: "1px solid #f1f5f9", flexShrink: 0, bgcolor: "#fff", zIndex: 3 }}>
+        <Box sx={{ width: 20, height: 20, borderRadius: 1, bgcolor: "#ede9fe", color: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <AccessTimeOutlinedIcon sx={{ fontSize: "11px" }} />
+        </Box>
+        <Typography sx={{ fontWeight: 800, color: "#1e293b", fontSize: "0.6rem", lineHeight: 1.3 }}>
+          Attendance Management
+        </Typography>
+      </Box>
+
+      {/* Mobile Image (Matches Card Width 100%) */}
+      {(attendanceImage1Mobile || attendanceImage1) && (
+        <Box
+          component="img"
+          src={attendanceImage1Mobile || attendanceImage1}
+          alt="Attendance Preview"
+          sx={{ display: { xs: "block", sm: "none" }, width: "100%", height: "calc(100% - 31px)", objectFit: "cover", bgcolor: "#f8fafc" }}
+        />
+      )}
+
+      {/* Desktop Image (Cover as original) */}
+      {attendanceImage1 && (
+        <Box
+          component="img"
+          src={attendanceImage1}
+          alt="Attendance Preview"
+          sx={{ display: { xs: "none", sm: "block" }, width: "100%", height: "100%", objectFit: "cover", objectPosition: "right center" }}
+        />
+      )}
+
+      {/* Desktop Overlay Content */}
+      <Box sx={{ position: "absolute", top: 0, left: 0, width: { xs: "58%", sm: "52%", md: "58%" }, height: "100%", p: { xs: 1, sm: 1.2, md: 1 }, pt: { xs: 1, sm: 1.2, md: 1 }, display: { xs: "none", sm: "flex" }, flexDirection: "column", justifyContent: "flex-start", zIndex: 2 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: { xs: 0.2, sm: 0.3, md: 0.2 } }}>
+          <Box sx={{ width: { xs: 22, sm: 26, md: 28 }, height: { xs: 22, sm: 26, md: 28 }, borderRadius: 1.2, bgcolor: "#ede9fe", color: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <AccessTimeOutlinedIcon sx={{ fontSize: { xs: "12px", sm: "14px", md: "16px" } }} />
+          </Box>
+          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#1e293b", fontSize: { xs: "0.6rem", sm: "0.72rem", md: "0.75rem" }, lineHeight: 1.3 }}>
+            Attendance Management
+          </Typography>
+        </Box>
+
+        <Stack spacing={{ xs: 0.3, sm: 0.4, md: 0.3 }} sx={{ mb: { xs: 0.4, sm: 0.5, md: 0.35 } }}>
+          {[
+            "Real-time check-in/out",
+            "Shift & leave management",
+            "Location-based attendance",
+            "Detailed attendance reports"
+          ].map((text, idx) => (
+            <Box key={idx} sx={{ display: "flex", alignItems: "center", gap: 0.4 }}>
+              <Box component="span" sx={{ width: { xs: 10, sm: 11, md: 11 }, height: { xs: 10, sm: 11, md: 11 }, borderRadius: "50%", bgcolor: "#7c3aed", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: { xs: "6px", sm: "7px", md: "7px" }, fontWeight: "bold", flexShrink: 0 }}>✓</Box>
+              <Typography sx={{ fontSize: { xs: "0.48rem", sm: "0.58rem", md: "0.53rem" }, color: "#334155", fontWeight: 500, lineHeight: 1.35 }}>{text}</Typography>
+            </Box>
+          ))}
+        </Stack>
+
+        <Typography sx={{ color: "#e11d48", fontWeight: 700, fontSize: { xs: "0.5rem", sm: "0.58rem", md: "0.52rem" }, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "2px", lineHeight: 1.3, '&:hover': { opacity: 0.8 } }}>
+          Learn More →
+        </Typography>
+      </Box>
+    </Card>
+
+  </Box>
+</Box>
+        </Box>
+
+        {/* 4. SECOND FEATURE ROW (5 Bottom Cards) */}
+<Box sx={{
+  display: "flex",
+  flexDirection: { xs: "column", sm: "row" },
+  flexWrap: "nowrap",
+  rowGap: { xs: "6px", sm: 0 },
+  columnGap: { xs: 0, sm: "6px" },
+  width: "100%",
+  mt: 0.1,
+  overflowX: { xs: "auto", md: "unset" },
+  scrollbarWidth: "none",
+  "&::-webkit-scrollbar": { display: "none" }
+}}>
+  {[
+    {
+      title: "Customer Management",
+      imageSrc: customerMgmtImg,
+      icon: <PeopleOutlineOutlinedIcon sx={{ fontSize: "16px" }} />,
+      iconBg: "#eff6ff",
+      iconColor: "#2563eb",
+      rightContent: (
+        <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%", width: "100%", minWidth: 0, gap: "1.5px" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
+            <Box sx={{ width: "14px", height: "14px", borderRadius: "50%", bgcolor: "#cbd5e1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
+              <PersonIcon sx={{ fontSize: "9px", color: "#475569" }} />
+            </Box>
+            <Box sx={{ minWidth: 0, overflow: "hidden" }}>
+              <Typography sx={{ fontSize: "8.5px", fontWeight: 700, color: "#0f172a", lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Priya Sharma</Typography>
+              <Typography component="span" sx={{ fontSize: "5.5px", fontWeight: 700, color: "#d97706", bgcolor: "#fef3c7", px: "2.5px", py: "0px", borderRadius: "2px", display: "inline-block", mt: "0.2px" }}>Gold Customer</Typography>
+            </Box>
+          </Box>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "4px", borderTop: "1px solid #e2e8f0", pt: "1.5px", minWidth: 0 }}>
+            <Typography sx={{ fontSize: "6.5px", color: "#64748b", fontWeight: 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Total Orders</Typography>
+            <Typography sx={{ fontSize: "7.5px", fontWeight: 800, color: "#0f172a", flexShrink: 0 }}>24</Typography>
+          </Box>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "4px", minWidth: 0 }}>
+            <Typography sx={{ fontSize: "6.5px", color: "#64748b", fontWeight: 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Total Spent</Typography>
+            <Typography sx={{ fontSize: "7px", fontWeight: 800, color: "#0f172a", flexShrink: 0 }}>₹ 48,250</Typography>
+          </Box>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "4px", minWidth: 0 }}>
+            <Typography sx={{ fontSize: "6.5px", color: "#64748b", fontWeight: 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Loyalty Points</Typography>
+            <Typography sx={{ fontSize: "7.5px", fontWeight: 800, color: "#0f172a", flexShrink: 0 }}>1,250</Typography>
+          </Box>
+        </Box>
+      )
+    },
+   {
+  title: "Payments & Reminders",
+  imageSrc: paymentsImg,
+  icon: <AccountBalanceWalletOutlinedIcon sx={{ fontSize: "15px" }} />,
+  iconBg: "#ffedd5",
+  iconColor: "#ea580c",
+  imageFlex: 1.45,
+  imagePosition: "center center",
+  rightContent: (
+    <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center", height: "100%", width: "100%", gap: "5px", minWidth: 0, boxSizing: "border-box" }}>
+      <Box sx={{ bgcolor: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "5px", p: "6px 8px", boxShadow: "0 1px 3px rgba(0,0,0,0.03)", width: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column", justifyContent: "center", minWidth: 0 }}>
+        <Typography sx={{ fontSize: "7px", color: "#64748b", fontWeight: 600, lineHeight: 1.1, textTransform: "uppercase", letterSpacing: "0.3px" }}>
+          Outstanding Amount
+        </Typography>
+        <Typography sx={{ fontSize: "10px", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, mt: "1px" }}>
+          ₹ 18,750
+        </Typography>
+      </Box>
+      <Box sx={{ bgcolor: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "5px", p: "6px 8px", boxShadow: "0 1px 3px rgba(0,0,0,0.03)", display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", boxSizing: "border-box", overflow: "hidden" }}>
+        <Box sx={{ minWidth: 0, overflow: "hidden" }}>
+          <Typography sx={{ fontSize: "7px", color: "#64748b", fontWeight: 600, lineHeight: 1.1, textTransform: "uppercase", letterSpacing: "0.3px" }}>
+            Reminders Sent
+          </Typography>
+          <Typography sx={{ fontSize: "10px", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, mt: "1px" }}>
+            32
+          </Typography>
+        </Box>
+        <Box sx={{ color: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", transform: "rotate(-15deg)", flexShrink: 0, bgcolor: "#fee2e2", width: "20px", height: "20px", borderRadius: "50%" }}>
+          <SendIcon sx={{ fontSize: "10px" }} />
+        </Box>
+      </Box>
+    </Box>
+  )
+},
+    {
+      title: "GST Compliance & Reports",
+      imageSrc: gstReportImg,
+      icon: <DescriptionOutlinedIcon sx={{ fontSize: "16px" }} />,
+      iconBg: "#eff6ff",
+      iconColor: "#2563eb",
+      imageFlex: 1.5,
+      imagePosition: "45% center",
+      rightContent: (
+        <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%", width: "100%", overflow: "hidden", gap: "1.5px" }}>
+          {[
+            { title: "GSTR-1", sub: "Filed" },
+            { title: "GSTR-3B", sub: "Filed" },
+            { title: "E-Way Bill", sub: "Generated" }
+          ].map((item, i) => (
+            <Box key={i} sx={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              bgcolor: "#ffffff",
+              border: "1px solid #f1f5f9",
+              borderRadius: "3.5px",
+              p: "2px 4px",
+              boxShadow: "0 1px 2px rgba(0,0,0,0.02)",
+              width: "100%",
+              boxSizing: "border-box",
+              flex: 1
+            }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: "3px", minWidth: 0 }}>
+                <Box component="span" sx={{ width: "8px", height: "8px", borderRadius: "50%", bgcolor: "#dcfce7", color: "#16a34a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "5px", fontWeight: "bold", flexShrink: 0 }}>✓</Box>
+                <Typography sx={{ fontSize: "7px", fontWeight: 700, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.title}</Typography>
+              </Box>
+              <Typography sx={{ fontSize: "6px", color: "#64748b", fontWeight: 500, mt: "0.1px", ml: "11px", lineHeight: 1 }}>{item.sub}</Typography>
+            </Box>
+          ))}
+        </Box>
+      )
+    },
+    {
+      title: "Expense Management",
+      imageSrc: expenseImg2,
+      icon: <Inventory2OutlinedIcon sx={{ fontSize: "16px" }} />,
+      iconBg: "#dcfce7",
+      iconColor: "#16a34a",
+      imageFlex: 1.6,
+      imagePosition: "65% center",
+      rightContent: (
+        <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%", width: "100%", minWidth: 0 }}>
+          <Box>
+            <Typography sx={{ fontSize: "6px", color: "#64748b", fontWeight: 500, lineHeight: 1.1 }}>This Month</Typography>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: "0.3px", gap: "3px" }}>
+              <Typography sx={{ fontSize: "8px", fontWeight: 800, color: "#0f172a" }}>₹ 28,450</Typography>
+              <Typography sx={{ fontSize: "5.5px", fontWeight: 700, color: "#16a34a", bgcolor: "#dcfce7", px: "1.5px", py: "0px", borderRadius: "2px", flexShrink: 0 }}>↓ 8.4%</Typography>
+            </Box>
+          </Box>
+          {[
+            { label: "Rent", amount: "₹ 12,000", color: "#2563eb", bg: "#eff6ff", icon: "🏠" },
+            { label: "Utilities", amount: "₹ 6,250", color: "#ea580c", bg: "#ffedd5", icon: "💡" },
+            { label: "Marketing", amount: "₹ 4,200", color: "#16a34a", bg: "#dcfce7", icon: "📈" },
+            { label: "Others", amount: "₹ 6,000", color: "#ca8a04", bg: "#fef9c3", icon: "🏷️" }
+          ].map((exp, i) => (
+            <Box key={i} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", gap: "3px", minWidth: 0 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: "2.5px", minWidth: 0 }}>
+                <Box sx={{ width: "6px", height: "6px", borderRadius: "50%", bgcolor: exp.bg, color: exp.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "3px", flexShrink: 0 }}>{exp.icon}</Box>
+                <Typography sx={{ fontSize: "6px", color: "#64748b", fontWeight: 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{exp.label}</Typography>
+              </Box>
+              <Typography sx={{ fontSize: "6px", fontWeight: 700, color: "#0f172a", flexShrink: 0 }}>{exp.amount}</Typography>
+            </Box>
+          ))}
+        </Box>
+      )
+    },
+    {
+      title: "Purchase Management",
+      imageSrc: purchaseImg3,
+      icon: <ShoppingCartOutlinedIcon sx={{ fontSize: "16px" }} />,
+      iconBg: "#f3e8ff",
+      iconColor: "#9333ea",
+      rightContent: (
+        <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%", width: "100%", minWidth: 0 }}>
+          <Box>
+            <Typography sx={{ fontSize: "6px", color: "#64748b", fontWeight: 500, lineHeight: 1.1 }}>Total Purchases</Typography>
+            <Typography sx={{ fontSize: "8px", fontWeight: 800, color: "#0f172a", mt: "0.5px" }}>₹ 1,25,000</Typography>
+          </Box>
+          <Box>
+            <Typography sx={{ fontSize: "6px", color: "#64748b", fontWeight: 500, lineHeight: 1.1 }}>Purchase Orders</Typography>
+            <Typography sx={{ fontSize: "8px", fontWeight: 800, color: "#0f172a", mt: "0.5px" }}>12</Typography>
+          </Box>
+          <Box>
+            <Typography sx={{ fontSize: "6px", color: "#64748b", fontWeight: 500, lineHeight: 1.1 }}>Pending Receipts</Typography>
+            <Typography sx={{ fontSize: "8px", fontWeight: 800, color: "#0f172a", mt: "0.5px" }}>5</Typography>
+          </Box>
+        </Box>
+      )
+    }
+  ].map((card, idx) => (
+    <Box key={idx} sx={{ flex: { xs: "unset", sm: "0 0 280px", md: "1 1 0%" }, width: "100%", display: "flex", minWidth: 0 }}>
+      <Card sx={{
+        bgcolor: "#fff",
+        borderRadius: "10px",
+        border: "1px solid #e2e8f0",
+        boxShadow: "0 3px 10px rgba(0,0,0,0.04)",
+        width: "100%",
+        height: { xs: "175px", sm: "205px", md: "220px" },
+        overflow: "hidden",
+        p: { xs: "5px 8px", sm: "6px 8px", md: "7px 10px" },
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        boxSizing: "border-box"
+      }}>
+        {/* Header Section */}
+        <Box sx={{ overflow: "hidden" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: "5px" }}>
+            <Box sx={{ width: "18px", height: "18px", borderRadius: "3.5px", bgcolor: card.iconBg, color: card.iconColor, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              {card.icon}
+            </Box>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography sx={{
+                fontWeight: 800,
+                color: "#1e293b",
+                fontSize: { xs: "9.5px", md: "10.5px" },
+                lineHeight: 1.2,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis"
+              }}>
+                {card.title}
+              </Typography>
             </Box>
           </Box>
         </Box>
 
-      </Box>
+        {/* Image & Content Section */}
+        <Box sx={{ display: "flex", gap: "5px", width: "100%", flex: 1, my: { xs: "2px", md: "4px" }, minWidth: 0, alignItems: "stretch", overflow: "hidden" }}>
+          <Box
+            component="img"
+            src={card.imageSrc}
+            alt={card.title}
+            sx={{
+              flex: card.imageFlex || 1.35,
+              minWidth: 0,
+              height: "100%",
+              borderRadius: "5px",
+              objectFit: "cover",
+              objectPosition: card.imagePosition || "center center",
+              bgcolor: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              display: "block",
+              imageRendering: "-webkit-optimize-contrast",
+              backfaceVisibility: "hidden",
+              transform: "translateZ(0)"
+            }}
+          />
+          <Box sx={{ flex: 1, minWidth: 0, height: "100%", borderRadius: "5px", bgcolor: "#f8fafc", border: "1px solid #f1f5f9", p: "3px 4px", overflow: "hidden", display: "flex", alignItems: "center" }}>
+            {card.rightContent}
+          </Box>
+        </Box>
 
-      {/* Right Side: Image Box */}
-      <Box
-        sx={{
-          flex: 1.4,
-          minHeight: 0,
-          borderRadius: "10px",
-          bgcolor: "#f8fafc",
-          border: "1px solid #f1f5f9",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "hidden",
-          p: 0.5,
-        }}
-      >
-        <Box
-          component="img"
-          src={reportsAnalyticsFullyTransparentImg} 
-          alt="Reports & Analytics"
-          sx={{
-            width: "100%",
-            height: "100%",
-            objectFit: "contain",
-          }}
-        />
-      </Box>
+        {/* Footer Link */}
+        <Box sx={{ display: "flex", justifyContent: "flex-end", alignItems: "center", pr: "2px" }}>
+          <Typography sx={{ color: "#e11d48", fontWeight: 700, fontSize: "8px", cursor: "pointer", display: "flex", alignItems: "center", gap: "1.5px", '&:hover': { opacity: 0.8 } }}>
+            Learn More →
+          </Typography>
+        </Box>
+      </Card>
+    </Box>
+  ))}
+</Box>
 
+        {/* 5. BOTTOM BENEFITS BAR */}
+        <Box sx={{ display: "flex", flexWrap: { xs: "wrap", md: "nowrap" }, justifyContent: "space-around", alignItems: "center", py: "16px", px: "16px", bgcolor: "#fff", borderRadius: "10px", border: "1px solid #e2e8f0", boxShadow: "0 2px 4px rgba(0,0,0,0.02)", gap: "6px", width: "100%", boxSizing: "border-box" }}>
+          <Stack direction="row" spacing={1.2} alignItems="center" sx={{ width: { xs: "46%", md: "auto" } }}>
+            <Box sx={{ width: "28px", height: "28px", borderRadius: "50%", bgcolor: "#fee2e2", color: "#e11d48", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: "bold", flexShrink: 0 }}>⚡</Box>
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#0f172a", display: "block", fontSize: "11.5px" }}>Real-time sync</Typography>
+              <Typography variant="body2" sx={{ color: "#64748b", fontSize: "9.5px", display: "block" }}>Access your business anytime</Typography>
+            </Box>
+          </Stack>
+          <Box sx={{ display: { xs: "none", md: "block" }, width: "1px", height: "24px", bgcolor: "#e2e8f0" }} />
+          <Stack direction="row" spacing={1.2} alignItems="center" sx={{ width: { xs: "46%", md: "auto" } }}>
+            <Box sx={{ width: "28px", height: "28px", borderRadius: "50%", bgcolor: "#fee2e2", color: "#e11d48", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: "bold", flexShrink: 0 }}>🔒</Box>
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#0f172a", display: "block", fontSize: "11.5px" }}>Secure & reliable</Typography>
+              <Typography variant="body2" sx={{ color: "#64748b", fontSize: "9.5px", display: "block" }}>Your data is always protected</Typography>
+            </Box>
+          </Stack>
+          <Box sx={{ display: { xs: "none", md: "block" }, width: "1px", height: "24px", bgcolor: "#e2e8f0" }} />
+          <Stack direction="row" spacing={1.2} alignItems="center" sx={{ width: { xs: "46%", md: "auto" } }}>
+            <Box sx={{ width: "28px", height: "28px", borderRadius: "50%", bgcolor: "#fee2e2", color: "#e11d48", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: "bold", flexShrink: 0 }}>💻</Box>
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#0f172a", display: "block", fontSize: "11.5px" }}>All devices</Typography>
+              <Typography variant="body2" sx={{ color: "#64748b", fontSize: "9.5px", display: "block" }}>Desktop, tablet & mobile</Typography>
+            </Box>
+          </Stack>
+          <Box sx={{ display: { xs: "none", md: "block" }, width: "1px", height: "24px", bgcolor: "#e2e8f0" }} />
+          <Stack direction="row" spacing={1.2} alignItems="center" sx={{ width: { xs: "46%", md: "auto" } }}>
+            <Box sx={{ width: "28px", height: "28px", borderRadius: "50%", bgcolor: "#fee2e2", color: "#e11d48", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: "bold", flexShrink: 0 }}>📈</Box>
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#0f172a", display: "block", fontSize: "11.5px" }}>Built for growth</Typography>
+              <Typography variant="body2" sx={{ color: "#64748b", fontSize: "9.5px", display: "block" }}>From one store to many</Typography>
+            </Box>
+          </Stack>
+        </Box>
+
+      </Box>
     </Box>
-  </Box>
-</Grid>
-        </Grid>
-      </Container>
-    </Box>
- 
+
+
+
         {/* ── MODULE SUITE ─────────────────────────────────────────────────── */}
         {/* <Box sx={{ bgcolor: LIGHT, py: SPY, px: SX, position: "relative", overflow: "hidden" }}>
           <Box
@@ -2668,115 +2021,89 @@ const ZoduLandingPage: React.FC = () => {
   </Container>
 </Box>
         {/* ── PRICING ──────────────────────────────────────────────────────── */}
-        <Box sx={{ bgcolor: "#fff", py: SPY, px: SX, position: "relative", overflow: "hidden",mb: { xs: 6, md: 8 }, }}>
+      {/* Intha outer wrapper/container-la mt (margin-top) add pannunga */}
+<Box sx={{ mt: { xs: 4, md: 6 }, px: { xs: 2, md: 4 } }}>
+  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 2.5, alignItems: "stretch" }}>
+    {plans.map((plan) => (
+      <Box key={plan.name} sx={{
+        border: plan.popular ? `2px solid ${PRIMARY}` : `1px solid ${BORDER}`,
+        borderRadius: "22px",
+        p: { xs: 3, md: 3.2 },
+        position: "relative",
+        overflow: "hidden",
+        transform: plan.popular ? { md: "scale(1.03)" } : "none",
+        boxShadow: plan.popular ? `0 18px 54px ${alpha(PRIMARY, 0.15)}` : "0 10px 28px rgba(15,23,42,0.06)",
+        bgcolor: "#fff",
+        display: "flex",
+        flexDirection: "column",
+      }}>
+        <Box sx={{ display: "flex", flexDirection: "column", flex: 1 }}>
           
-          <Container maxWidth="lg" sx={{ position: "relative", zIndex: 1 }}>
-            <Box textAlign="center" mb={HMB}>
-              <Typography sx={{ color: PRIMARY, fontWeight: 700, fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", mb: 1 }}>
-                SIMPLE, TRANSPARENT PRICING
-              </Typography>
-              <Typography sx={{ fontSize: { xs: "1.8rem", md: "2.4rem" }, fontWeight: 800, color: DARK, letterSpacing: "-0.025em", mb: 1.5 }}>
-                Choose What Works for Your Business
-              </Typography>
-              <Typography sx={{ fontSize: "1rem", color: GRAY, maxWidth: 440, mx: "auto", lineHeight: 1.7, mb: 3 }}>
-                No hidden charges. No setup fees. Start free for 14 days.
-              </Typography>
-              <Box sx={{ display: "inline-flex", alignItems: "center", bgcolor: LIGHT, borderRadius: "12px", p: 0.5, gap: 0.5, border: `1px solid ${BORDER}`, boxShadow: "0 8px 20px rgba(15,23,42,0.04)" }}>
-                {(["monthly", "yearly"] as const).map((type) => (
-                  <Button key={type} onClick={() => setBilling(type)} sx={{
-                    px: 2.5, py: 0.8, borderRadius: "8px", fontSize: "0.85rem", fontWeight: 600,
-                    textTransform: "capitalize",
-                    bgcolor: billing === type ? "#fff" : "transparent",
-                    color: billing === type ? DARK : GRAY,
-                    boxShadow: billing === type ? "0 1px 6px rgba(0,0,0,0.08)" : "none",
-                    "&:hover": { bgcolor: billing === type ? "#fff" : BORDER },
-                  }}>
-                    {type === "monthly" ? "Monthly" : (
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.7 }}>
-                        Yearly
-                        <Box component="span" sx={{ bgcolor: "#dcfce7", color: "#16a34a", fontSize: "0.6rem", fontWeight: 800, px: 0.8, py: 0.2, borderRadius: "4px" }}>
-                          SAVE 20%
-                        </Box>
-                      </Box>
-                    )}
-                  </Button>
-                ))}
+          {plan.popular ? (
+            <Box sx={{ display: "flex", justifyContent: "center", mb: 1.5 }}>
+              <Box sx={{
+                bgcolor: PRIMARY, 
+                color: "#fff", 
+                fontSize: "0.65rem", 
+                fontWeight: 800,
+                px: 2, 
+                py: 0.5, 
+                borderRadius: "999px", 
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                whiteSpace: "nowrap"
+              }}>
+                MOST POPULAR
               </Box>
             </Box>
+          ) : (
+            <Box sx={{ height: 26, mb: 1.5 }} />
+          )}
 
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 2.5, alignItems: "stretch" }}>
-              {plans.map((plan) => (
-                <Box key={plan.name} sx={{
-                  border: plan.popular ? `2px solid ${PRIMARY}` : `1px solid ${BORDER}`,
-                  borderRadius: "22px",
-                  p: { xs: 3, md: 3.2 },
-                  position: "relative",
-                  overflow: "hidden",
-                  transform: plan.popular ? { md: "scale(1.03)" } : "none",
-                  boxShadow: plan.popular ? `0 18px 54px ${alpha(PRIMARY, 0.15)}` : "0 10px 28px rgba(15,23,42,0.06)",
-                  bgcolor: "#fff",
-                  display: "flex",
-                  flexDirection: "column",
-                 
-                }}>
-                  <Box sx={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", flex: 1 }}>
-                  {plan.popular && (
-                    <Box sx={{
-                      position: "absolute", top: -13, left: "50%", transform: "translateX(-50%)",
-                      bgcolor: PRIMARY, color: "#fff", fontSize: "0.65rem", fontWeight: 800,
-                      px: 2, py: 0.5, borderRadius: "999px", letterSpacing: "0.1em", whiteSpace: "nowrap",
-                    }}>
-                      MOST POPULAR
-                    </Box>
-                  )}
-                  <Typography sx={{ fontWeight: 850, fontSize: "1.2rem", color: DARK, mb: 0.4 }}>{plan.name}</Typography>
-                  <Typography sx={{ fontSize: "0.83rem", color: GRAY, mb: 2.5 }}>{plan.tagline}</Typography>
-                  {plan.monthly !== "Custom" ? (
-                    <Box mb={3}>
-                      <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5 }}>
-                        <Typography sx={{ fontSize: "2.5rem", fontWeight: 900, color: DARK, letterSpacing: "-0.03em" }}>
-                          {billing === "monthly" ? plan.monthly : plan.yearly}
-                        </Typography>
-                        <Typography sx={{ fontSize: "0.85rem", color: GRAY }}>/month</Typography>
-                      </Box>
-                      {billing === "yearly" && (
-                        <Typography sx={{ fontSize: "0.75rem", color: "#16a34a", fontWeight: 600 }}>Billed annually · Save 20%</Typography>
-                      )}
-                    </Box>
-                  ) : (
-                    <Box mb={3}>
-                      <Typography sx={{ fontSize: "1.8rem", fontWeight: 900, color: DARK, mb: 0.4 }}>Custom</Typography>
-                      <Typography sx={{ fontSize: "0.8rem", color: GRAY }}>Tailored to your business size</Typography>
-                    </Box>
-                  )}
-                  <Stack spacing={1.2} mb={3} sx={{ flex: 1 }}>
-                    {plan.items.map((item) => (
-                      <Box key={item} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <CheckCircleIcon sx={{ fontSize: 15, color: plan.popular ? PRIMARY : "#16a34a", flexShrink: 0 }} />
-                        <Typography sx={{ fontSize: "0.85rem", color: "#374151" }}>{item}</Typography>
-                      </Box>
-                    ))}
-                  </Stack>
-                  <Button fullWidth variant={plan.popular ? "contained" : "outlined"} onClick={() => navigate(plan.cta === "Talk to Sales" ? "/" : "/signup")} sx={{
-                    py: 1.2, borderRadius: "10px", fontWeight: 700, fontSize: "0.9rem",
-                    ...(plan.popular
-                      ? { bgcolor: PRIMARY, color: "#fff", "&:hover": { bgcolor: PRIMARY_DARK } }
-                      : { borderColor: plan.name === "Enterprise" ? PRIMARY : BORDER, color: plan.name === "Enterprise" ? PRIMARY : DARK, "&:hover": { borderColor: PRIMARY, bgcolor: alpha(PRIMARY, 0.04) } }),
-                  }}>
-                    {plan.cta}
-                  </Button>
-                  </Box>
-                </Box>
-              ))}
+          <Typography sx={{ fontWeight: 850, fontSize: "1.2rem", color: DARK, mb: 0.4 }}>{plan.name}</Typography>
+          <Typography sx={{ fontSize: "0.83rem", color: GRAY, mb: 2.5 }}>{plan.tagline}</Typography>
+          
+          {plan.monthly !== "Custom" ? (
+            <Box mb={3}>
+              <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5 }}>
+                <Typography sx={{ fontSize: "2.5rem", fontWeight: 900, color: DARK, letterSpacing: "-0.03em" }}>
+                  {billing === "monthly" ? plan.monthly : plan.yearly}
+                </Typography>
+                <Typography sx={{ fontSize: "0.85rem", color: GRAY }}>/month</Typography>
+              </Box>
+              {billing === "yearly" && (
+                <Typography sx={{ fontSize: "0.75rem", color: "#16a34a", fontWeight: 600 }}>Billed annually · Save 20%</Typography>
+              )}
             </Box>
+          ) : (
+            <Box mb={3}>
+              <Typography sx={{ fontSize: "1.8rem", fontWeight: 900, color: DARK, mb: 0.4 }}>Custom</Typography>
+              <Typography sx={{ fontSize: "0.8rem", color: GRAY }}>Tailored to your business size</Typography>
+            </Box>
+          )}
 
-            <Box textAlign="center" mt={4}>
-              <Typography sx={{ fontSize: "0.83rem", color: GRAY }}>
-                All plans include a <Box component="span" sx={{ fontWeight: 700, color: DARK }}>14-day free trial</Box> · No credit card required · Cancel anytime
-              </Typography>
-            </Box>
-          </Container>
+          <Stack spacing={1.2} mb={3} sx={{ flex: 1 }}>
+            {plan.items.map((item) => (
+              <Box key={item} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <CheckCircleIcon sx={{ fontSize: 15, color: plan.popular ? PRIMARY : "#16a34a", flexShrink: 0 }} />
+                <Typography sx={{ fontSize: "0.85rem", color: "#374151" }}>{item}</Typography>
+              </Box>
+            ))}
+          </Stack>
+
+          <Button fullWidth variant={plan.popular ? "contained" : "outlined"} onClick={() => navigate(plan.cta === "Talk to Sales" ? "/" : "/signup")} sx={{
+            py: 1.2, borderRadius: "10px", fontWeight: 700, fontSize: "0.9rem",
+            ...(plan.popular
+              ? { bgcolor: PRIMARY, color: "#fff", "&:hover": { bgcolor: PRIMARY_DARK } }
+              : { borderColor: plan.name === "Enterprise" ? PRIMARY : BORDER, color: plan.name === "Enterprise" ? PRIMARY : DARK, "&:hover": { borderColor: PRIMARY, bgcolor: alpha(PRIMARY, 0.04) } }),
+          }}>
+            {plan.cta}
+          </Button>
         </Box>
+      </Box>
+    ))}
+  </Box>
+</Box>
 
         {/* ── TESTIMONIALS ─────────────────────────────────────────────────── */}
         {/* <Box sx={{ bgcolor: LIGHT, py: SPY, px: SX }}>
@@ -3108,123 +2435,108 @@ const ZoduLandingPage: React.FC = () => {
 
         {/* ── FOOTER ───────────────────────────────────────────────────────── */}
         <Box component="footer" sx={{ position: "relative", overflow: "hidden", bgcolor: "#0B1220", color: "#fff" }}>
-         
-          <Container maxWidth="lg" sx={{ px: { xs: 3, md: 6 }, position: "relative", zIndex: 1 }}>
-            <Box sx={{
-              mt: { xs: 4, md: 5 },
-              p: { xs: 2.5, md: 3 },
-              borderRadius: "18px",
-              bgcolor: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.10)",
-              display: "flex",
-              flexDirection: { xs: "column", md: "row" },
-              alignItems: { xs: "flex-start", md: "center" },
-              justifyContent: "space-between",
-              gap: 2.5,
-              backdropFilter: "blur(10px)",
-            }}>
-              <Box>
-                <Typography sx={{ fontSize: { xs: "1.35rem", md: "1.7rem" }, fontWeight: 800, lineHeight: 1.2, mb: 0.7 }}>
-                  Ready to simplify your business?
-                </Typography>
-                <Typography sx={{ color: "#A7B0C0", fontSize: "0.9rem", lineHeight: 1.6 }}>
-                  Start billing, tracking and growing from one clean dashboard.
-                </Typography>
-              </Box>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.2} sx={{ width: { xs: "100%", sm: "auto" } }}>
-                <Button
-                  variant="contained"
-                  endIcon={<ArrowForwardIcon />}
-                  onClick={() => navigate("/signup")}
-                  sx={{ bgcolor: PRIMARY, px: 2.6, py: 1.1, borderRadius: "10px", fontWeight: 800, "&:hover": { bgcolor: PRIMARY_DARK } }}
-                >
-                  Start Free Trial
-                </Button>
-                <Button
-                  variant="outlined"
-                  sx={{ color: "#fff", borderColor: "rgba(255,255,255,0.22)", px: 2.6, py: 1.1, borderRadius: "10px", fontWeight: 700, "&:hover": { borderColor: "#fff", bgcolor: "rgba(255,255,255,0.06)" } }}
-                >
-                  Talk to Sales
-                </Button>
-              </Stack>
-            </Box>
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1.15fr 2fr" }, gap: { xs: 4, md: 6 }, py: { xs: 5, md: 6 } }}>
-              {/* Brand */}
-              <Box>
-                <Box sx={{ height: 48, display: "flex", alignItems: "center", mb: 2 }}>
-                  <Box sx={{ display: "inline-flex", alignItems: "center" }}>
-  <img 
-    src={zlogo} 
-    alt="Zodu Logo" 
-    style={{ 
-      height: 30, 
-      width: "auto", 
-      objectFit: "contain",
-      filter: "brightness(0) invert(1)" 
-    }} 
-  />
-</Box>
-                </Box>
-                <Typography sx={{ color: "#A7B0C0", fontSize: "0.9rem", lineHeight: 1.75, mb: 2.5, maxWidth: 330 }}>
-                  All-in-one POS solution for billing, inventory, staff, reports and growth. Built for modern Indian businesses.
-                </Typography>
-                <Stack direction="row" spacing={1}>
-                  {[<FacebookIcon sx={{ fontSize: 18 }} />, <InstagramIcon sx={{ fontSize: 18 }} />, <LinkedInIcon sx={{ fontSize: 18 }} />, <YouTubeIcon sx={{ fontSize: 18 }} />].map((icon, i) => (
-                    <IconButton key={i} size="small" sx={{
-                      width: 36,
-                      height: 36,
-                      bgcolor: "rgba(255,255,255,0.08)",
-                      color: "#D1D5DB",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      transition: "all 0.18s",
-                      "&:hover": { bgcolor: PRIMARY, color: "#fff", transform: "translateY(-2px)" },
-                    }}>
-                      {icon}
-                    </IconButton>
-                  ))}
-                </Stack>
-              </Box>
-
-              {/* Link columns */}
-              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(3, 1fr)", md: "repeat(5, 1fr)" }, gap: { xs: 3, md: 3.5 } }}>
-                {[
-                  { title: "Product",   links: ["Features", "Pricing", "Modules", "What's New"] },
-                  { title: "Solutions", links: ["Retail Stores", "Restaurants", "Supermarkets", "Beauty & Wellness"] },
-                  { title: "Company",   links: ["About Us", "Blog", "Careers", "Contact Us"] },
-                  { title: "Support",   links: ["Help Centre", "Tutorials", "API Docs", "System Status"] },
-                  { title: "Legal",     links: ["Privacy Policy", "Terms of Service", "Cookie Policy", "Refund Policy"] },
-                ].map((col) => (
-                  <Stack spacing={1.5} key={col.title}>
-                    <Typography sx={{ color: "#fff", fontWeight: 800, fontSize: "0.86rem", position: "relative", pb: 0.7 }}>
-                      {col.title}
-                      <Box component="span" sx={{ position: "absolute", left: 0, bottom: 0, width: 24, height: 2, borderRadius: "999px", bgcolor: PRIMARY }} />
-                    </Typography>
-                    <Stack spacing={1}>
-                      {col.links.map((l) => (
-                        <Link key={l} href="#" underline="none" sx={{ color: "#8B95A7", fontSize: "0.82rem", transition: "all 0.15s", "&:hover": { color: "#fff", pl: 0.4 } }}>
-                          {l}
-                        </Link>
-                      ))}
-                    </Stack>
-                  </Stack>
-                ))}
-              </Box>
-            </Box>
-
-            <Divider sx={{ borderColor: "rgba(255,255,255,0.09)" }} />
-            <Box sx={{ py: 2.5, display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", alignItems: "center", gap: 2 }}>
-              <Typography sx={{ color: "#8B95A7", fontSize: "0.8rem" }}>
-                © 2025 Zodu Technologies Pvt. Ltd. All rights reserved.
-              </Typography>
-              <Stack direction="row" spacing={2.5}>
-                {["Privacy", "Terms", "Sitemap"].map((l) => (
-                  <Link key={l} href="#" underline="none" sx={{ color: "#8B95A7", fontSize: "0.8rem", "&:hover": { color: "#fff" } }}>{l}</Link>
-                ))}
-              </Stack>
-            </Box>
-          </Container>
+    <Container maxWidth="lg" sx={{ px: { xs: 3, md: 6 }, position: "relative", zIndex: 1, py: { xs: 4, md: 5 } }}>
+      
+      {/* Logo and CTA Box in a single row */}
+      <Box sx={{
+        mt: { xs: 2, md: 3 },
+        display: "flex",
+        flexDirection: { xs: "column", lg: "row" },
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 4,
+      }}>
+        {/* Logo */}
+        <Box sx={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}>
+          <img 
+            src={zlogo} 
+            alt="Zodu Logo" 
+            style={{ 
+              height: 34, 
+              width: "auto", 
+              objectFit: "contain",
+              filter: "brightness(0) invert(1)" 
+            }} 
+          />
         </Box>
 
+        {/* Ready to simplify your business Box */}
+        <Box sx={{
+          p: { xs: 2.5, md: 3 },
+          borderRadius: "18px",
+          bgcolor: "rgba(255,255,255,0.06)",
+          border: "1px solid rgba(255,255,255,0.10)",
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          alignItems: { xs: "flex-start", md: "center" },
+          justifyContent: "space-between",
+          gap: 2.5,
+          backdropFilter: "blur(10px)",
+          flex: 1,
+          width: { xs: "100%", lg: "auto" }
+        }}>
+          <Box>
+            <Typography sx={{ fontSize: { xs: "1.35rem", md: "1.7rem" }, fontWeight: 800, lineHeight: 1.2, mb: 0.7 }}>
+              Ready to simplify your business?
+            </Typography>
+            <Typography sx={{ color: "#A7B0C0", fontSize: "0.9rem", lineHeight: 1.6 }}>
+              Start billing, tracking and growing from one clean dashboard.
+            </Typography>
+          </Box>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.2} sx={{ width: { xs: "100%", sm: "auto" } }}>
+            <Button
+              variant="contained"
+              endIcon={<ArrowForwardIcon />}
+              onClick={() => navigate("/signup")}
+              sx={{ bgcolor: PRIMARY, px: 2.6, py: 1.1, borderRadius: "10px", fontWeight: 800, "&:hover": { bgcolor: PRIMARY_DARK } }}
+            >
+              Start Free Trial
+            </Button>
+            <Button
+              variant="outlined"
+              sx={{ color: "#fff", borderColor: "rgba(255,255,255,0.22)", px: 2.6, py: 1.1, borderRadius: "10px", fontWeight: 700, "&:hover": { borderColor: "#fff", bgcolor: "rgba(255,255,255,0.06)" } }}
+            >
+              Talk to Sales
+            </Button>
+          </Stack>
+        </Box>
+      </Box>
+
+      <Box sx={{ py: { xs: 3, md: 4 } }} />
+
+      <Divider sx={{ borderColor: "rgba(255,255,255,0.09)" }} />
+      
+      {/* Bottom section with Copyright, Social Icons, and Links */}
+      <Box sx={{ py: 2.5, display: "flex", flexDirection: { xs: "column", md: "row" }, justifyContent: "space-between", alignItems: "center", gap: 2.5 }}>
+        <Typography sx={{ color: "#8B95A7", fontSize: "0.8rem" }}>
+          © 2025 Zodu Technologies Pvt. Ltd. All rights reserved.
+        </Typography>
+
+        {/* Social Media Icons in the middle */}
+        <Stack direction="row" spacing={1}>
+          {[<FacebookIcon sx={{ fontSize: 18 }} />, <InstagramIcon sx={{ fontSize: 18 }} />, <LinkedInIcon sx={{ fontSize: 18 }} />, <YouTubeIcon sx={{ fontSize: 18 }} />].map((icon, i) => (
+            <IconButton key={i} size="small" sx={{
+              width: 34,
+              height: 34,
+              bgcolor: "rgba(255,255,255,0.08)",
+              color: "#D1D5DB",
+              border: "1px solid rgba(255,255,255,0.08)",
+              transition: "all 0.18s",
+              "&:hover": { bgcolor: PRIMARY, color: "#fff", transform: "translateY(-2px)" },
+            }}>
+              {icon}
+            </IconButton>
+          ))}
+        </Stack>
+
+        <Stack direction="row" spacing={2.5}>
+          {["Privacy", "Terms", "Sitemap"].map((l) => (
+            <Typography key={l} sx={{ color: "#8B95A7", fontSize: "0.8rem", cursor: "pointer", "&:hover": { color: "#fff" } }}>{l}</Typography>
+          ))}
+        </Stack>
+      </Box>
+    </Container>
+  </Box>
       </Box>
     </ThemeProvider>
   );
