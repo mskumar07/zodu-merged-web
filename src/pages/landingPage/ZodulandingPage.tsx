@@ -103,7 +103,6 @@ import {
   Face as FaceIcon,
   QrCode as QrCodeIcon,
   LocationOn as LocationOnIcon,
-  Person as PersonIcon,
   Phone as PhoneIcon,
   Notifications as NotificationsIcon,
   Receipt as ReceiptIcon,
@@ -124,24 +123,20 @@ import GroupIcon from '@mui/icons-material/Group';
 import posbilling from "../../assets/Landingpage/pos-billing.png";
 import inventoryImage from "../../assets/Landingpage/Inventory-Management.jpeg";
 import CustomerManagementImage from "../../assets/Landingpage/Customer-Management.png";
-import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 
 import womenImage from "../../assets/Landingpage/women-image.png";
 import attendanceImage from "../../assets/Landingpage/Attendance-Management.jpeg";
 
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
-import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import PaymentsRemindersImage from "../../assets/Landingpage/Payments-reminders.jpeg";
 
 import ExpenseManagementImage from "../../assets/Landingpage/Expense-management.jpeg";
 import purchaseManagementImg from "../../assets/Landingpage/purchase-management.jpeg";
 import reportsAnalyticsImg from '../../assets/Landingpage/reportsAnalyticsImg.png';
 import reportsAnalyticsFullyTransparentImg from "../../assets/Landingpage/reports-analytics-fully-transparent.png";
-import attendanceImage1 from "../../assets/Landingpage/Attendence-management.png";
 import CustomerManagementImage1 from "../../assets/Landingpage/Customer-management1.png";
 import GSTComplianceImage2 from "../../assets/Landingpage/Gst-compliance&reports.png";
-import inventoryImage1 from "../../assets/Landingpage/inventory-management.png";
 
 import posbilling1 from "../../assets/Landingpage/pos-billing1.png";
 import PaymentsRemindersImage2 from "../../assets/Landingpage/payments&reminder.png";
@@ -151,30 +146,29 @@ import ExpenseManagementImage2 from "../../assets/Landingpage/Expense-management
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
 
 import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
-import PeopleOutlineOutlinedIcon from '@mui/icons-material/PeopleOutlineOutlined';
 import PaymentOutlinedIcon from '@mui/icons-material/PaymentOutlined';
 
 import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
 
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
-import customerMgmtImg from '../../assets/Landingpage/Customer-management-(3).png';
-import expenseImg2 from '../../assets/Landingpage/Expense-management.png'; 
-import gstReportImg from '../../assets/Landingpage/GST-report.png';
-import purchaseImg3 from '../../assets/Landingpage/purchase-management3.png';
+import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
+import PeopleAltRoundedIcon from '@mui/icons-material/PeopleAltRounded';
+import BarChartRoundedIcon from '@mui/icons-material/BarChartRounded';
+import LightbulbRoundedIcon from '@mui/icons-material/LightbulbRounded';
+import CampaignRoundedIcon from '@mui/icons-material/CampaignRounded';
+import ArrowUpwardRoundedIcon from '@mui/icons-material/ArrowUpwardRounded';
+import ArrowDownwardRoundedIcon from '@mui/icons-material/ArrowDownwardRounded';
+import DevicesRoundedIcon from '@mui/icons-material/DevicesRounded';
 
-import paymentsImg from '../../assets/Landingpage/payment-reminder.png';
 import WomanIcon from '@mui/icons-material/Woman';
 
 import { Avatar } from '@mui/material';
 import CheckIcon from '@mui/icons-material/Check';
-import posbilling1Mobile from "../../assets/Landingpage/pos-billing-mobile.jpeg";
-import inventoryImage1Mobile from "../../assets/Landingpage/inventory-mobile.jpeg";
-import attendanceImage1Mobile from "../../assets/Landingpage/attendance-mobile.jpeg";
-import heroImg1 from '../../assets/Landingpage/Hero-section.jpeg';
+import heroSectionBg from '../../assets/Landingpage/herosection_bg.png';
+import heroSectionBgWide from '../../assets/Landingpage/herosection_bg_extended.webp';
 
 
-import { Card} from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 
 // ── Design Tokens ───────────────────────────────────────────
@@ -615,6 +609,20 @@ const APP_RED = "#EF4444";
 const APP_RED_DARK = "#DC2626";
 const APP_NAVY = "#1E293B";
 const APP_SLATE = "#64748B";
+const HERO_RED = "#EB0029";        // brand red — primary CTAs only, matches the logo
+const HERO_BLUE = "#1D4ED8";       // hero accent text, icons, secondary hover
+const HERO_NAVY = "#0F2A6B";       // navy used inside the hero artwork
+const HERO_BLUE_SOFT = "#EFF6FF";
+const HERO_BASE = "#F8FBFC";       // sampled from the artwork's left edge so the fade is seamless
+const HERO_COPY_W = "min(29vw, 560px)";
+const HERO_MASK_TOP = "linear-gradient(to bottom, transparent 0%, #000 12%)";   // mobile: fade artwork top into HERO_BASE
+// Desktop artwork (herosection_bg_extended.webp) = the 1983×793 original with its own backdrop
+// extended 1200px left, 600px up and 96px down (scripts/extend-hero-bg.py). HERO_WIDE_K
+// scales the rendered height so the original part keeps the size that keeps its badges clear of
+// the copy; the bottom extension lifts it off the hero's bottom edge.
+const HERO_WIDE_K = (793 + 600 + 96) / 793;
+const HERO_WIDE_MASK = "linear-gradient(to right, transparent 0%, #000 4%), linear-gradient(to bottom, transparent 0%, #000 6%)";
+const NAV_H = { xs: 60, md: 64 };  // navbar row height; the hero subtracts it (+1px border) to fill the screen
 
 // ── Showcase mockup ────────────────────────────────────────────────────────────
 // Browser-framed faux dashboard used as a product-screenshot placeholder.
@@ -672,6 +680,532 @@ const ShowcaseMock: React.FC<{ feature: (typeof features)[number] }> = ({ featur
   </Box>
 );
 
+// ── "What Zodu does for you" ──────────────────────────────────────────────────
+// Built to the reference design (1600px canvas, 1520px content). Sizes are that design's px
+// values passed through fz(): 1px per unit below 1200px, 0.9px from 1200px, and scaling with
+// the viewport from 1440px up so the desktop layout keeps the reference proportions.
+//   < 900px   POS + wide cards stack (text above photo); mini cards 1 → 2 columns
+//   ≥ 900px   text overlays the photos' blank left side; mini cards on a 6-track grid (3 + 2)
+//   ≥ 1200px  POS | Inventory + Attendance side by side
+//   ≥ 1440px  five mini cards in one row — the reference layout
+const FZ_RED = "#E5243B";
+const FZ_INK = "#0F172A";
+const FZ_TEXT = "#334155";
+const FZ_MUTED = "#64748B";
+const FZ_BORDER = "#E8ECF2";
+const FZ_GREEN = "#16A34A";
+const FZ_DESK = "@media (min-width: 1440px)";
+const FZ_LAPTOP = "@media (min-width: 1200px) and (max-width: 1439.98px)";
+const fz = (n: number) => `calc(${n} * var(--fz-u))`;
+
+const fzCardSx = {
+  position: "relative",
+  overflow: "hidden",
+  // clip (unlike hidden) keeps min-height: auto content-based, so cards grow instead of cutting text
+  "@supports (overflow: clip)": { overflow: "clip" },
+  bgcolor: "#fff",
+  border: `1px solid ${FZ_BORDER}`,
+  borderRadius: fz(16),
+  boxShadow: "0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",
+} as const;
+
+const fzPanelSx = {
+  bgcolor: "#fff",
+  border: `1px solid ${FZ_BORDER}`,
+  borderRadius: fz(8),
+  boxShadow: "0 1px 3px rgba(15,23,42,0.05)",
+} as const;
+
+const FzIconTile: React.FC<{ icon: React.ReactNode; color: string; bg: string; size: number; radius: number; iconSize: number }> = ({ icon, color, bg, size, radius, iconSize }) => (
+  <Box sx={{
+    width: fz(size), height: fz(size), borderRadius: fz(radius), bgcolor: bg, color, flexShrink: 0,
+    display: "flex", alignItems: "center", justifyContent: "center", "& svg": { fontSize: fz(iconSize) },
+  }}>
+    {icon}
+  </Box>
+);
+
+const FzLearnMore: React.FC<{ size: number }> = ({ size }) => (
+  <Box component="button" type="button" sx={{
+    display: "inline-flex", alignItems: "center", gap: fz(4), p: 0, border: 0, bgcolor: "transparent",
+    color: FZ_RED, fontFamily: "inherit", fontSize: fz(size), fontWeight: 700, lineHeight: 1.2, cursor: "pointer",
+    "& svg": { fontSize: fz(size + 3), transition: "transform 0.18s ease" },
+    "&:hover svg": { transform: "translateX(2px)" },
+    "&:focus-visible": { outline: `2px solid ${alpha(FZ_RED, 0.4)}`, outlineOffset: 2, borderRadius: "4px" },
+  }}>
+    Learn More <ArrowForwardRoundedIcon />
+  </Box>
+);
+
+const FzChecklist: React.FC<{ items: string[]; color: string; icon: number; text: number; gap: number }> = ({ items, color, icon, text, gap }) => (
+  <Box component="ul" sx={{ listStyle: "none", m: 0, p: 0, display: "flex", flexDirection: "column", gap: fz(gap) }}>
+    {items.map((item) => (
+      <Box component="li" key={item} sx={{ display: "flex", alignItems: "flex-start", gap: fz(10), color: FZ_TEXT, fontSize: fz(text), fontWeight: 500, lineHeight: 1.4 }}>
+        <CheckCircleIcon sx={{ fontSize: fz(icon), color, flexShrink: 0 }} />
+        {item}
+      </Box>
+    ))}
+  </Box>
+);
+
+const FzLabel: React.FC<{ children: React.ReactNode; size?: number }> = ({ children, size = 10 }) => (
+  <Typography sx={{ fontSize: fz(size), color: FZ_MUTED, lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{children}</Typography>
+);
+
+const FzValue: React.FC<{ children: React.ReactNode; size: number }> = ({ children, size }) => (
+  <Typography sx={{ fontSize: fz(size), fontWeight: 800, color: FZ_INK, lineHeight: 1.25, whiteSpace: "nowrap" }}>{children}</Typography>
+);
+
+const FzRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: fz(6) }}>
+    <Box component="span" sx={{ fontSize: fz(10), color: FZ_MUTED, minWidth: 0 }}>{label}</Box>
+    <Box component="span" sx={{ fontSize: fz(10.5), fontWeight: 800, color: FZ_INK, whiteSpace: "nowrap" }}>{value}</Box>
+  </Box>
+);
+
+const fzTabs = [
+  { label: "All Features", icon: <ShoppingCartOutlinedIcon />, color: "#fff", active: true },
+  { label: "Billing", icon: <ReceiptLongIcon />, color: "#F97316", active: false },
+  { label: "Inventory", icon: <Inventory2RoundedIcon />, color: FZ_GREEN, active: false },
+  { label: "Staff", icon: <PeopleAltRoundedIcon />, color: "#2563EB", active: false },
+  { label: "Customers", icon: <GroupsIcon />, color: "#2563EB", active: false },
+  { label: "Reports", icon: <BarChartRoundedIcon />, color: FZ_RED, active: false },
+];
+
+const fzPosStats = [
+  { value: "₹ 12,458", delta: "12.5%", label: "Today's Sales" },
+  { value: "128", delta: "8.3%", label: "Total Orders" },
+  { value: "₹ 2,850", delta: null, label: "Avg. Order Value" },
+];
+
+const fzExpenses = [
+  { label: "Rent", amount: "₹ 12,000", icon: <HomeIcon />, color: "#2563EB", bg: "#DBEAFE" },
+  { label: "Utilities", amount: "₹ 6,250", icon: <LightbulbRoundedIcon />, color: "#EA580C", bg: "#FFEDD5" },
+  { label: "Marketing", amount: "₹ 4,200", icon: <CampaignRoundedIcon />, color: FZ_GREEN, bg: "#DCFCE7" },
+  { label: "Others", amount: "₹ 6,000", icon: <MoreHorizIcon />, color: "#D97706", bg: "#FEF3C7" },
+];
+
+const fzBenefits = [
+  { icon: <BoltIcon />, title: "Real-time sync", sub: "Access your business anytime, anywhere" },
+  { icon: <VerifiedUserIcon />, title: "Secure & reliable", sub: "Your data is always protected" },
+  { icon: <DevicesRoundedIcon />, title: "Works on all devices", sub: "Desktop, tablet & mobile" },
+  { icon: <BarChartRoundedIcon />, title: "Built for growth", sub: "From one store to many" },
+];
+
+// Feature photos: cropped to their subject and pre-sized at two widths by scripts/crop-feature-photos.py
+// (feature-photos/<slug>-<width>.webp), so the browser picks a near-size file instead of shrinking a
+// 1,300–2,200px PNG ~8x (which renders soft). Widths must match the script's MINI_W / WIDE_W.
+type FzPhoto = { src: string; srcSet: string };
+const FZ_MINI_W = [480, 720];
+const FZ_WIDE_W = [640, 1260];
+const FZ_MINI_SIZES = "(min-width: 1440px) 12vw, (min-width: 900px) 28vw, (min-width: 600px) 50vw, 60vw";
+const FZ_WIDE_SIZES = "(min-width: 1200px) 24vw, (min-width: 600px) 60vw, 100vw";
+const fzPhotoUrls = import.meta.glob<string>("../../assets/Landingpage/feature-photos/*.webp", { eager: true, import: "default" });
+const fzPhoto = (slug: string, widths: number[]): FzPhoto => {
+  const url = (w: number) => fzPhotoUrls[`../../assets/Landingpage/feature-photos/${slug}-${w}.webp`];
+  return { src: url(widths[widths.length - 1]), srcSet: widths.map((w) => `${url(w)} ${w}w`).join(", ") };
+};
+const fzCustomerPhoto = fzPhoto("customer", FZ_MINI_W);
+
+type FzMini = {
+  title: string;
+  sub: string;
+  icon: React.ReactNode;
+  color: string;
+  bg: string;
+  photo: FzPhoto;
+  alt: string;
+  imagePos: string;
+  imageFr: number;          // image column width relative to the data panel (reference ratios)
+  learnMore?: "image" | "panel" | "panel-end";
+  panel: React.ReactNode;
+};
+
+const fzMiniCards: FzMini[] = [
+  {
+    title: "Customer Management", sub: "Build lasting customer relationships.",
+    icon: <PeopleAltRoundedIcon />, color: "#2563EB", bg: "#DBEAFE",
+    photo: fzCustomerPhoto, alt: "Customer checking her loyalty rewards on her phone", imagePos: "38% center", imageFr: 0.95,
+    learnMore: "panel",
+    panel: (
+      <Box sx={{ ...fzPanelSx, p: fz(9) }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: fz(8) }}>
+          <Box aria-hidden="true" sx={{
+            width: fz(30), height: fz(30), borderRadius: "50%", flexShrink: 0, border: "2px solid #fff",
+            boxShadow: `0 0 0 1px ${FZ_BORDER}`, backgroundImage: `url("${fzCustomerPhoto.src}")`,  // quoted: dev URLs can contain parentheses
+            backgroundSize: "380%", backgroundPosition: "42% 28%",
+          }} />
+          <Box sx={{ minWidth: 0 }}>
+            <Typography sx={{ fontSize: fz(11.5), fontWeight: 700, color: FZ_INK, lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Priya Sharma</Typography>
+            <Box component="span" sx={{ display: "inline-block", mt: fz(3), px: fz(6), py: fz(1.5), borderRadius: fz(4), bgcolor: "#FEF3C7", color: "#B45309", fontSize: fz(8.5), fontWeight: 700, lineHeight: 1.3 }}>
+              Gold Customer
+            </Box>
+          </Box>
+        </Box>
+        <Box sx={{ mt: fz(10), display: "flex", flexDirection: "column", gap: fz(6) }}>
+          <FzRow label="Total Orders" value="24" />
+          <FzRow label="Total Spent" value="₹ 48,250" />
+          <FzRow label="Loyalty Points" value="1,250" />
+        </Box>
+      </Box>
+    ),
+  },
+  {
+    title: "Payments & Reminders", sub: "Get paid on time with automated reminders.",
+    icon: <AccountBalanceWalletOutlinedIcon />, color: "#EA580C", bg: "#FFEDD5",
+    photo: fzPhoto("payments", FZ_MINI_W), alt: "Payment reminder being sent from the Zodu app", imagePos: "center 60%", imageFr: 1.1,
+    panel: (
+      <>
+        <Box sx={{ ...fzPanelSx, p: fz(10) }}>
+          <FzLabel>Outstanding Amount</FzLabel>
+          <Box sx={{ mt: fz(4) }}><FzValue size={16}>₹ 18,750</FzValue></Box>
+        </Box>
+        <Box sx={{ ...fzPanelSx, p: fz(10), display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: fz(6) }}>
+          <Box>
+            <FzLabel>Reminders Sent</FzLabel>
+            <Box sx={{ mt: fz(4) }}><FzValue size={16}>32</FzValue></Box>
+          </Box>
+          <SendIcon sx={{ fontSize: fz(20), color: FZ_RED, transform: "rotate(-30deg)", mb: fz(4), flexShrink: 0 }} />
+        </Box>
+      </>
+    ),
+  },
+  {
+    title: "GST Compliance & Reports", sub: "Stay 100% compliant with easy GST filing.",
+    icon: <DescriptionOutlinedIcon />, color: "#2563EB", bg: "#DBEAFE",
+    photo: fzPhoto("gst", FZ_MINI_W), alt: "GST compliance report with filing status on a desk", imagePos: "center 35%", imageFr: 1.8,
+    learnMore: "image",
+    panel: (
+      <>
+        {[["GSTR-1", "Filed"], ["GSTR-3B", "Filed"], ["E-Way Bill", "Generated"]].map(([title, status]) => (
+          <Box key={title} sx={{ ...fzPanelSx, px: fz(8), py: fz(6), display: "flex", alignItems: "center", gap: fz(7) }}>
+            <CheckCircleIcon sx={{ fontSize: fz(17), color: FZ_GREEN, flexShrink: 0 }} />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontSize: fz(10.5), fontWeight: 700, color: FZ_INK, lineHeight: 1.2 }}>{title}</Typography>
+              <Typography sx={{ fontSize: fz(9.5), color: FZ_MUTED, lineHeight: 1.2 }}>{status}</Typography>
+            </Box>
+          </Box>
+        ))}
+      </>
+    ),
+  },
+  {
+    title: "Expense Management", sub: "Track and control your business expenses.",
+    icon: <PaymentOutlinedIcon />, color: FZ_GREEN, bg: "#DCFCE7",
+    photo: fzPhoto("expense", FZ_MINI_W), alt: "Store staff reviewing monthly expenses on a tablet", imagePos: "70% 20%", imageFr: 1,
+    panel: (
+      <Box sx={{ ...fzPanelSx, p: fz(8), flex: 1 }}>
+        <FzLabel>This Month</FzLabel>
+        <Box sx={{ mt: fz(3), display: "flex", alignItems: "center", flexWrap: "wrap", columnGap: fz(6) }}>
+          <FzValue size={13.5}>₹ 28,450</FzValue>
+          <Box sx={{ display: "inline-flex", alignItems: "center", color: FZ_GREEN, fontSize: fz(10), fontWeight: 700 }}>
+            <ArrowDownwardRoundedIcon sx={{ fontSize: fz(11) }} />8.4%
+          </Box>
+        </Box>
+        <Box sx={{ mt: fz(8), display: "flex", flexDirection: "column", gap: fz(6) }}>
+          {fzExpenses.map((e) => (
+            <Box key={e.label} sx={{ display: "flex", alignItems: "center", gap: fz(5), fontSize: fz(9.5) }}>
+              <Box sx={{ width: fz(16), height: fz(16), borderRadius: "50%", bgcolor: e.bg, color: e.color, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", "& svg": { fontSize: fz(10) } }}>
+                {e.icon}
+              </Box>
+              <Box component="span" sx={{ flex: 1, minWidth: 0, color: FZ_TEXT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.label}</Box>
+              <Box component="span" sx={{ color: FZ_INK, fontWeight: 700, whiteSpace: "nowrap" }}>{e.amount}</Box>
+            </Box>
+          ))}
+        </Box>
+      </Box>
+    ),
+  },
+  {
+    title: "Purchase Management", sub: "Manage suppliers, purchase orders & receipts.",
+    icon: <ShoppingCartOutlinedIcon />, color: "#9333EA", bg: "#F3E8FF",
+    photo: fzPhoto("purchase", FZ_MINI_W), alt: "Warehouse staff checking purchase orders on a tablet", imagePos: "30% center", imageFr: 1.37,
+    learnMore: "panel-end",
+    panel: (
+      <>
+        {[["Total Purchases", "₹ 1,25,000"], ["Purchase Orders", "12"], ["Pending Receipts", "5"]].map(([label, value]) => (
+          <Box key={label} sx={{ ...fzPanelSx, px: fz(10), py: fz(6) }}>
+            <FzLabel size={9.5}>{label}</FzLabel>
+            <FzValue size={12.5}>{value}</FzValue>
+          </Box>
+        ))}
+      </>
+    ),
+  },
+];
+
+const FzPosCard: React.FC = () => (
+  // width 100%: an aspect-ratio grid item doesn't stretch inline, so once the row stretches its height the
+  // width would become height × ratio — wider than the column, sliding it under the Inventory/Attendance cards.
+  <Box sx={{ ...fzCardSx, alignSelf: "stretch", width: "100%", minWidth: 0, display: "flex", flexDirection: "column", aspectRatio: { md: "1821 / 864" } }}>
+    <Box sx={{
+      position: "relative", zIndex: 1, flex: { md: 1 }, width: { xs: "100%", md: "45%" },
+      // md+ bottom spacing is set so the copy stays within the artwork's 1821:864 height (no stretch, no crop).
+      display: "flex", flexDirection: "column", p: fz(16), pb: { xs: fz(18), md: fz(20) },
+    }}>
+      <Box sx={{ display: "flex", alignItems: "flex-start", gap: fz(16) }}>
+        <FzIconTile icon={<ShoppingCartOutlinedIcon />} color={FZ_RED} bg="#FFE4E6" size={56} radius={14} iconSize={30} />
+        <Box sx={{ pt: fz(4), minWidth: 0 }}>
+          <Typography component="h3" sx={{ fontSize: fz(24), fontWeight: 800, color: FZ_INK, lineHeight: 1.2, letterSpacing: "-0.01em" }}>
+            POS Billing
+          </Typography>
+          <Typography sx={{ mt: fz(6), maxWidth: fz(230), fontSize: fz(14), color: FZ_MUTED, lineHeight: 1.4 }}>
+            Fast, simple and reliable billing for any type of business.
+          </Typography>
+        </Box>
+      </Box>
+
+      {/* 1200–1439px the card is taller than the artwork, so it sits lower: keep the list left of "Billing Made Simple". */}
+      <Box sx={{ mt: fz(24), pl: fz(10), [FZ_LAPTOP]: { maxWidth: "72%" } }}>
+        <FzChecklist
+          items={["Quick billing & barcode scanning", "Supports multiple payment methods", "Works offline too", "Perfect for retail, restaurant, pharmacy and more"]}
+          color={FZ_RED} icon={19} text={13.5} gap={9}
+        />
+      </Box>
+
+      <Box component="button" type="button" sx={{
+        alignSelf: "flex-start", mt: fz(22), mb: { md: fz(24) }, ml: fz(8),
+        display: "inline-flex", alignItems: "center", gap: fz(8), height: fz(36), px: fz(18),
+        border: 0, borderRadius: fz(8), bgcolor: FZ_RED, color: "#fff", cursor: "pointer",
+        fontFamily: "inherit", fontSize: fz(13.5), fontWeight: 700,
+        boxShadow: `0 8px 18px ${alpha(FZ_RED, 0.28)}`,
+        transition: "transform 0.18s ease, background-color 0.18s ease",
+        "& svg": { fontSize: fz(17) },
+        "&:hover": { bgcolor: "#CC1B31", transform: "translateY(-1px)" },
+        "&:focus-visible": { outline: `3px solid ${alpha(FZ_RED, 0.3)}`, outlineOffset: 2 },
+      }}>
+        Learn More <ArrowForwardRoundedIcon />
+      </Box>
+
+      <Box sx={{
+        ...fzPanelSx, borderRadius: fz(12), mt: { xs: fz(20), md: "auto" },
+        display: "flex", width: { xs: "100%", sm: "fit-content" }, py: fz(14), px: fz(4),
+      }}>
+        {fzPosStats.map((s, i) => (
+          <Box key={s.label} sx={{ flex: { xs: 1, sm: "0 0 auto" }, minWidth: { sm: fz(104) }, px: { xs: fz(10), sm: fz(18) }, borderLeft: i ? `1px solid ${FZ_BORDER}` : "none" }}>
+            <FzValue size={19}>{s.value}</FzValue>
+            {s.delta && (
+              <Box sx={{ mt: fz(3), display: "flex", alignItems: "center", gap: fz(2), color: FZ_GREEN, fontSize: fz(12.5), fontWeight: 700 }}>
+                <ArrowUpwardRoundedIcon sx={{ fontSize: fz(14) }} />{s.delta}
+              </Box>
+            )}
+            <Typography sx={{ mt: fz(s.delta ? 4 : 6), fontSize: fz(12), color: FZ_MUTED, lineHeight: 1.3, whiteSpace: { sm: "nowrap" } }}>
+              {s.label}
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+    </Box>
+
+    {/* The artwork carries the receipt and "Billing Made Simple"; its left side is blank for the copy. */}
+    <Box component="img" src={posbilling1} alt="Cashier billing an order on the Zodu POS" loading="lazy" decoding="async" sx={{
+      display: "block", width: "100%", position: { md: "absolute" }, inset: { md: 0 },
+      height: { xs: "auto", md: "100%" }, aspectRatio: { xs: "4 / 3", sm: "16 / 10", md: "auto" },
+      objectFit: "cover", objectPosition: { xs: "90% center", sm: "right center", md: "right top" },
+      // 1200–1439px: the copy makes the card taller than the artwork's ratio; cropping would push
+      // "Billing Made Simple" into the checklist, so show the artwork whole and fade its top edge.
+      [FZ_LAPTOP]: {
+        inset: "auto 0 0 auto", height: "auto", aspectRatio: "1821 / 864",
+        WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, #000 14%)",
+        maskImage: "linear-gradient(to bottom, transparent 0%, #000 14%)",
+      },
+    }} />
+  </Box>
+);
+
+const FzWideCard: React.FC<{ icon: React.ReactNode; color: string; bg: string; title: string; desc: string; items: string[]; photo: FzPhoto; alt: string; imagePos?: string }> = ({ icon, color, bg, title, desc, items, photo, alt, imagePos = "right center" }) => (
+  <Box sx={{
+    ...fzCardSx, flex: { lg: "1 1 0" }, display: "flex", flexDirection: "column", justifyContent: "center",
+    aspectRatio: { sm: "2170 / 725", lg: "auto" },
+  }}>
+    {/* Kept short enough that two of these stay within the POS artwork's height (1821:864), so the POS
+        card is never stretched and its artwork never cropped into the checklist. */}
+    <Box sx={{ position: "relative", zIndex: 1, width: { xs: "100%", sm: "50%" }, pl: fz(16), pr: fz(8), pt: fz(10), pb: fz(8) }}>
+      <Box sx={{ display: "flex", alignItems: "flex-start", gap: fz(14) }}>
+        <FzIconTile icon={icon} color={color} bg={bg} size={44} radius={12} iconSize={24} />
+        <Box sx={{ minWidth: 0 }}>
+          <Typography component="h3" sx={{ fontSize: fz(16), fontWeight: 800, color: FZ_INK, lineHeight: 1.25, letterSpacing: "-0.015em" }}>{title}</Typography>
+          <Typography sx={{ mt: fz(3), maxWidth: fz(200), fontSize: fz(12), color: FZ_MUTED, lineHeight: 1.45 }}>{desc}</Typography>
+        </Box>
+      </Box>
+      <Box sx={{ mt: fz(10), pl: fz(12) }}>
+        <FzChecklist items={items} color={color} icon={16} text={12} gap={5} />
+      </Box>
+      <Box sx={{ mt: fz(8), pl: fz(4) }}>
+        <FzLearnMore size={12} />
+      </Box>
+    </Box>
+
+    {/* Frame-free photo panel (it carries the stat card), bled to the card's right, top and bottom edges;
+        its white left side fades into the card behind the copy. Capped at 60% of the card so it stays
+        clear of the copy on cards that are tall for their width (1200–1439px); imagePos keeps the subject. */}
+    <Box component="img" src={photo.src} srcSet={photo.srcSet} sizes={FZ_WIDE_SIZES} alt={alt} loading="lazy" decoding="async" sx={{
+      display: "block", position: { sm: "absolute" }, inset: { sm: "0 0 0 auto" },
+      width: { xs: "100%", sm: "auto" }, maxWidth: { xs: "none", sm: "60%" },
+      height: { xs: "auto", sm: "100%" }, aspectRatio: { xs: "16 / 9", sm: "auto" },
+      objectFit: "cover", objectPosition: imagePos,
+      WebkitMaskImage: { sm: "linear-gradient(to right, transparent 0%, #000 12%)" },
+      maskImage: { sm: "linear-gradient(to right, transparent 0%, #000 12%)" },
+      // 1200–1439px the card is at its tallest relative to its width: keep the photo right of the copy
+      // and give it a longer fade so the crop's left edge stays soft.
+      [FZ_LAPTOP]: {
+        maxWidth: "54%",
+        WebkitMaskImage: "linear-gradient(to right, transparent 0%, #000 18%)",
+        maskImage: "linear-gradient(to right, transparent 0%, #000 18%)",
+      },
+    }} />
+  </Box>
+);
+
+const FzMiniCard: React.FC<{ card: FzMini }> = ({ card }) => (
+  <Box sx={{ ...fzCardSx, borderRadius: fz(14), p: fz(10), pt: fz(9), display: "flex", flexDirection: "column", gap: fz(10) }}>
+    <Box sx={{ display: "flex", alignItems: "center", gap: fz(14) }}>
+      <FzIconTile icon={card.icon} color={card.color} bg={card.bg} size={40} radius={10} iconSize={21} />
+      <Box sx={{ minWidth: 0 }}>
+        <Typography component="h3" sx={{ fontSize: fz(14.5), fontWeight: 800, color: FZ_INK, lineHeight: 1.25 }}>{card.title}</Typography>
+        <Typography sx={{ mt: fz(2), fontSize: fz(11), color: FZ_MUTED, lineHeight: 1.35 }}>{card.sub}</Typography>
+      </Box>
+    </Box>
+
+    <Box sx={{ flex: 1, display: "grid", gridTemplateColumns: `minmax(0, ${card.imageFr}fr) minmax(0, 1fr)`, gap: fz(12) }}>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: fz(8), minWidth: 0 }}>
+        <Box component="img" src={card.photo.src} srcSet={card.photo.srcSet} sizes={FZ_MINI_SIZES} alt={card.alt} loading="lazy" decoding="async" sx={{
+          display: "block", width: "100%", height: 0, flex: "1 1 auto",
+          minHeight: fz(card.learnMore === "image" ? 108 : 128),
+          objectFit: "cover", objectPosition: card.imagePos, borderRadius: fz(8),
+        }} />
+        {card.learnMore === "image" && <FzLearnMore size={11} />}
+      </Box>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: fz(8), minWidth: 0 }}>
+        {card.panel}
+        {card.learnMore === "panel" && <Box sx={{ mt: "auto", pl: fz(3) }}><FzLearnMore size={11} /></Box>}
+        {card.learnMore === "panel-end" && <Box sx={{ mt: "auto", display: "flex", justifyContent: "flex-end" }}><FzLearnMore size={11} /></Box>}
+      </Box>
+    </Box>
+  </Box>
+);
+
+const WhatZoduDoesSection: React.FC = () => (
+  <Box component="section" id="what-zodu-does" aria-labelledby="fz-heading" sx={{
+    scrollMarginTop: { xs: NAV_H.xs, md: NAV_H.md },
+    "--fz-u": "1px",
+    "@media (min-width: 1200px)": { "--fz-u": "0.9px" },
+    [FZ_DESK]: { "--fz-u": "clamp(0.9px, calc((100vw - 80px) / 1520), 1px)", px: "40px" },
+    bgcolor: HERO_BASE,
+    px: { xs: 2, sm: 3, md: 4 },
+    pt: { xs: 5, md: fz(28) },
+    pb: { xs: 5, md: fz(32) },
+  }}>
+    <Box sx={{ maxWidth: 1520, mx: "auto", display: "flex", flexDirection: "column", gap: fz(10) }}>
+
+      {/* Heading + category tabs */}
+      <Box sx={{ textAlign: "center", mb: fz(9) }}>
+        <Box sx={{
+          display: "inline-flex", alignItems: "center", gap: fz(14), color: FZ_RED,
+          fontSize: fz(12.5), fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", lineHeight: 1.4,
+          "&::before, &::after": { content: '""', width: fz(30), height: "1px", bgcolor: alpha(FZ_RED, 0.45) },
+        }}>
+          What Zodu does for you
+        </Box>
+        <Typography component="h2" id="fz-heading" sx={{
+          mt: fz(12), fontSize: { xs: "1.75rem", sm: "2.1rem", lg: fz(38) }, fontWeight: 800, color: "#0B1220",
+          lineHeight: 1.15, letterSpacing: "-0.025em",
+        }}>
+          Everything You Need to Run Your Business Smarter
+        </Typography>
+        <Typography sx={{ mt: fz(8), mx: "auto", maxWidth: fz(640), fontSize: { xs: "0.95rem", lg: fz(15) }, color: "#475569", lineHeight: 1.5 }}>
+          From billing and inventory to payments, GST, staff, and insights — Zodu brings every essential operation into one connected platform.
+        </Typography>
+
+        <Box sx={{
+          // one row: scrolls below md, centred whenever it fits ("safe" falls back to start on overflow)
+          mt: fz(22), display: "flex", gap: { xs: "8px", md: fz(14) }, justifyContent: "safe center",
+          flexWrap: { xs: "nowrap", md: "wrap" }, overflowX: { xs: "auto", md: "visible" },
+          mx: { xs: -2, sm: -3, md: 0 }, px: { xs: 2, sm: 3, md: 0 }, py: fz(4),
+          scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" },
+        }}>
+          {fzTabs.map((tab) => (
+            <Box key={tab.label} component="button" type="button" aria-pressed={tab.active} sx={{
+              flexShrink: 0, display: "inline-flex", alignItems: "center", gap: fz(8), height: fz(38),
+              px: { xs: fz(tab.active ? 18 : 16), md: fz(tab.active ? 24 : 20) },
+              borderRadius: "999px", border: `1px solid ${tab.active ? FZ_RED : FZ_BORDER}`,
+              bgcolor: tab.active ? FZ_RED : "#fff", color: tab.active ? "#fff" : FZ_TEXT,
+              boxShadow: tab.active ? `0 8px 18px ${alpha(FZ_RED, 0.3)}` : "0 1px 2px rgba(15,23,42,0.04)",
+              fontFamily: "inherit", fontSize: fz(13), fontWeight: 600, whiteSpace: "nowrap", cursor: "pointer",
+              transition: "border-color 0.18s ease, color 0.18s ease",
+              "& svg": { fontSize: fz(17), color: tab.color },
+              "&:hover": tab.active ? {} : { borderColor: alpha(FZ_RED, 0.35), color: FZ_INK },
+              "&:focus-visible": { outline: `3px solid ${alpha(FZ_RED, 0.3)}`, outlineOffset: 2 },
+            }}>
+              {tab.icon}
+              {tab.label}
+            </Box>
+          ))}
+        </Box>
+      </Box>
+
+      {/* POS | Inventory + Attendance */}
+      <Box sx={{ display: "grid", gap: fz(10), gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(0, 1.435fr) minmax(0, 1fr)" } }}>
+        <FzPosCard />
+        <Box sx={{ display: "flex", flexDirection: "column", gap: fz(10), minWidth: 0 }}>
+          <FzWideCard
+            icon={<Inventory2RoundedIcon />} color={FZ_GREEN} bg="#DCFCE7"
+            title="Inventory Management" desc="Track stock in real time and never run out of best-selling items."
+            items={["Real-time stock tracking", "Low stock alerts", "Multi-location inventory", "Barcode & batch management"]}
+            photo={fzPhoto("inventory", FZ_WIDE_W)} alt="Warehouse staff checking stock levels on a tablet"
+          />
+          <FzWideCard
+            icon={<AccessTimeOutlinedIcon />} color="#7C3AED" bg="#EDE9FE"
+            title="Attendance Management" desc="Track staff attendance, shifts and leaves with ease."
+            items={["Real-time check-in/out", "Shift & leave management", "Location-based attendance", "Detailed attendance reports"]}
+            photo={fzPhoto("attendance", FZ_WIDE_W)} alt="Employee checking in on the Zodu attendance app" imagePos="88% center"
+          />
+        </Box>
+      </Box>
+
+      {/* Five module cards: 1 → 2 → 3 + 2 → 5 columns */}
+      <Box sx={{
+        display: "grid", gap: fz(10),
+        gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(6, minmax(0, 1fr))" },
+        "& > *": { gridColumn: { md: "span 2" } },
+        "& > :nth-of-type(n+4)": { gridColumn: { md: "span 3" } },
+        "& > :last-of-type": { gridColumn: { sm: "1 / -1", md: "span 3" } },
+        [FZ_DESK]: {
+          gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+          "& > *, & > :nth-of-type(n+4), & > :last-of-type": { gridColumn: "auto" },
+        },
+      }}>
+        {fzMiniCards.map((card) => <FzMiniCard key={card.title} card={card} />)}
+      </Box>
+
+      {/* Benefits strip */}
+      <Box sx={{
+        ...fzCardSx, borderRadius: fz(14), display: "grid",
+        gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" },
+      }}>
+        {fzBenefits.map((b, i) => (
+          <Box key={b.title} sx={{
+            position: "relative", display: "flex", alignItems: "center", justifyContent: { md: "center" },
+            gap: fz(14), px: fz(24), py: fz(12),
+            borderTop: { xs: i ? `1px solid ${FZ_BORDER}` : "none", sm: i >= 2 ? `1px solid ${FZ_BORDER}` : "none", md: "none" },
+            borderLeft: { sm: i % 2 ? `1px solid ${FZ_BORDER}` : "none", md: "none" },
+            "&::before": {
+              content: '""', display: { xs: "none", md: i ? "block" : "none" },
+              position: "absolute", left: 0, top: "25%", bottom: "25%", width: "1px", bgcolor: FZ_BORDER,
+            },
+          }}>
+            <FzIconTile icon={b.icon} color={FZ_RED} bg="#FFE4E6" size={40} radius={20} iconSize={21} />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontSize: fz(13.5), fontWeight: 700, color: FZ_INK, lineHeight: 1.3 }}>{b.title}</Typography>
+              <Typography sx={{ fontSize: fz(11.5), color: FZ_MUTED, lineHeight: 1.35 }}>{b.sub}</Typography>
+            </Box>
+          </Box>
+        ))}
+      </Box>
+    </Box>
+  </Box>
+);
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 const ZoduLandingPage: React.FC = () => {
@@ -682,7 +1216,13 @@ const ZoduLandingPage: React.FC = () => {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <GlobalStyles styles={{ "*": { boxSizing: "border-box" } }} />
+      <GlobalStyles styles={{
+        "*": { boxSizing: "border-box" },
+        "@keyframes heroVisualIn": {
+          from: { opacity: 0 },
+          to: { opacity: 1 },
+        },
+      }} />
       <Box sx={{ height: "100vh", overflowY: "auto", overflowX: "hidden", bgcolor: "#fff", scrollBehavior: "smooth" }}>
 
         {/* ── NAV ─────────────────────────────────────────────────────────── */}
@@ -690,11 +1230,12 @@ const ZoduLandingPage: React.FC = () => {
           position: "sticky", top: 0, zIndex: 1000,
           bgcolor: "rgba(255,255,255,0.92)",
           backdropFilter: "blur(12px)",
+          boxShadow: "0 1px 14px rgba(15,23,42,0.05)",
           borderBottom: `1px solid ${BORDER}`,
         }}>
           {/* Main nav row */}
-          <Box sx={{ px: { xs: 2.5, md: 6 }, py: 1.5, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Box sx={{ height: 40, display: "flex", alignItems: "center", overflow: "hidden" }}>
+          <Box sx={{ height: NAV_H, px: { xs: 2.5, md: 6 }, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Box sx={{ height: { xs: 30, md: 34 }, display: "flex", alignItems: "center", overflow: "hidden" }}>
               <img src={zlogo} alt="Zodu Logo" style={{ height: "100%", width: "auto", objectFit: "contain" }} />
             </Box>
 
@@ -716,11 +1257,13 @@ const ZoduLandingPage: React.FC = () => {
                 Login
               </Button>
               <Button variant="contained" onClick={() => navigate("/signup")}
+                endIcon={<ArrowForwardRoundedIcon sx={{ fontSize: "18px !important" }} />}
                 sx={{
-                  bgcolor: PRIMARY, color: "#fff", px: 2.5, py: 0.9, borderRadius: "8px",
+                  bgcolor: HERO_RED, color: "#fff", px: 2.25, py: 0.7, borderRadius: "10px",
                   fontSize: "0.88rem", fontWeight: 700,
                   display: { xs: "none", sm: "inline-flex" },
-                  "&:hover": { bgcolor: PRIMARY_DARK },
+                  boxShadow: "0 8px 18px rgba(235,0,41,0.22)",
+                  "&:hover": { bgcolor: "#d90025", transform: "translateY(-1px)", boxShadow: "0 10px 22px rgba(235,0,41,0.28)" },
                 }}>
                 Start Free Trial
               </Button>
@@ -751,7 +1294,8 @@ const ZoduLandingPage: React.FC = () => {
                   Login
                 </Button>
                 <Button fullWidth variant="contained" onClick={() => { navigate("/signup"); setMobileOpen(false); }}
-                  sx={{ bgcolor: PRIMARY, color: "#fff", fontWeight: 700, borderRadius: "8px", py: 1.1, "&:hover": { bgcolor: PRIMARY_DARK } }}>
+                  endIcon={<ArrowForwardRoundedIcon />}
+                  sx={{ bgcolor: HERO_RED, color: "#fff", fontWeight: 700, borderRadius: "10px", py: 1.1, "&:hover": { bgcolor: "#d90025" } }}>
                   Start Free Trial
                 </Button>
               </Stack>
@@ -760,37 +1304,228 @@ const ZoduLandingPage: React.FC = () => {
         </Box>
 
         {/* ── HERO ─────────────────────────────────────────────────────────── */}
-
-   <Box sx={{
-      width: "100%",
-      mt: 0, // Navbar kku apram gap illama top-la otti varanum
-      pt: 0,
-      mb: { xs: 4, md: 4 },
-      px: 0,
-      mx: 0,
-      overflow: "hidden",
-    }}>
-      <Box component="div" sx={{
-        width: "100%",
-        borderRadius: 0, // Full edge flat fit
-        overflow: "hidden",
-        position: "relative",
-        bgcolor: "#fff",
-      }}>
+        {/* herosection_bg.png is the hero background, rendered once as an <img> so it loads
+            with high priority. The artwork already contains the industry badges and tagline.
+            lg+: full-bleed, anchored bottom-right. Its height is capped at 33vw so the leftmost
+            baked-in badge (~23% into the artwork) always starts to the right of the copy, whose
+            width is capped at 5.5vw padding + 29vw. Below lg the copy sits on top and the
+            artwork bleeds edge-to-edge underneath. */}
         <Box
-          component="img"
-          src={heroImg1}
-          alt="Zodu business management platform"
+          component="section"
+          aria-labelledby="hero-heading"
           sx={{
-            width: "100%",
-            height: "auto",
-            display: "block",
-            objectFit: "cover",
+            position: "relative",
+            overflow: "hidden",
+            bgcolor: HERO_BASE,
+            // lg: light scrim for text contrast only; it clears before the first baked-in badge (~34.5vw).
+            "&::before": {
+              content: '""',
+              display: { xs: "none", lg: "block" },
+              position: "absolute",
+              inset: 0,
+              zIndex: 1,
+              pointerEvents: "none",
+              background: `linear-gradient(90deg, ${alpha(HERO_BASE, 0.5)} 0, ${alpha(HERO_BASE, 0.25)} 20vw, ${alpha(HERO_BASE, 0)} 34vw)`,
+            },
+            display: "flex",
+            flexDirection: "column",
+            // Navbar + hero fill exactly one screen (the page scroll container is 100vh).
+            minHeight: { xs: `calc(100vh - ${NAV_H.xs + 1}px)`, md: `calc(100vh - ${NAV_H.md + 1}px)` },
           }}
-        />
-      </Box>
-    </Box>
-  
+        >
+          {/* Copy */}
+          <Box
+            sx={{
+              position: "relative",
+              zIndex: 2,
+              width: "100%",
+              maxWidth: { xs: 720, lg: "none" },
+              mx: { xs: "auto", lg: 0 },
+              my: "auto",               // centre the copy in the free height; artwork stays at the bottom
+              pl: { xs: 2.5, sm: 4, md: 6, lg: "clamp(48px, 5.5vw, 112px)" },
+              pr: { xs: 2.5, sm: 4, md: 6, lg: 4 },
+              pt: { xs: 5, sm: 6 },
+              pb: { xs: 4, sm: 5, lg: 6 },
+              textAlign: { xs: "center", lg: "left" },
+            }}
+          >
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              sx={{
+                display: "inline-flex",
+                maxWidth: "100%",
+                px: { xs: 1.5, md: 1.75 },
+                py: 0.75,
+                mb: { xs: 2.5, md: 3 },
+                borderRadius: "999px",
+                bgcolor: alpha(HERO_BLUE_SOFT, 0.9),
+                border: `1px solid ${alpha(HERO_BLUE, 0.18)}`,
+                color: HERO_BLUE,
+                fontSize: "clamp(0.78rem, 0.72rem + 0.25vw, 0.9rem)",
+                fontWeight: 700,
+                lineHeight: 1.3,
+                textAlign: "left",
+                // ~360px phones: wrap as "Trusted by 10,000+ / Businesses Across India" in a tight
+                // two-line pill instead of orphaning "India".
+                "@media (max-width: 380px)": { "& > span": { maxWidth: "24ch" } },
+              }}
+            >
+              <VerifiedIcon sx={{ fontSize: 18, flexShrink: 0 }} />
+              <Box component="span">Trusted by 10,000+ Businesses Across India</Box>
+            </Stack>
+
+            <Typography
+              component="h1"
+              id="hero-heading"
+              sx={{
+                maxWidth: { lg: HERO_COPY_W },
+                color: DARK,
+                fontWeight: 800,
+                lineHeight: 1.05,
+                letterSpacing: "-0.025em",
+                fontSize: {
+                  xs: "clamp(2.25rem, 9vw, 2.75rem)",
+                  sm: "clamp(2.75rem, 6.5vw, 3.5rem)",
+                  lg: "clamp(2.5rem, 3.4vw, 4.4rem)",
+                },
+              }}
+            >
+              Smart Billing &amp;{" "}
+              <Box
+                component="span"
+                sx={{
+                  display: { sm: "block" },
+                  color: HERO_BLUE,
+                  backgroundImage: `linear-gradient(90deg, ${HERO_NAVY} 0%, ${HERO_BLUE} 100%)`,
+                  WebkitBackgroundClip: "text",
+                  backgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
+                Business Management
+              </Box>
+            </Typography>
+
+            <Typography
+              sx={{
+                mt: { xs: 2.5, md: 3 },
+                mx: { xs: "auto", lg: 0 },
+                maxWidth: { xs: 540, lg: HERO_COPY_W },
+                color: "#475569",
+                fontSize: "clamp(1rem, 0.94rem + 0.3vw, 1.2rem)",
+                lineHeight: 1.6,
+              }}
+            >
+              All-in-one POS solution to bill, manage, analyse and grow your business effortlessly.
+              No tech skills required.
+            </Typography>
+
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1.5}
+              sx={{ mt: { xs: 3.5, md: 4 }, justifyContent: { sm: "center", lg: "flex-start" } }}
+            >
+              <Button
+                variant="contained"
+                onClick={() => navigate("/signup")}
+                endIcon={<ArrowForwardRoundedIcon />}
+                sx={{
+                  bgcolor: HERO_RED,
+                  color: "#fff",
+                  px: 3.5,
+                  minHeight: 52,
+                  borderRadius: "12px",
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  boxShadow: "0 12px 24px rgba(235, 0, 41, 0.24)",
+                  width: { xs: "100%", sm: "auto" },
+                  transition: "transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease",
+                  "&:hover": { bgcolor: "#d90025", transform: "translateY(-2px)", boxShadow: "0 16px 30px rgba(235, 0, 41, 0.3)" },
+                  "&:focus-visible": { outline: `3px solid ${alpha(HERO_RED, 0.3)}`, outlineOffset: 3 },
+                }}
+              >
+                Start Free Trial
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => navigate("/signup")}
+                sx={{
+                  borderColor: "#CBD5E1",
+                  color: DARK,
+                  bgcolor: "#fff",
+                  px: 3.5,
+                  minHeight: 52,
+                  borderRadius: "12px",
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  width: { xs: "100%", sm: "auto" },
+                  transition: "transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease",
+                  "&:hover": { borderColor: HERO_BLUE, color: HERO_BLUE, bgcolor: HERO_BLUE_SOFT, transform: "translateY(-2px)" },
+                  "&:focus-visible": { outline: `3px solid ${alpha(HERO_BLUE, 0.3)}`, outlineOffset: 3 },
+                }}
+              >
+                Book a Demo
+              </Button>
+            </Stack>
+
+            <Box
+              sx={{
+                mt: 2.5,
+                display: "flex",
+                flexWrap: "wrap",
+                justifyContent: { xs: "center", lg: "flex-start" },
+                columnGap: 2.5,
+                rowGap: 1,
+                color: GRAY,
+                fontSize: "0.875rem",
+                fontWeight: 500,
+              }}
+            >
+              {["14-day free trial", "No credit card required"].map((point) => (
+                <Box key={point} sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                  <CheckCircleRoundedIcon sx={{ fontSize: 18, color: HERO_BLUE }} />
+                  {point}
+                </Box>
+              ))}
+            </Box>
+          </Box>
+
+          {/* Background artwork. Desktop swaps in the extended version so the photo fills the whole
+              hero; mobile shows the original below the copy with its top faded into HERO_BASE. */}
+          <Box component="picture" sx={{ display: "contents" }}>
+            <source media="(min-width: 1200px)" srcSet={heroSectionBgWide} />
+            <Box
+              component="img"
+              src={heroSectionBg}
+              alt="Zodu dashboard on phone, tablet and laptop — built for retail, restaurants, healthcare, education and logistics"
+              fetchPriority="high"
+              sx={{
+                display: "block",
+                flexShrink: 0,
+                position: { xs: "relative", lg: "absolute" },
+                right: { lg: 0 },
+                bottom: { lg: 0 },
+                width: { xs: "100%", lg: "auto" },
+                // lg: the original part renders min(100%, 33vw - 12px) tall — the cap that keeps the
+                // leftmost badge right of the copy; the extension fills the space around it.
+                height: { xs: "auto", lg: `calc(min(100%, 33vw - 12px) * ${HERO_WIDE_K})` },
+                maxWidth: "none",
+                aspectRatio: { xs: "2 / 1", lg: "auto" },
+                objectFit: "cover",
+                objectPosition: "right center",
+                WebkitMaskImage: { xs: HERO_MASK_TOP, lg: HERO_WIDE_MASK },
+                maskImage: { xs: HERO_MASK_TOP, lg: HERO_WIDE_MASK },
+                WebkitMaskComposite: { lg: "source-in" },
+                maskComposite: { lg: "intersect" },
+                "@media (prefers-reduced-motion: no-preference)": {
+                  animation: "heroVisualIn 700ms ease-out both",
+                },
+              }}
+            />
+          </Box>
+        </Box>
 
         {/* ── STATS BAR ────────────────────────────────────────────────────── */}
         {/* <Box sx={{
@@ -863,700 +1598,8 @@ const ZoduLandingPage: React.FC = () => {
         {/* </Box> */}
 
        
- {/* ── MODULE SUITE (9 MODULES) ─────────────────────────────────────── */}
-
-<Box sx={{
-      width: "100%",
-      height: "auto",
-      bgcolor: "#f8fafc",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      pt: { xs: 1, md: 2 },
-      pb: { xs: 2, md: 1 },
-      px: { xs: 1, sm: 2, md: 3 },
-      overflowX: "hidden",
-      boxSizing: "border-box"
-    }}>
-      <Box sx={{ width: "100%", maxWidth: "1440px", display: "flex", flexDirection: "column", gap: { xs: 1, md: 1.5 }, mx: "auto" }}>
-
-        {/* 1. TOP HEADER AREA */}
-        <Box sx={{ textAlign: "center", mt: 0, mb: 0.5, px: { xs: 1, sm: 0 } }}>
-          <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.6, bgcolor: "#fee2e2", px: 1.4, py: 0.25, borderRadius: 5, mb: 0.6 }}>
-            <Box component="span" sx={{ width: 4, height: 4, borderRadius: "50%", bgcolor: "error.main" }} />
-            <Typography variant="subtitle2" sx={{ color: "error.main", fontWeight: 700, textTransform: "uppercase", fontSize: { xs: "0.55rem", sm: "0.65rem" }, letterSpacing: "0.8px" }}>
-              WHAT ZODU DOES FOR YOU
-            </Typography>
-            <Box component="span" sx={{ width: 4, height: 4, borderRadius: "50%", bgcolor: "error.main" }} />
-          </Box>
-
-          <Typography variant="h3" sx={{ fontWeight: 800, color: "#1e293b", fontSize: { xs: "0.95rem", sm: "1.2rem", md: "1.5rem" }, mb: 0.5, lineHeight: 1.25, letterSpacing: "-0.3px" }}>
-            Everything You Need to Run Your Business Smarter
-          </Typography>
-
-          <Typography variant="body1" sx={{ color: "#64748b", maxWidth: 700, mx: "auto", fontSize: { xs: "0.7rem", sm: "0.78rem", md: "0.85rem" }, lineHeight: 1.4, mb: 1, px: { xs: 1, sm: 0 } }}>
-            From billing and inventory to payments, GST, staff, and insights — Zodu brings every essential operation into one connected platform.
-          </Typography>
-
-          {/* 2. CATEGORY TAB / FILTER NAVIGATION */}
-          <Stack direction="row" spacing={0.6} justifyContent="center" alignItems="center" sx={{ mb: 0.5, flexWrap: "wrap", gap: 0.6 }}>
-            <Box component="button" sx={{ display: "inline-flex", alignItems: "center", gap: "6px", bgcolor: "error.main", color: "#fff", borderRadius: 5, border: "none", textTransform: "none", fontSize: { xs: "0.55rem", sm: "0.7rem" }, fontWeight: 600, py: { xs: 0.3, sm: 0.4 }, px: { xs: 0.8, sm: 1.2 }, cursor: "pointer", whiteSpace: "nowrap" }}>
-              <ShoppingCartOutlinedIcon sx={{ fontSize: { xs: "11px", sm: "13px" }, color: "#fff" }} />
-              All Features
-            </Box>
-            {[
-              { label: 'Billing', icon: <ShoppingCartOutlinedIcon sx={{ fontSize: "12px", color: "#ef4444" }} /> },
-              { label: 'Inventory', icon: <Inventory2OutlinedIcon sx={{ fontSize: "12px", color: "#22c55e" }} /> },
-              { label: 'Staff', icon: <AccessTimeOutlinedIcon sx={{ fontSize: "12px", color: "#3b82f6" }} /> },
-              { label: 'Customers', icon: <PeopleOutlineOutlinedIcon sx={{ fontSize: "12px", color: "#3b82f6" }} /> },
-              { label: 'Reports', icon: <DescriptionOutlinedIcon sx={{ fontSize: "12px", color: "#ef4444" }} /> }
-            ].map((tab, idx) => (
-              <Box key={idx} component="button" sx={{ display: "inline-flex", alignItems: "center", gap: "6px", border: "1px solid #e2e8f0", color: "#64748b", bgcolor: "#fff", borderRadius: 5, textTransform: "none", fontSize: { xs: "0.55rem", sm: "0.7rem" }, fontWeight: 600, py: { xs: 0.3, sm: 0.4 }, px: { xs: 0.8, sm: 1.2 }, cursor: "pointer", whiteSpace: "nowrap" }}>
-                {tab.icon}
-                {tab.label}
-              </Box>
-            ))}
-          </Stack>
-        </Box>
-
-        {/* 3. MAIN SECTION CONTAINER (Top 3 Cards) */}
-        <Box sx={{
-          display: "flex",
-          flexDirection: { xs: "column", sm: "column", md: "row" },
-          gap: { xs: 1, md: "8px" },
-          width: "100%",
-          alignItems: "stretch"
-        }}>
-
-          {/* POS Billing Card */}
-          <Box sx={{ flex: { xs: "1 1 100%", md: "0 0 56%" }, width: "100%", display: "flex" }}>
-            <Card sx={{
-              bgcolor: "#fff",
-              borderRadius: 2.2,
-              border: "1px solid #e2e8f0",
-              boxShadow: "0 2px 6px rgba(0,0,0,0.03)",
-              width: "100%",
-              height: { xs: "210px", sm: "300px", md: "330px" },
-              overflow: "hidden",
-              p: 0,
-              display: "flex",
-              flexDirection: { xs: "column", sm: "row" },
-              alignItems: { xs: "stretch", sm: "center" },
-              justifyContent: "center",
-              position: "relative"
-            }}>
-              {/* Mobile-only header — icon + title, no description/checklist/button/stats */}
-              <Box sx={{
-                display: { xs: "flex", sm: "none" },
-                alignItems: "center",
-                gap: 0.6,
-                px: 1,
-                py: 0.7,
-                borderBottom: "1px solid #f1f5f9",
-                flexShrink: 0,
-              }}>
-                <Box sx={{ width: 20, height: 20, borderRadius: 1, bgcolor: "#fee2e2", color: "#e11d48", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <ShoppingCartOutlinedIcon sx={{ fontSize: "11px" }} />
-                </Box>
-                <Typography sx={{ fontWeight: 800, color: "#1e293b", fontSize: "0.68rem", lineHeight: 1.3 }}>
-                  POS Billing
-                </Typography>
-              </Box>
-
-              {/* Mobile-only image (falls back to desktop image if none supplied) */}
-              {(posbilling1Mobile || posbilling1) && (
-                <Box
-                  component="img"
-                  src={posbilling1Mobile || posbilling1}
-                  alt="POS Billing Preview"
-                  sx={{
-                    display: { xs: "block", sm: "none" },
-                    width: "100%",
-                    flex: 1,
-                    minHeight: 0,
-                    objectFit: "contain",
-                    bgcolor: "#f8fafc",
-                  }}
-                />
-              )}
-              {/* Tablet / Desktop image — matches reference exactly */}
-              {posbilling1 && (
-                <Box
-                  component="img"
-                  src={posbilling1}
-                  alt="POS Billing Preview"
-                  sx={{
-                    display: { xs: "none", sm: "block" },
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    objectPosition: "right center",
-                  }}
-                />
-              )}
-
-              <Box sx={{ position: "absolute", top: 0, left: 0, width: { xs: "58%", sm: "52%", md: "42%" }, height: "100%", p: { xs: 1, sm: 1.5, md: 2.2 }, pt: { xs: 1, sm: 1.5, md: 2 }, display: { xs: "none", sm: "flex" }, flexDirection: "column", justifyContent: "space-between", zIndex: 2 }}>
-
-                <Box>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.6, mb: { xs: 0.2, sm: 0.4, md: 0.5 } }}>
-                    <Box sx={{ width: { xs: 20, sm: 22, md: 24 }, height: { xs: 20, sm: 22, md: 24 }, borderRadius: 1, bgcolor: "#fee2e2", color: "#e11d48", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <ShoppingCartOutlinedIcon sx={{ fontSize: { xs: "11px", sm: "13px", md: "14px" } }} />
-                    </Box>
-                    <Typography variant="h6" sx={{ fontWeight: 800, color: "#1e293b", fontSize: { xs: "0.68rem", sm: "0.8rem", md: "0.95rem" }, lineHeight: 1.3 }}>
-                      POS Billing
-                    </Typography>
-                  </Box>
-
-                  
-
-                  {/* <Stack spacing={{ xs: 0.4, sm: 0.6, md: 0.5 }} sx={{ mb: { xs: 0.8, sm: 1, md: 1.2 } }}>
-                    {[
-                      "Quick billing & barcode scanning",
-                      "Supports multiple payment methods",
-                      "Works offline too",
-                      "Perfect for retail, restaurant, pharmacy and more"
-                    ].map((text, idx) => (
-                      <Box key={idx} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                        <Box component="span" sx={{ width: { xs: 11, sm: 13, md: 13 }, height: { xs: 11, sm: 13, md: 13 }, borderRadius: "50%", bgcolor: "#e11d48", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: { xs: "6px", sm: "7px", md: "8px" }, fontWeight: "bold", flexShrink: 0 }}>✓</Box>
-                        <Typography sx={{ fontSize: { xs: "0.46rem", sm: "0.54rem", md: "0.6rem" }, color: "#334155", fontWeight: 500, lineHeight: 1.4 }}>{text}</Typography>
-                      </Box>
-                    ))}
-                  </Stack> */}
-                  <Stack 
-  spacing={{ xs: 0.6, sm: 0.8, md: 0.8 }} 
-  sx={{ mb: { xs: 1.5, sm: 2, md: 2.5 } }} // Increased bottom margin
->
-  {[
-    "Quick billing & barcode scanning",
-    "Supports multiple payment methods",
-    "Works offline too",
-    "Perfect for retail, restaurant, pharmacy and more"
-  ].map((text, idx) => (
-    <Box key={idx} sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
-      <Box 
-        component="span" 
-        sx={{ 
-          width: { xs: 12, sm: 14, md: 15 }, 
-          height: { xs: 12, sm: 14, md: 15 }, 
-          borderRadius: "50%", 
-          bgcolor: "#e11d48", 
-          color: "#fff", 
-          display: "flex", 
-          alignItems: "center", 
-          justifyContent: "center", 
-          fontSize: { xs: "7px", sm: "8px", md: "9px" }, 
-          fontWeight: "bold", 
-          flexShrink: 0 
-        }}
-      >
-        ✓
-      </Box>
-      <Typography 
-        sx={{ 
-          fontSize: { xs: "0.52rem", sm: "0.6rem", md: "0.68rem" }, 
-          color: "#334155", 
-          fontWeight: 500, 
-          lineHeight: 1.45 
-        }}
-      >
-        {text}
-      </Typography>
-    </Box>
-  ))}
-</Stack>
-<Box
-  component="button"
-  sx={{
-    bgcolor: "#f43f5e",
-    color: "#fff",
-    fontWeight: 700,
-    fontSize: { xs: "0.6rem", sm: "0.72rem", md: "0.82rem" }, // Increased font size
-    py: { xs: 0.5, sm: 0.65, md: 0.8 }, // Increased vertical padding
-    px: { xs: 1.4, sm: 1.8, md: 2.2 }, // Increased horizontal padding
-    borderRadius: "50px",
-    border: "none",
-    cursor: "pointer",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: "fit-content",
-    gap: "6px",
-    boxShadow: "0 3px 8px rgba(244, 63, 94, 0.3)", // Added subtle matching shadow for depth
-    mt: { xs: 1, sm: 1.2, md: 1.5 },
-    '&:hover': { 
-      bgcolor: "#e11d48",
-      transform: "translateY(-1px)",
-      boxShadow: "0 5px 12px rgba(244, 63, 94, 0.4)"
-    },
-    transition: "all 0.2s ease"
-  }}
->
-  Learn More <span style={{ fontSize: "1.1em" }}>→</span>
-</Box>
-                </Box>
-
-                {/* Mini stats strip - matches reference bottom-left stats */}
-                <Box sx={{
-                  display: "flex",
-                  bgcolor: "#ffffff",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: "8px",
-                  boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
-                  px: { xs: 0.8, md: 1 },
-                  py: { xs: 0.5, md: 0.7 },
-                  mt: 1,
-                  width: "fit-content",
-                  maxWidth: "100%"
-                }}>
-                  {[
-                    { value: "₹ 12,458", delta: "↑ 12.5%", label: "Today's Sales" },
-                    { value: "128", delta: "↑ 8.3%", label: "Total Orders" },
-                    { value: "₹ 2,850", delta: null, label: "Avg. Order Value" }
-                  ].map((stat, i, arr) => (
-                    <Box key={i} sx={{
-                      display: "flex",
-                      flexDirection: "column",
-                      px: { xs: 0.6, md: 0.9 },
-                      borderRight: i < arr.length - 1 ? "1px solid #e2e8f0" : "none"
-                    }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: "3px" }}>
-                        <Typography sx={{ fontSize: { xs: "0.55rem", md: "0.62rem" }, fontWeight: 800, color: "#0f172a", whiteSpace: "nowrap" }}>{stat.value}</Typography>
-                        {stat.delta && (
-                          <Typography sx={{ fontSize: { xs: "0.4rem", md: "0.44rem" }, fontWeight: 700, color: "#16a34a" }}>{stat.delta}</Typography>
-                        )}
-                      </Box>
-                      <Typography sx={{ fontSize: { xs: "0.38rem", md: "0.42rem" }, color: "#64748b", fontWeight: 500, whiteSpace: "nowrap" }}>{stat.label}</Typography>
-                    </Box>
-                  ))}
-                </Box>
-
-              </Box>
-            </Card>
-          </Box>
-
-          {/* Right Side: Inventory & Attendance Stacked Cards */}
-<Box sx={{ flex: { xs: "1 1 100%", md: "0 0 calc(44% - 8px)" }, width: "100%", display: "flex" }}>
-  <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "space-between", width: "100%", gap: { xs: 1, md: "8px" } }}>
-
-    {/* Inventory Card */}
-    <Card sx={{ bgcolor: "#fff", borderRadius: 2.2, border: "1px solid #e2e8f0", boxShadow: "0 2px 6px rgba(0,0,0,0.03)", width: "100%", height: { xs: "240px", sm: "200px", md: "161px" }, overflow: "hidden", p: 0, display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: { xs: "stretch", sm: "center" }, justifyContent: "center", position: "relative" }}>
-      {/* Mobile-only header — icon + title */}
-      <Box sx={{ display: { xs: "flex", sm: "none" }, alignItems: "center", gap: 0.6, px: 1, py: 0.6, borderBottom: "1px solid #f1f5f9", flexShrink: 0, bgcolor: "#fff", zIndex: 3 }}>
-        <Box sx={{ width: 20, height: 20, borderRadius: 1, bgcolor: "#dcfce7", color: "#22c55e", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Inventory2OutlinedIcon sx={{ fontSize: "11px" }} />
-        </Box>
-        <Typography sx={{ fontWeight: 800, color: "#1e293b", fontSize: "0.6rem", lineHeight: 1.3 }}>
-          Inventory Management
-        </Typography>
-      </Box>
-
-      {/* Mobile Image (Matches Card Width 100%) */}
-      {(inventoryImage1Mobile || inventoryImage1) && (
-        <Box
-          component="img"
-          src={inventoryImage1Mobile || inventoryImage1}
-          alt="Inventory Preview"
-          sx={{ display: { xs: "block", sm: "none" }, width: "100%", height: "calc(100% - 31px)", objectFit: "cover", bgcolor: "#f8fafc" }}
-        />
-      )}
-
-      {/* Desktop Image (Cover as original) */}
-      {inventoryImage1 && (
-        <Box
-          component="img"
-          src={inventoryImage1}
-          alt="Inventory Preview"
-          sx={{ display: { xs: "none", sm: "block" }, width: "100%", height: "100%", objectFit: "cover", objectPosition: "right center" }}
-        />
-      )}
-
-      {/* Desktop Overlay Content */}
-      <Box sx={{ position: "absolute", top: 0, left: 0, width: { xs: "58%", sm: "52%", md: "58%" }, height: "100%", p: { xs: 1, sm: 1.2, md: 1 }, pt: { xs: 1, sm: 1.2, md: 1 }, display: { xs: "none", sm: "flex" }, flexDirection: "column", justifyContent: "flex-start", zIndex: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: { xs: 0.2, sm: 0.3, md: 0.2 } }}>
-          <Box sx={{ width: { xs: 22, sm: 26, md: 28 }, height: { xs: 22, sm: 26, md: 28 }, borderRadius: 1.2, bgcolor: "#dcfce7", color: "#22c55e", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <Inventory2OutlinedIcon sx={{ fontSize: { xs: "12px", sm: "14px", md: "16px" } }} />
-          </Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#1e293b", fontSize: { xs: "0.6rem", sm: "0.72rem", md: "0.75rem" }, lineHeight: 1.3 }}>
-            Inventory Management
-          </Typography>
-        </Box>
-
-        <Stack spacing={{ xs: 0.3, sm: 0.4, md: 0.3 }} sx={{ mb: { xs: 0.4, sm: 0.5, md: 0.35 } }}>
-          {[
-            "Real-time stock tracking",
-            "Low stock alerts",
-            "Multi-location inventory",
-            "Barcode & batch management"
-          ].map((text, idx) => (
-            <Box key={idx} sx={{ display: "flex", alignItems: "center", gap: 0.4 }}>
-              <Box component="span" sx={{ width: { xs: 10, sm: 11, md: 11 }, height: { xs: 10, sm: 11, md: 11 }, borderRadius: "50%", bgcolor: "#22c55e", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: { xs: "6px", sm: "7px", md: "7px" }, fontWeight: "bold", flexShrink: 0 }}>✓</Box>
-              <Typography sx={{ fontSize: { xs: "0.48rem", sm: "0.58rem", md: "0.53rem" }, color: "#334155", fontWeight: 500, lineHeight: 1.35 }}>{text}</Typography>
-            </Box>
-          ))}
-        </Stack>
-
-        <Typography sx={{ color: "#e11d48", fontWeight: 700, fontSize: { xs: "0.5rem", sm: "0.58rem", md: "0.52rem" }, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "2px", lineHeight: 1.3, '&:hover': { opacity: 0.8 } }}>
-          Learn More →
-        </Typography>
-      </Box>
-    </Card>
-
-    {/* Attendance Card */}
-    <Card sx={{ bgcolor: "#fff", borderRadius: 2.2, border: "1px solid #e2e8f0", boxShadow: "0 2px 6px rgba(0,0,0,0.03)", width: "100%", height: { xs: "240px", sm: "200px", md: "161px" }, overflow: "hidden", p: 0, display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: { xs: "stretch", sm: "center" }, justifyContent: "center", position: "relative" }}>
-      {/* Mobile-only header — icon + title */}
-      <Box sx={{ display: { xs: "flex", sm: "none" }, alignItems: "center", gap: 0.6, px: 1, py: 0.6, borderBottom: "1px solid #f1f5f9", flexShrink: 0, bgcolor: "#fff", zIndex: 3 }}>
-        <Box sx={{ width: 20, height: 20, borderRadius: 1, bgcolor: "#ede9fe", color: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <AccessTimeOutlinedIcon sx={{ fontSize: "11px" }} />
-        </Box>
-        <Typography sx={{ fontWeight: 800, color: "#1e293b", fontSize: "0.6rem", lineHeight: 1.3 }}>
-          Attendance Management
-        </Typography>
-      </Box>
-
-      {/* Mobile Image (Matches Card Width 100%) */}
-      {(attendanceImage1Mobile || attendanceImage1) && (
-        <Box
-          component="img"
-          src={attendanceImage1Mobile || attendanceImage1}
-          alt="Attendance Preview"
-          sx={{ display: { xs: "block", sm: "none" }, width: "100%", height: "calc(100% - 31px)", objectFit: "cover", bgcolor: "#f8fafc" }}
-        />
-      )}
-
-      {/* Desktop Image (Cover as original) */}
-      {attendanceImage1 && (
-        <Box
-          component="img"
-          src={attendanceImage1}
-          alt="Attendance Preview"
-          sx={{ display: { xs: "none", sm: "block" }, width: "100%", height: "100%", objectFit: "cover", objectPosition: "right center" }}
-        />
-      )}
-
-      {/* Desktop Overlay Content */}
-      <Box sx={{ position: "absolute", top: 0, left: 0, width: { xs: "58%", sm: "52%", md: "58%" }, height: "100%", p: { xs: 1, sm: 1.2, md: 1 }, pt: { xs: 1, sm: 1.2, md: 1 }, display: { xs: "none", sm: "flex" }, flexDirection: "column", justifyContent: "flex-start", zIndex: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: { xs: 0.2, sm: 0.3, md: 0.2 } }}>
-          <Box sx={{ width: { xs: 22, sm: 26, md: 28 }, height: { xs: 22, sm: 26, md: 28 }, borderRadius: 1.2, bgcolor: "#ede9fe", color: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <AccessTimeOutlinedIcon sx={{ fontSize: { xs: "12px", sm: "14px", md: "16px" } }} />
-          </Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#1e293b", fontSize: { xs: "0.6rem", sm: "0.72rem", md: "0.75rem" }, lineHeight: 1.3 }}>
-            Attendance Management
-          </Typography>
-        </Box>
-
-        <Stack spacing={{ xs: 0.3, sm: 0.4, md: 0.3 }} sx={{ mb: { xs: 0.4, sm: 0.5, md: 0.35 } }}>
-          {[
-            "Real-time check-in/out",
-            "Shift & leave management",
-            "Location-based attendance",
-            "Detailed attendance reports"
-          ].map((text, idx) => (
-            <Box key={idx} sx={{ display: "flex", alignItems: "center", gap: 0.4 }}>
-              <Box component="span" sx={{ width: { xs: 10, sm: 11, md: 11 }, height: { xs: 10, sm: 11, md: 11 }, borderRadius: "50%", bgcolor: "#7c3aed", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: { xs: "6px", sm: "7px", md: "7px" }, fontWeight: "bold", flexShrink: 0 }}>✓</Box>
-              <Typography sx={{ fontSize: { xs: "0.48rem", sm: "0.58rem", md: "0.53rem" }, color: "#334155", fontWeight: 500, lineHeight: 1.35 }}>{text}</Typography>
-            </Box>
-          ))}
-        </Stack>
-
-        <Typography sx={{ color: "#e11d48", fontWeight: 700, fontSize: { xs: "0.5rem", sm: "0.58rem", md: "0.52rem" }, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "2px", lineHeight: 1.3, '&:hover': { opacity: 0.8 } }}>
-          Learn More →
-        </Typography>
-      </Box>
-    </Card>
-
-  </Box>
-</Box>
-        </Box>
-
-        {/* 4. SECOND FEATURE ROW (5 Bottom Cards) */}
-<Box sx={{
-  display: "flex",
-  flexDirection: { xs: "column", sm: "row" },
-  flexWrap: "nowrap",
-  rowGap: { xs: "6px", sm: 0 },
-  columnGap: { xs: 0, sm: "6px" },
-  width: "100%",
-  mt: 0.1,
-  overflowX: { xs: "auto", md: "unset" },
-  scrollbarWidth: "none",
-  "&::-webkit-scrollbar": { display: "none" }
-}}>
-  {[
-    {
-      title: "Customer Management",
-      imageSrc: customerMgmtImg,
-      icon: <PeopleOutlineOutlinedIcon sx={{ fontSize: "16px" }} />,
-      iconBg: "#eff6ff",
-      iconColor: "#2563eb",
-      rightContent: (
-        <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%", width: "100%", minWidth: 0, gap: "1.5px" }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
-            <Box sx={{ width: "14px", height: "14px", borderRadius: "50%", bgcolor: "#cbd5e1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
-              <PersonIcon sx={{ fontSize: "9px", color: "#475569" }} />
-            </Box>
-            <Box sx={{ minWidth: 0, overflow: "hidden" }}>
-              <Typography sx={{ fontSize: "8.5px", fontWeight: 700, color: "#0f172a", lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Priya Sharma</Typography>
-              <Typography component="span" sx={{ fontSize: "5.5px", fontWeight: 700, color: "#d97706", bgcolor: "#fef3c7", px: "2.5px", py: "0px", borderRadius: "2px", display: "inline-block", mt: "0.2px" }}>Gold Customer</Typography>
-            </Box>
-          </Box>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "4px", borderTop: "1px solid #e2e8f0", pt: "1.5px", minWidth: 0 }}>
-            <Typography sx={{ fontSize: "6.5px", color: "#64748b", fontWeight: 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Total Orders</Typography>
-            <Typography sx={{ fontSize: "7.5px", fontWeight: 800, color: "#0f172a", flexShrink: 0 }}>24</Typography>
-          </Box>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "4px", minWidth: 0 }}>
-            <Typography sx={{ fontSize: "6.5px", color: "#64748b", fontWeight: 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Total Spent</Typography>
-            <Typography sx={{ fontSize: "7px", fontWeight: 800, color: "#0f172a", flexShrink: 0 }}>₹ 48,250</Typography>
-          </Box>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "4px", minWidth: 0 }}>
-            <Typography sx={{ fontSize: "6.5px", color: "#64748b", fontWeight: 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Loyalty Points</Typography>
-            <Typography sx={{ fontSize: "7.5px", fontWeight: 800, color: "#0f172a", flexShrink: 0 }}>1,250</Typography>
-          </Box>
-        </Box>
-      )
-    },
-   {
-  title: "Payments & Reminders",
-  imageSrc: paymentsImg,
-  icon: <AccountBalanceWalletOutlinedIcon sx={{ fontSize: "15px" }} />,
-  iconBg: "#ffedd5",
-  iconColor: "#ea580c",
-  imageFlex: 1.45,
-  imagePosition: "center center",
-  rightContent: (
-    <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center", height: "100%", width: "100%", gap: "5px", minWidth: 0, boxSizing: "border-box" }}>
-      <Box sx={{ bgcolor: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "5px", p: "6px 8px", boxShadow: "0 1px 3px rgba(0,0,0,0.03)", width: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column", justifyContent: "center", minWidth: 0 }}>
-        <Typography sx={{ fontSize: "7px", color: "#64748b", fontWeight: 600, lineHeight: 1.1, textTransform: "uppercase", letterSpacing: "0.3px" }}>
-          Outstanding Amount
-        </Typography>
-        <Typography sx={{ fontSize: "10px", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, mt: "1px" }}>
-          ₹ 18,750
-        </Typography>
-      </Box>
-      <Box sx={{ bgcolor: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "5px", p: "6px 8px", boxShadow: "0 1px 3px rgba(0,0,0,0.03)", display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", boxSizing: "border-box", overflow: "hidden" }}>
-        <Box sx={{ minWidth: 0, overflow: "hidden" }}>
-          <Typography sx={{ fontSize: "7px", color: "#64748b", fontWeight: 600, lineHeight: 1.1, textTransform: "uppercase", letterSpacing: "0.3px" }}>
-            Reminders Sent
-          </Typography>
-          <Typography sx={{ fontSize: "10px", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, mt: "1px" }}>
-            32
-          </Typography>
-        </Box>
-        <Box sx={{ color: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", transform: "rotate(-15deg)", flexShrink: 0, bgcolor: "#fee2e2", width: "20px", height: "20px", borderRadius: "50%" }}>
-          <SendIcon sx={{ fontSize: "10px" }} />
-        </Box>
-      </Box>
-    </Box>
-  )
-},
-    {
-      title: "GST Compliance & Reports",
-      imageSrc: gstReportImg,
-      icon: <DescriptionOutlinedIcon sx={{ fontSize: "16px" }} />,
-      iconBg: "#eff6ff",
-      iconColor: "#2563eb",
-      imageFlex: 1.5,
-      imagePosition: "45% center",
-      rightContent: (
-        <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%", width: "100%", overflow: "hidden", gap: "1.5px" }}>
-          {[
-            { title: "GSTR-1", sub: "Filed" },
-            { title: "GSTR-3B", sub: "Filed" },
-            { title: "E-Way Bill", sub: "Generated" }
-          ].map((item, i) => (
-            <Box key={i} sx={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              bgcolor: "#ffffff",
-              border: "1px solid #f1f5f9",
-              borderRadius: "3.5px",
-              p: "2px 4px",
-              boxShadow: "0 1px 2px rgba(0,0,0,0.02)",
-              width: "100%",
-              boxSizing: "border-box",
-              flex: 1
-            }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: "3px", minWidth: 0 }}>
-                <Box component="span" sx={{ width: "8px", height: "8px", borderRadius: "50%", bgcolor: "#dcfce7", color: "#16a34a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "5px", fontWeight: "bold", flexShrink: 0 }}>✓</Box>
-                <Typography sx={{ fontSize: "7px", fontWeight: 700, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.title}</Typography>
-              </Box>
-              <Typography sx={{ fontSize: "6px", color: "#64748b", fontWeight: 500, mt: "0.1px", ml: "11px", lineHeight: 1 }}>{item.sub}</Typography>
-            </Box>
-          ))}
-        </Box>
-      )
-    },
-    {
-      title: "Expense Management",
-      imageSrc: expenseImg2,
-      icon: <Inventory2OutlinedIcon sx={{ fontSize: "16px" }} />,
-      iconBg: "#dcfce7",
-      iconColor: "#16a34a",
-      imageFlex: 1.6,
-      imagePosition: "65% center",
-      rightContent: (
-        <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%", width: "100%", minWidth: 0 }}>
-          <Box>
-            <Typography sx={{ fontSize: "6px", color: "#64748b", fontWeight: 500, lineHeight: 1.1 }}>This Month</Typography>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: "0.3px", gap: "3px" }}>
-              <Typography sx={{ fontSize: "8px", fontWeight: 800, color: "#0f172a" }}>₹ 28,450</Typography>
-              <Typography sx={{ fontSize: "5.5px", fontWeight: 700, color: "#16a34a", bgcolor: "#dcfce7", px: "1.5px", py: "0px", borderRadius: "2px", flexShrink: 0 }}>↓ 8.4%</Typography>
-            </Box>
-          </Box>
-          {[
-            { label: "Rent", amount: "₹ 12,000", color: "#2563eb", bg: "#eff6ff", icon: "🏠" },
-            { label: "Utilities", amount: "₹ 6,250", color: "#ea580c", bg: "#ffedd5", icon: "💡" },
-            { label: "Marketing", amount: "₹ 4,200", color: "#16a34a", bg: "#dcfce7", icon: "📈" },
-            { label: "Others", amount: "₹ 6,000", color: "#ca8a04", bg: "#fef9c3", icon: "🏷️" }
-          ].map((exp, i) => (
-            <Box key={i} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", gap: "3px", minWidth: 0 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: "2.5px", minWidth: 0 }}>
-                <Box sx={{ width: "6px", height: "6px", borderRadius: "50%", bgcolor: exp.bg, color: exp.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "3px", flexShrink: 0 }}>{exp.icon}</Box>
-                <Typography sx={{ fontSize: "6px", color: "#64748b", fontWeight: 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{exp.label}</Typography>
-              </Box>
-              <Typography sx={{ fontSize: "6px", fontWeight: 700, color: "#0f172a", flexShrink: 0 }}>{exp.amount}</Typography>
-            </Box>
-          ))}
-        </Box>
-      )
-    },
-    {
-      title: "Purchase Management",
-      imageSrc: purchaseImg3,
-      icon: <ShoppingCartOutlinedIcon sx={{ fontSize: "16px" }} />,
-      iconBg: "#f3e8ff",
-      iconColor: "#9333ea",
-      rightContent: (
-        <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%", width: "100%", minWidth: 0 }}>
-          <Box>
-            <Typography sx={{ fontSize: "6px", color: "#64748b", fontWeight: 500, lineHeight: 1.1 }}>Total Purchases</Typography>
-            <Typography sx={{ fontSize: "8px", fontWeight: 800, color: "#0f172a", mt: "0.5px" }}>₹ 1,25,000</Typography>
-          </Box>
-          <Box>
-            <Typography sx={{ fontSize: "6px", color: "#64748b", fontWeight: 500, lineHeight: 1.1 }}>Purchase Orders</Typography>
-            <Typography sx={{ fontSize: "8px", fontWeight: 800, color: "#0f172a", mt: "0.5px" }}>12</Typography>
-          </Box>
-          <Box>
-            <Typography sx={{ fontSize: "6px", color: "#64748b", fontWeight: 500, lineHeight: 1.1 }}>Pending Receipts</Typography>
-            <Typography sx={{ fontSize: "8px", fontWeight: 800, color: "#0f172a", mt: "0.5px" }}>5</Typography>
-          </Box>
-        </Box>
-      )
-    }
-  ].map((card, idx) => (
-    <Box key={idx} sx={{ flex: { xs: "unset", sm: "0 0 280px", md: "1 1 0%" }, width: "100%", display: "flex", minWidth: 0 }}>
-      <Card sx={{
-        bgcolor: "#fff",
-        borderRadius: "10px",
-        border: "1px solid #e2e8f0",
-        boxShadow: "0 3px 10px rgba(0,0,0,0.04)",
-        width: "100%",
-        height: { xs: "175px", sm: "205px", md: "220px" },
-        overflow: "hidden",
-        p: { xs: "5px 8px", sm: "6px 8px", md: "7px 10px" },
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
-        boxSizing: "border-box"
-      }}>
-        {/* Header Section */}
-        <Box sx={{ overflow: "hidden" }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: "5px" }}>
-            <Box sx={{ width: "18px", height: "18px", borderRadius: "3.5px", bgcolor: card.iconBg, color: card.iconColor, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              {card.icon}
-            </Box>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{
-                fontWeight: 800,
-                color: "#1e293b",
-                fontSize: { xs: "9.5px", md: "10.5px" },
-                lineHeight: 1.2,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis"
-              }}>
-                {card.title}
-              </Typography>
-            </Box>
-          </Box>
-        </Box>
-
-        {/* Image & Content Section */}
-        <Box sx={{ display: "flex", gap: "5px", width: "100%", flex: 1, my: { xs: "2px", md: "4px" }, minWidth: 0, alignItems: "stretch", overflow: "hidden" }}>
-          <Box
-            component="img"
-            src={card.imageSrc}
-            alt={card.title}
-            sx={{
-              flex: card.imageFlex || 1.35,
-              minWidth: 0,
-              height: "100%",
-              borderRadius: "5px",
-              objectFit: "cover",
-              objectPosition: card.imagePosition || "center center",
-              bgcolor: "#f8fafc",
-              border: "1px solid #e2e8f0",
-              display: "block",
-              imageRendering: "-webkit-optimize-contrast",
-              backfaceVisibility: "hidden",
-              transform: "translateZ(0)"
-            }}
-          />
-          <Box sx={{ flex: 1, minWidth: 0, height: "100%", borderRadius: "5px", bgcolor: "#f8fafc", border: "1px solid #f1f5f9", p: "3px 4px", overflow: "hidden", display: "flex", alignItems: "center" }}>
-            {card.rightContent}
-          </Box>
-        </Box>
-
-        {/* Footer Link */}
-        <Box sx={{ display: "flex", justifyContent: "flex-end", alignItems: "center", pr: "2px" }}>
-          <Typography sx={{ color: "#e11d48", fontWeight: 700, fontSize: "8px", cursor: "pointer", display: "flex", alignItems: "center", gap: "1.5px", '&:hover': { opacity: 0.8 } }}>
-            Learn More →
-          </Typography>
-        </Box>
-      </Card>
-    </Box>
-  ))}
-</Box>
-
-        {/* 5. BOTTOM BENEFITS BAR */}
-        <Box sx={{ display: "flex", flexWrap: { xs: "wrap", md: "nowrap" }, justifyContent: "space-around", alignItems: "center", py: "16px", px: "16px", bgcolor: "#fff", borderRadius: "10px", border: "1px solid #e2e8f0", boxShadow: "0 2px 4px rgba(0,0,0,0.02)", gap: "6px", width: "100%", boxSizing: "border-box" }}>
-          <Stack direction="row" spacing={1.2} alignItems="center" sx={{ width: { xs: "46%", md: "auto" } }}>
-            <Box sx={{ width: "28px", height: "28px", borderRadius: "50%", bgcolor: "#fee2e2", color: "#e11d48", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: "bold", flexShrink: 0 }}>⚡</Box>
-            <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#0f172a", display: "block", fontSize: "11.5px" }}>Real-time sync</Typography>
-              <Typography variant="body2" sx={{ color: "#64748b", fontSize: "9.5px", display: "block" }}>Access your business anytime</Typography>
-            </Box>
-          </Stack>
-          <Box sx={{ display: { xs: "none", md: "block" }, width: "1px", height: "24px", bgcolor: "#e2e8f0" }} />
-          <Stack direction="row" spacing={1.2} alignItems="center" sx={{ width: { xs: "46%", md: "auto" } }}>
-            <Box sx={{ width: "28px", height: "28px", borderRadius: "50%", bgcolor: "#fee2e2", color: "#e11d48", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: "bold", flexShrink: 0 }}>🔒</Box>
-            <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#0f172a", display: "block", fontSize: "11.5px" }}>Secure & reliable</Typography>
-              <Typography variant="body2" sx={{ color: "#64748b", fontSize: "9.5px", display: "block" }}>Your data is always protected</Typography>
-            </Box>
-          </Stack>
-          <Box sx={{ display: { xs: "none", md: "block" }, width: "1px", height: "24px", bgcolor: "#e2e8f0" }} />
-          <Stack direction="row" spacing={1.2} alignItems="center" sx={{ width: { xs: "46%", md: "auto" } }}>
-            <Box sx={{ width: "28px", height: "28px", borderRadius: "50%", bgcolor: "#fee2e2", color: "#e11d48", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: "bold", flexShrink: 0 }}>💻</Box>
-            <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#0f172a", display: "block", fontSize: "11.5px" }}>All devices</Typography>
-              <Typography variant="body2" sx={{ color: "#64748b", fontSize: "9.5px", display: "block" }}>Desktop, tablet & mobile</Typography>
-            </Box>
-          </Stack>
-          <Box sx={{ display: { xs: "none", md: "block" }, width: "1px", height: "24px", bgcolor: "#e2e8f0" }} />
-          <Stack direction="row" spacing={1.2} alignItems="center" sx={{ width: { xs: "46%", md: "auto" } }}>
-            <Box sx={{ width: "28px", height: "28px", borderRadius: "50%", bgcolor: "#fee2e2", color: "#e11d48", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: "bold", flexShrink: 0 }}>📈</Box>
-            <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#0f172a", display: "block", fontSize: "11.5px" }}>Built for growth</Typography>
-              <Typography variant="body2" sx={{ color: "#64748b", fontSize: "9.5px", display: "block" }}>From one store to many</Typography>
-            </Box>
-          </Stack>
-        </Box>
-
-      </Box>
-    </Box>
-
-
+        {/* ── WHAT ZODU DOES FOR YOU ──────────────────────────────────────── */}
+        <WhatZoduDoesSection />
 
         {/* ── MODULE SUITE ─────────────────────────────────────────────────── */}
         {/* <Box sx={{ bgcolor: LIGHT, py: SPY, px: SX, position: "relative", overflow: "hidden" }}>

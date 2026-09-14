@@ -492,11 +492,11 @@ const PAPER: Record<ThermalPaperSize, PaperConfig> = {
 
 const THERMAL_FONT = "'Courier New','Consolas', 'Lucida Console',  monospace";
 
+/** Whole rupees — the receipt prints no paise. `|| 0` also folds the -0 that
+ * Math.round gives for small negatives (e.g. a -0.40 round-off) into 0. */
 function fmt(v: number | string) {
-  return `₹${Number(v).toLocaleString("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  const rupees = Math.round(Number(v)) || 0;
+  return `₹${rupees.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 }
 
 /** 2 from "2.000", 1.5 from "1.500" — quantities arrive as fixed-scale
@@ -554,6 +554,84 @@ function ReceiptRow({
       <span style={{ textAlign: "right", marginLeft: 8 }}>{value}</span>
     </div>
   );
+}
+
+const LOGO_SCAN_MAX_PX = 800;   // the blank-margin scan runs on a copy no larger than this
+
+/**
+ * The logo with its blank margin trimmed off (transparent or near-white edge
+ * rows/columns), plus the trimmed artwork's width:height ratio. Uploaded logos
+ * often carry a wide empty border, which printed as a gap under the logo and
+ * made the artwork itself come out small. Null until the file has loaded; the
+ * untrimmed file is kept when it can't be read back (served without CORS
+ * headers) or has no margin to trim.
+ */
+function useTrimmedLogo(src: string): { src: string; ratio: number } | null {
+  const [logo, setLogo] = React.useState<{ src: string; ratio: number } | null>(null);
+
+  React.useEffect(() => {
+    setLogo(null);
+    if (!src) return;
+    let cancelled = false;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      if (cancelled) return;
+      const { naturalWidth: w, naturalHeight: h } = img;
+      if (!w || !h) return;
+      let result = { src, ratio: w / h };
+      try {
+        // Find the artwork's bounds on a scaled-down copy, then crop the full-size file.
+        const s = Math.min(1, LOGO_SCAN_MAX_PX / Math.max(w, h));
+        const sw = Math.max(1, Math.round(w * s));
+        const sh = Math.max(1, Math.round(h * s));
+        const scan = document.createElement("canvas");
+        scan.width = sw;
+        scan.height = sh;
+        const scanCtx = scan.getContext("2d");
+        if (!scanCtx) throw new Error("no 2d context");
+        scanCtx.drawImage(img, 0, 0, sw, sh);
+        const px = scanCtx.getImageData(0, 0, sw, sh).data; // throws on a tainted canvas
+        let left = sw, top = sh, right = -1, bottom = -1;
+        for (let y = 0; y < sh; y++) {
+          for (let x = 0; x < sw; x++) {
+            const i = (y * sw + x) * 4;
+            if (px[i + 3] > 16 && (px[i] < 240 || px[i + 1] < 240 || px[i + 2] < 240)) {
+              if (x < left) left = x;
+              if (x > right) right = x;
+              if (y < top) top = y;
+              if (y > bottom) bottom = y;
+            }
+          }
+        }
+        if (right >= left && bottom >= top) {
+          // Back to full-size pixels, one scan pixel of slack so antialiased edges survive.
+          const x0 = Math.max(0, Math.floor((left - 1) / s));
+          const y0 = Math.max(0, Math.floor((top - 1) / s));
+          const x1 = Math.min(w, Math.ceil((right + 2) / s));
+          const y1 = Math.min(h, Math.ceil((bottom + 2) / s));
+          const cw = x1 - x0;
+          const ch = y1 - y0;
+          if (cw < w || ch < h) {
+            const out = document.createElement("canvas");
+            out.width = cw;
+            out.height = ch;
+            out.getContext("2d")?.drawImage(img, x0, y0, cw, ch, 0, 0, cw, ch);
+            result = { src: out.toDataURL("image/png"), ratio: cw / ch };
+          }
+        }
+      } catch {
+        // Unreadable pixels — print the file as it is.
+      }
+      setLogo(result);
+    };
+    img.src = src;
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+
+  return logo;
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
@@ -620,6 +698,16 @@ export const ThermalInvoiceTemplate = React.forwardRef(
     // rendering never passes `logoUrl` at all, it just reads the company row.
     const resolvedLogoUrl = logoUrl || selectedCompany?.company_logo_url || "";
     const cfg = PAPER[paperSize];
+    // Logo: its artwork (blank margin trimmed) up to 5× the header font tall and 90%
+    // of the roll wide. Sized from the artwork's own ratio rather than max-width/height
+    // alone — those never enlarge a small file — and without object-fit, which
+    // html2canvas (the print capture) ignores, so a letterboxed logo would print stretched.
+    // Until the trim is ready the untrimmed file shows at the height cap.
+    const logo = useTrimmedLogo(showCompanyLogo ? resolvedLogoUrl : "");
+    const logoMaxH = cfg.headerFontSize * 5;
+    const logoMaxW = cfg.widthPx * 0.9;
+    const logoH = logo ? Math.min(logoMaxH, logoMaxW / logo.ratio) : logoMaxH;
+    const logoBox = logo ? { width: logoH * logo.ratio, height: logoH } : { height: logoH, maxWidth: "90%" };
     // 3" rolls are too narrow for a 5-column item grid — items stack onto
     // two lines and the GST summary/totals switch to compact single-column text.
     const narrow = paperSize === "3";
@@ -736,7 +824,8 @@ export const ThermalInvoiceTemplate = React.forwardRef(
     const taxableAmount = gstSlabList.length > 0
       ? gstSlabList.reduce((s, r) => s + r.taxable, 0)
       : Math.max(0, Number(subtotal ?? 0) - discountVal);
-    const showRoundOff = round_off !== undefined && round_off !== null && Number(round_off) !== 0;
+    // Amounts print in whole rupees, so a sub-rupee round-off would read "+₹0" — only show one that rounds to ₹1+.
+    const showRoundOff = round_off !== undefined && round_off !== null && Math.round(Number(round_off)) !== 0;
 
     // Calculate items sum dynamically
     const itemsTotalSum = items.reduce((sum: number, item: any) => sum + Number(item.total || 0), 0);
@@ -763,9 +852,9 @@ export const ThermalInvoiceTemplate = React.forwardRef(
         <div style={{ textAlign: "center", marginBottom: compact ? 2 : 6 }}>
           {showCompanyLogo && resolvedLogoUrl && (
             <img
-              src={resolvedLogoUrl}
+              src={logo?.src ?? resolvedLogoUrl}
               alt=""
-              style={{ maxHeight: cfg.headerFontSize * 3.2, maxWidth: "78%", marginBottom: 4, objectFit: "contain" }}
+              style={{ ...logoBox, display: "block", margin: "0 auto 2px" }}
             />
           )}
           <div

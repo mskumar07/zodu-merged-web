@@ -39,7 +39,10 @@ export async function captureThermalReceipt(node: HTMLElement): Promise<string> 
 /**
  * No page size is declared, so the page is whatever paper the printer driver
  * reports; each image fills its width less 4 mm a side — the strip a thermal
- * head can't reach (an 80 mm roll prints 72 mm).
+ * head can't reach (an 80 mm roll prints 72 mm) — but never more than the
+ * receipt's own width (set in writeThermalPrint), centred. Without that cap a
+ * sheet — Letter/A4, which is what "Save as PDF" picks — blew the receipt up
+ * ~2.5× and split it across pages.
  */
 function thermalPrintDocument(images: string[]): string {
   return `<!DOCTYPE html>
@@ -51,7 +54,7 @@ function thermalPrintDocument(images: string[]): string {
     @page { margin: 0; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #fff; padding: 0 4mm; }
-    img { display: block; width: 100%; height: auto; }
+    img { display: block; width: 100%; height: auto; margin: 0 auto; }
     .copy-break { break-after: page; page-break-after: always; }
   </style>
 </head>
@@ -66,6 +69,11 @@ export async function writeThermalPrint(win: Window, images: string[]): Promise<
   doc.write(thermalPrintDocument(images));
   doc.close();
   await Promise.all(Array.from(doc.images).map((img) => img.decode().catch(() => undefined)));
+  // Cap each receipt at the width it was laid out at (captured at CAPTURE_SCALE):
+  // it still shrinks onto a narrower roll, but is never enlarged onto wider paper.
+  for (const img of Array.from(doc.images)) {
+    if (img.naturalWidth) img.style.maxWidth = `${img.naturalWidth / CAPTURE_SCALE}px`;
+  }
 }
 
 /**
