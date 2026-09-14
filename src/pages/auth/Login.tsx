@@ -484,9 +484,10 @@ import {
   Login as LoginIcon,
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { authApis, useLoginMutation, type LoginResponse } from './Authapi';
+import { useLoginMutation, type LoginResponse } from './Authapi';
 import { useAppDispatch, useAppSelector } from '@store/store';
 import { IsAuthenticated, addUserData, setAuthData, setRoleAccess } from '@store/slices/userSlice';
+import { loadBranchSession } from './loadBranchSession';
 
 // ─── Theme ────────────────────────────────────────────────────
 const theme = createTheme({
@@ -717,14 +718,17 @@ const ZoduLoginPage: React.FC = () => {
         })
       );
 
-      // Permissions are scoped per zodu_id + branch_id and fetched separately from
-      // login, once a branch is actually resolved (auto-picked here, or chosen on
-      // the /select-branch screen).
-      const loadRoleAccess = async (zoduId: string, branchId: string) => {
-        try {
-          const roleAccess = await authApis.getRoleAccess(zoduId, branchId);
-          dispatch(setRoleAccess(roleAccess));
-        } catch {
+      // Permissions AND settings are scoped per zodu_id + branch_id and fetched
+      // separately from login, once a branch is actually resolved (auto-picked
+      // here, or chosen on the /select-branch screen). Both fast paths below
+      // must load the settings too — POS and every invoice/quotation/proforma
+      // template read printer size and layout out of Redux, and a null there
+      // silently falls back to the thermal template.
+      const loadSession = async (zoduId: string, branchId: string) => {
+        const result = await loadBranchSession(dispatch, zoduId, branchId);
+        if (!result.roleAccessOk) {
+          // Unchanged from before: an unreachable permissions endpoint doesn't
+          // stop the login. SessionReconciliationGate retries on mount.
           dispatch(setRoleAccess([]));
         }
       };
@@ -751,7 +755,7 @@ const ZoduLoginPage: React.FC = () => {
             businessType: employeeCompany?.business_type ?? "",
           })
         );
-        await loadRoleAccess(employeeZoduId, employeeBranchId);
+        await loadSession(employeeZoduId, employeeBranchId);
         navigate('/dashboard', { replace: true });
         return;
       }
@@ -771,7 +775,7 @@ const ZoduLoginPage: React.FC = () => {
             businessType: singleCompany.business_type ?? "",
           })
         );
-        await loadRoleAccess(singleCompany.zodu_id, onlyBranch.branch_id);
+        await loadSession(singleCompany.zodu_id, onlyBranch.branch_id);
         navigate('/dashboard', { replace: true });
         return;
       }

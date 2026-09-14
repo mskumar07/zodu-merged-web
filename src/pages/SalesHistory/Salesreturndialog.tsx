@@ -68,7 +68,8 @@ function TH({ children, align = "left" }: { children: React.ReactNode; align?: "
 
 export default function SalesReturnDialog({ sale, onClose, onSuccess }: Props) {
   const queryClient = useQueryClient();
-  const saleId = sale.sale_id;
+  // The detail endpoint (and its cache key) address a sale by uuid.
+  const saleId = sale.sale_uuid;
   const saleUuid = sale.sale_uuid;
   
   const { data, isLoading } = useQuery({
@@ -144,6 +145,9 @@ const canConfirm = someSelected && !!reason && !!refundType;
       const returnItems = items
         .filter((item: any) => selected[item.id] && (returnQty[item.id] ?? 0) > 0)
         .map((item: any) => ({
+          // Description is inherited by the backend from the original sale
+          // line automatically — not sent here (Joi has no stripUnknown, so
+          // an extra key on this payload would 400).
           original_item_id: item.id,
           item_id:          item.item_id,
           item_uuid:        item.item_uuid,

@@ -78,6 +78,7 @@ export interface AddCategoryPayload {
 export interface AddMenuItemPayload {
   item_type:      "S" | "P";
   item_name:      string;
+  description:    string | null;
   category_id:    number | null;
   unit:           number | null;   // ← now sends unit id (number) not string
   purchase_price: number | null;
@@ -105,6 +106,8 @@ export interface MenuItem {
   branch_id:        string;
   item_type:        string;
   item_name:        string;
+  // Absent entirely when the item has no description — never null or "".
+  description?:     string;
   category_id:      number | null;
   unit:             number | null;
   mrp:              string | null;
@@ -302,6 +305,7 @@ interface RestaurantMenuRaw {
     menu_id: string;
     item_uuid?: string;
     menu_name: string;
+    description?: string;   // absent entirely when the item has no description
     menu_code?: string;
     menu_type?: string;
     category?: string;
@@ -346,6 +350,7 @@ async function fetchMenuItems(
       branch_id:       branchId ?? "",
       item_type:       m.menu_type ?? "S",
       item_name:       m.menu_name,
+      description:     m.description,
       category_id:     m.category_id ?? null,
       unit:            m.unit_id ?? null,
       mrp:             m.sell_price != null ? String(m.sell_price) : null,

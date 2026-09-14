@@ -43,6 +43,7 @@ import { VendorRowActionIcons, VendorEditDeleteDialogs } from "@pages/Vendor/Ven
 import axios from "axios";
 import SuccessToast from "@components/Common/SuccessToast";
 import { getTenantContext, getAccessToken } from "@store/tenantContext";
+import { closeFromControlsOnly } from "@utils/dialog";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 
@@ -248,7 +249,7 @@ function AttachmentsSection({ attachments, onAdd, onRemove, onUpload }: Attachme
           })}
         </Box>
       )}
-      <Dialog open={!!previewFile} onClose={() => setPreviewFile(null)} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 3, overflow: "hidden" } }}>
+      <Dialog open={!!previewFile} onClose={closeFromControlsOnly(() => setPreviewFile(null))} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 3, overflow: "hidden" } }}>
         <DialogTitle sx={{ px: 3, py: 2, borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
             {previewFile && getFileIcon(previewFile.type)}
@@ -388,7 +389,7 @@ function ItemPickerDialog({ open, onClose, alreadyAdded, alreadyAddedNames, onCo
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md" PaperProps={{ sx: { borderRadius: 3, maxHeight: "82vh", height: "82vh", display: "flex", flexDirection: "column", boxShadow: "0 25px 60px rgba(15,23,42,0.28)" } }}>
+    <Dialog open={open} onClose={closeFromControlsOnly(handleClose)} fullWidth maxWidth="md" PaperProps={{ sx: { borderRadius: 3, maxHeight: "82vh", height: "82vh", display: "flex", flexDirection: "column", boxShadow: "0 25px 60px rgba(15,23,42,0.28)" } }}>
       <DialogTitle sx={{ px: 3, py: 2, borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
           <Box sx={{ p: 0.8, bgcolor: "rgba(210,31,60,0.08)", borderRadius: 2, display: "flex" }}><InventoryOutlinedIcon sx={{ color: "#D21F3C", fontSize: 20 }} /></Box>
@@ -559,7 +560,7 @@ function CreateExpenseItemDialog({ open, onClose, onSave, initialValue = null }:
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: 3, boxShadow: "0 25px 60px rgba(15,23,42,0.28)" } }}>
+    <Dialog open={open} onClose={closeFromControlsOnly(handleClose)} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: 3, boxShadow: "0 25px 60px rgba(15,23,42,0.28)" } }}>
       <DialogTitle sx={{ px: 3, py: 2.5, borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
           <Box sx={{ p: 0.8, bgcolor: "rgba(210,31,60,0.08)", borderRadius: 2, display: "flex" }}>
@@ -646,7 +647,7 @@ interface DeleteItemConfirmDialogProps {
 }
 function DeleteItemConfirmDialog({ open, itemName, onClose, onConfirm }: DeleteItemConfirmDialogProps) {
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 3, boxShadow: "0 25px 60px rgba(15,23,42,0.28)" } }}>
+    <Dialog open={open} onClose={closeFromControlsOnly(onClose)} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 3, boxShadow: "0 25px 60px rgba(15,23,42,0.28)" } }}>
       <DialogContent sx={{ p: 3, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 1.5 }}>
         <Box sx={{ width: 52, height: 52, borderRadius: "50%", bgcolor: "#FEF2F2", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <DeleteOutlineIcon sx={{ fontSize: 26, color: "#EF4444" }} />
@@ -1011,7 +1012,7 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
         onClose={closeCatalogFlyout}
         onConfirm={confirmDeleteItem}
       />
-      <Dialog open={open} onClose={handleDiscard} fullWidth maxWidth="lg" PaperProps={{ sx: { borderRadius: 3, maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 25px 60px rgba(15,23,42,0.2)" } }}>
+      <Dialog open={open} onClose={closeFromControlsOnly(handleDiscard)} fullWidth maxWidth="lg" PaperProps={{ sx: { borderRadius: 3, maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 25px 60px rgba(15,23,42,0.2)" } }}>
 
         {/* Header */}
         <DialogTitle sx={{ px: 3, py: 2, borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, position: "sticky", top: 0, zIndex: 10, bgcolor: "#fff" }}>

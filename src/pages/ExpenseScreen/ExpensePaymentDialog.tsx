@@ -13,6 +13,7 @@ import { useMarkExpensePayment } from "./useExpenseApi";
 import { getTenantContext } from "@store/tenantContext";
 import { toast } from "react-toastify";
 import type { ExpenseRow } from "./useExpenseApi";
+import { closeFromControlsOnly } from "@utils/dialog";
 
 interface Props {
   expense: ExpenseRow | null;
@@ -78,7 +79,7 @@ export default function ExpensePaymentDialog({ expense, onClose, onSuccess }: Pr
   if (!expense) return null;
 
   return (
-    <Dialog open onClose={onClose} maxWidth="xs" fullWidth
+    <Dialog open onClose={closeFromControlsOnly(onClose)} maxWidth="xs" fullWidth
       PaperProps={{ sx: { borderRadius: "16px", overflow: "hidden", border: "1px solid #E2E8F0", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)", display: "flex", flexDirection: "column" } }}>
 
       {/* Header */}

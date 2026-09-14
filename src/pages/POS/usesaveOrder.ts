@@ -168,6 +168,7 @@ export interface LineItem {
   uuid:    string;
   code:         string;
   description:  string;
+  itemDescription?: string;  // ✅ cashier-typed per-line note — sent as `description`
   qty:          number;
   unitPrice:    number;   // always BASE price (pre-tax)
   taxInclusive: boolean;  // ✅ needed so backend tax formula matches frontend
@@ -202,10 +203,27 @@ export interface SaveOrderParams {
   discountFlat:      string;
   discountGstMode:   "after" | "before";
   roundoff:          number;
-  posMode:           "SALE" | "QUOTATION";
+  posMode:           "SALE" | "QUOTATION" | "PROFORMA";
   receivedAmount:    string;
   paymentType:       "Cash" | "UPI" | "Bank Transfer" | "Others";
   referenceNo:       string;
+  // Vehicle number for the transport copy of the invoice — empty when the
+  // branch does not print that copy, or when the cashier left it blank.
+  vehicleNo:         string;
+  // Manual override for the running number, as a positive integer — not the
+  // rendered id. The server numbers the sale with it and rolls its own
+  // sequence forward to match, so future auto-numbers continue from there and
+  // no separate sequence call is needed. Null (the normal case) means "assign
+  // the next one yourself". The same field name covers all three sale types.
+  // Create only: PUT /update/orders does not accept it yet.
+  invoiceNo:         number | null;
+  // The buyer's purchase-order reference and its date. Both optional — B2B
+  // customers quote them, walk-in sales never do.
+  poNumber:          string;
+  poDate:            string;
+  // POS settings — Stock Check. True only blocks the sale for insufficient
+  // stock when the branch has this toggle on; false lets it sell through.
+  stockCheckEnabled: boolean;
 }
 
 export interface SaveOrderResult {
@@ -230,6 +248,15 @@ function currentHHmm(): string {
   return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
 }
 
+// What the orders API stores in `sale_type` for each POS tab. A plain invoice
+// has always been "retail" there; quotations and proformas keep their own name
+// so Sales History and the print templates can tell them apart.
+export const SALE_TYPE_BY_POS_MODE: Record<SaveOrderParams["posMode"], string> = {
+  SALE: "retail",
+  QUOTATION: "quotation",
+  PROFORMA: "proforma",
+};
+
 export function useSaveOrder() {
   const [saving,    setSaving]    = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
@@ -243,7 +270,8 @@ export function useSaveOrder() {
         params.discountPct, params.discountFlat, params.discountGstMode
       );
 
-      const isQuotation = params.posMode === "QUOTATION";
+      // Quotations and proformas are both non-binding: no payment, no due date.
+      const isNonSaleDoc = params.posMode !== "SALE";
       const paidAmount = parseFloat(params.receivedAmount) || 0;
 
       console.log("me002",params)
@@ -251,9 +279,9 @@ export function useSaveOrder() {
         zodu_id:   zoduId,
         branch_id: branchId,
 
-        sale_type:  isQuotation ? "quotation" : "retail",
+        sale_type:  SALE_TYPE_BY_POS_MODE[params.posMode],
         sale_date:  params.invoiceDate,
-        ...(!isQuotation && { due_date: params.dueDate || null }),
+        ...(!isNonSaleDoc && { due_date: params.dueDate || null }),
         sale_time:  currentHHmm(),
 
         customer_id: params.customer.id ?? null,
@@ -263,18 +291,28 @@ export function useSaveOrder() {
         discount_gst_mode,
         round_off:          params.roundoff,
 
-        ...(!isQuotation && {
+        ...(!isNonSaleDoc && {
           paid_amount:    paidAmount,
           payment_mode:   params.paymentType,
           transaction_id: params.referenceNo || null,
         }),
 
         notes: null,
+        vehicle_no: params.vehicleNo?.trim() || null,
+        // Omitted entirely for normal auto-numbering — sending null is not the
+        // same thing as leaving it out.
+        ...(params.invoiceNo != null && { invoice_no: params.invoiceNo }),
+        purchase_order_no:   params.poNumber?.trim() || null,
+        purchase_order_date: params.poDate || null,
+
+        // POS settings — Stock Check
+        stock_check: params.stockCheckEnabled,
 
         items: params.items.map(li => ({
           item_uuid:      li.uuid,      // ✅ Always include item_uuid
           item_id:        li.code,
           item_name:      li.description,
+          description:    li.itemDescription || null,   // ✅ cashier-typed per-line note
           unit:           li.unit ?? "NOS",
           quantity:       li.qty,
           price:          li.sellPrice,      // ✅ selling price sent in payload
@@ -320,7 +358,8 @@ const updateOrder = useCallback(async (
       params.discountGstMode
     );
 
-    const isQuotation = params.posMode === "QUOTATION";
+    // Quotations and proformas are both non-binding: no payment, no due date.
+    const isNonSaleDoc = params.posMode !== "SALE";
     const paidAmount = parseFloat(params.receivedAmount) || 0;
 
     // ✅ SAME PAYLOAD AS saveOrder
@@ -329,9 +368,9 @@ const updateOrder = useCallback(async (
       zodu_id:   zoduId,
       branch_id: branchId,
 
-      sale_type:  isQuotation ? "quotation" : "retail",
+      sale_type:  SALE_TYPE_BY_POS_MODE[params.posMode],
       sale_date:  params.invoiceDate,
-      ...(!isQuotation && { due_date: params.dueDate || null }),
+      ...(!isNonSaleDoc && { due_date: params.dueDate || null }),
       sale_time:  currentHHmm(),
 
       customer_id: params.customer.id ?? null,
@@ -341,18 +380,27 @@ const updateOrder = useCallback(async (
       discount_gst_mode,
       roundoff:          params.roundoff,
 
-      ...(!isQuotation && {
+      ...(!isNonSaleDoc && {
         paid_amount:    paidAmount,
         payment_mode:   params.paymentType,
         transaction_id: params.referenceNo || null,
       }),
 
       notes: null,
+      vehicle_no: params.vehicleNo?.trim() || null,
+      // No invoice_no here: the update endpoint does not accept an override
+      // yet, and an existing sale already has its number.
+      purchase_order_no:   params.poNumber?.trim() || null,
+      purchase_order_date: params.poDate || null,
+
+      // POS settings — Stock Check
+      stock_check: params.stockCheckEnabled,
 
       items: params.items.map(li => ({
         item_uuid:      li.uuid,
         item_id:        li.code,
         item_name:      li.description,
+        description:    li.itemDescription || null,
         unit:           li.unit ?? "NOS",
         quantity:       li.qty,
         price:          li.sellPrice,

@@ -706,7 +706,7 @@ export default function ChecklistDashboard() {
             <CircularProgress size={28} sx={{ color: "#E11D48" }} />
           </Box>
         ) : (
-          <Box sx={{ display: "flex", gap: 4, mb: 3, flexWrap: "wrap", alignItems: "flex-start" }}>
+          <Box sx={{ display: "flex", gap: 4,  flexWrap: "wrap", alignItems: "flex-start" }}>
             {/* Left: Assigned To Employees summary */}
             {isReportingManager && (
               <Box>
@@ -841,7 +841,7 @@ export default function ChecklistDashboard() {
             {/* Status legend */}
             <Box sx={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
-              px: 0.5, pb: 1.25,
+              px: 2.5, pb: 1.5,
             }}>
               <Typography sx={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>
                 Assigned Checklists
@@ -867,32 +867,18 @@ export default function ChecklistDashboard() {
 
         {/* My Assigned Tasks */}
         <Box sx={{ bgcolor: "#fff", borderRadius: 2.5, border: "1px solid #F1F5F9", overflow: "hidden" }}>
-          {/* Section header */}
-          <Box sx={{ px: 2.5, pt: 2.5, pb: 2 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-              <Box sx={{
-                width: 44, height: 44, borderRadius: 2, flexShrink: 0,
-                bgcolor: "#EEF2FF", color: "#6366F1",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <ChecklistIcon sx={{ fontSize: 22 }} />
+          {/* Title + filters in a single row */}
+          <Box sx={{
+            px: 2.5, py: 1.5,
+            display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap",
+            borderBottom: "1px solid #F1F5F9",
+          }}>
+            <Typography sx={{ fontWeight: 700, fontSize: 18, color: "#0F172A" }}>
+              My Assigned Tasks{" "}
+              <Box component="span" sx={{ fontWeight: 400, color: "#9CA3AF", fontSize: 14 }}>
+                (Assigned by me)
               </Box>
-              <Box>
-                <Typography sx={{ fontWeight: 700, fontSize: 18, color: "#0F172A" }}>
-                  My Assigned Tasks{" "}
-                  <Box component="span" sx={{ fontWeight: 400, color: "#9CA3AF", fontSize: 14 }}>
-                    (Assigned by me)
-                  </Box>
-                </Typography>
-                <Typography sx={{ fontSize: 13, color: "#6B7280" }}>
-                  Track and manage all tasks assigned to you
-                </Typography>
-              </Box>
-            </Box>
-          </Box>
-
-          {/* Filters row */}
-          <Box sx={{ px: 2.5, py: 1.5, display: "flex", gap: 1.5, borderBottom: "1px solid #F1F5F9" }}>
+            </Typography>
             <TextField
               size="small"
               placeholder="Search by checklist ID, name"
@@ -907,7 +893,7 @@ export default function ChecklistDashboard() {
                   ),
                 },
               }}
-              sx={{ flex: 1, minWidth: 280, maxWidth: 440 }}
+              sx={{ ml: "auto", flex: 1, minWidth: 280, maxWidth: 440 }}
             />
             <FormControl size="small" sx={{ minWidth: 140 }}>
               <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
@@ -921,7 +907,7 @@ export default function ChecklistDashboard() {
               variant="outlined"
               startIcon={<FilterListIcon sx={{ fontSize: 16 }} />}
               onClick={() => { setSearch(""); setStatusFilter("All Status"); }}
-              sx={{ borderColor: "#E5E7EB", color: "#374151", bgcolor: "#fff", ml: "auto" }}
+              sx={{ borderColor: "#E5E7EB", color: "#374151", bgcolor: "#fff" }}
             >
               Reset Filter
             </Button>

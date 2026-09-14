@@ -31,6 +31,7 @@ import {
   useHardDeleteMenuItem,
   useUpdateMenuItemStatus,
 } from './useMenuItemApi';
+import { closeFromControlsOnly } from "@utils/dialog";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +50,7 @@ function toProduct(item: MenuItemData) {
     id: item.item_id,
     item_uuid: item.item_uuid,
     name: item.item_name,
+    description: item.description,
     category: item.category_name ?? '-',
     mrp: Number(item.mrp) || 0,
     rate: Number(item.sell_price) || 0,
@@ -384,7 +386,7 @@ function MenuItemScreen() {
           </Box>
 
           {/* 🔥 DELETE DIALOG */}
-          <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)}>
+          <Dialog open={!!deleteTarget} onClose={closeFromControlsOnly(() => setDeleteTarget(null))}>
             <DialogTitle>Delete Item</DialogTitle>
             <DialogContent>
               <Typography>Are you sure you want to delete this item?</Typography>

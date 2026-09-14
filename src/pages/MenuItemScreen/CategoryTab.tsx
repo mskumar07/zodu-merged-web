@@ -29,6 +29,7 @@ import {
 import AddCategoryDialog from "./AddCategoryDialog";
 import SuccessToast from "@components/Common/SuccessToast";
 import { useQueryClient } from "@tanstack/react-query";
+import { closeFromControlsOnly } from "@utils/dialog";
 
 // ── Props ─────────────────────────────────────────────────────
 
@@ -300,7 +301,7 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
       </Box>
 
       {/* ── Delete Dialog ── */}
-      <Dialog open={!!deleteTarget} onClose={() => !isDeleting && setDeleteTarget(null)}>
+      <Dialog open={!!deleteTarget} onClose={closeFromControlsOnly(() => !isDeleting && setDeleteTarget(null))}>
         <DialogTitle>Delete Category</DialogTitle>
         <DialogContent>
           <Typography>

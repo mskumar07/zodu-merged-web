@@ -34,6 +34,7 @@ import { useAppDispatch } from "@store/store";
 import { setRoleAccess } from "@store/slices/userSlice";
 import { authApis } from "@pages/auth/Authapi";
 import LottieLoader from "@components/LottieLoader";
+import SuccessToast from "@components/Common/SuccessToast";
 
 // ─── Module icon config ───────────────────────────────────────
 interface IconCfg { icon: React.ReactElement; bg: string; color: string; }
@@ -456,6 +457,7 @@ export default function RoleEditPage({
   const [perms,    setPerms]    = useState<Record<string, PermState>>({});
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [error,    setError]    = useState("");
+  const [toast,    setToast]    = useState<{ message: string; severity: "success" | "error" } | null>(null);
 
   useEffect(() => {
     if (!modules.length) return;
@@ -514,6 +516,21 @@ export default function RoleEditPage({
     });
   }, []);
 
+  const selectAllModules = useCallback((checked: boolean) => {
+    setPerms((prev) => {
+      const next = { ...prev };
+      const walk = (m: ModuleItem) => {
+        const current = next[m.module_id] ?? EMPTY;
+        const updated = { ...current };
+        visibleCols(m.module_name).forEach((c) => { updated[c.key] = checked; });
+        next[m.module_id] = updated;
+        m.sub_modules?.forEach(walk);
+      };
+      modules.forEach(walk);
+      return next;
+    });
+  }, [modules]);
+
   const buildPermissions = useCallback((): PermissionPayload[] =>
     Object.entries(perms).map(([module_id, p]) => ({ module_id, ...p })), [perms]);
 
@@ -536,12 +553,20 @@ export default function RoleEditPage({
   }, [dispatch]);
 
   const createRole = useCreateRole({
-    onSuccess: () => { refreshSessionRoleAccess(); onSaved(); },
-    onError: (msg) => setError(msg),
+    onSuccess: () => {
+      refreshSessionRoleAccess();
+      setToast({ message: "Role created successfully.", severity: "success" });
+      onSaved();
+    },
+    onError: (msg) => { setError(msg); setToast({ message: msg, severity: "error" }); },
   });
   const updateRole = useUpdateRole({
-    onSuccess: () => { refreshSessionRoleAccess(); onSaved(roleId); },
-    onError: (msg) => setError(msg),
+    onSuccess: () => {
+      refreshSessionRoleAccess();
+      setToast({ message: "Role updated successfully.", severity: "success" });
+      onSaved(roleId);
+    },
+    onError: (msg) => { setError(msg); setToast({ message: msg, severity: "error" }); },
   });
 
   const isSaving  = createRole.isPending || updateRole.isPending;
@@ -565,6 +590,21 @@ export default function RoleEditPage({
   const { selected: totalSelected, total: totalPerms } = useMemo(
     () => countSelected(perms), [perms],
   );
+
+  // Uses each module's *visible* column count (visibleCols), same as every
+  // per-module "Select All" — countSelected's flat total (4 cols x module
+  // count) over-counts modules with restricted columns (e.g. Dashboard is
+  // view-only), so it can never reach 100% and the header checkbox would be
+  // stuck indeterminate even when every visible box is checked.
+  const { selected: visibleSelected, total: visibleTotal } = useMemo(() => {
+    return modules.reduce(
+      (acc, m) => {
+        const { selected, total } = moduleCount(m, perms);
+        return { selected: acc.selected + selected, total: acc.total + total };
+      },
+      { selected: 0, total: 0 },
+    );
+  }, [modules, perms]);
 
   if (isLoading) return <LottieLoader />;
 
@@ -686,13 +726,23 @@ export default function RoleEditPage({
       )}
 
       {/* ── MODULE PERMISSIONS label ── */}
-      <Box sx={{ px: 3, py: 1.25, flexShrink: 0, borderBottom: "1px solid #E5E7EB" }}>
+      <Box sx={{
+        px: 3, py: 1.25, flexShrink: 0, borderBottom: "1px solid #E5E7EB",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+      }}>
         <Typography sx={{
           fontWeight: 700, fontSize: 11.5, color: "#64748B",
           textTransform: "uppercase", letterSpacing: "0.09em",
         }}>
           MODULE PERMISSIONS
         </Typography>
+        {!isView && (
+          <SelectAllCheck
+            checked={visibleSelected > 0 && visibleSelected === visibleTotal}
+            indeterminate={visibleSelected > 0 && visibleSelected < visibleTotal}
+            onClick={() => selectAllModules(!(visibleSelected > 0 && visibleSelected === visibleTotal))}
+          />
+        )}
       </Box>
 
       {/* ── Scrollable module list ── */}
@@ -772,6 +822,12 @@ export default function RoleEditPage({
           </Button>
         </Box>
       </Box>
+
+      <SuccessToast
+        message={toast?.message ?? ""}
+        severity={toast?.severity ?? "success"}
+        onClose={() => setToast(null)}
+      />
     </Box>
   );
 }

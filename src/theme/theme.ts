@@ -26,13 +26,13 @@ const muiTheme = createTheme({
     },
   },
   typography: {
-    fontFamily: '"Inter", sans-serif',
+    fontFamily: '"Segoe UI", Roboto, Arial, sans-serif',
     fontWeightLight: 300,
     fontWeightRegular: 400,
     fontWeightMedium: 500,
     fontWeightBold: 600,
     logo: {
-      fontFamily: '"Inter", sans-serif',
+      fontFamily: '"Segoe UI", Roboto, Arial, sans-serif',
       fontWeight: 700,
       letterSpacing: 2,
       fontSize: "2.5rem",

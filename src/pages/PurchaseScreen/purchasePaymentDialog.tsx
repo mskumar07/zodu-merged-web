@@ -18,6 +18,7 @@ import {
 } from "@mui/icons-material";
 import { useMarkPayment, getZoduId, getBranchId } from "./usePuchaseapi";
 import { toast } from "react-toastify";
+import { closeFromControlsOnly } from "@utils/dialog";
 
 interface Props {
   purchase: any;
@@ -103,7 +104,7 @@ const handleSubmit = () => {
   return (
     <Dialog
       open
-      onClose={onClose}
+      onClose={closeFromControlsOnly(onClose)}
       maxWidth="xs"
       fullWidth
       PaperProps={{

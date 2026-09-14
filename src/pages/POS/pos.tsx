@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useForceRefreshProducts, usePosSearch, usePosProducts } from "./useposproducts";
 import type { PosProduct } from "./db";
-import { useSaveOrder, type SaveOrderResult } from "./usesaveOrder";
+import { useSaveOrder, SALE_TYPE_BY_POS_MODE, type SaveOrderResult } from "./usesaveOrder";
+import { useDocSequence, docSequenceQueryKeys, type DocType } from "@pages/Settings/useDocSequenceApi";
 import {
   useCustomerSearch,
   type ApiCustomer,
@@ -49,14 +50,20 @@ import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import ShareIcon              from "@mui/icons-material/Share";
 import QrCode2Icon            from "@mui/icons-material/QrCode2";
 import AccountBalanceIcon     from "@mui/icons-material/AccountBalance";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import PaymentsIcon           from "@mui/icons-material/Payments";
+import ReceiptIcon            from "@mui/icons-material/Receipt";
 import MoreHorizIcon          from "@mui/icons-material/MoreHoriz";
 import InfoOutlinedIcon       from "@mui/icons-material/InfoOutlined";
 import SwapHorizIcon          from "@mui/icons-material/SwapHoriz";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
-import html2canvas            from "html2canvas";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import jsPDF                  from "jspdf";
+import { renderPaginatedInvoicePdf } from "@utils/pdfPagination";
+import { setUnsavedWork } from "@utils/appUpdate";
+import { SALE_DEPENDENT_KEYS, publishSaleSaved } from "@utils/dataSync";
+import { numberToWords } from "@utils/numberToWords";
 import { useLocation }        from "react-router-dom";
 import CustomerLedgerDialog   from "../Customer/CustomerLedgerDialog";
 import AddNewCustomerDialog   from "@pages/Customer/Addnewcustomerdialog";
@@ -69,18 +76,48 @@ import CameraAltOutlinedIcon  from "@mui/icons-material/CameraAltOutlined";
 import {
   fetchSaleDetail,
 } from "../SalesHistory/useSaleshistory";
+import { flushSync } from "react-dom";
 import { InvoicePDFTemplate } from "../SalesHistory/InvoicePDFTemplate";
+import { InvoicePDFTemplateModern } from "../SalesHistory/InvoicePDFTemplateModern";
+import { InvoicePDFTemplateModern2 } from "../SalesHistory/InvoicePDFTemplateModern2";
+import InvoiceCopyActions from "@components/Common/InvoiceCopyActions";
+import { invoiceCopyTypesForSale, normalizeInvoiceCopyTypes } from "@utils/invoiceCopyTypes";
+import { isProformaSaleType, isQuotationSaleType, saleDocumentLabel } from "@utils/saleType";
+import { printThermalCopies } from "@utils/thermalPrint";
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "../SalesHistory/ThermalInvoiceTemplate";
+import { toPaymentTypeLabels } from "@pages/Settings/useInvoiceSettingApi";
+import { normalizePosSettings, usePosSettings, type PosTypeLabel } from "@pages/Settings/usePosSettingApi";
 import DiscountModal          from "./DiscountModal";
 import NoteModal              from "./NotesModal";
-import { useAppSelector }     from "@store/store";
-import { BranchId, ZoduId, InvoiceSettingsData } from "@store/slices/userSlice";
+import { useAppSelector, useAppDispatch } from "@store/store";
+import { BranchId, ZoduId, InvoiceSettingsData, PosSettingsData, setPosSettings } from "@store/slices/userSlice";
 import { Download } from "@mui/icons-material";
 import CheckCircleIcon        from "@mui/icons-material/CheckCircle";
 import CurrencyRupeeIcon      from "@mui/icons-material/CurrencyRupee";
 
 const INR = (v: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(v);
+
+/**
+ * A formatted amount that may wrap, but only between digit groups. An ordinary
+ * figure fits its cart column on one line; an extreme one such as
+ * ₹1,52,53,72,88,08,423.73 breaks after a comma inside its own column instead
+ * of running over the column next to it. `<wbr>` adds no characters, so a
+ * copied value is unchanged.
+ */
+function Amount({ value }: { value: string }) {
+  const groups = value.split(",");
+  return (
+    <>
+      {groups.map((group, i) => (
+        <React.Fragment key={i}>
+          {group}
+          {i < groups.length - 1 && <>,<wbr /></>}
+        </React.Fragment>
+      ))}
+    </>
+  );
+}
 // Round-half-up to 2 decimals — matches the value the user sees per row, so totals summed
 // from these match the sum of the displayed rows instead of drifting from unrounded sums.
 const round2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
@@ -132,6 +169,7 @@ interface LineItem {
   hsn: string; mrp: number; gstPct: number; taxInclusive: boolean; category?: string; unit?: string;
   discount?: number;
   discountPct?: number;
+  itemDescription?: string;
   editingQty?: boolean; editingPrice?: boolean; editingDiscount?: boolean;
   qtyDraft?: string; priceDraft?: string; discountDraft?: string;
 }
@@ -140,6 +178,22 @@ const EMPTY_CUSTOMER: Customer = { id: null, name: "", mobile: "", address: "", 
 interface SavedOrderSnapshot {
   result: SaveOrderResult;
   customer: Customer;
+  // POS mode at save-time — the print data needs it to title the document
+  // "QUOTATION", and posMode can change before the user hits Print.
+  saleType: string;
+  // Vehicle number for the transport copy — not persisted by the backend yet,
+  // so it is captured here and merged into the print data below.
+  vehicleNo: string;
+  // The typed document number and the buyer's PO reference, captured the same
+  // way and for the same reason — the print data needs them whether or not the
+  // save response echoes them back.
+  invoiceNo: string;
+  poNumber: string;
+  poDate: string;
+  // Manually-typed item descriptions aren't persisted by the backend yet, so
+  // they're captured here (keyed by item code) at save-time and merged back
+  // into the print data below rather than round-tripped through the API.
+  descriptions: Record<string, string>;
 }
 interface HeldOrder {
   id: string;
@@ -151,23 +205,165 @@ interface HeldOrder {
   time: Date;
   totalAmount: number;
 }
-type PosMode = "SALE" | "QUOTATION";
+type PosMode = "SALE" | "QUOTATION" | "PROFORMA";
+
+// POS tabs come from the sale types enabled in Settings → POS Settings.
+// Those labels ("Invoice" | "Quotation" | "Proforma") are what that API stores;
+// PosMode is what this screen and the orders API speak, so the two are mapped
+// here rather than passing labels around.
+const POS_MODE_BY_TYPE: Record<PosTypeLabel, PosMode> = {
+  Invoice: "SALE",
+  Quotation: "QUOTATION",
+  Proforma: "PROFORMA",
+};
+// Which of the retail service's counters each tab numbers from.
+const DOC_TYPE_BY_POS_MODE: Record<PosMode, DocType> = {
+  SALE: "INV",
+  QUOTATION: "QUO",
+  PROFORMA: "PRO",
+};
+const POS_TYPE_BY_MODE: Record<PosMode, PosTypeLabel> = {
+  SALE: "Invoice",
+  QUOTATION: "Quotation",
+  PROFORMA: "Proforma",
+};
+
+// One accent per sale type so the cashier can tell at a glance which document
+// they are building: the house red for an invoice, blue for a quotation and a
+// light green for a proforma.
+const POS_MODE_THEME: Record<PosMode, {
+  accent: string;       // tab fill, chip border and text
+  accentHover: string;  // hover state for solid accent buttons
+  tint: string;         // faint row background (highlighted suggestion)
+  chipBg: string;       // date chip fill
+  totalBg: string;
+  totalBorder: string;
+  totalText: string;
+  shadow: string;       // glow under the primary action button
+  focusRing: string;    // ring around the focused panel
+}> = {
+  SALE: {
+    accent: "#C8102E", accentHover: "#A50D26", tint: "#FFF7F8", chipBg: "#FEE2E2",
+    totalBg: "#DCFCE7", totalBorder: "#86EFAC", totalText: "#16A34A",
+    shadow: "rgba(200,16,46,0.35)", focusRing: "rgba(200,16,46,0.08)",
+  },
+  QUOTATION: {
+    accent: "#1D4ED8", accentHover: "#1E40AF", tint: "#EFF6FF", chipBg: "#DBEAFE",
+    totalBg: "#EFF6FF", totalBorder: "#BFDBFE", totalText: "#1D4ED8",
+    shadow: "rgba(29,78,216,0.35)", focusRing: "rgba(29,78,216,0.08)",
+  },
+  PROFORMA: {
+    accent: "#2FA36B", accentHover: "#26895A", tint: "#F0FDF6", chipBg: "#D9F7E7",
+    totalBg: "#F0FDF6", totalBorder: "#A7E8C6", totalText: "#2FA36B",
+    shadow: "rgba(47,163,107,0.35)", focusRing: "rgba(47,163,107,0.10)",
+  },
+};
+
+/** `sale_type` as stored on an order ("retail" | "quotation" | "proforma", plus
+ *  the older short "q" / "p" forms) back to the tab it belongs on. */
+function saleTypeToPosMode(saleType: string | null | undefined): PosMode {
+  if (isQuotationSaleType(saleType)) return "QUOTATION";
+  if (isProformaSaleType(saleType)) return "PROFORMA";
+  return "SALE";
+}
+/**
+ * Cart table columns, shared by the scrolling body table and the pinned totals
+ * row so the two can never drift apart. Three kinds, so each column grows only
+ * if its content can use the room:
+ *
+ *   px      — content of fixed size: the accent bar, the qty stepper, the
+ *             discount input and the remove button. A wider screen gives them
+ *             nothing they could use.
+ *   %       — the rupee columns, which widen with the table so large figures
+ *             keep breathing room.
+ *   "auto"  — DESCRIPTION alone, which takes whatever is left. It is the one
+ *             column whose content (name, category, a note field) benefits
+ *             from every extra pixel.
+ *
+ * A percentage column would otherwise fall under a rupee value's floor on a
+ * narrow screen (₹2,25,000.00 at 13px needs ~88px plus 16px of cell padding),
+ * so the table never renders narrower than CART_TABLE_MIN_WIDTH: the
+ * percentages are sized so every column meets its floor at exactly that width,
+ * leaving DESCRIPTION ~127px there, and below it the table scrolls sideways
+ * rather than squeezing. Below `md` the screen renders cards instead.
+ */
+const CART_TABLE_MIN_WIDTH = 920;
+
+const CART_COL_WIDTHS: (number | string)[] = [
+  4,       // active-row accent bar
+  "10%",   // ITEM ID — one line; longer ids ellipsize, full value on hover
+  "auto",  // DESCRIPTION — everything the other columns don't claim
+  "10.5%", // TAX AMT (GST %)
+  150,     // QTY stepper — − [input sized to its digits] +
+  "11.8%", // RATE input
+  "11.8%", // UNIT PRICE
+  80,      // DISC % input — only ever a short input or "—"
+  "12.3%", // TOTAL
+  40,      // remove button
+];
+
+function CartColGroup() {
+  return (
+    <colgroup>
+      {CART_COL_WIDTHS.map((width, i) => (
+        <col key={i} style={{ width: typeof width === "number" ? `${width}px` : width }} />
+      ))}
+    </colgroup>
+  );
+}
+
+/**
+ * Scrollbar styling for the cart body, and for the totals row under it. The
+ * totals row never scrolls, but it reserves the same gutter (`stable`), so its
+ * columns end exactly where the body's do whether or not the list overflows.
+ */
+const cartScrollbarSx = {
+  scrollbarGutter: "stable",
+  scrollbarWidth: "thin",
+  scrollbarColor: "#ea9999 #F3F4F6",
+  "&::-webkit-scrollbar": { width: "8px", height: "8px" },
+  "&::-webkit-scrollbar-track": { backgroundColor: "#F3F4F6", borderRadius: "4px" },
+  "&::-webkit-scrollbar-thumb": { backgroundColor: "#ea9999", borderRadius: "4px", "&:hover": { backgroundColor: "#A50D26" } },
+} as const;
+
 type Zone = "SEARCH" | "CUSTOMER" | "TABLE" | "FOOTER";
 type SearchFocus = "CODE";
 type FooterFocus = "DISCOUNT_PCT" | "DISCOUNT_AMT" | "PAYMENT_TYPE" | "REF_NO" | "RECEIVED" | "SAVE";
-type PaymentType = "Cash" | "UPI" | "Bank Transfer" | "Others";
+type PaymentType = "Cash" | "UPI" | "UPI + Cash" | "Cheque" | "Bank Transfer" | "Others";
+
+// Falls back to the original hardcoded four for branches whose settings predate the field.
+const DEFAULT_ENABLED_PAYMENT_TYPES: PaymentType[] = ["Cash", "UPI", "Bank Transfer", "Others"];
+const PAYMENT_TYPE_ICON: Record<PaymentType, typeof QrCode2Icon> = {
+  Cash: PaymentsIcon,
+  UPI: QrCode2Icon,
+  "UPI + Cash": AccountBalanceWalletIcon,
+  Cheque: ReceiptIcon,
+  "Bank Transfer": AccountBalanceIcon,
+  Others: MoreHorizIcon,
+};
+
+// `payment_types` is an array of canonical labels (set in POS settings' "Payment Types"
+// chip picker) controlling which payment chips appear at checkout. Falls back to the
+// original hardcoded four when unset, so existing branches keep their current behavior.
+function getEnabledPaymentTypes(raw: unknown): PaymentType[] {
+  const labels = toPaymentTypeLabels(raw);
+  return labels.length > 0 ? labels : DEFAULT_ENABLED_PAYMENT_TYPES;
+}
 
 function toLineItem(p: PosProduct): LineItem {
   const grossPrice = Number(p.sell_price) || 0;
   const gstPct = Number(p.gst_tax) || 0;
   const taxInclusive = p.tax_inclusive === true || (p.tax_inclusive as unknown) === 1;
   const unitPrice = taxInclusive && gstPct > 0 ? grossPrice / (1 + gstPct / 100) : grossPrice;
-  console.log
   return {
     uuid: p.item_uuid, code: p.item_id, description: p.item_name,
     qty: 1, unitPrice, sellPrice: grossPrice, taxInclusive,
     hsn: p.hsn_code ?? "", mrp: Number(p.mrp) || grossPrice,
     gstPct, category: p.category_name ?? "", unit: p.unit || "NOS", discount: 0,
+    // Seed from the menu item's own description — snapshotted at add-to-cart
+    // time so the invoice shows the text current when this line was billed.
+    // The cashier can still edit it per line before checkout.
+    itemDescription: p.description ?? "",
   };
 }
 
@@ -204,7 +400,7 @@ function paymentStatus(grand: number, received: number) {
 function Kbd({ children }: { children: React.ReactNode }) {
   return (
     <Box component="span" sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", bgcolor: "#D3D3D3", border: "1px solid #D3D3D3", borderRadius: "4px", px: 0.6, py: 0.1, minWidth: 18 }}>
-      <Typography sx={{ fontSize: 9, fontWeight: 700, fontFamily: "monospace", color: "#696969", lineHeight: 1.4 }}>{children}</Typography>
+      <Typography sx={{ fontSize: 9, fontWeight: 700, color: "#696969", lineHeight: 1.4 }}>{children}</Typography>
     </Box>
   );
 }
@@ -224,21 +420,54 @@ function Highlight({ text, query }: { text: string; query: string }) {
   );
 }
 
-function toWords(n: number): string {
-  return n.toLocaleString("en-IN");
-}
-
-const queryClient = new QueryClient();
 const CAT_COLOR: Record<string, string> = { Beans: "#92400E", Drinks: "#1D4ED8", Equipment: "#065F46", Accessories: "#5B21B6", Milk: "#9D174D", Syrups: "#B45309" };
 
 export default function RetailPOS() {
-  return <QueryClientProvider client={queryClient}><RetailPOSInner /></QueryClientProvider>;
+  // No QueryClientProvider here on purpose: POS shares the app-wide cache from
+  // main.tsx, so saving a sale can invalidate the Dashboard and Sales History.
+  return <RetailPOSInner />;
 }
 
 function RetailPOSInner() {
+  const dispatch = useAppDispatch();
+  const queryClient = useQueryClient();
   const zoduId   = useAppSelector(ZoduId);
   const branchId = useAppSelector(BranchId);
   const invoiceSettings = useAppSelector(InvoiceSettingsData);
+  // Sale types this branch offers, and the one POS opens on. The Redux copy is
+  // only filled at branch-select, so a branch selected before these settings
+  // existed — or one whose settings changed since — would show a stale tab row;
+  // the query is the source of truth and Redux is the instant-render fallback
+  // while it loads. normalizePosSettings guarantees a non-empty list whose
+  // default is one of its members, even for a branch with no POS row yet.
+  const storedPosSettings = useAppSelector(PosSettingsData);
+  const { data: fetchedPosSettings } = usePosSettings();
+  const posSettings = useMemo(
+    () => normalizePosSettings(fetchedPosSettings ?? storedPosSettings),
+    [fetchedPosSettings, storedPosSettings],
+  );
+  const { pos_types: enabledPosTypes, default_pos_type: defaultPosType } = posSettings;
+  useEffect(() => {
+    if (!fetchedPosSettings) return;
+    const stored = normalizePosSettings(storedPosSettings);
+    if (
+      stored.default_pos_type === fetchedPosSettings.default_pos_type &&
+      stored.pos_types.join() === fetchedPosSettings.pos_types.join()
+    ) return;
+    dispatch(setPosSettings(fetchedPosSettings));
+  }, [fetchedPosSettings, storedPosSettings, dispatch]);
+
+  // The default type leads the tab row as well as being the one POS opens on —
+  // it is the branch's everyday document, so it reads first. The rest follow in
+  // their canonical order (Invoice, Quotation, Proforma).
+  const orderedPosTypes = useMemo(
+    () => [defaultPosType, ...enabledPosTypes.filter((type) => type !== defaultPosType)],
+    [enabledPosTypes, defaultPosType],
+  );
+  const enabledPaymentTypes = useMemo(
+    () => getEnabledPaymentTypes(invoiceSettings?.payment_types),
+    [invoiceSettings?.payment_types]
+  );
   // Camera scanning only makes sense on a phone/tablet's own camera — desktop/laptop
   // relies on a hardware USB/Bluetooth scanner instead, so the camera button is hidden there.
   const isMobileOrTablet = useMemo(() => isMobileOrTabletDevice(), []);
@@ -261,21 +490,57 @@ function RetailPOSInner() {
 
   const location        = useLocation();
   const query           = new URLSearchParams(location.search);
-  const saleIdFromUrl   = query.get("saleId");
+  // Reopening a saved document: the list links here with its sale_uuid, which
+  // is what the detail endpoint takes. (Old `?saleId=INV-228` links are ignored
+  // rather than sent to an endpoint that no longer accepts a display id.)
+  const saleUuidFromUrl = query.get("saleUuid");
   const saleTypeFromUrl = query.get("saleType");
 
-  const [posMode,        setPosMode]        = useState<PosMode>("SALE");
+  const [posMode,        setPosMode]        = useState<PosMode>(() => POS_MODE_BY_TYPE[defaultPosType]);
+  // Set once the cashier picks a tab — their choice then outranks a default
+  // that only arrives with the settings response.
+  const posModeTouchedRef = useRef(false);
   const [items,          setItems]          = useState<LineItem[]>([]);
   const [discount,       setDiscount]       = useState("0");
   const [discountPct,    setDiscountPct]    = useState("0");
   const [gstMode,        setGstMode]        = useState<"after" | "before">("after");
   const [referenceNo,    setReferenceNo]    = useState("");
+  const [vehicleNo,      setVehicleNo]      = useState("");
   const [receivedAmount, setReceivedAmount] = useState("");
   const [paymentType,    setPaymentType]    = useState<PaymentType>("Cash");
   const [printEnabled,   setPrintEnabled]   = useState(true);
   const thermalPaperSize: ThermalPaperSize = toThermalPaperSize(invoiceSettings?.printer_inch);
+  // Copy markings offered in the success modal's Download/Print menus.
+  const invoiceCopyTypes = normalizeInvoiceCopyTypes(invoiceSettings?.invoice_copy_types);
+  // Only branches that sell against buyer purchase orders collect the PO
+  // reference, so the two fields are off unless POS settings ask for them.
+  // A PO answers an invoice, never a quotation or proforma — those are what the
+  // buyer raises their PO against — so they never ask for one.
+  const showPurchaseOrder = posSettings.purchase_order_enabled === true && posMode === "SALE";
+  // Parking a bill is a counter workflow some branches don't want offered at
+  // all. Off hides the buttons, the F9 shortcut and the recall dialog alike —
+  // a branch that has never saved the setting keeps them, as it always had.
+  const holdEnabled = posSettings.hold_enabled !== false;
+  // The transport copy travels with the goods and prints a Vehicle No row, so
+  // the cashier only needs somewhere to type it when that copy is enabled.
+  // A quotation ships nothing, so it never asks for a vehicle number.
+  const showVehicleNo = invoiceCopyTypes.includes("Transport") && posMode !== "QUOTATION";
   const [invoiceDate,    setInvoiceDate]    = useState(todayStr());
   const [dueDate,        setDueDate]        = useState("");
+  // Buyer's purchase-order reference. B2B customers quote their own PO on the
+  // invoice they pay against, so both are free-form and always optional.
+  const [poNumber,       setPoNumber]       = useState("");
+  const [poDate,         setPoDate]         = useState("");
+  // Manual override for the running number — digits only, because that is what
+  // the create endpoint takes. Untouched, the server assigns the next number
+  // itself and this stays empty. `invoiceNoTouched` is what tells the two
+  // apart; `invoiceNoEditing` only controls whether the field is writable.
+  const [invoiceNo,      setInvoiceNo]      = useState("");
+  const [invoiceNoTouched, setInvoiceNoTouched] = useState(false);
+  const [invoiceNoEditing, setInvoiceNoEditing] = useState(false);
+  // The number an already-saved document carries, shown read-only when one is
+  // reopened for editing — the update endpoint cannot renumber a sale.
+  const [loadedSaleNo,   setLoadedSaleNo]   = useState("");
   const [orderNote,      setOrderNote]      = useState("");
   const [customer,       setCustomer]       = useState<Customer>(EMPTY_CUSTOMER);
   const [selectedApiCustomer, setSelectedApiCustomer] = useState<ApiCustomer | null>(null);
@@ -284,9 +549,13 @@ function RetailPOSInner() {
   const [addCustomerOpen,         setAddCustomerOpen]         = useState(false);
   const [addItemOpen,             setAddItemOpen]             = useState(false);
   const [cameraScanOpen,          setCameraScanOpen]          = useState(false);
+  const [previewOpen,             setPreviewOpen]             = useState(false);
   const [scanMsg,                 setScanMsg]                 = useState("");
   const [toastSeverity,           setToastSeverity]           = useState<'success' | 'error'>('success');
   const [downloadLoading,         setDownloadLoading]         = useState(false);
+  // Copy marking the hidden print templates are currently rendering — driven
+  // synchronously at capture time (see generatePdfForCopies).
+  const [renderCopyType,          setRenderCopyType]          = useState<string | null>(null);
   const [shareLoading,            setShareLoading]            = useState(false);
   const [printLoading,            setPrintLoading]            = useState(false);
   const [savedOrderSnapshot,      setSavedOrderSnapshot]      = useState<SavedOrderSnapshot | null>(null);
@@ -319,7 +588,7 @@ const {
   data: serverHolds = [],
   isLoading: holdsLoading,
   refetch: refetchHolds,
-} = useHoldOrders(zoduId, branchId); 
+} = useHoldOrders(zoduId, branchId, holdEnabled);
 
   const { mutateAsync: saveHoldApi, isPending: holdSaving } = useSaveHold(zoduId, branchId);
   const { mutateAsync: deleteHoldApi }                       = useDeleteHold(zoduId, branchId);
@@ -344,7 +613,10 @@ const {
   const discountPctAmt = gstMode === "before"
     ? subtotal * discountPctVal / 100
     : (subtotal + grossGstAmount) * discountPctVal / 100;
-  const orderDiscountAmt = discountPctAmt + discountFlatAmt;
+  // Percentage and flat are the same single discount shown two ways (kept in
+  // sync in the modal), not two discounts stacked — mirrors the discount_type
+  // exclusivity already enforced when the order is saved (see discount_type below).
+  const orderDiscountAmt = discountPctVal > 0 ? discountPctAmt : discountFlatAmt;
 
   const gstAmount = useMemo(() => {
     if (subtotal === 0) return 0;
@@ -370,9 +642,160 @@ const {
   const grandTotal    = Math.round(grandTotalRaw);
   const received      = parseFloat(receivedAmount) || 0;
   const totalUnits    = useMemo(() => items.reduce((s, i) => s + i.qty, 0), [items]);
-  const isQuotation   = posMode === "QUOTATION";
+  // Quotations and proformas are both non-binding documents: no payment is
+  // taken, so POS hides the payment fields and the hold controls for either.
+  const isNonSaleDoc   = posMode !== "SALE";
+  const posTypeLabel   = POS_TYPE_BY_MODE[posMode];
+  const modeTheme      = POS_MODE_THEME[posMode];
   const status        = paymentStatus(grandTotal, received);
-  const dueDateEnabled = !isQuotation && received < grandTotal - 0.01;
+  // True only when the customer still owes something on a real sale. A paid-up
+  // bill (or an overpaid one) has no balance and no due date, so both rows drop
+  // out of the sidebar rather than sitting there reading zero.
+  const hasBalanceDue = !isNonSaleDoc && received < grandTotal - 0.01;
+
+  // The id the next document will actually be issued under, straight from the
+  // branch's counter. The server owns the whole string — prefix, separator,
+  // running number, suffix — so nothing here rebuilds or parses it; a format
+  // change on the backend needs no change on this screen.
+  //
+  // The read is free of side effects: it neither reserves the number nor
+  // advances the counter, so a sale abandoned mid-cart burns nothing, and
+  // another till on the same branch may take this number first. That is why it
+  // is labelled "Next", and why it is refetched after every save.
+  const { data: docSequence } = useDocSequence(DOC_TYPE_BY_POS_MODE[posMode], !saleId);
+
+  /**
+   * The prefix and suffix the active tab numbers under. Each sale type has its
+   * own pair, and they come from two different endpoints: only the invoice
+   * *prefix* is an invoice-settings field — every suffix, and the quotation and
+   * proforma prefixes, are stored with the POS settings.
+   */
+  const activeAffixes = useMemo(() => {
+    const pick = (text: string | null | undefined, enabled: boolean | undefined) => {
+      const value = text?.trim() || "";
+      // A missing flag means the row predates the toggles, where an affix
+      // applied whenever it had text.
+      return (enabled ?? !!value) && value ? value : "";
+    };
+    if (posMode === "QUOTATION") {
+      return {
+        prefix: pick(posSettings.quotation_prefix, posSettings.quotation_prefix_enabled),
+        suffix: pick(posSettings.quotation_suffix, posSettings.quotation_suffix_enabled),
+      };
+    }
+    if (posMode === "PROFORMA") {
+      return {
+        prefix: pick(posSettings.proforma_prefix, posSettings.proforma_prefix_enabled),
+        suffix: pick(posSettings.proforma_suffix, posSettings.proforma_suffix_enabled),
+      };
+    }
+    return {
+      prefix: pick(invoiceSettings?.invoice_prefix, invoiceSettings?.invoice_prefix_enabled),
+      suffix: pick(posSettings.invoice_suffix, posSettings.invoice_suffix_enabled),
+    };
+  }, [posMode, posSettings, invoiceSettings?.invoice_prefix, invoiceSettings?.invoice_prefix_enabled]);
+
+  /**
+   * Dresses a running number in the active tab's affixes for display.
+   *
+   * Joined with nothing between: any separator is part of the affix the user
+   * typed in Settings, so "/26-27" and "-26-27" and "26-27" all render exactly
+   * as entered rather than picking up a dash this code chose for them.
+   *
+   * The server composes `next_id` itself, but only as far as it has caught up:
+   * it applies the prefix and does not yet apply any suffix. So each affix is
+   * added only when it is not already there — which keeps this correct whether
+   * or not the backend is doing the same work, and stops a prefix appearing
+   * twice the day it starts applying suffixes too.
+   */
+  const withAffixes = useCallback((base: string) => {
+    if (!base) return "";
+    let id = base;
+    const { prefix, suffix } = activeAffixes;
+    if (suffix && !id.endsWith(suffix)) id = `${id}${suffix}`;
+    if (prefix && !id.startsWith(prefix)) id = `${prefix}${id}`;
+    return id;
+  }, [activeAffixes]);
+
+  /**
+   * How wide the running number prints — 3 for "006/Q26-27", 0 for "INV-145".
+   * The counter carries no pad-width field, so it is read back off the id the
+   * server composed: strip the affixes this tab adds, then take the digit run
+   * that spells out `next_seq`. Falls back to 0, i.e. leave numbers as typed.
+   */
+  const seqPadWidth = useMemo(() => {
+    const seq = docSequence?.next_seq;
+    const id = docSequence?.next_id;
+    if (!seq || !id) return 0;
+    const { prefix, suffix } = activeAffixes;
+    let body = id;
+    if (prefix && body.startsWith(prefix)) body = body.slice(prefix.length);
+    if (suffix && body.endsWith(suffix)) body = body.slice(0, -suffix.length);
+    const run = body.match(/\d+/g)?.find((digits) => parseInt(digits, 10) === seq);
+    return run ? run.length : 0;
+  }, [docSequence?.next_seq, docSequence?.next_id, activeAffixes]);
+
+  /**
+   * A running number written the way the counter prints it, so the field and
+   * the preview never disagree about the same document ("6" vs "006"). Leading
+   * zeros are cosmetic — everything downstream parses with radix 10.
+   */
+  const padSeq = useCallback(
+    (n: number | string) => String(n).padStart(seqPadWidth, "0"),
+    [seqPadWidth],
+  );
+
+  // Only a new document can be numbered by hand — the update endpoint takes no
+  // override, and a saved sale already has its id.
+  const canOverrideNumber = !saleId;
+
+  /** The override as the API wants it: a positive integer, or null for auto. */
+  const invoiceNoOverride = useMemo(() => {
+    if (!canOverrideNumber || !invoiceNoTouched) return null;
+    const n = parseInt(invoiceNo, 10);
+    return Number.isInteger(n) && n > 0 ? n : null;
+  }, [canOverrideNumber, invoiceNoTouched, invoiceNo]);
+
+  // What a typed override will actually be issued as — the field itself holds
+  // bare digits while it is being typed, because that is all the create
+  // endpoint takes.
+  const overridePreview = invoiceNoOverride ? withAffixes(padSeq(invoiceNoOverride)) : "";
+
+  /**
+   * What the number row shows:
+   *   editing a saved sale → its own id, read-only
+   *   mid-edit             → the bare digits being typed, since the field only
+   *                          accepts the running number
+   *   edited, done         → those digits dressed in the tab's prefix and
+   *                          suffix, so a renumbered document reads the same
+   *                          way as an auto-numbered one
+   *   otherwise            → the counter's next id, e.g. "INV/228"
+   */
+  const displayInvoiceNo = saleId
+    ? loadedSaleNo
+    : invoiceNoEditing ? invoiceNo
+    : invoiceNoTouched ? (overridePreview || invoiceNo)
+    : withAffixes(docSequence?.next_id ?? "");
+
+  // The row is named for the document either way. Untouched it is still only
+  // the counter's forecast — another till can take the number first — but the
+  // label stays "Invoice No" / "Quotation No" / "Proforma No" rather than
+  // switching wording under the cashier mid-sale.
+  const invoiceNoLabel = `${posTypeLabel} No`;
+
+  // Mid-edit the value is only the digits, so the tab's prefix and suffix are
+  // drawn around them as fixed text — the cashier still sees "MA/" + "229"
+  // rather than a bare number that looks like a different kind of id. Same
+  // size and weight as the field so the two halves read as one string.
+  const affixAdornmentSx = {
+    fontSize: 12.5, fontWeight: 700, letterSpacing: "0.02em",
+    color: "#9CA3AF", whiteSpace: "nowrap",
+  } as const;
+  // The input shrinks to its digits while editing, so the affixes sit flush
+  // against them instead of at the far edges of the box. The field sets
+  // tabular figures, so every digit is exactly `ch` wide (plus the spacing).
+  const invoiceNoDigits = Math.max(invoiceNo.length, 1);
+  const invoiceNoEditWidth = `calc(${invoiceNoDigits}ch + ${invoiceNoDigits * 0.02}em + 2px)`;
   // ────────────────────────────────────────────────────────────────────────────
 
   const [saveResult, setSaveResult] = useState<{
@@ -387,6 +810,8 @@ const {
   const refNoRef          = useRef<HTMLInputElement>(null);
   const receivedRef       = useRef<HTMLInputElement>(null);
   const dueDateInputRef   = useRef<HTMLInputElement | null>(null);
+  const poDateInputRef    = useRef<HTMLInputElement | null>(null);
+  const invoiceNoInputRef = useRef<HTMLInputElement | null>(null);
   const tableBodyRef      = useRef<HTMLTableSectionElement>(null);
   const qtyRefs           = useRef<Record<string, HTMLInputElement | null>>({});
   const priceRefs         = useRef<Record<string, HTMLInputElement | null>>({});
@@ -401,9 +826,37 @@ const {
   useEffect(() => { forceRefresh(); }, []);
   useEffect(() => { codeRef.current?.focus(); }, []);
   useEffect(() => {
-    setSaleId(saleIdFromUrl);
-    if (saleTypeFromUrl) setPosMode(saleTypeFromUrl.toLowerCase() === "q" ? "QUOTATION" : "SALE");
-  }, [saleIdFromUrl, saleTypeFromUrl]);
+    setSaleId(saleUuidFromUrl);
+    if (saleTypeFromUrl) setPosMode(saleTypeToPosMode(saleTypeFromUrl));
+  }, [saleUuidFromUrl, saleTypeFromUrl]);
+
+  // Open on the branch's default sale type, and never sit on a tab that has
+  // since been turned off in Settings. Reopening a saved document is exempt —
+  // its own type wins, and the loader below sets it.
+  useEffect(() => {
+    if (saleId) return;
+    // Settings arrive after first paint, so the default has to be applied when
+    // it lands — but only until the cashier picks a tab themselves, after which
+    // the only correction is off a type that no longer exists.
+    if (!posModeTouchedRef.current) {
+      setPosMode(POS_MODE_BY_TYPE[defaultPosType]);
+      return;
+    }
+    setPosMode((prev) => (enabledPosTypes.includes(POS_TYPE_BY_MODE[prev]) ? prev : POS_MODE_BY_TYPE[defaultPosType]));
+  }, [enabledPosTypes, defaultPosType, saleId]);
+
+  /**
+   * Each sale type numbers from its own counter, so a number typed for one is
+   * meaningless on another — without this, an override entered on Invoice
+   * stayed on screen after switching to Quotation or Proforma and would have
+   * been sent as that type's number. Dropping it falls back to the tab's own
+   * "Next" forecast, which the doc-sequence query has already refetched.
+   */
+  useEffect(() => {
+    setInvoiceNo("");
+    setInvoiceNoTouched(false);
+    setInvoiceNoEditing(false);
+  }, [posMode]);
 
   useEffect(() => {
     if (zone === "TABLE" && activeRowIdx >= 0) {
@@ -463,10 +916,22 @@ useEffect(() => {
   // (no saleId loaded yet), so this never clobbers values restored from an existing sale.
   useEffect(() => {
     if (!invoiceSettings || saleId) return;
-    setPaymentType(toPosPaymentType(invoiceSettings.default_payment_method));
+    const enabled = getEnabledPaymentTypes(invoiceSettings.payment_types);
+    const defaultType = toPosPaymentType(invoiceSettings.default_payment_method);
+    setPaymentType(enabled.includes(defaultType) ? defaultType : enabled[0]);
     setDueDate(addDaysToDate(invoiceDate, invoiceSettings.invoice_due_days || 0));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoiceSettings, saleId]);
+
+  // A sale restored from a saleId (or one open while the picker was edited in settings) can
+  // hold a payment type that's since been disabled — it has no chip to render and no matching
+  // <MenuItem>, which leaves the hidden Select blank and the keyboard nav with nothing to land
+  // on. Fall back to the first enabled type; a still-enabled selection is left alone.
+  useEffect(() => {
+    if (!enabledPaymentTypes.includes(paymentType)) {
+      setPaymentType(enabledPaymentTypes[0]);
+    }
+  }, [enabledPaymentTypes, paymentType]);
 
   const startEditQty = useCallback((code: string) => {
     setItems(prev => prev.map(i => i.code === code ? { ...i, editingQty: true, editingPrice: false, editingDiscount: false, qtyDraft: String(i.qty) } : { ...i, editingQty: false }));
@@ -483,18 +948,34 @@ useEffect(() => {
     setTimeout(() => { discountRefs.current[code]?.focus(); discountRefs.current[code]?.select(); }, 30);
   }, []);
 
+  // Server caps description at 1000 chars — trim client-side so it can never 400.
+  const updateItemDescription = useCallback((code: string, value: string) => {
+    const trimmed = value.slice(0, 1000);
+    setItems(prev => prev.map(i => i.code === code ? { ...i, itemDescription: trimmed } : i));
+  }, []);
+
   // Shared by manual suggestion clicks, Enter-to-add, and barcode/QR scans —
   // bumps qty if the product's already on the order, otherwise prepends a new line.
   // This is the single source of truth for qty — callers must not re-set it afterwards,
   // or a repeat scan/Enter of the same item stops incrementing.
   const addProductLine = useCallback((p: PosProduct) => {
+    if (invoiceSettings?.stock_check_enabled) {
+      const existingQty = items.find(i => i.code === p.item_id)?.qty ?? 0;
+      if (existingQty + 1 > p.stock_qty) {
+        setToastSeverity('error');
+        setScanMsg(p.stock_qty > 0
+          ? `Only ${p.stock_qty} in stock for "${p.item_name}"`
+          : `"${p.item_name}" is out of stock`);
+        return;
+      }
+    }
     setItems(prev => {
       const idx = prev.findIndex(i => i.code === p.item_id);
       if (idx >= 0) { const e = prev[idx]; return [{ ...e, qty: e.qty + 1, uuid: p.item_uuid }, ...prev.filter((_, i) => i !== idx)]; }
       return [toLineItem(p), ...prev];
     });
     setFlashRow(p.item_id); setTimeout(() => setFlashRow(null), 700);
-  }, []);
+  }, [items, invoiceSettings]);
 
   const doAddItem = useCallback((itemId: string) => {
     const p = suggestions.find(s => s.item_id === itemId);
@@ -539,9 +1020,10 @@ useEffect(() => {
   useEffect(() => {
     if (!saleId) return;
     const loadSale = async () => {
-      const data = await fetchSaleDetail(saleIdFromUrl!);
+      // A uuid names exactly one record, so no sale type rides along.
+      const data = await fetchSaleDetail(saleUuidFromUrl!);
       const sale = data.sale;
-      setPosMode(sale.sale_type?.toLowerCase() === "q" ? "QUOTATION" : "SALE");
+      setPosMode(saleTypeToPosMode(sale.sale_type));
       setSaleId(sale.sale_uuid);
       console.log("new",data)
       setItems(data.items.map((i: any) => {
@@ -549,7 +1031,7 @@ useEffect(() => {
         const gstPct       = Number(i.gst_percentage) || 0;
         const taxInclusive = Boolean(i.tax_inclusive);
         const unitPrice    = taxInclusive && gstPct > 0 ? grossPrice / (1 + gstPct / 100) : grossPrice;
-        return { code: i.item_id, description: i.item_name, qty: Number(i.quantity), unitPrice, sellPrice: grossPrice, gstPct, taxInclusive, uuid: i.item_uuid, hsn: i.hsn_code ?? "", mrp: Number(i.mrp || 0), unit: i.unit || "NOS", discount: Number(i.discount || 0), discountPct: Number(i.discount_percentage || 0) };
+        return { code: i.item_id, description: i.item_name, qty: Number(i.quantity), unitPrice, sellPrice: grossPrice, gstPct, taxInclusive, uuid: i.item_uuid, hsn: i.hsn_code ?? "", mrp: Number(i.mrp || 0), unit: i.unit || "NOS", discount: Number(i.discount || 0), discountPct: Number(i.discount_percentage || 0), itemDescription: i.description ?? "" };
       }));
       if (data.customer) {
         const c = data.customer;
@@ -568,8 +1050,15 @@ useEffect(() => {
         setReferenceNo(last.transaction_id || "");
         setPaymentType((last.transaction_type as any) || "Cash");
       }
+      setVehicleNo(sale.vehicle_no ?? "");
+      setPoNumber(sale.purchase_order_no ?? "");
+      setPoDate(formatDateForInput(sale.purchase_order_date_fmt || sale.purchase_order_date || ""));
+      // A saved document already has its number — show that rather than a
+      // forecast of the next one. It is not an override: renumbering an
+      // existing sale is not something the update endpoint supports.
+      setLoadedSaleNo(sale.sale_id || "");
       setInvoiceDate(formatDateForInput(sale.sale_date_fmt));
-      setDueDate(formatDateForInput((sale as any).due_date_fmt || (sale as any).due_date));
+      setDueDate(formatDateForInput(sale.due_date_fmt || sale.due_date || ""));
     };
     loadSale();
   }, [saleId]);
@@ -596,12 +1085,20 @@ useEffect(() => {
   }, [doAddItem]);
 
   const handleClear = useCallback(() => {
-    setItems([]); setDiscount("0"); setDiscountPct("0"); setReferenceNo("");
+    setItems([]); setDiscount("0"); setDiscountPct("0"); setReferenceNo(""); setVehicleNo("");
+    setPoNumber(""); setPoDate("");
+    setInvoiceNo(""); setInvoiceNoTouched(false); setInvoiceNoEditing(false); setLoadedSaleNo("");
     setReceivedAmount(""); setCodeInput(""); setActiveRowIdx(-1); setOrderNote("");
     const freshInvoiceDate = todayStr();
     setInvoiceDate(freshInvoiceDate);
     setDueDate(invoiceSettings ? addDaysToDate(freshInvoiceDate, invoiceSettings.invoice_due_days || 0) : "");
-    setPaymentType(invoiceSettings ? toPosPaymentType(invoiceSettings.default_payment_method) : "Cash");
+    if (invoiceSettings) {
+      const enabled = getEnabledPaymentTypes(invoiceSettings.payment_types);
+      const defaultType = toPosPaymentType(invoiceSettings.default_payment_method);
+      setPaymentType(enabled.includes(defaultType) ? defaultType : enabled[0]);
+    } else {
+      setPaymentType("Cash");
+    }
     setZone("SEARCH"); setSearchFocus("CODE");
     setCustomer(EMPTY_CUSTOMER); setSelectedApiCustomer(null); setCustomerQuery(""); clearCustomerResults(); setGstMode("after");
     setReceivedDirty(false);
@@ -628,6 +1125,9 @@ console.log("test",serverHolds)
       taxInclusive:Boolean(i.tax_inclusive),
       unit:        i.unit ?? "NOS",
       discount:    Number(i.discount ?? 0),
+      // The Hold API doesn't persist description — re-populate from the
+      // current menu-item catalogue rather than expecting it back from here.
+      itemDescription: allProducts.find(p => p.item_id === i.item_id)?.description ?? "",
     })),
     discount:    String(h.discount_type === "flat"       ? h.discount_value : 0),
     discountPct: String(h.discount_type === "percentage" ? h.discount_value : 0),
@@ -650,7 +1150,10 @@ console.log("test",serverHolds)
     const payload: SaveHoldPayload = {
       zodu_id:        zoduId,
       branch_id:      branchId,
-      order_type:     posMode,
+      // Holding is only offered on the Invoice tab (F9 and the Hold button are
+      // both gated on posMode === "SALE"), so this is never a quotation or
+      // proforma — the hold API only knows the two values anyway.
+      order_type:     "SALE",
       notes:          orderNote || null,
       customer_uuid:  customer.id || null,
       customer_name:  customer.name || null,
@@ -673,6 +1176,9 @@ console.log("test",serverHolds)
         item_uuid:      i.uuid || null,
         item_id:        i.code,
         item_name:      i.description,
+        // Accepted for validation, but the Hold API doesn't persist it —
+        // resuming a hold re-populates each line from the menu-item catalogue.
+        description:    i.itemDescription || null,
         unit:           i.unit || null,
         quantity:       i.qty,
         price:          i.sellPrice,
@@ -753,13 +1259,50 @@ console.log("test",serverHolds)
     if (dueDateInputRef.current) { dueDateInputRef.current.showPicker(); dueDateInputRef.current.focus(); }
   };
 
-  const updateQty  = (code: string, delta: number) =>
+  const handleOpenPoDatePicker = () => {
+    if (poDateInputRef.current) { poDateInputRef.current.showPicker(); poDateInputRef.current.focus(); }
+  };
+
+  const updateQty  = (code: string, delta: number) => {
+    if (delta > 0 && invoiceSettings?.stock_check_enabled) {
+      const item = items.find(i => i.code === code);
+      const stockQty = allProducts.find(p => p.item_id === code)?.stock_qty;
+      if (item && stockQty !== undefined && item.qty + delta > stockQty) {
+        setToastSeverity('error');
+        setScanMsg(stockQty > 0
+          ? `Only ${stockQty} in stock for "${item.description}"`
+          : `"${item.description}" is out of stock`);
+        return;
+      }
+    }
     setItems(prev => prev.map(i => {
       if (i.code !== code) return i;
       const qty = Math.max(1, i.qty + delta);
       const discount = i.discountPct ? parseFloat(((i.discountPct * qty * i.sellPrice) / 100).toFixed(2)) : i.discount;
       return { ...i, qty, discount };
     }));
+  };
+
+  // Commits a typed quantity (qty box blur/Enter/Tab) — shared so both call
+  // sites apply the same stock cap instead of duplicating the clamp logic.
+  const commitQtyDraft = (code: string, rawValue: string) => {
+    let newQty = Math.max(1, parseFloat(rawValue) || 1);
+    if (invoiceSettings?.stock_check_enabled) {
+      const stockQty = allProducts.find(p => p.item_id === code)?.stock_qty;
+      if (stockQty !== undefined && newQty > stockQty) {
+        newQty = Math.max(1, stockQty);
+        setToastSeverity('error');
+        setScanMsg(stockQty > 0
+          ? `Only ${stockQty} in stock — quantity capped at ${newQty}`
+          : `Item is out of stock`);
+      }
+    }
+    setItems(prev => prev.map(i => {
+      if (i.code !== code) return i;
+      const discount = i.discountPct ? parseFloat(((i.discountPct * newQty * i.sellPrice) / 100).toFixed(2)) : i.discount;
+      return { ...i, qty: newQty, discount, editingQty: false, qtyDraft: undefined };
+    }));
+  };
 
   const removeItem = (code: string) => {
     setItems(prev => {
@@ -801,17 +1344,52 @@ console.log("test",serverHolds)
 
   const handleSave = useCallback(async () => {
     if (items.length === 0 || saving) return;
+    if (invoiceSettings?.customer_mandatory && !customer.id) {
+      setSaveResult({ open: true, success: false, message: "Please select a customer before completing this sale." });
+      return;
+    }
+    const stockCheckEnabled = !!invoiceSettings?.stock_check_enabled;
+    // Quotations hide the Vehicle No field, so drop anything typed before the
+    // cashier switched to that tab rather than storing it on the quotation.
+    const savedVehicleNo = posMode === "QUOTATION" ? "" : vehicleNo;
+    // Same reasoning as the vehicle number above: with the PO fields hidden,
+    // nothing typed before the toggle was turned off belongs on the document.
+    const savedPoNumber  = showPurchaseOrder ? poNumber.trim() : "";
+    const savedPoDate    = showPurchaseOrder ? poDate : "";
     const result = saleId
-      ? await updateOrder(saleId, { zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, dueDate: dueDateEnabled ? dueDate : "", discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo })
-      : await saveOrder({ zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, dueDate: dueDateEnabled ? dueDate : "", discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo });
+      ? await updateOrder(saleId, { zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, dueDate: hasBalanceDue ? dueDate : "", discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo: savedVehicleNo, stockCheckEnabled, invoiceNo: invoiceNoOverride, poNumber: savedPoNumber, poDate: savedPoDate })
+      : await saveOrder({ zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, dueDate: hasBalanceDue ? dueDate : "", discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo: savedVehicleNo, stockCheckEnabled, invoiceNo: invoiceNoOverride, poNumber: savedPoNumber, poDate: savedPoDate });
     if (result.success) {
       console.log("save Result",result)
+      // The Dashboard and Sales History are now showing figures that predate
+      // this sale. Invalidate rather than refetch: whichever of those screens
+      // is mounted refetches immediately, the rest refetch when next opened.
+      for (const queryKey of SALE_DEPENDENT_KEYS) {
+        void queryClient.invalidateQueries({ queryKey });
+      }
+      // This sale just consumed a number, so the "Next" preview in the SUMMARY
+      // card is now one behind. Only this tab's counter moved.
+      void queryClient.invalidateQueries({
+        queryKey: docSequenceQueryKeys.detail(zoduId ?? "", branchId ?? "", DOC_TYPE_BY_POS_MODE[posMode]),
+      });
+      publishSaleSaved();
       const order    = result.order as any;
       const totalAmt = parseFloat(order?.total_amount ?? "0");
       const paidAmt  = parseFloat(order?.paid_amount  ?? "0");
       const change   = paidAmt > totalAmt ? paidAmt - totalAmt : 0;
-      const savedSaleId = String(order?.sale_id ?? saleIdFromUrl ?? "").trim() || undefined;
-      setSavedOrderSnapshot({ result: result as SaveOrderResult, customer: { ...customer } });
+      const savedSaleId = String(order?.sale_id ?? loadedSaleNo ?? "").trim() || undefined;
+      setSavedOrderSnapshot({
+        result: result as SaveOrderResult,
+        customer: { ...customer },
+        saleType: SALE_TYPE_BY_POS_MODE[posMode],
+        vehicleNo: savedVehicleNo,
+        // What the document will be numbered, for the print data to fall back
+        // on if the response carries no id of its own.
+        invoiceNo: overridePreview || displayInvoiceNo,
+        poNumber: savedPoNumber,
+        poDate: savedPoDate,
+        descriptions: Object.fromEntries(items.map(i => [i.code, i.itemDescription || ""])),
+      });
       setSaveResult({ open: true, success: true, message: result.message, grandTotal: totalAmt, change, saleId: savedSaleId });
       if (printEnabled) console.log("🖨 Printing invoice");
       handleClear();
@@ -819,44 +1397,16 @@ console.log("test",serverHolds)
       setSavedOrderSnapshot(null);
       setSaveResult({ open: true, success: false, message: result.message });
     }
-  }, [items, customer, invoiceDate, dueDate, dueDateEnabled, discountPct, discount, gstMode, roundoffValue, posMode, receivedAmount, paymentType, referenceNo, printEnabled, saving, saveOrder, updateOrder, handleClear, saleId, saleIdFromUrl]);
+  }, [items, customer, invoiceDate, dueDate, hasBalanceDue, discountPct, discount, gstMode, roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo, invoiceNoOverride, displayInvoiceNo, overridePreview, poNumber, poDate, showPurchaseOrder, printEnabled, saving, saveOrder, updateOrder, handleClear, saleId, loadedSaleNo, invoiceSettings, queryClient]);
 
-  const handleThermalPrint = useCallback(() => {
+  const handleThermalPrint = useCallback(async (copies: string[] = []) => {
     if (!thermalRef.current) return;
-    // Use actual printable widths (roll width minus hardware margins) to prevent right-side clipping
-    const paperMmMap: Record<ThermalPaperSize, number> = { "3": 72, "4": 96, "5": 120 };
-    const mm = paperMmMap[thermalPaperSize];
-    // outerHTML (not innerHTML) — the ref'd div carries the base font-family/color/weight
-    // inline styles; innerHTML would drop them and fall back to the browser's thin default font.
-    const content = thermalRef.current.outerHTML;
-    const printWindow = window.open("", "_blank", "width=500,height=700");
-    if (!printWindow) return;
-    printWindow.document.write(`<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <title>Receipt</title>
-  <style>
-    @page { size: ${mm}mm auto; margin: 0; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      width: ${mm}mm;
-      background: #fff;
-      color: #000;
-      font-family: 'Courier New','Consolas','Lucida Console',monospace;
-      font-weight: 600;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    @media print { html, body { width: ${mm}mm; } }
-  </style>
-</head>
-<body>${content}</body>
-</html>`);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => { printWindow.print(); printWindow.close(); }, 300);
-  }, [thermalRef, thermalPaperSize]);
+    await printThermalCopies(
+      thermalRef.current,
+      copies.length > 0 ? copies : [null],
+      (copy) => flushSync(() => setRenderCopyType(copy)),
+    );
+  }, [thermalRef]);
 
   const FOOTER_ORDER: FooterFocus[] = ["DISCOUNT_PCT", "DISCOUNT_AMT", "PAYMENT_TYPE", "REF_NO", "RECEIVED", "SAVE"];
 
@@ -871,7 +1421,13 @@ console.log("test",serverHolds)
       if (e.key === "F6") { e.preventDefault(); setDiscountModalOpen(true); return; }
       if (e.key === "F7") { e.preventDefault(); setNoteModalOpen(true); return; }
       if (e.key === "F8") { e.preventDefault(); handleSave(); return; }
-      if (e.key === "F9" && posMode === "SALE") { e.preventDefault(); handleHold(); return; }
+      if (e.key === "F9" && posMode === "SALE" && holdEnabled) { e.preventDefault(); handleHold(); return; }
+
+      // The document-number and PO fields are free-form metadata, not part of
+      // the SEARCH → TABLE → FOOTER key walk. Past the F-key shortcuts above,
+      // typing in them belongs to the input: without this, Enter would fire
+      // Add Item and the arrow keys would jump zones mid-edit.
+      if (active?.closest("[data-pos-meta-fields]")) return;
 
       const editingItem = items.find(i => i.editingQty || i.editingPrice || i.editingDiscount);
       if (editingItem) {
@@ -945,15 +1501,18 @@ console.log("test",serverHolds)
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [zone, searchFocus, activeRowIdx, footerFocus, showSuggestions, suggestions, suggestionIdx, customerSuggestionsOpen, customerResults, customerSuggestionIdx, items, posMode, handleAddItem, handleClear, handleHold, handleSave, selectSuggestion, handleSelectCustomer, startEditQty, startEditPrice, startEditDiscount]);
+  }, [zone, searchFocus, activeRowIdx, footerFocus, showSuggestions, suggestions, suggestionIdx, customerSuggestionsOpen, customerResults, customerSuggestionIdx, items, posMode, holdEnabled, handleAddItem, handleClear, handleHold, handleSave, selectSuggestion, handleSelectCustomer, startEditQty, startEditPrice, startEditDiscount]);
 
   const isFooterActive = (f: FooterFocus) => zone === "FOOTER" && footerFocus === f;
   const footerOutline  = (f: FooterFocus) => ({ outline: isFooterActive(f) ? "2.5px solid #C8102E" : "2.5px solid transparent", outlineOffset: 2, transition: "outline 0.12s" });
   const isSearchActive = (sf: SearchFocus) => zone === "SEARCH" && searchFocus === sf;
 
-  const modeAccent  = "#C8102E";
-  const modeBg      = "#FFF1F3";
-  const modeBorder  = "#F3C4CB";
+  // Follow the active sale type rather than staying red: the accent buttons and
+  // their hover states have to come from the same palette, or a proforma ends up
+  // with a red button that turns green under the cursor.
+  const modeAccent  = modeTheme.accent;
+  const modeBg      = modeTheme.tint;
+  const modeBorder  = modeTheme.totalBorder;
 
   const hasDiscount   = parseFloat(discountPct) > 0 || parseFloat(discount) > 0;
   const hasNote       = orderNote.trim().length > 0;
@@ -972,6 +1531,13 @@ console.log("test",serverHolds)
     return s + round2(i.qty * i.unitPrice + itemGst - (i.discount ?? 0));
   }, 0);
   const empty       = items.length === 0;
+
+  // A cart in progress is unsaved work: the deploy watcher must not reload the
+  // tab out from under a half-built bill, so it waits for the user instead.
+  useEffect(() => {
+    setUnsavedWork("pos-cart", items.length > 0);
+    return () => setUnsavedWork("pos-cart", false);
+  }, [items.length]);
 
   const savedHsnBreakdown = useMemo(() => {
     const saleItems = (savedOrderSnapshot?.result.items as any[]) ?? [];
@@ -1020,12 +1586,14 @@ console.log("test",serverHolds)
     const saleItems = (savedOrderSnapshot?.result.items as any[]) ?? [];
     const payment = savedOrderSnapshot?.result.payment as any;
     const saleCustomer = savedOrderSnapshot?.customer;
+    const itemDescriptions = savedOrderSnapshot?.descriptions ?? {};
     if (!order) return null;
 
     const customerName = saleCustomer?.name?.trim() || "Walk-In";
     const customerAddress = saleCustomer?.address?.trim() || "-";
     const customerMobile = saleCustomer?.mobile?.trim() ? `+91 ${saleCustomer.mobile}` : "-";
     const customerGstin = saleCustomer?.gstin?.trim() || "-";
+    const customerShippingAddress = saleCustomer?.shippingAddress?.trim() || "";
     const hasDiscount = Number(order.discount_amount ?? 0) > 0;
     const discountLabel = order.discount_type === "percentage"
       ? `Discount (${Number(order.discount_value ?? 0)}%)`
@@ -1037,19 +1605,35 @@ console.log("test",serverHolds)
 
 
     return {
-      sale_id: order.sale_id,
+      // The server's number wins — it is the one the sale is filed under. A
+      // cashier-typed number only stands in if the response carries none.
+      // Dressed the same way the SUMMARY card dresses it: withAffixes only
+      // adds what the id does not already carry, so a prefix the server
+      // applied itself is left alone and only the suffix it does not yet
+      // apply gets appended.
+      sale_id: withAffixes(order.sale_id ?? order.invoice_no ?? savedOrderSnapshot?.invoiceNo ?? ""),
+      // Drives the "QUOTATION" vs "INVOICE" heading in the print templates.
+      sale_type: order.sale_type ?? savedOrderSnapshot?.saleType,
+      // Printed on the transport copy; blank rule when it was left empty.
+      vehicle_no: order.vehicle_no ?? savedOrderSnapshot?.vehicleNo,
+      po_number: order.purchase_order_no ?? savedOrderSnapshot?.poNumber,
+      // The API may echo a full ISO timestamp; normalize before formatting so
+      // the day part doesn't come back with the time still attached.
+      po_date: formatDateDisplay(formatDateForInput(order.purchase_order_date ?? savedOrderSnapshot?.poDate)),
       date: order.sale_date,
       due_date: order.due_date ?? null,
       customer_name: customerName,
       customer_address: customerAddress,
       customer_mobile: customerMobile,
       customer_gstin: customerGstin,
+      customer_shipping_address: customerShippingAddress,
       payment_mode: payment?.transaction_type ?? paymentType,
       payment_status: order.payment_status,
       items: saleItems.map((item) => ({
         item_id: item.item_id,
         name: item.item_name,
         category: item.variant_name ?? "",
+        description: itemDescriptions[item.item_id] || "",
         hsn: item.hsn_code ?? "-",
         qty: Number(item.quantity ?? 0),
         mrp: Number(item.mrp ?? 0),
@@ -1066,67 +1650,161 @@ console.log("test",serverHolds)
       sgst_pct: savedHsnBreakdown[0]?.sgstRate ?? 0,
       round_off: order.round_off,
       total: totalAmount,
-      amount_in_words: `${toWords(Math.round(totalAmount))} Rupees Only`,
+      amount_in_words: `${numberToWords(Math.round(totalAmount))} Rupees Only`,
       gst_breakdown: savedHsnBreakdown,
       company: undefined,
     };
-  }, [savedHsnBreakdown, savedOrderSnapshot, paymentType]);
+  }, [savedHsnBreakdown, savedOrderSnapshot, paymentType, withAffixes]);
 
-  const generateInvoicePdf = useCallback(async (): Promise<jsPDF | null> => {
-    if (!pdfRef.current) return null;
+  /**
+   * The bill as it stands in the cart, in the shape the print templates read.
+   * Nothing here is saved yet, so the figures come from the same memos that
+   * feed the SUMMARY card — what the preview shows is what the screen shows.
+   */
+  const previewPdfData = useMemo(() => {
+    if (items.length === 0) return null;
 
-    const canvas = await html2canvas(pdfRef.current, {
-      scale: 1.6,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      logging: false,
-    });
+    // Per-item GST, computed exactly as the `gstAmount` memo does, so the
+    // slabs below add up to the tax total shown on screen.
+    const itemGst = (i: LineItem) => {
+      const base = i.qty * i.unitPrice;
+      if (gstMode === "before" && subtotal > 0) {
+        const share = orderDiscountAmt * (base / subtotal);
+        return round2(Math.max(0, base - share) * i.gstPct / 100);
+      }
+      return round2(base * i.gstPct / 100);
+    };
 
-    const imgData = canvas.toDataURL("image/jpeg", 0.72);
-    const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4", compress: true });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const imageWidth = pageWidth;
-    const imageHeight = (canvas.height * imageWidth) / canvas.width;
-
-    let heightLeft = imageHeight;
-    let position = 0;
-
-    pdf.addImage(imgData, "JPEG", 0, position, imageWidth, imageHeight, undefined, "MEDIUM");
-    heightLeft -= pageHeight;
-
-    while (heightLeft > 0) {
-      position = heightLeft - imageHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, "JPEG", 0, position, imageWidth, imageHeight, undefined, "MEDIUM");
-      heightLeft -= pageHeight;
+    const hsnMap: Record<string, {
+      hsn: string; taxable: number;
+      cgstRate: number; cgstAmount: number;
+      sgstRate: number; sgstAmount: number;
+      totalTaxAmount: number;
+    }> = {};
+    for (const i of items) {
+      const hsn = i.hsn?.trim() || "-";
+      const key = `${hsn}|${i.gstPct}`;
+      const gst = itemGst(i);
+      if (!hsnMap[key]) {
+        hsnMap[key] = {
+          hsn, taxable: 0,
+          cgstRate: i.gstPct / 2, cgstAmount: 0,
+          sgstRate: i.gstPct / 2, sgstAmount: 0,
+          totalTaxAmount: 0,
+        };
+      }
+      hsnMap[key].taxable += round2(i.qty * i.unitPrice) - (i.discount ?? 0);
+      hsnMap[key].cgstAmount += gst / 2;
+      hsnMap[key].sgstAmount += gst / 2;
+      hsnMap[key].totalTaxAmount += gst;
     }
+    const gstBreakdown = Object.values(hsnMap);
 
-    return pdf;
+    return {
+      // The dressed id, not the bare digits the override field holds — the
+      // print templates show this where the document number goes.
+      sale_id: overridePreview || displayInvoiceNo || "PREVIEW",
+      sale_type: SALE_TYPE_BY_POS_MODE[posMode],
+      vehicle_no: posMode === "QUOTATION" ? "" : vehicleNo,
+      po_number: showPurchaseOrder ? poNumber : "",
+      po_date: showPurchaseOrder && poDate ? formatDateDisplay(poDate) : "",
+      date: invoiceDate ? formatDateDisplay(invoiceDate) : "",
+      due_date: hasBalanceDue && dueDate ? formatDateDisplay(dueDate) : null,
+      customer_name: customer.name.trim() || "Walk-In",
+      customer_address: customer.address.trim() || "-",
+      customer_mobile: customer.mobile.trim() ? `+91 ${customer.mobile.trim()}` : "-",
+      customer_gstin: customer.gstin.trim() || "-",
+      customer_shipping_address: customer.shippingAddress.trim(),
+      payment_mode: paymentType,
+      payment_status: null,
+      items: items.map(i => ({
+        item_id: i.code,
+        name: i.description,
+        category: i.category ?? "",
+        description: i.itemDescription || "",
+        hsn: i.hsn?.trim() || "-",
+        qty: i.qty,
+        mrp: i.mrp,
+        rate: i.unitPrice,
+        tax: i.gstPct,
+        total: round2(i.qty * i.unitPrice + itemGst(i) - (i.discount ?? 0)),
+      })),
+      subtotal,
+      discount: orderDiscountAmt > 0 ? orderDiscountAmt : null,
+      discount_label: discountPctVal > 0 ? `Discount (${discountPctVal}%)` : "Discount",
+      cgst: gstBreakdown.reduce((sum, row) => sum + row.cgstAmount, 0),
+      sgst: gstBreakdown.reduce((sum, row) => sum + row.sgstAmount, 0),
+      cgst_pct: gstBreakdown[0]?.cgstRate ?? 0,
+      sgst_pct: gstBreakdown[0]?.sgstRate ?? 0,
+      round_off: roundoffValue,
+      total: grandTotal,
+      amount_in_words: `${numberToWords(grandTotal)} Rupees Only`,
+      gst_breakdown: gstBreakdown,
+      company: undefined,
+    };
+  }, [items, subtotal, gstMode, orderDiscountAmt, discountPctVal, roundoffValue, grandTotal,
+      customer, invoiceDate, dueDate, hasBalanceDue, paymentType, posMode, vehicleNo,
+      displayInvoiceNo, overridePreview, poNumber, poDate, showPurchaseOrder]);
+
+  /**
+   * One PDF holding each requested copy in turn. An empty list means "no copy
+   * marking" — the behavior from before copy types existed.
+   */
+  const generatePdfForCopies = useCallback(async (copies: string[]): Promise<jsPDF | null> => {
+    if (!pdfRef.current) return null;
+    const list: Array<string | null> = copies.length > 0 ? copies : [null];
+    let doc: jsPDF | null = null;
+    try {
+      for (const copy of list) {
+        // flushSync, not a plain setState: the marking has to be in the DOM
+        // before the capture below reads it.
+        flushSync(() => setRenderCopyType(copy));
+        doc = await renderPaginatedInvoicePdf(pdfRef.current, doc);
+        if (!doc) return null;
+      }
+    } finally {
+      flushSync(() => setRenderCopyType(null));
+    }
+    return doc;
   }, []);
 
-  const handleDownloadInvoice = useCallback(async () => {
+  // What the just-saved document offers in its Download/Print/Share menus — a
+  // quotation prints unmarked, an invoice or proforma gets the configured
+  // copies. `invoiceCopyTypes` above still drives the Vehicle No field, which
+  // follows the setting rather than the document.
+  const savedCopyTypes = invoiceCopyTypesForSale(invoiceSettings?.invoice_copy_types, savedPdfData?.sale_type);
+
+  const handleDownloadInvoice = useCallback(async (copies: string[] = []) => {
     if (!savedPdfData) return;
     setDownloadLoading(true);
     try {
-      const pdf = await generateInvoicePdf();
+      const pdf = await generatePdfForCopies(copies);
       if (!pdf) return;
-      const fileName = `Invoice_${savedPdfData.sale_id ?? saveResult?.saleId ?? "invoice"}.pdf`;
+      // Named after the document, like its heading: "Quotation_QT-001.pdf".
+      const label = saleDocumentLabel(savedPdfData.sale_type);
+      const base = `${label}_${savedPdfData.sale_id ?? saveResult?.saleId ?? label.toLowerCase()}`;
+      const fileName = copies.length === 0 ? `${base}.pdf`
+        : copies.length === 1 ? `${base}_${copies[0]}.pdf`
+        : `${base}_All_Copies.pdf`;
       pdf.save(fileName);
     } finally {
       setDownloadLoading(false);
     }
-  }, [generateInvoicePdf, saveResult?.saleId, savedPdfData]);
+  }, [generatePdfForCopies, saveResult?.saleId, savedPdfData]);
 
-  const handleShareInvoice = useCallback(async () => {
+  const handleShareInvoice = useCallback(async (copies: string[] = []) => {
     if (!savedPdfData) return;
 
     setShareLoading(true);
     try {
-      const pdf = await generateInvoicePdf();
+      const pdf = await generatePdfForCopies(copies);
       if (!pdf) return;
 
-      const fileName = `Invoice_${savedPdfData.sale_id ?? saveResult?.saleId ?? "invoice"}.pdf`;
+      const label = saleDocumentLabel(savedPdfData.sale_type);
+      const base = `${label}_${savedPdfData.sale_id ?? saveResult?.saleId ?? label.toLowerCase()}`;
+      const fileName = copies.length === 0 ? `${base}.pdf`
+        : copies.length === 1 ? `${base}_${copies[0]}.pdf`
+        : `${base}_All_Copies.pdf`;
       const blob = pdf.output("blob");
       const file = new File([blob], fileName, { type: "application/pdf" });
 
@@ -1134,8 +1812,8 @@ console.log("test",serverHolds)
         try {
           await navigator.share({
             files: [file],
-            title: `Invoice ${savedPdfData.sale_id ?? ""}`.trim(),
-            text: `Invoice from ${savedPdfData.sale_id ?? "POS"}`,
+            title: `${label} ${savedPdfData.sale_id ?? ""}`.trim(),
+            text: `${label} from ${savedPdfData.sale_id ?? "POS"}`,
           });
           return;
         } catch (error: any) {
@@ -1153,21 +1831,21 @@ console.log("test",serverHolds)
     } finally {
       setShareLoading(false);
     }
-  }, [generateInvoicePdf, saveResult?.saleId, savedPdfData]);
+  }, [generatePdfForCopies, saveResult?.saleId, savedPdfData]);
 
   // "Invoice Type" in Invoice Settings decides how the Print button behaves:
   // A4 triggers the browser's print dialog on the generated PDF without ever
   // navigating away; any thermal width (3"/5", "4" handled defensively) prints
   // the thermal receipt.
-  const handlePrintInvoice = useCallback(async () => {
+  const handlePrintInvoice = useCallback(async (copies: string[] = []) => {
     if (invoiceSettings?.printer_inch !== "A4") {
-      handleThermalPrint();
+      handleThermalPrint(copies);
       return;
     }
     if (!savedPdfData) return;
     setPrintLoading(true);
     try {
-      const pdf = await generateInvoicePdf();
+      const pdf = await generatePdfForCopies(copies);
       if (!pdf) return;
       const blob = pdf.output("blob");
       const url = URL.createObjectURL(blob);
@@ -1199,7 +1877,7 @@ console.log("test",serverHolds)
     } finally {
       setPrintLoading(false);
     }
-  }, [invoiceSettings?.printer_inch, savedPdfData, generateInvoicePdf, handleThermalPrint]);
+  }, [invoiceSettings?.printer_inch, savedPdfData, generatePdfForCopies, handleThermalPrint]);
 
   // ── Shared qty/rate/discount editing controls ──────────────────
   // Used by both the desktop table row and the mobile/tablet card list so the
@@ -1211,10 +1889,12 @@ console.log("test",serverHolds)
       {item.editingQty ? (
         <TextField inputRef={el => { qtyRefs.current[item.code] = el; }} value={item.qtyDraft ?? ""}
           onChange={e => setItems(prev => prev.map(i => i.code === item.code ? { ...i, qtyDraft: e.target.value.replace(/[^0-9.]/g, "") } : i))}
-          onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = qtyRefs.current[item.code]; const newQty = Math.max(1, parseFloat(el?.value ?? "") || 1); setItems(prev => prev.map(i => { if (i.code !== item.code) return i; const discount = i.discountPct ? parseFloat(((i.discountPct * newQty * i.sellPrice) / 100).toFixed(2)) : i.discount; return { ...i, qty: newQty, discount, editingQty: false, qtyDraft: undefined }; })); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
-          onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); const newQty = Math.max(1, parseFloat((e.target as HTMLInputElement).value) || 1); editCancelledRef.current = true; setItems(prev => prev.map(i => { if (i.code !== item.code) return i; const discount = i.discountPct ? parseFloat(((i.discountPct * newQty * i.sellPrice) / 100).toFixed(2)) : i.discount; return { ...i, qty: newQty, discount, editingQty: false, qtyDraft: undefined }; })); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingQty: false, qtyDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
-          size="small" inputProps={{ step: "any", style: { textAlign: "center", fontWeight: 800, fontSize: 14, padding: "2px 2px", width: 48 } }}
-          sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#1976D2", borderWidth: 2 } }, width: 64 }} />
+          onBlur={() => { if (editCancelledRef.current) { editCancelledRef.current = false; return; } const el = qtyRefs.current[item.code]; commitQtyDraft(item.code, el?.value ?? ""); setZone("TABLE"); setActiveRowIdx(rowIdx); }}
+          onKeyDown={e => { if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; commitQtyDraft(item.code, (e.target as HTMLInputElement).value); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editCancelledRef.current = true; setItems(prev => prev.map(i => i.code === item.code ? { ...i, editingQty: false, qtyDraft: undefined } : i)); (e.target as HTMLElement).blur(); setZone("TABLE"); setActiveRowIdx(rowIdx); } }}
+          // Sized to what is being typed (min 2, max 8 digits' worth), so a
+          // 6-digit quantity shows whole instead of clipping in a fixed box.
+          size="small" inputProps={{ step: "any", style: { textAlign: "center", fontWeight: 800, fontSize: 14, padding: "2px 4px", width: `${Math.min(Math.max((item.qtyDraft ?? "").length, 2), 8) + 0.5}ch`, fontVariantNumeric: "tabular-nums" } }}
+          sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, "& fieldset": { borderColor: "#1976D2", borderWidth: 2 } } }} />
       ) : (
         <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditQty(item.code); }}
           sx={{ minWidth: 30, textAlign: "center", fontWeight: 800, fontSize: 14, px: 0.4, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #1976D2" : "1.5px dashed transparent", bgcolor: isActive ? "#E3F2FD" : "transparent", "&:hover": { border: "1.5px dashed #1976D2", bgcolor: "#E3F2FD" }, transition: "all 0.15s" }}>{item.qty}</Box>
@@ -1236,8 +1916,8 @@ console.log("test",serverHolds)
       </Box>
     ) : (
       <Box onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); if (isActive) startEditPrice(item.code); }}
-        sx={{ display: "inline-flex", alignItems: "center", gap: 0.3, px: 0.6, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #1976D2" : "1.5px dashed transparent", bgcolor: isActive ? "#E3F2FD" : "transparent", "&:hover": { border: "1.5px dashed #1976D2", bgcolor: "#E3F2FD", "& .pedit": { opacity: 1 } }, transition: "all 0.15s" }}>
-        <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", wordBreak: "break-word" }}>{INR(item.sellPrice)}</Typography>
+        sx={{ display: "inline-flex", alignItems: "center", gap: 0.3, maxWidth: "100%", px: 0.6, py: 0.2, borderRadius: 1, cursor: isActive ? "text" : "pointer", border: isActive ? "1.5px dashed #1976D2" : "1.5px dashed transparent", bgcolor: isActive ? "#E3F2FD" : "transparent", "&:hover": { border: "1.5px dashed #1976D2", bgcolor: "#E3F2FD", "& .pedit": { opacity: 1 } }, transition: "all 0.15s" }}>
+        <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", minWidth: 0 }}><Amount value={INR(item.sellPrice)} /></Typography>
         <EditIcon className="pedit" sx={{ fontSize: 10, color: "#1976D2", opacity: isActive ? 0.6 : 0, transition: "opacity 0.15s", flexShrink: 0 }} />
       </Box>
     )
@@ -1323,19 +2003,28 @@ console.log("test",serverHolds)
                 font on `xs` and drop the "[F9]"-style keyboard hints (meaningless on
                 touch anyway) so all four controls keep fitting phone widths. */}
             <Box sx={{ bgcolor: "#fff", border: "1px solid #E5E7EB", borderRadius: 2, px: { xs: 1, md: 2 }, py: 0.75, display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: { xs: 42, md: 50 }, flexShrink: 0, flexWrap: "nowrap", gap: { xs: 0.5, md: 1 } }}>
+              {/* One tab per sale type enabled in Settings → POS Settings, the
+                  default one first — a branch that turned a type off gets no tab
+                  for it, and a branch left with one type gets no switcher. */}
               <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.3, md: 0.5 }, bgcolor: "#F3F4F6", borderRadius: 2, p: 0.5, flexShrink: 0 }}>
-                <Box onClick={() => setPosMode("SALE")} sx={{ display: "flex", alignItems: "center", gap: { xs: 0.4, md: 0.7 }, px: { xs: 1, md: 1.75 }, py: { xs: 0.4, md: 0.6 }, borderRadius: 1.5, cursor: "pointer", bgcolor: !isQuotation ? "#C8102E" : "transparent", color: !isQuotation ? "#fff" : "#6B7280", transition: "all 0.18s", "&:hover": { bgcolor: !isQuotation ? "#C8102E" : "#E5E7EB" } }}>
-                  <ReceiptLongIcon sx={{ fontSize: { xs: 13, md: 15 } }} />
-                  <Typography sx={{ fontSize: { xs: 10.5, md: 12 }, fontWeight: 700, letterSpacing: "0.04em" }}>Sale</Typography>
-                </Box>
-                <Box onClick={() => setPosMode("QUOTATION")} sx={{ display: "flex", alignItems: "center", gap: { xs: 0.4, md: 0.7 }, px: { xs: 1, md: 1.75 }, py: { xs: 0.4, md: 0.6 }, borderRadius: 1.5, cursor: "pointer", bgcolor: isQuotation ? "#1D4ED8" : "transparent", color: isQuotation ? "#fff" : "#6B7280", transition: "all 0.18s", "&:hover": { bgcolor: isQuotation ? "#1D4ED8" : "#E5E7EB" } }}>
-                  <RequestQuoteIcon sx={{ fontSize: { xs: 13, md: 15 } }} />
-                  <Typography sx={{ fontSize: { xs: 10.5, md: 12 }, fontWeight: 700, letterSpacing: "0.04em" }}>Quotation</Typography>
-                </Box>
+                {orderedPosTypes.map((type) => {
+                  const mode = POS_MODE_BY_TYPE[type];
+                  const active = posMode === mode;
+                  const accent = POS_MODE_THEME[mode].accent;
+                  return (
+                    <Box key={type} onClick={() => { posModeTouchedRef.current = true; setPosMode(mode); }} sx={{ display: "flex", alignItems: "center", gap: { xs: 0.4, md: 0.7 }, px: { xs: 1, md: 1.75 }, py: { xs: 0.4, md: 0.6 }, borderRadius: 1.5, cursor: "pointer", bgcolor: active ? accent : "transparent", color: active ? "#fff" : "#6B7280", transition: "all 0.18s", "&:hover": { bgcolor: active ? accent : "#E5E7EB" } }}>
+                      {mode === "SALE"
+                        ? <ReceiptLongIcon sx={{ fontSize: { xs: 13, md: 15 } }} />
+                        : <RequestQuoteIcon sx={{ fontSize: { xs: 13, md: 15 } }} />}
+                      <Typography sx={{ fontSize: { xs: 10.5, md: 12 }, fontWeight: 700, letterSpacing: "0.04em" }}>{type}</Typography>
+                    </Box>
+                  );
+                })}
               </Box>
 
-              {!isQuotation && (
-                <Box sx={{ display: "flex", gap: { xs: 0.5, md: 0.75 }, flexShrink: 0 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, md: 0.75 }, flexShrink: 0 }}>
+                {!isNonSaleDoc && holdEnabled && (
+                  <>
                   <Button size="small" disabled={holdSaving || items.length === 0}
                     startIcon={holdSaving ? <CircularProgress size={10} /> : <PauseCircleOutlineIcon sx={{ fontSize: { xs: 13, md: 16 } }} />}
                     onClick={handleHold}
@@ -1348,12 +2037,13 @@ console.log("test",serverHolds)
                       RECALL
                     </Button>
                   </Badge>
-                </Box>
-              )}
+                  </>
+                )}
+              </Box>
             </Box>
 
             {/* Search row */}
-            <Paper elevation={0} sx={{ borderRadius: 2, p: { xs: 1.1, md: 1.75 }, bgcolor: "#fff", position: "relative", zIndex: 100, transition: "border-color 0.2s", flexShrink: 0, border: zone === "SEARCH" ? `2px solid ${modeAccent}` : "2px solid #E5E7EB", boxShadow: zone === "SEARCH" ? `0 0 0 3px ${isQuotation ? "rgba(29,78,216,0.08)" : "rgba(200,16,46,0.08)"}` : "none" }}>
+            <Paper elevation={0} sx={{ borderRadius: 2, p: { xs: 1.1, md: 1.75 }, bgcolor: "#fff", position: "relative", zIndex: 100, transition: "border-color 0.2s", flexShrink: 0, border: zone === "SEARCH" ? `2px solid ${modeAccent}` : "2px solid #E5E7EB", boxShadow: zone === "SEARCH" ? `0 0 0 3px ${modeTheme.focusRing}` : "none" }}>
               <Box sx={{ display: "flex", gap: { xs: 0.75, md: 1.5 }, alignItems: "flex-end", flexWrap: { xs: "wrap", md: "nowrap" } }}>
                 <Box sx={{ flex: 1, minWidth: { xs: "100%", md: 0 }, position: "relative" }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.3 }}>
@@ -1397,7 +2087,7 @@ console.log("test",serverHolds)
                               sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 1.5, py: 0.75, cursor: "pointer", gap: 1.5, bgcolor: idx === suggestionIdx ? "#EFF6FF" : "#fff", borderBottom: "1px solid #F3F4F6", borderLeft: idx === suggestionIdx ? "3px solid #3B82F6" : "3px solid transparent", "&:hover": { bgcolor: "#F9FAFB", borderLeft: "3px solid #6B7280" }, transition: "all 0.08s" }}>
                               <Box sx={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 1 }}>
                                 <Box sx={{ flexShrink: 0, bgcolor: "#F3F4F6", border: "1px solid #E5E7EB", borderRadius: 1, px: 0.7, py: 0.15 }}>
-                                  <Typography sx={{ fontSize: 10, fontWeight: 700, fontFamily: "monospace", color: "#374151", whiteSpace: "nowrap" }}>{p.item_id}</Typography>
+                                  <Typography sx={{ fontSize: 10, fontWeight: 700, color: "#374151", whiteSpace: "nowrap" }}>{p.item_id}</Typography>
                                 </Box>
                                 <Typography sx={{ fontSize: 13, fontWeight: 500, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                   <Highlight text={p.item_name} query={codeInput} />
@@ -1413,13 +2103,13 @@ console.log("test",serverHolds)
                       )}
                       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 1.5, py: 0.85, bgcolor: "#FCFCFD", borderTop: "1px solid #EEF2F7" }}>
                         <Typography sx={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700 }}>Type to search by item id, name or category</Typography>
-                        <Button size="small" variant="contained" onMouseDown={(e) => { e.preventDefault(); setShowSuggestions(false); setAddItemOpen(true); }} sx={{ bgcolor: modeAccent, fontSize: 9, fontWeight: 800, borderRadius: 1.5, px: 1.1, py: 0.45, "&:hover": { bgcolor: isQuotation ? "#1E40AF" : "#A50D26" } }}>+ Add Menu Item</Button>
+                        <Button size="small" variant="contained" onMouseDown={(e) => { e.preventDefault(); setShowSuggestions(false); setAddItemOpen(true); }} sx={{ bgcolor: modeAccent, fontSize: 9, fontWeight: 800, borderRadius: 1.5, px: 1.1, py: 0.45, "&:hover": { bgcolor: modeTheme.accentHover } }}>+ Add Menu Item</Button>
                       </Box>
                     </Paper>
                   )}
                 </Box>
                 <Button variant="contained" startIcon={<AddShoppingCartIcon />} onClick={() => handleAddItem()}
-                  sx={{ flex: { xs: 1, md: "initial" }, bgcolor: modeAccent, color: "#fff", px: { xs: 1.5, md: 2.5 }, py: 0.9, fontSize: { xs: 12, md: 13 }, fontWeight: 700, borderRadius: 1.5, minHeight: 38, whiteSpace: "nowrap", boxShadow: `0 4px 14px ${isQuotation ? "rgba(29,78,216,0.35)" : "rgba(200,16,46,0.35)"}`, "&:hover": { bgcolor: isQuotation ? "#1E40AF" : "#A50D26" }, "&:active": { transform: "scale(0.97)" } }}>
+                  sx={{ flex: { xs: 1, md: "initial" }, bgcolor: modeAccent, color: "#fff", px: { xs: 1.5, md: 2.5 }, py: 0.9, fontSize: { xs: 12, md: 13 }, fontWeight: 700, borderRadius: 1.5, minHeight: 38, whiteSpace: "nowrap", boxShadow: `0 4px 14px ${modeTheme.shadow}`, "&:hover": { bgcolor: modeTheme.accentHover }, "&:active": { transform: "scale(0.97)" } }}>
                   ADD ITEM <Box component="span" sx={{ display: { xs: "none", md: "inline" }, fontSize: 10, opacity: 0.8, ml: 0.4 }}>[Enter]</Box>
                 </Button>
                 {items.length > 0 && (
@@ -1482,6 +2172,22 @@ console.log("test",serverHolds)
                                   )}
                                 </Box>
                                 <Typography sx={{ fontSize: 14, fontWeight: isActive ? 800 : 700, color: "#1A1A2E", lineHeight: 1.3 }}>{item.description}</Typography>
+                                <TextField
+                                  value={item.itemDescription ?? ""}
+                                  onChange={e => updateItemDescription(item.code, e.target.value)}
+                                  onKeyDown={e => e.stopPropagation()}
+                                  placeholder="Add description..."
+                                  size="small"
+                                  variant="outlined"
+                                  fullWidth
+                                  multiline
+                                  maxRows={2}
+                                  sx={{
+                                    mt: 0.5,
+                                    "& .MuiOutlinedInput-root": { fontSize: 12, bgcolor: "#FAFAFA", minHeight: 38, padding: "3px 6px", alignItems: "flex-start", "& fieldset": { borderColor: "#E5E7EB" } },
+                                    "& .MuiOutlinedInput-input": { padding: 0 },
+                                  }}
+                                />
                               </Box>
                               <IconButton size="small" onClick={e => { e.stopPropagation(); removeItem(item.code); }} sx={{ flexShrink: 0, color: "#D1D5DB", p: 0.4, "&:hover": { color: "#C8102E", bgcolor: "#FEE2E2" } }}><DeleteOutlineIcon sx={{ fontSize: 16 }} /></IconButton>
                             </Box>
@@ -1505,10 +2211,10 @@ console.log("test",serverHolds)
                                 short value (e.g. "—" for no discount) no longer leaves a whole
                                 half-width cell looking empty. */}
                             <Box sx={{ display: "flex", flexWrap: "wrap", rowGap: 0.6, columnGap: 2 }}>
-                              <Box>
+                              {/* <Box>
                                 <Typography sx={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase" }}>MRP</Typography>
                                 <Typography sx={{ fontSize: 12.5, color: "#9CA3AF" }}>₹{item.mrp.toLocaleString("en-IN")}</Typography>
-                              </Box>
+                              </Box> */}
                               <Box>
                                 <Typography sx={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase" }}>Unit Price</Typography>
                                 <Typography sx={{ fontSize: 12.5, color: "#374151", fontWeight: 600 }}>{INR(item.unitPrice)}</Typography>
@@ -1547,34 +2253,40 @@ console.log("test",serverHolds)
                 )}
               </Box>
             ) : (
-              <>
-                <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden", scrollbarWidth: "thin", scrollbarColor: "#ea9999 #F3F4F6", "&::-webkit-scrollbar": { width: "8px" }, "&::-webkit-scrollbar-track": { backgroundColor: "#F3F4F6", borderRadius: "4px" }, "&::-webkit-scrollbar-thumb": { backgroundColor: "#ea9999", borderRadius: "4px", "&:hover": { backgroundColor: "#A50D26" } } }}>
+              /* One horizontal scroller around the body and the totals row, so
+                 below CART_TABLE_MIN_WIDTH they slide sideways together and stay
+                 column-aligned; above it neither scrolls and the columns just
+                 widen. The body scrolls vertically inside it. */
+              <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflowX: "auto", overflowY: "hidden", ...cartScrollbarSx, scrollbarGutter: "auto" }}>
+                <Box sx={{ flex: 1, minHeight: 0, minWidth: CART_TABLE_MIN_WIDTH, overflowY: "auto", overflowX: "hidden", ...cartScrollbarSx }}>
                   <Table size="small" stickyHeader sx={{ borderCollapse: "separate", tableLayout: "fixed", width: "100%" }}>
-                    <colgroup>
-                      <col style={{ width: "0.8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "16%" }} />
-                      <col style={{ width: "12%" }} /><col style={{ width: "6%" }} />
-                      <col style={{ width: "10%" }} /><col style={{ width: "10%" }} /><col style={{ width: "8%" }} />
-                      <col style={{ width: "8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "3%" }} />
-                    </colgroup>
+                    <CartColGroup />
                     <TableHead>
                       <TableRow sx={{ "& .MuiTableCell-root": { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", px: 1 } }}>
-                        <TableCell sx={{ width: "0.8%", p: 0 }} />
-                        <TableCell sx={{ width: "10%", fontSize: 12 }}>ITEM ID</TableCell>
-                        <TableCell sx={{ width: "16%", fontSize: 12 }}>DESCRIPTION</TableCell>
-                        <TableCell align="right" sx={{ width: "12%", fontSize: 12 }}>TAX AMT (GST %)</TableCell>
-                        <TableCell align="right" sx={{ width: "6%", fontSize: 12 }}>MRP (₹)</TableCell>
-                        <TableCell align="center" sx={{ width: "10%", fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.4 }}>QTY <Kbd>Q</Kbd></Box></TableCell>
-                        <TableCell align="right" sx={{ width: "10%", fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>RATE <Kbd>P</Kbd></Box></TableCell>
-                        <TableCell align="right" sx={{ width: "8%", fontSize: 12 }}>UNIT PRICE</TableCell>
-                        <TableCell align="right" sx={{ width: "8%", fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>DISC % <Kbd>D</Kbd></Box></TableCell>
-                        <TableCell align="right" sx={{ width: "10%", fontSize: 12 }}>TOTAL</TableCell>
-                        <TableCell sx={{ width: "3%" }} />
+                        <TableCell sx={{ p: 0 }} />
+                        <TableCell sx={{ fontSize: 12 }}>ITEM ID</TableCell>
+                        <TableCell sx={{ fontSize: 12 }}>DESCRIPTION</TableCell>
+                        {/* "TAX AMT (GST %)" never fit this column and printed as an
+                            ellipsis — the per-row chip carries the rate anyway. */}
+                        <TableCell align="right" sx={{ fontSize: 12 }}>TAX (GST%)</TableCell>
+                        {/* <TableCell align="right" sx={{ fontSize: 12 }}>MRP (₹)</TableCell> */}
+                        <TableCell align="center" sx={{ fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.4 }}>QTY <Kbd>Q</Kbd></Box></TableCell>
+                        <TableCell align="right" sx={{ fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>RATE <Kbd>P</Kbd></Box></TableCell>
+                        <TableCell align="right" sx={{ fontSize: 12 }}>UNIT PRICE</TableCell>
+                        <TableCell align="right" sx={{ fontSize: 12 }}><Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>DISC % <Kbd>D</Kbd></Box></TableCell>
+                        <TableCell align="right" sx={{ fontSize: 12 }}>TOTAL</TableCell>
+                        <TableCell />
                       </TableRow>
                     </TableHead>
                     <TableBody ref={tableBodyRef}>
                       {items.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={11} align="center" sx={{ py: 6 }}>
+                          {/* Span exactly the columns the colgroup declares. A
+                              hard-coded count went stale when MRP was dropped:
+                              the spare 11th column had no <col> width, so under
+                              the fixed layout it took half the free space from
+                              DESCRIPTION and left a blank strip at the right. */}
+                          <TableCell colSpan={CART_COL_WIDTHS.length} align="center" sx={{ py: 6 }}>
                             <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, color: "#D1D5DB" }}>
                               <KeyboardReturnIcon sx={{ fontSize: 32 }} />
                               <Typography sx={{ fontSize: 13 }}>Search and add items above</Typography>
@@ -1591,20 +2303,48 @@ console.log("test",serverHolds)
                             <TableRow data-rowcode={item.code} onClick={() => { setZone("TABLE"); setActiveRowIdx(rowIdx); }}
                               sx={{ bgcolor: flashRow === item.code ? "#FFF1F3" : isActive ? "#E3F2FD" : "transparent", cursor: "pointer", transition: "background 0.2s", "&:hover": { bgcolor: isActive ? "#E3F2FD" : "#F5F5F5" } }}>
                               <TableCell sx={{ p: 0 }}><Box sx={{ width: 4, minHeight: 40, bgcolor: isActive ? "#1976D2" : "transparent", borderRadius: "0 2px 2px 0", transition: "background 0.2s" }} /></TableCell>
-                              <TableCell>
-                                <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#374151", whiteSpace: "nowrap", overflow: "visible" }}>
+                              <TableCell sx={{ overflow: "hidden" }}>
+                                {/* Always one line, so every row keeps the same
+                                    height. The column fits a full barcode; a
+                                    wordier id ("Oil Extraction 20KG") ends in an
+                                    ellipsis instead of spilling across the
+                                    description, and `title` keeps the full value
+                                    reachable on hover. */}
+                                <Typography
+                                  title={item.code}
+                                  sx={{ fontSize: 12, fontWeight: 700, color: "#374151", lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                                >
                                   {item.code}
                                 </Typography>
                               </TableCell>
                               <TableCell>
-                                <Typography sx={{ fontSize: 13, fontWeight: isActive ? 800 : 700, color: "#1A1A2E", lineHeight: 1.3 }}>{item.description}</Typography>
+                                <Typography sx={{ fontSize: 13, fontWeight: isActive ? 800 : 700, color: "#1A1A2E", lineHeight: 1.3, overflowWrap: "anywhere" }}>{item.description}</Typography>
                                 {item.category && <Typography sx={{ fontSize: 10, fontWeight: 700, color: CAT_COLOR[item.category] ?? "#6B7280" }}>{item.category}</Typography>}
+                                <TextField
+                                  value={item.itemDescription ?? ""}
+                                  onChange={e => updateItemDescription(item.code, e.target.value)}
+                                  onClick={e => e.stopPropagation()}
+                                  onKeyDown={e => e.stopPropagation()}
+                                  placeholder="Add description..."
+                                  size="medium"
+                                  variant="outlined"
+                                  fullWidth
+
+                                  multiline
+                                  maxRows={3}
+                                  sx={{
+                                    mt: 0.5,
+                                    verticalAlign: "top",
+                                    "& .MuiOutlinedInput-root": { fontSize: 12, bgcolor: "#FAFAFA", minHeight: 50, padding: "4px 6px", alignItems: "flex-start", "& fieldset": { borderColor: "#E5E7EB" } },
+                                    "& .MuiOutlinedInput-input": { padding: 0.3 },
+                                  }}
+                                />
                               </TableCell>
                               <TableCell align="right">
-                                <Typography sx={{ fontSize: 13, color: "#374151", fontWeight: 700, lineHeight: 1.2, wordBreak: "break-word" }}>{INR(itemGst)}</Typography>
+                                <Typography sx={{ fontSize: 13, color: "#374151", fontWeight: 700, lineHeight: 1.2 }}><Amount value={INR(itemGst)} /></Typography>
                                 <Box component="span" sx={{ display: "inline-block", fontSize: 9.5, fontWeight: 700, color: "#6B7280", bgcolor: "#F3F4F6", borderRadius: 999, px: 0.7, py: 0.05, mt: 0.2 }}>GST {item.gstPct}%</Box>
                               </TableCell>
-                              <TableCell align="right"><Typography sx={{ fontSize: 13, color: "#9CA3AF", wordBreak: "break-word" }}>₹{item.mrp.toLocaleString("en-IN")}</Typography></TableCell>
+                              {/* <TableCell align="right"><Typography sx={{ fontSize: 13, color: "#9CA3AF", whiteSpace: "nowrap" }}>₹{item.mrp.toLocaleString("en-IN")}</Typography></TableCell> */}
 
                               {/* QTY */}
                               <TableCell align="center" onClick={e => e.stopPropagation()}>
@@ -1617,7 +2357,7 @@ console.log("test",serverHolds)
                               </TableCell>
 
                               {/* UNIT PRICE EX.TAX */}
-                              <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", wordBreak: "break-word" }}>{INR(item.unitPrice)}</Typography></TableCell>
+                              <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}><Amount value={INR(item.unitPrice)} /></Typography></TableCell>
 
                               {/* DISCOUNT % */}
                               <TableCell align="right" onClick={e => e.stopPropagation()}>
@@ -1626,7 +2366,7 @@ console.log("test",serverHolds)
 
                               {/* TOTAL */}
                               <TableCell align="right">
-                                <Typography sx={{ fontSize: 13, fontWeight: 700, color: isActive ? "#0D47A1" : "#1A1A2E", wordBreak: "break-word" }}>{INR(itemTotal)}</Typography>
+                                <Typography sx={{ fontSize: 13, fontWeight: 700, color: isActive ? "#0D47A1" : "#1A1A2E" }}><Amount value={INR(itemTotal)} /></Typography>
                               </TableCell>
                               <TableCell onClick={e => e.stopPropagation()}><IconButton size="small" onClick={() => removeItem(item.code)} sx={{ color: "#D1D5DB", "&:hover": { color: "#C8102E", bgcolor: "#FEE2E2" } }}><DeleteOutlineIcon sx={{ fontSize: 15 }} /></IconButton></TableCell>
                             </TableRow>
@@ -1638,39 +2378,36 @@ console.log("test",serverHolds)
                 </Box>
 
                 {/* Total row pinned to bottom */}
-                <Table size="small" sx={{ borderCollapse: "separate", flexShrink: 0, tableLayout: "fixed", width: "100%" }}>
-                  <colgroup>
-                    <col style={{ width: "0.8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "16%" }} />
-                    <col style={{ width: "12%" }} /><col style={{ width: "6%" }} />
-                    <col style={{ width: "10%" }} /><col style={{ width: "10%" }} /><col style={{ width: "8%" }} />
-                    <col style={{ width: "8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "3%" }} />
-                  </colgroup>
+                <Box sx={{ flexShrink: 0, minWidth: CART_TABLE_MIN_WIDTH, overflowY: "hidden", overflowX: "hidden", ...cartScrollbarSx }}>
+                <Table size="small" sx={{ borderCollapse: "separate", tableLayout: "fixed", width: "100%" }}>
+                  <CartColGroup />
                   <TableBody>
                     <TableRow sx={{ bgcolor: "#F8FAFC", "& .MuiTableCell-root": { borderTop: "2px solid #E5E7EB", borderBottom: "none", py: 1, height: 34, bgcolor: "#F8FAFC" } }}>
                       <TableCell sx={{ p: 0 }} /><TableCell />
                       <TableCell><Typography sx={{ fontSize: 13, fontWeight: 800, color: "#374151" }}>Total</Typography></TableCell>
-                      <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", wordBreak: "break-word" }}>{INR(items.length > 0 ? totalGstRow : 0)}</Typography></TableCell>
-                      <TableCell align="right" />
+                      {/* One cell per column, in header order — see CART_COL_WIDTHS. */}
+                      <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}><Amount value={INR(items.length > 0 ? totalGstRow : 0)} /></Typography></TableCell>
                       <TableCell align="center"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{items.length > 0 ? totalUnits : 0}</Typography></TableCell>
                       <TableCell align="right" />
-                      <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", wordBreak: "break-word" }}>{INR(items.length > 0 ? subtotal : 0)}</Typography></TableCell>
+                      <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}><Amount value={INR(items.length > 0 ? subtotal : 0)} /></Typography></TableCell>
                       <TableCell align="right">
                         {items.length > 0 && itemDiscountTotal > 0
-                          ? <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#C8102E" }}>- {INR(itemDiscountTotal)}</Typography>
+                          ? <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#C8102E" }}>- <Amount value={INR(itemDiscountTotal)} /></Typography>
                           : <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#D1D5DB" }}>—</Typography>
                         }
                       </TableCell>
-                      <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 700, color: "#000", wordBreak: "break-word" }}>{INR(items.length > 0 ? totalAmtRow : 0)}</Typography></TableCell>
+                      <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 700, color: "#000" }}><Amount value={INR(items.length > 0 ? totalAmtRow : 0)} /></Typography></TableCell>
                       <TableCell />
                     </TableRow>
                   </TableBody>
                 </Table>
-              </>
+                </Box>
+              </Box>
             )}
           </Paper>
 
             {/* Customer panel — search row + Bill To / Ship To cards */}
-            <Paper elevation={0} sx={{ flexShrink: 0, border: zone === "CUSTOMER" ? `2px solid ${modeAccent}` : "1px solid #E5E7EB", borderRadius: 2.5, p: { xs: 1.75, sm: 2.25 },  bgcolor: "#fff", transition: "border 0.2s, box-shadow 0.2s", position: "relative", boxShadow: zone === "CUSTOMER" ? `0 0 0 3px ${isQuotation ? "rgba(29,78,216,0.08)" : "rgba(200,16,46,0.08)"}` : "none" }}>
+            <Paper elevation={0} sx={{ flexShrink: 0, border: zone === "CUSTOMER" ? `2px solid ${modeAccent}` : "1px solid #E5E7EB", borderRadius: 2.5, p: { xs: 1.75, sm: 2.25 },  bgcolor: "#fff", transition: "border 0.2s, box-shadow 0.2s", position: "relative", boxShadow: zone === "CUSTOMER" ? `0 0 0 3px ${modeTheme.focusRing}` : "none" }}>
               <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5, mb: 0.8 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.7 }}>
                   <PersonSearchIcon sx={{ fontSize: 15, color: modeAccent }} />
@@ -1682,8 +2419,9 @@ console.log("test",serverHolds)
                 </Box>
               </Box>
 
-              {/* Search / autocomplete row — one field searches by name, company or mobile */}
-              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr auto" }, gap: 1, alignItems: "center" }}>
+              {/* Search / autocomplete row — one field searches by name, company or mobile.
+                  Vehicle No only joins the row when the transport copy is enabled. */}
+              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: showVehicleNo ? "1.4fr 1fr 1fr auto" : "1fr 1fr auto" }, gap: 1, alignItems: "center" }}>
                 <Box sx={{ position: "relative" }}>
                   <TextField inputRef={customerNameRef} value={customerQuery} onChange={e => handleCustomerQueryChange(e.target.value)} onFocus={() => { setZone("CUSTOMER"); if (customer.id) { setCustomerQuery(""); clearCustomerResults(); } else if (customerQuery.trim()) { setCustomerSuggestionsOpen(true); setCustomerSuggestionIdx(-1); } }} onBlur={() => setTimeout(() => setCustomerSuggestionsOpen(false), 180)} placeholder="Search by name, company or mobile" size="small" autoComplete="off" fullWidth sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.75, fontSize: 12, bgcolor: "#F8FAFC", "& fieldset": { borderColor: "#E2E8F0" }, "&:hover fieldset": { borderColor: modeAccent }, "&.Mui-focused fieldset": { borderColor: modeAccent } } }} inputProps={{ style: { padding: "7px 12px", fontWeight: 500 } }} />
 
@@ -1708,20 +2446,20 @@ console.log("test",serverHolds)
                         ? <Box sx={{ px: 2, py: 3, textAlign: "center" }}><Typography sx={{ fontSize: 12, color: "#9CA3AF" }}>No matching customers found.</Typography></Box>
                         : <Box ref={customerSuggestionListRef} sx={{ maxHeight: 280, overflowY: "auto", bgcolor: "#fff" }}>
                             {customerResults.map((c, idx) => (
-                              <Box key={c.cust_uuid} onMouseDown={() => handleSelectCustomer(c)} sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1, px: 1.5, py: 1.1, borderBottom: "1px solid #F8FAFC", cursor: "pointer", bgcolor: idx === customerSuggestionIdx ? (isQuotation ? "#EFF6FF" : "#FFF7F8") : "#fff", borderLeft: idx === customerSuggestionIdx ? `3px solid ${modeAccent}` : "3px solid transparent", "&:hover": { bgcolor: isQuotation ? "#EFF6FF" : "#FFF7F8" } }}>
+                              <Box key={c.cust_uuid} onMouseDown={() => handleSelectCustomer(c)} sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1, px: 1.5, py: 1.1, borderBottom: "1px solid #F8FAFC", cursor: "pointer", bgcolor: idx === customerSuggestionIdx ? modeTheme.tint : "#fff", borderLeft: idx === customerSuggestionIdx ? `3px solid ${modeAccent}` : "3px solid transparent", "&:hover": { bgcolor: modeTheme.tint } }}>
                                 <Box sx={{ minWidth: 0 }}>
                                   {c.cust_name && <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#1F2937", lineHeight: 1.3 }}>{c.cust_name}</Typography>}
                                   {c.cpy_name && <Typography sx={{ fontSize: 11, fontWeight: 600, color: c.cust_name ? "#6B7280" : "#1F2937", lineHeight: 1.3 }}>{c.cust_name ? `🏢 ${c.cpy_name}` : c.cpy_name}</Typography>}
                                   <Typography sx={{ fontSize: 10, color: "#9CA3AF", mt: 0.2 }}>{primaryMobile(c)}{c.city ? ` • ${c.city}` : ""}</Typography>
                                 </Box>
-                                {c.gst && <Typography sx={{ fontSize: 9, fontWeight: 700, color: "#6B7280", fontFamily: "monospace", whiteSpace: "nowrap" }}>{c.gst}</Typography>}
+                                {c.gst && <Typography sx={{ fontSize: 9, fontWeight: 700, color: "#6B7280", whiteSpace: "nowrap" }}>{c.gst}</Typography>}
                               </Box>
                             ))}
                           </Box>
                       }
                       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 1.5, py: 0.85, bgcolor: "#FCFCFD", borderTop: "1px solid #EEF2F7" }}>
                         <Typography sx={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700 }}>Type to search by name or mobile</Typography>
-                        <Button size="small" variant="contained" onClick={() => { setCustomerSuggestionsOpen(false); setSelectedApiCustomer(null); setAddCustomerOpen(true); }} sx={{ bgcolor: modeAccent, fontSize: 9, fontWeight: 800, borderRadius: 1.5, px: 1.1, py: 0.45, "&:hover": { bgcolor: isQuotation ? "#1E40AF" : "#A50D26" } }}>+ Add New</Button>
+                        <Button size="small" variant="contained" onClick={() => { setCustomerSuggestionsOpen(false); setSelectedApiCustomer(null); setAddCustomerOpen(true); }} sx={{ bgcolor: modeAccent, fontSize: 9, fontWeight: 800, borderRadius: 1.5, px: 1.1, py: 0.45, "&:hover": { bgcolor: modeTheme.accentHover } }}>+ Add New</Button>
                       </Box>
                     </Paper>
                   )}
@@ -1740,9 +2478,29 @@ console.log("test",serverHolds)
                     ),
                   }}
                   sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.75, fontSize: 12, bgcolor: "#F8FAFC", "& fieldset": { borderColor: "#E2E8F0" } } }}
-                  inputProps={{ style: { padding: "7px 12px", fontWeight: 600, fontFamily: "monospace", letterSpacing: "0.03em" } }}
+                  inputProps={{ style: { padding: "7px 12px", fontWeight: 600, letterSpacing: "0.03em" } }}
                 />
-                <Button size="small" variant="contained" onClick={() => setAddCustomerOpen(true)} sx={{ bgcolor: modeAccent, fontSize: 11, fontWeight: 800, borderRadius: 1.5, px: 1.5, py: 0.85, whiteSpace: "nowrap", "&:hover": { bgcolor: isQuotation ? "#1E40AF" : "#A50D26" } }}>{customer.id ? "Edit Customer" : "+ Add New"}</Button>
+                {showVehicleNo && (
+                  <TextField
+                    value={vehicleNo}
+                    onChange={e => setVehicleNo(e.target.value.toUpperCase())}
+                    onFocus={() => setZone("CUSTOMER")}
+                    placeholder="Vehicle No"
+                    size="small"
+                    fullWidth
+                    autoComplete="off"
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <LocalShippingOutlinedIcon sx={{ fontSize: 14, color: "#9CA3AF" }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.75, fontSize: 12, bgcolor: "#F8FAFC", "& fieldset": { borderColor: "#E2E8F0" }, "&:hover fieldset": { borderColor: modeAccent }, "&.Mui-focused fieldset": { borderColor: modeAccent } } }}
+                    inputProps={{ style: { padding: "7px 12px", fontWeight: 600, letterSpacing: "0.03em" }, maxLength: 20 }}
+                  />
+                )}
+                <Button size="small" variant="contained" onClick={() => setAddCustomerOpen(true)} sx={{ bgcolor: modeAccent, fontSize: 11, fontWeight: 800, borderRadius: 1.5, px: 1.5, py: 0.85, whiteSpace: "nowrap", "&:hover": { bgcolor: modeTheme.accentHover } }}>{customer.id ? "Edit Customer" : "+ Add New"}</Button>
               </Box>
 
               {/* Bill To / Ship To visual cards (read-only summary of the same customer record) */}
@@ -1760,7 +2518,7 @@ console.log("test",serverHolds)
                   {customer.name && <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#1F2937", lineHeight: 1.25 }}>{customer.name}</Typography>}
                   {customer.mobile && <Typography sx={{ fontSize: 11, color: "#6B7280", mt: 0.1 }}>{customer.mobile}</Typography>}
                   <Typography sx={{ fontSize: 10, color: "#9CA3AF", mt: 0.1 }}>{customer.address || "No address on file"}</Typography>
-                  {customer.gstin && <Typography sx={{ fontSize: 9, color: "#6B7280", fontFamily: "monospace", mt: 0.1 }}>GSTIN: {customer.gstin}</Typography>}
+                  {customer.gstin && <Typography sx={{ fontSize: 9, color: "#6B7280", mt: 0.1 }}>GSTIN: {customer.gstin}</Typography>}
                 </Box>
 
                 <Box sx={{ border: "1px solid #E5E7EB", borderRadius: 2, p: 0.85, bgcolor: "#F9FAFB", position: "relative" }}>
@@ -1799,16 +2557,146 @@ console.log("test",serverHolds)
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, mb: 2 }}>
                 <Typography sx={{ fontSize: 14.5, fontWeight: 800, letterSpacing: "0.06em", color: "#374151" }}>SUMMARY</Typography>
                 <Box onClick={handleOpenPicker}
-                  sx={{ display: "flex", alignItems: "center", gap: 0.6, bgcolor: isQuotation ? "#DBEAFE" : "#FEE2E2", border: `1px solid ${isQuotation ? "#1D4ED8" : "#C8102E"}`, borderRadius: 1.5, px: 1, py: 0.4, transition: "all 0.2s", cursor: "pointer", whiteSpace: "nowrap", position: "relative" }}>
-                  <CalendarTodayIcon sx={{ fontSize: 14, color: isQuotation ? "#1D4ED8" : "#C8102E", flexShrink: 0 }} />
-                  <Typography sx={{ fontSize: 10, color: isQuotation ? "#1D4ED8" : "#C8102E", fontWeight: 700, letterSpacing: "0.04em" }}>
-                    {isQuotation ? "QUOTATION DATE" : "INVOICE DATE"}
+                  sx={{ display: "flex", alignItems: "center", gap: 0.6, bgcolor: modeTheme.chipBg, border: `1px solid ${modeTheme.accent}`, borderRadius: 1.5, px: 1, py: 0.4, transition: "all 0.2s", cursor: "pointer", whiteSpace: "nowrap", position: "relative" }}>
+                  <CalendarTodayIcon sx={{ fontSize: 14, color: modeTheme.accent, flexShrink: 0 }} />
+                  <Typography sx={{ fontSize: 10, color: modeTheme.accent, fontWeight: 700, letterSpacing: "0.04em" }}>
+                    DATE
                   </Typography>
-                  <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: isQuotation ? "#1D4ED8" : "#C8102E", whiteSpace: "nowrap" }}>
+                  <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: modeTheme.accent, whiteSpace: "nowrap" }}>
                     {invoiceDate ? formatDateDisplay(invoiceDate) : "Select date"}
                   </Typography>
                   <input ref={inputRef} type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} style={{ position: "absolute", opacity: 0, pointerEvents: "none" }} />
                 </Box>
+              </Box>
+
+              {/* Document number and — when POS settings collect it — the
+                  buyer's PO reference. These are optional metadata rather than
+                  figures, so they sit above the money rows in one boxed
+                  group. */}
+              <Box data-pos-meta-fields sx={{ border: "1px solid #E5E7EB", borderRadius: 2, p: 1.25, mb: 1.75, display: "grid", gridTemplateColumns: "auto minmax(0, 1fr)", columnGap: 2, rowGap: 1, alignItems: "center" }}>
+                <Box sx={{ display: "contents" }}>
+                  <Typography sx={{ gridColumn: 1, fontSize: 13.5, color: "#6B7280", whiteSpace: "nowrap" }}>{invoiceNoLabel}</Typography>
+                  <TextField
+                    inputRef={invoiceNoInputRef}
+                    value={displayInvoiceNo}
+                    // Digits only while overriding: the endpoint takes the
+                    // running number, and the rendered id around it is the
+                    // server's to compose.
+                    onChange={(e) => { setInvoiceNoTouched(true); setInvoiceNo(e.target.value.replace(/[^0-9]/g, "")); }}
+                    placeholder={docSequence || saleId ? "Auto" : "Loading…"}
+                    size="small"
+                    InputProps={{
+                      readOnly: !invoiceNoEditing,
+                      startAdornment: invoiceNoEditing && activeAffixes.prefix ? (
+                        <InputAdornment position="start" disablePointerEvents sx={{ mr: 0 }}>
+                          <Typography sx={affixAdornmentSx}>{activeAffixes.prefix}</Typography>
+                        </InputAdornment>
+                      ) : undefined,
+                      // The suffix (mid-edit) and the renumber button share the
+                      // end of the field, so the button sits inside the box and
+                      // the row stays the same width as the PO fields below.
+                      endAdornment: canOverrideNumber || (invoiceNoEditing && activeAffixes.suffix) ? (
+                        <InputAdornment position="end" sx={{ ml: 0 }}>
+                          {invoiceNoEditing && activeAffixes.suffix && (
+                            <Typography sx={{ ...affixAdornmentSx, pointerEvents: "none" }}>{activeAffixes.suffix}</Typography>
+                          )}
+                          {/* Renumbering only applies to a new document —
+                              reopening a saved one shows its id with no way
+                              to change it. */}
+                          {canOverrideNumber && (
+                            <Tooltip title={invoiceNoEditing ? "Done" : `Set ${posTypeLabel.toLowerCase()} number`}>
+                              <IconButton
+                                size="small"
+                                disabled={!docSequence}
+                                onClick={() => {
+                                  const next = !invoiceNoEditing;
+                                  setInvoiceNoEditing(next);
+                                  // Seed with the number the counter would have
+                                  // used, padded as it prints, so skipping ahead
+                                  // is a one-character edit and the field still
+                                  // reads as the id it was showing a moment ago.
+                                  if (next) {
+                                    setInvoiceNoTouched(true);
+                                    setInvoiceNo(docSequence?.next_seq ? padSeq(docSequence.next_seq) : "");
+                                    setTimeout(() => invoiceNoInputRef.current?.focus(), 10);
+                                  } else {
+                                    // Done: re-pad whatever was typed, so "12"
+                                    // settles as "012" rather than looking like
+                                    // another id.
+                                    const typed = parseInt(invoiceNo, 10);
+                                    if (Number.isInteger(typed) && typed > 0) setInvoiceNo(padSeq(typed));
+                                  }
+                                }}
+                                sx={{ ml: 0.5, p: 0.4, borderRadius: 1, color: invoiceNoEditing ? modeAccent : "#9CA3AF", bgcolor: invoiceNoEditing ? modeBg : "transparent", "&:hover": { color: modeAccent, bgcolor: modeBg }, "&.Mui-disabled": { color: "#D1D5DB" } }}>
+                                <EditIcon sx={{ fontSize: 14 }} />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </InputAdornment>
+                      ) : undefined,
+                    }}
+                    inputMode={invoiceNoEditing ? "numeric" : undefined}
+                    // With the button inside, the right padding is the
+                    // button's own margin rather than the input's 10px.
+                    sx={{ gridColumn: 2, width: "100%", minWidth: 0, "& .MuiOutlinedInput-root": { borderRadius: 1.5, bgcolor: invoiceNoEditing ? "#fff" : "#F8FAFC", ...(canOverrideNumber && { pr: 0.5 }), ...(invoiceNoEditing && { justifyContent: "flex-end", pl: 1.25 }), "& fieldset": { borderColor: "#E5E7EB" }, "&:hover fieldset": { borderColor: invoiceNoEditing ? modeAccent : "#E5E7EB" }, "&.Mui-focused fieldset": { borderColor: modeAccent } } }}
+                    inputProps={{ style: { padding: invoiceNoEditing ? "6px 0" : canOverrideNumber ? "6px 0 6px 10px" : "6px 10px", width: invoiceNoEditing ? invoiceNoEditWidth : undefined, fontSize: 12.5, fontWeight: 900, color: "#111827", textAlign: "right", letterSpacing: "0.02em" }, maxLength: 12 }}
+                  />
+                </Box>
+
+                {/* Overriding is not just this one document: the server rolls
+                    its counter to match, so everything after continues from
+                    here. Worth saying before they save. */}
+                {/* {invoiceNoTouched && canOverrideNumber && (
+                  <Typography sx={{ gridColumn: "1 / -1", fontSize: 10.5, color: invoiceNoOverride ? "#6B7280" : "#C8102E", mt: -0.5, textAlign: "right", lineHeight: 1.4 }}>
+                    {invoiceNoOverride
+                      ? <>Saves as <Box component="span" sx={{ fontWeight: 800, color: "#111827" }}>{overridePreview}</Box> · next is {invoiceNoOverride + 1}</>
+                      : "Enter a whole number above zero"}
+                  </Typography>
+                )} */}
+
+                {showPurchaseOrder && (
+                <Box sx={{ display: "contents" }}>
+                  <Typography sx={{ gridColumn: 1, fontSize: 13.5, color: "#6B7280", whiteSpace: "nowrap" }}>PO Number</Typography>
+                  <TextField
+                    value={poNumber}
+                    onChange={(e) => setPoNumber(e.target.value.toUpperCase())}
+                    placeholder="PO Number"
+                    size="small"
+                    autoComplete="off"
+                    sx={{ gridColumn: 2, width: "100%", minWidth: 0, "& .MuiOutlinedInput-root": { borderRadius: 1.5, bgcolor: "#fff", "& fieldset": { borderColor: "#E5E7EB" }, "&:hover fieldset": { borderColor: modeAccent }, "&.Mui-focused fieldset": { borderColor: modeAccent } } }}
+                    inputProps={{ style: { padding: "6px 10px", fontSize: 12.5, fontWeight: 700, color: "#111827", textAlign: "right", letterSpacing: "0.02em" }, maxLength: 40 }}
+                  />
+                </Box>
+                )}
+
+                {showPurchaseOrder && (
+                <Box sx={{ display: "contents" }}>
+                  <Typography sx={{ gridColumn: 1, fontSize: 13.5, color: "#6B7280", whiteSpace: "nowrap" }}>PO Date</Typography>
+                  <Box
+                    onClick={handleOpenPoDatePicker}
+                    sx={{ position: "relative", display: "flex", alignItems: "center", gap: 0.6, gridColumn: 2, minWidth: 0, height: 31, px: 1.25, borderRadius: 1.5, border: "1px solid #E5E7EB", bgcolor: "#fff", cursor: "pointer", "&:hover": { borderColor: modeAccent } }}>
+                    <CalendarTodayIcon sx={{ fontSize: 14, color: poDate ? modeAccent : "#9CA3AF", flexShrink: 0 }} />
+                    <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: poDate ? "#111827" : "#9CA3AF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {poDate ? formatDateDisplay(poDate) : "Select date"}
+                    </Typography>
+                    {poDate && (
+                      <IconButton
+                        size="small"
+                        onClick={(e) => { e.stopPropagation(); setPoDate(""); }}
+                        sx={{ p: 0.2, ml: "auto", color: "#9CA3AF", "&:hover": { color: modeAccent } }}>
+                        <CloseIcon sx={{ fontSize: 12 }} />
+                      </IconButton>
+                    )}
+                    <input
+                      ref={poDateInputRef}
+                      type="date"
+                      value={poDate}
+                      onChange={(e) => setPoDate(e.target.value)}
+                      style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
+                    />
+                  </Box>
+                </Box>
+                )}
               </Box>
 
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.6 }}>
@@ -1849,7 +2737,7 @@ console.log("test",serverHolds)
                 </Box>
               )}
 
-              {!isQuotation && (
+              {!isNonSaleDoc && (
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
                   <Typography sx={{ fontSize: 13.5, color: "#6B7280" }}>Round Off</Typography>
                   <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: roundoffValue > 0 ? "#16A34A" : "#C8102E" }}>
@@ -1859,12 +2747,12 @@ console.log("test",serverHolds)
               )}
 
               {/* TOTAL AMOUNT highlighted bar */}
-              <Box sx={{ bgcolor: isQuotation ? "#EFF6FF" : "#DCFCE7", border: `1px solid ${isQuotation ? "#BFDBFE" : "#86EFAC"}`, borderRadius: 2, px: 1.5, py: 1.1, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", rowGap: 0.25, columnGap: 1, mb: 2 }}>
-                <Typography sx={{ fontSize: 13, fontWeight: 800, letterSpacing: "0.05em", color: isQuotation ? "#1D4ED8" : "#16A34A", whiteSpace: "nowrap" }}>TOTAL AMOUNT</Typography>
-                <Typography sx={{ fontSize: 20, fontWeight: 900, color: isQuotation ? "#1D4ED8" : "#16A34A", wordBreak: "break-word" }}>{INR(grandTotal)}</Typography>
+              <Box sx={{ bgcolor: modeTheme.totalBg, border: `1px solid ${modeTheme.totalBorder}`, borderRadius: 2, px: 1.5, py: 1.1, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", rowGap: 0.25, columnGap: 1, mb: 2 }}>
+                <Typography sx={{ fontSize: 13, fontWeight: 800, letterSpacing: "0.05em", color: modeTheme.totalText, whiteSpace: "nowrap" }}>TOTAL AMOUNT</Typography>
+                <Typography sx={{ fontSize: 20, fontWeight: 900, color: modeTheme.totalText, whiteSpace: "nowrap" }}>{INR(grandTotal)}</Typography>
               </Box>
 
-              {!isQuotation && (
+              {!isNonSaleDoc && (
                 <>
                   <Box sx={{ mb: 2 }}>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.4, mb: 0.6 }}>
@@ -1885,25 +2773,27 @@ console.log("test",serverHolds)
                     />
                   </Box>
 
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography sx={{ fontSize: 13.5, color: "#6B7280" }}>Balance Due</Typography>
-                    <Typography sx={{ fontSize: 15, fontWeight: 800, color: received >= grandTotal ? "#16A34A" : "#C8102E" }}>
-                      {INR(Math.max(0, grandTotal - received))}
-                    </Typography>
-                  </Box>
+                  {hasBalanceDue && (
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <Typography sx={{ fontSize: 13.5, color: "#6B7280" }}>Balance Due</Typography>
+                      <Typography sx={{ fontSize: 15, fontWeight: 800, color: "#C8102E" }}>
+                        {INR(grandTotal - received)}
+                      </Typography>
+                    </Box>
+                  )}
                 </>
               )}
             </Paper>
 
             {/* PAYMENT DETAILS card */}
-            {!isQuotation && (
+            {!isNonSaleDoc && (
               <Paper elevation={0} sx={{ border: "1px solid #E5E7EB", borderRadius: 2.5, p: 2.25, bgcolor: "#fff", flex: 1 }}>
                 <Typography sx={{ fontSize: 13, fontWeight: 800, letterSpacing: "0.06em", color: "#374151", mb: 2 }}>PAYMENT DETAILS</Typography>
 
                 <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0.75, mb: 2 }}>
-                  {(["UPI", "Bank Transfer", "Cash", "Others"] as PaymentType[]).map(val => {
+                  {enabledPaymentTypes.map(val => {
                     const selected = paymentType === val;
-                    const Icon = val === "UPI" ? QrCode2Icon : val === "Bank Transfer" ? AccountBalanceIcon : val === "Cash" ? PaymentsIcon : MoreHorizIcon;
+                    const Icon = PAYMENT_TYPE_ICON[val];
                     return (
                       <Box key={val} onClick={() => { setPaymentType(val); setZone("FOOTER"); setFooterFocus("PAYMENT_TYPE"); }}
                         sx={{
@@ -1923,7 +2813,7 @@ console.log("test",serverHolds)
                     percentage (1 = 100%), which was silently stretching this to full container width. */}
                 <Select value={paymentType} onChange={e => setPaymentType(e.target.value as PaymentType)} onFocus={() => { setZone("FOOTER"); setFooterFocus("PAYMENT_TYPE"); }}
                   sx={{ position: "absolute", width: "1px", height: "1px", opacity: 0, pointerEvents: "none" }} tabIndex={-1}>
-                  {["Cash", "UPI", "Bank Transfer", "Others"].map(val => <MenuItem key={val} value={val}>{val}</MenuItem>)}
+                  {enabledPaymentTypes.map(val => <MenuItem key={val} value={val}>{val}</MenuItem>)}
                 </Select>
 
                 <Box sx={{ mb: 2 }}>
@@ -1933,57 +2823,72 @@ console.log("test",serverHolds)
                     sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.5, "& fieldset": { borderColor: isFooterActive("REF_NO") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("REF_NO") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" } } }} />
                 </Box>
 
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2.10 }}>
-                  <Typography sx={{ fontSize: 11.5, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.05em" }}>PAYMENT STATUS</Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 800, color: status.color, letterSpacing: "0.03em" }}>{status.label}</Typography>
-                </Box>
-
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.50 }}>
-                  <Typography sx={{ fontSize: 11.5, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.05em" }}>DUE DATE</Typography>
-                  <Box
-                    onClick={() => { if (dueDateEnabled) { setZone("FOOTER"); handleOpenDueDatePicker(); } }}
-                    sx={{
-                      position: "relative",
-                      display: "flex", alignItems: "center", gap: 0.6,
-                      minWidth: 140, height: 33,
-                      px: 1.25,
-                      borderRadius: 1.5,
-                      border: "1px solid",
-                      borderColor: dueDateEnabled ? "#E5E7EB" : "#E2E8F0",
-                      bgcolor: dueDateEnabled ? "#fff" : "#F8FAFC",
-                      cursor: dueDateEnabled ? "pointer" : "default",
-                      "&:hover": { borderColor: dueDateEnabled ? "#C8102E" : "#E2E8F0" },
-                    }}
-                  >
-                    <CalendarTodayIcon sx={{ fontSize: 14, color: dueDateEnabled ? "#6B7280" : "#CBD5E1" }} />
-                    <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: dueDateEnabled ? "#111827" : "#94A3B8" }}>
-                      {dueDate ? formatDateDisplay(dueDate) : "Select date"}
-                    </Typography>
-                    <input
-                      ref={dueDateInputRef}
-                      type="date"
-                      value={dueDate}
-                      onChange={(e) => setDueDate(e.target.value)}
-                      disabled={!dueDateEnabled}
-                      min={invoiceDate}
-                      style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
-                    />
+                {/* Status and due date share one row — the date only exists
+                    when there is a balance, and it is that balance the status
+                    describes, so they read best side by side. */}
+                <Box sx={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 1.5, mb: 0.5 }}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography sx={{ fontSize: 11.5, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.05em", mb: 0.75, whiteSpace: "nowrap" }}>PAYMENT STATUS</Typography>
+                    {/* Same height as the date box, so the two values line up. */}
+                    <Typography sx={{ height: 33, display: "flex", alignItems: "center", fontSize: 14, fontWeight: 800, color: status.color, letterSpacing: "0.03em" }}>{status.label}</Typography>
                   </Box>
+
+                  {hasBalanceDue && (
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography sx={{ fontSize: 11.5, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.05em", mb: 0.75, whiteSpace: "nowrap" }}>DUE DATE</Typography>
+                      <Box
+                        onClick={() => { setZone("FOOTER"); handleOpenDueDatePicker(); }}
+                        sx={{
+                          position: "relative",
+                          display: "flex", alignItems: "center", gap: 0.6,
+                          minWidth: 140, height: 33,
+                          px: 1.25,
+                          borderRadius: 1.5,
+                          border: "1px solid #E5E7EB",
+                          bgcolor: "#fff",
+                          cursor: "pointer",
+                          "&:hover": { borderColor: "#C8102E" },
+                        }}
+                      >
+                        <CalendarTodayIcon sx={{ fontSize: 14, color: "#6B7280" }} />
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "#111827" }}>
+                          {dueDate ? formatDateDisplay(dueDate) : "Select date"}
+                        </Typography>
+                        <input
+                          ref={dueDateInputRef}
+                          type="date"
+                          value={dueDate}
+                          onChange={(e) => setDueDate(e.target.value)}
+                          min={invoiceDate}
+                          style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
+                        />
+                      </Box>
+                    </Box>
+                  )}
                 </Box>
               </Paper>
             )}
 
           </Box>
 
-            {/* Note button (kept alongside payment/summary controls) */}
-            <Button onClick={() => setNoteModalOpen(true)} variant="outlined" startIcon={<NoteAltOutlinedIcon sx={{ fontSize: 14 }} />}
-              sx={{ justifyContent: "flex-start", borderRadius: 2, py: 0.85, px: 1.5, fontSize: 12, fontWeight: 700, color: hasNote ? "#16A34A" : "#6B7280", borderColor: hasNote ? "#86EFAC" : "#E5E7EB", borderWidth: hasNote ? 1.5 : 1, bgcolor: hasNote ? "#F0FDF4" : "#FAFAFA", "&:hover": { borderColor: "#6EE7B7", bgcolor: "#F0FDF4", color: "#16A34A" }, transition: "all 0.18s", textTransform: "none", gap: 0.5 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flex: 1 }}>
-                <span>Note</span>
-                <Box component="span" sx={{ fontSize: 9, opacity: 0.55 }}>[F7]</Box>
-              </Box>
-              {hasNote && <Chip label="Added" size="small" sx={{ height: 18, fontSize: 10, fontWeight: 700, bgcolor: "#DCFCE7", color: "#166534", border: "none", ml: 0.5 }} />}
-            </Button>
+            {/* Note + Preview row (kept alongside payment/summary controls) */}
+            <Box sx={{ display: "flex", gap: 1 }}>
+              {/* <Button onClick={() => setNoteModalOpen(true)} variant="outlined" startIcon={<NoteAltOutlinedIcon sx={{ fontSize: 14 }} />}
+                sx={{ flex: 1, minWidth: 0, justifyContent: "flex-start", borderRadius: 2, py: 0.85, px: 1.5, fontSize: 12, fontWeight: 700, color: hasNote ? "#16A34A" : "#6B7280", borderColor: hasNote ? "#86EFAC" : "#E5E7EB", borderWidth: hasNote ? 1.5 : 1, bgcolor: hasNote ? "#F0FDF4" : "#FAFAFA", "&:hover": { borderColor: "#6EE7B7", bgcolor: "#F0FDF4", color: "#16A34A" }, transition: "all 0.18s", textTransform: "none", gap: 0.5 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flex: 1 }}>
+                  <span>Note</span>
+                  <Box component="span" sx={{ fontSize: 9, opacity: 0.55 }}>[F7]</Box>
+                </Box>
+                {hasNote && <Chip label="Added" size="small" sx={{ height: 18, fontSize: 10, fontWeight: 700, bgcolor: "#DCFCE7", color: "#166534", border: "none", ml: 0.5 }} />}
+              </Button> */}
+
+              {/* Same outlined shape as Note so the pair reads as one row.
+                  An empty cart has nothing to preview, hence the disabled state. */}
+              <Button onClick={() => setPreviewOpen(true)} disabled={items.length === 0} variant="outlined" startIcon={<VisibilityOutlinedIcon sx={{ fontSize: 14 }} />}
+                sx={{ flex: 1, minWidth: 0, justifyContent: "flex-start", borderRadius: 2, py: 0.85, px: 1.5, fontSize: 12, fontWeight: 700, color: "#6B7280", borderColor: "#E5E7EB", bgcolor: "#FAFAFA", "&:hover": { borderColor: modeAccent, bgcolor: modeBg, color: modeAccent }, "&.Mui-disabled": { bgcolor: "#F9FAFB", color: "#C7CDD6", borderColor: "#EEF1F5" }, transition: "all 0.18s", textTransform: "none", gap: 0.5 }}>
+                Preview
+              </Button>
+            </Box>
 
             {/* PRINT + SAVE row */}
             <Box sx={{ display: "flex", gap: 1, alignItems: "stretch" }}>
@@ -2000,7 +2905,7 @@ console.log("test",serverHolds)
                 startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <SaveIcon sx={{ fontSize: 18 }} />}
                 onClick={handleSave} disabled={saving || items.length === 0 || received > grandTotal + 0.01}
                 sx={{ ...footerOutline("SAVE"), flex: 1, minWidth: 0, bgcolor: modeAccent, color: "#fff", fontSize: 14, fontWeight: 800, py: 0.9, px: 2, borderRadius: 2, boxShadow: `0 4px 18px rgba(200,16,46,0.35)`, "&:hover": { bgcolor: "#A50D26" }, "&:active": { transform: "scale(0.98)" }, "&.Mui-disabled": { bgcolor: "#E5E7EB", color: "#9CA3AF", boxShadow: "none" }, transition: "all 0.15s" }}>
-                {saving ? "SAVING…" : isQuotation ? "SAVE QUOTE" : "SAVE"}{" "}
+                {saving ? "SAVING…" : isNonSaleDoc ? `SAVE ${posTypeLabel.toUpperCase()}` : "SAVE"}{" "}
                 <Box component="span" sx={{ fontSize: 11, opacity: 0.85, ml: 0.5 }}>[F8]</Box>
               </Button>
             </Box>
@@ -2012,11 +2917,11 @@ console.log("test",serverHolds)
         <DiscountModal 
   open={discountModalOpen} 
   onClose={() => setDiscountModalOpen(false)} 
-  discountPct={discountPct} 
-  discount={discount} 
-  modeAccent={modeAccent} 
-  gstMode={gstMode} 
-  baseAmount={grandTotalRaw} 
+  discountPct={discountPct}
+  discount={discount}
+  modeAccent={modeAccent}
+  gstMode={gstMode}
+  baseAmount={grandTotalRaw + orderDiscountAmt}
   onApply={(pct, amt, mode) => { 
     setDiscountPct(pct); 
     setDiscount(amt); 
@@ -2026,7 +2931,7 @@ console.log("test",serverHolds)
         <NoteModal open={noteModalOpen} onClose={() => setNoteModalOpen(false)} orderNote={orderNote} onApply={note => setOrderNote(note)} />
 
         {/* HOLD DIALOG */}
-        <Dialog open={holdDialogOpen} onClose={() => setHoldDialogOpen(false)} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: "16px", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" } }}>
+        <Dialog open={holdDialogOpen && holdEnabled} onClose={() => setHoldDialogOpen(false)} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: "16px", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" } }}>
           <Box sx={{ px: 3, py: 0.5, borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <Typography sx={{ fontSize: 18, fontWeight: 800 }}>Hold Orders</Typography>
             <IconButton onClick={() => setHoldDialogOpen(false)} sx={{ color: "#6B7280", "&:hover": { bgcolor: "#F3F4F6", color: "#111827" } }}><CloseIcon /></IconButton>
@@ -2089,7 +2994,7 @@ console.log("test",serverHolds)
                 </Box>
                 <Box sx={{ flex: 1 }}>
                   <Typography sx={{ fontWeight: 800, fontSize: 19, color: "#111827" }}>
-                    {isQuotation ? "Quotation Created!" : "Invoice Created!"}
+                    {`${posTypeLabel} Created!`}
                   </Typography>
                   <Typography sx={{ fontSize: 15, mt: 0.25 }}>
                     <Box component="span" sx={{ color: "#16A34A", fontWeight: 800 }}>{INR(saveResult.grandTotal ?? 0)}</Box>
@@ -2130,7 +3035,7 @@ console.log("test",serverHolds)
                   </Box>
                 </Box>
 
-                {!isQuotation && (saveResult.change ?? 0) > 0 && (
+                {!isNonSaleDoc && (saveResult.change ?? 0) > 0 && (
                   <Box sx={{ display: "flex", justifyContent: "space-between", bgcolor: "#DBEAFE", borderRadius: 1.5, px: 1.5, py: 0.8, mt: 2 }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#1D4ED8" }}>💵 Return Change</Typography>
                     <Typography sx={{ fontSize: 14, fontWeight: 800, color: "#1D4ED8" }}>{INR(saveResult.change ?? 0)}</Typography>
@@ -2143,25 +3048,45 @@ console.log("test",serverHolds)
               <DialogActions sx={{ px: 3, pb: 3, pt: 0, gap: 1, flexWrap: "nowrap" }}>
                 <Tooltip title={savedPdfData ? "Download invoice" : "Preparing invoice..."}>
                   <span style={{ flex: "1 1 0" }}>
-                    <Button fullWidth variant="outlined" onClick={handleDownloadInvoice} disabled={!savedPdfData || downloadLoading}
-                      startIcon={downloadLoading ? <CircularProgress size={16} /> : <Download sx={{ fontSize: 18 }} />}
-                      sx={{ borderRadius: 2, fontWeight: 600, whiteSpace: "nowrap", borderColor: "#E5E7EB", color: "#374151", textTransform: "none" }}>PDF</Button>
+                    <InvoiceCopyActions
+                      fullWidth
+                      label="Download"
+                      icon={<Download sx={{ fontSize: 18 }} />}
+                      copyTypes={savedCopyTypes}
+                      onRun={handleDownloadInvoice}
+                      busy={downloadLoading}
+                      disabled={!savedPdfData}
+                      buttonSx={{ borderRadius: 2, fontWeight: 600, whiteSpace: "nowrap", border: "1px solid #E5E7EB", color: "#374151", textTransform: "none" }}
+                    />
                   </span>
                 </Tooltip>
                 <Tooltip title={savedPdfData ? "Share invoice" : "Preparing invoice..."}>
                   <span style={{ flex: "1 1 0" }}>
-                    <Button fullWidth variant="outlined" onClick={handleShareInvoice} disabled={!savedPdfData || shareLoading}
-                      startIcon={shareLoading ? <CircularProgress size={16} /> : <ShareIcon sx={{ fontSize: 18 }} />}
-                      sx={{ borderRadius: 2, fontWeight: 600, whiteSpace: "nowrap", borderColor: "#E5E7EB", color: "#374151", textTransform: "none" }}>Share</Button>
+                    <InvoiceCopyActions
+                      fullWidth
+                      label="Share"
+                      icon={<ShareIcon sx={{ fontSize: 18 }} />}
+                      copyTypes={savedCopyTypes}
+                      onRun={handleShareInvoice}
+                      busy={shareLoading}
+                      disabled={!savedPdfData}
+                      buttonSx={{ borderRadius: 2, fontWeight: 600, whiteSpace: "nowrap", border: "1px solid #E5E7EB", color: "#374151", textTransform: "none" }}
+                    />
                   </span>
                 </Tooltip>
                 {printEnabled && (
                   <Tooltip title={invoiceSettings?.printer_inch === "A4" && !savedPdfData ? "Preparing invoice..." : "Print invoice"}>
                     <span style={{ flex: "1 1 0" }}>
-                      <Button fullWidth variant="outlined" onClick={handlePrintInvoice}
-                        disabled={printLoading || (invoiceSettings?.printer_inch === "A4" && !savedPdfData)}
-                        startIcon={printLoading ? <CircularProgress size={16} /> : <PrintOutlinedIcon sx={{ fontSize: 18 }} />}
-                        sx={{ borderRadius: 2, fontWeight: 600, whiteSpace: "nowrap", borderColor: "#E5E7EB", color: "#374151", textTransform: "none" }}>Print</Button>
+                      <InvoiceCopyActions
+                        fullWidth
+                        label="Print"
+                        icon={<PrintOutlinedIcon sx={{ fontSize: 18 }} />}
+                        copyTypes={savedCopyTypes}
+                        onRun={handlePrintInvoice}
+                        busy={printLoading}
+                        disabled={invoiceSettings?.printer_inch === "A4" && !savedPdfData}
+                        buttonSx={{ borderRadius: 2, fontWeight: 600, whiteSpace: "nowrap", border: "1px solid #E5E7EB", color: "#374151", textTransform: "none" }}
+                      />
                     </span>
                   </Tooltip>
                 )}
@@ -2199,14 +3124,49 @@ console.log("test",serverHolds)
 
         {savedPdfData && (
           <Box sx={{ position: "fixed", left: -10000, top: 0, width: 794, pointerEvents: "none", opacity: 0 }}>
-            <InvoicePDFTemplate ref={pdfRef} data={savedPdfData} />
+            {invoiceSettings?.invoice_template === "modern2" ? (
+              <InvoicePDFTemplateModern2 ref={pdfRef} data={savedPdfData} copyType={renderCopyType} />
+            ) : invoiceSettings?.invoice_template === "modern" ? (
+              <InvoicePDFTemplateModern ref={pdfRef} data={savedPdfData} copyType={renderCopyType} />
+            ) : (
+              <InvoicePDFTemplate ref={pdfRef} data={savedPdfData} copyType={renderCopyType} />
+            )}
           </Box>
         )}
         {savedPdfData && (
           <Box sx={{ position: "fixed", left: -10000, top: 0, pointerEvents: "none", opacity: 0 }}>
-            <ThermalInvoiceTemplate ref={thermalRef} data={savedPdfData} paperSize={thermalPaperSize} />
+            <ThermalInvoiceTemplate ref={thermalRef} data={savedPdfData} paperSize={thermalPaperSize} copyType={renderCopyType} />
           </Box>
         )}
+
+        {/* INVOICE PREVIEW — the cart as it will print, before it is saved */}
+        <Dialog open={previewOpen} onClose={() => setPreviewOpen(false)} fullWidth maxWidth="lg"
+          PaperProps={{ sx: { borderRadius: 3, maxHeight: "92vh" } }}>
+          <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2.5, py: 1.5, borderBottom: "1px solid #F1F5F9" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <VisibilityOutlinedIcon sx={{ fontSize: 20, color: modeAccent }} />
+              <Typography sx={{ fontWeight: 800, fontSize: 16 }}>{posTypeLabel} Preview</Typography>
+              <Typography sx={{ fontSize: 12, color: "#9CA3AF" }}>Not saved yet</Typography>
+            </Box>
+            <IconButton size="small" onClick={() => setPreviewOpen(false)}><CloseIcon sx={{ fontSize: 18 }} /></IconButton>
+          </DialogTitle>
+          <DialogContent sx={{ bgcolor: "#F1F5F9", p: 2, overflow: "auto" }}>
+            {previewPdfData && (
+              <Box sx={{ width: 794, mx: "auto", bgcolor: "#fff", boxShadow: "0 8px 30px rgba(15,23,42,0.12)" }}>
+                {invoiceSettings?.invoice_template === "modern2" ? (
+                  <InvoicePDFTemplateModern2 data={previewPdfData} />
+                ) : invoiceSettings?.invoice_template === "modern" ? (
+                  <InvoicePDFTemplateModern data={previewPdfData} />
+                ) : (
+                  <InvoicePDFTemplate data={previewPdfData} />
+                )}
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ px: 2.5, py: 1.5, borderTop: "1px solid #F1F5F9" }}>
+            <Button onClick={() => setPreviewOpen(false)} sx={{ fontWeight: 700, color: "#6B7280" }}>Close</Button>
+          </DialogActions>
+        </Dialog>
 
         <CustomerLedgerDialog open={customerLedgerOpen} onClose={() => setCustomerLedgerOpen(false)} custUuid={customer.id} customerName={customer.name || "Walk-in"} />
         <AddNewCustomerDialog

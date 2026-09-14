@@ -35,7 +35,7 @@ const STATES = [
 ];
 
 interface CustomerForm {
-  custName: string; cpyName: string; mobile: string; email: string;
+  custName: string; mobile: string; email: string;
   gstin: string; openingBalance: string;
   addressLine1: string; addressLine2: string; city: string; pincode: string; state: string;
   shipSameAsBilling: boolean;
@@ -43,7 +43,7 @@ interface CustomerForm {
 }
 
 const EMPTY: CustomerForm = {
-  custName: "", cpyName: "", mobile: "", email: "", gstin: "",
+  custName: "", mobile: "", email: "", gstin: "",
   openingBalance: "", addressLine1: "", addressLine2: "", city: "", pincode: "", state: "",
   shipSameAsBilling: true,
   shippingAddressLine1: "", shippingAddressLine2: "", shippingCity: "", shippingPincode: "", shippingState: "",
@@ -136,8 +136,10 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved, editingCu
       }
 
       setForm({
-        custName: editingCustomer.cust_name || "",
-        cpyName: editingCustomer.cpy_name || "",
+        custName: [editingCustomer.cust_name, editingCustomer.cpy_name]
+          .map(n => n?.trim())
+          .filter((n, i, all) => n && all.indexOf(n) === i)
+          .join(" / "),
         mobile: editingCustomer.mobile_no?.[0] || "",
         email: editingCustomer.email_id?.[0] || "",
         gstin: editingCustomer.gst || "",
@@ -176,9 +178,8 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved, editingCu
     setForm(p => ({ ...p, [k]: e.target.value }));
 
   const validate = () => {
-    if (!form.custName.trim() && !form.cpyName.trim()) return "Enter at least a Customer Name or Company Name.";
-    if (!form.mobile.trim())       return "Mobile number is required.";
-    if (form.mobile.length !== 10) return "Mobile number must be 10 digits.";
+    if (!form.custName.trim()) return "Enter a Customer / Business Name.";
+    if (form.mobile.trim() && form.mobile.length !== 10) return "Mobile number must be 10 digits.";
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return "Enter a valid email address.";
     if (form.pincode && form.pincode.length !== 6) return "Pincode must be 6 digits.";
     if (!form.shipSameAsBilling && form.shippingPincode && form.shippingPincode.length !== 6) return "Shipping pincode must be 6 digits.";
@@ -238,21 +239,17 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved, editingCu
             <Box>
               <SectionLabel>Basic Information</SectionLabel>
 
-              {/* Row 1: Customer Name | Company Name */}
-              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mb: 2 }}>
-                <Field label="Customer Name">
+              {/* Row 1: one name for a person or a business, stored as cust_name */}
+              <Box sx={{ mb: 2 }}>
+                <Field label="Customer / Business Name" required>
                   <TextField value={form.custName} onChange={set("custName")}
-                    placeholder="e.g. Rajesh Kumar" size="small" fullWidth sx={sx} />
-                </Field>
-                <Field label="Company / Business Name">
-                  <TextField value={form.cpyName} onChange={set("cpyName")}
-                    placeholder="e.g. Acme Pvt Ltd" size="small" fullWidth sx={sx} />
+                    placeholder="e.g. Rajesh Kumar or Acme Pvt Ltd" size="small" fullWidth sx={sx} />
                 </Field>
               </Box>
 
               {/* Row 2: Mobile | Email */}
               <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-                <Field label="Mobile Number" required>
+                <Field label="Mobile Number">
                   <TextField
                     value={form.mobile}
                     onChange={e => setForm(p => ({ ...p, mobile: e.target.value.replace(/\D/g, "").slice(0, 10) }))}

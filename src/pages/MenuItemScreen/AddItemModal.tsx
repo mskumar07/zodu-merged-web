@@ -27,7 +27,7 @@ import { apiConfig } from '@config/api';
 import { getTenantContext } from '@store/tenantContext';
 import { useAppSelector } from '@store/store';
 import { InvoiceSettingsData } from '@store/slices/userSlice';
-import { addItemSchema, ITEM_ID_MAX_LENGTH, ITEM_NAME_MAX_LENGTH, HSN_CODE_MAX_LENGTH, BARCODE_MAX_LENGTH, sanitizeAmountInput } from './ItemValidation';
+import { addItemSchema, ITEM_ID_MAX_LENGTH, ITEM_NAME_MAX_LENGTH, ITEM_DESCRIPTION_MAX_LENGTH, HSN_CODE_MAX_LENGTH, BARCODE_MAX_LENGTH, sanitizeAmountInput } from './ItemValidation';
 import {
   useInfiniteCategoryList,
   useAddMenuItem,
@@ -40,6 +40,7 @@ import {
   type AddMenuItemResponse,
 } from './useMenuItemApi';
 import AddCategoryDialog from './AddCategoryDialog';
+import { closeFromControlsOnly } from "@utils/dialog";
 
 interface AddItemModalProps {
   open:      boolean;
@@ -54,6 +55,7 @@ const INITIAL_VALUES = {
   inventoryType: 'sellable' as 'sellable' | 'raw',
   itemId:        '',          // ← item_id in payload
   name:          '',
+  description:   '',
   category:      '',
   unit:          '' as string,
   purchasePrice: '',
@@ -154,6 +156,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
       inventoryType: 'sellable' as 'sellable' | 'raw',
       itemId:        editItem.item_id         ?? '',      // ← pre-fill in edit mode
       name:          editItem.item_name       ?? '',
+      description:   editItem.description     ?? '',
       category:      editItem.category_id     ? String(editItem.category_id) : '',
       unit:          editItem.unit            ? String(editItem.unit)         : '',
       purchasePrice: editItem.purchase_price  ?? '',
@@ -180,12 +183,13 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
         item_id:        itemId,
         item_type:      values.serviceType === 'product' ? 'S' as const : 'P' as const,
         item_name:      itemName,
+        description:    values.description.trim() || null,
         category_id:    values.category     ? Number(values.category)     : null,
         unit:           values.unit         ? Number(values.unit)         : null,
         purchase_price: values.purchasePrice ? Number(values.purchasePrice) : null,
         mrp:            values.mrp           ? Number(values.mrp)           : null,
         sell_price:     values.rate          ? Number(values.rate)          : null,
-        gst_type:       values.gstId         ? Number(values.gstId)         : null,
+        gst_type:       values.gstId && values.gstId !== 'none' ? Number(values.gstId) : null,
         tax_incl_type:  values.taxInclusion === 'Incl.',
         hsn_code:       values.hsn     || null,
         barcode:        values.barcode || null,
@@ -241,6 +245,16 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
   const { data: unitOptions = [], isLoading: unitsLoading }      = useUnitList();
   const invoiceSettings = useAppSelector(InvoiceSettingsData);
   const defaultGstOption = gstOptions.find((g) => g.label === invoiceSettings?.default_tax_label);
+  // gst_type is the numeric gst_id (see GstOption) — the dropdown must offer
+  // these real, branch-configured rates rather than a fixed label list, or
+  // the id the user "picks" won't match anything and gst_type saves as null.
+  const gstSelectOptions = useMemo(
+    () => [
+      { value: "none", label: "None" },
+      ...gstOptions.map((g) => ({ value: String(g.value), label: g.label })),
+    ],
+    [gstOptions]
+  );
 
   // Default the tax rate from invoice settings when adding a new item (not editing).
   useEffect(() => {
@@ -477,7 +491,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
 
   return (
     <>
-      <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth
+      <Dialog open={open} onClose={closeFromControlsOnly(handleClose)} maxWidth="md" fullWidth
         PaperProps={{ sx: { borderRadius: 1.5, boxShadow: '0 32px 80px rgba(0,0,0,0.22)', maxHeight: '92vh' } }}
         BackdropProps={{ sx: { bgcolor: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(3px)' } }}>
 
@@ -696,6 +710,23 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
     />
   </Box>
 
+  {/* Row 3: Description — full width, optional */}
+  <Box>
+    <Label text="Description" />
+    <TextField
+      fullWidth
+      multiline
+      minRows={2}
+      maxRows={4}
+      placeholder="Add a short description for this item"
+      {...formik.getFieldProps('description')}
+      error={touch.description && Boolean(err.description)}
+      helperText={touch.description && err.description}
+      inputProps={{ maxLength: ITEM_DESCRIPTION_MAX_LENGTH }}
+      InputProps={{ sx: inputSx }}
+    />
+  </Box>
+
 </Box>
 
  
@@ -809,7 +840,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                   </FormControl>
                 </Box>
                 <Box>
-                  <Label text="Purchase Price" required />
+                  <Label text="Purchase Price" />
                   <TextField fullWidth size="small" type="text" inputMode="decimal" placeholder="0.00"
                     {...formik.getFieldProps('purchasePrice')}
                     onChange={handleAmountChange('purchasePrice')}
@@ -819,7 +850,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                     InputProps={{ startAdornment: <InputAdornment position="start"><Typography variant="body2" color="text.disabled" fontWeight={600}>₹</Typography></InputAdornment>, sx: inputSx }} />
                 </Box>
                 <Box>
-                  <Label text="MRP" required />
+                  <Label text="MRP" />
                   <TextField fullWidth size="small" type="text" inputMode="decimal" placeholder="0.00"
                     {...formik.getFieldProps('mrp')}
                     onChange={handleAmountChange('mrp')}
@@ -854,22 +885,10 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
       <Label text="Tax Type"/>
       <FormControl fullWidth size="small" error={touch.gstId && Boolean(err.gstId)}>
         <Autocomplete
-          options={[
-            { value: "none", label: "None" },
-            { value: "GST5", label: "GST 5%" },
-            { value: "GST12", label: "GST 12%" },
-            { value: "GST18", label: "GST 18%" },
-            { value: "GST28", label: "GST 28%" },
-          ]}
+          options={gstSelectOptions}
           getOptionLabel={(g) => g.label}
           isOptionEqualToValue={(a, b) => String(a.value) === String(b.value)}
-          value={[
-            { value: "none", label: "None" },
-            { value: "GST5", label: "GST 5%" },
-            { value: "GST12", label: "GST 12%" },
-            { value: "GST18", label: "GST 18%" },
-            { value: "GST28", label: "GST 28%" },
-          ].find(g => String(g.value) === String(formik.values.gstId)) ?? null}
+          value={gstSelectOptions.find(g => String(g.value) === String(formik.values.gstId)) ?? null}
           onChange={(_e, newValue) => formik.setFieldValue('gstId', newValue ? String(newValue.value) : '')}
           loading={gstLoading}
           noOptionsText="No tax types found"

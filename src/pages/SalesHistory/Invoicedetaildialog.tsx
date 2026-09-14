@@ -1,7 +1,8 @@
 /**
  * InvoiceDetailsModal.tsx
  */
-import { useRef } from "react";
+import { useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useAppSelector } from "@store/store";
 import { InvoiceSettingsData } from "@store/slices/userSlice";
 import {
@@ -20,9 +21,9 @@ import EditIcon               from "@mui/icons-material/Edit";
 import AssignmentReturnIcon   from "@mui/icons-material/AssignmentReturn";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import RestaurantMenuOutlinedIcon from "@mui/icons-material/RestaurantMenuOutlined";
-import html2canvas            from "html2canvas";
 import jsPDF                  from "jspdf";
 import { useNavigate }        from "react-router-dom";
+import { numberToWords }      from "@utils/numberToWords";
 import {
   fetchSaleDetail,
   fetchRestaurantSaleDetail,
@@ -33,15 +34,15 @@ import {
   type HsnWiseTax,
 } from "./useSaleshistory";
 import { InvoicePDFTemplate } from "./InvoicePDFTemplate";
+import { InvoicePDFTemplateModern } from "./InvoicePDFTemplateModern";
+import { InvoicePDFTemplateModern2 } from "./InvoicePDFTemplateModern2";
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "./ThermalInvoiceTemplate";
-
-const PDF_CAPTURE_SCALE = 1.6;
-const PDF_IMAGE_QUALITY = 0.72;
-const PDF_HEADER_GAP_MM = 4;
-const PDF_PAGE_BOTTOM_GAP_MM = 10;
-const PDF_BREAK_SEARCH_PX = 96;
-const PDF_MIN_SLICE_HEIGHT_PX = 40;
-const PDF_ROW_WHITE_THRESHOLD = 245;
+import { renderPaginatedInvoicePdf, renderThermalReceiptPdf } from "@utils/pdfPagination";
+import { THERMAL_PRINTABLE_MM, THERMAL_ROLL_MM, printThermalCopies } from "@utils/thermalPrint";
+import InvoiceCopyActions from "@components/Common/InvoiceCopyActions";
+import { invoiceCopyTypesForSale } from "@utils/invoiceCopyTypes";
+import { isNonBindingSaleType, saleDocumentLabel } from "@utils/saleType";
+import { gstSummaryRows, gstBreakdownFromLines } from "@utils/gstSummary";
 
 // ─────────────────────────────────────────────────────────────
 // Styled helpers
@@ -112,11 +113,6 @@ function INR(v: number | string) {
   })}`;
 }
 
-function toWords(n: number): string {
-  // lightweight — just shows the number if words lib not available
-  return n.toLocaleString("en-IN");
-}
-
 // printer_inch is stored as "3 Inch" / "4 Inch" / "5 Inch"; ThermalPaperSize only accepts "3" | "4" | "5".
 function toThermalPaperSize(printerInch: string | undefined): ThermalPaperSize {
   if (printerInch?.startsWith("4")) return "4";
@@ -175,112 +171,6 @@ function getReturnReason(item: SaleReturnHistoryItem, fallbackReason: string | n
   return item.return_reason ?? item.reason ?? fallbackReason ?? "—";
 }
 
-function isCanvasRowBlank(
-  pixels: Uint8ClampedArray,
-  width: number,
-  row: number,
-): boolean {
-  const offset = row * width * 4;
-
-  for (let x = 0; x < width; x += 1) {
-    const index = offset + x * 4;
-    const alpha = pixels[index + 3];
-
-    if (alpha === 0) {
-      continue;
-    }
-
-    const red = pixels[index];
-    const green = pixels[index + 1];
-    const blue = pixels[index + 2];
-
-    if (
-      red < PDF_ROW_WHITE_THRESHOLD ||
-      green < PDF_ROW_WHITE_THRESHOLD ||
-      blue < PDF_ROW_WHITE_THRESHOLD
-    ) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-function trimCanvasBottom(canvas: HTMLCanvasElement): HTMLCanvasElement {
-  const context = canvas.getContext("2d");
-  if (!context) {
-    return canvas;
-  }
-
-  const { width, height } = canvas;
-  const pixels = context.getImageData(0, 0, width, height).data;
-  let lastContentRow = height - 1;
-
-  while (lastContentRow > 0 && isCanvasRowBlank(pixels, width, lastContentRow)) {
-    lastContentRow -= 1;
-  }
-
-  const trimmedHeight = Math.max(lastContentRow + 1, 1);
-  if (trimmedHeight >= height) {
-    return canvas;
-  }
-
-  const trimmedCanvas = document.createElement("canvas");
-  trimmedCanvas.width = width;
-  trimmedCanvas.height = trimmedHeight;
-
-  const trimmedContext = trimmedCanvas.getContext("2d");
-  if (!trimmedContext) {
-    return canvas;
-  }
-
-  trimmedContext.fillStyle = "#ffffff";
-  trimmedContext.fillRect(0, 0, width, trimmedHeight);
-  trimmedContext.drawImage(
-    canvas,
-    0,
-    0,
-    width,
-    trimmedHeight,
-    0,
-    0,
-    width,
-    trimmedHeight,
-  );
-
-  return trimmedCanvas;
-}
-
-function findSafeSliceHeight(
-  canvas: HTMLCanvasElement,
-  sourceY: number,
-  targetHeight: number,
-  minHeight: number,
-): number {
-  const context = canvas.getContext("2d");
-  if (!context) {
-    return targetHeight;
-  }
-
-  const maxHeight = Math.min(targetHeight, canvas.height - sourceY);
-  if (maxHeight <= minHeight) {
-    return maxHeight;
-  }
-
-  const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-  const idealEnd = sourceY + maxHeight;
-  const searchStart = Math.max(sourceY + minHeight, idealEnd - PDF_BREAK_SEARCH_PX);
-  const searchEnd = Math.min(canvas.height - 1, idealEnd + PDF_BREAK_SEARCH_PX);
-
-  for (let row = Math.min(searchEnd, canvas.height - 1); row >= searchStart; row -= 1) {
-    if (isCanvasRowBlank(pixels, canvas.width, row)) {
-      return Math.max(row - sourceY, minHeight);
-    }
-  }
-
-  return maxHeight;
-}
-
 // Summary row
 // ─────────────────────────────────────────────────────────────
 function SRow({
@@ -322,17 +212,24 @@ function SRow({
 // ─────────────────────────────────────────────────────────────
 interface Props {
   open?: boolean;
+  /**
+   * What the detail endpoint is addressed by: the row's `sale_uuid` for
+   * retail (unique across invoices, quotations and proformas, so no sale type
+   * is needed), or the order id for restaurant. Never the display `sale_id`.
+   */
   saleId: string;
   onClose: () => void;
   isRestaurant?: boolean;
   isCancelledTab?: boolean;
 }
 
-function getPosEditUrl(saleId: string | undefined, saleType: string | null | undefined): string {
+// POS reopens the sale through the detail endpoint, which takes sale_uuid.
+// saleType only picks the POS tab to open on; it is never sent to the API.
+function getPosEditUrl(saleUuid: string | undefined, saleType: string | null | undefined): string {
   const params = new URLSearchParams();
 
-  if (saleId) {
-    params.set("saleId", saleId);
+  if (saleUuid) {
+    params.set("saleUuid", saleUuid);
   }
   if (saleType) {
     params.set("saleType", saleType);
@@ -390,6 +287,20 @@ export default function InvoiceDetailsModal({
     { taxable: 0, cgst: 0, sgst: 0, itemDiscount: 0 },
   );
 
+  // One CGST/SGST pair per GST slab, the same as the printed copy: a bill
+  // mixing 5% and 18% items cannot state a single CGST figure, so each rate
+  // is stated beside its own amount.
+  const taxSummaryRows = gstSummaryRows(
+    hsnWiseTax.map((row) => ({
+      cgstRate:   row.cgst_percent,
+      cgstAmount: row.cgst_amount,
+      sgstRate:   row.sgst_percent,
+      sgstAmount: row.sgst_amount,
+    })),
+    hsnTotals.cgst,
+    hsnTotals.sgst,
+  );
+
   // ── Derived values ────────────────────────────────────────
   const hasDiscount = sale && Number(sale.discount_amount) > 0;
   const hasItemDiscount = hsnTotals.itemDiscount > 0;
@@ -407,7 +318,10 @@ export default function InvoiceDetailsModal({
     ? `Discount (${Number(sale.discount_value)}%${discountGstModeLabel ? ` · ${discountGstModeLabel}` : ""})`
     : "Discount";
 
-  const isQuotation    = sale?.sale_type === "quotation";
+  // Quotations and proformas are non-binding: they carry no payment, so the
+  // dialog names itself after the document and drops the payment sections.
+  const documentLabel  = saleDocumentLabel(sale?.sale_type);
+  const isNonBinding   = isNonBindingSaleType(sale?.sale_type);
   const totalReturned  = returnHistory.reduce((s: number, r: any) => s + Number(r.return_amount), 0);
   const originalTotal  = Number(sale?.total_amount ?? 0);
   const adjustedTotal  = originalTotal - totalReturned;
@@ -424,189 +338,71 @@ export default function InvoiceDetailsModal({
     customer?.address_line1, customer?.address_line2,
     customer?.city, customer?.state, customer?.pincode,
   ].filter(Boolean).join(", ") || "—";
+  const customerShippingAddress = customer?.shipping_address?.trim();
+  // Gates both the on-screen Shipping Address field and the Ship To block on
+  // the printed invoice. Absent on rows predating the toggle — default on.
+  const showShippingAddress = invoiceSettings?.show_shipping_address ?? true;
+  const hasShippingAddress = !!customerShippingAddress && showShippingAddress;
 
   // ── PDF generation ────────────────────────────────────────
-  const generatePDF = async (): Promise<jsPDF | null> => {
-    if (!pdfRef.current) return null;
+  // Which copy marking the hidden templates are currently rendering. Driven
+  // synchronously (see generatePdfForCopies) rather than by a normal state
+  // update, because the DOM has to carry the right marking at the moment
+  // html2canvas reads it.
+  const [renderCopyType, setRenderCopyType] = useState<string | null>(null);
+  const copyTypes = invoiceCopyTypesForSale(invoiceSettings?.invoice_copy_types, sale?.sale_type);
 
-    const headerEl = pdfRef.current.querySelector("[data-pdf-header]") as HTMLElement | null;
-    const headerDividerEl = pdfRef.current.querySelector("[data-pdf-header-divider]") as HTMLElement | null;
-    const keepTogetherEls = Array.from(
-      pdfRef.current.querySelectorAll("[data-pdf-keep-together]"),
-    ) as HTMLElement[];
+  /**
+   * Renders one PDF containing each requested copy in turn. An empty list means
+   * "no copy marking at all" — the pre-copy-types behavior.
+   */
+  // A restaurant bill is a thermal receipt — Restaurant Invoice Settings offers
+  // no A4 — so its Download/Share PDF is that receipt at the configured roll
+  // width, the same document Print puts on paper, not the A4 template.
+  const pdfIsThermal = isRestaurant && invoiceSettings?.printer_inch !== "A4";
 
-    // Measure positions BEFORE html2canvas — DOM layout must still be intact
-    const containerRect = pdfRef.current.getBoundingClientRect();
-    const keepTogetherRanges = keepTogetherEls.map((el) => {
-      const elRect = el.getBoundingClientRect();
-      return {
-        start: Math.round((elRect.top - containerRect.top) * PDF_CAPTURE_SCALE),
-        end: Math.round((elRect.bottom - containerRect.top) * PDF_CAPTURE_SCALE),
-      };
-    });
-
-    const capturedCanvas = await html2canvas(pdfRef.current, {
-      scale: PDF_CAPTURE_SCALE,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      logging: false,
-    });
-    const canvas = trimCanvasBottom(capturedCanvas);
-
-    let headerCanvas: HTMLCanvasElement | null = null;
-    let headerImgData: string | null = null;
-    let headerHeightPx = 0;
-
-    if (headerEl) {
-      const headerRect = headerEl.getBoundingClientRect();
-      const dividerRect = headerDividerEl?.getBoundingClientRect();
-      const dividerBottom = dividerRect ? dividerRect.bottom : headerRect.bottom;
-      // Measure from the container's top (not the header element's top) so the
-      // copy from canvas y=0 correctly includes the page's top padding and the
-      // red divider line is fully captured in the repeating header.
-      headerHeightPx = Math.max(1, Math.round((dividerBottom - containerRect.top) * PDF_CAPTURE_SCALE));
-
-      headerCanvas = document.createElement("canvas");
-      headerCanvas.width = canvas.width;
-      headerCanvas.height = headerHeightPx;
-
-      const headerContext = headerCanvas.getContext("2d");
-      if (!headerContext) return null;
-
-      headerContext.fillStyle = "#ffffff";
-      headerContext.fillRect(0, 0, headerCanvas.width, headerCanvas.height);
-      headerContext.drawImage(
-        canvas,
-        0,
-        0,
-        canvas.width,
-        headerHeightPx,
-        0,
-        0,
-        headerCanvas.width,
-        headerCanvas.height,
-      );
-
-      headerImgData = headerCanvas.toDataURL("image/jpeg", PDF_IMAGE_QUALITY);
+  const generatePdfForCopies = async (copies: string[]): Promise<jsPDF | null> => {
+    const target = pdfIsThermal ? thermalRef : pdfRef;
+    if (!target.current) return null;
+    const list: Array<string | null> = copies.length > 0 ? copies : [null];
+    let doc: jsPDF | null = null;
+    try {
+      for (const copy of list) {
+        // flushSync, not a plain setState: the marking must be in the DOM
+        // before the capture below reads it, and React would otherwise batch
+        // the update until after this handler finishes.
+        flushSync(() => setRenderCopyType(copy));
+        doc = pdfIsThermal
+          ? await renderThermalReceiptPdf(
+              target.current,
+              THERMAL_ROLL_MM[thermalPaperSize],
+              THERMAL_PRINTABLE_MM[thermalPaperSize],
+              doc,
+            )
+          : await renderPaginatedInvoicePdf(target.current, doc);
+        if (!doc) return null;
+      }
+    } finally {
+      flushSync(() => setRenderCopyType(null));
     }
+    return doc;
+  };
 
-    const pdf = new jsPDF({
-      orientation: "p",
-      unit: "mm",
-      format: "a4",
-      compress: true,
-    });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const pageBottomGapPx = Math.max(0, Math.round((PDF_PAGE_BOTTOM_GAP_MM * canvas.width) / pageWidth));
-    const renderedPageHeightPx = Math.max(
-      1,
-      Math.floor((canvas.width * pageHeight) / pageWidth) - pageBottomGapPx,
-    );
-    const headerHeightMm = headerCanvas ? (headerCanvas.height * pageWidth) / headerCanvas.width : 0;
-    const headerGapPx = headerCanvas
-      ? Math.max(0, Math.round((PDF_HEADER_GAP_MM * canvas.width) / pageWidth))
-      : 0;
-    const laterPageContentHeightPx = headerCanvas
-      ? Math.max(1, renderedPageHeightPx - headerHeightPx - headerGapPx)
-      : renderedPageHeightPx;
-
-    for (let sourceY = 0, pageIndex = 0; sourceY < canvas.height; pageIndex += 1) {
-      const isFirstPage = pageIndex === 0;
-      const targetSliceHeight = isFirstPage ? renderedPageHeightPx : laterPageContentHeightPx;
-      let sliceHeight = findSafeSliceHeight(
-        canvas,
-        sourceY,
-        targetSliceHeight,
-        Math.min(PDF_MIN_SLICE_HEIGHT_PX, targetSliceHeight),
-      );
-
-      // If a keep-together section (e.g. the summary block, or the
-      // declaration + bank + footer block) would be split across pages, end
-      // the current page just before it starts so the whole block lands on
-      // the next page together.
-      // Only trigger when the section does NOT fully fit in the space
-      // remaining after its start point — if it fits, let it stay as-is.
-      for (const range of keepTogetherRanges) {
-        if (range.start > sourceY + PDF_MIN_SLICE_HEIGHT_PX &&
-            range.start < sourceY + sliceHeight) {
-          const sectionHeight = range.end - range.start;
-          const spaceAfterStart = sourceY + sliceHeight - range.start;
-          if (sectionHeight > spaceAfterStart) {
-            sliceHeight = range.start - sourceY;
-          }
-        }
-      }
-
-      if (sliceHeight <= 0) {
-        break;
-      }
-
-      const remainingHeight = canvas.height - sourceY;
-      if (pageIndex > 0 && remainingHeight <= PDF_MIN_SLICE_HEIGHT_PX) {
-        break;
-      }
-
-      const pageCanvas = document.createElement("canvas");
-      pageCanvas.width = canvas.width;
-      pageCanvas.height = sliceHeight;
-
-      const pageContext = pageCanvas.getContext("2d");
-      if (!pageContext) return null;
-
-      pageContext.fillStyle = "#ffffff";
-      pageContext.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-      pageContext.drawImage(
-        canvas,
-        0,
-        sourceY,
-        canvas.width,
-        sliceHeight,
-        0,
-        0,
-        pageCanvas.width,
-        pageCanvas.height,
-      );
-
-      const trimmedPageCanvas = trimCanvasBottom(pageCanvas);
-      if (trimmedPageCanvas.height <= 1 && pageIndex > 0) {
-        break;
-      }
-
-      const imgData = trimmedPageCanvas.toDataURL("image/jpeg", PDF_IMAGE_QUALITY);
-      const sliceHeightMm = (trimmedPageCanvas.height * pageWidth) / trimmedPageCanvas.width;
-
-      if (pageIndex > 0) {
-        pdf.addPage();
-      }
-
-      if (!isFirstPage && headerCanvas && headerImgData) {
-        pdf.addImage(headerImgData, "JPEG", 0, 0, pageWidth, headerHeightMm, undefined, "MEDIUM");
-      }
-
-      pdf.addImage(
-        imgData,
-        "JPEG",
-        0,
-        isFirstPage ? 0 : headerHeightMm + PDF_HEADER_GAP_MM,
-        pageWidth,
-        sliceHeightMm,
-        undefined,
-        "MEDIUM",
-      );
-
-      sourceY += sliceHeight;
-    }
-
-    return pdf;
+  // "Invoice_INV-001_Original.pdf" / "Quotation_QT-001.pdf" for one copy,
+  // "..._All_Copies.pdf" for the lot — named after the document, like its heading.
+  const copyFileName = (copies: string[]) => {
+    const base = `${documentLabel}_${sale?.sale_id ?? documentLabel.toLowerCase()}`;
+    if (copies.length === 0) return `${base}.pdf`;
+    if (copies.length === 1) return `${base}_${copies[0]}.pdf`;
+    return `${base}_All_Copies.pdf`;
   };
 
   // ── Share handler ─────────────────────────────────────────
-  const handleShare = async () => {
-    const pdf = await generatePDF();
+  const handleShare = async (copies: string[]) => {
+    const pdf = await generatePdfForCopies(copies);
     if (!pdf) return;
 
-    const fileName = `Invoice_${sale?.sale_id ?? "invoice"}.pdf`;
+    const fileName = copyFileName(copies);
     const blob     = pdf.output("blob");
     const file     = new File([blob], fileName, { type: "application/pdf" });
 
@@ -618,8 +414,8 @@ export default function InvoiceDetailsModal({
       try {
         await navigator.share({
           files: [file],
-          title: `Invoice ${sale?.sale_id}`,
-          text:  `Invoice from ${sale?.sale_id}`,
+          title: `${documentLabel} ${sale?.sale_id}`,
+          text:  `${documentLabel} from ${sale?.sale_id}`,
         });
         return;
       } catch (err: any) {
@@ -639,47 +435,19 @@ export default function InvoiceDetailsModal({
   };
 
   // ── Download handler ──────────────────────────────────────
-  const handleDownload = async () => {
-    const pdf = await generatePDF();
-    pdf?.save(`Invoice_${sale?.sale_id ?? "invoice"}.pdf`);
+  const handleDownload = async (copies: string[]) => {
+    const pdf = await generatePdfForCopies(copies);
+    pdf?.save(copyFileName(copies));
   };
 
   // ── Thermal print handler ───────────────────────────────────
-  const handleThermalPrint = () => {
+  const handleThermalPrint = async (copies: string[]) => {
     if (!thermalRef.current) return;
-    // Use actual printable widths (roll width minus hardware margins) to prevent right-side clipping
-    const paperMmMap: Record<ThermalPaperSize, number> = { "3": 72, "4": 96, "5": 120 };
-    const mm = paperMmMap[thermalPaperSize];
-    // outerHTML (not innerHTML) — the ref'd div carries the base font-family/color/weight
-    // inline styles; innerHTML would drop them and fall back to the browser's thin default font.
-    const content = thermalRef.current.outerHTML;
-    const printWindow = window.open("", "_blank", "width=500,height=700");
-    if (!printWindow) return;
-    printWindow.document.write(`<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <title>Receipt</title>
-  <style>
-    @page { size: ${mm}mm auto; margin: 0; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      width: ${mm}mm;
-      background: #fff;
-      color: #000;
-      font-family: 'Courier New','Consolas','Lucida Console',monospace;
-      font-weight: 600;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    @media print { html, body { width: ${mm}mm; } }
-  </style>
-</head>
-<body>${content}</body>
-</html>`);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => { printWindow.print(); printWindow.close(); }, 300);
+    await printThermalCopies(
+      thermalRef.current,
+      copies.length > 0 ? copies : [null],
+      (copy) => flushSync(() => setRenderCopyType(copy)),
+    );
   };
 
   // ── Print handler ─────────────────────────────────────────
@@ -687,12 +455,12 @@ export default function InvoiceDetailsModal({
   // browser's print dialog on the generated PDF without ever navigating away
   // (a hidden iframe, not a new tab); any thermal width (3"/5", "4" handled
   // defensively) prints the thermal receipt.
-  const handlePrint = async () => {
+  const handlePrint = async (copies: string[]) => {
     if (invoiceSettings?.printer_inch !== "A4") {
-      handleThermalPrint();
+      await handleThermalPrint(copies);
       return;
     }
-    const pdf = await generatePDF();
+    const pdf = await generatePdfForCopies(copies);
     if (!pdf) return;
     const blob = pdf.output("blob");
     const url = URL.createObjectURL(blob);
@@ -724,19 +492,49 @@ export default function InvoiceDetailsModal({
   };
 
   // ── PDF data ──────────────────────────────────────────────
+  // The restaurant sale_date_fmt is "DD Mon YYYY HH12:MI AM" — it already
+  // carries the time, so the receipt printed it twice (once inside the date,
+  // once as its own time). Split it back into a date and a time.
+  const TRAILING_TIME = /[\s,]+(\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?)\s*$/i;
+  const saleDateFmt   = sale?.sale_date_fmt ?? "";
+  const printDate     = saleDateFmt.replace(TRAILING_TIME, "");
+  const printTime     = sale?.sale_time_fmt || saleDateFmt.match(TRAILING_TIME)?.[1] || null;
+
+  // Restaurant menu items rarely carry an HSN code, and the server's HSN-wise
+  // summary skips every line without one — so the printed GST summary came out
+  // empty. Rebuild the slabs from the lines, the way the POS taxed them.
+  const restaurantGstBreakdown = isRestaurant
+    ? gstBreakdownFromLines(items.map((i: any) => ({
+        price:     Number(i.price ?? 0),
+        qty:       Number(i.quantity ?? 0),
+        gstPct:    Number(i.gst_percentage ?? 0) || 0,
+        inclusive: i.tax_inclusive === true,
+      })))
+    : null;
+
   const pdfData = {
-    sale_id:           sale?.sale_id,
-    date:              sale?.sale_date_fmt,
+    sale_id:           isRestaurant ? (sale?.public_order_no ?? sale?.sale_id) : sale?.sale_id,
+    // Drives the "QUOTATION" vs "INVOICE" heading in the print templates.
+    sale_type:         sale?.sale_type,
+    // Printed on the transport copy only; a blank rule when the sale has none.
+    vehicle_no:        sale?.vehicle_no ?? null,
+    // The buyer's PO reference, so a reprint from here matches what POS printed.
+    po_number:         sale?.purchase_order_no ?? null,
+    po_date:           sale?.purchase_order_date_fmt ?? sale?.purchase_order_date ?? null,
+    date:              printDate,
+    time:              printTime,
     due_date:          null,
     customer_name:     customerName,
     customer_address:  customerAddress,
     customer_mobile:   customerMobile,
     customer_gstin:    customerGstin,
+    customer_shipping_address: hasShippingAddress ? customerShippingAddress : null,
     payment_mode:      history?.[0]?.transaction_type ?? "Cash",
     payment_status:    sale?.payment_status,
     items: items.map((i: any) => ({
       item_id:   i.item_id,
       name:     i.item_name,
+      description: i.description,   // may be absent — item had no description at sale time
       category: i.variant_name ?? "",
       hsn:      i.hsn_code ?? "—",
       qty:      i.quantity,
@@ -748,14 +546,14 @@ export default function InvoiceDetailsModal({
     subtotal:       sale?.subtotal,
     discount:       hasDiscount ? sale?.discount_amount : null,
     discount_label: discountLabel,
-    cgst:           hsnTotals.cgst,
-    sgst:           hsnTotals.sgst,
+    cgst:           restaurantGstBreakdown ? restaurantGstBreakdown.reduce((s, r) => s + r.cgstAmount, 0) : hsnTotals.cgst,
+    sgst:           restaurantGstBreakdown ? restaurantGstBreakdown.reduce((s, r) => s + r.sgstAmount, 0) : hsnTotals.sgst,
     cgst_pct:       Number(hsnWiseTax[0]?.cgst_percent ?? 0) || 2.5,
     sgst_pct:       Number(hsnWiseTax[0]?.sgst_percent ?? 0) || 2.5,
     round_off:      hasRoundOff ? sale?.round_off : null,
     total:          originalTotal,
-    amount_in_words: `${toWords(Math.round(originalTotal))} Rupees Only`,
-    gst_breakdown: hsnWiseTax.map((row) => ({
+    amount_in_words: `${numberToWords(Math.round(originalTotal))} Rupees Only`,
+    gst_breakdown: restaurantGstBreakdown ?? hsnWiseTax.map((row) => ({
       hsn:            row.hsn_code,
       taxable:        row.taxable_value,
       cgstRate:       Number(row.cgst_percent).toFixed(2),
@@ -796,7 +594,7 @@ export default function InvoiceDetailsModal({
               : <ReceiptLongOutlinedIcon sx={{ color: "#D0021B", fontSize: 20 }} />}
           </Box>
           <Typography sx={{ fontSize: 18, fontWeight: 800, color: "#0F172A" }}>
-            {isRestaurant ? "Order Details" : "Invoice Details"}
+            {isRestaurant ? "Order Details" : `${documentLabel} Details`}
           </Typography>
           <Chip
             label={isRestaurant ? (sale?.public_order_no ?? sale?.sale_id ?? "—") : (sale?.sale_id ?? "—")}
@@ -820,7 +618,7 @@ export default function InvoiceDetailsModal({
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           {!isRestaurant && !isCancelledTab && (
             <Tooltip title="Edit in POS">
-              <IconButton size="small" onClick={() => navigate(getPosEditUrl(sale?.sale_id, sale?.sale_type))}
+              <IconButton size="small" onClick={() => navigate(getPosEditUrl(sale?.sale_uuid, sale?.sale_type))}
                 sx={{ color: "#2563EB", bgcolor: "#EFF6FF", "&:hover": { bgcolor: "#DBEAFE" }, borderRadius: "50%", width: 32, height: 32 }}>
                 <EditIcon sx={{ fontSize: 16 }} />
               </IconButton>
@@ -859,6 +657,9 @@ export default function InvoiceDetailsModal({
                     { label: "Mobile No.",    value: customerMobile },
                     { label: "GSTIN",         value: customerGstin },
                     { label: "Address",       value: customerAddress, small: true },
+                    ...(hasShippingAddress
+                      ? [{ label: "Shipping Address", value: customerShippingAddress, small: true }]
+                      : []),
                   ].map(({ label, value, bold, small }) => (
                     <Box key={label}>
                       <Typography sx={{
@@ -915,6 +716,11 @@ export default function InvoiceDetailsModal({
                             {item.variant_name && (
                               <Typography sx={{ fontSize: 11, color: "#94A3B8", mt: 0.2 }}>
                                 {item.variant_name}
+                              </Typography>
+                            )}
+                            {(invoiceSettings?.show_description ?? false) && item.description && (
+                              <Typography sx={{ fontSize: 10, color: "#6B7280", mt: 0.25, lineHeight: 1.5, whiteSpace: "pre-line" }}>
+                                {item.description}
                               </Typography>
                             )}
                           </TD>
@@ -983,8 +789,9 @@ export default function InvoiceDetailsModal({
 
                 {hsnWiseTax.length > 0 ? (
                   <>
-                    <SRow label="CGST Total" value={INR(hsnTotals.cgst)} />
-                    <SRow label="SGST Total" value={INR(hsnTotals.sgst)} />
+                    {taxSummaryRows.map((row) => (
+                      <SRow key={row.label} label={row.label} value={INR(row.amount)} />
+                    ))}
                   </>
                 ) : (
                   <SRow label="Total Tax" value={INR(Number(sale.total_tax ?? 0))} />
@@ -1023,7 +830,7 @@ export default function InvoiceDetailsModal({
                   large
                 />
 
-                {!isQuotation && !isRestaurant && paidAmount > 0 && (
+                {!isNonBinding && !isRestaurant && paidAmount > 0 && (
                   <SRow
                     label="Paid Amount"
                     value={INR(paidAmount)}
@@ -1031,7 +838,7 @@ export default function InvoiceDetailsModal({
                   />
                 )}
 
-                {!isQuotation && !isRestaurant && adjustedBalance > 0 && (
+                {!isNonBinding && !isRestaurant && adjustedBalance > 0 && (
                   <SRow
                     label="Balance Due"
                     value={INR(adjustedBalance)}
@@ -1051,7 +858,7 @@ export default function InvoiceDetailsModal({
             </Box>
 
             {/* 4 ── Payment history ─────────────────────────── */}
-            {(isRestaurant || (!isQuotation && history.length > 0)) && (
+            {(isRestaurant || (!isNonBinding && history.length > 0)) && (
               <Box>
                 <SectionTitle>Payment History</SectionTitle>
                 <TableContainer component={Paper} elevation={0}
@@ -1424,8 +1231,14 @@ export default function InvoiceDetailsModal({
 
       {/* Hidden PDF / thermal render targets */}
       <div style={{ position: "fixed", left: "-9999px", top: "-9999px", overflow: "hidden", pointerEvents: "none" }}>
-        <InvoicePDFTemplate ref={pdfRef} data={pdfData} />
-        <ThermalInvoiceTemplate ref={thermalRef} data={pdfData} paperSize={thermalPaperSize} />
+        {invoiceSettings?.invoice_template === "modern2" ? (
+          <InvoicePDFTemplateModern2 ref={pdfRef} data={pdfData} copyType={renderCopyType} />
+        ) : invoiceSettings?.invoice_template === "modern" ? (
+          <InvoicePDFTemplateModern ref={pdfRef} data={pdfData} copyType={renderCopyType} />
+        ) : (
+          <InvoicePDFTemplate ref={pdfRef} data={pdfData} copyType={renderCopyType} />
+        )}
+        <ThermalInvoiceTemplate ref={thermalRef} data={pdfData} paperSize={thermalPaperSize} copyType={renderCopyType} />
       </div>
 
       {/* ── Footer actions ─────────────────────────────────── */}
@@ -1449,28 +1262,33 @@ export default function InvoiceDetailsModal({
 
         <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
 
-          {/* Share */}
-          <Tooltip title="Share invoice">
-            <IconButton
-              onClick={handleShare}
-              sx={{
-                border: "1px solid #E2E8F0",
-                borderRadius: "10px",
-                p: 1,
-                color: "#475569",
-                bgcolor: "#fff",
-                "&:hover": { bgcolor: "#F1F5F9", borderColor: "#CBD5E1" },
-              }}
-            >
-              <ShareIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Tooltip>
+          {/* Share — body shares the first copy, caret offers the rest */}
+          <InvoiceCopyActions
+            label="Share"
+            icon={<ShareIcon sx={{ fontSize: 17 }} />}
+            copyTypes={copyTypes}
+            onRun={handleShare}
+            buttonSx={{
+              border: "1px solid #E2E8F0",
+              bgcolor: "#fff",
+              color: "#475569",
+              fontWeight: 700,
+              fontSize: 13,
+              px: 2,
+              py: 1,
+              borderRadius: "10px",
+              textTransform: "none",
+              "&:hover": { bgcolor: "#F1F5F9", borderColor: "#CBD5E1" },
+            }}
+          />
 
-          {/* Download */}
-          <Button
-            startIcon={<DownloadIcon sx={{ fontSize: 17 }} />}
-            onClick={handleDownload}
-            sx={{
+          {/* Download — body downloads the first copy, caret offers the rest */}
+          <InvoiceCopyActions
+            label="Download"
+            icon={<DownloadIcon sx={{ fontSize: 17 }} />}
+            copyTypes={copyTypes}
+            onRun={handleDownload}
+            buttonSx={{
               bgcolor: "#F1F5F9",
               color: "#0F172A",
               fontWeight: 700,
@@ -1481,15 +1299,15 @@ export default function InvoiceDetailsModal({
               textTransform: "none",
               "&:hover": { bgcolor: "#E2E8F0" },
             }}
-          >
-            Download
-          </Button>
+          />
 
-          {/* Print */}
-          <Button
-            startIcon={<PrintIcon sx={{ fontSize: 17 }} />}
-            onClick={handlePrint}
-            sx={{
+          {/* Print — same split behavior */}
+          <InvoiceCopyActions
+            label="Print"
+            icon={<PrintIcon sx={{ fontSize: 17 }} />}
+            copyTypes={copyTypes}
+            onRun={handlePrint}
+            buttonSx={{
               bgcolor: "#D0021B",
               color: "#fff",
               fontWeight: 700,
@@ -1501,9 +1319,7 @@ export default function InvoiceDetailsModal({
               boxShadow: "0 8px 20px -4px rgba(208,2,27,0.3)",
               "&:hover": { bgcolor: "#B00218", boxShadow: "0 8px 20px -4px rgba(208,2,27,0.45)" },
             }}
-          >
-            Print Invoice
-          </Button>
+          />
 
         </Box>
       </DialogActions>

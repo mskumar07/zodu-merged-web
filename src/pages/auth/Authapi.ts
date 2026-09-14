@@ -51,6 +51,7 @@ export interface Branch {
   area_street_name?: string;
   address_line_1?: string;
   address_line_2?: string;
+  pincode?: string;
   same_as_address?: boolean;
   same_as_bank_details?: boolean;
 }
@@ -77,6 +78,8 @@ export interface CompanyWithBranches {
   mail_id?: string;        // ✅ API field name
   area_street_name?: string;
   building_no?: string;
+  address_line_1?: string;
+  address_line_2?: string;
   pincode?: string;
   account_number?: string;
   account_type?: string;
@@ -90,6 +93,8 @@ export interface CompanyWithBranches {
   is_subscripted?: boolean;
   subscription_start_date?: string;
   subscription_expiry_date?: string;
+  // Returned by GET /my-companies. Null/absent when no logo has been uploaded.
+  company_logo_url?: string | null;
   branches: Branch[];
 }
 
@@ -159,6 +164,10 @@ export interface CreateCompanyPayload {
   account_type?: string;
   ifsc_code?: string;
   can_use_for_branch?: boolean;
+  // Attach a File to send the whole form as multipart/form-data in one request —
+  // the endpoint accepts either JSON or multipart, so this is only used when a
+  // logo is actually picked.
+  company_logo?: File | null;
 }
 
 export interface OpeningHours {
@@ -218,6 +227,15 @@ export interface EditCompanyPayload {
   account_number?: string;
   account_type?: string;
   ifsc_code?: string;
+  // Three ways to change the logo, per the API contract:
+  //   • attach a File as `company_logo`  → sent as multipart
+  //   • `company_logo_url: "<url>"`      → point at an already-uploaded file
+  //   • `company_logo_url: null`         → clear the stored logo
+  // Omitting both leaves the stored logo untouched. A logo-only edit (every other
+  // field absent) is accepted — the server relaxes its minimum-keys check when a
+  // file is attached.
+  company_logo?: File | null;
+  company_logo_url?: string | null;
 }
 
 export interface EditBranchPayload {
@@ -257,15 +275,66 @@ export interface InvoiceSettings {
   zodu_id: string;
   branch_id: string;
   invoice_prefix: string;
-  invoice_digit_count: number;
+  // Whether the prefix is applied. Absent on rows that predate the toggle —
+  // see InvoiceSettingsResponse in useInvoiceSettingApi.ts for how a missing
+  // flag is read. The suffix and its toggle live on the POS settings row.
+  invoice_prefix_enabled?: boolean;
   invoice_start_number: number;
   default_tax_label: string;
   invoice_due_days: number;
   default_payment_method: string;
   printer_inch: string;
+  invoice_theme_color?: string | null;
   show_company_logo: boolean;
   print_thank_you_message: boolean;
+  show_description: boolean;
+  show_item_id: boolean;
+  show_serial_no: boolean;
+  show_customer_details: boolean;
+  // Whether the Ship To block is printed. Absent on rows that predate this
+  // field — treat a missing value as true, which is how invoices behaved
+  // before the toggle existed.
+  show_shipping_address?: boolean;
+  show_tax_details: boolean;
+  show_payment_details: boolean;
+  show_terms_conditions: boolean;
+  terms_conditions: string;
+  show_notes: boolean;
+  notes: string;
+  show_signature: boolean;
+  signature_url?: string | null;
+  show_bank_details: boolean;
+  // Payment types offered at POS checkout, as canonical labels
+  // (e.g. ["Cash", "UPI", "UPI + Cash", "Others"]). Stored server-side as TEXT[].
+  // Absent on rows that predate this field.
+  payment_types?: string[];
+  // Which copy markings the user can download/print ("Original" | "Duplicate" |
+  // "Transport"). Absent on rows that predate this field — treat a missing or
+  // empty value as ["Original"].
+  invoice_copy_types?: string[];
+  // Which A4 invoice layout to render — "classic" (default) or "modern".
+  invoice_template?: string;
+  // POS settings — "Additional Settings". Absent on rows that predate this field.
+  stock_check_enabled?: boolean;
+  customer_mandatory?: boolean;
   active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Sale types the POS offers for this branch, and which one it opens on.
+// Absent on branches with no POS-settings row yet — treat that as the default
+// of every type enabled with Invoice first (see normalizePosSettings).
+export interface PosSettings {
+  zodu_id?: string;
+  branch_id?: string;
+  pos_types?: string[];
+  default_pos_type?: string;
+  // Whether POS shows the buyer's purchase-order number/date fields.
+  purchase_order_enabled?: boolean;
+  // Whether POS offers Hold/Recall. Treat a missing value as on.
+  hold_enabled?: boolean;
+  active?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -273,6 +342,7 @@ export interface InvoiceSettings {
 export interface BranchSettingsResponse {
   settings: {
     invoice: InvoiceSettings;
+    pos?: PosSettings;
   };
 }
 
@@ -321,6 +391,33 @@ async function unwrap<T>(promise: Promise<{ data: T }>): Promise<T> {
   return (payload?.data ?? payload) as T;
 }
 
+// Uploads need far longer than the instance's 10s default — a logo on a slow
+// mobile connection routinely takes more than that.
+const UPLOAD_CONFIG = {
+  headers: { 'Content-Type': 'multipart/form-data' },
+  timeout: 60_000,
+} as const;
+
+// Flattens a company payload into FormData so a picked logo file can ride along
+// with the rest of the form in a single request. Only called when there IS a
+// file — with no file the endpoints take plain JSON, which is cheaper and keeps
+// booleans/nulls typed instead of stringified.
+function toCompanyFormData(payload: Record<string, unknown>): FormData {
+  const fd = new FormData();
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value === undefined) return;
+    if (value instanceof File) {
+      fd.append(key, value);
+    } else if (value === null) {
+      // Multipart has no null — the server reads the empty string as "clear this".
+      fd.append(key, '');
+    } else {
+      fd.append(key, String(value));
+    }
+  });
+  return fd;
+}
+
 // ── API functions ─────────────────────────────────────────────────────────────
 
 export const authApis = {
@@ -360,10 +457,11 @@ export const authApis = {
       return res.companies ?? [];
     }),
 
-  createCompany: (payload: CreateCompanyPayload) =>
+  createCompany: ({ company_logo, ...payload }: CreateCompanyPayload) =>
     unwrap<any>(
-      api.post('/auth/api/create-company', payload)
-          
+      company_logo
+        ? api.post('/auth/api/create-company', toCompanyFormData({ ...payload, company_logo }), UPLOAD_CONFIG)
+        : api.post('/auth/api/create-company', payload)
     ),
 
   createBranch: (payload: CreateBranchPayload) =>
@@ -371,18 +469,44 @@ export const authApis = {
       api.post('/auth/api/branch/add', payload)
     ),
 
-  editCompany: (zoduId: string, payload: EditCompanyPayload) => {
-    console.log("=== authApis.editCompany called ===");
-    console.log("zoduId:", zoduId);
-    console.log("payload:", payload);
-    const result = api.put(`/auth/api/company/edit/${zoduId}`, payload);
-    console.log("API call made to: /auth/api/company/edit/" + zoduId);
-    return unwrap<any>(result);
+  editCompany: (zoduId: string, { company_logo, ...payload }: EditCompanyPayload) => {
+    const url = `/auth/api/company/edit/${zoduId}`;
+    // `company_logo_url: null` (clear the logo) has to survive into the request, so
+    // it stays in `payload` — only the File is split out to pick the encoding.
+    return unwrap<any>(
+      company_logo
+        ? api.put(url, toCompanyFormData({ ...payload, company_logo }), UPLOAD_CONFIG)
+        : api.put(url, payload)
+    );
   },
+
+  // POST /auth/api/company/:zodu_id/logo — dedicated upload, mirroring the invoice
+  // signature endpoints. Returns the updated company.
+  uploadCompanyLogo: (zoduId: string, file: File) => {
+    const fd = new FormData();
+    fd.append('company_logo', file);
+    return unwrap<CompanyWithBranches>(
+      api.post(`/auth/api/company/${zoduId}/logo`, fd, UPLOAD_CONFIG)
+    );
+  },
+
+  deleteCompanyLogo: (zoduId: string) =>
+    unwrap<CompanyWithBranches>(
+      api.delete(`/auth/api/company/${zoduId}/logo`)
+    ),
 
   editBranch: (zoduId: string, branchId: string, payload: EditBranchPayload) =>
     unwrap<any>(
       api.put(`/auth/api/branch/edit/${zoduId}/${branchId}`, payload)
+    ),
+
+  // DELETE /auth/api/branch/:zodu_id/:branch_id — cascades across every service
+  // (retail, restaurant, employee, payroll, checklist, auth) and cannot be undone.
+  // On a mid-purge failure the backend stops safely and reports which services
+  // already had their rows removed via `partial_results`.
+  deleteBranch: (zoduId: string, branchId: string) =>
+    unwrap<{ message?: string; results?: unknown }>(
+      api.delete(`/auth/api/branch/${zoduId}/${branchId}`)
     ),
 
   // GET /auth/api/role-access?zodu_id=...&branch_id=... — called once a branch is
