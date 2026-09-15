@@ -23,9 +23,11 @@ import TagRoundedIcon from "@mui/icons-material/TagRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
 import GroupRoundedIcon from "@mui/icons-material/GroupRounded";
+import KeyboardRoundedIcon from "@mui/icons-material/KeyboardRounded";
+import TouchAppRoundedIcon from "@mui/icons-material/TouchAppRounded";
 import SuccessToast from "@components/Common/SuccessToast";
 import { useAppDispatch } from "@store/store";
-import { setInvoiceSettings } from "@store/slices/userSlice";
+import { setInvoiceSettings, setPosSettings } from "@store/slices/userSlice";
 import {
   useInvoiceSettings,
   useUpdateInvoiceSettings,
@@ -34,6 +36,7 @@ import {
   type PaymentTypeLabel,
   type UpdateInvoiceSettingsPayload,
 } from "./useInvoiceSettingApi";
+import { usePosSettings, useUpdatePosSettings, type PosScreenType } from "./usePosSettingApi";
 
 const redTint = "#ca0022";
 const headingText = "#1d2533";
@@ -64,9 +67,10 @@ const PAYMENT_CODE_TO_METHOD: Record<string, string> = Object.fromEntries(
 );
 
 const RESTAURANT_PAYMENT_METHODS: Array<{ value: string; label: string }> = [
-  { value: "qr", label: "QR" },
+  { value: "upi", label: "UPI" },
   { value: "cash", label: "Cash" },
-  { value: "card", label: "Card" },
+  { value: "bank_transfer", label: "Bank Transfer" },
+  { value: "others", label: "Others" },
 ];
 
 // Payment types the cashier can choose from at POS checkout, shown there as chips —
@@ -242,7 +246,22 @@ export default function RestaurantPosSetting() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Which billing layout the restaurant POS screen opens on — stored on the
+  // /pos-settings row (same one Hold & Recall etc. live on for retail), not
+  // on invoice-settings, so it has its own state/baseline/save.
+  const [posScreenType, setPosScreenType] = useState<PosScreenType>("Touch");
+  const posScreenTypeBaselineRef = useRef<PosScreenType | null>(null);
+
   const { data, isLoading, isError } = useInvoiceSettings();
+  const { data: posData, isLoading: isPosLoading, isError: isPosError } = usePosSettings();
+
+  useEffect(() => {
+    if (posData) {
+      const screenType = posData.pos_screen_type === "Keyboard" ? "Keyboard" : "Touch";
+      setPosScreenType(screenType);
+      posScreenTypeBaselineRef.current = screenType;
+    }
+  }, [posData]);
 
   useEffect(() => {
     if (data) {
@@ -263,8 +282,8 @@ export default function RestaurantPosSetting() {
   }, [data]);
 
   useEffect(() => {
-    if (isError) setErrorMsg("Failed to load POS settings. Please refresh the page.");
-  }, [isError]);
+    if (isError || isPosError) setErrorMsg("Failed to load POS settings. Please refresh the page.");
+  }, [isError, isPosError]);
 
   const { mutate: saveSettings, isPending: isSaving } = useUpdateInvoiceSettings({
     onSuccess: (updated) => {
@@ -292,8 +311,29 @@ export default function RestaurantPosSetting() {
     onError: (msg) => setErrorMsg(msg),
   });
 
+  const { mutate: savePosScreenType, isPending: isSavingPosScreenType } = useUpdatePosSettings({
+    onSuccess: (updated) => {
+      const screenType = updated.pos_screen_type === "Keyboard" ? "Keyboard" : "Touch";
+      setPosScreenType(screenType);
+      posScreenTypeBaselineRef.current = screenType;
+      // POS reads pos_screen_type straight from Redux (populated once at branch-select) —
+      // without this the opening view would only pick up the change after the next
+      // login/branch switch.
+      dispatch(setPosSettings(updated));
+      setSaved(true);
+      setSuccessMsg("POS settings updated successfully");
+      setTimeout(() => setSaved(false), 2000);
+    },
+    onError: (msg) => setErrorMsg(msg),
+  });
+
   const update = <K extends keyof PosSettings>(key: K, value: PosSettings[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
+    setSaved(false);
+  };
+
+  const updatePosScreenType = (value: PosScreenType) => {
+    setPosScreenType(value);
     setSaved(false);
   };
 
@@ -325,6 +365,31 @@ export default function RestaurantPosSetting() {
   };
 
   const handleSave = () => {
+    // pos_screen_type lives on its own row (/pos-settings) — save it separately
+    // from the invoice-settings fields below, and only when it actually changed.
+    // pos_types/default_pos_type are required by that PUT even though this screen
+    // doesn't manage them, so the currently-stored values travel back unchanged.
+    const posScreenTypeDirty = posScreenTypeBaselineRef.current !== posScreenType;
+    if (posScreenTypeDirty && posData) {
+      savePosScreenType({
+        pos_types: posData.pos_types,
+        default_pos_type: posData.default_pos_type,
+        invoice_suffix: posData.invoice_suffix,
+        invoice_suffix_enabled: posData.invoice_suffix_enabled,
+        quotation_prefix: posData.quotation_prefix,
+        quotation_prefix_enabled: posData.quotation_prefix_enabled,
+        quotation_suffix: posData.quotation_suffix,
+        quotation_suffix_enabled: posData.quotation_suffix_enabled,
+        proforma_prefix: posData.proforma_prefix,
+        proforma_prefix_enabled: posData.proforma_prefix_enabled,
+        proforma_suffix: posData.proforma_suffix,
+        proforma_suffix_enabled: posData.proforma_suffix_enabled,
+        purchase_order_enabled: posData.purchase_order_enabled,
+        hold_enabled: posData.hold_enabled,
+        pos_screen_type: posScreenType,
+      });
+    }
+
     const fullPayload: UpdateInvoiceSettingsPayload = {
       invoice_prefix: settings.invoicePrefix,
       invoice_digit_count: parseInt(settings.numberOfDigits, 10) || 4,
@@ -379,14 +444,14 @@ export default function RestaurantPosSetting() {
     }
 
     if (Object.keys(diff).length === 0) {
-      setSuccessMsg("No changes to save.");
+      if (!posScreenTypeDirty) setSuccessMsg("No changes to save.");
       return;
     }
 
     saveSettings(diff);
   };
 
-  if (isLoading) {
+  if (isLoading || isPosLoading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
         <CircularProgress size={28} sx={{ color: redTint }} />
@@ -527,6 +592,27 @@ export default function RestaurantPosSetting() {
                 />
               </Box>
             </SettingRow>
+
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
+
+            <SettingRow
+              icon={posScreenType === "Keyboard" ? <KeyboardRoundedIcon fontSize="small" /> : <TouchAppRoundedIcon fontSize="small" />}
+              iconBg="#fdf2f8"
+              iconColor="#db2777"
+              label="POS Screen Type"
+              description="The billing layout the restaurant POS screen opens on"
+            >
+              <FormControl fullWidth size="small">
+                <Select
+                  value={posScreenType}
+                  onChange={(e) => updatePosScreenType(e.target.value as PosScreenType)}
+                  sx={selectSx}
+                >
+                  <MenuItem value="Touch">Touch</MenuItem>
+                  <MenuItem value="Keyboard">Keyboard</MenuItem>
+                </Select>
+              </FormControl>
+            </SettingRow>
           </Section>
         </Stack>
 
@@ -635,9 +721,9 @@ export default function RestaurantPosSetting() {
         </Typography>
         <Button
           variant="contained"
-          startIcon={isSaving ? <CircularProgress size={16} sx={{ color: "#fff" }} /> : <SaveRoundedIcon />}
+          startIcon={isSaving || isSavingPosScreenType ? <CircularProgress size={16} sx={{ color: "#fff" }} /> : <SaveRoundedIcon />}
           onClick={handleSave}
-          disabled={isSaving}
+          disabled={isSaving || isSavingPosScreenType}
           sx={{
             px: 3,
             py: 1,
@@ -651,7 +737,7 @@ export default function RestaurantPosSetting() {
             "&.Mui-disabled": { bgcolor: redTint, opacity: 0.7, color: "#fff" },
           }}
         >
-          {isSaving ? "Saving..." : saved ? "Saved!" : "Save Changes"}
+          {isSaving || isSavingPosScreenType ? "Saving..." : saved ? "Saved!" : "Save Changes"}
         </Button>
       </Box>
 

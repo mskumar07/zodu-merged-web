@@ -26,11 +26,15 @@ import CloseIcon from "@mui/icons-material/Close";
 import zoduLogo from "@assets/zlogo.png";
 
 import { useAppSelector } from "../../../store/store";
-import { BranchId, ZoduId, BranchName, AllCompanies, UserProfile, addUserData, setRoleAccess, InvoiceSettingsData } from "@store/slices/userSlice";
+import { BranchId, ZoduId, BranchName, AllCompanies, UserProfile, addUserData, setRoleAccess, InvoiceSettingsData, PosSettingsData } from "@store/slices/userSlice";
+import { setRestaurantBillingView } from "@store/slices/POSslice";
+import { collapsedDrawerWidth } from "@layouts/Sidebar/index";
 import { authApis } from "@pages/auth/Authapi";
 import { useAppDispatch } from "@store/store";
 import { MenuItem, Select, IconButton, Avatar, Badge, Tooltip } from "@mui/material";
 import NotificationsIcon from "@mui/icons-material/Notifications";
+import KeyboardOutlinedIcon from "@mui/icons-material/KeyboardOutlined";
+import TouchAppOutlinedIcon from "@mui/icons-material/TouchAppOutlined";
 
 import {
   useRestaurantMenuQuery,
@@ -57,6 +61,7 @@ import {
 import CategoryNav          from "./components/CategoryNav";
 import ProductCard          from "./components/ProductCard";
 import OrderPanel, { type Totals, type PaymentMethod } from "./components/OrderPanel";
+import KeyboardBillingView from "./components/KeyboardBillingView";
 import { toPaymentTypeLabels } from "@pages/Settings/useInvoiceSettingApi";
 import TableModal           from "./components/modals/TableModal";
 import VariantModal         from "./components/modals/VariantModal";
@@ -120,6 +125,10 @@ function toThermalPaperSize(printerInch: string | undefined): ThermalPaperSize {
   if (printerInch?.startsWith("5")) return "5";
   return "3";
 }
+
+// ─── Billing view mode (Touch card-grid vs. Keyboard tabular) ──────────────
+
+type BillingViewMode = "touch" | "keyboard";
 
 // One bill line, normalised from either a cart item or an already-sent KOT item.
 interface ReceiptLine {
@@ -209,6 +218,7 @@ const RestaurantPOS: React.FC = () => {
   const isBusy = addingOrder || updatingOrder || completingOrder || holdingOrder;
 
   const invoiceSettings = useAppSelector(InvoiceSettingsData);
+  const posSettings     = useAppSelector(PosSettingsData);
 
   // Which payment buttons the billing panel shows, driven by POS Settings' Payment
   // Types picker (payment_types) — same source retail POS reads from. Falls back to
@@ -240,6 +250,27 @@ const RestaurantPOS: React.FC = () => {
   // hold_id of the hold order currently loaded into the cart (restored but not yet sent/paid) —
   // only deleted from the server once the order is actually sent to KDS, paid, or re-held
   const [activeHoldId, setActiveHoldId] = useState<string | null>(null);
+
+  // Billing view — Touch is the card-grid picker (today's default), Keyboard is the
+  // dense tabular billing screen for a mouse+keyboard cashier workflow. Always opens
+  // on the branch's POS Settings value (pos_screen_type); switching here via the
+  // in-screen toggle only lasts for the current session, not remembered afterward.
+  const [billingView, setBillingView] = useState<BillingViewMode>(
+    posSettings?.pos_screen_type === "Keyboard" ? "keyboard" : "touch"
+  );
+  const handleSetBillingView = useCallback((mode: BillingViewMode) => {
+    setBillingView(mode);
+  }, []);
+
+  // Mirrored into Redux so the app Sidebar (rendered by Layout, outside this
+  // component's tree) knows whether to reserve its hover-expand rail here —
+  // only Keyboard mode gets it; Touch mode stays the full-screen overlay it
+  // always was. Reset back to "touch" on unmount so leaving this screen never
+  // leaves a stale billing-route hint behind for the Sidebar.
+  useEffect(() => {
+    dispatch(setRestaurantBillingView(billingView));
+    return () => { dispatch(setRestaurantBillingView("touch")); };
+  }, [billingView, dispatch]);
 
   // Print toggle — when on, the bill prints automatically after a successful payment,
   // on the paper size picked in Invoice Settings.
@@ -632,6 +663,30 @@ const RestaurantPOS: React.FC = () => {
     setOrder(buildInitialOrder());
     setActiveHoldId(null);
     setIsEditingSummary(false);
+  }, []);
+
+  // Switching the order type away from Dine In abandons any restored running
+  // order — it belongs to a specific table, which no longer applies once the
+  // order isn't Dine In. Without this, the summary/table/hold state stayed
+  // populated underneath: Touch mode just happened to hide it (its cart view
+  // is gated on isDineIn), while Keyboard mode's item table isn't gated the
+  // same way and kept showing the stale table's items after switching tabs.
+  const handleOrderTypeChange = useCallback((key: "DineIn" | "Delivery" | "PickUp") => {
+    if (key !== "DineIn") {
+      setRunningOrderSummary([]);
+      setRunningOrderTotal(0);
+      setIsEditingSummary(false);
+      setActiveHoldId(null);
+      setOrder((p) => ({
+        ...p,
+        orderType: key,
+        tableNumber: null,
+        customerName: "",
+        customerPhone: "",
+      }));
+    } else {
+      setOrder((p) => ({ ...p, orderType: key, customerName: "", customerPhone: "" }));
+    }
   }, []);
 
   // ── Edit-mode handlers for already-sent KOT items (runningOrderSummary) ────
@@ -1098,12 +1153,23 @@ const RestaurantPOS: React.FC = () => {
   // ── Render ────────────────────────────────────────────────────────────────
   if (menuLoading) return <LottieLoader />;
 
+  // Touch mode stays the full-viewport overlay this screen has always been —
+  // maximum space for the card-grid cashier workflow, app chrome hidden.
+  // Keyboard mode instead leaves room on the left for the app Sidebar's
+  // hover-expand rail (see store/slices/POSslice.ts RestaurantBillingView /
+  // layouts/Sidebar), so it sits at a lower z-index than the Sidebar's fixed
+  // drawer paper (theme.zIndex.drawer + 1) and starts after its collapsed width.
+  const isKeyboard = billingView === "keyboard";
+
   return (
     <Box
       sx={{
         position: "fixed",
-        inset: 0,
-        zIndex: 1299,
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: isKeyboard ? collapsedDrawerWidth : 0,
+        zIndex: isKeyboard ? 1200 : 1299,
         display: "flex",
         flexDirection: "column",
         bgcolor: "#f5f5f5",
@@ -1111,9 +1177,12 @@ const RestaurantPOS: React.FC = () => {
       }}
     >
       {/* ════ Header / Navbar ════ */}
+      {/* Keyboard mode matches the Sidebar's 64px toolbar height so its bottom
+          border lines up with the Sidebar's divider instead of the two edges
+          sitting at different heights next to each other. */}
       <Box
         sx={{
-          height: 54,
+          height: isKeyboard ? 64 : 54,
           bgcolor: "#fff",
           borderBottom: "1px solid #e5e7eb",
           display: "flex",
@@ -1123,40 +1192,92 @@ const RestaurantPOS: React.FC = () => {
           flexShrink: 0,
         }}
       >
-        {/* Logo */}
-        <Box
-          component="img"
-          src={zoduLogo}
-          alt="zodu"
-          sx={{
-            height: 40,
-            width: "auto",
-            ml: 4,
-          }}
-        />
-        <Divider orientation="vertical" flexItem sx={{ borderColor: "#e5e7eb", ml: 10.2  }} />
+        {/* Logo + Back — the app Sidebar already shows its own logo and nav
+            once Keyboard mode reserves space for it, so this header's copies
+            would just duplicate that. Touch mode has no Sidebar visible, so
+            it keeps them. */}
+        {!isKeyboard && (
+          <>
+            <Box
+              component="img"
+              src={zoduLogo}
+              alt="zodu"
+              sx={{
+                height: 40,
+                width: "auto",
+                ml: 4,
+              }}
+            />
+            <Divider orientation="vertical" flexItem sx={{ borderColor: "#e5e7eb", ml: 10.2  }} />
 
-        {/* Back + Title */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Box
-            onClick={() => navigate("/sales-history")}
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              bgcolor: "#d32f2f",
-              color: "#fff",
-              borderRadius: "8px",
-              p: 0.5,
-              cursor: "pointer",
-              "&:hover": { bgcolor: "#b71c1c" },
-            }}
-          >
-            <ArrowBackIcon sx={{ fontSize: 18 }} />
-          </Box>
-        </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Box
+                onClick={() => navigate("/sales-history")}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  bgcolor: "#d32f2f",
+                  color: "#fff",
+                  borderRadius: "8px",
+                  p: 0.5,
+                  cursor: "pointer",
+                  "&:hover": { bgcolor: "#b71c1c" },
+                }}
+              >
+                <ArrowBackIcon sx={{ fontSize: 18 }} />
+              </Box>
+            </Box>
+          </>
+        )}
 
         <Box sx={{ flex: 1 }} />
+
+        {/* Billing view toggle: Keyboard (dense tabular billing) vs. Touch (card grid) */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.25,
+            p: 0.4,
+            borderRadius: "8px",
+            bgcolor: "#f3f4f6",
+            flexShrink: 0,
+          }}
+        >
+          {(
+            [
+              { mode: "keyboard" as const, label: "Keyboard", icon: <KeyboardOutlinedIcon sx={{ fontSize: 16 }} /> },
+              { mode: "touch" as const, label: "Touch", icon: <TouchAppOutlinedIcon sx={{ fontSize: 16 }} /> },
+            ]
+          ).map(({ mode, label, icon }) => {
+            const active = billingView === mode;
+            return (
+              <Box
+                key={mode}
+                onClick={() => handleSetBillingView(mode)}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  px: 1.25,
+                  py: 0.6,
+                  borderRadius: "6px",
+                  fontSize: "0.78rem",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  color: active ? "#d32f2f" : "#6b7280",
+                  bgcolor: active ? "#fff" : "transparent",
+                  boxShadow: active ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+                  transition: "all 0.15s",
+                }}
+              >
+                {icon}
+                {label}
+              </Box>
+            );
+          })}
+        </Box>
 
         {/* Branch dropdown */}
         <Select
@@ -1201,6 +1322,50 @@ const RestaurantPOS: React.FC = () => {
       </Box>
 
       {/* ════ Body ════ */}
+      {billingView === "keyboard" ? (
+        <KeyboardBillingView
+          order={order}
+          cartItems={cartItems}
+          totals={totals}
+          isBusy={isBusy}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchEnter={handleSearchEnter}
+          filterMode={filterMode}
+          onToggleFavourites={() => setFilterMode(filterMode === "Favourites" ? "All" : "Favourites")}
+          filteredCategories={filteredCategories}
+          getCartQty={getCartQty}
+          onAddItem={handleProductClick}
+          runningOrders={runningOrders}
+          onRestoreRunningOrder={handleRestoreRunningOrder}
+          runningOrderSummary={runningOrderSummary}
+          runningOrderTotals={runningOrderTotals}
+          onSummaryIncrement={incrementSummaryItem}
+          onSummaryDecrement={decrementSummaryItem}
+          onSummaryRemove={removeSummaryItem}
+          isEditingSummary={isEditingSummary}
+          onEditSummary={handleEditSummary}
+          onCancelEditSummary={handleCancelEditSummary}
+          onSendEditedKDS={handleSendEditedKDS}
+          onSendToKDS={handleSendToKDS}
+          heldOrders={heldOrders}
+          activeHoldId={activeHoldId}
+          onRestoreHold={handleRestoreHold}
+          onDeleteHold={handleDeleteHold}
+          enabledPaymentTypes={enabledPaymentTypes}
+          onOrderTypeChange={handleOrderTypeChange}
+          onTableClick={() => setShowTable(true)}
+          onCustomerClick={() => setShowCustomer(true)}
+          onDiscountClick={() => setShowDiscount(true)}
+          onPaymentMethodChange={(m) => setOrder((p) => ({ ...p, paymentMethod: m }))}
+          onIncrement={incrementCart}
+          onDecrement={decrementCart}
+          onRemove={removeFromCart}
+          onClearCart={() => setCartItems([])}
+          onHold={handleHold}
+          onPaid={() => handlePay(order.paymentMethod)}
+        />
+      ) : (
       <Box sx={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
 
         {/* ── Category sidebar ── */}
@@ -1543,9 +1708,7 @@ const RestaurantPOS: React.FC = () => {
           runningOrderTotals={runningOrderTotals}
           onTableClick={() => setShowTable(true)}
           onCustomerClick={() => setShowCustomer(true)}
-          onOrderTypeChange={(key) =>
-            setOrder((p) => ({ ...p, orderType: key, customerName: "", customerPhone: "" }))
-          }
+          onOrderTypeChange={handleOrderTypeChange}
           onDiscountClick={() => setShowDiscount(true)}
           onPaymentMethodChange={(m) => setOrder((p) => ({ ...p, paymentMethod: m }))}
           enabledPaymentTypes={enabledPaymentTypes}
@@ -1567,6 +1730,7 @@ const RestaurantPOS: React.FC = () => {
           onTogglePrint={handleTogglePrint}
         />
       </Box>
+      )}
 
       {/* Off-screen receipt — captured by printReceipt() after a successful payment */}
       {receiptData && (
