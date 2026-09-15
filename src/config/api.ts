@@ -32,6 +32,10 @@ interface MenuEndPoints {
   getPosData: (branchId: string, zoduId: string, search?: string) => string; //Z-T97
   deleteMenuItem: (menuId: string) => string; //Z-T97
   updateMenuItem: (menuId: string) => string; //Z-T97
+  addKotCounter: () => string;
+  getKotCounters: (zoduId: string, branchId: string) => string;
+  getKotAssignment: (zoduId: string, branchId: string) => string;
+  assignKotCounterItems: () => string;
 }
 
 interface RestaurantEndPoints {
@@ -182,6 +186,12 @@ export const apiConfig: ApiConstants = {
       const qs = params.toString();
       return qs ? `${url}?${qs}` : url;
     },
+    addKotCounter: () => `${RESTAURANT_BASE}/add/kot-counter`,
+    getKotCounters: (zoduId: string, branchId: string) =>
+      `${RESTAURANT_BASE}/get/kot-counters/${zoduId}/${branchId}`,
+    getKotAssignment: (zoduId: string, branchId: string) =>
+      `${RESTAURANT_BASE}/get/kot-assignment/${zoduId}/${branchId}`,
+    assignKotCounterItems: () => `${RESTAURANT_BASE}/assign/kot-counter-items`,
   },
   restaurant: {
     getExpenseList: (branchId: string) =>

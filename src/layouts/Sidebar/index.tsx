@@ -30,6 +30,7 @@ import React, { useState, useEffect } from "react";
 import { History, Person, Settings, Badge } from "@mui/icons-material";
 import { useAppDispatch, useAppSelector } from "@store/store";
 import { clearAuthData, BusinessType, RoleAccess } from "@store/slices/userSlice";
+import { RestaurantBillingView } from "@store/slices/POSslice";
 import { tokenStore } from "@pages/auth/Authapi";
 import { db } from "@pages/POS/db";
 import { resetSessionReconciliation } from "@hooks/useReconcilePersistedSession";
@@ -113,8 +114,14 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
   );
 
   // Billing screen (retail POS) gets a hover-expandable icon rail; every other
-  // route keeps the sidebar at its normal fixed width.
-  const isBillingRoute = location.pathname.startsWith("/pos");
+  // route keeps the sidebar at its normal fixed width. The restaurant POS screen
+  // renders its own full-screen overlay and only wants the rail while its
+  // Keyboard billing layout is active — Touch mode stays full-screen with no
+  // sidebar reserved, same as before.
+  const restaurantBillingView = useAppSelector(RestaurantBillingView);
+  const isBillingRoute =
+    location.pathname.startsWith("/pos") ||
+    (location.pathname.startsWith("/restaurant-pos") && restaurantBillingView === "keyboard");
   const [isHovered, setIsHovered] = useState(false);
   // A stale "hovered" flag can survive a route change when the click that navigated
   // here (e.g. from Sales History) left the cursor sitting over the sidebar's screen

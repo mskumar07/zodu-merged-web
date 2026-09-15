@@ -19,6 +19,9 @@ interface POSstate {
   activeDineInTableOrders: Order[] | any[]; //Z-T77
   kgModalStatus:boolean;
   kgModalAction:string;
+  // "keyboard" vs. "touch" billing layout on the restaurant POS screen — read by
+  // the app Sidebar so its hover-expand rail only applies in Keyboard mode there.
+  restaurantBillingView: "touch" | "keyboard";
 }
 
 const initialState: POSstate = {
@@ -33,6 +36,7 @@ const initialState: POSstate = {
   discountValue: 0,
   SelectedTable: null, //z-T77,
   activeDineInTableOrders: [], //Z-T77
+  restaurantBillingView: "touch",
 };
 
 const counterSlice = createSlice({
@@ -91,7 +95,10 @@ const counterSlice = createSlice({
     //zodu-hotfix-01
     updateActiveDineInTableOrders: (state, action:PayloadAction<any>) => {
       state.activeDineInTableOrders = action.payload;
-    }
+    },
+    setRestaurantBillingView: (state, action: PayloadAction<"touch" | "keyboard">) => {
+      state.restaurantBillingView = action.payload;
+    },
   },
 });
 
@@ -108,6 +115,7 @@ export const {
   updateActiveDineInTableOrders, //zodu-hotfix-01
   setKgModalAction,
   setSearchProduct,
+  setRestaurantBillingView,
 } = counterSlice.actions;
 
 export const OrderMode = (state: RootState) => state.pos.orderMode;
@@ -123,5 +131,7 @@ export const SelectedProduct = (state: RootState) => state.pos.selectedProduct;
 export const SelectedTable = (state: RootState) => state.pos.SelectedTable; //Z-T77
 export const ActiveDineInTableOrders = (state: RootState) =>
   state.pos.activeDineInTableOrders; //Z-T77
+export const RestaurantBillingView = (state: RootState) =>
+  state.pos.restaurantBillingView;
 
 export default counterSlice.reducer;
