@@ -101,8 +101,8 @@ export interface InvoiceSettingsResponse {
   // INVOICE_COPY_TYPE_LABELS. Absent on rows that predate this field; treat a
   // missing or empty value as ["Original"].
   invoice_copy_types?: InvoiceCopyTypeLabel[];
-  // Which A4 invoice layout to render — "classic" (default) or "modern".
-  // Irrelevant for thermal receipts, which only ever use the one layout.
+  // Which invoice layout to render — "classic" (default), "modern" or "modern2" on A4.
+  // Thermal receipts read it too: "modern"/"modern2" print the Modern receipt, anything else Classic.
   invoice_template: string;
   // POS settings — "Additional Settings". Absent on rows that predate this field.
   stock_check_enabled?: boolean;

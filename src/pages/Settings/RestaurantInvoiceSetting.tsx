@@ -37,6 +37,7 @@ import {
   type UpdateInvoiceSettingsPayload,
 } from "./useInvoiceSettingApi";
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "../SalesHistory/ThermalInvoiceTemplate";
+import { THERMAL_TEMPLATE_OPTIONS, toThermalTemplate } from "@utils/thermalTemplate";
 import { numberToWords } from "@utils/numberToWords";
 import { normalizeInvoiceCopyTypes } from "@utils/invoiceCopyTypes";
 
@@ -362,7 +363,7 @@ function toUiSettings(api: InvoiceSettingsResponse): InvoiceSettings {
     notesText: api.notes ?? "",
     showSignature: api.show_signature ?? false,
     showBankDetails: api.show_bank_details ?? true,
-    invoiceTemplate: "classic",
+    invoiceTemplate: toThermalTemplate(api.invoice_template),
   };
 }
 
@@ -423,7 +424,7 @@ function getDefaultSettings(): InvoiceSettings {
 // sections, which don't apply to a restaurant bill. Those fields still travel
 // in the payload at their existing/default values; only their editable UI
 // controls are hidden here. Restaurant is also always thermal (no A4 option,
-// so no accent-color picker or per-template preview switch either).
+// so no accent-color picker); the preview switch offers the two receipt templates.
 export default function RestaurantInvoiceSetting() {
   const dispatch = useAppDispatch();
 
@@ -540,6 +541,7 @@ export default function RestaurantInvoiceSetting() {
     notes: settings.notesText,
     show_signature: settings.showSignature,
     show_bank_details: settings.showBankDetails,
+    invoice_template: settings.invoiceTemplate,
   };
 
   const previewViewportRef = useRef<HTMLDivElement | null>(null);
@@ -954,13 +956,41 @@ export default function RestaurantInvoiceSetting() {
             top: { lg: 16 },
           }}
         >
-          <Box sx={{ px: { xs: 2, md: 2.5 }, pt: 2, pb: 1 }}>
-            <Typography sx={{ fontSize: 13, fontWeight: 800, color: headingText, letterSpacing: 0.2 }}>
-              Sample Receipt Preview
-            </Typography>
-            <Typography sx={{ fontSize: 12, color: subtleText, mt: 0.3 }}>
-              {`Live preview based on your current selections (${settings.printInch} inch thermal)`}
-            </Typography>
+          <Box sx={{ px: { xs: 2, md: 2.5 }, pt: 2, pb: 1, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 1.5, flexWrap: "wrap" }}>
+            <Box>
+              <Typography sx={{ fontSize: 13, fontWeight: 800, color: headingText, letterSpacing: 0.2 }}>
+                Sample Receipt Preview
+              </Typography>
+              <Typography sx={{ fontSize: 12, color: subtleText, mt: 0.3 }}>
+                {`Live preview based on your current selections (${settings.printInch} inch thermal)`}
+              </Typography>
+            </Box>
+
+            <Stack direction="row" sx={{ border: "1px solid", borderColor: cardBorder, borderRadius: 999, p: 0.4, gap: 0.4, flexShrink: 0 }}>
+              {THERMAL_TEMPLATE_OPTIONS.map(({ value: option, label: optionLabel }) => {
+                const selected = toThermalTemplate(settings.invoiceTemplate) === option;
+                return (
+                  <Box
+                    key={option}
+                    onClick={() => update("invoiceTemplate", option)}
+                    sx={{
+                      px: 1.5,
+                      py: 0.4,
+                      borderRadius: 999,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      whiteSpace: "nowrap",
+                      cursor: "pointer",
+                      color: selected ? "#fff" : subtleText,
+                      bgcolor: selected ? redTint : "transparent",
+                      transition: "background-color 0.15s, color 0.15s",
+                    }}
+                  >
+                    {optionLabel}
+                  </Box>
+                );
+              })}
+            </Stack>
           </Box>
           <Divider sx={{ borderColor: "#f4f5f8" }} />
           <Box

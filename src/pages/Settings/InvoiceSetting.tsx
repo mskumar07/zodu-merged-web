@@ -43,6 +43,7 @@ import {
   type UpdateInvoiceSettingsPayload,
 } from "./useInvoiceSettingApi";
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "../SalesHistory/ThermalInvoiceTemplate";
+import { THERMAL_TEMPLATE_OPTIONS, toThermalTemplate } from "@utils/thermalTemplate";
 import { InvoicePDFTemplate } from "../SalesHistory/InvoicePDFTemplate";
 import { InvoicePDFTemplateModern } from "../SalesHistory/InvoicePDFTemplateModern";
 import { InvoicePDFTemplateModern2 } from "../SalesHistory/InvoicePDFTemplateModern2";
@@ -715,7 +716,14 @@ export default function InvoiceSetting() {
     notes: settings.notesText,
     show_signature: settings.showSignature,
     show_bank_details: settings.showBankDetails,
+    invoice_template: settings.invoiceTemplate,
   };
+
+  // A4 offers its three layouts, a thermal roll its two. Both read the one
+  // stored `invoice_template`, so "modern2" shows as Modern on a roll.
+  const templateOptions: ReadonlyArray<{ value: string; label: string }> =
+    settings.printInch === "A4" ? INVOICE_TEMPLATE_OPTIONS : THERMAL_TEMPLATE_OPTIONS;
+  const selectedTemplate = settings.printInch === "A4" ? settings.invoiceTemplate : toThermalTemplate(settings.invoiceTemplate);
 
   // Fit the preview to the panel's WIDTH only — keeps the receipt at a
   // clearly readable size regardless of how tall it gets; the panel scrolls
@@ -1359,10 +1367,9 @@ export default function InvoiceSetting() {
               </Typography>
             </Box>
 
-            {settings.printInch === "A4" && (
-              <Stack direction="row" sx={{ border: "1px solid", borderColor: cardBorder, borderRadius: 999, p: 0.4, gap: 0.4, flexShrink: 0 }}>
-                {INVOICE_TEMPLATE_OPTIONS.map(({ value: option, label: optionLabel }) => {
-                  const selected = settings.invoiceTemplate === option;
+            <Stack direction="row" sx={{ border: "1px solid", borderColor: cardBorder, borderRadius: 999, p: 0.4, gap: 0.4, flexShrink: 0 }}>
+                {templateOptions.map(({ value: option, label: optionLabel }) => {
+                  const selected = selectedTemplate === option;
                   return (
                     <Box
                       key={option}
@@ -1384,8 +1391,7 @@ export default function InvoiceSetting() {
                     </Box>
                   );
                 })}
-              </Stack>
-            )}
+            </Stack>
           </Box>
           <Divider sx={{ borderColor: "#f4f5f8" }} />
           <Box
