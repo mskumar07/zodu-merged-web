@@ -471,14 +471,15 @@ const PAPER: Record<ThermalPaperSize, PaperConfig> = {
 
 // Black on white only, in both templates: a head can't print grey, so a grey
 // comes out dithered on one printer and missing on the next.
-const CLASSIC_FONT = "'Courier New', Consolas, 'Lucida Console', monospace";
-const MODERN_FONT = "Arial, Helvetica, Roboto, 'Segoe UI', sans-serif";
+const THERMAL_FONT = "Roboto, 'Courier New', Consolas, 'Liberation Mono', monospace";
+const CLASSIC_FONT = THERMAL_FONT;
+const MODERN_FONT = THERMAL_FONT;
 
-/** Whole rupees — the receipt prints no paise. `|| 0` also folds the -0 that
- * Math.round gives for small negatives (e.g. a -0.40 round-off) into 0. */
+/** Whole rupees with no thousands separators — the receipt prints no paise. `|| 0` also
+ * folds the -0 that Math.round gives for small negatives (e.g. a -0.40 round-off) into 0. */
 function fmt(v: number | string | undefined) {
   const rupees = Math.round(Number(v)) || 0;
-  return `₹${rupees.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+  return `₹${rupees}`;
 }
 
 /** 2 from "2.000", 1.5 from "1.500" — quantities arrive as fixed-scale
@@ -866,7 +867,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
       verticalAlign: "top",
       whiteSpace: "nowrap",
       padding: compact ? "1px 0" : "2px 0",
-      paddingLeft: first ? 0 : 5,
+      paddingLeft: first ? 0 : narrow ? 10 : 12,
     });
     const itemHead = (align: "left" | "center" | "right", first = false): React.CSSProperties => ({
       ...itemCell(align, first),
@@ -1055,7 +1056,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
                 <tr>
                   {showSerialNo && <th style={itemHead("left", true)}>{narrow ? "#" : "S.No"}</th>}
                   <th style={{ ...itemHead("left", !showSerialNo), width: "100%" }}>{narrow ? "Item" : "Particulars"}</th>
-                  <th style={itemHead("center")}>Qty</th>
+                  <th style={itemHead("right")}>Qty</th>
                   <th style={itemHead("right")}>Rate</th>
                   <th style={itemHead("right")}>{narrow ? "Amt" : "Amount"}</th>
                 </tr>
@@ -1071,7 +1072,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
                   };
                   const figures = (
                     <>
-                      <td style={itemCell("center")}>{fmtQty(item.qty)}</td>
+                      <td style={itemCell("right")}>{fmtQty(item.qty)}</td>
                       <td style={itemCell("right")}>{fmt(item.rate)}</td>
                       <td style={{ ...itemCell("right"), fontWeight: 700 }}>{fmt(item.total)}</td>
                     </>
@@ -1276,43 +1277,37 @@ export const ThermalInvoiceTemplate = React.forwardRef(
           </>
         )}
 
-        {showNotes && notesText && (
-          <>
-            {sectionTitle("Notes")}
-            <div style={{ fontSize: labelFs, whiteSpace: "pre-line", lineHeight: 1.4, marginBottom: 4 }}>
-              {notesText}
-            </div>
-            {rule}
-          </>
+        {/* ── FOOTER: the notes from Invoice Settings, centred where the thank-you line used to be ── */}
+        {showNotes && notesText.trim() && (
+          <div
+            style={{
+              textAlign: "center",
+              marginTop: compact ? 4 : 10,
+              paddingBottom: 4,
+              fontSize: fs,
+              fontWeight: 700,
+              whiteSpace: "pre-line",
+              lineHeight: 1.4,
+            }}
+          >
+            {notesText.trim()}
+          </div>
         )}
 
-        {/* ── FOOTER ── */}
-        <div
-          style={{
-            textAlign: "center",
-            marginTop: compact ? 4 : 10,
-            paddingBottom: 4,
-            fontSize: fs,
-          }}
-        >
-          <div style={{ fontWeight: 700, letterSpacing: modern ? 0 : 0.3 }}>
-            {modern ? "Thank you for shopping!" : "THANK YOU FOR SHOPPING!"}
+        {/* ── Signature, when Invoice Settings asks for one ── */}
+        {showSignature && (
+          <div style={{ textAlign: "center", marginTop: compact ? 26 : 36, paddingBottom: 4, fontSize: fs }}>
+            {resolvedSignatureUrl && (
+              <img
+                src={resolvedSignatureUrl}
+                alt="Authorized signature"
+                style={{ maxHeight: 40, maxWidth: "60%", objectFit: "contain", margin: "0 auto 4px", display: "block" }}
+              />
+            )}
+            <div style={{ borderTop: "1px solid #000", width: "70%", margin: "0 auto 4px" }} />
+            <div style={{ fontSize: labelFs, fontWeight: 700 }}>Authorized Signatory</div>
           </div>
-          <div style={{ marginTop: 3, fontSize: labelFs }}>Please visit again</div>
-          {showSignature && (
-            <div style={{ marginTop: compact ? 26 : 36 }}>
-              {resolvedSignatureUrl && (
-                <img
-                  src={resolvedSignatureUrl}
-                  alt="Authorized signature"
-                  style={{ maxHeight: 40, maxWidth: "60%", objectFit: "contain", margin: "0 auto 4px", display: "block" }}
-                />
-              )}
-              <div style={{ borderTop: "1px solid #000", width: "70%", margin: "0 auto 4px" }} />
-              <div style={{ fontSize: labelFs, fontWeight: 700 }}>Authorized Signatory</div>
-            </div>
-          )}
-        </div>
+        )}
       </div>
     );
   }

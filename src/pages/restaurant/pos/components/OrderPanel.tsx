@@ -5,7 +5,8 @@ import {
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import TableBarIcon from "@mui/icons-material/TableBar";
 import DeliveryDiningIcon from "@mui/icons-material/DeliveryDining";
-import ShoppingBagIcon from "@mui/icons-material/ShoppingBag";
+import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
+import RestaurantMenuIcon from "@mui/icons-material/RestaurantMenu";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import PauseCircleOutlineIcon from "@mui/icons-material/PauseCircleOutline";
@@ -88,15 +89,50 @@ const ALL_PAYMENT_METHODS: Array<{
 
 const DEFAULT_PAYMENT_TYPES: PaymentMethod[] = ["Card", "Cash"];
 
-const ORDER_TYPES: Array<{
+const RED = "#d32f2f";
+
+// Sale type selector, shared with the Keyboard billing view so both screens
+// pick an order type through the same control.
+export const ORDER_TYPES: Array<{
   key: "DineIn" | "Delivery" | "PickUp";
   label: string;
   icon: React.ReactNode;
 }> = [
-  { key: "DineIn",   label: "Dine In",  icon: <TableBarIcon sx={{ fontSize: 15 }} /> },
-  { key: "Delivery", label: "Delivery", icon: <DeliveryDiningIcon sx={{ fontSize: 15 }} /> },
-  { key: "PickUp",   label: "Pick Up",  icon: <ShoppingBagIcon sx={{ fontSize: 15 }} /> },
+  { key: "DineIn",   label: "Dine In",  icon: <RestaurantMenuIcon sx={{ fontSize: 16 }} /> },
+  { key: "PickUp",   label: "Pick Up",  icon: <ShoppingBagOutlinedIcon sx={{ fontSize: 16 }} /> },
+  { key: "Delivery", label: "Delivery", icon: <DeliveryDiningIcon sx={{ fontSize: 16 }} /> },
 ];
+
+export function OrderTypePill({
+  label, icon, active, onClick,
+}: { label: string; icon: React.ReactNode; active: boolean; onClick: () => void }) {
+  return (
+    <Box
+      onClick={onClick}
+      sx={{
+        flex: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 0.6,
+        py: 1,
+        borderRadius: "8px",
+        cursor: "pointer",
+        fontSize: "0.8rem",
+        fontWeight: 700,
+        color: active ? "#fff" : "#4b5563",
+        bgcolor: active ? RED : "#fff",
+        border: "1.5px solid",
+        borderColor: active ? RED : "#e5e7eb",
+        transition: "all 0.15s",
+        "&:hover": { borderColor: RED, color: active ? "#fff" : RED },
+      }}
+    >
+      {icon}
+      {label}
+    </Box>
+  );
+}
 
 const OrderPanel: React.FC<Props> = ({
   order, cartItems, totals, isLoading, orderSummary, runningOrderTotal, runningOrderTotals,
@@ -143,41 +179,17 @@ const OrderPanel: React.FC<Props> = ({
         borderLeft: "1px solid #e5e7eb",
       }}
     >
-      {/* ── Order type tabs: Dine In / Delivery / Pick Up ── */}
-      <Box
-        sx={{
-          display: "flex",
-          borderBottom: "1px solid #f3f4f6",
-          flexShrink: 0,
-        }}
-      >
-        {ORDER_TYPES.map((t) => {
-          const active = order.orderType === t.key;
-          return (
-            <Box
-              key={t.key}
-              onClick={() => onOrderTypeChange(t.key)}
-              sx={{
-                flex: 1,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 0.8,
-                py: 1.6,
-                cursor: "pointer",
-                borderBottom: active ? "2.5px solid #d32f2f" : "2.5px solid transparent",
-                color: active ? "#d32f2f" : "#6b7280",
-                transition: "all 0.15s",
-                "&:hover": { color: "#d32f2f" },
-              }}
-            >
-              {React.cloneElement(t.icon as React.ReactElement, { sx: { fontSize: 19 } })}
-              <Typography sx={{ fontSize: "0.92rem", fontWeight: active ? 700 : 500, lineHeight: 1 }}>
-                {t.label}
-              </Typography>
-            </Box>
-          );
-        })}
+      {/* ── Sale type: Dine In / Pick Up / Delivery ── */}
+      <Box sx={{ display: "flex", gap: 0.75, p: 1.5, borderBottom: "1px solid #f3f4f6", flexShrink: 0 }}>
+        {ORDER_TYPES.map((t) => (
+          <OrderTypePill
+            key={t.key}
+            label={t.label}
+            icon={t.icon}
+            active={order.orderType === t.key}
+            onClick={() => onOrderTypeChange(t.key)}
+          />
+        ))}
       </Box>
 
       {/* ── Context row: table / customer ── */}

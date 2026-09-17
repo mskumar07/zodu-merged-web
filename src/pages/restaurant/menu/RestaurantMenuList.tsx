@@ -711,7 +711,7 @@ const RestaurantMenuList: React.FC = () => {
               "&:hover": { textDecoration: "underline" },
             }}
           >
-            #{row.menu_code}
+            {row.menu_code}
           </Typography>
         ),
       },

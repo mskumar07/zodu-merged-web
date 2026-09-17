@@ -246,6 +246,8 @@ async function fetchInventoryList(
         },
       }
     );
+        console.log("renew", data);
+
     return {
       success:     true,
       total:       data.total_count,

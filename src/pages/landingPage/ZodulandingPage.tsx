@@ -54,7 +54,6 @@ import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import CloudDoneIcon from "@mui/icons-material/CloudDone";
 
 import { useNavigate } from "react-router-dom";
-import heroImg from "../../assets/heroImg.png";
 import zlogo from "../../assets/zlogo.png";
 import imgPosBilling from "../../assets/modules/pos-billing.png";
 import imgInventory from "../../assets/modules/inventory.png";
@@ -74,9 +73,6 @@ import showcaseInventory from "../../assets/wzd_2.png";
 import showcaseReports from "../../assets/wzd__3.png";
 import showcaseTeam from "../../assets/wzd__4.png";
 
-// import pos4 from "../../assets/Feature/pos4.png";
-// import pos7 from "../../assets/Feature/pos7.png";
-// import pos6 from "../../assets/Feature/pos6.png";
 
 import barShot1 from "../../assets/Feature/bar1.png";
 import barShot2 from "../../assets/Feature/bar2.png";
@@ -120,28 +116,13 @@ import AddShoppingCartIcon from '@mui/icons-material/AddShoppingCart';
 
 import GroupIcon from '@mui/icons-material/Group';
 
-import posbilling from "../../assets/Landingpage/pos-billing.png";
-import inventoryImage from "../../assets/Landingpage/Inventory-Management.jpeg";
-import CustomerManagementImage from "../../assets/Landingpage/Customer-Management.png";
 
-import womenImage from "../../assets/Landingpage/women-image.png";
-import attendanceImage from "../../assets/Landingpage/Attendance-Management.jpeg";
 
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
-import PaymentsRemindersImage from "../../assets/Landingpage/Payments-reminders.jpeg";
 
-import ExpenseManagementImage from "../../assets/Landingpage/Expense-management.jpeg";
-import purchaseManagementImg from "../../assets/Landingpage/purchase-management.jpeg";
-import reportsAnalyticsImg from '../../assets/Landingpage/reportsAnalyticsImg.png';
-import reportsAnalyticsFullyTransparentImg from "../../assets/Landingpage/reports-analytics-fully-transparent.png";
-import CustomerManagementImage1 from "../../assets/Landingpage/Customer-management1.png";
-import GSTComplianceImage2 from "../../assets/Landingpage/Gst-compliance&reports.png";
 
 import posbilling1 from "../../assets/Landingpage/pos-billing1.png";
-import PaymentsRemindersImage2 from "../../assets/Landingpage/payments&reminder.png";
-import purchaseManagementImg2 from "../../assets/Landingpage/purchase-management1.png";
-import ExpenseManagementImage2 from "../../assets/Landingpage/Expense-management1.png";
 
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
 

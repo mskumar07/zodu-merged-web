@@ -26,9 +26,6 @@ import KitchenIcon from "@mui/icons-material/Kitchen";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import RemoveIcon from "@mui/icons-material/Remove";
 import AddIcon from "@mui/icons-material/Add";
-import RestaurantMenuIcon from "@mui/icons-material/RestaurantMenu";
-import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
-import DeliveryDiningIcon from "@mui/icons-material/DeliveryDining";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import PauseCircleOutlineIcon from "@mui/icons-material/PauseCircleOutline";
 import RestoreIcon from "@mui/icons-material/Restore";
@@ -51,7 +48,7 @@ import type {
   HoldOrder,
 } from "../api/restaurantPosApi";
 import { getItemPrice } from "../api/restaurantPosApi";
-import type { Totals, PaymentMethod } from "./OrderPanel";
+import { ORDER_TYPES, OrderTypePill, type Totals, type PaymentMethod } from "./OrderPanel";
 
 const RED = "#d32f2f";
 
@@ -115,16 +112,6 @@ interface Props {
   onPaid: () => void;
 }
 
-const ORDER_TYPES: Array<{
-  key: "DineIn" | "Delivery" | "PickUp";
-  label: string;
-  icon: React.ReactNode;
-}> = [
-  { key: "DineIn",   label: "Dine In",  icon: <RestaurantMenuIcon sx={{ fontSize: 16 }} /> },
-  { key: "PickUp",   label: "Pick Up",  icon: <ShoppingBagOutlinedIcon sx={{ fontSize: 16 }} /> },
-  { key: "Delivery", label: "Delivery", icon: <DeliveryDiningIcon sx={{ fontSize: 16 }} /> },
-];
-
 const PAYMENT_METHODS: Array<{ key: PaymentMethod; label: string; icon: React.ReactNode }> = [
   { key: "UPI",           label: "UPI",           icon: <QrCodeScannerIcon sx={{ fontSize: 16 }} /> },
   { key: "Card",          label: "Card",          icon: <CreditCardIcon sx={{ fontSize: 16 }} /> },
@@ -134,37 +121,6 @@ const PAYMENT_METHODS: Array<{ key: PaymentMethod; label: string; icon: React.Re
   { key: "Bank Transfer", label: "Bank Transfer", icon: <AccountBalanceIcon sx={{ fontSize: 16 }} /> },
   { key: "Others",        label: "Others",        icon: <MoreHorizIcon sx={{ fontSize: 16 }} /> },
 ];
-
-function OrderTypePill({
-  label, icon, active, onClick,
-}: { label: string; icon: React.ReactNode; active: boolean; onClick: () => void }) {
-  return (
-    <Box
-      onClick={onClick}
-      sx={{
-        flex: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 0.6,
-        py: 1,
-        borderRadius: "8px",
-        cursor: "pointer",
-        fontSize: "0.8rem",
-        fontWeight: 700,
-        color: active ? "#fff" : "#4b5563",
-        bgcolor: active ? RED : "#fff",
-        border: "1.5px solid",
-        borderColor: active ? RED : "#e5e7eb",
-        transition: "all 0.15s",
-        "&:hover": { borderColor: RED, color: active ? "#fff" : RED },
-      }}
-    >
-      {icon}
-      {label}
-    </Box>
-  );
-}
 
 // Tabular "Keyboard" billing screen — an alternate view of the same order/cart
 // state RestaurantPOS owns (no separate data model), laid out for a
