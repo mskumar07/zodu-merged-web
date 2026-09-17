@@ -217,7 +217,7 @@ const CategoryItemSalesReport = () => {
     },
     {
       key: "total_qty",
-      label: "Items",
+      label: "Total Qty",
       align: "right",
       minWidth: 80,
       render: (row) => numberFmt(row.total_qty),

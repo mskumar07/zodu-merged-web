@@ -10,6 +10,7 @@ import {
   Box, Typography, TextField, InputAdornment, Chip, CircularProgress, Divider,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import SwitchAccountIcon from "@mui/icons-material/SwitchAccount";
 import SearchIcon from "@mui/icons-material/Search";
 import StarIcon from "@mui/icons-material/Star";
 import PauseCircleOutlineIcon from "@mui/icons-material/PauseCircleOutline";
@@ -35,6 +36,11 @@ import { MenuItem, Select, IconButton, Avatar, Badge, Tooltip } from "@mui/mater
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import KeyboardOutlinedIcon from "@mui/icons-material/KeyboardOutlined";
 import TouchAppOutlinedIcon from "@mui/icons-material/TouchAppOutlined";
+import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
+import { Alert, Button, Snackbar } from "@mui/material";
+import KotReprintDialog from "@pages/restaurant/kot/KotReprintDialog";
+import { useKotPrinting } from "@pages/restaurant/kot/useKotPrinting";
+import { buildBillSlip, type BillHeader } from "@utils/kot/billSlip";
 
 import {
   useRestaurantMenuQuery,
@@ -172,6 +178,7 @@ const RestaurantPOS: React.FC = () => {
 
   const selectedCompany = companies.find((company) => company.zodu_id === zoduId) ?? null;
   const companyBranches = selectedCompany?.branches ?? [];
+  const isEmployee = profile?.user_type?.toLowerCase() === "employee";
 
   const handleBranchChange = async (selectedBranchId: string) => {
     const found = companyBranches.find((branch) => branch.branch_id === selectedBranchId);
@@ -247,6 +254,22 @@ const RestaurantPOS: React.FC = () => {
   const [variantItem,  setVariantItem ] = useState<RestaurantMenuItem | null>(null);
   const [successMsg,   setSuccessMsg  ] = useState("");
   const [errorMsg,     setErrorMsg    ] = useState("");
+
+  // ── Kitchen tickets ──
+  // The order endpoints return this send's per-counter KOTs; they print through the
+  // local print bridge without holding up the till. A ticket that didn't reach its
+  // kitchen stays on screen (not a timed toast) with a way to reprint it.
+  const restaurantName = selectedCompany?.restaurant_name || selectedCompany?.company_name || profile?.restaurant_name || "";
+  const { printFromOrderResponse, printBill } = useKotPrinting(zoduId, branchId, restaurantName);
+  const [kotIssue,        setKotIssue       ] = useState<{ message: string; apiOrderId: string | null } | null>(null);
+  const [lastKotOrderId,  setLastKotOrderId ] = useState<string | null>(null);
+  const [reprintOrderId,  setReprintOrderId ] = useState<string | null>(null);
+
+  const printKitchenTickets = useCallback(async (res: unknown) => {
+    const { error, apiOrderId } = await printFromOrderResponse(res);
+    if (apiOrderId) setLastKotOrderId(apiOrderId);
+    if (error) setKotIssue({ message: error, apiOrderId });
+  }, [printFromOrderResponse]);
   // hold_id of the hold order currently loaded into the cart (restored but not yet sent/paid) —
   // only deleted from the server once the order is actually sent to KDS, paid, or re-held
   const [activeHoldId, setActiveHoldId] = useState<string | null>(null);
@@ -739,6 +762,11 @@ const RestaurantPOS: React.FC = () => {
   }, [summaryBeforeEdit]);
 
   // ── Build items payload ───────────────────────────────────────────────────
+  // Kitchen notes ride only on the order endpoints that print KOTs — complete-order
+  // validates its items strictly and has no use for them.
+  const withKitchenNotes = <T extends object>(payload: T[], items: RestaurantCartItem[]) =>
+    payload.map((p, idx) => (items[idx]?.note?.trim() ? { ...p, note: items[idx].note!.trim() } : p));
+
   const buildPayloadItems = (items: RestaurantCartItem[]) =>
     items.map((i) => {
       const price      = getItemPrice(i.product);
@@ -805,7 +833,7 @@ const RestaurantPOS: React.FC = () => {
     const discType = order.discountType === "Amount" ? "FLAT" : "PERCENT";
     const t = calcSummaryTotals(runningOrderSummary, discType, order.discountValue);
     try {
-      await updateOrder({
+      const res = await updateOrder({
         zodu_id:         zoduId,
         branch_id:       branchId,
         api_order_id:    order.orderId,
@@ -829,6 +857,8 @@ const RestaurantPOS: React.FC = () => {
       });
       setSuccessMsg("Order updated");
       setIsEditingSummary(false);
+      // Raised quantities print as ADD tickets, lowered/removed ones as CANCEL.
+      void printKitchenTickets(res);
     } catch {
       setErrorMsg("Failed to update order");
     }
@@ -842,13 +872,13 @@ const RestaurantPOS: React.FC = () => {
     console.log("Sending to KDS with payload:", order);
 
     try {
-      await addOrder({
+      const res = await addOrder({
         zodu_id:         zoduId,
         branch_id:       branchId,
         table_no:        order.tableNumber ?? null,
         order_type:      ADD_ORDER_TYPE_MAP[order.orderType],
         kot_no:          order.kotNo ?? "KOT-1",
-        items:           buildPayloadItems(cartItems),
+        items:           withKitchenNotes(buildPayloadItems(cartItems), cartItems),
         no_of_items:     cartItems.length,
         subtotal:        totals.subtotal,
         total_amt:       totals.grandTotal,
@@ -864,6 +894,7 @@ const RestaurantPOS: React.FC = () => {
         customer_phone:  order.customerPhone,
       });
       setSuccessMsg("Order sent to KDS!");
+      void printKitchenTickets(res);
       if (activeHoldId) {
         try { await deleteHoldOrder(activeHoldId); } catch { /* ignore */ }
       }
@@ -927,10 +958,40 @@ const RestaurantPOS: React.FC = () => {
     };
   };
 
-  // Prints the rendered receipt through a hidden iframe rather than window.open: this
+  // The shop details the bill is headed with — the branch's address first, as on the on-screen receipt.
+  const billHeader = (): BillHeader => {
+    const branch = selectedCompany?.branches?.find((b) => b.branch_id === branchId);
+    const line1 = [branch?.address_line_1 || selectedCompany?.address_line_1, branch?.address_line_2 || selectedCompany?.address_line_2];
+    const line2 = [branch?.city || selectedCompany?.city, branch?.district || selectedCompany?.district, branch?.state || selectedCompany?.state, branch?.pincode || selectedCompany?.pincode];
+    return {
+      name:         restaurantName || "Restaurant",
+      addressLines: [line1, line2].map((parts) => parts.filter(Boolean).join(", ")).filter(Boolean),
+      phone:        profile?.phone_number || selectedCompany?.phone_number || selectedCompany?.mobile_no || null,
+      gstin:        selectedCompany?.gst_no || null,
+    };
+  };
+
+  // Prints the bill on the billing printer from Printer Settings, through the print
+  // bridge — silently and in the printer's own font, like a KOT. Only a branch with no
+  // billing printer set up falls back to the browser's print dialog.
+  //
+  // That fallback prints through a hidden iframe rather than window.open: this
   // runs after the payment request resolves, by which point the click that started it
   // may no longer count as a user gesture and a popup blocker would swallow a new window.
-  const printReceipt = async () => {
+  const printReceipt = async (receipt: ReturnType<typeof buildReceiptData> & { sale_id: string | null | undefined }) => {
+    const printedOnBillingPrinter = await printBill((paper) => buildBillSlip(receipt, billHeader(), {
+      paper,
+      showTaxDetails:      invoiceSettings?.show_tax_details ?? false,
+      showCustomerDetails: invoiceSettings?.show_customer_details ?? true,
+      showPaymentDetails:  invoiceSettings?.show_payment_details ?? false,
+      showSerialNo:        invoiceSettings?.show_serial_no ?? true,
+      showItemId:          invoiceSettings?.show_item_id ?? false,
+      notes:               invoiceSettings?.show_notes ? invoiceSettings.notes : null,
+      terms:               invoiceSettings?.show_terms_conditions ? invoiceSettings.terms_conditions : null,
+    }));
+    if (printedOnBillingPrinter) return;
+
+    flushSync(() => setReceiptData(receipt));
     const node = receiptRef.current;
     if (!node) return;
     const image = await captureThermalReceipt(node);
@@ -953,6 +1014,7 @@ const RestaurantPOS: React.FC = () => {
   };
 
   const handlePay = async (payMethod: PaymentMethod) => {
+    const paidOrderType = order.orderType;
     try {
       let receipt: ReturnType<typeof buildReceiptData>;
       let res: unknown;
@@ -988,7 +1050,7 @@ const RestaurantPOS: React.FC = () => {
           branch_id:       branchId,
           table_no:        null,
           order_type:      ADD_ORDER_TYPE_MAP[order.orderType],
-          items:           buildPayloadItems(cartItems),
+          items:           withKitchenNotes(buildPayloadItems(cartItems), cartItems),
           no_of_items:     cartItems.length,
           subtotal:        totals.subtotal,
           total_amt:       totals.grandTotal,
@@ -1010,15 +1072,18 @@ const RestaurantPOS: React.FC = () => {
       setSuccessMsg("Payment successful!");
       resetOrder();
 
+      // The bill always prints before the kitchen tickets, so on a shared billing
+      // printer the customer's bill comes out first.
       if (printEnabled) {
         // The payment already went through — a print problem must not read as a failed payment.
         try {
-          flushSync(() => setReceiptData({ ...receipt, sale_id: pickOrderNo(res) }));
-          await printReceipt();
-        } catch {
-          setErrorMsg("Payment successful, but the bill could not be printed");
+          await printReceipt({ ...receipt, sale_id: pickOrderNo(res) });
+        } catch (err) {
+          setErrorMsg(`Payment successful, but the bill could not be printed${err instanceof Error ? ` — ${err.message}` : ""}`);
         }
       }
+      // Pick Up / Delivery reach the kitchen when they're paid for.
+      if (paidOrderType !== "DineIn") void printKitchenTickets(res);
     } catch {
       setErrorMsg("Payment failed. Please try again.");
     }
@@ -1251,6 +1316,45 @@ const RestaurantPOS: React.FC = () => {
           </>
         )}
 
+        {/* Company name — this header stands in for the app Topbar on both
+            billing views, so it resolves the name the same way Topbar does. */}
+        <Typography
+          noWrap
+          sx={{
+            color: "#111827",
+            fontWeight: 700,
+            fontSize: { xs: 14, md: 17 },
+            textTransform: "uppercase",
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            ml: isKeyboard ? 0 : 1,
+          }}
+        >
+          {selectedCompany?.restaurant_name || selectedCompany?.company_name || profile?.restaurant_name || ""}
+        </Typography>
+        <Tooltip title={isEmployee ? "" : "Switch Organisation"}>
+          <span>
+            <IconButton
+              size="small"
+              disabled={isEmployee}
+              onClick={() => navigate("/select-branch", { state: { companies, fromSwitch: true } })}
+              sx={{
+                color: "#c8101f",
+                bgcolor: "rgba(200,16,31,0.07)",
+                borderRadius: "8px",
+                p: 0.6,
+                ml: -0.5,
+                flexShrink: 0,
+                "&:hover": { bgcolor: "rgba(200,16,31,0.14)" },
+                "&.Mui-disabled": { color: "#c8c8c8", bgcolor: "rgba(0,0,0,0.04)" },
+              }}
+            >
+              <SwitchAccountIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </span>
+        </Tooltip>
+
         <Box sx={{ flex: 1 }} />
 
         {/* Billing view toggle: Keyboard (dense tabular billing) vs. Touch (card grid) */}
@@ -1298,6 +1402,20 @@ const RestaurantPOS: React.FC = () => {
             );
           })}
         </Box>
+
+        {/* Kitchen tickets for the open running order, or the order last sent */}
+        <Tooltip title="Kitchen tickets (reprint KOT)">
+          <span>
+            <IconButton
+              size="small"
+              disabled={!(order.orderId || lastKotOrderId)}
+              onClick={() => setReprintOrderId(order.orderId || lastKotOrderId)}
+              sx={{ color: "#374151", border: "1px solid #e5e7eb", borderRadius: "8px", width: 34, height: 34 }}
+            >
+              <ReceiptLongOutlinedIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </span>
+        </Tooltip>
 
         {/* Branch dropdown */}
         <Select
@@ -1814,6 +1932,37 @@ const RestaurantPOS: React.FC = () => {
 
       <SuccessToast message={successMsg} onClose={() => setSuccessMsg("")} />
       <SuccessToast message={errorMsg} severity="error" onClose={() => setErrorMsg("")} />
+
+      <Snackbar open={!!kotIssue} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
+        <Alert
+          severity="warning"
+          variant="filled"
+          onClose={() => setKotIssue(null)}
+          action={kotIssue?.apiOrderId ? (
+            <Button
+              color="inherit"
+              size="small"
+              sx={{ fontWeight: 800 }}
+              onClick={() => { setReprintOrderId(kotIssue.apiOrderId); setKotIssue(null); }}
+            >
+              Reprint
+            </Button>
+          ) : undefined}
+          sx={{ alignItems: "center", maxWidth: 560 }}
+        >
+          {kotIssue?.message}
+        </Alert>
+      </Snackbar>
+
+      <KotReprintDialog
+        open={!!reprintOrderId}
+        apiOrderId={reprintOrderId}
+        onClose={() => setReprintOrderId(null)}
+        zoduId={zoduId}
+        branchId={branchId}
+        restaurantName={restaurantName}
+        onResult={(message, severity) => (severity === "error" ? setErrorMsg(message) : setSuccessMsg(message))}
+      />
 
     </Box>
   );

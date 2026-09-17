@@ -36,6 +36,19 @@ interface MenuEndPoints {
   getKotCounters: (zoduId: string, branchId: string) => string;
   getKotAssignment: (zoduId: string, branchId: string) => string;
   assignKotCounterItems: () => string;
+  updateKotCounter: (id: number) => string;
+  deleteKotCounter: (id: number, zoduId: string, branchId: string) => string;
+  getKotItemRouting: (zoduId: string, branchId: string, menuId: string) => string;
+  updateKotItemRouting: () => string;
+  getKotPrinters: (zoduId: string, branchId: string) => string;
+  addKotPrinter: () => string;
+  updateKotPrinter: (id: number) => string;
+  deleteKotPrinter: (id: number, zoduId: string, branchId: string) => string;
+  getKotSettings: (zoduId: string, branchId: string) => string;
+  updateKotSettings: () => string;
+  getKotConfig: (zoduId: string, branchId: string) => string;
+  getKotTickets: (zoduId: string, branchId: string, apiOrderId: string) => string;
+  addKotPrintLog: () => string;
 }
 
 interface RestaurantEndPoints {
@@ -192,6 +205,26 @@ export const apiConfig: ApiConstants = {
     getKotAssignment: (zoduId: string, branchId: string) =>
       `${RESTAURANT_BASE}/get/kot-assignment/${zoduId}/${branchId}`,
     assignKotCounterItems: () => `${RESTAURANT_BASE}/assign/kot-counter-items`,
+    updateKotCounter: (id: number) => `${RESTAURANT_BASE}/update/kot-counter/${id}`,
+    deleteKotCounter: (id: number, zoduId: string, branchId: string) =>
+      `${RESTAURANT_BASE}/delete/kot-counter/${id}/${zoduId}/${branchId}`,
+    getKotItemRouting: (zoduId: string, branchId: string, menuId: string) =>
+      `${RESTAURANT_BASE}/get/kot-item-routing/${zoduId}/${branchId}/${encodeURIComponent(menuId)}`,
+    updateKotItemRouting: () => `${RESTAURANT_BASE}/update/kot-item-routing`,
+    getKotPrinters: (zoduId: string, branchId: string) =>
+      `${RESTAURANT_BASE}/get/kot-printers/${zoduId}/${branchId}`,
+    addKotPrinter: () => `${RESTAURANT_BASE}/add/kot-printer`,
+    updateKotPrinter: (id: number) => `${RESTAURANT_BASE}/update/kot-printer/${id}`,
+    deleteKotPrinter: (id: number, zoduId: string, branchId: string) =>
+      `${RESTAURANT_BASE}/delete/kot-printer/${id}/${zoduId}/${branchId}`,
+    getKotSettings: (zoduId: string, branchId: string) =>
+      `${RESTAURANT_BASE}/get/kot-settings/${zoduId}/${branchId}`,
+    updateKotSettings: () => `${RESTAURANT_BASE}/update/kot-settings`,
+    getKotConfig: (zoduId: string, branchId: string) =>
+      `${RESTAURANT_BASE}/get/kot-config/${zoduId}/${branchId}`,
+    getKotTickets: (zoduId: string, branchId: string, apiOrderId: string) =>
+      `${RESTAURANT_BASE}/get/kot-tickets/${zoduId}/${branchId}/${encodeURIComponent(apiOrderId)}`,
+    addKotPrintLog: () => `${RESTAURANT_BASE}/add/kot-print-log`,
   },
   restaurant: {
     getExpenseList: (branchId: string) =>

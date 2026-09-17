@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import {
-  Box, Button, Container, Typography, Stack, Divider,
+  Box, Button, Typography, Stack, Divider,
    IconButton
   
 } from "@mui/material";
@@ -54,7 +54,6 @@ import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import CloudDoneIcon from "@mui/icons-material/CloudDone";
 
 import { useNavigate } from "react-router-dom";
-import heroImg from "../../assets/heroImg.png";
 import zlogo from "../../assets/zlogo.png";
 import imgPosBilling from "../../assets/modules/pos-billing.png";
 import imgInventory from "../../assets/modules/inventory.png";
@@ -74,9 +73,6 @@ import showcaseInventory from "../../assets/wzd_2.png";
 import showcaseReports from "../../assets/wzd__3.png";
 import showcaseTeam from "../../assets/wzd__4.png";
 
-// import pos4 from "../../assets/Feature/pos4.png";
-// import pos7 from "../../assets/Feature/pos7.png";
-// import pos6 from "../../assets/Feature/pos6.png";
 
 import barShot1 from "../../assets/Feature/bar1.png";
 import barShot2 from "../../assets/Feature/bar2.png";
@@ -120,28 +116,13 @@ import AddShoppingCartIcon from '@mui/icons-material/AddShoppingCart';
 
 import GroupIcon from '@mui/icons-material/Group';
 
-import posbilling from "../../assets/Landingpage/pos-billing.png";
-import inventoryImage from "../../assets/Landingpage/Inventory-Management.jpeg";
-import CustomerManagementImage from "../../assets/Landingpage/Customer-Management.png";
 
-import womenImage from "../../assets/Landingpage/women-image.png";
-import attendanceImage from "../../assets/Landingpage/Attendance-Management.jpeg";
 
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
-import PaymentsRemindersImage from "../../assets/Landingpage/Payments-reminders.jpeg";
 
-import ExpenseManagementImage from "../../assets/Landingpage/Expense-management.jpeg";
-import purchaseManagementImg from "../../assets/Landingpage/purchase-management.jpeg";
-import reportsAnalyticsImg from '../../assets/Landingpage/reportsAnalyticsImg.png';
-import reportsAnalyticsFullyTransparentImg from "../../assets/Landingpage/reports-analytics-fully-transparent.png";
-import CustomerManagementImage1 from "../../assets/Landingpage/Customer-management1.png";
-import GSTComplianceImage2 from "../../assets/Landingpage/Gst-compliance&reports.png";
 
 import posbilling1 from "../../assets/Landingpage/pos-billing1.png";
-import PaymentsRemindersImage2 from "../../assets/Landingpage/payments&reminder.png";
-import purchaseManagementImg2 from "../../assets/Landingpage/purchase-management1.png";
-import ExpenseManagementImage2 from "../../assets/Landingpage/Expense-management1.png";
 
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
 
@@ -599,7 +580,9 @@ const faqs = [
 ];
 
 // ── Shared spacing tokens ──────────────────────────────────────────────────────
-const SX = { xs: 3, md: 10 };          // section horizontal padding
+const PAGE_GUTTER = "clamp(48px, 5.5vw, 112px)";          // lg+ side gutter: the hero copy's inset; every section aligns to it
+const SX = { xs: 2.5, sm: 4, md: 6, lg: PAGE_GUTTER };    // section horizontal padding — same as the hero copy
+const SECTION_MAX_W = 1720;                               // section content cap (≈ 1920px viewport minus both gutters)
 const SPY = { xs: 6, md: 4 };         // section vertical padding
 const HMB = { xs: 4, md: 6 };         // section heading bottom margin
 const POPPINS = "'Poppins', sans-serif";
@@ -683,19 +666,21 @@ const ShowcaseMock: React.FC<{ feature: (typeof features)[number] }> = ({ featur
 // ── "What Zodu does for you" ──────────────────────────────────────────────────
 // Built to the reference design (1600px canvas, 1520px content). Sizes are that design's px
 // values passed through fz(): 1px per unit below 1200px, 0.9px from 1200px, and scaling with
-// the viewport from 1440px up so the desktop layout keeps the reference proportions.
+// the viewport from 1536px up so the desktop layout keeps the reference proportions.
 //   < 900px   POS + wide cards stack (text above photo); mini cards 1 → 2 columns
 //   ≥ 900px   text overlays the photos' blank left side; mini cards on a 6-track grid (3 + 2)
 //   ≥ 1200px  POS | Inventory + Attendance side by side
-//   ≥ 1440px  five mini cards in one row — the reference layout
+//   ≥ 1536px  five mini cards in one row — the reference layout
+// Mini cards pick their own photo placement by their width (container query, see FzMiniCard).
 const FZ_RED = "#E5243B";
 const FZ_INK = "#0F172A";
 const FZ_TEXT = "#334155";
 const FZ_MUTED = "#64748B";
 const FZ_BORDER = "#E8ECF2";
 const FZ_GREEN = "#16A34A";
-const FZ_DESK = "@media (min-width: 1440px)";
-const FZ_LAPTOP = "@media (min-width: 1200px) and (max-width: 1439.98px)";
+// Desktop layout needs ~1368px of content (1520 × 0.9) — with PAGE_GUTTER sides that's a 1536px viewport.
+const FZ_DESK = "@media (min-width: 1536px)";
+const FZ_LAPTOP = "@media (min-width: 1200px) and (max-width: 1535.98px)";
 const fz = (n: number) => `calc(${n} * var(--fz-u))`;
 
 const fzCardSx = {
@@ -798,7 +783,7 @@ const fzBenefits = [
 type FzPhoto = { src: string; srcSet: string };
 const FZ_MINI_W = [480, 720];
 const FZ_WIDE_W = [640, 1260];
-const FZ_MINI_SIZES = "(min-width: 1440px) 12vw, (min-width: 900px) 28vw, (min-width: 600px) 50vw, 60vw";
+const FZ_MINI_SIZES = "(min-width: 1536px) 18vw, (min-width: 900px) 30vw, (min-width: 600px) 46vw, 92vw";
 const FZ_WIDE_SIZES = "(min-width: 1200px) 24vw, (min-width: 600px) 60vw, 100vw";
 const fzPhotoUrls = import.meta.glob<string>("../../assets/Landingpage/feature-photos/*.webp", { eager: true, import: "default" });
 const fzPhoto = (slug: string, widths: number[]): FzPhoto => {
@@ -815,7 +800,8 @@ type FzMini = {
   bg: string;
   photo: FzPhoto;
   alt: string;
-  imagePos: string;
+  imagePos: string;         // object-position when the photo sits beside the data (wide cards)
+  stackPos: string;         // object-position when the photo sits on top at 16:10 (narrow cards)
   imageFr: number;          // image column width relative to the data panel (reference ratios)
   learnMore?: "image" | "panel" | "panel-end";
   panel: React.ReactNode;
@@ -825,7 +811,7 @@ const fzMiniCards: FzMini[] = [
   {
     title: "Customer Management", sub: "Build lasting customer relationships.",
     icon: <PeopleAltRoundedIcon />, color: "#2563EB", bg: "#DBEAFE",
-    photo: fzCustomerPhoto, alt: "Customer checking her loyalty rewards on her phone", imagePos: "38% center", imageFr: 0.95,
+    photo: fzCustomerPhoto, alt: "Customer checking her loyalty rewards on her phone", imagePos: "38% center", stackPos: "center 30%", imageFr: 0.95,
     learnMore: "panel",
     panel: (
       <Box sx={{ ...fzPanelSx, p: fz(9) }}>
@@ -853,7 +839,7 @@ const fzMiniCards: FzMini[] = [
   {
     title: "Payments & Reminders", sub: "Get paid on time with automated reminders.",
     icon: <AccountBalanceWalletOutlinedIcon />, color: "#EA580C", bg: "#FFEDD5",
-    photo: fzPhoto("payments", FZ_MINI_W), alt: "Payment reminder being sent from the Zodu app", imagePos: "center 60%", imageFr: 1.1,
+    photo: fzPhoto("payments", FZ_MINI_W), alt: "Payment reminder being sent from the Zodu app", imagePos: "center 60%", stackPos: "center 50%", imageFr: 1.1,
     panel: (
       <>
         <Box sx={{ ...fzPanelSx, p: fz(10) }}>
@@ -873,7 +859,7 @@ const fzMiniCards: FzMini[] = [
   {
     title: "GST Compliance & Reports", sub: "Stay 100% compliant with easy GST filing.",
     icon: <DescriptionOutlinedIcon />, color: "#2563EB", bg: "#DBEAFE",
-    photo: fzPhoto("gst", FZ_MINI_W), alt: "GST compliance report with filing status on a desk", imagePos: "center 35%", imageFr: 1.8,
+    photo: fzPhoto("gst", FZ_MINI_W), alt: "GST compliance report with filing status on a desk", imagePos: "center 35%", stackPos: "center 35%", imageFr: 1.8,
     learnMore: "image",
     panel: (
       <>
@@ -892,7 +878,7 @@ const fzMiniCards: FzMini[] = [
   {
     title: "Expense Management", sub: "Track and control your business expenses.",
     icon: <PaymentOutlinedIcon />, color: FZ_GREEN, bg: "#DCFCE7",
-    photo: fzPhoto("expense", FZ_MINI_W), alt: "Store staff reviewing monthly expenses on a tablet", imagePos: "70% 20%", imageFr: 1,
+    photo: fzPhoto("expense", FZ_MINI_W), alt: "Store staff reviewing monthly expenses on a tablet", imagePos: "70% 20%", stackPos: "center 22%", imageFr: 1,
     panel: (
       <Box sx={{ ...fzPanelSx, p: fz(8), flex: 1 }}>
         <FzLabel>This Month</FzLabel>
@@ -919,7 +905,7 @@ const fzMiniCards: FzMini[] = [
   {
     title: "Purchase Management", sub: "Manage suppliers, purchase orders & receipts.",
     icon: <ShoppingCartOutlinedIcon />, color: "#9333EA", bg: "#F3E8FF",
-    photo: fzPhoto("purchase", FZ_MINI_W), alt: "Warehouse staff checking purchase orders on a tablet", imagePos: "30% center", imageFr: 1.37,
+    photo: fzPhoto("purchase", FZ_MINI_W), alt: "Warehouse staff checking purchase orders on a tablet", imagePos: "30% center", stackPos: "center 40%", imageFr: 1.37,
     learnMore: "panel-end",
     panel: (
       <>
@@ -955,7 +941,7 @@ const FzPosCard: React.FC = () => (
         </Box>
       </Box>
 
-      {/* 1200–1439px the card is taller than the artwork, so it sits lower: keep the list left of "Billing Made Simple". */}
+      {/* 1200–1535px the card is taller than the artwork, so it sits lower: keep the list left of "Billing Made Simple". */}
       <Box sx={{ mt: fz(24), pl: fz(10), [FZ_LAPTOP]: { maxWidth: "72%" } }}>
         <FzChecklist
           items={["Quick billing & barcode scanning", "Supports multiple payment methods", "Works offline too", "Perfect for retail, restaurant, pharmacy and more"]}
@@ -1002,7 +988,7 @@ const FzPosCard: React.FC = () => (
       display: "block", width: "100%", position: { md: "absolute" }, inset: { md: 0 },
       height: { xs: "auto", md: "100%" }, aspectRatio: { xs: "4 / 3", sm: "16 / 10", md: "auto" },
       objectFit: "cover", objectPosition: { xs: "90% center", sm: "right center", md: "right top" },
-      // 1200–1439px: the copy makes the card taller than the artwork's ratio; cropping would push
+      // 1200–1535px: the copy makes the card taller than the artwork's ratio; cropping would push
       // "Billing Made Simple" into the checklist, so show the artwork whole and fade its top edge.
       [FZ_LAPTOP]: {
         inset: "auto 0 0 auto", height: "auto", aspectRatio: "1821 / 864",
@@ -1038,7 +1024,7 @@ const FzWideCard: React.FC<{ icon: React.ReactNode; color: string; bg: string; t
 
     {/* Frame-free photo panel (it carries the stat card), bled to the card's right, top and bottom edges;
         its white left side fades into the card behind the copy. Capped at 60% of the card so it stays
-        clear of the copy on cards that are tall for their width (1200–1439px); imagePos keeps the subject. */}
+        clear of the copy on cards that are tall for their width (1200–1535px); imagePos keeps the subject. */}
     <Box component="img" src={photo.src} srcSet={photo.srcSet} sizes={FZ_WIDE_SIZES} alt={alt} loading="lazy" decoding="async" sx={{
       display: "block", position: { sm: "absolute" }, inset: { sm: "0 0 0 auto" },
       width: { xs: "100%", sm: "auto" }, maxWidth: { xs: "none", sm: "60%" },
@@ -1046,7 +1032,7 @@ const FzWideCard: React.FC<{ icon: React.ReactNode; color: string; bg: string; t
       objectFit: "cover", objectPosition: imagePos,
       WebkitMaskImage: { sm: "linear-gradient(to right, transparent 0%, #000 12%)" },
       maskImage: { sm: "linear-gradient(to right, transparent 0%, #000 12%)" },
-      // 1200–1439px the card is at its tallest relative to its width: keep the photo right of the copy
+      // 1200–1535px the card is at its tallest relative to its width: keep the photo right of the copy
       // and give it a longer fade so the crop's left edge stays soft.
       [FZ_LAPTOP]: {
         maxWidth: "54%",
@@ -1057,46 +1043,71 @@ const FzWideCard: React.FC<{ icon: React.ReactNode; color: string; bg: string; t
   </Box>
 );
 
-const FzMiniCard: React.FC<{ card: FzMini }> = ({ card }) => (
-  <Box sx={{ ...fzCardSx, borderRadius: fz(14), p: fz(10), pt: fz(9), display: "flex", flexDirection: "column", gap: fz(10) }}>
-    <Box sx={{ display: "flex", alignItems: "center", gap: fz(14) }}>
-      <FzIconTile icon={card.icon} color={card.color} bg={card.bg} size={40} radius={10} iconSize={21} />
-      <Box sx={{ minWidth: 0 }}>
-        <Typography component="h3" sx={{ fontSize: fz(14.5), fontWeight: 800, color: FZ_INK, lineHeight: 1.25 }}>{card.title}</Typography>
-        <Typography sx={{ mt: fz(2), fontSize: fz(11), color: FZ_MUTED, lineHeight: 1.35 }}>{card.sub}</Typography>
-      </Box>
-    </Box>
+// Narrow cards (five across on desktop, the 3-up row of the 3 + 2 layout, phones) show the photo on top at
+// full card width and 16:10, so the landscape photos aren't cropped to a sliver; the data sits below.
+// Cards at least 520px wide (the 2-up row) put the photo beside the data instead.
+const FZ_MINI_WIDE = "@container fzmini (min-width: 520px)";
 
-    <Box sx={{ flex: 1, display: "grid", gridTemplateColumns: `minmax(0, ${card.imageFr}fr) minmax(0, 1fr)`, gap: fz(12) }}>
-      <Box sx={{ display: "flex", flexDirection: "column", gap: fz(8), minWidth: 0 }}>
-        <Box component="img" src={card.photo.src} srcSet={card.photo.srcSet} sizes={FZ_MINI_SIZES} alt={card.alt} loading="lazy" decoding="async" sx={{
-          display: "block", width: "100%", height: 0, flex: "1 1 auto",
-          minHeight: fz(card.learnMore === "image" ? 108 : 128),
-          objectFit: "cover", objectPosition: card.imagePos, borderRadius: fz(8),
-        }} />
-        {card.learnMore === "image" && <FzLearnMore size={11} />}
+const FzMiniCard: React.FC<{ card: FzMini }> = ({ card }) => {
+  const more = card.learnMore;
+  return (
+    <Box sx={{ ...fzCardSx, containerType: "inline-size", containerName: "fzmini", borderRadius: fz(14), p: fz(10), pt: fz(9), display: "flex", flexDirection: "column", gap: fz(10) }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: fz(14) }}>
+        <FzIconTile icon={card.icon} color={card.color} bg={card.bg} size={40} radius={10} iconSize={21} />
+        <Box sx={{ minWidth: 0 }}>
+          <Typography component="h3" sx={{ fontSize: fz(14.5), fontWeight: 800, color: FZ_INK, lineHeight: 1.25 }}>{card.title}</Typography>
+          <Typography sx={{ mt: fz(2), fontSize: fz(11), color: FZ_MUTED, lineHeight: 1.35 }}>{card.sub}</Typography>
+        </Box>
       </Box>
-      <Box sx={{ display: "flex", flexDirection: "column", gap: fz(8), minWidth: 0 }}>
-        {card.panel}
-        {card.learnMore === "panel" && <Box sx={{ mt: "auto", pl: fz(3) }}><FzLearnMore size={11} /></Box>}
-        {card.learnMore === "panel-end" && <Box sx={{ mt: "auto", display: "flex", justifyContent: "flex-end" }}><FzLearnMore size={11} /></Box>}
+
+      <Box sx={{
+        flex: 1, display: "grid", gap: fz(10),
+        gridTemplateColumns: "minmax(0, 1fr)",
+        gridTemplateRows: more ? "auto 1fr auto" : "auto 1fr",
+        gridTemplateAreas: more ? `"img" "panel" "more"` : `"img" "panel"`,
+        [FZ_MINI_WIDE]: {
+          columnGap: fz(12), rowGap: fz(8),
+          gridTemplateColumns: `minmax(0, ${card.imageFr}fr) minmax(0, 1fr)`,
+          gridTemplateRows: more ? "1fr auto" : "1fr",
+          gridTemplateAreas: more === "image" ? `"img panel" "more panel"` : more ? `"img panel" "img more"` : `"img panel"`,
+        },
+      }}>
+        {/* The photo is absolutely positioned so its natural height never stretches the card. */}
+        <Box sx={{
+          gridArea: "img", position: "relative", overflow: "hidden", borderRadius: fz(8), aspectRatio: "16 / 10",
+          [FZ_MINI_WIDE]: { aspectRatio: "auto", minHeight: fz(more === "image" ? 176 : 200) },
+        }}>
+          <Box component="img" src={card.photo.src} srcSet={card.photo.srcSet} sizes={FZ_MINI_SIZES} alt={card.alt} loading="lazy" decoding="async" sx={{
+            position: "absolute", inset: 0, display: "block", width: "100%", height: "100%",
+            objectFit: "cover", objectPosition: card.stackPos,
+            [FZ_MINI_WIDE]: { objectPosition: card.imagePos },
+          }} />
+        </Box>
+        <Box sx={{ gridArea: "panel", display: "flex", flexDirection: "column", gap: fz(8), minWidth: 0 }}>
+          {card.panel}
+        </Box>
+        {more && (
+          <Box sx={{ gridArea: "more", alignSelf: "end", display: "flex", justifyContent: more === "panel-end" ? "flex-end" : "flex-start", pl: more === "panel" ? fz(3) : 0 }}>
+            <FzLearnMore size={11} />
+          </Box>
+        )}
       </Box>
     </Box>
-  </Box>
-);
+  );
+};
 
 const WhatZoduDoesSection: React.FC = () => (
   <Box component="section" id="what-zodu-does" aria-labelledby="fz-heading" sx={{
     scrollMarginTop: { xs: NAV_H.xs, md: NAV_H.md },
     "--fz-u": "1px",
     "@media (min-width: 1200px)": { "--fz-u": "0.9px" },
-    [FZ_DESK]: { "--fz-u": "clamp(0.9px, calc((100vw - 80px) / 1520), 1px)", px: "40px" },
+    [FZ_DESK]: { "--fz-u": `clamp(0.9px, calc((100vw - 2 * ${PAGE_GUTTER}) / 1520), 1px)` },
     bgcolor: HERO_BASE,
-    px: { xs: 2, sm: 3, md: 4 },
+    px: SX,
     pt: { xs: 5, md: fz(28) },
     pb: { xs: 5, md: fz(32) },
   }}>
-    <Box sx={{ maxWidth: 1520, mx: "auto", display: "flex", flexDirection: "column", gap: fz(10) }}>
+    <Box sx={{ maxWidth: SECTION_MAX_W, mx: "auto", display: "flex", flexDirection: "column", gap: fz(10) }}>
 
       {/* Heading + category tabs */}
       <Box sx={{ textAlign: "center", mb: fz(9) }}>
@@ -1121,7 +1132,7 @@ const WhatZoduDoesSection: React.FC = () => (
           // one row: scrolls below md, centred whenever it fits ("safe" falls back to start on overflow)
           mt: fz(22), display: "flex", gap: { xs: "8px", md: fz(14) }, justifyContent: "safe center",
           flexWrap: { xs: "nowrap", md: "wrap" }, overflowX: { xs: "auto", md: "visible" },
-          mx: { xs: -2, sm: -3, md: 0 }, px: { xs: 2, sm: 3, md: 0 }, py: fz(4),
+          mx: { xs: -2.5, sm: -4, md: 0 }, px: { xs: 2.5, sm: 4, md: 0 }, py: fz(4),
           scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" },
         }}>
           {fzTabs.map((tab) => (
@@ -1342,7 +1353,7 @@ const ZoduLandingPage: React.FC = () => {
               maxWidth: { xs: 720, lg: "none" },
               mx: { xs: "auto", lg: 0 },
               my: "auto",               // centre the copy in the free height; artwork stays at the bottom
-              pl: { xs: 2.5, sm: 4, md: 6, lg: "clamp(48px, 5.5vw, 112px)" },
+              pl: { xs: 2.5, sm: 4, md: 6, lg: PAGE_GUTTER },
               pr: { xs: 2.5, sm: 4, md: 6, lg: 4 },
               pt: { xs: 5, sm: 6 },
               pb: { xs: 4, sm: 5, lg: 6 },
@@ -1851,8 +1862,8 @@ const ZoduLandingPage: React.FC = () => {
 {/* ── HOW ITS WORK─────────────────────────────────────────────────── */}
 
 <Box sx={{ bgcolor: "#fff", py: { xs: 1.5, md: 2 }, px: SX, position: "relative", overflow: "hidden" ,mb: { xs: 1, md: 2 }}}>
-  
-  <Container maxWidth="lg" sx={{ position: "relative", zIndex: 1 }}>
+
+  <Box sx={{ maxWidth: SECTION_MAX_W, mx: "auto", position: "relative", zIndex: 1 }}>
     <Box textAlign="center" mb={{ xs: 1, md: 1.4 }}>
       <Typography sx={{ color: PRIMARY, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", mb: 0.2, lineHeight: 1.5 }}>
         HOW IT WORKS
@@ -1939,7 +1950,7 @@ const ZoduLandingPage: React.FC = () => {
         14-day free trial · Full access · Cancel anytime
       </Typography>
     </Box>
-  </Container>
+  </Box>
 </Box>
 
 {/* ── WHO IS IT FOR ─────────────────────────────────────────────────── */}
@@ -2004,7 +2015,7 @@ const ZoduLandingPage: React.FC = () => {
   </Container>
 </Box> */}
 <Box sx={{ bgcolor: LIGHT, py: { xs: 1.5, md: 2 }, px: SX, position: "relative", overflow: "hidden",mb: { xs: 6, md: 8 }, }}>
-  <Container maxWidth="lg">
+  <Box sx={{ maxWidth: SECTION_MAX_W, mx: "auto" }}>
     <Box textAlign="center" mb={{ xs: 1.2, md: 1.5 }}>
       <Typography sx={{ color: PRIMARY, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", mb: 0.2, lineHeight: 1.5 }}>
         BUILT FOR EVERY BUSINESS
@@ -2061,12 +2072,12 @@ const ZoduLandingPage: React.FC = () => {
         </Box>
       ))}
     </Box>
-  </Container>
+  </Box>
 </Box>
         {/* ── PRICING ──────────────────────────────────────────────────────── */}
       {/* Intha outer wrapper/container-la mt (margin-top) add pannunga */}
-<Box sx={{ mt: { xs: 4, md: 6 }, px: { xs: 2, md: 4 } }}>
-  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 2.5, alignItems: "stretch" }}>
+<Box sx={{ mt: { xs: 4, md: 6 }, px: SX }}>
+  <Box sx={{ maxWidth: SECTION_MAX_W, mx: "auto", display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 2.5, alignItems: "stretch" }}>
     {plans.map((plan) => (
       <Box key={plan.name} sx={{
         border: plan.popular ? `2px solid ${PRIMARY}` : `1px solid ${BORDER}`,
@@ -2248,7 +2259,7 @@ const ZoduLandingPage: React.FC = () => {
             </defs>
           </Box>
 
-          <Container maxWidth="lg" disableGutters>
+          <Box sx={{ maxWidth: SECTION_MAX_W, mx: "auto" }}>
             <Box sx={{
               borderRadius: { xs: "20px", md: "26px" },
               minHeight: { md: 430 },
@@ -2473,12 +2484,12 @@ const ZoduLandingPage: React.FC = () => {
                 </Box>
               </Box>
             </Box>
-          </Container>
+          </Box>
         </Box>
 
         {/* ── FOOTER ───────────────────────────────────────────────────────── */}
-        <Box component="footer" sx={{ position: "relative", overflow: "hidden", bgcolor: "#0B1220", color: "#fff" }}>
-    <Container maxWidth="lg" sx={{ px: { xs: 3, md: 6 }, position: "relative", zIndex: 1, py: { xs: 4, md: 5 } }}>
+        <Box component="footer" sx={{ position: "relative", overflow: "hidden", bgcolor: "#0B1220", color: "#fff", px: SX }}>
+    <Box sx={{ maxWidth: SECTION_MAX_W, mx: "auto", position: "relative", zIndex: 1, py: { xs: 4, md: 5 } }}>
       
       {/* Logo and CTA Box in a single row */}
       <Box sx={{
@@ -2578,7 +2589,7 @@ const ZoduLandingPage: React.FC = () => {
           ))}
         </Stack>
       </Box>
-    </Container>
+    </Box>
   </Box>
       </Box>
     </ThemeProvider>

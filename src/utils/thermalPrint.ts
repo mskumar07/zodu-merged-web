@@ -20,7 +20,57 @@ export const THERMAL_PRINTABLE_MM: Record<ThermalPaperSize, number> = { "3": 72,
 // 3" head, 832 on a 4"), so it stays sharp once scaled to the paper.
 const CAPTURE_SCALE = 3;
 
-/** The rendered receipt as a PNG — not JPEG, so text edges stay clean on the head. */
+// Luminance under which a pixel prints black — a little past mid-grey, so the
+// anti-aliased edges of thin strokes join the stroke instead of dropping out.
+const INK_THRESHOLD = 170;
+
+/**
+ * Snaps the capture to the only two things a thermal head prints: black and
+ * white. Left grey, the anti-aliased edges of the text were thresholded by some
+ * printer drivers and dithered into a speckled halo by others, so the same
+ * receipt came out crisp on one printer and faint or fuzzy on the next.
+ * Pictures (the logo, the signature) are only turned grey — their shading is
+ * the driver's to dither at the head's own resolution, and a hard threshold
+ * would blot them.
+ */
+function toThermalInk(canvas: HTMLCanvasElement, node: HTMLElement): void {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  const { width: w, height: h } = canvas;
+  let image: ImageData;
+  try {
+    image = ctx.getImageData(0, 0, w, h);
+  } catch {
+    return; // a cross-origin picture tainted the canvas — print it as captured
+  }
+  const box = node.getBoundingClientRect();
+  const s = box.width ? w / box.width : CAPTURE_SCALE;
+  const pictures = Array.from(node.querySelectorAll("img")).map((img) => {
+    const r = img.getBoundingClientRect();
+    return {
+      x0: Math.floor((r.left - box.left) * s),
+      y0: Math.floor((r.top - box.top) * s),
+      x1: Math.ceil((r.right - box.left) * s),
+      y1: Math.ceil((r.bottom - box.top) * s),
+    };
+  });
+  const px = image.data;
+  for (let y = 0; y < h; y++) {
+    const rowPictures = pictures.filter((p) => y >= p.y0 && y < p.y1);
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      const alpha = px[i + 3] / 255;
+      const lum = 255 - alpha * (255 - (0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]));
+      const inPicture = rowPictures.length > 0 && rowPictures.some((p) => x >= p.x0 && x < p.x1);
+      const v = inPicture ? lum : lum < INK_THRESHOLD ? 0 : 255;
+      px[i] = px[i + 1] = px[i + 2] = v;
+      px[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+}
+
+/** The rendered receipt as a black-and-white PNG — not JPEG, so text edges stay clean on the head. */
 export async function captureThermalReceipt(node: HTMLElement): Promise<string> {
   const canvas = await html2canvas(node, {
     scale: CAPTURE_SCALE,
@@ -33,6 +83,7 @@ export async function captureThermalReceipt(node: HTMLElement): Promise<string> 
       for (let p = el.parentElement; p; p = p.parentElement) p.style.opacity = "1";
     },
   });
+  toThermalInk(canvas, node);
   return canvas.toDataURL("image/png");
 }
 

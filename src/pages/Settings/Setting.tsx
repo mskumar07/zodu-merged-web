@@ -58,6 +58,7 @@ import InvoiceSetting from "./InvoiceSetting";
 import RestaurantInvoiceSetting from "./RestaurantInvoiceSetting";
 import PosSetting from "./PosSetting";
 import RestaurantPosSetting from "./RestaurantPosSetting";
+import PrinterSettings from "./PrinterSettings";
 import RoleManagement from "@pages/auth/Role/RoleManagement";
 import { useAppDispatch, useAppSelector } from "@store/store";
 import { useModulePermission } from "@hooks/useModulePermission";
@@ -88,7 +89,7 @@ const subtleText = "#8e95a3";
 const headingText = "#1d2533";
 const redTint = "#ca0022";
 
-type SettingsTab = "company" | "invoice" | "pos" | "user" | "role";
+type SettingsTab = "company" | "invoice" | "pos" | "kot" | "user" | "role";
 
 const getCompanyAddressLine1 = (company?: CompanyWithBranches | null) => {
   if (!company) return "";
@@ -734,6 +735,18 @@ export default function Setting() {
                   fontWeight: 700,
                 }}
               />
+              {businessType === "Restaurant" && (
+                <Tab
+                  label="Printer settings"
+                  value="kot"
+                  sx={{
+                    minHeight: 48,
+                    textTransform: "none",
+                    fontSize: 14,
+                    fontWeight: 700,
+                  }}
+                />
+              )}
               {/* <Tab
                 label="User settings"
                 value="user"
@@ -1326,6 +1339,8 @@ export default function Setting() {
           {activeTab === "invoice" && (businessType === "Restaurant" ? <RestaurantInvoiceSetting /> : <InvoiceSetting />)}
 
           {activeTab === "pos" && (businessType === "Restaurant" ? <RestaurantPosSetting /> : <PosSetting />)}
+
+          {activeTab === "kot" && businessType === "Restaurant" && <PrinterSettings />}
 
           {/* {activeTab === "user" && (
             <Paper
