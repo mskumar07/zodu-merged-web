@@ -665,18 +665,32 @@ const RestaurantPOS: React.FC = () => {
     setIsEditingSummary(false);
   }, []);
 
+  // Clearing the cart abandons whatever hold was restored into it too —
+  // otherwise a fresh order rung up afterward would wrongly delete that
+  // unrelated hold once it's paid (handlePay only keys off activeHoldId).
+  const handleClearCart = useCallback(() => {
+    setCartItems([]);
+    setActiveHoldId(null);
+  }, []);
+
   // Switching the order type away from Dine In abandons any restored running
   // order — it belongs to a specific table, which no longer applies once the
-  // order isn't Dine In. Without this, the summary/table/hold state stayed
+  // order isn't Dine In. Without this, the summary/table state stayed
   // populated underneath: Touch mode just happened to hide it (its cart view
   // is gated on isDineIn), while Keyboard mode's item table isn't gated the
   // same way and kept showing the stale table's items after switching tabs.
+  //
+  // activeHoldId is deliberately left alone here: it tracks a restored HOLD
+  // (cartItems), a completely different thing from a running order
+  // (runningOrderSummary) — a held order can legitimately be Pick Up or
+  // Delivery, and clearing activeHoldId when the cashier merely (re)selects
+  // that same order type meant handlePay's hold cleanup never ran, leaving
+  // the sold hold sitting in the Hold list forever.
   const handleOrderTypeChange = useCallback((key: "DineIn" | "Delivery" | "PickUp") => {
     if (key !== "DineIn") {
       setRunningOrderSummary([]);
       setRunningOrderTotal(0);
       setIsEditingSummary(false);
-      setActiveHoldId(null);
       setOrder((p) => ({
         ...p,
         orderType: key,
@@ -704,6 +718,12 @@ const RestaurantPOS: React.FC = () => {
 
   const removeSummaryItem = useCallback((idx: number) => {
     setRunningOrderSummary((prev) => prev.filter((_, i) => i !== idx));
+  }, []);
+
+  const setSummaryItemQty = useCallback((idx: number, qty: number) => {
+    setRunningOrderSummary((prev) =>
+      prev.map((it, i) => (i === idx ? { ...it, qty: Math.max(1, qty) } : it))
+    );
   }, []);
 
   const handleEditSummary = useCallback(() => {
@@ -1343,6 +1363,7 @@ const RestaurantPOS: React.FC = () => {
           onSummaryIncrement={incrementSummaryItem}
           onSummaryDecrement={decrementSummaryItem}
           onSummaryRemove={removeSummaryItem}
+          onSummarySetQty={setSummaryItemQty}
           isEditingSummary={isEditingSummary}
           onEditSummary={handleEditSummary}
           onCancelEditSummary={handleCancelEditSummary}
@@ -1360,8 +1381,9 @@ const RestaurantPOS: React.FC = () => {
           onPaymentMethodChange={(m) => setOrder((p) => ({ ...p, paymentMethod: m }))}
           onIncrement={incrementCart}
           onDecrement={decrementCart}
+          onSetQty={setQtyByProduct}
           onRemove={removeFromCart}
-          onClearCart={() => setCartItems([])}
+          onClearCart={handleClearCart}
           onHold={handleHold}
           onPaid={() => handlePay(order.paymentMethod)}
         />
@@ -1724,8 +1746,9 @@ const RestaurantPOS: React.FC = () => {
           onSummaryIncrement={incrementSummaryItem}
           onSummaryDecrement={decrementSummaryItem}
           onSummaryRemove={removeSummaryItem}
+          onSummarySetQty={setSummaryItemQty}
           onSendEditedKDS={handleSendEditedKDS}
-          onClearCart={() => setCartItems([])}
+          onClearCart={handleClearCart}
           printEnabled={printEnabled}
           onTogglePrint={handleTogglePrint}
         />

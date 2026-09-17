@@ -479,7 +479,14 @@ export default function ChecklistDashboard() {
   const branchId = useAppSelector(BranchId);
   const profile = useAppSelector(UserProfile);
   const employeeId = (profile as any)?.employee_id ?? (profile as any)?.id ?? "";
-  const isReportingManager = !!(profile as any)?.reporting_manager_id;
+  // Admins (EMP001 / super_admin) are the head of the org, so they have no
+  // reporting_manager_id of their own — but they still need the manager view
+  // (Assigned Checklists table + Assign Task) rather than being treated as a
+  // regular employee just because that field happens to be null for them.
+  const isReportingManager =
+    !!(profile as any)?.reporting_manager_id ||
+    (profile as any)?.employee_code === "EMP001" ||
+    (profile as any)?.user_type === "super_admin";
 
   const [createOpen, setCreateOpen] = useState(false);
   const [viewTaskId, setViewTaskId] = useState<string | null>(null);
@@ -706,7 +713,7 @@ export default function ChecklistDashboard() {
             <CircularProgress size={28} sx={{ color: "#E11D48" }} />
           </Box>
         ) : (
-          <Box sx={{ display: "flex", gap: 4,  flexWrap: "wrap", alignItems: "flex-start" }}>
+          <Box sx={{ display: "flex", gap: 4, mb: 3, flexWrap: "wrap", alignItems: "flex-start", rowGap: 3 }}>
             {/* Left: Assigned To Employees summary */}
             {isReportingManager && (
               <Box>

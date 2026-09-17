@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Typography,
@@ -26,6 +26,7 @@ import KitchenIcon from "@mui/icons-material/Kitchen";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import RemoveIcon from "@mui/icons-material/Remove";
 import AddIcon from "@mui/icons-material/Add";
+import AddShoppingCartIcon from "@mui/icons-material/AddShoppingCart";
 import RestaurantMenuIcon from "@mui/icons-material/RestaurantMenu";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import DeliveryDiningIcon from "@mui/icons-material/DeliveryDining";
@@ -86,6 +87,7 @@ interface Props {
   onSummaryIncrement: (idx: number) => void;
   onSummaryDecrement: (idx: number) => void;
   onSummaryRemove: (idx: number) => void;
+  onSummarySetQty: (idx: number, qty: number) => void;
   isEditingSummary: boolean;
   onEditSummary: () => void;
   onCancelEditSummary: () => void;
@@ -108,6 +110,7 @@ interface Props {
 
   onIncrement: (item: RestaurantCartItem) => void;
   onDecrement: (item: RestaurantCartItem) => void;
+  onSetQty: (product: RestaurantMenuItem, newQty: number) => void;
   onRemove: (item: RestaurantCartItem) => void;
   onClearCart: () => void;
 
@@ -119,10 +122,11 @@ const ORDER_TYPES: Array<{
   key: "DineIn" | "Delivery" | "PickUp";
   label: string;
   icon: React.ReactNode;
+  shortcut: string;
 }> = [
-  { key: "DineIn",   label: "Dine In",  icon: <RestaurantMenuIcon sx={{ fontSize: 16 }} /> },
-  { key: "PickUp",   label: "Pick Up",  icon: <ShoppingBagOutlinedIcon sx={{ fontSize: 16 }} /> },
-  { key: "Delivery", label: "Delivery", icon: <DeliveryDiningIcon sx={{ fontSize: 16 }} /> },
+  { key: "DineIn",   label: "Dine In",  icon: <RestaurantMenuIcon sx={{ fontSize: 16 }} />, shortcut: "F1" },
+  { key: "PickUp",   label: "Pick Up",  icon: <ShoppingBagOutlinedIcon sx={{ fontSize: 16 }} />, shortcut: "F2" },
+  { key: "Delivery", label: "Delivery", icon: <DeliveryDiningIcon sx={{ fontSize: 16 }} />, shortcut: "F3" },
 ];
 
 const PAYMENT_METHODS: Array<{ key: PaymentMethod; label: string; icon: React.ReactNode }> = [
@@ -136,8 +140,8 @@ const PAYMENT_METHODS: Array<{ key: PaymentMethod; label: string; icon: React.Re
 ];
 
 function OrderTypePill({
-  label, icon, active, onClick,
-}: { label: string; icon: React.ReactNode; active: boolean; onClick: () => void }) {
+  label, icon, active, onClick, shortcut,
+}: { label: string; icon: React.ReactNode; active: boolean; onClick: () => void; shortcut?: string }) {
   return (
     <Box
       onClick={onClick}
@@ -162,6 +166,11 @@ function OrderTypePill({
     >
       {icon}
       {label}
+      {shortcut && (
+        <Box component="span" sx={{ fontSize: "0.68em", fontWeight: 800, opacity: 0.85 }}>
+          [{shortcut}]
+        </Box>
+      )}
     </Box>
   );
 }
@@ -170,20 +179,19 @@ function OrderTypePill({
 // state RestaurantPOS owns (no separate data model), laid out for a
 // keyboard+mouse cashier workflow: a dense item table on the left, bill
 // summary and checkout on the right. Card-grid item picking still happens
-// through the shared search box below; a full keyboard-navigation engine
-// (arrow-key row focus, inline edit-on-Enter) is intentionally out of scope —
-// this mirrors the layout, not pos.tsx's input-handling machinery.
+// through the shared search box below, whose typeahead supports Up/Down/Enter
+// to add a result without touching the mouse.
 const KeyboardBillingView: React.FC<Props> = ({
   order, cartItems, totals, isBusy,
   searchQuery, onSearchChange, onSearchEnter,
   filterMode, onToggleFavourites,
   filteredCategories, getCartQty, onAddItem,
   runningOrders, onRestoreRunningOrder,
-  runningOrderSummary, runningOrderTotals, onSummaryIncrement, onSummaryDecrement, onSummaryRemove,
+  runningOrderSummary, runningOrderTotals, onSummaryIncrement, onSummaryDecrement, onSummaryRemove, onSummarySetQty,
   isEditingSummary, onEditSummary, onCancelEditSummary, onSendEditedKDS, onSendToKDS,
   heldOrders, activeHoldId, onRestoreHold, onDeleteHold,
   enabledPaymentTypes, onOrderTypeChange, onTableClick, onCustomerClick, onDiscountClick, onPaymentMethodChange,
-  onIncrement, onDecrement, onRemove, onClearCart,
+  onIncrement, onDecrement, onSetQty, onRemove, onClearCart,
   onHold, onPaid,
 }) => {
   const isDineIn = order.orderType === "DineIn";
@@ -212,10 +220,145 @@ const KeyboardBillingView: React.FC<Props> = ({
   }, [hasQuery, filterMode, filteredCategories]);
   const showSearchResults = !summaryLocked && (hasQuery || filterMode === "Favourites") && searchResults.length > 0;
 
+  // The row the QTY column shows as an editable input rather than the usual
+  // +/- stepper — set right after adding an item from the search dropdown,
+  // so the cashier can immediately type a different quantity and hit Enter
+  // to save it, without reaching for the mouse.
+  const [editingQtyKey, setEditingQtyKey] = useState<string | null>(null);
+  const [qtyDraft, setQtyDraft] = useState("");
+  const qtyInputRef = useRef<HTMLInputElement | null>(null);
+  // Guards against double-committing one edit session: Enter commits and
+  // clears editingQtyKey, which unmounts this row's TextField as part of the
+  // same event — and that unmount fires its own native blur, whose handler
+  // would otherwise call commitQtyEdit a second time.
+  const qtyEditCommittedRef = useRef(false);
+
+  const cartItemKey = (ci: RestaurantCartItem) => `${ci.product.menu_id}-${ci.product.variant_id ?? ""}`;
+
   const handlePickResult = (product: RestaurantMenuItem) => {
     onAddItem(product);
     onSearchChange("");
+    // While editing a running order, onAddItem writes into runningOrderSummary
+    // (not cartItems) — bumping qty in place if the item's already a row, or
+    // appending a new one otherwise. Focus whichever row it landed on.
+    if (isEditingSummary) {
+      const existingIdx = runningOrderSummary.findIndex((it) => it.item_id === product.menu_id);
+      setEditingSummaryIdx(existingIdx >= 0 ? existingIdx : runningOrderSummary.length);
+    } else {
+      setEditingQtyKey(`${product.menu_id}-${(product as any).variant_id ?? ""}`);
+    }
   };
+
+  // Row navigation through the billing table from the same search box: with
+  // no dropdown open, Up/Down move a highlighted row and Enter opens that
+  // row's QTY editor below instead of adding an item.
+  const [highlightedRowIndex, setHighlightedRowIndex] = useState(-1);
+  const rowRefs = useRef<Array<HTMLTableRowElement | null>>([]);
+  useEffect(() => {
+    if (highlightedRowIndex >= 0) rowRefs.current[highlightedRowIndex]?.scrollIntoView({ block: "nearest" });
+  }, [highlightedRowIndex]);
+
+  // The freshly-added row exists only once cartItems re-renders with it —
+  // the id is set at pick time (above), but focus/select can't happen until
+  // that row's TextField actually mounts.
+  useEffect(() => {
+    if (!editingQtyKey) return;
+    const match = cartItems.find((ci) => cartItemKey(ci) === editingQtyKey);
+    if (!match) return;
+    setQtyDraft(String(match.quantity));
+    qtyEditCommittedRef.current = false;
+    // Wait two paints — one for the TextField to mount, one for its value to
+    // actually land in the DOM — before focusing; a single rAF can fire while
+    // the input still shows the previous render's (empty) value, which makes
+    // select() a no-op and leaves the old digits in place instead of
+    // highlighted for immediate overtyping.
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const el = qtyInputRef.current;
+        if (!el) return;
+        el.focus();
+        el.select();
+      });
+    });
+    return () => cancelAnimationFrame(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingQtyKey]);
+
+  const commitQtyEdit = (ci: RestaurantCartItem, refocusSearch = false) => {
+    if (qtyEditCommittedRef.current) return;
+    qtyEditCommittedRef.current = true;
+    const parsed = parseInt(qtyDraft, 10);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      onSetQty(ci.product, parsed);
+    }
+    setEditingQtyKey(null);
+    // Enter — not blur — hands focus back to the search box, so the cashier
+    // can keep adding items without reaching for the mouse. A plain blur
+    // (clicking elsewhere) leaves focus wherever the cashier put it.
+    if (refocusSearch) {
+      requestAnimationFrame(() => searchInputRef.current?.focus());
+    }
+  };
+
+  // Same editable-QTY affordance as the fresh cart above, but for a restored
+  // running order's items (index-addressed, no product object to key off).
+  const [editingSummaryIdx, setEditingSummaryIdx] = useState<number | null>(null);
+  useEffect(() => {
+    if (editingSummaryIdx === null) return;
+    const match = runningOrderSummary[editingSummaryIdx];
+    if (!match) return;
+    setQtyDraft(String(match.qty));
+    qtyEditCommittedRef.current = false;
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const el = qtyInputRef.current;
+        if (!el) return;
+        el.focus();
+        el.select();
+      });
+    });
+    return () => cancelAnimationFrame(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingSummaryIdx]);
+
+  const commitSummaryQtyEdit = (idx: number, refocusSearch = false) => {
+    if (qtyEditCommittedRef.current) return;
+    qtyEditCommittedRef.current = true;
+    const parsed = parseInt(qtyDraft, 10);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      onSummarySetQty(idx, parsed);
+    }
+    setEditingSummaryIdx(null);
+    if (refocusSearch) {
+      requestAnimationFrame(() => searchInputRef.current?.focus());
+    }
+  };
+
+  // Arrow-key navigation through the typeahead dropdown — Up/Down move a
+  // highlighted row (wrapping at each end), Enter adds whichever row is
+  // highlighted, falling back to the code/name/barcode lookup below when
+  // nothing is highlighted yet.
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const resultRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    // A fresh result set invalidates both the selection and the refs that
+    // pointed into the previous list — reset together so a stale index can
+    // never scrollIntoView an element from the wrong list.
+    setHighlightedIndex(-1);
+    resultRefs.current = [];
+  }, [searchResults]);
+  useEffect(() => {
+    if (highlightedIndex >= 0) {
+      resultRefs.current[highlightedIndex]?.scrollIntoView({ block: "nearest" });
+    }
+  }, [highlightedIndex]);
+
+  // Land the cashier straight in the search box the moment this screen
+  // mounts, so scanning/typing an item code works without a click first.
+  useEffect(() => {
+    searchInputRef.current?.focus();
+  }, []);
 
   // Guest count is cosmetic only — no guests field exists on the order API,
   // so this never leaves the browser; it's a dine-in cashier convenience.
@@ -229,6 +372,44 @@ const KeyboardBillingView: React.FC<Props> = ({
     : PAYMENT_METHODS.filter((p) => p.key === "Cash" || p.key === "Card");
 
   const canPaid = isDineIn ? hasItems && !!order.tableNumber : hasItems;
+
+  // Function-key shortcuts for the cashier's most-used actions, mirrored by
+  // the badges rendered on each button below. Ignored while typing in a text
+  // field (except the order-type/search ones, which are harmless mid-type)
+  // so F1-style browser shortcuts don't fire while e.g. editing a QTY cell.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!["F1", "F2", "F3", "F4", "F5", "F9"].includes(e.key)) return;
+      e.preventDefault();
+      switch (e.key) {
+        case "F1":
+          onOrderTypeChange("DineIn");
+          break;
+        case "F2":
+          onOrderTypeChange("PickUp");
+          break;
+        case "F3":
+          onOrderTypeChange("Delivery");
+          break;
+        case "F4":
+          if (!summaryLocked) searchInputRef.current?.focus();
+          break;
+        case "F5":
+          if (isDineIn) onTableClick();
+          break;
+        case "F9":
+          if (isBusy || isEditingSummary) break;
+          if (isDineIn && cartItems.length > 0) {
+            onSendToKDS();
+          } else if (canPaid) {
+            onPaid();
+          }
+          break;
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onOrderTypeChange, summaryLocked, isBusy, isEditingSummary, isDineIn, cartItems.length, canPaid, onSendToKDS, onPaid, onTableClick]);
 
   return (
     <Box sx={{ flex: 1, display: "flex", position: "relative", overflow: "hidden", minHeight: 0 }}>
@@ -311,18 +492,81 @@ const KeyboardBillingView: React.FC<Props> = ({
 
         {/* Toolbar */}
         <Box sx={{ flexShrink: 0, position: "relative", display: "flex", alignItems: "center", gap: 1, px: 2, pt: 1.5, pb: 1.25 }}>
-          <Box sx={{ position: "relative", flex: 1 }}>
+          <Box sx={{ position: "relative", flex: 1, minWidth: 0 }}>
             <TextField
               size="small"
               fullWidth
               autoComplete="off"
               disabled={summaryLocked}
-              placeholder={summaryLocked ? "Click \"Edit Order\" to add items…" : "Search by item code, name or type to add…"}
+              placeholder={summaryLocked ? "Click \"Edit Order\" to add items…" : "Search by item code, name or category…"}
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
+              inputRef={searchInputRef}
               onKeyDown={(e) => {
-                if (e.key === "Enter") { e.preventDefault(); onSearchEnter(); }
+                if (showSearchResults && e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setHighlightedIndex((i) => (i + 1) % searchResults.length);
+                  return;
+                }
+                if (showSearchResults && e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setHighlightedIndex((i) => (i <= 0 ? searchResults.length - 1 : i - 1));
+                  return;
+                }
+                // No dropdown open — Up/Down browse the billing table itself,
+                // whichever list is currently visible (fresh cart, or a
+                // restored running order being edited).
+                const activeRowCount = showingSummary ? runningOrderSummary.length : cartItems.length;
+                if (!showSearchResults && !summaryLocked && activeRowCount > 0 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+                  e.preventDefault();
+                  const last = activeRowCount - 1;
+                  setHighlightedRowIndex((i) =>
+                    e.key === "ArrowDown" ? (i >= last ? 0 : i + 1) : (i <= 0 ? last : i - 1)
+                  );
+                  return;
+                }
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (showSearchResults && highlightedIndex >= 0 && highlightedIndex < searchResults.length) {
+                    handlePickResult(searchResults[highlightedIndex]);
+                  } else if (!summaryLocked && highlightedRowIndex >= 0 && highlightedRowIndex < activeRowCount) {
+                    if (showingSummary) {
+                      setEditingSummaryIdx(highlightedRowIndex);
+                    } else {
+                      setEditingQtyKey(cartItemKey(cartItems[highlightedRowIndex]));
+                    }
+                  } else {
+                    onSearchEnter();
+                  }
+                  return;
+                }
+                // Delete removes the highlighted row, same as clicking its trash icon.
+                if (
+                  !showSearchResults &&
+                  !summaryLocked &&
+                  e.key === "Delete" &&
+                  highlightedRowIndex >= 0 &&
+                  highlightedRowIndex < activeRowCount
+                ) {
+                  e.preventDefault();
+                  if (showingSummary) {
+                    onSummaryRemove(highlightedRowIndex);
+                  } else {
+                    onRemove(cartItems[highlightedRowIndex]);
+                  }
+                  setHighlightedRowIndex((i) => Math.min(i, activeRowCount - 2));
+                  return;
+                }
                 if (e.key === "Escape") onSearchChange("");
+              }}
+              inputProps={{
+                role: "combobox",
+                "aria-expanded": showSearchResults,
+                "aria-controls": "keyboard-billing-search-listbox",
+                "aria-activedescendant":
+                  showSearchResults && highlightedIndex >= 0
+                    ? `keyboard-billing-search-option-${highlightedIndex}`
+                    : undefined,
               }}
               sx={{
                 "& .MuiOutlinedInput-root": {
@@ -355,9 +599,12 @@ const KeyboardBillingView: React.FC<Props> = ({
               }}
             />
 
-            {/* Typeahead results — click a row to add it to the bill below */}
+            {/* Typeahead results — Up/Down to move the highlight, Enter to add
+                it, or click any row directly. */}
             {showSearchResults && (
               <Box
+                id="keyboard-billing-search-listbox"
+                role="listbox"
                 sx={{
                   position: "absolute",
                   top: "calc(100% + 4px)",
@@ -372,12 +619,18 @@ const KeyboardBillingView: React.FC<Props> = ({
                   overflowY: "auto",
                 }}
               >
-                {searchResults.map((item) => {
+                {searchResults.map((item, idx) => {
                   const qty = getCartQty(item.menu_id);
+                  const isHighlighted = idx === highlightedIndex;
                   return (
                     <Box
                       key={item.menu_id}
+                      id={`keyboard-billing-search-option-${idx}`}
+                      role="option"
+                      aria-selected={isHighlighted}
+                      ref={(el: HTMLDivElement | null) => { resultRefs.current[idx] = el; }}
                       onClick={() => handlePickResult(item)}
+                      onMouseEnter={() => setHighlightedIndex(idx)}
                       sx={{
                         display: "flex",
                         alignItems: "center",
@@ -387,6 +640,7 @@ const KeyboardBillingView: React.FC<Props> = ({
                         cursor: "pointer",
                         borderBottom: "1px solid #f3f4f6",
                         "&:last-of-type": { borderBottom: "none" },
+                        bgcolor: isHighlighted ? "#fef2f2" : "transparent",
                         "&:hover": { bgcolor: "#fef2f2" },
                       }}
                     >
@@ -412,7 +666,7 @@ const KeyboardBillingView: React.FC<Props> = ({
                           {item.menu_name}
                         </Typography>
                         <Typography sx={{ fontSize: 11.5, color: "#9ca3af" }}>
-                          {item.menu_id} · ₹{getItemPrice(item).toFixed(2)}
+                          {item.menu_code || item.menu_id} · ₹{getItemPrice(item).toFixed(2)}
                           {qty > 0 ? ` · ${qty} in bill` : ""}
                         </Typography>
                       </Box>
@@ -423,6 +677,30 @@ const KeyboardBillingView: React.FC<Props> = ({
               </Box>
             )}
           </Box>
+
+          <Button
+            variant="contained"
+            disabled={summaryLocked}
+            onClick={() => searchInputRef.current?.focus()}
+            startIcon={<AddShoppingCartIcon sx={{ fontSize: 18 }} />}
+            sx={{
+              flexShrink: 0,
+              height: 40,
+              px: 2,
+              borderRadius: "8px",
+              bgcolor: RED,
+              fontSize: "0.78rem",
+              fontWeight: 800,
+              letterSpacing: "0.02em",
+              boxShadow: "none",
+              "&:hover": { bgcolor: "#b71c1c", boxShadow: "none" },
+            }}
+          >
+            Add Item
+            <Box component="span" sx={{ ml: 0.6, fontSize: "0.68em", fontWeight: 800, opacity: 0.85 }}>
+              [F4]
+            </Box>
+          </Button>
 
           <Tooltip title="Favourites">
             <span>
@@ -471,16 +749,29 @@ const KeyboardBillingView: React.FC<Props> = ({
           <Table size="small" stickyHeader>
             <TableHead>
               <TableRow>
-                {["#", "Item Code", "Item Name", "Price (₹)", "Qty", "Total Amount (₹)", "Action"].map((h, i) => (
+                {[
+                  { label: "#" },
+                  { label: "Item Code" },
+                  { label: "Item Name" },
+                  { label: "Price (₹)" },
+                  { label: "Qty", shortcut: "↑↓ / Enter" },
+                  { label: "Total Amount (₹)" },
+                  { label: "Action", shortcut: "Del" },
+                ].map((h, i) => (
                   <TableCell
-                    key={h}
+                    key={h.label}
                     align={i === 0 ? "left" : i >= 3 ? "right" : "left"}
                     // MUI's stickyHeader gives cells their own `position: sticky` with a
                     // built-in z-index that otherwise renders above the category rail's
                     // floating panel regardless of the rail's own z-index — pin it below.
-                    sx={{ fontSize: 11.5, fontWeight: 800, color: "#6b7280", textTransform: "uppercase", letterSpacing: 0.4, bgcolor: "#fafbfc", borderBottom: "1.5px solid #e5e7eb", zIndex: 1 }}
+                    sx={{ fontSize: 11.5, fontWeight: 800, color: "#6b7280", textTransform: "uppercase", letterSpacing: 0.4, bgcolor: "#fafbfc", borderBottom: "1.5px solid #e5e7eb", zIndex: 1, whiteSpace: "nowrap" }}
                   >
-                    {h}
+                    {h.label}
+                    {h.shortcut && (
+                      <Box component="span" sx={{ ml: 0.5, fontSize: "0.85em", fontWeight: 800, color: "#c4c9d1", textTransform: "none", letterSpacing: 0 }}>
+                        [{h.shortcut}]
+                      </Box>
+                    )}
                   </TableCell>
                 ))}
               </TableRow>
@@ -500,34 +791,62 @@ const KeyboardBillingView: React.FC<Props> = ({
                 // cart, but backed by runningOrderSummary + the summary handlers.
                 runningOrderSummary.map((item, idx) => {
                   const rowTotal = item.price * item.qty;
+                  const isHighlightedRow = idx === highlightedRowIndex;
                   return (
-                    <TableRow key={`${item.item_id}-${idx}`} hover>
+                    <TableRow
+                      key={`${item.item_id}-${idx}`}
+                      ref={(el: HTMLTableRowElement | null) => { rowRefs.current[idx] = el; }}
+                      hover
+                      selected={isHighlightedRow}
+                      onClick={() => setHighlightedRowIndex(idx)}
+                      sx={{ cursor: "pointer" }}
+                    >
                       <TableCell sx={{ fontSize: 13, color: "#6b7280" }}>{idx + 1}</TableCell>
                       <TableCell sx={{ fontSize: 13, fontWeight: 700, color: "#1f2937" }}>{item.item_id}</TableCell>
                       <TableCell sx={{ fontSize: 13, color: "#1f2937" }}>{item.item_name}</TableCell>
                       <TableCell align="right" sx={{ fontSize: 13, color: "#4b5563" }}>{item.price.toFixed(2)}</TableCell>
                       <TableCell align="right">
-                        <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, justifyContent: "flex-end" }}>
-                          <IconButton
+                        {editingSummaryIdx === idx ? (
+                          <TextField
                             size="small"
-                            disabled={summaryLocked}
-                            onClick={() => onSummaryDecrement(idx)}
-                            sx={{ width: 24, height: 24, bgcolor: "#f3f4f6", "&:hover": { bgcolor: "#fee2e2" } }}
-                          >
-                            <RemoveIcon sx={{ fontSize: 13 }} />
-                          </IconButton>
-                          <Typography sx={{ fontSize: 13, fontWeight: 700, width: 24, textAlign: "center" }}>
-                            {item.qty}
-                          </Typography>
-                          <IconButton
-                            size="small"
-                            disabled={summaryLocked}
-                            onClick={() => onSummaryIncrement(idx)}
-                            sx={{ width: 24, height: 24, bgcolor: "#f3f4f6", "&:hover": { bgcolor: "#dcfce7" } }}
-                          >
-                            <AddIcon sx={{ fontSize: 13 }} />
-                          </IconButton>
-                        </Box>
+                            type="number"
+                            value={qtyDraft}
+                            inputRef={qtyInputRef}
+                            onChange={(e) => setQtyDraft(e.target.value)}
+                            onBlur={() => { if (editingSummaryIdx === idx) commitSummaryQtyEdit(idx); }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") { e.preventDefault(); commitSummaryQtyEdit(idx, true); }
+                              if (e.key === "Escape") { e.preventDefault(); setEditingSummaryIdx(null); }
+                            }}
+                            inputProps={{ min: 1, style: { textAlign: "right", padding: "4px 8px" } }}
+                            sx={{ width: 64, "& .MuiOutlinedInput-root": { fontSize: 13, fontWeight: 700 } }}
+                          />
+                        ) : (
+                          <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, justifyContent: "flex-end" }}>
+                            <IconButton
+                              size="small"
+                              disabled={summaryLocked}
+                              onClick={() => onSummaryDecrement(idx)}
+                              sx={{ width: 24, height: 24, bgcolor: "#f3f4f6", "&:hover": { bgcolor: "#fee2e2" } }}
+                            >
+                              <RemoveIcon sx={{ fontSize: 13 }} />
+                            </IconButton>
+                            <Typography
+                              onClick={() => { if (!summaryLocked) setEditingSummaryIdx(idx); }}
+                              sx={{ fontSize: 13, fontWeight: 700, width: 24, textAlign: "center", cursor: summaryLocked ? "default" : "pointer" }}
+                            >
+                              {item.qty}
+                            </Typography>
+                            <IconButton
+                              size="small"
+                              disabled={summaryLocked}
+                              onClick={() => onSummaryIncrement(idx)}
+                              sx={{ width: 24, height: 24, bgcolor: "#f3f4f6", "&:hover": { bgcolor: "#dcfce7" } }}
+                            >
+                              <AddIcon sx={{ fontSize: 13 }} />
+                            </IconButton>
+                          </Box>
+                        )}
                       </TableCell>
                       <TableCell align="right" sx={{ fontSize: 13, fontWeight: 700, color: "#1f2937" }}>
                         {rowTotal.toFixed(2)}
@@ -544,10 +863,19 @@ const KeyboardBillingView: React.FC<Props> = ({
                 cartItems.map((ci, idx) => {
                   const price = getItemPrice(ci.product);
                   const rowTotal = price * ci.quantity;
+                  const isEditingQty = editingQtyKey === cartItemKey(ci);
+                  const isHighlightedRow = idx === highlightedRowIndex;
                   return (
-                    <TableRow key={`${ci.product.menu_id}-${ci.product.variant_id ?? ""}-${idx}`} hover>
+                    <TableRow
+                      key={`${ci.product.menu_id}-${ci.product.variant_id ?? ""}-${idx}`}
+                      ref={(el: HTMLTableRowElement | null) => { rowRefs.current[idx] = el; }}
+                      hover
+                      selected={isHighlightedRow}
+                      onClick={() => setHighlightedRowIndex(idx)}
+                      sx={{ cursor: "pointer" }}
+                    >
                       <TableCell sx={{ fontSize: 13, color: "#6b7280" }}>{idx + 1}</TableCell>
-                      <TableCell sx={{ fontSize: 13, fontWeight: 700, color: "#1f2937" }}>{ci.product.menu_id}</TableCell>
+                      <TableCell sx={{ fontSize: 13, fontWeight: 700, color: "#1f2937" }}>{ci.product.menu_code || ci.product.menu_id}</TableCell>
                       <TableCell sx={{ fontSize: 13, color: "#1f2937" }}>
                         {ci.product.menu_name}
                         {ci.product.variant_name && (
@@ -558,25 +886,45 @@ const KeyboardBillingView: React.FC<Props> = ({
                       </TableCell>
                       <TableCell align="right" sx={{ fontSize: 13, color: "#4b5563" }}>{price.toFixed(2)}</TableCell>
                       <TableCell align="right">
-                        <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, justifyContent: "flex-end" }}>
-                          <IconButton
+                        {isEditingQty ? (
+                          <TextField
                             size="small"
-                            onClick={() => onDecrement(ci)}
-                            sx={{ width: 24, height: 24, bgcolor: "#f3f4f6", "&:hover": { bgcolor: "#fee2e2" } }}
-                          >
-                            <RemoveIcon sx={{ fontSize: 13 }} />
-                          </IconButton>
-                          <Typography sx={{ fontSize: 13, fontWeight: 700, width: 24, textAlign: "center" }}>
-                            {ci.quantity}
-                          </Typography>
-                          <IconButton
-                            size="small"
-                            onClick={() => onIncrement(ci)}
-                            sx={{ width: 24, height: 24, bgcolor: "#f3f4f6", "&:hover": { bgcolor: "#dcfce7" } }}
-                          >
-                            <AddIcon sx={{ fontSize: 13 }} />
-                          </IconButton>
-                        </Box>
+                            type="number"
+                            value={qtyDraft}
+                            inputRef={qtyInputRef}
+                            onChange={(e) => setQtyDraft(e.target.value)}
+                            onBlur={() => { if (isEditingQty) commitQtyEdit(ci); }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") { e.preventDefault(); commitQtyEdit(ci, true); }
+                              if (e.key === "Escape") { e.preventDefault(); setEditingQtyKey(null); }
+                            }}
+                            inputProps={{ min: 1, style: { textAlign: "right", padding: "4px 8px" } }}
+                            sx={{ width: 64, "& .MuiOutlinedInput-root": { fontSize: 13, fontWeight: 700 } }}
+                          />
+                        ) : (
+                          <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, justifyContent: "flex-end" }}>
+                            <IconButton
+                              size="small"
+                              onClick={() => onDecrement(ci)}
+                              sx={{ width: 24, height: 24, bgcolor: "#f3f4f6", "&:hover": { bgcolor: "#fee2e2" } }}
+                            >
+                              <RemoveIcon sx={{ fontSize: 13 }} />
+                            </IconButton>
+                            <Typography
+                              onClick={() => setEditingQtyKey(cartItemKey(ci))}
+                              sx={{ fontSize: 13, fontWeight: 700, width: 24, textAlign: "center", cursor: "pointer" }}
+                            >
+                              {ci.quantity}
+                            </Typography>
+                            <IconButton
+                              size="small"
+                              onClick={() => onIncrement(ci)}
+                              sx={{ width: 24, height: 24, bgcolor: "#f3f4f6", "&:hover": { bgcolor: "#dcfce7" } }}
+                            >
+                              <AddIcon sx={{ fontSize: 13 }} />
+                            </IconButton>
+                          </Box>
+                        )}
                       </TableCell>
                       <TableCell align="right" sx={{ fontSize: 13, fontWeight: 700, color: "#1f2937" }}>
                         {rowTotal.toFixed(2)}
@@ -716,6 +1064,7 @@ const KeyboardBillingView: React.FC<Props> = ({
                 icon={t.icon}
                 active={order.orderType === t.key}
                 onClick={() => onOrderTypeChange(t.key)}
+                shortcut={t.shortcut}
               />
             ))}
           </Box>
@@ -726,6 +1075,9 @@ const KeyboardBillingView: React.FC<Props> = ({
               <Box sx={{ flex: 1 }}>
                 <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", mb: 0.5, textTransform: "uppercase" }}>
                   Table No.
+                  <Box component="span" sx={{ ml: 0.5, fontWeight: 800, textTransform: "none" }}>
+                    [F5]
+                  </Box>
                 </Typography>
                 <Box
                   onClick={onTableClick}
@@ -877,8 +1229,8 @@ const KeyboardBillingView: React.FC<Props> = ({
               bgcolor: "#dcfce7",
             }}
           >
-            <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#15803d" }}>Grand Total</Typography>
-            <Typography sx={{ fontSize: 16, fontWeight: 800, color: "#15803d" }}>₹{effectiveTotals.grandTotal.toFixed(2)}</Typography>
+            <Typography sx={{ fontSize: 16, fontWeight: 800, color: "#15803d" }}>Grand Total</Typography>
+            <Typography sx={{ fontSize: 20, fontWeight: 800, color: "#15803d" }}>₹{effectiveTotals.grandTotal.toFixed(2)}</Typography>
           </Box>
         </Box>
 
@@ -919,6 +1271,11 @@ const KeyboardBillingView: React.FC<Props> = ({
               }}
             >
               {isBusy ? "Processing…" : "Send KDS"}
+              {!isBusy && (
+                <Box component="span" sx={{ ml: 0.8, fontSize: "0.68em", fontWeight: 800, opacity: 0.85 }}>
+                  [F9]
+                </Box>
+              )}
             </Button>
           ) : (
             <Button
@@ -947,6 +1304,11 @@ const KeyboardBillingView: React.FC<Props> = ({
                 : hasItems
                 ? `Pay ₹${effectiveTotals.grandTotal.toFixed(2)}`
                 : "Pay"}
+              {!isBusy && !isEditingSummary && (
+                <Box component="span" sx={{ ml: 0.8, fontSize: "0.68em", fontWeight: 800, opacity: 0.85 }}>
+                  [F9]
+                </Box>
+              )}
             </Button>
           )}
         </Box>

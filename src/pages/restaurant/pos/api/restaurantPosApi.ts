@@ -22,6 +22,9 @@ function authHeaders() {
 
 export interface RestaurantMenuItem {
   menu_id: string;
+  // Short display code (e.g. "PRO001") — shown in the UI's Item Code column
+  // instead of menu_id. Absent on rows the backend hasn't backfilled yet.
+  menu_code?: string | null;
   menu_name: string;
   sell_price: string;
   purchase_price: string | null;
@@ -319,6 +322,7 @@ function normalizeItem(raw: any, categoryName: string): RestaurantMenuItem {
     zodu_id:              raw.zodu_id,
     branch_id:            raw.branch_id,
     menu_id:              raw.menu_id,
+    menu_code:            raw.menu_code ?? null,
     menu_name:            raw.menu_name,
     sell_price:           String(raw.sell_price ?? "0"),
     purchase_price:       raw.purchase_price ?? null,
