@@ -8,6 +8,7 @@ import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
 import ReceiptIcon from "@mui/icons-material/Receipt";
 import RestaurantMenuIcon from "@mui/icons-material/RestaurantMenu";
 import ChecklistIcon from "@mui/icons-material/Checklist";
+import SoupKitchenIcon from "@mui/icons-material/SoupKitchen";
 import GroupsIcon from '@mui/icons-material/Groups';
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import Logo from "@components/Common/Logo";
@@ -64,6 +65,7 @@ const restaurantNavItems = [
   { label: "Dashboard", icon: <DashboardIcon />, path: "/dashboard", module: "Dashboard" },
   { label: "POS", icon: <PointOfSaleIcon />, path: "/restaurant-pos", module: "Billing" },
   { label: "Sales History", icon: <History />, path: "/sales-history", module: "Sales History" },
+  { label: "KDS Screen", icon: <SoupKitchenIcon />, path: "/kds", module: "KDS Screen" },
   { label: "Menu Items", icon: <CategoryIcon />, path: "/restaurant-menu", module: "Menu Items" },
   { label: "Inventory", icon: <ReceiptIcon />, path: "/stock", module: "Inventory" },
   { label: "Purchase", icon: <CategoryIcon />, path: "/purchase", module: "Purchase" },
@@ -121,7 +123,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
   const restaurantBillingView = useAppSelector(RestaurantBillingView);
   const isBillingRoute =
     location.pathname.startsWith("/pos") ||
-    (location.pathname.startsWith("/restaurant-pos") && restaurantBillingView === "keyboard");
+    (location.pathname.startsWith("/restaurant-pos") && restaurantBillingView === "keyboard") ||
+    location.pathname.startsWith("/kds");
   const [isHovered, setIsHovered] = useState(false);
   // A stale "hovered" flag can survive a route change when the click that navigated
   // here (e.g. from Sales History) left the cursor sitting over the sidebar's screen

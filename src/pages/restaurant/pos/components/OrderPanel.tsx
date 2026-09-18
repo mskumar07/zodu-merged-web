@@ -100,7 +100,7 @@ export const ORDER_TYPES: Array<{
   shortcut: string;
 }> = [
   { key: "DineIn",   label: "Dine In",  icon: <RestaurantMenuIcon sx={{ fontSize: 16 }} />, shortcut: "F1" },
-  { key: "PickUp",   label: "Pick Up",  icon: <ShoppingBagOutlinedIcon sx={{ fontSize: 16 }} />, shortcut: "F2" },
+  { key: "PickUp",   label: "Takeaway", icon: <ShoppingBagOutlinedIcon sx={{ fontSize: 16 }} />, shortcut: "F2" },
   { key: "Delivery", label: "Delivery", icon: <DeliveryDiningIcon sx={{ fontSize: 16 }} />, shortcut: "F3" },
 ];
 
