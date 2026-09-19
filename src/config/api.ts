@@ -23,6 +23,8 @@ interface MenuEndPoints {
   updateTableKOT: () => string;
   completeKOT: () => string; //zodu-hotfix-01
   getTableKOT: (branchId: string, zoduId: string) => string; // Z-T77
+  getKdsKotList: (zoduId: string, branchId: string) => string;
+  markKdsOrderReady: () => string;
   holdMenu: () => string; //Z-T97
   updateHoldMenu: () => string;
   deleteHoldMenu: (menuId: string) => string; //Z-T97
@@ -145,6 +147,9 @@ export const apiConfig: ApiConstants = {
     completeKOT: () => `/restaurant/api/completeorder`, //zodu-hotfix-01
     getTableKOT: (branchId: string, zoduId: string) =>
       `/restaurant/api/orders/get/orders/${branchId}/${zoduId}`, // Z-T77
+    getKdsKotList: (zoduId: string, branchId: string) =>
+      `/restaurant/api/orders/get/kot-list/${zoduId}/${branchId}`,
+    markKdsOrderReady: () => `/restaurant/api/orders/api/kot/order-ready`,
     holdMenu: () => `/restaurant/api/hold/add/hold_menu`, //Z-T97
     updateHoldMenu: () => `/restaurant/api/hold/update/hold-menu`,
     getHoldMenu: (branchId: string, zoduId: string) =>
