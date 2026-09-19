@@ -122,6 +122,17 @@ export function resolveBillingPrinter(config: KotConfig): KotPrinter | null {
     ?? null;
 }
 
+/**
+ * The printer a bill goes to: the billing printer, else — in a branch with a single
+ * active printer — that printer, which serves as both kitchen and billing printer.
+ * Kept apart from resolveBillingPrinter so KOT billing copies never land on the
+ * kitchen printer that just printed the ticket.
+ */
+export function resolveBillPrinter(config: KotConfig): KotPrinter | null {
+  const active = config.printers.filter((p) => p.active);
+  return resolveBillingPrinter(config) ?? (active.length === 1 ? active[0] : null);
+}
+
 const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 export async function dispatchKotBatch(

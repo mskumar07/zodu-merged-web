@@ -230,6 +230,7 @@ function Section({ title, subtitle, children }: SectionProps) {
 // pick than as a dropdown buried inside "Print Layout".
 const TEMPLATE_TYPES = [
   { value: "A4", label: "A4 Template", caption: "210 x 297 mm", icon: <DescriptionOutlinedIcon fontSize="small" /> },
+  { value: "2", label: "2 inch Thermal Printer", caption: "48 mm width", icon: <LocalPrintshopOutlinedIcon fontSize="small" /> },
   { value: "3", label: "3 inch Thermal Printer", caption: "72 mm width", icon: <LocalPrintshopOutlinedIcon fontSize="small" /> },
   { value: "5", label: "5 inch Thermal Printer", caption: "120 mm width", icon: <LocalPrintshopOutlinedIcon fontSize="small" /> },
 ];
@@ -466,7 +467,7 @@ function toUiSettings(api: InvoiceSettingsResponse): InvoiceSettings {
       : DEFAULT_INVOICE_COLOR,
     showCompanyLogo: api.show_company_logo,
     defaultPaymentMethod: PAYMENT_METHOD_TO_CODE[api.default_payment_method] ?? "cash",
-    printInch: api.printer_inch === "A4" ? "A4" : api.printer_inch.startsWith("5") ? "5" : "3",
+    printInch: api.printer_inch === "A4" ? "A4" : api.printer_inch.startsWith("2") ? "2" : api.printer_inch.startsWith("5") ? "5" : "3",
     showItemDescription: api.show_description,
     showItemId: api.show_item_id,
     // Older rows predate this field — default to on, matching the prior
@@ -739,7 +740,9 @@ export default function InvoiceSetting() {
     if (!viewport || !content) return;
 
     const fit = () => {
-      const availableWidth = viewport.clientWidth;
+      // clientWidth includes the panel padding; fit to the content box so the receipt centres instead of clipping.
+      const pad = getComputedStyle(viewport);
+      const availableWidth = viewport.clientWidth - parseFloat(pad.paddingLeft) - parseFloat(pad.paddingRight);
       const rect = content.getBoundingClientRect();
       if (!availableWidth || !rect.width) return;
 

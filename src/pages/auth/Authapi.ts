@@ -338,6 +338,8 @@ export interface PosSettings {
   // Restaurant-only: which billing layout the restaurant POS screen opens on
   // ("Touch" | "Keyboard"). Treat a missing value as "Touch".
   pos_screen_type?: string;
+  // Restaurant-only: print a KOT with the bill. Treat a missing value as off.
+  kot_print_enabled?: boolean;
   active?: boolean;
   created_at?: string;
   updated_at?: string;

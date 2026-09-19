@@ -60,9 +60,10 @@ export function encodeSlipText(slip: Slip, cut: CutMode = "partial"): Uint8Array
  * GS v 0 raster bands from RGBA pixels — 1 bit per dot, MSB first, set = black.
  * Split into bands because many printers cap one raster command's height.
  */
-export function packRaster(rgba: Uint8ClampedArray, widthDots: number, heightDots: number, bandRows = 255, cut: CutMode = "partial"): Uint8Array {
+/** The GS v 0 commands alone, so a caller can place a raster inside a longer job. */
+function rasterBands(rgba: Uint8ClampedArray, widthDots: number, heightDots: number, bandRows = 255): number[] {
   const bytesPerRow = Math.ceil(widthDots / 8);
-  const out: number[] = [...INIT];
+  const out: number[] = [];
   for (let top = 0; top < heightDots; top += bandRows) {
     const rows = Math.min(bandRows, heightDots - top);
     out.push(GS, 0x76, 0x30, 0x00, bytesPerRow & 0xff, (bytesPerRow >> 8) & 0xff, rows & 0xff, (rows >> 8) & 0xff);
@@ -81,9 +82,13 @@ export function packRaster(rgba: Uint8ClampedArray, widthDots: number, heightDot
       }
     }
   }
-  out.push(...(FEED_AND_CUT[cut] ?? FEED_AND_CUT.partial));
-  return Uint8Array.from(out);
+  return out;
 }
+
+export function packRaster(rgba: Uint8ClampedArray, widthDots: number, heightDots: number, bandRows = 255, cut: CutMode = "partial"): Uint8Array {
+  return Uint8Array.from([...INIT, ...rasterBands(rgba, widthDots, heightDots, bandRows), ...(FEED_AND_CUT[cut] ?? FEED_AND_CUT.partial)]);
+}
+
 
 /** Draws the slip on a canvas at the head's resolution and packs it as raster. */
 export function encodeSlipRaster(slip: Slip, cut: CutMode = "partial"): Uint8Array {

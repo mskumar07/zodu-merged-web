@@ -56,7 +56,7 @@ import InvoiceSetting from "./InvoiceSetting";
 import RestaurantInvoiceSetting from "./RestaurantInvoiceSetting";
 import PosSetting from "./PosSetting";
 import RestaurantPosSetting from "./RestaurantPosSetting";
-import PrinterSettings from "./PrinterSettings";
+// import PrinterSettings from "./PrinterSettings";
 import RoleManagement from "@pages/auth/Role/RoleManagement";
 import { useAppDispatch, useAppSelector } from "@store/store";
 import { useModulePermission } from "@hooks/useModulePermission";
@@ -692,6 +692,8 @@ export default function Setting() {
                   fontWeight: 700,
                 }}
               />
+              {/* Printer settings is switched off for now: bills and KOTs print on the
+                  printer connected to the billing PC (see @utils/kot/localPrinter).
               {businessType === "Restaurant" && (
                 <Tab
                   label="Printer settings"
@@ -703,7 +705,7 @@ export default function Setting() {
                     fontWeight: 700,
                   }}
                 />
-              )}
+              )} */}
               {/* <Tab
                 label="User settings"
                 value="user"
@@ -1281,7 +1283,7 @@ export default function Setting() {
 
           {activeTab === "pos" && (businessType === "Restaurant" ? <RestaurantPosSetting /> : <PosSetting />)}
 
-          {activeTab === "kot" && businessType === "Restaurant" && <PrinterSettings />}
+          {/* {activeTab === "kot" && businessType === "Restaurant" && <PrinterSettings />} */}
 
           {/* {activeTab === "user" && (
             <Paper
