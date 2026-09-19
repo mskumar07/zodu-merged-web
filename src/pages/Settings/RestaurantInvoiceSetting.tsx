@@ -59,6 +59,10 @@ const PREVIEW_GRAND_TOTAL = PREVIEW_TAXABLE + PREVIEW_CGST_AMT + PREVIEW_SGST_AM
 const PREVIEW_DATA = {
   sale_id: "PREVIEW-0001",
   date: new Date().toLocaleDateString("en-GB"),
+  // The printed receipt carries the sale's time beside its date; without one the
+  // template fell back to a full clock reading, which the preview then showed
+  // in a format no printed bill uses.
+  time: new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
   due_date: null,
   customer_name: "Sample Customer",
   customer_address: "123 Sample Street, Sample City",
@@ -1029,6 +1033,8 @@ export default function RestaurantInvoiceSetting() {
                 theme={theme}
                 logoUrl={companyLogoUrl}
                 signatureUrl={signatureUrl}
+                copyType={settings.invoiceCopyTypes[0] ?? null}
+                inkPictures
               />
             </Box>
           </Box>

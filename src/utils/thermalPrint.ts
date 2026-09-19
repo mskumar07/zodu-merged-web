@@ -237,6 +237,39 @@ function receiptRaster(canvas: HTMLCanvasElement, paper: PaperSize, cut: CutMode
  * `clone` to data URLs; a picture whose pixels can't be read (served without CORS
  * headers) keeps its original file.
  */
+/**
+ * Waits until the receipt's pictures have loaded and stopped changing.
+ *
+ * The logo is shown straight from its URL while the template trims its blank
+ * margin in the background, then swapped for the trimmed copy. Print in that
+ * window — the first bill after a login, before anything is cached — and the
+ * picture is either still loading or still the untrimmed file, whose pixels the
+ * browser won't let a canvas read: it then went to the printer in colour and the
+ * driver screened it into a faint dot pattern. Every later bill printed solid.
+ */
+async function awaitPicturesSettled(node: HTMLElement, timeoutMs = 4000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  let previous = "";
+  for (;;) {
+    const pictures = Array.from(node.querySelectorAll("img"));
+    await Promise.all(pictures.map((img) => (
+      img.complete
+        ? img.decode().catch(() => undefined)
+        : new Promise<void>((resolve) => {
+            const done = () => resolve();
+            img.addEventListener("load", done, { once: true });
+            img.addEventListener("error", done, { once: true });
+            setTimeout(done, Math.max(0, deadline - Date.now()));
+          })
+    )));
+    const sources = pictures.map((img) => img.src).join("|");
+    // Settled once nothing swapped itself out while we waited (the trimmed logo).
+    if (sources === previous || Date.now() >= deadline) return;
+    previous = sources;
+    await new Promise((resolve) => setTimeout(resolve, 60));
+  }
+}
+
 function inkPicturesInto(clone: HTMLElement, node: HTMLElement): void {
   const originals = Array.from(node.querySelectorAll("img"));
   const copies = Array.from(clone.querySelectorAll("img"));
@@ -244,7 +277,10 @@ function inkPicturesInto(clone: HTMLElement, node: HTMLElement): void {
     const target = copies[i];
     if (!target || !img.complete || !img.naturalWidth) return;
     const box = img.getBoundingClientRect();
-    // Drawn at the head's dot pitch, so the dots decided here are the dots printed.
+    // Drawn at the size it prints, in head dots: the artwork is scaled smoothly
+    // first and only then decided black or white, so the lettering inside a logo
+    // keeps clean edges. Deciding at the file's own size and letting the browser
+    // enlarge the result afterwards printed those edges ragged.
     const scale = (HEAD_DOTS_PER_MM * 25.4) / 96;
     const w = Math.max(1, Math.round(box.width * scale));
     const h = Math.max(1, Math.round(box.height * scale));
@@ -256,6 +292,7 @@ function inkPicturesInto(clone: HTMLElement, node: HTMLElement): void {
       if (!ctx) return;
       ctx.fillStyle = "#fff";
       ctx.fillRect(0, 0, w, h);
+      ctx.imageSmoothingQuality = "high";
       ctx.drawImage(img, 0, 0, w, h);
       const image = ctx.getImageData(0, 0, w, h); // throws when tainted
       const px = image.data;
@@ -272,10 +309,15 @@ function inkPicturesInto(clone: HTMLElement, node: HTMLElement): void {
       }
       ctx.putImageData(image, 0, 0);
       target.src = canvas.toDataURL("image/png");
-      target.style.imageRendering = "pixelated";
+      // No "pixelated" here: resizing would then pick single dots and drop the rest,
+      // which printed the logo as a thin dotted screen instead of a solid mark.
     } catch {
-      // Unreadable pixels — the picture prints as it is.
+      // Unreadable pixels (a logo served without CORS headers) — the picture prints
+      // as it is, and the driver decides what to do with its colours.
     }
+    // No CSS filter here, however tempting: a filter makes the browser rasterize the
+    // picture as its own layer at screen resolution and scale that up to the head's,
+    // which turns solid black back into grey and prints the logo as a faint screen.
   });
 }
 
@@ -287,22 +329,35 @@ function receiptMarkup(node: HTMLElement): string {
 }
 
 /**
- * The page's @font-face rules, and links to cross-origin font sheets (Google
- * Fonts) whose rules can't be read — nothing else from the app's stylesheets.
+ * The page's own @font-face rules, plus links to the font sheets it pulls in —
+ * both the ones it links and the ones index.css @imports (Google Fonts) — and
+ * nothing else from the app's stylesheets. Miss those imports and the receipt
+ * prints in the fallback font: Courier instead of the template's own face, whose
+ * wider letters then wrap labels the preview fits on one line.
  */
 function fontStyles(): string {
   const faces: string[] = [];
-  const links: string[] = [];
-  for (const sheet of Array.from(document.styleSheets)) {
+  const links = new Set<string>();
+  const collect = (sheet: CSSStyleSheet, depth = 0) => {
+    let rules: CSSRuleList;
     try {
-      for (const rule of Array.from(sheet.cssRules)) {
-        if (rule instanceof CSSFontFaceRule) faces.push(rule.cssText);
-      }
+      rules = sheet.cssRules; // throws on a cross-origin sheet
     } catch {
-      if (sheet.href && /font/i.test(sheet.href)) links.push(`<link rel="stylesheet" href="${sheet.href}">`);
+      if (sheet.href) links.add(sheet.href);
+      return;
     }
-  }
-  return `${links.join("\n")}\n<style>${faces.join("\n")}</style>`;
+    for (const rule of Array.from(rules)) {
+      if (rule instanceof CSSFontFaceRule) faces.push(rule.cssText);
+      // @import: readable ones are walked, cross-origin ones linked instead.
+      else if (rule instanceof CSSImportRule && depth < 4) {
+        if (rule.styleSheet) collect(rule.styleSheet, depth + 1);
+        else if (rule.href) links.add(new URL(rule.href, sheet.href ?? document.baseURI).href);
+      }
+    }
+  };
+  for (const sheet of Array.from(document.styleSheets)) collect(sheet);
+  const linkTags = Array.from(links, (href) => `<link rel="stylesheet" href="${href}">`).join("\n");
+  return `${linkTags}\n<style>${faces.join("\n")}</style>`;
 }
 
 /**
@@ -329,7 +384,7 @@ function thermalPrintDocument(receipts: string[]): string {
     body, body * { visibility: visible !important; }
     /* Black bars and rules print as drawn, not dropped as "background graphics". */
     * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .receipt { display: flex; justify-content: center; }
+    .receipt { display: flex; justify-content: flex-start; }
     .copy-break { break-after: page; page-break-after: always; }
   </style>
 </head>
@@ -397,6 +452,7 @@ export async function printThermalCopies(
     try {
       for (const copy of copies) {
         renderCopy(copy, printer.paper_size);
+        await awaitPicturesSettled(node);
         canvases.push(await captureThermalCanvas(node));
       }
     } finally {
@@ -421,12 +477,16 @@ export async function printThermalCopies(
   try {
     for (const copy of copies) {
       renderCopy(copy, null);
+      await awaitPicturesSettled(node);
       receipts.push(receiptMarkup(node));
     }
   } finally {
     renderCopy(null, null);
   }
-  for (const extra of opts.after ?? []) receipts.push(receiptMarkup(extra));
+  for (const extra of opts.after ?? []) {
+    await awaitPicturesSettled(extra);
+    receipts.push(receiptMarkup(extra));
+  }
   await printReceiptsInDialog(receipts);
   return null;
 }

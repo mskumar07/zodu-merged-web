@@ -212,7 +212,7 @@
 //           fontFamily: THERMAL_FONT,
 //           color: "#000",
 //           fontSize: `${fs}px`,
-//           fontWeight: 600,
+//           fontWeight: 500,
 //           boxSizing: "border-box",
 //           WebkitFontSmoothing: "antialiased" as any,
 //         }}
@@ -256,7 +256,7 @@
 //           <>
 //             <Dashes tight={compact} />
 //             <div style={{ fontSize: fs, marginBottom: 4 }}>
-//               <div style={{ fontWeight: 600, marginBottom: 1 }}>Customer</div>
+//               <div style={{ fontWeight: 500, marginBottom: 1 }}>Customer</div>
 //               <div>{customer_name}</div>
 //               {customer_mobile && customer_mobile !== "-" && (
 //                 <div>Mob: {customer_mobile}</div>
@@ -276,7 +276,7 @@
 //             display: "grid",
 //             gridTemplateColumns: cfg.gridCols,
 //             fontSize: fs - 1,
-//             fontWeight: 600,
+//             fontWeight: 500,
 //             marginBottom: 4,
 //             gap: "0 4px",
 //           }}
@@ -305,25 +305,25 @@
 //             >
 //               <span
 //                 style={{
-//                   fontWeight: 600,
+//                   fontWeight: 500,
 //                   wordBreak: "break-word",
 //                   lineHeight: 1.4,
 //                 }}
 //               >
 //                 {item.name}
 //               </span>
-//               <span style={{ textAlign: "center", fontWeight: 600, paddingTop: 1 }}>
+//               <span style={{ textAlign: "center", fontWeight: 500, paddingTop: 1 }}>
 //                 {item.qty}
 //               </span>
-//               <span style={{ textAlign: "right", fontWeight: 600, paddingTop: 1 }}>
+//               <span style={{ textAlign: "right", fontWeight: 500, paddingTop: 1 }}>
 //                 {fmt(item.rate)}
 //               </span>
 //               {cfg.showGstCol && (
-//                 <span style={{ textAlign: "center", fontWeight: 600, paddingTop: 1 }}>
+//                 <span style={{ textAlign: "center", fontWeight: 500, paddingTop: 1 }}>
 //                   {item.tax ? `${Number(item.tax).toFixed(0)}%` : "-"}
 //                 </span>
 //               )}
-//               <span style={{ textAlign: "right", fontWeight: 600, paddingTop: 1 }}>
+//               <span style={{ textAlign: "right", fontWeight: 500, paddingTop: 1 }}>
 //                 {fmt(item.total)}
 //               </span>
 //             </div>
@@ -333,7 +333,7 @@
 //               <div
 //                 style={{
 //                   fontSize: fs - 1,
-//                   fontWeight: 600,
+//                   fontWeight: 500,
 //                   color: "#000",
 //                   paddingLeft: 1,
 //                   marginTop: 1,
@@ -421,7 +421,7 @@
 //             fontSize: ifs,
 //           }}
 //         >
-//           <div style={{ fontWeight: 600, letterSpacing: 0.3 }}>
+//           <div style={{ fontWeight: 500, letterSpacing: 0.3 }}>
 //             THANK YOU FOR SHOPPING!
 //           </div>
 //           <div style={{ marginTop: 3, fontSize: fs - 1 }}>Please visit again</div>
@@ -466,7 +466,7 @@ interface PaperConfig {
 // which printed everything a third smaller than the printer's own type.
 const PAPER: Record<ThermalPaperSize, PaperConfig> = {
   "2": { widthPx: 181, widthMm: 48, baseFontSize: 13, headerFontSize: 15, grandFontSize: 15, minFontSize: 11, padding: "8px 2px 20px 2px", wide: false },
-  "3": { widthPx: 272, widthMm: 72, baseFontSize: 14, headerFontSize: 17, grandFontSize: 17, minFontSize: 12, padding: "10px 4px 24px 4px", wide: false },
+  "3": { widthPx: 268, widthMm: 72, baseFontSize: 14, headerFontSize: 17, grandFontSize: 17, minFontSize: 12, padding: "10px 4px 24px 4px", wide: false },
   "4": { widthPx: 362, widthMm: 96, baseFontSize: 16.5, headerFontSize: 20.5, grandFontSize: 19.5, minFontSize: 13.5, padding: "14px 8px 32px 8px", wide: true },
   "5": { widthPx: 453, widthMm: 120, baseFontSize: 17.5, headerFontSize: 23.5, grandFontSize: 21.5, minFontSize: 14.5, padding: "16px 10px 36px 10px", wide: true },
 };
@@ -543,7 +543,7 @@ function ReceiptRow({
         lineHeight: tight ? 1.15 : 1.4,
       }}
     >
-      <span style={{ minWidth: 0, fontWeight: labelWeight }}>{label}</span>
+      <span style={{ minWidth: 0, fontWeight: labelWeight, overflowWrap: "normal" }}>{label}</span>
       <span style={{ textAlign: "right", whiteSpace: "nowrap", fontWeight: valueWeight }}>{value}</span>
     </div>
   );
@@ -640,6 +640,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
       logoUrl,
       signatureUrl,
       copyType,
+      inkPictures = false,
     }: {
       data: any;
       paperSize?: ThermalPaperSize;
@@ -660,6 +661,9 @@ export const ThermalInvoiceTemplate = React.forwardRef(
       /** Copy marking to print ("Original" | "Duplicate" | "Transport").
        * Omitted when no specific copy was asked for. */
       copyType?: string | null;
+      /** Settings preview: show the logo and signature as the printer renders
+       * them — a head prints no colour, and print turns them to pure ink. */
+      inkPictures?: boolean;
     },
     ref: any
   ) => {
@@ -704,7 +708,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
     // Tall enough that the lettering inside a logo survives the head's dot pitch —
     // a smaller logo printed its wordmark as a smudge.
     const logoMaxH = cfg.headerFontSize * 7;
-    const logoMaxW = cfg.widthPx * 0.96;
+    const logoMaxW = cfg.widthPx;
     const logoH = logo ? Math.min(logoMaxH, logoMaxW / logo.ratio) : logoMaxH;
     const logoBox = logo ? { width: logoH * logo.ratio, height: logoH } : { height: logoH, maxWidth: "90%" };
     // The 3" roll takes short column headings and keeps the totals in one column.
@@ -832,10 +836,10 @@ export const ThermalInvoiceTemplate = React.forwardRef(
     const size = (n: number) => Math.max(n, cfg.minFontSize);
     const labelFs = size(fs - 1);
     const smallFs = size(fs - 2);
-    // Classic body text is medium, Modern regular; emphasis is one step up (600).
-    // Heavier strokes than this ran together on the head — the ink threshold in
-    // @utils/thermalPrint already thickens every stroke by about a dot.
-    const bodyWeight = modern ? 400 : 500;
+    // Body text is regular in both layouts: on the head, bold everywhere reads as
+    // one grey mass. Weight is spent on what matters — the shop name, the copy
+    // marking and BILL AMOUNT stay 700, figures and headings sit at 500.
+    const bodyWeight = 400;
     const rule = <Rule solid={modern} tight={compact} />;
     const row = (label: string, value: string, opts: { strong?: boolean; fontSize?: number } = {}) => (
       <ReceiptRow
@@ -849,8 +853,8 @@ export const ThermalInvoiceTemplate = React.forwardRef(
     );
     const sectionTitle = (text: string) => (
       <div style={modern
-        ? { fontSize: smallFs, fontWeight: 600, letterSpacing: 1, marginBottom: 2 }
-        : { fontSize: labelFs, fontWeight: 600, marginBottom: 2 }}
+        ? { fontSize: smallFs, fontWeight: 500, letterSpacing: 1, marginBottom: 2 }
+        : { fontSize: labelFs, fontWeight: 500, marginBottom: 2 }}
       >
         {modern ? text.toUpperCase() : text}
       </div>
@@ -881,24 +885,27 @@ export const ThermalInvoiceTemplate = React.forwardRef(
     const itemHead = (align: "left" | "center" | "right", first = false): React.CSSProperties => ({
       ...itemCell(align, first),
       fontSize: labelFs,
-      fontWeight: 600,
+      fontWeight: 500,
       paddingBottom: 3,
       borderBottom: "1.5px solid #000",
     });
 
+    // Figures inside the GST table: bare rupees on the 48 mm roll, where the sign in
+    // front of five columns is the difference between fitting and being cut off.
+    const gstAmt = (v: number) => (tiny ? String(Math.round(Number(v)) || 0) : fmt(v));
     const gstCell = (align: "center" | "right", head = false, first = false): React.CSSProperties => modern
       ? {
           textAlign: first ? "left" : align,
           padding: narrow ? "1px 0 1px 3px" : "2px 0 2px 4px",
           paddingLeft: first ? 0 : undefined,
-          fontWeight: head ? 600 : bodyWeight,
+          fontWeight: head ? 500 : bodyWeight,
           borderBottom: head ? "1px solid #000" : undefined,
         }
       : {
           textAlign: align,
           border: "1px solid #000",
           // Enough side room that figures don't touch the cell borders.
-          padding: narrow ? "2px 3px" : "2px 4px",
+          padding: tiny ? "1px 2px" : narrow ? "2px 3px" : "2px 4px",
           fontWeight: head ? 600 : bodyWeight,
         };
 
@@ -926,7 +933,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
             <img
               src={logo?.src ?? resolvedLogoUrl}
               alt=""
-              style={{ ...logoBox, display: "block", margin: "0 auto 2px" }}
+              style={{ ...logoBox, display: "block", margin: "0 auto 2px", filter: inkPictures ? "grayscale(1) contrast(2.2)" : undefined }}
             />
           )}
           <div
@@ -951,7 +958,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
             <div style={{ fontSize: labelFs, marginTop: 1 }}>Ph: {companyPhone}</div>
           )}
           {companyGstin && (
-            <div style={{ fontSize: labelFs, marginTop: 1, fontWeight: modern ? 600 : undefined }}>GSTIN: {companyGstin}</div>
+            <div style={{ fontSize: labelFs, marginTop: 1, fontWeight: modern ? 500 : undefined }}>GSTIN: {companyGstin}</div>
           )}
         </div>
 
@@ -962,7 +969,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
               background: "#000",
               color: "#fff",
               textAlign: "center",
-              fontWeight: 600,
+              fontWeight: 500,
               fontSize: labelFs,
               letterSpacing: 1.5,
               lineHeight: 1.3,
@@ -1002,8 +1009,8 @@ export const ThermalInvoiceTemplate = React.forwardRef(
             {rule}
             <div style={{ marginBottom: 4 }}>
               <div style={modern
-                ? { fontSize: smallFs, fontWeight: 600, letterSpacing: 1, marginBottom: 2 }
-                : { fontWeight: 600, marginBottom: 1 }}
+                ? { fontSize: smallFs, fontWeight: 500, letterSpacing: 1, marginBottom: 2 }
+                : { fontWeight: 500, marginBottom: 1 }}
               >
                 {modern ? "BILLED TO" : "Customer"}
               </div>
@@ -1028,7 +1035,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
                 display: "flex",
                 justifyContent: "space-between",
                 fontSize: smallFs,
-                fontWeight: 600,
+                fontWeight: 500,
                 letterSpacing: 1,
                 paddingBottom: 3,
                 borderBottom: "1.5px solid #000",
@@ -1042,12 +1049,12 @@ export const ThermalInvoiceTemplate = React.forwardRef(
               <div key={i} style={{ padding: compact ? "1px 0" : "3px 0" }}>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
                   {showSerialNo && (
-                    <span style={{ minWidth: Math.round(fs * 1.6), fontWeight: 600 }}>{i + 1}.</span>
+                    <span style={{ minWidth: Math.round(fs * 1.6), fontWeight: 500 }}>{i + 1}.</span>
                   )}
-                  <span style={{ flex: 1, minWidth: 0, fontWeight: 600, lineHeight: 1.25, wordBreak: "break-word" }}>
+                  <span style={{ flex: 1, minWidth: 0, fontWeight: 500, lineHeight: 1.25, wordBreak: "break-word" }}>
                     {item.name}
                   </span>
-                  <span style={{ fontWeight: 600, whiteSpace: "nowrap" }}>{fmt(item.total)}</span>
+                  <span style={{ fontWeight: 500, whiteSpace: "nowrap" }}>{fmt(item.total)}</span>
                 </div>
                 <div style={{ paddingLeft: showSerialNo ? Math.round(fs * 1.6) + 6 : 0 }}>
                   <div style={{ fontSize: smallFs, lineHeight: 1.3 }}>
@@ -1077,14 +1084,14 @@ export const ThermalInvoiceTemplate = React.forwardRef(
                     ...itemCell("left", !showSerialNo),
                     whiteSpace: "normal",
                     wordBreak: "break-word",
-                    fontWeight: 600,
+                    fontWeight: 500,
                     lineHeight: compact ? 1.15 : 1.3,
                   };
                   const figures = (
                     <>
                       <td style={itemCell("right")}>{fmtQty(item.qty)}</td>
                       <td style={itemCell("right")}>{fmt(item.rate)}</td>
-                      <td style={{ ...itemCell("right"), fontWeight: 600 }}>{fmt(item.total)}</td>
+                      <td style={{ ...itemCell("right"), fontWeight: 500 }}>{fmt(item.total)}</td>
                     </>
                   );
                   // The figures sit on the name's first line on every roll, so each item
@@ -1124,24 +1131,24 @@ export const ThermalInvoiceTemplate = React.forwardRef(
           </div>
         ) : (
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, fontSize: fs, lineHeight: 1.6, marginBottom: 4 }}>
-            <span style={{ fontWeight: 600, whiteSpace: "nowrap" }}>T.Qty: {fmtQty(totalQty)}</span>
+            <span style={{ fontWeight: 500, whiteSpace: "nowrap" }}>T.Qty: {fmtQty(totalQty)}</span>
 
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                 <span>Total :</span>
-                <span style={{ fontWeight: 600, whiteSpace: "nowrap" }}>{fmt(subtotal)}</span>
+                <span style={{ fontWeight: 500, whiteSpace: "nowrap" }}>{fmt(subtotal)}</span>
               </div>
 
               {showDiscount && (
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                   <span>{discountText} :</span>
-                  <span style={{ fontWeight: 600, whiteSpace: "nowrap" }}>{fmt(discountVal)}</span>
+                  <span style={{ fontWeight: 500, whiteSpace: "nowrap" }}>{fmt(discountVal)}</span>
                 </div>
               )}
 
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                 <span>{showTaxDetails ? "Taxable Amount :" : "Bill Total :"}</span>
-                <span style={{ fontWeight: 600, whiteSpace: "nowrap" }}>{fmt(showTaxDetails ? taxableAmount : finalBillTotal)}</span>
+                <span style={{ fontWeight: 500, whiteSpace: "nowrap" }}>{fmt(showTaxDetails ? taxableAmount : finalBillTotal)}</span>
               </div>
             </div>
           </div>
@@ -1156,7 +1163,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
               // The title's own dashes are the section rule — a rule above it printed two dashed lines.
               <div style={{ display: "flex", alignItems: "center", margin: compact ? "3px 0" : "6px 0 5px" }}>
                 <div style={{ flex: 1, borderBottom: "1px dashed #000" }} />
-                <span style={{ padding: "0 6px", fontWeight: 600, fontSize: labelFs, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
+                <span style={{ padding: "0 6px", fontWeight: 500, fontSize: labelFs, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
                   GST SUMMARY
                 </span>
                 <div style={{ flex: 1, borderBottom: "1px dashed #000" }} />
@@ -1192,10 +1199,10 @@ export const ThermalInvoiceTemplate = React.forwardRef(
                     <td style={gstCell("center", false, modern)}>
                       {(slab.cgstRate + slab.sgstRate).toFixed(1).replace(/\.0$/, "")}%
                     </td>
-                    <td style={gstCell("right")}>{fmt(slab.taxable)}</td>
-                    <td style={gstCell("right")}>{fmt(slab.cgstAmount)}</td>
-                    <td style={gstCell("right")}>{fmt(slab.sgstAmount)}</td>
-                    <td style={{ ...gstCell("right"), fontWeight: 600 }}>{fmt(slab.cgstAmount + slab.sgstAmount)}</td>
+                    <td style={gstCell("right")}>{gstAmt(slab.taxable)}</td>
+                    <td style={gstCell("right")}>{gstAmt(slab.cgstAmount)}</td>
+                    <td style={gstCell("right")}>{gstAmt(slab.sgstAmount)}</td>
+                    <td style={{ ...gstCell("right"), fontWeight: 500 }}>{gstAmt(slab.cgstAmount + slab.sgstAmount)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1225,7 +1232,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
               background: "#000",
               color: "#fff",
               fontSize: cfg.grandFontSize,
-              fontWeight: 600,
+              fontWeight: 500,
               lineHeight: 1.2,
               padding: compact ? "4px 6px" : "7px 8px",
               margin: compact ? "4px 0" : "8px 0",
@@ -1281,7 +1288,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
               marginTop: compact ? 4 : 10,
               paddingBottom: 4,
               fontSize: fs,
-              fontWeight: 600,
+              fontWeight: 500,
               whiteSpace: "pre-line",
               lineHeight: 1.4,
             }}
@@ -1297,11 +1304,11 @@ export const ThermalInvoiceTemplate = React.forwardRef(
               <img
                 src={resolvedSignatureUrl}
                 alt="Authorized signature"
-                style={{ maxHeight: 40, maxWidth: "60%", objectFit: "contain", margin: "0 auto 4px", display: "block" }}
+                style={{ maxHeight: 40, maxWidth: "60%", objectFit: "contain", margin: "0 auto 4px", display: "block", filter: inkPictures ? "grayscale(1) contrast(2.2)" : undefined }}
               />
             )}
             <div style={{ borderTop: "1px solid #000", width: "70%", margin: "0 auto 4px" }} />
-            <div style={{ fontSize: labelFs, fontWeight: 600 }}>Authorized Signatory</div>
+            <div style={{ fontSize: labelFs, fontWeight: 500 }}>Authorized Signatory</div>
           </div>
         )}
       </div>
