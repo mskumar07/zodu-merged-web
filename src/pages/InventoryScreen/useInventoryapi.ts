@@ -171,6 +171,9 @@ interface RestaurantInventoryRaw {
   branch_id:          string;
   category_id:        number | null;
   item_id:            string;
+  // The menu item's short display code (e.g. "HKJAKGD0001") — shown as the
+  // Item ID column instead of the longer item_id when present.
+  menu_code?:         string | null;
   item_name:          string | null;
   item_unit:          string | null;
   stock_qty:          string;
@@ -208,7 +211,10 @@ function normalizeRestaurantItem(r: RestaurantInventoryRaw): InventoryItem {
   return {
     inventory_uuid:    r.inventory_uuid ?? String(r.inventory_id),
     item_uuid:         r.item_uuid,
-    item_id:           r.item_id,
+    // Restaurant inventory shows the menu item's short display code as its
+    // Item ID — falls back to the longer item_id for rows the backend
+    // hasn't backfilled a menu_code for yet.
+    item_id:           r.menu_code || r.item_id,
     item_name:         r.item_name ?? '',
     available_qty:     r.stock_qty,
     reorder_level:     r.stock_alert,

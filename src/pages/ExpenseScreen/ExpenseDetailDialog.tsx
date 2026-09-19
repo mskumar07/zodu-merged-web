@@ -126,21 +126,12 @@ function ExpenseDetailContent({ data }: { data: ExpenseDetail }) {
     <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
       {/* Invoice / Expense Header */}
       <Box sx={{ border: "1px solid #E2E8F0", borderRadius: 2, overflow: "hidden", bgcolor: "#FFFFFF" }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.5, borderBottom: "1px solid #EEF2F7", bgcolor: "#FCFCFD", flexWrap: "wrap" }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 800, color: "#0F172A" }}>Expense Details</Typography>
-          <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#D32F2F" }}>{data.expense_id}</Typography>
-          {data.created_at && (
-            <Typography sx={{ fontSize: 11, color: "#94A3B8" }}>{fmtDateTime(data.created_at)}</Typography>
-          )}
-        </Box>
-
         <Box sx={{ p: 2, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "16px 24px" }}>
           {[
             { label: "Supplier Name",  value: data.vendor_name || "—" },
             { label: "Mobile No.",     value: data.vendor_phone },
             { label: "GSTIN",          value: data.gst },
             { label: "Address",        value: vendorAddress },
-            { label: "Expense Date",   value: data.expense_date_formatted || fmtDate(data.expense_date) },
             { label: "Category",       value: data.category_name },
           ].map(({ label, value }) => (
             <Box key={label}>
@@ -224,11 +215,9 @@ function ExpenseDetailContent({ data }: { data: ExpenseDetail }) {
       </Box>
 
       {/* Payment History */}
+      {data.payments && data.payments.length > 0 && (
       <Box>
         <SectionLabel>Payment History</SectionLabel>
-        {!data.payments || data.payments.length === 0 ? (
-          <Typography sx={{ fontSize: 13, color: "#9CA3AF" }}>No payment records found.</Typography>
-        ) : (
           <Box sx={{ border: "1px solid #E2E8F0", borderRadius: 1.5, overflow: "hidden" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
@@ -257,8 +246,8 @@ function ExpenseDetailContent({ data }: { data: ExpenseDetail }) {
               </tbody>
             </table>
           </Box>
-        )}
       </Box>
+      )}
 
       {/* Notes */}
       {data.notes && (
@@ -337,16 +326,31 @@ export default function ExpenseDetailDialog({ expenseId, onClose, onEditSuccess 
             Expense Details
           </Typography>
           {data && (
-            <Typography sx={{ fontSize: 15, fontWeight: 600, color: "#64748B" }}>
-              #{data.expense_id}
-            </Typography>
-          )}
-          {st && (
-            <Chip
-              label={st.label}
-              size="small"
-              sx={{ fontSize: 10, fontWeight: 700, height: 22, color: st.color, bgcolor: st.bgcolor, border: `1px solid ${st.border}`, borderRadius: "999px" }}
-            />
+            <>
+              <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#D32F2F" }}>
+                {data.expense_id}
+              </Typography>
+              {data.created_at && (
+                <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>
+                  {fmtDateTime(data.created_at)}
+                </Typography>
+              )}
+              {st && (
+                <Chip
+                  label={st.label}
+                  size="small"
+                  sx={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    height: 20,
+                    color: st.color,
+                    bgcolor: st.bgcolor,
+                    border: `1px solid ${st.border}`,
+                    borderRadius: "999px",
+                  }}
+                />
+              )}
+            </>
           )}
         </Box>
 

@@ -515,6 +515,18 @@ export const authApis = {
       api.delete(`/auth/api/branch/${zoduId}/${branchId}`)
     ),
 
+  // DELETE /auth/api/company/:zodu_id — cascades across every service and
+  // every branch on the company, and cannot be undone. Same shape/failure
+  // mode as deleteBranch: the endpoint always answers HTTP 200 (FormateData
+  // wraps both success and error as { data: {...} }), so a mid-purge failure
+  // is reported via unwrap() throwing with the real message, and — when the
+  // backend includes one — `partial_results` names the services that were
+  // already purged before the failure.
+  deleteCompany: (zoduId: string) =>
+    unwrap<{ message?: string; results?: unknown; partial_results?: unknown }>(
+      api.delete(`/auth/api/company/${zoduId}`)
+    ),
+
   // GET /auth/api/role-access?zodu_id=...&branch_id=... — called once a branch is
   // selected, since permissions are scoped per zodu_id + branch_id rather than
   // returned with the login response.

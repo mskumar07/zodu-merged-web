@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 import LottieLoader from "@components/LottieLoader";
 import SuccessToast from "@components/Common/SuccessToast";
 import {
@@ -51,6 +52,7 @@ import {
 } from "@pages/auth/Authapi";
 import BranchFormModal, { type BranchFormData } from "./BranchFormModal";
 import DeleteBranchDialog from "./DeleteBranchDialog";
+import DeleteCompanyDialog from "./DeleteCompanyDialog";
 import BusinessFormModal, { type BusinessFormData } from "./CompanyFormModal";
 import InvoiceSetting from "./InvoiceSetting";
 import RestaurantInvoiceSetting from "./RestaurantInvoiceSetting";
@@ -60,7 +62,7 @@ import RestaurantPosSetting from "./RestaurantPosSetting";
 import RoleManagement from "@pages/auth/Role/RoleManagement";
 import { useAppDispatch, useAppSelector } from "@store/store";
 import { useModulePermission } from "@hooks/useModulePermission";
-import { setCompanies, BusinessType } from "@store/slices/userSlice";
+import { setCompanies, BusinessType, BranchId, ZoduId } from "@store/slices/userSlice";
 
 const PHONE_REGEX = /^[0-9]{10}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -255,7 +257,14 @@ export default function Setting() {
   const { canCreate, canEdit, canDelete } = useModulePermission("Settings");
   const queryClient = useQueryClient();
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const businessType = useAppSelector(BusinessType);
+  // The branch/company currently active for this session — deleting either
+  // one out from under the logged-in user leaves no valid context to keep
+  // operating in, so both delete flows check against these before deciding
+  // whether to send the user back to branch selection.
+  const activeBranchId = useAppSelector(BranchId);
+  const activeZoduId = useAppSelector(ZoduId);
   const [activeTab, setActiveTab] = useState<SettingsTab>("company");
   const [expandedCompanyIds, setExpandedCompanyIds] = useState<string[]>([]);
   const [branchModalOpen, setBranchModalOpen] = useState(false);
@@ -270,6 +279,7 @@ export default function Setting() {
   const [deletingBranch, setDeletingBranch] = useState<Branch | null>(null);
   const [deleteBranchCompanyId, setDeleteBranchCompanyId] = useState<string>("");
   const [deleteBranchCompanyName, setDeleteBranchCompanyName] = useState<string>("");
+  const [deletingCompany, setDeletingCompany] = useState<CompanyWithBranches | null>(null);
 // Find the company object when opening the branch modal
   const openAddBranch = (companyId: string) => {
     setEditingBranch(null);
@@ -325,6 +335,15 @@ export default function Setting() {
     setSubmitError(null);
     setCompanyModalOpen(false);
     setEditingCompany(null);
+  };
+
+  const openDeleteCompany = (company: CompanyWithBranches) => {
+    setDeletingCompany(company);
+  };
+
+  const closeDeleteCompany = () => {
+    if (deleteCompanyMutation.isPending) return;
+    setDeletingCompany(null);
   };
 
   const companiesQuery = useQuery({
@@ -400,15 +419,39 @@ export default function Setting() {
   const deleteBranchMutation = useMutation({
     mutationFn: (params: { zoduId: string; branchId: string }) =>
       authApis.deleteBranch(params.zoduId, params.branchId),
-    onSuccess: async (data) => {
+    onSuccess: async (data, variables) => {
       await queryClient.invalidateQueries({ queryKey: ["settings", "companies"] });
       resetDeleteBranch();
       setSuccessMessage(data?.message || "Branch deleted successfully.");
+      // The branch just deleted was the one this session is currently
+      // operating on — there's no valid context left to stay on, so send
+      // the user back to pick a different branch instead of leaving them on
+      // a screen scoped to a branch that no longer exists.
+      if (variables.branchId === activeBranchId) navigate("/select-branch");
     },
     onError: (error: any) => {
       resetDeleteBranch();
       setSubmitError(
         error?.response?.data?.error || error?.message || "Unable to delete branch. Please try again."
+      );
+    },
+  });
+
+  const deleteCompanyMutation = useMutation({
+    mutationFn: (zoduId: string) => authApis.deleteCompany(zoduId),
+    onSuccess: async (data, zoduId) => {
+      await queryClient.invalidateQueries({ queryKey: ["settings", "companies"] });
+      setDeletingCompany(null);
+      setSuccessMessage(data?.message || "Company deleted successfully.");
+      // Deleting the company this session is currently under removes every
+      // one of its branches too, including the active one — same "no valid
+      // context left" situation as the branch case above.
+      if (zoduId === activeZoduId) navigate("/select-branch");
+    },
+    onError: (error: any) => {
+      setDeletingCompany(null);
+      setSubmitError(
+        error?.response?.data?.error || error?.message || "Unable to delete company. Please try again."
       );
     },
   });
@@ -986,6 +1029,22 @@ export default function Setting() {
                           </span>
                         </Tooltip>
 
+                        <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"}>
+                          <span>
+                            <IconButton
+                              size="small"
+                              disabled={!canDelete}
+                              sx={{ color: "#af101a", flexShrink: 0, "&:hover": { color: "#8c0d15", bgcolor: "#FDECEC" } }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDeleteCompany(company);
+                              }}
+                            >
+                              <DeleteOutlineRoundedIcon fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+
                         <IconButton
                           size="small"
                           sx={{ color: "#a5adba", flexShrink: 0 }}
@@ -1332,6 +1391,17 @@ export default function Setting() {
       zoduId: deleteBranchCompanyId,
       branchId: deletingBranch.branch_id,
     });
+  }}
+/>
+
+<DeleteCompanyDialog
+  open={Boolean(deletingCompany)}
+  company={deletingCompany}
+  loading={deleteCompanyMutation.isPending}
+  onClose={closeDeleteCompany}
+  onConfirm={() => {
+    if (!deletingCompany?.zodu_id) return;
+    deleteCompanyMutation.mutate(deletingCompany.zodu_id);
   }}
 />
 

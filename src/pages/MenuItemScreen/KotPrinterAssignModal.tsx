@@ -552,7 +552,12 @@ export default function KotPrinterAssignModal({ open, onClose, branchId, zoduId,
             )}
           </Box>
 
-          <Box sx={{ flex: 1, overflowY: "auto", p: 1.5 }}>
+          {/* No top/bottom padding here — any container padding above a
+              sticky child's `top: 0` sits outside what the sticky box can
+              ever cover, so the previous group's last item kept showing
+              through that strip while scrolling. Horizontal padding only;
+              vertical spacing instead lives on the content below. */}
+          <Box sx={{ flex: 1, overflowY: "auto", px: 1.5 }}>
             {totalSelected === 0 && (
               <Typography sx={{ fontSize: 13, color: "#9ca3af", textAlign: "center", py: 4 }}>
                 No items selected yet — pick categories or items on the left.
@@ -561,12 +566,28 @@ export default function KotPrinterAssignModal({ open, onClose, branchId, zoduId,
             {selectedByCategory.map((group, gi) => {
               const isOpen = !summaryCollapsed[group.id];
               return (
-              <Box key={group.id} sx={{ mb: 2 }}>
+              <Box key={group.id} sx={{ pb: 2 }}>
                 <Box
                   onClick={() => toggleSummaryGroup(group.id)}
                   sx={{
-                    display: "flex", alignItems: "center", gap: 0.75, mb: 1, cursor: "pointer", userSelect: "none",
-                    position: "sticky", top: 0, zIndex: 1, bgcolor: "#fff", py: 0.5,
+                    display: "flex", alignItems: "center", gap: 0.75, cursor: "pointer", userSelect: "none",
+                    position: "sticky", top: 0, zIndex: 2,
+                    mx: -1.5, px: 1.5,
+                    pt: gi === 0 ? 1.5 : 0.5, pb: 1,
+                    // A fully opaque layer sized to the sticky box's own
+                    // edges via an absolutely-positioned pseudo-element,
+                    // rather than `bgcolor` on the row itself — `bgcolor`
+                    // only paints exactly as tall as the row's own content
+                    // box, and any sub-pixel rounding on a sticky element's
+                    // computed height/offset during scroll left a hairline
+                    // where the previous group's last item showed through.
+                    "&::before": {
+                      content: '""',
+                      position: "absolute",
+                      inset: 0,
+                      backgroundColor: "#ffffff",
+                      zIndex: -1,
+                    },
                   }}
                 >
                   <ExpandMoreIcon

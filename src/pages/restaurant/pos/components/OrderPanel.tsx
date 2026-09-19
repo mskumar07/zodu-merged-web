@@ -97,15 +97,16 @@ export const ORDER_TYPES: Array<{
   key: "DineIn" | "Delivery" | "PickUp";
   label: string;
   icon: React.ReactNode;
+  shortcut: string;
 }> = [
-  { key: "DineIn",   label: "Dine In",  icon: <RestaurantMenuIcon sx={{ fontSize: 16 }} /> },
-  { key: "PickUp",   label: "Pick Up",  icon: <ShoppingBagOutlinedIcon sx={{ fontSize: 16 }} /> },
-  { key: "Delivery", label: "Delivery", icon: <DeliveryDiningIcon sx={{ fontSize: 16 }} /> },
+  { key: "DineIn",   label: "Dine In",  icon: <RestaurantMenuIcon sx={{ fontSize: 16 }} />, shortcut: "F1" },
+  { key: "PickUp",   label: "Pick Up",  icon: <ShoppingBagOutlinedIcon sx={{ fontSize: 16 }} />, shortcut: "F2" },
+  { key: "Delivery", label: "Delivery", icon: <DeliveryDiningIcon sx={{ fontSize: 16 }} />, shortcut: "F3" },
 ];
 
 export function OrderTypePill({
-  label, icon, active, onClick,
-}: { label: string; icon: React.ReactNode; active: boolean; onClick: () => void }) {
+  label, icon, active, onClick, shortcut,
+}: { label: string; icon: React.ReactNode; active: boolean; onClick: () => void; shortcut?: string }) {
   return (
     <Box
       onClick={onClick}
@@ -130,6 +131,11 @@ export function OrderTypePill({
     >
       {icon}
       {label}
+      {shortcut && (
+        <Box component="span" sx={{ fontSize: "0.68em", fontWeight: 800, opacity: 0.85 }}>
+          [{shortcut}]
+        </Box>
+      )}
     </Box>
   );
 }

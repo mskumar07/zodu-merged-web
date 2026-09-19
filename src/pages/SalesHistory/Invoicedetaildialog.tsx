@@ -547,7 +547,7 @@ export default function InvoiceDetailsModal({
     payment_mode:      history?.[0]?.transaction_type ?? "Cash",
     payment_status:    sale?.payment_status,
     items: items.map((i: any) => ({
-      item_id:   i.item_id,
+      item_id:  isRestaurant ? (i.menu_code || i.item_id) : i.item_id,
       name:     i.item_name,
       description: i.description,   // may be absent — item had no description at sale time
       category: i.variant_name ?? "",
@@ -617,7 +617,7 @@ export default function InvoiceDetailsModal({
             sx={{ bgcolor: "rgba(208,2,27,0.08)", color: "#D0021B", fontWeight: 700, fontSize: 11, height: 20, borderRadius: "999px" }}
           />
           {sale && (
-            <Typography sx={{ fontSize: 12, color: "#94A3B8" }}>
+            <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>
               {sale.sale_date_fmt}{sale.sale_time_fmt ? ` · ${sale.sale_time_fmt}` : ""}
             </Typography>
           )}
@@ -722,7 +722,7 @@ export default function InvoiceDetailsModal({
                       return (
                         <TableRow key={item.id} sx={{ "&:hover": { bgcolor: "#FAFBFC" } }}>
                           <TD sx={{ borderBottom: isLast ? "none" : undefined, color: "#64748B" }}>
-                            {item.item_id}
+                            {isRestaurant ? (item.menu_code || item.item_id) : item.item_id}
                           </TD>
                           <TD sx={{ borderBottom: isLast ? "none" : undefined }}>
                             <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>
