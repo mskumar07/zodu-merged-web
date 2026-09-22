@@ -165,8 +165,8 @@ import WomanIcon from '@mui/icons-material/Woman';
 
 import { Avatar } from '@mui/material';
 import CheckIcon from '@mui/icons-material/Check';
-import heroSectionBg from '../../assets/Landingpage/herosection_bg.png';
-import heroSectionBgWide from '../../assets/Landingpage/herosection_bg_extended.webp';
+import heroSectionBg from '../../assets/Landingpage/hero-image.jpeg';
+import heroSectionBgWide from '../../assets/Landingpage/hero-image1.png';
 
 
 import SendIcon from '@mui/icons-material/Send';
@@ -225,6 +225,7 @@ const theme = createTheme({
     },
   },
 });
+
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
@@ -1263,7 +1264,8 @@ const cq = (px: number) => `${px}px`;
 /** design-px -> % of canvas axis */
 const pct = (v: number, base: number) => `${((v / base) * 100).toFixed(3)}%`;
 
-
+const HERO_EDGE_TOP = "#F3F6FA";
+const HERO_EDGE_BOTTOM = "#F8F1E9";
 // ------------------------------------------------------------
 // MEASURED CARD SHAPES (from the 1344 x 896 reference)
 //
@@ -2170,6 +2172,16 @@ export const IndustriesSection = () => {
 
 
 
+// ── HERO─────────────────────────────────────────────────────────────────
+
+
+const HERO_ASPECT = "1983 / 793"; // heroSectionBg-oda real width / height
+
+const HERO_RED_DARK = "#C70027";
+
+
+const CTA_RED = "#E8002D";
+const CTA_RED_HOVER = "#C90027";
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -2275,222 +2287,319 @@ const ZoduLandingPage: React.FC = () => {
             baked-in badge (~23% into the artwork) always starts to the right of the copy, whose
             width is capped at 5.5vw padding + 29vw. Below lg the copy sits on top and the
             artwork bleeds edge-to-edge underneath. */}
-        <Box
-          component="section"
-          aria-labelledby="hero-heading"
-          sx={{
-            position: "relative",
-            overflow: "hidden",
-            bgcolor: HERO_BASE,
-            // lg: light scrim for text contrast only; it clears before the first baked-in badge (~34.5vw).
-            "&::before": {
-              content: '""',
-              display: { xs: "none", lg: "block" },
-              position: "absolute",
-              inset: 0,
-              zIndex: 1,
-              pointerEvents: "none",
-              background: `linear-gradient(90deg, ${alpha(HERO_BASE, 0.5)} 0, ${alpha(HERO_BASE, 0.25)} 20vw, ${alpha(HERO_BASE, 0)} 34vw)`,
-            },
-            display: "flex",
-            flexDirection: "column",
-            // Navbar + hero fill exactly one screen (the page scroll container is 100vh).
-            minHeight: { xs: `calc(100vh - ${NAV_H.xs + 1}px)`, md: `calc(100vh - ${NAV_H.md + 1}px)` },
-          }}
-        >
-          {/* Copy */}
-          <Box
+
+
+<Box
+  component="section"
+  aria-labelledby="hero-heading"
+  sx={{
+    position: "relative",
+    overflow: "hidden",
+    display: "flex",
+    alignItems: "center",
+    width: "100%",
+    bgcolor: HERO_BASE,
+    flexDirection: { xs: "column", lg: "row" },
+
+    // ✅ aspectRatio conflict remove (minHeight mattum height decide pannum)
+    aspectRatio: "auto",
+
+    // Per-screen hero height: full screen, vw-la cap (crop control)
+    minHeight: {
+      xs: "auto",
+      lg: "min(calc(100vh - 72px), 50vw)",
+      xl: "min(calc(100vh - 72px), 45vw)",
+    },
+    "@media (min-width: 1920px)": {
+      minHeight: "min(calc(100vh - 72px), 44vw)",
+    },
+    "@media (min-width: 2560px)": {
+      minHeight: "min(calc(100vh - 72px), 40vw)",
+    },
+
+    backgroundImage: {
+      xs: "none",
+      lg: `url(${heroSectionBg})`,
+    },
+    backgroundRepeat: "no-repeat",
+    backgroundSize: "cover",
+
+    // ✅ Right edge eppavum full-ah theriyum, bottom-la gap varaadhu
+    backgroundPosition: {
+      lg: "right bottom",
+      xl: "right bottom",
+    },
+
+    // Left soft white fade
+    "&::before": {
+      content: '""',
+      position: "absolute",
+      inset: 0,
+      zIndex: 1,
+      pointerEvents: "none",
+      display: { xs: "none", lg: "block" },
+      background: `linear-gradient(
+        90deg,
+        ${alpha("#FFFFFF", 0.88)} 0%,
+        ${alpha("#FFFFFF", 0.75)} 22%,
+        ${alpha("#FFFFFF", 0.4)} 36%,
+        ${alpha("#FFFFFF", 0)} 48%
+      )`,
+    },
+  }}
+>
+  {/* ============ TEXT ============ */}
+  <Box
+    sx={{
+      position: "relative",
+      zIndex: 2,
+      width: "100%",
+      maxWidth: {
+        xs: "100%",
+        sm: 640,
+        md: 720,
+        lg: "33%",
+      },
+      "@media (min-width: 2560px)": {
+        maxWidth: "42%",
+      },
+      mx: { xs: "auto", lg: 0 },
+      pl: { xs: 2, sm: 4, lg: "5.5vw" },
+      pr: { xs: 2, sm: 4, lg: 2 },
+      pt: { xs: 4, sm: 5, lg: 0 },
+      pb: { xs: 2, sm: 3, lg: 0 },
+      textAlign: { xs: "center", lg: "left" },
+
+      // White glow: heading + checklist text
+      "& h1, & span": {
+        textShadow: {
+          lg: `0 0 12px ${alpha("#FFFFFF", 0.9)}, 0 0 24px ${alpha("#FFFFFF", 0.7)}`,
+        },
+      },
+    }}
+  >
+    {/* Badge */}
+    <Stack
+      direction="row"
+      spacing={1}
+      alignItems="center"
+      sx={{
+        display: "inline-flex",
+        maxWidth: { xs: "100%", lg: "none" },
+        px: { xs: 1.5, lg: "0.9vw" },
+        py: { xs: 0.6, lg: "0.4vw" },
+        mb: { xs: 1.5, lg: 2 },
+        borderRadius: "9999px !important",
+        bgcolor: alpha(HERO_BLUE_SOFT, 0.95),
+        border: `1px solid ${alpha(HERO_BLUE, 0.2)}`,
+        color: HERO_BLUE,
+        fontSize: {
+          xs: "0.72rem",
+          sm: "0.82rem",
+          lg: "clamp(0.72rem, 0.95vw, 1.2rem)",
+        },
+        fontWeight: 700,
+        textAlign: "left",
+        whiteSpace: { lg: "nowrap" },
+      }}
+    >
+      <VerifiedIcon
+        sx={{
+          fontSize: { xs: 15, lg: "clamp(15px, 1.2vw, 24px)" },
+          flexShrink: 0,
+        }}
+      />
+      <Box component="span" sx={{ textShadow: "none !important" }}>
+        Trusted by 1,00,000+ Businesses Across India
+      </Box>
+    </Stack>
+
+    {/* Heading */}
+    <Typography
+      component="h1"
+      id="hero-heading"
+      sx={{
+        color: DARK,
+        fontWeight: 800,
+        lineHeight: 1.1,
+        letterSpacing: "-0.03em",
+        fontSize: {
+          xs: "clamp(1.9rem, 8vw, 2.4rem)",
+          sm: "2.8rem",
+          md: "3.2rem",
+          lg: "clamp(2.2rem, 3.3vw, 4.6rem)",
+          xl: "clamp(2.8rem, 3.3vw, 5rem)",
+        },
+      }}
+    >
+      Smart Billing &amp;
+      <Box component="span" sx={{ display: "block", color: HERO_NAVY }}>
+        Business
+      </Box>
+      <Box component="span" sx={{ display: "block", color: HERO_NAVY }}>
+        Management
+      </Box>
+    </Typography>
+
+    {/* Subtitle */}
+    <Typography
+      sx={{
+        mt: { xs: 1.5, lg: "1.2vw" },
+        mx: { xs: "auto", lg: 0 },
+        maxWidth: {
+          xs: 480,
+          sm: 560,
+          lg: "32ch",
+        },
+        "@media (min-width: 2560px)": {
+          maxWidth: "42ch",
+        },
+        color: "#334155",
+        fontSize: {
+          xs: "1rem",
+          sm: "1.1rem",
+          lg: "clamp(0.95rem, 1.5vw, 1.7rem)",
+        },
+        fontWeight: 500,
+        lineHeight: 1.55,
+
+        // Strong white glow (temple/palm lines maraiya)
+        textShadow: {
+          lg: `
+            0 0 6px ${alpha("#FFFFFF", 1)},
+            0 0 14px ${alpha("#FFFFFF", 0.95)},
+            0 0 28px ${alpha("#FFFFFF", 0.8)}
+          `,
+        },
+      }}
+    >
+      All-in-one POS solution to bill, manage, analyse and grow your
+      business effortlessly. No tech skills required.
+    </Typography>
+
+    {/* Buttons */}
+    <Stack
+      direction={{ xs: "column", sm: "row" }}
+      spacing={{ xs: 1.5, sm: 2 }}
+      alignItems="center"
+      justifyContent={{ xs: "center", lg: "flex-start" }}
+      sx={{ mt: { xs: 2.5, lg: "2vw" } }}
+    >
+      <Button
+        variant="contained"
+        disableElevation
+        endIcon={<ArrowForwardIcon />}
+        sx={{
+          bgcolor: CTA_RED,
+          color: "#fff",
+          textTransform: "none",
+          fontWeight: 700,
+          borderRadius: "10px",
+          px: { xs: 3, lg: "2vw" },
+          py: { xs: 1.3, lg: "0.9vw" },
+          fontSize: { xs: "1rem", lg: "clamp(0.95rem, 1.1vw, 1.4rem)" },
+          whiteSpace: "nowrap",
+          boxShadow: `0 8px 20px ${alpha(CTA_RED, 0.3)}`,
+          "&:hover": { bgcolor: CTA_RED_HOVER },
+          "& span": { textShadow: "none !important" },
+        }}
+      >
+        Start Free Trial
+      </Button>
+
+      <Button
+        variant="outlined"
+        sx={{
+          bgcolor: "#fff",
+          color: "#0F172A",
+          textTransform: "none",
+          fontWeight: 700,
+          borderRadius: "10px",
+          borderColor: "#E2E8F0",
+          px: { xs: 3, lg: "2vw" },
+          py: { xs: 1.3, lg: "0.9vw" },
+          fontSize: { xs: "1rem", lg: "clamp(0.95rem, 1.1vw, 1.4rem)" },
+          whiteSpace: "nowrap",
+          "&:hover": { bgcolor: "#F8FAFC", borderColor: "#CBD5E1" },
+          "& span": { textShadow: "none !important" },
+        }}
+      >
+        Book a Demo
+      </Button>
+    </Stack>
+
+    {/* Checklist */}
+    <Stack
+      direction="row"
+      spacing={{ xs: 2, lg: "1.6vw" }}
+      alignItems="center"
+      justifyContent={{ xs: "center", lg: "flex-start" }}
+      flexWrap="wrap"
+      useFlexGap
+      sx={{ mt: { xs: 2, lg: "1.4vw" } }}
+    >
+      {["14-day free trial", "No credit card required"].map((item) => (
+        <Stack key={item} direction="row" spacing={0.75} alignItems="center">
+          <CheckCircleIcon
             sx={{
-              position: "relative",
-              zIndex: 2,
-              width: "100%",
-              maxWidth: { xs: 720, lg: "none" },
-              mx: { xs: "auto", lg: 0 },
-              my: "auto",               // centre the copy in the free height; artwork stays at the bottom
-              pl: { xs: 2.5, sm: 4, md: 6, lg: "clamp(48px, 5.5vw, 112px)" },
-              pr: { xs: 2.5, sm: 4, md: 6, lg: 4 },
-              pt: { xs: 5, sm: 6 },
-              pb: { xs: 4, sm: 5, lg: 6 },
-              textAlign: { xs: "center", lg: "left" },
+              color: HERO_BLUE,
+              fontSize: { xs: 18, lg: "clamp(16px, 1.25vw, 26px)" },
+            }}
+          />
+          <Typography
+            component="span"
+            sx={{
+              color: "#475569",
+              fontWeight: 500,
+              fontSize: {
+                xs: "0.85rem",
+                lg: "clamp(0.8rem, 0.95vw, 1.2rem)",
+              },
             }}
           >
-            <Stack
-              direction="row"
-              spacing={1}
-              alignItems="center"
-              sx={{
-                display: "inline-flex",
-                maxWidth: "100%",
-                px: { xs: 1.5, md: 1.75 },
-                py: 0.75,
-                mb: { xs: 2.5, md: 3 },
-                borderRadius: "999px",
-                bgcolor: alpha(HERO_BLUE_SOFT, 0.9),
-                border: `1px solid ${alpha(HERO_BLUE, 0.18)}`,
-                color: HERO_BLUE,
-                fontSize: "clamp(0.78rem, 0.72rem + 0.25vw, 0.9rem)",
-                fontWeight: 700,
-                lineHeight: 1.3,
-                textAlign: "left",
-                // ~360px phones: wrap as "Trusted by 10,000+ / Businesses Across India" in a tight
-                // two-line pill instead of orphaning "India".
-                "@media (max-width: 380px)": { "& > span": { maxWidth: "24ch" } },
-              }}
-            >
-              <VerifiedIcon sx={{ fontSize: 18, flexShrink: 0 }} />
-              <Box component="span">Trusted by 10,000+ Businesses Across India</Box>
-            </Stack>
+            {item}
+          </Typography>
+        </Stack>
+      ))}
+    </Stack>
+  </Box>
 
-            <Typography
-              component="h1"
-              id="hero-heading"
-              sx={{
-                maxWidth: { lg: HERO_COPY_W },
-                color: DARK,
-                fontWeight: 800,
-                lineHeight: 1.05,
-                letterSpacing: "-0.025em",
-                fontSize: {
-                  xs: "clamp(2.25rem, 9vw, 2.75rem)",
-                  sm: "clamp(2.75rem, 6.5vw, 3.5rem)",
-                  lg: "clamp(2.5rem, 3.4vw, 4.4rem)",
-                },
-              }}
-            >
-              Smart Billing &amp;{" "}
-              <Box
-                component="span"
-                sx={{
-                  display: { sm: "block" },
-                  color: HERO_BLUE,
-                  backgroundImage: `linear-gradient(90deg, ${HERO_NAVY} 0%, ${HERO_BLUE} 100%)`,
-                  WebkitBackgroundClip: "text",
-                  backgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                }}
-              >
-                Business Management
-              </Box>
-            </Typography>
+  {/* MOBILE IMAGE */}
+  <Box
+    aria-hidden
+    sx={{
+      display: { xs: "block", sm: "none" },
+      width: "100%",
+      lineHeight: 0,
+      overflow: "hidden",
+    }}
+  >
+    <Box
+      component="img"
+      src={heroSectionBgWide}
+      alt=""
+      sx={{
+        display: "block",
+        width: "100%",
+        height: "auto",
+      }}
+    />
+  </Box>
 
-            <Typography
-              sx={{
-                mt: { xs: 2.5, md: 3 },
-                mx: { xs: "auto", lg: 0 },
-                maxWidth: { xs: 540, lg: HERO_COPY_W },
-                color: "#475569",
-                fontSize: "clamp(1rem, 0.94rem + 0.3vw, 1.2rem)",
-                lineHeight: 1.6,
-              }}
-            >
-              All-in-one POS solution to bill, manage, analyse and grow your business effortlessly.
-              No tech skills required.
-            </Typography>
-
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={1.5}
-              sx={{ mt: { xs: 3.5, md: 4 }, justifyContent: { sm: "center", lg: "flex-start" } }}
-            >
-              <Button
-                variant="contained"
-                onClick={() => navigate("/signup")}
-                endIcon={<ArrowForwardRoundedIcon />}
-                sx={{
-                  bgcolor: HERO_RED,
-                  color: "#fff",
-                  px: 3.5,
-                  minHeight: 52,
-                  borderRadius: "12px",
-                  fontSize: "1rem",
-                  fontWeight: 700,
-                  boxShadow: "0 12px 24px rgba(235, 0, 41, 0.24)",
-                  width: { xs: "100%", sm: "auto" },
-                  transition: "transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease",
-                  "&:hover": { bgcolor: "#d90025", transform: "translateY(-2px)", boxShadow: "0 16px 30px rgba(235, 0, 41, 0.3)" },
-                  "&:focus-visible": { outline: `3px solid ${alpha(HERO_RED, 0.3)}`, outlineOffset: 3 },
-                }}
-              >
-                Start Free Trial
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => navigate("/signup")}
-                sx={{
-                  borderColor: "#CBD5E1",
-                  color: DARK,
-                  bgcolor: "#fff",
-                  px: 3.5,
-                  minHeight: 52,
-                  borderRadius: "12px",
-                  fontSize: "1rem",
-                  fontWeight: 700,
-                  width: { xs: "100%", sm: "auto" },
-                  transition: "transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease",
-                  "&:hover": { borderColor: HERO_BLUE, color: HERO_BLUE, bgcolor: HERO_BLUE_SOFT, transform: "translateY(-2px)" },
-                  "&:focus-visible": { outline: `3px solid ${alpha(HERO_BLUE, 0.3)}`, outlineOffset: 3 },
-                }}
-              >
-                Book a Demo
-              </Button>
-            </Stack>
-
-            <Box
-              sx={{
-                mt: 2.5,
-                display: "flex",
-                flexWrap: "wrap",
-                justifyContent: { xs: "center", lg: "flex-start" },
-                columnGap: 2.5,
-                rowGap: 1,
-                color: GRAY,
-                fontSize: "0.875rem",
-                fontWeight: 500,
-              }}
-            >
-              {["14-day free trial", "No credit card required"].map((point) => (
-                <Box key={point} sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                  <CheckCircleRoundedIcon sx={{ fontSize: 18, color: HERO_BLUE }} />
-                  {point}
-                </Box>
-              ))}
-            </Box>
-          </Box>
-
-          {/* Background artwork. Desktop swaps in the extended version so the photo fills the whole
-              hero; mobile shows the original below the copy with its top faded into HERO_BASE. */}
-          <Box component="picture" sx={{ display: "contents" }}>
-            <source media="(min-width: 1200px)" srcSet={heroSectionBgWide} />
-            <Box
-              component="img"
-              src={heroSectionBg}
-              alt="Zodu dashboard on phone, tablet and laptop — built for retail, restaurants, healthcare, education and logistics"
-              fetchPriority="high"
-              sx={{
-                display: "block",
-                flexShrink: 0,
-                position: { xs: "relative", lg: "absolute" },
-                right: { lg: 0 },
-                bottom: { lg: 0 },
-                width: { xs: "100%", lg: "auto" },
-                // lg: the original part renders min(100%, 33vw - 12px) tall — the cap that keeps the
-                // leftmost badge right of the copy; the extension fills the space around it.
-                height: { xs: "auto", lg: `calc(min(100%, 33vw - 12px) * ${HERO_WIDE_K})` },
-                maxWidth: "none",
-                aspectRatio: { xs: "2 / 1", lg: "auto" },
-                objectFit: "cover",
-                objectPosition: "right center",
-                WebkitMaskImage: { xs: HERO_MASK_TOP, lg: HERO_WIDE_MASK },
-                maskImage: { xs: HERO_MASK_TOP, lg: HERO_WIDE_MASK },
-                WebkitMaskComposite: { lg: "source-in" },
-                maskComposite: { lg: "intersect" },
-                "@media (prefers-reduced-motion: no-preference)": {
-                  animation: "heroVisualIn 700ms ease-out both",
-                },
-              }}
-            />
-          </Box>
-        </Box>
+  {/* TABLET IMAGE */}
+  <Box
+    aria-hidden
+    sx={{
+      display: { xs: "none", sm: "block", lg: "none" },
+      width: "100%",
+      aspectRatio: { sm: "16 / 9", md: "2 / 1" },
+      backgroundImage: `url(${heroSectionBg})`,
+      backgroundRepeat: "no-repeat",
+      backgroundSize: "cover",
+      backgroundPosition: "right bottom",
+    }}
+  />
+</Box>
 
         {/* ── STATS BAR ────────────────────────────────────────────────────── */}
         {/* <Box sx={{
