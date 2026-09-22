@@ -238,6 +238,14 @@ const RestaurantPOS: React.FC = () => {
   // ── State ────────────────────────────────────────────────────────────────
   const [order,        setOrder       ] = useState<RestaurantOrder>(buildInitialOrder());
   const [cartItems,    setCartItems   ] = useState<RestaurantCartItem[]>([]);
+  // Mirrors cartItems for handlers that need a synchronous read (stock check,
+  // "does this product already have a row") without depending on cartItems
+  // itself — depending on it would change those handlers' identity on every
+  // cart mutation, which defeats the ProductCard grid's React.memo below (it
+  // can hold hundreds of cards, and only the one whose qty actually changed
+  // should re-render).
+  const cartItemsRef = useRef<RestaurantCartItem[]>([]);
+  cartItemsRef.current = cartItems;
   const [filterMode,   setFilterMode  ] = useState<"All" | "Favourites">("All");
   const [activeCategory, setActiveCategory] = useState("All");
 
@@ -247,8 +255,12 @@ const RestaurantPOS: React.FC = () => {
   const [showCustomer, setShowCustomer] = useState(false);
   const [showCameraScan, setShowCameraScan] = useState(false);
   const [runningOrderSummary, setRunningOrderSummary] = useState<RunningOrderOrderedItem[]>([]);
+  const runningOrderSummaryRef = useRef<RunningOrderOrderedItem[]>([]);
+  runningOrderSummaryRef.current = runningOrderSummary;
   const [runningOrderTotal,   setRunningOrderTotal  ] = useState<number>(0);
   const [isEditingSummary,    setIsEditingSummary   ] = useState(false);
+  const isEditingSummaryRef = useRef(false);
+  isEditingSummaryRef.current = isEditingSummary;
   // Snapshot of runningOrderSummary taken when edit mode starts, restored if the edit is cancelled.
   const [summaryBeforeEdit,   setSummaryBeforeEdit  ] = useState<RunningOrderOrderedItem[]>([]);
   const [variantItem,  setVariantItem ] = useState<RestaurantMenuItem | null>(null);
@@ -472,17 +484,30 @@ const RestaurantPOS: React.FC = () => {
 
   // Total qty in cart for a given menu item (all variants combined).
   // While editing a running KOT, reads/writes go to runningOrderSummary instead of cartItems.
-  const getCartQty = useCallback(
-    (menuId: string) =>
-      isEditingSummary
-        ? runningOrderSummary
-            .filter((it) => it.item_id === menuId)
-            .reduce((s, it) => s + it.qty, 0)
-        : cartItems
-            .filter((c) => c.product.menu_id === menuId)
-            .reduce((s, c) => s + c.quantity, 0),
-    [cartItems, isEditingSummary, runningOrderSummary]
-  );
+  // Deliberately not memoized on cartItems: it's called inline per-card at render
+  // time (see the grid below) purely to compute that card's `qty` prop, so it needs
+  // to see fresh data every render anyway — memoizing it would only churn its own
+  // identity for no benefit, since nothing downstream holds onto this function.
+  const getCartQty = (menuId: string) =>
+    isEditingSummary
+      ? runningOrderSummary
+          .filter((it) => it.item_id === menuId)
+          .reduce((s, it) => s + it.qty, 0)
+      : cartItems
+          .filter((c) => c.product.menu_id === menuId)
+          .reduce((s, c) => s + c.quantity, 0);
+
+  // Same computation as getCartQty, but reading the refs — for use inside the
+  // stable useCallbacks below, which must not depend on cartItems/
+  // runningOrderSummary directly (see cartItemsRef above).
+  const getCartQtyStable = (menuId: string) =>
+    isEditingSummaryRef.current
+      ? runningOrderSummaryRef.current
+          .filter((it) => it.item_id === menuId)
+          .reduce((s, it) => s + it.qty, 0)
+      : cartItemsRef.current
+          .filter((c) => c.product.menu_id === menuId)
+          .reduce((s, c) => s + c.quantity, 0);
 
   // Adds a menu item into the running KOT summary (edit mode), or bumps its qty if already present.
   const addToSummary = useCallback((product: RestaurantMenuItem) => {
@@ -545,11 +570,11 @@ const RestaurantPOS: React.FC = () => {
         setVariantItem(product);
         return;
       }
-      if (isOutOfStock(product, getCartQty(product.menu_id) + 1)) return;
-      if (isEditingSummary) addToSummary(product);
+      if (isOutOfStock(product, getCartQtyStable(product.menu_id) + 1)) return;
+      if (isEditingSummaryRef.current) addToSummary(product);
       else addToCart(product);
     },
-    [addToCart, addToSummary, isEditingSummary, isOutOfStock, getCartQty]
+    [addToCart, addToSummary, isOutOfStock]
   );
 
   // Barcode/QR scan (hardware gun or camera) — looks up the FULL catalogue by exact
@@ -639,32 +664,32 @@ const RestaurantPOS: React.FC = () => {
 
   const incrementByProduct = useCallback(
     (product: RestaurantMenuItem) => {
-      if (isOutOfStock(product, getCartQty(product.menu_id) + 1)) return;
-      if (isEditingSummary) { addToSummary(product); return; }
-      const found = cartItems.find(
+      if (isOutOfStock(product, getCartQtyStable(product.menu_id) + 1)) return;
+      if (isEditingSummaryRef.current) { addToSummary(product); return; }
+      const found = cartItemsRef.current.find(
         (c) => c.product.menu_id === product.menu_id && !(c.product as any).variant_id
       );
       if (found) incrementCart(found);
       else addToCart(product);
     },
-    [cartItems, incrementCart, addToCart, addToSummary, isEditingSummary, isOutOfStock, getCartQty]
+    [incrementCart, addToCart, addToSummary, isOutOfStock]
   );
 
   const decrementByProduct = useCallback(
     (product: RestaurantMenuItem) => {
-      if (isEditingSummary) { decrementSummaryByProduct(product); return; }
-      const found = cartItems.find(
+      if (isEditingSummaryRef.current) { decrementSummaryByProduct(product); return; }
+      const found = cartItemsRef.current.find(
         (c) => c.product.menu_id === product.menu_id && !(c.product as any).variant_id
       );
       if (found) decrementCart(found);
     },
-    [cartItems, decrementCart, decrementSummaryByProduct, isEditingSummary]
+    [decrementCart, decrementSummaryByProduct]
   );
 
   const setQtyByProduct = useCallback(
     (product: RestaurantMenuItem, newQty: number) => {
       if (isOutOfStock(product, newQty)) return;
-      if (isEditingSummary) { setSummaryQtyByProduct(product, newQty); return; }
+      if (isEditingSummaryRef.current) { setSummaryQtyByProduct(product, newQty); return; }
       setCartItems((prev) => {
         const found = prev.find(
           (c) => c.product.menu_id === product.menu_id && !("variant_id" in c.product)
@@ -676,7 +701,7 @@ const RestaurantPOS: React.FC = () => {
         return updated;
       });
     },
-    [isOutOfStock, isEditingSummary, setSummaryQtyByProduct]
+    [isOutOfStock, setSummaryQtyByProduct]
   );
 
   const resetOrder = useCallback(() => {
@@ -790,6 +815,34 @@ const RestaurantPOS: React.FC = () => {
       };
     });
 
+  // Folds freshly-added cart items into the running order's existing summary items
+  // (merging qty on a shared menu_id) — update/orders replaces an order's whole item
+  // set on every call, so a "just send the new item" payload would silently drop
+  // whatever was already on the table.
+  const mergeCartIntoSummary = (
+    existing: typeof runningOrderSummary,
+    additions: RestaurantCartItem[]
+  ): typeof runningOrderSummary => {
+    const merged = [...existing];
+    additions.forEach((ci) => {
+      const idx = merged.findIndex((it) => it.item_id === ci.product.menu_id);
+      if (idx >= 0) {
+        merged[idx] = { ...merged[idx], qty: merged[idx].qty + ci.quantity };
+      } else {
+        merged.push({
+          item_id:   ci.product.menu_id,
+          item_name: ci.product.menu_name,
+          item_unit: ci.product.menu_unit,
+          qty:       ci.quantity,
+          price:     getItemPrice(ci.product),
+          gst_tax:   ci.product.gst_tax,
+          tax_include_or_exclude: ci.product.tax_include_or_exclude ?? false,
+        });
+      }
+    });
+    return merged;
+  };
+
   const buildSummaryPayloadItems = (items: typeof runningOrderSummary) =>
     items.map((i) => {
       const gstPct   = parseFloat(String(i.gst_tax ?? 0)) || 0;
@@ -865,35 +918,70 @@ const RestaurantPOS: React.FC = () => {
   };
 
   // ── Actions ───────────────────────────────────────────────────────────────
+  // A running table already has an api_order_id (set by handleRestoreRunningOrder).
+  // Adding fresh cart items to it is still "the same order, more items" from the
+  // backend's point of view, so it must go through update/orders — add/orders is
+  // only for a table/takeaway that has no order yet.
   const handleSendToKDS = async () => {
     if (!cartItems.length)
      { setErrorMsg("Add items first"); return; }
     if (order.orderType === "DineIn" && !order.tableNumber) { setShowTable(true); return; }
     console.log("Sending to KDS with payload:", order);
 
+    const discType = order.discountType === "Amount" ? "FLAT" : "PERCENT";
+
+    // update/orders takes the order's full item set, so merge the new cart items
+    // into what's already on the table before sending — not cartItems alone, or
+    // the update would silently drop whatever was already there.
+    const mergedItems = order.orderId ? mergeCartIntoSummary(runningOrderSummary, cartItems) : [];
+    const mergedTotals = order.orderId ? calcSummaryTotals(mergedItems, discType, order.discountValue) : null;
+
     try {
-      const res = await addOrder({
-        zodu_id:         zoduId,
-        branch_id:       branchId,
-        table_no:        order.tableNumber ?? null,
-        order_type:      ADD_ORDER_TYPE_MAP[order.orderType],
-        kot_no:          order.kotNo ?? "KOT-1",
-        items:           withKitchenNotes(buildPayloadItems(cartItems), cartItems),
-        no_of_items:     cartItems.length,
-        subtotal:        totals.subtotal,
-        total_amt:       totals.grandTotal,
-        discount_amount: totals.discount,
-        tax_amount:      totals.taxAmount,
-        discount_type:   order.discountType === "Amount" ? "FLAT" : "PERCENT",
-        discount_value:  order.discountValue,
-        payment_type:    "",
-        final_payment:   false,
-        order_date:      new Date().toISOString().split("T")[0],
-        order_time:      new Date().toLocaleTimeString("en-GB"),
-        customer_name:   order.customerName,
-        customer_phone:  order.customerPhone,
-      });
-      setSuccessMsg("Order sent to KDS!");
+      const res = order.orderId && mergedTotals
+        ? await updateOrder({
+            zodu_id:         zoduId,
+            branch_id:       branchId,
+            api_order_id:    order.orderId,
+            table_no:        order.tableNumber,
+            kot_no:          order.kotNo ?? "KOT-1",
+            no_of_items:     mergedItems.length,
+            order_type:      ADD_ORDER_TYPE_MAP[order.orderType],
+            payment_type:    order.paymentMethod,
+            customer_name:   order.customerName || null,
+            customer_phone:  order.customerPhone || null,
+            subtotal:        mergedTotals.subtotal,
+            tax_amount:      mergedTotals.taxAmount,
+            total_amt:       mergedTotals.grandTotal,
+            discount_type:   discType,
+            discount_value:  order.discountValue,
+            discount_amount: mergedTotals.discount,
+            final_payment:   false,
+            order_date:      new Date().toISOString().split("T")[0],
+            order_time:      new Date().toLocaleTimeString("en-GB"),
+            items:           buildSummaryPayloadItems(mergedItems),
+          })
+        : await addOrder({
+            zodu_id:         zoduId,
+            branch_id:       branchId,
+            table_no:        order.tableNumber ?? null,
+            order_type:      ADD_ORDER_TYPE_MAP[order.orderType],
+            kot_no:          order.kotNo ?? "KOT-1",
+            items:           withKitchenNotes(buildPayloadItems(cartItems), cartItems),
+            no_of_items:     cartItems.length,
+            subtotal:        totals.subtotal,
+            total_amt:       totals.grandTotal,
+            discount_amount: totals.discount,
+            tax_amount:      totals.taxAmount,
+            discount_type:   discType,
+            discount_value:  order.discountValue,
+            payment_type:    "",
+            final_payment:   false,
+            order_date:      new Date().toISOString().split("T")[0],
+            order_time:      new Date().toLocaleTimeString("en-GB"),
+            customer_name:   order.customerName,
+            customer_phone:  order.customerPhone,
+          });
+      setSuccessMsg(order.orderId ? "Order updated and sent to KDS!" : "Order sent to KDS!");
       void printKitchenTickets(res);
       if (activeHoldId) {
         try { await deleteHoldOrder(activeHoldId); } catch { /* ignore */ }

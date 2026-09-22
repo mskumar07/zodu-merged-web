@@ -90,6 +90,7 @@ interface ReportEndpoints {
   expenseDatewiseBreakdown: string;
   restaurantDatewiseOrders: string;
   restaurantOrderCategory: string;
+  profitActiveYears: string;
 }
 
 interface DashboardEndpoints {
@@ -289,6 +290,7 @@ export const apiConfig: ApiConstants = {
     expenseDatewiseBreakdown: `${RETAIL_BASE}/api/report/expense/datewise`,
     restaurantDatewiseOrders: `${RESTAURANT_BASE}/api/orders/api/report/orders`,
     restaurantOrderCategory: `${RESTAURANT_BASE}/api/orders/get/report/order-category`,
+    profitActiveYears: `${RETAIL_BASE}/api/report/profit/active-years`,
   },
 
   mainDashboard: {

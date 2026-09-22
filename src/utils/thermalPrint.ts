@@ -55,13 +55,17 @@ function toThermalInk(canvas: HTMLCanvasElement, node: HTMLElement): void {
     };
   });
   const px = image.data;
+  const hasPictures = pictures.length > 0;
   for (let y = 0; y < h; y++) {
-    const rowPictures = pictures.filter((p) => y >= p.y0 && y < p.y1);
+    // Most receipts carry no logo/signature image, so skip the per-row
+    // allocation entirely on that (common) path — same result either way.
+    const rowPictures = hasPictures ? pictures.filter((p) => y >= p.y0 && y < p.y1) : null;
+    const rowHasPictures = !!rowPictures && rowPictures.length > 0;
     for (let x = 0; x < w; x++) {
       const i = (y * w + x) * 4;
       const alpha = px[i + 3] / 255;
       const lum = 255 - alpha * (255 - (0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]));
-      const inPicture = rowPictures.length > 0 && rowPictures.some((p) => x >= p.x0 && x < p.x1);
+      const inPicture = rowHasPictures && rowPictures!.some((p) => x >= p.x0 && x < p.x1);
       const v = inPicture ? lum : lum < INK_THRESHOLD ? 0 : 255;
       px[i] = px[i + 1] = px[i + 2] = v;
       px[i + 3] = 255;

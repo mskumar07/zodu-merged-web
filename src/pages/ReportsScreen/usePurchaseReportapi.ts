@@ -155,6 +155,31 @@ const toDatewisePurchaseBreakdownPage = (payload: unknown): DatewisePurchaseBrea
 const swapBase = (url: string, isRestaurant: boolean) =>
   isRestaurant ? url.replace(/^\/retail/, "/restaurant") : url;
 
+interface ActiveYearsParams {
+  zodu_id: string;
+  branch_id: string;
+  isRestaurant?: boolean;
+}
+
+// Backs the year dropdown on the Purchase/Expense/Profit monthwise reports —
+// one endpoint unions sales + purchase + expense years server-side, so all
+// three reports share it instead of each computing their own year list.
+export const useActiveYears = (params: ActiveYearsParams) => {
+  return useQuery<number[]>({
+    queryKey: ["report-active-years", params.zodu_id, params.branch_id, params.isRestaurant],
+    queryFn: async () => {
+      const p = new URLSearchParams({ zodu_id: params.zodu_id, branch_id: params.branch_id });
+      const url = swapBase(apiConfig.report.profitActiveYears, !!params.isRestaurant);
+      const res = await axiosInstance.get(`${url}?${p}`);
+      const years = (res.data?.data?.active_years ?? res.data?.data ?? []) as number[];
+      return years.length > 0 ? years : [new Date().getFullYear()];
+    },
+    enabled: !!params.zodu_id && !!params.branch_id,
+    staleTime: 1000 * 60 * 10,
+    refetchOnWindowFocus: false,
+  });
+};
+
 export const usePurchaseSummary = (params: PurchaseSummaryParams) => {
   return useQuery<PurchaseSummary>({
     queryKey: ["purchase-summary", params.zodu_id, params.branch_id, params.year, params.isRestaurant],
