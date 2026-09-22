@@ -62,6 +62,9 @@ export interface PosSettingsResponse {
   // Absent on rows that predate the field — treat that as "Touch", the
   // screen's original default.
   pos_screen_type?: PosScreenType;
+  // Restaurant-only: print a KOT together with the bill, on the billing PC's
+  // printer. Absent on rows that predate the field — treat that as off.
+  kot_print_enabled?: boolean;
   active: boolean;
   created_at?: string;
   updated_at?: string;
@@ -91,6 +94,7 @@ export interface UpdatePosSettingsPayload {
   purchase_order_enabled?: boolean;
   hold_enabled?: boolean;
   pos_screen_type?: PosScreenType;
+  kot_print_enabled?: boolean;
 }
 
 // ─── Normalizing ──────────────────────────────────────────────
@@ -147,6 +151,8 @@ export function normalizePosSettings(raw: unknown): PosSettingsResponse {
     // "Touch" unless the row says otherwise — matches the restaurant POS
     // screen's own default before this setting existed.
     pos_screen_type: row.pos_screen_type === "Keyboard" ? "Keyboard" : "Touch",
+    // Off unless the row says otherwise — no branch starts printing KOTs unasked.
+    kot_print_enabled: row.kot_print_enabled === true,
   };
 }
 

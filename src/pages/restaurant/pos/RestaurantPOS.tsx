@@ -5,7 +5,7 @@ import { flushSync } from "react-dom";
 import LottieLoader from "@components/LottieLoader";
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "@pages/SalesHistory/ThermalInvoiceTemplate";
 import { gstBreakdownFromLines } from "@utils/gstSummary";
-import { captureThermalReceipt, writeThermalPrint } from "@utils/thermalPrint";
+import { printThermalCopies } from "@utils/thermalPrint";
 import {
   Box, Typography, TextField, InputAdornment, Chip, CircularProgress, Divider,
 } from "@mui/material";
@@ -36,11 +36,7 @@ import { MenuItem, Select, IconButton, Avatar, Badge, Tooltip } from "@mui/mater
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import KeyboardOutlinedIcon from "@mui/icons-material/KeyboardOutlined";
 import TouchAppOutlinedIcon from "@mui/icons-material/TouchAppOutlined";
-import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
-import { Alert, Button, Snackbar } from "@mui/material";
-import KotReprintDialog from "@pages/restaurant/kot/KotReprintDialog";
-import { useKotPrinting } from "@pages/restaurant/kot/useKotPrinting";
-import { buildBillSlip, type BillHeader } from "@utils/kot/billSlip";
+import { ThermalKotTemplate, type KotPrintData } from "@pages/restaurant/kot/ThermalKotTemplate";
 
 import {
   useRestaurantMenuQuery,
@@ -127,6 +123,7 @@ function readAutoPrintPref(): boolean {
 // printer_inch is stored as "3 Inch" / "5 Inch" (Restaurant Invoice Settings only offers
 // thermal widths); anything unrecognised falls back to the 3" roll.
 function toThermalPaperSize(printerInch: string | undefined): ThermalPaperSize {
+  if (printerInch?.startsWith("2")) return "2";
   if (printerInch?.startsWith("4")) return "4";
   if (printerInch?.startsWith("5")) return "5";
   return "3";
@@ -267,21 +264,6 @@ const RestaurantPOS: React.FC = () => {
   const [successMsg,   setSuccessMsg  ] = useState("");
   const [errorMsg,     setErrorMsg    ] = useState("");
 
-  // ── Kitchen tickets ──
-  // The order endpoints return this send's per-counter KOTs; they print through the
-  // local print bridge without holding up the till. A ticket that didn't reach its
-  // kitchen stays on screen (not a timed toast) with a way to reprint it.
-  const restaurantName = selectedCompany?.restaurant_name || selectedCompany?.company_name || profile?.restaurant_name || "";
-  const { printFromOrderResponse, printBill } = useKotPrinting(zoduId, branchId, restaurantName);
-  const [kotIssue,        setKotIssue       ] = useState<{ message: string; apiOrderId: string | null } | null>(null);
-  const [lastKotOrderId,  setLastKotOrderId ] = useState<string | null>(null);
-  const [reprintOrderId,  setReprintOrderId ] = useState<string | null>(null);
-
-  const printKitchenTickets = useCallback(async (res: unknown) => {
-    const { error, apiOrderId } = await printFromOrderResponse(res);
-    if (apiOrderId) setLastKotOrderId(apiOrderId);
-    if (error) setKotIssue({ message: error, apiOrderId });
-  }, [printFromOrderResponse]);
   // hold_id of the hold order currently loaded into the cart (restored but not yet sent/paid) —
   // only deleted from the server once the order is actually sent to KDS, paid, or re-held
   const [activeHoldId, setActiveHoldId] = useState<string | null>(null);
@@ -312,7 +294,14 @@ const RestaurantPOS: React.FC = () => {
   const [printEnabled, setPrintEnabled] = useState<boolean>(readAutoPrintPref);
   const [receiptData,  setReceiptData ] = useState<Record<string, unknown> | null>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
-  const thermalPaperSize = toThermalPaperSize(invoiceSettings?.printer_inch);
+  // The KOT that prints with the bill (POS setting "Print KOT with Bill").
+  const [kotData, setKotData] = useState<KotPrintData | null>(null);
+  const kotRef = useRef<HTMLDivElement>(null);
+  const settingsPaperSize = toThermalPaperSize(invoiceSettings?.printer_inch);
+  // While printing, the receipt is drawn for the roll the chosen printer takes
+  // (see printThermalCopies) rather than the width Invoice Settings names.
+  const [printPaperSize, setPrintPaperSize] = useState<ThermalPaperSize | null>(null);
+  const thermalPaperSize = printPaperSize ?? settingsPaperSize;
 
   const handleTogglePrint = useCallback(() => {
     setPrintEnabled((prev) => {
@@ -886,7 +875,7 @@ const RestaurantPOS: React.FC = () => {
     const discType = order.discountType === "Amount" ? "FLAT" : "PERCENT";
     const t = calcSummaryTotals(runningOrderSummary, discType, order.discountValue);
     try {
-      const res = await updateOrder({
+      await updateOrder({
         zodu_id:         zoduId,
         branch_id:       branchId,
         api_order_id:    order.orderId,
@@ -910,8 +899,6 @@ const RestaurantPOS: React.FC = () => {
       });
       setSuccessMsg("Order updated");
       setIsEditingSummary(false);
-      // Raised quantities print as ADD tickets, lowered/removed ones as CANCEL.
-      void printKitchenTickets(res);
     } catch {
       setErrorMsg("Failed to update order");
     }
@@ -928,60 +915,29 @@ const RestaurantPOS: React.FC = () => {
     if (order.orderType === "DineIn" && !order.tableNumber) { setShowTable(true); return; }
     console.log("Sending to KDS with payload:", order);
 
-    const discType = order.discountType === "Amount" ? "FLAT" : "PERCENT";
-
-    // update/orders takes the order's full item set, so merge the new cart items
-    // into what's already on the table before sending — not cartItems alone, or
-    // the update would silently drop whatever was already there.
-    const mergedItems = order.orderId ? mergeCartIntoSummary(runningOrderSummary, cartItems) : [];
-    const mergedTotals = order.orderId ? calcSummaryTotals(mergedItems, discType, order.discountValue) : null;
-
     try {
-      const res = order.orderId && mergedTotals
-        ? await updateOrder({
-            zodu_id:         zoduId,
-            branch_id:       branchId,
-            api_order_id:    order.orderId,
-            table_no:        order.tableNumber,
-            kot_no:          order.kotNo ?? "KOT-1",
-            no_of_items:     mergedItems.length,
-            order_type:      ADD_ORDER_TYPE_MAP[order.orderType],
-            payment_type:    order.paymentMethod,
-            customer_name:   order.customerName || null,
-            customer_phone:  order.customerPhone || null,
-            subtotal:        mergedTotals.subtotal,
-            tax_amount:      mergedTotals.taxAmount,
-            total_amt:       mergedTotals.grandTotal,
-            discount_type:   discType,
-            discount_value:  order.discountValue,
-            discount_amount: mergedTotals.discount,
-            final_payment:   false,
-            order_date:      new Date().toISOString().split("T")[0],
-            order_time:      new Date().toLocaleTimeString("en-GB"),
-            items:           buildSummaryPayloadItems(mergedItems),
-          })
-        : await addOrder({
-            zodu_id:         zoduId,
-            branch_id:       branchId,
-            table_no:        order.tableNumber ?? null,
-            order_type:      ADD_ORDER_TYPE_MAP[order.orderType],
-            kot_no:          order.kotNo ?? "KOT-1",
-            items:           withKitchenNotes(buildPayloadItems(cartItems), cartItems),
-            no_of_items:     cartItems.length,
-            subtotal:        totals.subtotal,
-            total_amt:       totals.grandTotal,
-            discount_amount: totals.discount,
-            tax_amount:      totals.taxAmount,
-            discount_type:   discType,
-            discount_value:  order.discountValue,
-            payment_type:    "",
-            final_payment:   false,
-            order_date:      new Date().toISOString().split("T")[0],
-            order_time:      new Date().toLocaleTimeString("en-GB"),
-            customer_name:   order.customerName,
-            customer_phone:  order.customerPhone,
-          });
-      setSuccessMsg(order.orderId ? "Order updated and sent to KDS!" : "Order sent to KDS!");
+      const res = await addOrder({
+        zodu_id:         zoduId,
+        branch_id:       branchId,
+        table_no:        order.tableNumber ?? null,
+        order_type:      ADD_ORDER_TYPE_MAP[order.orderType],
+        kot_no:          order.kotNo ?? "KOT-1",
+        items:           withKitchenNotes(buildPayloadItems(cartItems), cartItems),
+        no_of_items:     cartItems.length,
+        subtotal:        totals.subtotal,
+        total_amt:       totals.grandTotal,
+        discount_amount: totals.discount,
+        tax_amount:      totals.taxAmount,
+        discount_type:   order.discountType === "Amount" ? "FLAT" : "PERCENT",
+        discount_value:  order.discountValue,
+        payment_type:    "",
+        final_payment:   false,
+        order_date:      new Date().toISOString().split("T")[0],
+        order_time:      new Date().toLocaleTimeString("en-GB"),
+        customer_name:   order.customerName,
+        customer_phone:  order.customerPhone,
+      });
+      setSuccessMsg("Order sent to KDS!");
       void printKitchenTickets(res);
       if (activeHoldId) {
         try { await deleteHoldOrder(activeHoldId); } catch { /* ignore */ }
@@ -1046,59 +1002,55 @@ const RestaurantPOS: React.FC = () => {
     };
   };
 
-  // The shop details the bill is headed with — the branch's address first, as on the on-screen receipt.
-  const billHeader = (): BillHeader => {
-    const branch = selectedCompany?.branches?.find((b) => b.branch_id === branchId);
-    const line1 = [branch?.address_line_1 || selectedCompany?.address_line_1, branch?.address_line_2 || selectedCompany?.address_line_2];
-    const line2 = [branch?.city || selectedCompany?.city, branch?.district || selectedCompany?.district, branch?.state || selectedCompany?.state, branch?.pincode || selectedCompany?.pincode];
-    return {
-      name:         restaurantName || "Restaurant",
-      addressLines: [line1, line2].map((parts) => parts.filter(Boolean).join(", ")).filter(Boolean),
-      phone:        profile?.phone_number || selectedCompany?.phone_number || selectedCompany?.mobile_no || null,
-      gstin:        selectedCompany?.gst_no || null,
-    };
-  };
+  // Prints the receipt — the template Invoice Settings names, exactly as its
+  // preview draws it — on the receipt printer connected to this PC, through the
+  // print bridge. Only a PC with no printer to send to falls back to the
+  // browser's print dialog.
+  // The KOT for this order's cart lines — POS setting "Print KOT with Bill".
+  // Null when the setting is off. Kitchen notes ride on the cart lines.
+  const kotForOrder = (
+    orderType: string,
+    orderNo: string | null,
+    items: Array<{ name: string; variant: string | null; qty: number; note: string | null }>,
+  ): KotPrintData | null =>
+    posSettings?.kot_print_enabled
+      ? {
+          kotNo:         order.kotNo,
+          orderNo,
+          orderType:     ADD_ORDER_TYPE_MAP[orderType] ?? orderType,
+          tableNo:       orderType === "DineIn" && order.tableNumber != null ? String(order.tableNumber) : null,
+          customerName:  order.customerName,
+          customerPhone: order.customerPhone,
+          items,
+          printedAt:     new Date(),
+        }
+      : null;
 
-  // Prints the bill on the billing printer from Printer Settings, through the print
-  // bridge — silently and in the printer's own font, like a KOT. Only a branch with no
-  // billing printer set up falls back to the browser's print dialog.
-  //
-  // That fallback prints through a hidden iframe rather than window.open: this
-  // runs after the payment request resolves, by which point the click that started it
-  // may no longer count as a user gesture and a popup blocker would swallow a new window.
-  const printReceipt = async (receipt: ReturnType<typeof buildReceiptData> & { sale_id: string | null | undefined }) => {
-    const printedOnBillingPrinter = await printBill((paper) => buildBillSlip(receipt, billHeader(), {
-      paper,
-      showTaxDetails:      invoiceSettings?.show_tax_details ?? false,
-      showCustomerDetails: invoiceSettings?.show_customer_details ?? true,
-      showPaymentDetails:  invoiceSettings?.show_payment_details ?? false,
-      showSerialNo:        invoiceSettings?.show_serial_no ?? true,
-      showItemId:          invoiceSettings?.show_item_id ?? false,
-      notes:               invoiceSettings?.show_notes ? invoiceSettings.notes : null,
-      terms:               invoiceSettings?.show_terms_conditions ? invoiceSettings.terms_conditions : null,
-    }));
-    if (printedOnBillingPrinter) return;
-
-    flushSync(() => setReceiptData(receipt));
-    const node = receiptRef.current;
-    if (!node) return;
-    const image = await captureThermalReceipt(node);
-
-    const iframe = document.createElement("iframe");
-    Object.assign(iframe.style, { position: "fixed", right: "0", bottom: "0", width: "0", height: "0", border: "0" });
-    document.body.appendChild(iframe);
-    const win = iframe.contentWindow;
-    if (!win) { iframe.remove(); return; }
-
-    await writeThermalPrint(win, [image]);
-
-    // After the write — opening the document drops listeners already on its window.
-    const cleanup = () => iframe.remove();
-    win.addEventListener("afterprint", () => setTimeout(cleanup, 0));
-    setTimeout(cleanup, 60000);
-
-    win.focus();
-    win.print();
+  // Prints the bill and, when given, the KOT after it — one print job, one dialog.
+  // Either can be left out: the bill when POS printing is switched off, the KOT
+  // when "Print KOT with Bill" is.
+  const printBillAndKot = async (
+    receipt: (ReturnType<typeof buildReceiptData> & { sale_id: string | null | undefined }) | null,
+    kot: KotPrintData | null,
+  ) => {
+    flushSync(() => {
+      if (receipt) setReceiptData(receipt);
+      setKotData(kot);
+    });
+    const billNode = receipt ? receiptRef.current : null;
+    const kotNode = kot ? kotRef.current : null;
+    const first = billNode ?? kotNode;
+    if (!first) return;
+    const printed = await printThermalCopies(
+      first,
+      [null],
+      (_copy, paper) => flushSync(() => setPrintPaperSize(paper)),
+      {
+        onError: (message) => setErrorMsg(`Bill not printed — ${message}`),
+        after: billNode && kotNode ? [kotNode] : [],
+      },
+    );
+    if (printed) setSuccessMsg(`Bill sent to ${printed}`);
   };
 
   const handlePay = async (payMethod: PaymentMethod) => {
@@ -1160,18 +1112,28 @@ const RestaurantPOS: React.FC = () => {
       setSuccessMsg("Payment successful!");
       resetOrder();
 
-      // The bill always prints before the kitchen tickets, so on a shared billing
-      // printer the customer's bill comes out first.
-      if (printEnabled) {
-        // The payment already went through — a print problem must not read as a failed payment.
+      // "Print KOT with Bill": Pick Up / Delivery print the KOT right after the bill,
+      // in the same print job, so the customer's bill always comes first. A dine-in
+      // order's KOT already printed when it was sent to the kitchen.
+      const kot = paidOrderType === "DineIn" ? null : kotForOrder(
+        paidOrderType,
+        pickOrderNo(res) || null,
+        receipt.items.map((it, idx) => ({
+          name:    it.name,
+          variant: it.variant_name ?? null,
+          qty:     Number(it.qty) || 0,
+          // Kitchen notes are on the cart lines, in the same order as the bill's.
+          note:    cartItems.length > 0 ? cartItems[idx]?.note?.trim() || null : null,
+        })),
+      );
+      // The payment already went through — a print problem must not read as a failed payment.
+      if (printEnabled || kot) {
         try {
-          await printReceipt({ ...receipt, sale_id: pickOrderNo(res) });
+          await printBillAndKot(printEnabled ? { ...receipt, sale_id: pickOrderNo(res) } : null, kot);
         } catch (err) {
           setErrorMsg(`Payment successful, but the bill could not be printed${err instanceof Error ? ` — ${err.message}` : ""}`);
         }
       }
-      // Pick Up / Delivery reach the kitchen when they're paid for.
-      if (paidOrderType !== "DineIn") void printKitchenTickets(res);
     } catch {
       setErrorMsg("Payment failed. Please try again.");
     }
@@ -1490,20 +1452,6 @@ const RestaurantPOS: React.FC = () => {
             );
           })}
         </Box>
-
-        {/* Kitchen tickets for the open running order, or the order last sent */}
-        <Tooltip title="Kitchen tickets (reprint KOT)">
-          <span>
-            <IconButton
-              size="small"
-              disabled={!(order.orderId || lastKotOrderId)}
-              onClick={() => setReprintOrderId(order.orderId || lastKotOrderId)}
-              sx={{ color: "#374151", border: "1px solid #e5e7eb", borderRadius: "8px", width: 34, height: 34 }}
-            >
-              <ReceiptLongOutlinedIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </span>
-        </Tooltip>
 
         {/* Branch dropdown */}
         <Select
@@ -1967,6 +1915,12 @@ const RestaurantPOS: React.FC = () => {
           <ThermalInvoiceTemplate ref={receiptRef} data={receiptData} paperSize={thermalPaperSize} />
         </Box>
       )}
+      {/* Off-screen KOT — printed after the bill when "Print KOT with Bill" is on */}
+      {kotData && (
+        <Box sx={{ position: "fixed", left: -10000, top: 0, pointerEvents: "none", opacity: 0 }}>
+          <ThermalKotTemplate ref={kotRef} data={kotData} paperSize={thermalPaperSize} />
+        </Box>
+      )}
 
       {/* ════ Modals ════ */}
       <CameraBarcodeScanner
@@ -2021,36 +1975,6 @@ const RestaurantPOS: React.FC = () => {
       <SuccessToast message={successMsg} onClose={() => setSuccessMsg("")} />
       <SuccessToast message={errorMsg} severity="error" onClose={() => setErrorMsg("")} />
 
-      <Snackbar open={!!kotIssue} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
-        <Alert
-          severity="warning"
-          variant="filled"
-          onClose={() => setKotIssue(null)}
-          action={kotIssue?.apiOrderId ? (
-            <Button
-              color="inherit"
-              size="small"
-              sx={{ fontWeight: 800 }}
-              onClick={() => { setReprintOrderId(kotIssue.apiOrderId); setKotIssue(null); }}
-            >
-              Reprint
-            </Button>
-          ) : undefined}
-          sx={{ alignItems: "center", maxWidth: 560 }}
-        >
-          {kotIssue?.message}
-        </Alert>
-      </Snackbar>
-
-      <KotReprintDialog
-        open={!!reprintOrderId}
-        apiOrderId={reprintOrderId}
-        onClose={() => setReprintOrderId(null)}
-        zoduId={zoduId}
-        branchId={branchId}
-        restaurantName={restaurantName}
-        onResult={(message, severity) => (severity === "error" ? setErrorMsg(message) : setSuccessMsg(message))}
-      />
 
     </Box>
   );

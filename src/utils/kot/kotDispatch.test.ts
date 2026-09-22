@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeFailures, dispatchKotBatch, type KotConfig, type KotPrinter, type PrintLogEntry } from "./kotDispatch";
+import { describeFailures, dispatchKotBatch, resolveBillPrinter, type KotConfig, type KotPrinter, type PrintLogEntry } from "./kotDispatch";
 import type { KotBatch, KotTicket, Slip } from "./kotTicket";
 
 const printer = (id: number, name: string, extra: Partial<KotPrinter> = {}): KotPrinter => ({
@@ -154,5 +154,21 @@ describe("dispatchKotBatch", () => {
       log: async () => { throw new Error("network"); },
     });
     expect(r.failed).toEqual([]);
+  });
+});
+
+describe("resolveBillPrinter", () => {
+  it("prefers the billing printer", () => {
+    expect(resolveBillPrinter(baseConfig())?.printer_name).toBe("Billing P");
+  });
+  it("uses the only active printer when none is marked for billing", () => {
+    const config = { ...baseConfig(), printers: [printer(1, "Counter P"), printer(2, "Old P", { active: false })],
+      settings: { ...baseConfig().settings, billing_printer_id: null } };
+    expect(resolveBillPrinter(config)?.printer_name).toBe("Counter P");
+  });
+  it("does not guess between several kitchen printers", () => {
+    const config = { ...baseConfig(), printers: [printer(1, "Tandoor P"), printer(2, "Chinese P")],
+      settings: { ...baseConfig().settings, billing_printer_id: null } };
+    expect(resolveBillPrinter(config)).toBeNull();
   });
 });

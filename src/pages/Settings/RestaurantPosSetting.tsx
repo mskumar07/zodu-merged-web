@@ -25,6 +25,7 @@ import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
 import GroupRoundedIcon from "@mui/icons-material/GroupRounded";
 import KeyboardRoundedIcon from "@mui/icons-material/KeyboardRounded";
 import TouchAppRoundedIcon from "@mui/icons-material/TouchAppRounded";
+import RestaurantMenuRoundedIcon from "@mui/icons-material/RestaurantMenuRounded";
 import SuccessToast from "@components/Common/SuccessToast";
 import { useAppDispatch } from "@store/store";
 import { setInvoiceSettings, setPosSettings } from "@store/slices/userSlice";
@@ -251,6 +252,9 @@ export default function RestaurantPosSetting() {
   // on invoice-settings, so it has its own state/baseline/save.
   const [posScreenType, setPosScreenType] = useState<PosScreenType>("Touch");
   const posScreenTypeBaselineRef = useRef<PosScreenType | null>(null);
+  // Print a KOT with the bill — on the same /pos-settings row as the screen type.
+  const [kotPrintEnabled, setKotPrintEnabled] = useState(false);
+  const kotPrintBaselineRef = useRef<boolean | null>(null);
 
   const { data, isLoading, isError } = useInvoiceSettings();
   const { data: posData, isLoading: isPosLoading, isError: isPosError } = usePosSettings();
@@ -260,6 +264,8 @@ export default function RestaurantPosSetting() {
       const screenType = posData.pos_screen_type === "Keyboard" ? "Keyboard" : "Touch";
       setPosScreenType(screenType);
       posScreenTypeBaselineRef.current = screenType;
+      setKotPrintEnabled(posData.kot_print_enabled === true);
+      kotPrintBaselineRef.current = posData.kot_print_enabled === true;
     }
   }, [posData]);
 
@@ -316,6 +322,8 @@ export default function RestaurantPosSetting() {
       const screenType = updated.pos_screen_type === "Keyboard" ? "Keyboard" : "Touch";
       setPosScreenType(screenType);
       posScreenTypeBaselineRef.current = screenType;
+      setKotPrintEnabled(updated.kot_print_enabled === true);
+      kotPrintBaselineRef.current = updated.kot_print_enabled === true;
       // POS reads pos_screen_type straight from Redux (populated once at branch-select) —
       // without this the opening view would only pick up the change after the next
       // login/branch switch.
@@ -334,6 +342,11 @@ export default function RestaurantPosSetting() {
 
   const updatePosScreenType = (value: PosScreenType) => {
     setPosScreenType(value);
+    setSaved(false);
+  };
+
+  const updateKotPrintEnabled = (value: boolean) => {
+    setKotPrintEnabled(value);
     setSaved(false);
   };
 
@@ -365,11 +378,13 @@ export default function RestaurantPosSetting() {
   };
 
   const handleSave = () => {
-    // pos_screen_type lives on its own row (/pos-settings) — save it separately
-    // from the invoice-settings fields below, and only when it actually changed.
-    // pos_types/default_pos_type are required by that PUT even though this screen
-    // doesn't manage them, so the currently-stored values travel back unchanged.
-    const posScreenTypeDirty = posScreenTypeBaselineRef.current !== posScreenType;
+    // pos_screen_type and kot_print_enabled live on their own row (/pos-settings) —
+    // save them separately from the invoice-settings fields below, and only when
+    // one actually changed. pos_types/default_pos_type are required by that PUT
+    // even though this screen doesn't manage them, so the currently-stored values
+    // travel back unchanged.
+    const posScreenTypeDirty =
+      posScreenTypeBaselineRef.current !== posScreenType || kotPrintBaselineRef.current !== kotPrintEnabled;
     if (posScreenTypeDirty && posData) {
       savePosScreenType({
         pos_types: posData.pos_types,
@@ -387,6 +402,7 @@ export default function RestaurantPosSetting() {
         purchase_order_enabled: posData.purchase_order_enabled,
         hold_enabled: posData.hold_enabled,
         pos_screen_type: posScreenType,
+        kot_print_enabled: kotPrintEnabled,
       });
     }
 
@@ -612,6 +628,23 @@ export default function RestaurantPosSetting() {
                   <MenuItem value="Keyboard">Keyboard</MenuItem>
                 </Select>
               </FormControl>
+            </SettingRow>
+
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
+
+            <SettingRow
+              icon={<RestaurantMenuRoundedIcon fontSize="small" />}
+              iconBg="#eff6ff"
+              iconColor="#2563eb"
+              label="Print KOT with Bill"
+              description="Print the kitchen order ticket (KOT) along with the bill, on the same printer"
+            >
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Switch
+                  checked={kotPrintEnabled}
+                  onChange={(e) => updateKotPrintEnabled(e.target.checked)}
+                />
+              </Box>
             </SettingRow>
           </Section>
         </Stack>

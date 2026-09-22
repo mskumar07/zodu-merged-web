@@ -376,6 +376,7 @@ function toPosPaymentType(method: string | undefined): PaymentType {
 
 // printer_inch is stored as "3 Inch" / "4 Inch" / "5 Inch"; PaperSize only accepts "3" | "4" | "5".
 function toThermalPaperSize(printerInch: string | undefined): ThermalPaperSize {
+  if (printerInch?.startsWith("2")) return "2";
   if (printerInch?.startsWith("4")) return "4";
   if (printerInch?.startsWith("5")) return "5";
   return "3";
@@ -509,7 +510,11 @@ function RetailPOSInner() {
   const [receivedAmount, setReceivedAmount] = useState("");
   const [paymentType,    setPaymentType]    = useState<PaymentType>("Cash");
   const [printEnabled,   setPrintEnabled]   = useState(true);
-  const thermalPaperSize: ThermalPaperSize = toThermalPaperSize(invoiceSettings?.printer_inch);
+  const settingsPaperSize: ThermalPaperSize = toThermalPaperSize(invoiceSettings?.printer_inch);
+  // While printing, the receipt is drawn for the roll the chosen printer takes
+  // (see printThermalCopies) rather than the width Invoice Settings names.
+  const [printPaperSize, setPrintPaperSize] = useState<ThermalPaperSize | null>(null);
+  const thermalPaperSize: ThermalPaperSize = printPaperSize ?? settingsPaperSize;
   // Copy markings offered in the success modal's Download/Print menus.
   const invoiceCopyTypes = normalizeInvoiceCopyTypes(invoiceSettings?.invoice_copy_types);
   // Only branches that sell against buyer purchase orders collect the PO
@@ -1404,7 +1409,10 @@ console.log("test",serverHolds)
     await printThermalCopies(
       thermalRef.current,
       copies.length > 0 ? copies : [null],
-      (copy) => flushSync(() => setRenderCopyType(copy)),
+      (copy, paper) => flushSync(() => {
+        setRenderCopyType(copy);
+        setPrintPaperSize(paper);
+      }),
     );
   }, [thermalRef]);
 

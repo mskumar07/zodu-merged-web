@@ -40,6 +40,7 @@ import { ThermalInvoiceTemplate, type ThermalPaperSize } from "./ThermalInvoiceT
 import { renderPaginatedInvoicePdf, renderThermalReceiptPdf } from "@utils/pdfPagination";
 import { THERMAL_PRINTABLE_MM, THERMAL_ROLL_MM, printThermalCopies } from "@utils/thermalPrint";
 import InvoiceCopyActions from "@components/Common/InvoiceCopyActions";
+import SuccessToast from "@components/Common/SuccessToast";
 import { invoiceCopyTypesForSale } from "@utils/invoiceCopyTypes";
 import { isNonBindingSaleType, saleDocumentLabel } from "@utils/saleType";
 import { gstSummaryRows, gstBreakdownFromLines } from "@utils/gstSummary";
@@ -115,6 +116,7 @@ function INR(v: number | string) {
 
 // printer_inch is stored as "3 Inch" / "4 Inch" / "5 Inch"; ThermalPaperSize only accepts "3" | "4" | "5".
 function toThermalPaperSize(printerInch: string | undefined): ThermalPaperSize {
+  if (printerInch?.startsWith("2")) return "2";
   if (printerInch?.startsWith("4")) return "4";
   if (printerInch?.startsWith("5")) return "5";
   return "3";
@@ -248,7 +250,13 @@ export default function InvoiceDetailsModal({
   const pdfRef     = useRef<HTMLDivElement | null>(null);
   const thermalRef = useRef<HTMLDivElement | null>(null);
   const invoiceSettings = useAppSelector(InvoiceSettingsData);
-  const thermalPaperSize: ThermalPaperSize = toThermalPaperSize(invoiceSettings?.printer_inch);
+  const settingsPaperSize: ThermalPaperSize = toThermalPaperSize(invoiceSettings?.printer_inch);
+  // While printing, the receipt is drawn for the roll the chosen printer takes
+  // (see printThermalCopies) rather than the width Invoice Settings names.
+  const [printPaperSize, setPrintPaperSize] = useState<ThermalPaperSize | null>(null);
+  const thermalPaperSize: ThermalPaperSize = printPaperSize ?? settingsPaperSize;
+
+  const [printToast, setPrintToast] = useState<{ message: string; severity: "success" | "error" } | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: [...salesQueryKeys.detail(saleId), isRestaurant ? "restaurant" : "retail"],
@@ -441,13 +449,20 @@ export default function InvoiceDetailsModal({
   };
 
   // ── Thermal print handler ───────────────────────────────────
+  // The receipt template Invoice Settings names — exactly as its preview draws
+  // it — on the receipt printer connected to this PC, through the print bridge.
   const handleThermalPrint = async (copies: string[]) => {
     if (!thermalRef.current) return;
-    await printThermalCopies(
+    const printed = await printThermalCopies(
       thermalRef.current,
       copies.length > 0 ? copies : [null],
-      (copy) => flushSync(() => setRenderCopyType(copy)),
+      (copy, paper) => flushSync(() => {
+        setRenderCopyType(copy);
+        setPrintPaperSize(paper);
+      }),
+      { onError: (message) => setPrintToast({ message: `Bill not printed — ${message}`, severity: "error" }) },
     );
+    if (printed) setPrintToast({ message: `Bill sent to ${printed}`, severity: "success" });
   };
 
   // ── Print handler ─────────────────────────────────────────
@@ -1323,6 +1338,11 @@ export default function InvoiceDetailsModal({
 
         </Box>
       </DialogActions>
+      <SuccessToast
+        message={printToast?.message ?? ""}
+        severity={printToast?.severity ?? "success"}
+        onClose={() => setPrintToast(null)}
+      />
     </StyledDialog>
   );
 }
