@@ -1,23 +1,21 @@
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import LottieLoader from "@components/LottieLoader";
-import { Box, Button, Card, Grid, Paper, Skeleton, Typography } from "@mui/material";
+import { Box, Grid, MenuItem, Paper, Select, Skeleton, Typography } from "@mui/material";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
 import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
 import StarOutlineIcon from "@mui/icons-material/StarOutline";
-import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import InventoryOutlinedIcon from "@mui/icons-material/InventoryOutlined";
 import { useTenantContext } from "@store/tenantContext";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
 import {
   useSalesSummary,
   useSalesMonthlyBreakdown,
-  useSalesHistorical,
   useRestaurantMonthwiseSaleReport,
   type MonthlyBreakdownRow,
-  type HistoricalYear,
   type RestaurantMonthwiseSummaryRow,
 } from "./useReportapi";
+import { useActiveYears } from "./usePurchaseReportapi";
 
 const CURRENT_YEAR = new Date().getFullYear();
 const fmt = (val: number | undefined) =>
@@ -101,6 +99,15 @@ const RestaurantMonthwiseReport = ({
   zoduId: string;
   branchId: string;
 }) => {
+  const { data: activeYears = [CURRENT_YEAR], isLoading: yearsLoading } = useActiveYears({
+    zodu_id: zoduId,
+    branch_id: branchId,
+    isRestaurant: true,
+  });
+
+  const [year, setYear] = useState<number>(CURRENT_YEAR);
+  const selectedYear = activeYears.includes(year) ? year : (activeYears[0] ?? CURRENT_YEAR);
+
   const {
     data: pages,
     isLoading,
@@ -110,7 +117,7 @@ const RestaurantMonthwiseReport = ({
   } = useRestaurantMonthwiseSaleReport({
     zodu_id: zoduId,
     branch_id: branchId,
-    year: CURRENT_YEAR,
+    year: selectedYear,
     limit: 12,
   });
 
@@ -210,7 +217,22 @@ const RestaurantMonthwiseReport = ({
         <Box sx={{ width: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <Paper sx={{ borderRadius: 1, border: "1px solid #eee", display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
             <Box sx={{ px: 2, pt: 1.5, pb: 1, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-              <Typography fontWeight="bold" fontSize="0.9rem">Month-wise Orders Breakdown — {CURRENT_YEAR}</Typography>
+              <Typography fontWeight="bold" fontSize="0.9rem">Month-wise Orders Breakdown — {selectedYear}</Typography>
+
+              {yearsLoading ? (
+                <Skeleton width={90} height={32} sx={{ borderRadius: 1 }} />
+              ) : (
+                <Select
+                  size="small"
+                  value={selectedYear}
+                  onChange={(e) => setYear(Number(e.target.value))}
+                  sx={{ fontSize: "0.8rem", height: 32, minWidth: 90 }}
+                >
+                  {activeYears.map((y: number) => (
+                    <MenuItem key={y} value={y} sx={{ fontSize: "0.85rem" }}>{y}</MenuItem>
+                  ))}
+                </Select>
+              )}
             </Box>
             <Box sx={{ flex: 1, minHeight: 0 }}>
               <DataTable<RestaurantMonthwiseSummaryRow>
@@ -224,12 +246,12 @@ const RestaurantMonthwiseReport = ({
                 loadMoreRef={sentinelRef as React.RefObject<HTMLTableRowElement>}
                 tableContainerRef={tableContainerRef}
                 maxHeight="100%"
-                emptyMessage={`No order data available for ${CURRENT_YEAR}`}
+                emptyMessage={`No order data available for ${selectedYear}`}
               />
             </Box>
             <Box sx={{ px: 2, py: 1, display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid #f0f0f0", flexShrink: 0 }}>
               <Typography variant="caption" color="text.secondary">
-                {rows.length > 0 ? `Showing ${rows.length} month${rows.length !== 1 ? "s" : ""} · ${CURRENT_YEAR}` : `Full year performance · ${CURRENT_YEAR}`}
+                {rows.length > 0 ? `Showing ${rows.length} month${rows.length !== 1 ? "s" : ""} · ${selectedYear}` : `Full year performance · ${selectedYear}`}
               </Typography>
               {hasNextPage && !isFetchingNextPage && (
                 <Typography variant="caption" color="text.secondary">Scroll for more</Typography>
@@ -246,10 +268,19 @@ const SalesReport = () => {
   const { zoduId, branchId, businessType } = useTenantContext();
   const isRestaurant = businessType?.toLowerCase() === "restaurant";
 
+  const { data: activeYears = [CURRENT_YEAR], isLoading: yearsLoading } = useActiveYears({
+    zodu_id: zoduId ?? "",
+    branch_id: branchId ?? "",
+    isRestaurant,
+  });
+
+  const [year, setYear] = useState<number>(CURRENT_YEAR);
+  const selectedYear = activeYears.includes(year) ? year : (activeYears[0] ?? CURRENT_YEAR);
+
   const apiParams = {
     zodu_id: zoduId ?? "",
     branch_id: branchId ?? "",
-    year: CURRENT_YEAR,
+    year: selectedYear,
     isRestaurant,
   };
 
@@ -261,12 +292,6 @@ const SalesReport = () => {
     hasNextPage,
     fetchNextPage,
   } = useSalesMonthlyBreakdown({ ...apiParams, limit: 12, disabled: isRestaurant });
-  const { data: historical, isLoading: historicalLoading } = useSalesHistorical({
-    zodu_id: zoduId ?? "",
-    branch_id: branchId ?? "",
-    disabled: isRestaurant,
-    isRestaurant,
-  });
 
   const rows: MonthlyBreakdownRow[] = useMemo(
     () => breakdownPages?.pages.flatMap((page) => page.data ?? []) ?? [],
@@ -290,25 +315,10 @@ const SalesReport = () => {
     );
   }
 
-  const histYears: HistoricalYear[] = Array.isArray(historical) ? historical : [];
-  const maxSales = Math.max(...histYears.map((year) => year.netSales), 1);
-  const peakRevenue = Math.max(...histYears.map((year) => year.netSales), 0);
-  const avgGrowth =
-    histYears.length > 1
-      ? (
-          histYears.slice(1).reduce((acc, cur, index) => {
-            const prev = histYears[index].netSales;
-            return acc + (prev > 0 ? ((cur.netSales - prev) / prev) * 100 : 0);
-          }, 0) /
-          (histYears.length - 1)
-        ).toFixed(1)
-      : "—";
-
   const growthVal =
     summary?.growthPercent != null
       ? `${summary.growthPercent >= 0 ? "+" : ""}${summary.growthPercent}%`
       : "—";
-  const avgGrowthDisplay = Number.isFinite(Number(avgGrowth)) ? `+${avgGrowth}%` : "—";
 
   const columns = useMemo<ColumnDef<MonthlyBreakdownRow>[]>(
     () => [
@@ -440,9 +450,23 @@ const SalesReport = () => {
               }}
             >
               <Typography fontWeight="bold" fontSize="0.9rem">
-                Monthly Sales Breakdown — {CURRENT_YEAR}
+                Monthly Sales Breakdown — {selectedYear}
               </Typography>
-              <TuneOutlinedIcon sx={{ fontSize: 17, color: "text.secondary", cursor: "pointer" }} />
+
+              {yearsLoading ? (
+                <Skeleton width={90} height={32} sx={{ borderRadius: 1 }} />
+              ) : (
+                <Select
+                  size="small"
+                  value={selectedYear}
+                  onChange={(e) => setYear(Number(e.target.value))}
+                  sx={{ fontSize: "0.8rem", height: 32, minWidth: 90 }}
+                >
+                  {activeYears.map((y: number) => (
+                    <MenuItem key={y} value={y} sx={{ fontSize: "0.85rem" }}>{y}</MenuItem>
+                  ))}
+                </Select>
+              )}
             </Box>
 
             <Box sx={{ flex: 1, minHeight: 0 }}>
@@ -457,7 +481,7 @@ const SalesReport = () => {
                 loadMoreRef={loadMoreRef}
                 tableContainerRef={tableContainerRef}
                 maxHeight="100%"
-                emptyMessage={`No data available for ${CURRENT_YEAR}`}
+                emptyMessage={`No data available for ${selectedYear}`}
               />
             </Box>
 
@@ -474,8 +498,8 @@ const SalesReport = () => {
             >
               <Typography variant="caption" color="text.secondary">
                 {rows.length > 0
-                  ? `Showing ${rows.length} month${rows.length !== 1 ? "s" : ""} · ${CURRENT_YEAR}`
-                  : `Full year performance · ${CURRENT_YEAR}`}
+                  ? `Showing ${rows.length} month${rows.length !== 1 ? "s" : ""} · ${selectedYear}`
+                  : `Full year performance · ${selectedYear}`}
               </Typography>
               {hasNextPage && !isFetchingNextPage && (
                 <Typography variant="caption" color="text.secondary">
@@ -484,152 +508,6 @@ const SalesReport = () => {
               )}
             </Box>
           </Paper>
-        </Box>
-
-        <Box
-          sx={{
-            minWidth: 100,
-            display: "flex",
-            flexDirection: "column",
-            gap: 1.5,
-            minHeight: 200,
-            overflow: "hidden",
-          }}
-        >
-          <Card elevation={1} sx={{ p: 2, borderRadius: 1.5, minHeight: 0, display: "flex", flexDirection: "column" }}>
-            <Typography fontWeight="bold" fontSize="0.9rem" mb={2}>
-              Historical Performance
-            </Typography>
-
-            {historicalLoading ? (
-              <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-end", flex: 1, minHeight: 100 }}>
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <Skeleton key={index} variant="rectangular" sx={{ flex: 1, height: `${30 + index * 15}%` }} />
-                ))}
-              </Box>
-            ) : (
-              <>
-                <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1.5, flex: 1, minHeight: 100, pb: 0.5 }}>
-                  {histYears.map((year, index) => {
-                    const isLatest = index === histYears.length - 1;
-                    const heightPct = maxSales > 0 ? Math.round((year.netSales / maxSales) * 100) : 10;
-                    return (
-                      <Box
-                        key={year.year}
-                        sx={{
-                          flex: 1,
-                          height: `${heightPct}%`,
-                          minHeight: 6,
-                          bgcolor: isLatest ? "error.main" : "#e0e0e0",
-                          borderRadius: "4px 4px 0 0",
-                        }}
-                      />
-                    );
-                  })}
-                </Box>
-
-                <Box sx={{ display: "flex", gap: 1.5, mt: 0.5 }}>
-                  {histYears.map((year, index) => {
-                    const isLatest = index === histYears.length - 1;
-                    return (
-                      <Typography
-                        key={year.year}
-                        variant="caption"
-                        sx={{
-                          flex: 1,
-                          textAlign: "center",
-                          color: isLatest ? "error.main" : "text.secondary",
-                          fontWeight: isLatest ? 700 : 400,
-                          fontSize: "0.68rem",
-                        }}
-                      >
-                        {year.year}
-                      </Typography>
-                    );
-                  })}
-                </Box>
-              </>
-            )}
-
-            <Box sx={{ mt: 2, pt: 1.5, borderTop: "1px solid #f0f0f0", display: "flex", justifyContent: "space-between" }}>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Peak Annual Revenue
-                </Typography>
-                <Typography fontWeight="bold" fontSize="0.9rem">
-                  {historicalLoading ? <Skeleton width={70} /> : fmtSummary(peakRevenue)}
-                </Typography>
-              </Box>
-              <Box textAlign="right">
-                <Typography variant="caption" color="text.secondary">
-                  Average Growth
-                </Typography>
-                <Typography fontWeight="bold" fontSize="0.9rem" color="success.main">
-                  {historicalLoading ? <Skeleton width={50} /> : avgGrowthDisplay}
-                </Typography>
-              </Box>
-            </Box>
-          </Card>
-
-          <Card
-            elevation={0}
-            sx={{
-              p: 2.5,
-              borderRadius: 1.5,
-              bgcolor: "#c62828",
-              flexShrink: 0,
-              position: "relative",
-              overflow: "hidden",
-            }}
-          >
-            <Box
-              sx={{
-                position: "absolute",
-                width: 80,
-                height: 80,
-                borderRadius: "50%",
-                border: "1px solid rgba(255,255,255,0.15)",
-                top: -20,
-                right: 20,
-              }}
-            />
-            <Box
-              sx={{
-                position: "absolute",
-                width: 120,
-                height: 120,
-                borderRadius: "50%",
-                border: "1px solid rgba(255,255,255,0.1)",
-                top: -40,
-                right: -10,
-              }}
-            />
-            <Typography fontWeight="bold" fontSize="0.95rem" color="#fff" mb={1}>
-              Smart Forecast
-            </Typography>
-            <Typography
-              variant="caption"
-              sx={{ color: "rgba(255,255,255,0.85)", lineHeight: 1.6, display: "block", mb: 2 }}
-            >
-              Based on {CURRENT_YEAR} trends, Q3 is expected to see a 12% surge in premium category sales. We recommend stocking up by August.
-            </Typography>
-            <Button
-              variant="contained"
-              size="small"
-              sx={{
-                bgcolor: "#fff",
-                color: "#c62828",
-                fontWeight: 700,
-                fontSize: "0.75rem",
-                textTransform: "none",
-                borderRadius: 1,
-                px: 2,
-                "&:hover": { bgcolor: "#f5f5f5" },
-              }}
-            >
-              View Strategy
-            </Button>
-          </Card>
         </Box>
       </Box>
     </Box>

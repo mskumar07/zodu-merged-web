@@ -359,8 +359,38 @@ const KeyboardBillingView: React.FC<Props> = ({
     return () => window.removeEventListener("keydown", handler);
   }, [onOrderTypeChange, summaryLocked, isBusy, isEditingSummary, isDineIn, cartItems.length, canPaid, onSendToKDS, onPaid, onTableClick]);
 
+  // Every action on this screen (payment type, table, guests, row selection,
+  // toolbar icons…) is meant to be a quick aside from the search box — the
+  // cashier should be able to keep scanning/typing right after. None of
+  // those controls need their own focus, so pre-empt the blur at mousedown
+  // (preventDefault there stops the browser from ever moving focus off the
+  // input, while still letting the click through to the button/row's own
+  // onClick) rather than blurring then refocusing on click — the latter
+  // flashes the input's focus ring off and back on for every click.
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest("input, textarea")) return;
+      if (document.activeElement === searchInputRef.current) e.preventDefault();
+    };
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest("input, textarea")) return;
+      if (document.activeElement !== searchInputRef.current) searchInputRef.current?.focus();
+    };
+    root.addEventListener("mousedown", handleMouseDown);
+    root.addEventListener("click", handleClick);
+    return () => {
+      root.removeEventListener("mousedown", handleMouseDown);
+      root.removeEventListener("click", handleClick);
+    };
+  }, []);
+
   return (
-    <Box sx={{ flex: 1, display: "flex", position: "relative", overflow: "hidden", minHeight: 0 }}>
+    <Box ref={rootRef} sx={{ flex: 1, display: "flex", position: "relative", overflow: "hidden", minHeight: 0 }}>
       {/* ── Search + item table ── */}
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0, minWidth: 0, bgcolor: "#fff", position: "relative", zIndex: 0 }}>
         {/* Restored running order — locked until "Edit Order" is pressed, since
@@ -746,7 +776,7 @@ const KeyboardBillingView: React.FC<Props> = ({
                       ref={(el: HTMLTableRowElement | null) => { rowRefs.current[idx] = el; }}
                       hover
                       selected={isHighlightedRow}
-                      onClick={() => setHighlightedRowIndex(idx)}
+                      onClick={() => { setHighlightedRowIndex(idx); searchInputRef.current?.focus(); }}
                       sx={{ cursor: "pointer" }}
                     >
                       <TableCell sx={{ fontSize: 13, color: "#6b7280" }}>{idx + 1}</TableCell>
@@ -819,7 +849,7 @@ const KeyboardBillingView: React.FC<Props> = ({
                       ref={(el: HTMLTableRowElement | null) => { rowRefs.current[idx] = el; }}
                       hover
                       selected={isHighlightedRow}
-                      onClick={() => setHighlightedRowIndex(idx)}
+                      onClick={() => { setHighlightedRowIndex(idx); searchInputRef.current?.focus(); }}
                       sx={{ cursor: "pointer" }}
                     >
                       <TableCell sx={{ fontSize: 13, color: "#6b7280" }}>{idx + 1}</TableCell>
@@ -903,6 +933,10 @@ const KeyboardBillingView: React.FC<Props> = ({
               py: 1,
               borderTop: "1px solid #fecaca",
               overflowX: "auto",
+              scrollbarWidth: "thin",
+              "&::-webkit-scrollbar": { height: 6 },
+              "&::-webkit-scrollbar-track": { bgcolor: "transparent" },
+              "&::-webkit-scrollbar-thumb": { bgcolor: "#fca5a5", borderRadius: 3 },
             }}
           >
             <TableBarIcon sx={{ fontSize: 18, color: RED, flexShrink: 0 }} />
