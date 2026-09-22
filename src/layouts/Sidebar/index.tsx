@@ -29,13 +29,10 @@ import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import React, { useState, useEffect } from "react";
 import { History, Person, Settings, Badge } from "@mui/icons-material";
-import { useAppDispatch, useAppSelector } from "@store/store";
-import { clearAuthData, BusinessType, RoleAccess } from "@store/slices/userSlice";
+import { useAppSelector } from "@store/store";
+import { BusinessType, RoleAccess } from "@store/slices/userSlice";
 import { RestaurantBillingView } from "@store/slices/POSslice";
-import { tokenStore } from "@pages/auth/Authapi";
-import { db } from "@pages/POS/db";
-import { resetSessionReconciliation } from "@hooks/useReconcilePersistedSession";
-import { useQueryClient } from "@tanstack/react-query";
+import { useSignOut } from "@hooks/useSignOut";
 import { useLocation } from "react-router-dom";
 
 export const drawerWidth = 240;
@@ -87,10 +84,9 @@ interface SidebarProps {
 
 export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const theme = useTheme();
-  const dispatch = useAppDispatch();
-  const queryClient = useQueryClient();
   const location = useLocation();
   const { navigate } = useNavigation();
+  const handleLogout = useSignOut();
   const businessType = useAppSelector(BusinessType);
   const roleAccess = useAppSelector(RoleAccess);
   // Below `md` the sidebar can't rely on hover (touch devices) or afford to
@@ -146,18 +142,6 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
     easing: theme.transitions.easing.sharp,
     duration: theme.transitions.duration.enteringScreen,
   });
-
-  const handleLogout = async () => {
-    await db.products.clear();
-    await db.meta.clear();
-    queryClient.clear();
-    tokenStore.clear();
-    dispatch(clearAuthData());
-    // The next sign-in in this same page load has to reconcile its session
-    // again — the guard is module scoped, not component scoped.
-    resetSessionReconciliation();
-    navigate("/login");
-  };
 
   return (
     <Drawer

@@ -102,9 +102,7 @@ import {
   Phone as PhoneIcon,
   Notifications as NotificationsIcon,
   Receipt as ReceiptIcon,
-  Home as HomeIcon,
   Bolt as BoltIcon,
-  MoreHoriz as MoreHorizIcon,
   ShoppingBag as ShoppingBagIcon,
 } from '@mui/icons-material';
 
@@ -136,10 +134,7 @@ import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
 import PeopleAltRoundedIcon from '@mui/icons-material/PeopleAltRounded';
 import BarChartRoundedIcon from '@mui/icons-material/BarChartRounded';
-import LightbulbRoundedIcon from '@mui/icons-material/LightbulbRounded';
-import CampaignRoundedIcon from '@mui/icons-material/CampaignRounded';
 import ArrowUpwardRoundedIcon from '@mui/icons-material/ArrowUpwardRounded';
-import ArrowDownwardRoundedIcon from '@mui/icons-material/ArrowDownwardRounded';
 import DevicesRoundedIcon from '@mui/icons-material/DevicesRounded';
 
 import WomanIcon from '@mui/icons-material/Woman';
@@ -150,7 +145,35 @@ import heroSectionBg from '../../assets/Landingpage/herosection_bg.png';
 import heroSectionBgWide from '../../assets/Landingpage/herosection_bg_extended.webp';
 
 
-import SendIcon from '@mui/icons-material/Send';
+import StorefrontRoundedIcon from "@mui/icons-material/StorefrontRounded";
+import AgricultureRoundedIcon from "@mui/icons-material/AgricultureRounded";
+import DirectionsCarRoundedIcon from "@mui/icons-material/DirectionsCarRounded";
+import ApartmentRoundedIcon from "@mui/icons-material/ApartmentRounded";
+import LocalHospitalRoundedIcon from "@mui/icons-material/LocalHospitalRounded";
+import SchoolRoundedIcon from "@mui/icons-material/SchoolRounded";
+import CheckroomRoundedIcon from "@mui/icons-material/CheckroomRounded";
+import LaptopMacRoundedIcon from "@mui/icons-material/LaptopMacRounded";
+import RestaurantRoundedIcon from "@mui/icons-material/RestaurantRounded";
+import ChairRoundedIcon from "@mui/icons-material/ChairRounded";
+import LocalShippingRoundedIcon from "@mui/icons-material/LocalShippingRounded";
+import SpaRoundedIcon from "@mui/icons-material/SpaRounded";
+import FitnessCenterRoundedIcon from "@mui/icons-material/FitnessCenterRounded";
+import MedicationRoundedIcon from "@mui/icons-material/MedicationRounded";
+import PrintRoundedIcon from "@mui/icons-material/PrintRounded";
+import BoltRoundedIcon from "@mui/icons-material/BoltRounded";
+import LocalBarRoundedIcon from "@mui/icons-material/LocalBarRounded";
+import OpacityRoundedIcon from "@mui/icons-material/OpacityRounded";
+
+import DryCleaningRoundedIcon from "@mui/icons-material/DryCleaningRounded";
+import DiamondRoundedIcon from "@mui/icons-material/DiamondRounded";
+import RoomServiceRoundedIcon from "@mui/icons-material/RoomServiceRounded";
+import FlightRoundedIcon from "@mui/icons-material/FlightRounded";
+import MoreHorizRoundedIcon from "@mui/icons-material/MoreHorizRounded";
+
+import AirportShuttleRoundedIcon from "@mui/icons-material/AirportShuttleRounded";
+import WeekendRoundedIcon from "@mui/icons-material/WeekendRounded";
+import LiquorRoundedIcon from "@mui/icons-material/LiquorRounded";
+import WaterDropRoundedIcon from "@mui/icons-material/WaterDropRounded";
 
 // ── Design Tokens ───────────────────────────────────────────
 // ──────────────────
@@ -733,19 +756,8 @@ const FzChecklist: React.FC<{ items: string[]; color: string; icon: number; text
   </Box>
 );
 
-const FzLabel: React.FC<{ children: React.ReactNode; size?: number }> = ({ children, size = 10 }) => (
-  <Typography sx={{ fontSize: fz(size), color: FZ_MUTED, lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{children}</Typography>
-);
-
 const FzValue: React.FC<{ children: React.ReactNode; size: number }> = ({ children, size }) => (
   <Typography sx={{ fontSize: fz(size), fontWeight: 800, color: FZ_INK, lineHeight: 1.25, whiteSpace: "nowrap" }}>{children}</Typography>
-);
-
-const FzRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: fz(6) }}>
-    <Box component="span" sx={{ fontSize: fz(10), color: FZ_MUTED, minWidth: 0 }}>{label}</Box>
-    <Box component="span" sx={{ fontSize: fz(10.5), fontWeight: 800, color: FZ_INK, whiteSpace: "nowrap" }}>{value}</Box>
-  </Box>
 );
 
 const fzTabs = [
@@ -763,13 +775,6 @@ const fzPosStats = [
   { value: "₹ 2,850", delta: null, label: "Avg. Order Value" },
 ];
 
-const fzExpenses = [
-  { label: "Rent", amount: "₹ 12,000", icon: <HomeIcon />, color: "#2563EB", bg: "#DBEAFE" },
-  { label: "Utilities", amount: "₹ 6,250", icon: <LightbulbRoundedIcon />, color: "#EA580C", bg: "#FFEDD5" },
-  { label: "Marketing", amount: "₹ 4,200", icon: <CampaignRoundedIcon />, color: FZ_GREEN, bg: "#DCFCE7" },
-  { label: "Others", amount: "₹ 6,000", icon: <MoreHorizIcon />, color: "#D97706", bg: "#FEF3C7" },
-];
-
 const fzBenefits = [
   { icon: <BoltIcon />, title: "Real-time sync", sub: "Access your business anytime, anywhere" },
   { icon: <VerifiedUserIcon />, title: "Secure & reliable", sub: "Your data is always protected" },
@@ -783,7 +788,6 @@ const fzBenefits = [
 type FzPhoto = { src: string; srcSet: string };
 const FZ_MINI_W = [480, 720];
 const FZ_WIDE_W = [640, 1260];
-const FZ_MINI_SIZES = "(min-width: 1536px) 18vw, (min-width: 900px) 30vw, (min-width: 600px) 46vw, 92vw";
 const FZ_WIDE_SIZES = "(min-width: 1200px) 24vw, (min-width: 600px) 60vw, 100vw";
 const fzPhotoUrls = import.meta.glob<string>("../../assets/Landingpage/feature-photos/*.webp", { eager: true, import: "default" });
 const fzPhoto = (slug: string, widths: number[]): FzPhoto => {
@@ -791,134 +795,6 @@ const fzPhoto = (slug: string, widths: number[]): FzPhoto => {
   return { src: url(widths[widths.length - 1]), srcSet: widths.map((w) => `${url(w)} ${w}w`).join(", ") };
 };
 const fzCustomerPhoto = fzPhoto("customer", FZ_MINI_W);
-
-type FzMini = {
-  title: string;
-  sub: string;
-  icon: React.ReactNode;
-  color: string;
-  bg: string;
-  photo: FzPhoto;
-  alt: string;
-  imagePos: string;         // object-position when the photo sits beside the data (wide cards)
-  stackPos: string;         // object-position when the photo sits on top at 16:10 (narrow cards)
-  imageFr: number;          // image column width relative to the data panel (reference ratios)
-  learnMore?: "image" | "panel" | "panel-end";
-  panel: React.ReactNode;
-};
-
-const fzMiniCards: FzMini[] = [
-  {
-    title: "Customer Management", sub: "Build lasting customer relationships.",
-    icon: <PeopleAltRoundedIcon />, color: "#2563EB", bg: "#DBEAFE",
-    photo: fzCustomerPhoto, alt: "Customer checking her loyalty rewards on her phone", imagePos: "38% center", stackPos: "center 30%", imageFr: 0.95,
-    learnMore: "panel",
-    panel: (
-      <Box sx={{ ...fzPanelSx, p: fz(9) }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: fz(8) }}>
-          <Box aria-hidden="true" sx={{
-            width: fz(30), height: fz(30), borderRadius: "50%", flexShrink: 0, border: "2px solid #fff",
-            boxShadow: `0 0 0 1px ${FZ_BORDER}`, backgroundImage: `url("${fzCustomerPhoto.src}")`,  // quoted: dev URLs can contain parentheses
-            backgroundSize: "380%", backgroundPosition: "42% 28%",
-          }} />
-          <Box sx={{ minWidth: 0 }}>
-            <Typography sx={{ fontSize: fz(11.5), fontWeight: 700, color: FZ_INK, lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Priya Sharma</Typography>
-            <Box component="span" sx={{ display: "inline-block", mt: fz(3), px: fz(6), py: fz(1.5), borderRadius: fz(4), bgcolor: "#FEF3C7", color: "#B45309", fontSize: fz(8.5), fontWeight: 700, lineHeight: 1.3 }}>
-              Gold Customer
-            </Box>
-          </Box>
-        </Box>
-        <Box sx={{ mt: fz(10), display: "flex", flexDirection: "column", gap: fz(6) }}>
-          <FzRow label="Total Orders" value="24" />
-          <FzRow label="Total Spent" value="₹ 48,250" />
-          <FzRow label="Loyalty Points" value="1,250" />
-        </Box>
-      </Box>
-    ),
-  },
-  {
-    title: "Payments & Reminders", sub: "Get paid on time with automated reminders.",
-    icon: <AccountBalanceWalletOutlinedIcon />, color: "#EA580C", bg: "#FFEDD5",
-    photo: fzPhoto("payments", FZ_MINI_W), alt: "Payment reminder being sent from the Zodu app", imagePos: "center 60%", stackPos: "center 50%", imageFr: 1.1,
-    panel: (
-      <>
-        <Box sx={{ ...fzPanelSx, p: fz(10) }}>
-          <FzLabel>Outstanding Amount</FzLabel>
-          <Box sx={{ mt: fz(4) }}><FzValue size={16}>₹ 18,750</FzValue></Box>
-        </Box>
-        <Box sx={{ ...fzPanelSx, p: fz(10), display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: fz(6) }}>
-          <Box>
-            <FzLabel>Reminders Sent</FzLabel>
-            <Box sx={{ mt: fz(4) }}><FzValue size={16}>32</FzValue></Box>
-          </Box>
-          <SendIcon sx={{ fontSize: fz(20), color: FZ_RED, transform: "rotate(-30deg)", mb: fz(4), flexShrink: 0 }} />
-        </Box>
-      </>
-    ),
-  },
-  {
-    title: "GST Compliance & Reports", sub: "Stay 100% compliant with easy GST filing.",
-    icon: <DescriptionOutlinedIcon />, color: "#2563EB", bg: "#DBEAFE",
-    photo: fzPhoto("gst", FZ_MINI_W), alt: "GST compliance report with filing status on a desk", imagePos: "center 35%", stackPos: "center 35%", imageFr: 1.8,
-    learnMore: "image",
-    panel: (
-      <>
-        {[["GSTR-1", "Filed"], ["GSTR-3B", "Filed"], ["E-Way Bill", "Generated"]].map(([title, status]) => (
-          <Box key={title} sx={{ ...fzPanelSx, px: fz(8), py: fz(6), display: "flex", alignItems: "center", gap: fz(7) }}>
-            <CheckCircleIcon sx={{ fontSize: fz(17), color: FZ_GREEN, flexShrink: 0 }} />
-            <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ fontSize: fz(10.5), fontWeight: 700, color: FZ_INK, lineHeight: 1.2 }}>{title}</Typography>
-              <Typography sx={{ fontSize: fz(9.5), color: FZ_MUTED, lineHeight: 1.2 }}>{status}</Typography>
-            </Box>
-          </Box>
-        ))}
-      </>
-    ),
-  },
-  {
-    title: "Expense Management", sub: "Track and control your business expenses.",
-    icon: <PaymentOutlinedIcon />, color: FZ_GREEN, bg: "#DCFCE7",
-    photo: fzPhoto("expense", FZ_MINI_W), alt: "Store staff reviewing monthly expenses on a tablet", imagePos: "70% 20%", stackPos: "center 22%", imageFr: 1,
-    panel: (
-      <Box sx={{ ...fzPanelSx, p: fz(8), flex: 1 }}>
-        <FzLabel>This Month</FzLabel>
-        <Box sx={{ mt: fz(3), display: "flex", alignItems: "center", flexWrap: "wrap", columnGap: fz(6) }}>
-          <FzValue size={13.5}>₹ 28,450</FzValue>
-          <Box sx={{ display: "inline-flex", alignItems: "center", color: FZ_GREEN, fontSize: fz(10), fontWeight: 700 }}>
-            <ArrowDownwardRoundedIcon sx={{ fontSize: fz(11) }} />8.4%
-          </Box>
-        </Box>
-        <Box sx={{ mt: fz(8), display: "flex", flexDirection: "column", gap: fz(6) }}>
-          {fzExpenses.map((e) => (
-            <Box key={e.label} sx={{ display: "flex", alignItems: "center", gap: fz(5), fontSize: fz(9.5) }}>
-              <Box sx={{ width: fz(16), height: fz(16), borderRadius: "50%", bgcolor: e.bg, color: e.color, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", "& svg": { fontSize: fz(10) } }}>
-                {e.icon}
-              </Box>
-              <Box component="span" sx={{ flex: 1, minWidth: 0, color: FZ_TEXT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.label}</Box>
-              <Box component="span" sx={{ color: FZ_INK, fontWeight: 700, whiteSpace: "nowrap" }}>{e.amount}</Box>
-            </Box>
-          ))}
-        </Box>
-      </Box>
-    ),
-  },
-  {
-    title: "Purchase Management", sub: "Manage suppliers, purchase orders & receipts.",
-    icon: <ShoppingCartOutlinedIcon />, color: "#9333EA", bg: "#F3E8FF",
-    photo: fzPhoto("purchase", FZ_MINI_W), alt: "Warehouse staff checking purchase orders on a tablet", imagePos: "30% center", stackPos: "center 40%", imageFr: 1.37,
-    learnMore: "panel-end",
-    panel: (
-      <>
-        {[["Total Purchases", "₹ 1,25,000"], ["Purchase Orders", "12"], ["Pending Receipts", "5"]].map(([label, value]) => (
-          <Box key={label} sx={{ ...fzPanelSx, px: fz(10), py: fz(6) }}>
-            <FzLabel size={9.5}>{label}</FzLabel>
-            <FzValue size={12.5}>{value}</FzValue>
-          </Box>
-        ))}
-      </>
-    ),
-  },
-];
 
 const FzPosCard: React.FC = () => (
   // width 100%: an aspect-ratio grid item doesn't stretch inline, so once the row stretches its height the
@@ -1043,58 +919,40 @@ const FzWideCard: React.FC<{ icon: React.ReactNode; color: string; bg: string; t
   </Box>
 );
 
-// Narrow cards (five across on desktop, the 3-up row of the 3 + 2 layout, phones) show the photo on top at
-// full card width and 16:10, so the landscape photos aren't cropped to a sliver; the data sits below.
-// Cards at least 520px wide (the 2-up row) put the photo beside the data instead.
-const FZ_MINI_WIDE = "@container fzmini (min-width: 520px)";
-
-const FzMiniCard: React.FC<{ card: FzMini }> = ({ card }) => {
-  const more = card.learnMore;
-  return (
-    <Box sx={{ ...fzCardSx, containerType: "inline-size", containerName: "fzmini", borderRadius: fz(14), p: fz(10), pt: fz(9), display: "flex", flexDirection: "column", gap: fz(10) }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: fz(14) }}>
-        <FzIconTile icon={card.icon} color={card.color} bg={card.bg} size={40} radius={10} iconSize={21} />
-        <Box sx={{ minWidth: 0 }}>
-          <Typography component="h3" sx={{ fontSize: fz(14.5), fontWeight: 800, color: FZ_INK, lineHeight: 1.25 }}>{card.title}</Typography>
-          <Typography sx={{ mt: fz(2), fontSize: fz(11), color: FZ_MUTED, lineHeight: 1.35 }}>{card.sub}</Typography>
-        </Box>
-      </Box>
-
-      <Box sx={{
-        flex: 1, display: "grid", gap: fz(10),
-        gridTemplateColumns: "minmax(0, 1fr)",
-        gridTemplateRows: more ? "auto 1fr auto" : "auto 1fr",
-        gridTemplateAreas: more ? `"img" "panel" "more"` : `"img" "panel"`,
-        [FZ_MINI_WIDE]: {
-          columnGap: fz(12), rowGap: fz(8),
-          gridTemplateColumns: `minmax(0, ${card.imageFr}fr) minmax(0, 1fr)`,
-          gridTemplateRows: more ? "1fr auto" : "1fr",
-          gridTemplateAreas: more === "image" ? `"img panel" "more panel"` : more ? `"img panel" "img more"` : `"img panel"`,
-        },
-      }}>
-        {/* The photo is absolutely positioned so its natural height never stretches the card. */}
-        <Box sx={{
-          gridArea: "img", position: "relative", overflow: "hidden", borderRadius: fz(8), aspectRatio: "16 / 10",
-          [FZ_MINI_WIDE]: { aspectRatio: "auto", minHeight: fz(more === "image" ? 176 : 200) },
-        }}>
-          <Box component="img" src={card.photo.src} srcSet={card.photo.srcSet} sizes={FZ_MINI_SIZES} alt={card.alt} loading="lazy" decoding="async" sx={{
-            position: "absolute", inset: 0, display: "block", width: "100%", height: "100%",
-            objectFit: "cover", objectPosition: card.stackPos,
-            [FZ_MINI_WIDE]: { objectPosition: card.imagePos },
-          }} />
-        </Box>
-        <Box sx={{ gridArea: "panel", display: "flex", flexDirection: "column", gap: fz(8), minWidth: 0 }}>
-          {card.panel}
-        </Box>
-        {more && (
-          <Box sx={{ gridArea: "more", alignSelf: "end", display: "flex", justifyContent: more === "panel-end" ? "flex-end" : "flex-start", pl: more === "panel" ? fz(3) : 0 }}>
-            <FzLearnMore size={11} />
-          </Box>
-        )}
-      </Box>
-    </Box>
-  );
-};
+// The five module cards below POS / Inventory / Attendance, in the same wide layout. Their photos are
+// the landscape scenes shot for the smaller cards; imagePos keeps each subject in the right-hand crop.
+const fzModuleCards: Array<React.ComponentProps<typeof FzWideCard>> = [
+  {
+    icon: <PeopleAltRoundedIcon />, color: "#2563EB", bg: "#DBEAFE",
+    title: "Customer Management", desc: "Build lasting customer relationships.",
+    items: ["Customer profiles & purchase history", "Loyalty points & rewards", "Total spend & order insights", "Quick customer lookup at billing"],
+    photo: fzCustomerPhoto, alt: "Customer checking her loyalty rewards on her phone", imagePos: "center 30%",
+  },
+  {
+    icon: <AccountBalanceWalletOutlinedIcon />, color: "#EA580C", bg: "#FFEDD5",
+    title: "Payments & Reminders", desc: "Get paid on time with automated reminders.",
+    items: ["Automated payment reminders", "Outstanding amount tracking", "Reminder history per customer", "Collect dues faster"],
+    photo: fzPhoto("payments", FZ_MINI_W), alt: "Payment reminder being sent from the Zodu app", imagePos: "center 50%",
+  },
+  {
+    icon: <DescriptionOutlinedIcon />, color: "#2563EB", bg: "#DBEAFE",
+    title: "GST Compliance & Reports", desc: "Stay 100% compliant with easy GST filing.",
+    items: ["GSTR-1 & GSTR-3B reports", "E-way bill generation", "Filing status at a glance", "GST-ready invoices"],
+    photo: fzPhoto("gst", FZ_MINI_W), alt: "GST compliance report with filing status on a desk", imagePos: "center 35%",
+  },
+  {
+    icon: <PaymentOutlinedIcon />, color: FZ_GREEN, bg: "#DCFCE7",
+    title: "Expense Management", desc: "Track and control your business expenses.",
+    items: ["Daily & monthly expense tracking", "Expense categories", "Monthly spend summary", "See where your money goes"],
+    photo: fzPhoto("expense", FZ_MINI_W), alt: "Store staff reviewing monthly expenses on a tablet", imagePos: "center 22%",
+  },
+  {
+    icon: <ShoppingCartOutlinedIcon />, color: "#9333EA", bg: "#F3E8FF",
+    title: "Purchase Management", desc: "Manage suppliers, purchase orders & receipts.",
+    items: ["Supplier management", "Purchase orders", "Pending receipt tracking", "Purchase totals & history"],
+    photo: fzPhoto("purchase", FZ_MINI_W), alt: "Warehouse staff checking purchase orders on a tablet", imagePos: "center 40%",
+  },
+];
 
 const WhatZoduDoesSection: React.FC = () => (
   <Box component="section" id="what-zodu-does" aria-labelledby="fz-heading" sx={{
@@ -1174,19 +1032,18 @@ const WhatZoduDoesSection: React.FC = () => (
         </Box>
       </Box>
 
-      {/* Five module cards: 1 → 2 → 3 + 2 → 5 columns */}
+      {/* Five module cards, laid out like Inventory / Attendance: one per row below 1200px,
+          two per row from 1200px at the Attendance card's own width (the 1fr of the
+          1.435fr / 1fr row above), centred — the odd one out centred at the same width. */}
       <Box sx={{
         display: "grid", gap: fz(10),
-        gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(6, minmax(0, 1fr))" },
-        "& > *": { gridColumn: { md: "span 2" } },
-        "& > :nth-of-type(n+4)": { gridColumn: { md: "span 3" } },
-        "& > :last-of-type": { gridColumn: { sm: "1 / -1", md: "span 3" } },
-        [FZ_DESK]: {
-          gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
-          "& > *, & > :nth-of-type(n+4), & > :last-of-type": { gridColumn: "auto" },
+        gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: `repeat(2, calc((100% - ${fz(10)}) / 2.435))` },
+        justifyContent: "center",
+        "@media (min-width: 1200px)": {
+          "& > :last-child:nth-of-type(odd)": { gridColumn: "1 / -1", justifySelf: "center", width: `calc(50% - ${fz(5)})` },
         },
       }}>
-        {fzMiniCards.map((card) => <FzMiniCard key={card.title} card={card} />)}
+        {fzModuleCards.map((card) => <FzWideCard key={card.title} {...card} />)}
       </Box>
 
       {/* Benefits strip */}
@@ -1216,6 +1073,895 @@ const WhatZoduDoesSection: React.FC = () => (
     </Box>
   </Box>
 );
+
+{/*BUILT FOR EVERY BUSINESS*/}
+
+// ============================================================
+// HOW THIS WORKS
+//
+// The reference design is 1344 x 896. On desktop / laptop / large tablet (900px+) the whole
+// section is ONE scaled canvas with that exact aspect ratio:
+//   - every element is placed by its measured position in the reference
+//   - every font/size uses `cqw` (1cqw = 1% of the section width),
+//     so at ANY desktop width the layout is an exact scaled copy.
+// Below 900px (tablet / mobile) a normal responsive grid is used.
+// ============================================================
+
+const W = 1344;
+const H = 896;
+
+/**
+ * The desktop stage still reserves the top 67px that the navbar used to occupy.
+ * Since the navbar is not part of this section, that empty band is cropped away.
+ */
+const TOP_TRIM = 60;
+
+/** from this width the exact 5-column canvas is used; below it the responsive layout */
+const DESKTOP_MIN = "@media (min-width:900px)";
+
+/** design px (the stage is 1344 x 896 and is scaled to fit the screen) */
+const cq = (px: number) => `${px}px`;
+/** design-px -> % of canvas axis */
+const pct = (v: number, base: number) => `${((v / base) * 100).toFixed(3)}%`;
+
+
+// ------------------------------------------------------------
+// MEASURED CARD SHAPES (from the 1344 x 896 reference)
+//
+// Every card in the reference is slightly rotated AND perspective-warped
+// (top edge and bottom edge are not parallel). Each entry below is the
+// exact 4-corner shape of that card, converted to a CSS matrix3d:
+//   x, y = top-left corner   w, h = un-warped size   m = the warp
+// ------------------------------------------------------------
+
+// Gap control: every card is enlarged a little around its own centre,
+// which shrinks the space between neighbouring cards.
+// (reference-measured gaps are ~21px horizontal / ~17px vertical)
+const TRIM_X = 8; // px added to each card's width  -> horizontal gap - 8px
+const TRIM_Y = 6; // px added to each card's height -> vertical gap - 6px
+
+type Quad = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  cx: number; // warped-shape centre, relative to the top-left corner
+  cy: number;
+  m: string;
+};
+
+const QUADS: Quad[] = [
+  { x: 21.07, y: 263.07, w: 284.37, h: 137.51, cx: 147.62, cy: 72.97, m: "matrix3d(1.213726,0.03739939,0,0.0007341279,0.08211135,1.096377,0,3.248395e-05,0,0,1,0,0,0,0,1)" },
+  { x: 325.34, y: 273.93, w: 233.37, h: 121.66, cx: 122.28, cy: 50.80, m: "matrix3d(1.010293,-0.08473227,0,3.171937e-05,0.09961352,1.011732,0,0.0001061115,0,0,1,0,0,0,0,1)" },
+  { x: 576.99, y: 246.76, w: 249.23, h: 135.15, cx: 129.35, cy: 52.20, m: "matrix3d(0.9005311,-0.1090456,0,-0.0004301058,0.08070702,0.9669437,0,0.000212275,0,0,1,0,0,0,0,1)" },
+  { x: 848.0, y: 229.99, w: 241.63, h: 134.65, cx: 120.77, cy: 70.98, m: "matrix3d(1.09218,0.0328945,0,0.0003581141,0,1.053695,0,8.909753e-05,0,0,1,0,0,0,0,1)" },
+  { x: 1108.65, y: 240.96, w: 223.01, h: 134.09, cx: 108.40, cy: 71.05, m: "matrix3d(1.065644,0.03922278,0,0.0002841433,-0.04532106,1.036666,0,5.228079e-05,0,0,1,0,0,0,0,1)" },
+  { x: 27.88, y: 427.2, w: 246.89, h: 119.92, cx: 124.15, cy: 55.37, m: "matrix3d(1.025207,-0.03798946,0,0.0001452664,0.01434192,0.9983992,0,-0.0001598359,0,0,1,0,0,0,0,1)" },
+  { x: 288.67, y: 418.41, w: 248.99, h: 114.78, cx: 128.87, cy: 45.85, m: "matrix3d(0.9611226,-0.08772333,0,-0.0001718184,0.08482058,0.9901222,0,0.0001395083,0,0,1,0,0,0,0,1)" },
+  { x: 556.95, y: 392.8, w: 233.06, h: 134.28, cx: 119.17, cy: 60.13, m: "matrix3d(1.033621,-0.06187672,0,0.0001746897,0.04326045,1.009338,0,-7.263617e-05,0,0,1,0,0,0,0,1)" },
+  { x: 807.65, y: 392.53, w: 247.48, h: 123.61, cx: 126.32, cy: 56.20, m: "matrix3d(1.036006,-0.04660692,0,0.0001619635,0.04506608,1.012783,0,-4.715892e-05,0,0,1,0,0,0,0,1)" },
+  { x: 1069.83, y: 399.65, w: 247.21, h: 117.16, cx: 128.37, cy: 53.20, m: "matrix3d(1.070888,-0.0447908,0,0.0002749652,0.085414,1.036497,0,5.886999e-05,0,0,1,0,0,0,0,1)" },
+  { x: 23.3, y: 563.86, w: 263.79, h: 98.04, cx: 132.95, cy: 43.95, m: "matrix3d(1.060145,-0.04009893,0,0.0002142611,0.02514834,1.036186,0,9.500744e-05,0,0,1,0,0,0,0,1)" },
+  { x: 304.05, y: 549.57, w: 244.64, h: 113.32, cx: 123.95, cy: 48.38, m: "matrix3d(1.017498,-0.06862581,0,7.994263e-05,0.03484232,1.0099,0,7.473963e-06,0,0,1,0,0,0,0,1)" },
+  { x: 572.04, y: 547.72, w: 217.79, h: 110.73, cx: 110.85, cy: 50.40, m: "matrix3d(0.964971,-0.04383515,0,-0.0001527012,0.03617768,0.9808824,0,-1.401004e-05,0,0,1,0,0,0,0,1)" },
+  { x: 806.21, y: 530.0, w: 259.66, h: 115.74, cx: 132.95, cy: 57.82, m: "matrix3d(1.12183,0,0,0.0004496266,0.05583982,1.062775,0,7.482201e-05,0,0,1,0,0,0,0,1)" },
+  { x: 1084.22, y: 532.24, w: 237.72, h: 110.35, cx: 122.30, cy: 48.70, m: "matrix3d(1.032404,-0.05543408,0,0.0001152029,0.06679514,1.024328,0,0.0001180404,0,0,1,0,0,0,0,1)" },
+  { x: 26.74, y: 673.14, w: 257.23, h: 90.22, cx: 132.35, cy: 42.83, m: "matrix3d(1.102927,-0.01881024,0,0.000357983,0.08556561,1.062217,0,0.0002282964,0,0,1,0,0,0,0,1)" },
+  { x: 317.88, y: 675.52, w: 232.68, h: 86.05, cx: 117.60, cy: 36.88, m: "matrix3d(1.037437,-0.05478411,0,0.0001610384,0.03429935,1.020911,0,3.712814e-05,0,0,1,0,0,0,0,1)" },
+  { x: 576.0, y: 666.91, w: 225.62, h: 93.97, cx: 112.77, cy: 47.02, m: "matrix3d(1.093289,0.0006278393,0,0.0004383512,4.725779e-18,1.036603,0,-0.0001101114,0,0,1,0,0,0,0,1)" },
+  { x: 817.54, y: 668.19, w: 234.35, h: 98.51, cx: 119.53, cy: 43.75, m: "matrix3d(1.087929,-0.05051991,0,0.0003723961,0.05253894,1.044685,0,4.25497e-05,0,0,1,0,0,0,0,1)" },
+  { x: 1091.16, y: 661.28, w: 227.36, h: 101.81, cx: 114.28, cy: 44.78, m: "matrix3d(0.9761183,-0.05251486,0,-7.612553e-05,0.01485962,0.9809364,0,-0.0001034874,0,0,1,0,0,0,0,1)" },
+  { x: 31.67, y: 777.0, w: 250.05, h: 87.6, cx: 127.58, cy: 43.73, m: "matrix3d(1.251034,0,0,0.0009861266,0.06380825,1.115586,0,8.138283e-05,0,0,1,0,0,0,0,1)" },
+  { x: 298.96, y: 777.42, w: 247.9, h: 89.09, cx: 128.23, cy: 40.00, m: "matrix3d(1.186256,-0.04209415,0,0.0007196786,0.104835,1.092936,0,0.0001701433,0,0,1,0,0,0,0,1)" },
+  { x: 567.85, y: 776.21, w: 241.82, h: 89.61, cx: 123.15, cy: 44.75, m: "matrix3d(1.20658,-6.022599e-05,0,0.0008482591,0.05201308,1.09373,0,2.038107e-05,0,0,1,0,0,0,0,1)" },
+  { x: 832.34, y: 785.36, w: 216.23, h: 88.95, cx: 112.00, cy: 34.55, m: "matrix3d(1.035285,-0.09300992,0,0.000154595,0.09903242,1.023675,0,0.0001362714,0,0,1,0,0,0,0,1)" },
+  { x: 1083.94, y: 778.09, w: 229.51, h: 82.21, cx: 115.95, cy: 34.48, m: "matrix3d(1.029145,-0.05911279,0,0.0001348999,0.03337287,1.01479,0,1.177212e-06,0,0,1,0,0,0,0,1)" },
+];
+
+type Industry = {
+  title: string; // "\n" = forced line break (matches reference wrapping)
+  description: string; // "\n" = forced line break
+  bg: [string, string];
+  iconColor: string;
+  rotation: number; // deg
+  t: number; // title font-size, in cqw of the CARD width
+  tl: number; // text + arrow left offset, % of card width
+  tt: number; // text top offset, % of card height
+  ab: number; // arrow bottom offset, % of card height
+  is: number; // icon size, cqw of card width
+  ir: number; // icon centre distance from right edge, % of card width
+  icon?: React.ReactNode;
+  variant?: "last" | "dots";
+};
+
+// ------------------------------------------------------------
+// COLORS
+// ------------------------------------------------------------
+
+const NAVY = "#0B1F4B";
+const SLATE = "#5B6577";
+const BRAND_RED = "#E11D48";
+
+
+// ------------------------------------------------------------
+// DATA  (order = reading order in the reference, 5 x 5)
+// ------------------------------------------------------------
+
+const industries: Industry[] = [
+  // ---------- ROW 1 ----------
+  {
+    title: "Retail &\nGeneral Trade",
+    description: "Shops, Supermarkets,\nKirana & More",
+    bg: ["#FDE9EC", "#FAC9CF"],
+    iconColor: "#F26D74",
+    rotation: 1.7,
+    t: 6.5, tl: 12, tt: 12, ab: 8, is: 30, ir: 14,
+    icon: <StorefrontRoundedIcon />,
+  },
+  {
+    title: "Agriculture",
+    description: "Farms, Agri Products,\nDairy & Livestock",
+    bg: ["#EAF7EC", "#CDEBD3"],
+    iconColor: "#3FAF5E",
+    rotation: -4,
+    t: 6.4, tl: 11, tt: 14, ab: 10, is: 28, ir: 15,
+    icon: <AgricultureRoundedIcon />,
+  },
+  {
+    title: "Automobile",
+    description: "Vehicles, Spare Parts,\nService Centres & Transport",
+    bg: ["#EFEBFE", "#D9D0F9"],
+    iconColor: "#A596EE",
+    rotation: -5,
+    t: 6.4, tl: 12, tt: 14, ab: 10, is: 22, ir: 13,
+    icon: <AirportShuttleRoundedIcon />,
+  },
+  {
+    title: "Construction &\nReal Estate",
+    description: "Building Materials,\nConstruction, Rentals & Lease",
+    bg: ["#FFF5DA", "#FFE6A8"],
+    iconColor: "#F2BE4A",
+    rotation: 0.8,
+    t: 6.1, tl: 8.5, tt: 14, ab: 10, is: 32, ir: 15,
+    icon: <ApartmentRoundedIcon />,
+  },
+  {
+    title: "Healthcare",
+    description: "Clinics, Hospitals,\nPharmacies & More",
+    bg: ["#E9F4FF", "#CFE5FB"],
+    iconColor: "#86B9F3",
+    rotation: 1.5,
+    t: 6.6, tl: 8, tt: 14, ab: 10, is: 27, ir: 16,
+    icon: <LocalHospitalRoundedIcon />,
+  },
+
+  // ---------- ROW 2 ----------
+  {
+    title: "Education &\nCoaching",
+    description: "Schools, Colleges,\nCoaching & Training",
+    bg: ["#E8F3FF", "#CFE4FB"],
+    iconColor: "#8FA6CF",
+    rotation: -2.5,
+    t: 6.4, tl: 12, tt: 10.5, ab: 9, is: 32, ir: 19,
+    icon: <SchoolRoundedIcon />,
+  },
+  {
+    title: "Fashion & Lifestyle",
+    description: "Garments, Footwear,\nJewellery, Beauty & More",
+    bg: ["#FDEBE9", "#FAD0CC"],
+    iconColor: "#F27B7B",
+    rotation: -4,
+    t: 5.9, tl: 8, tt: 12, ab: 9, is: 26, ir: 14,
+    icon: <CheckroomRoundedIcon />,
+  },
+  {
+    title: "Electronics &\nTechnology",
+    description: "Mobiles, Electronics,\nIT Services & Accessories",
+    bg: ["#E6F7F4", "#C8EDE7"],
+    iconColor: "#4DBBAA",
+    rotation: -3.5,
+    t: 6.2, tl: 10, tt: 13, ab: 9, is: 30, ir: 17,
+    icon: <LaptopMacRoundedIcon />,
+  },
+  {
+    title: "Food & Beverage",
+    description: "Restaurants, Cafes,\nHotels & Catering",
+    bg: ["#ECE8FD", "#D6CEF8"],
+    iconColor: "#9B8BE8",
+    rotation: -4,
+    t: 6, tl: 9.6, tt: 12, ab: 9, is: 24, ir: 13,
+    icon: <RestaurantRoundedIcon />,
+  },
+  {
+    title: "Home & Furniture",
+    description: "Furniture, Home Services,\nInteriors & More",
+    bg: ["#FDECEE", "#F9D5DA"],
+    iconColor: "#F08290",
+    rotation: -2,
+    t: 5.9, tl: 9, tt: 12, ab: 9, is: 23, ir: 13,
+    icon: <WeekendRoundedIcon />,
+  },
+
+  // ---------- ROW 3 ----------
+  {
+    title: "Automotive & Transport",
+    description: "Vehicles, Logistics,\nTransport & Fleet",
+    bg: ["#FFF1D3", "#FFDDA0"],
+    iconColor: "#F6B94E",
+    rotation: -3.5,
+    t: 5.5, tl: 8, tt: 8, ab: 7, is: 30, ir: 15,
+    icon: <LocalShippingRoundedIcon />,
+  },
+  {
+    title: "Beauty & Wellness",
+    description: "Spa, Fitness, Wellness\n& Personal Care",
+    bg: ["#E9F0FE", "#D2DEFB"],
+    iconColor: "#A3B4F3",
+    rotation: -4.5,
+    t: 5.9, tl: 10, tt: 8, ab: 7, is: 24, ir: 14,
+    icon: <SpaRoundedIcon />,
+  },
+  {
+    title: "Health & Fitness",
+    description: "Gyms, Fitness, Sports\n& Wellness",
+    bg: ["#FDE9ED", "#F9CDD5"],
+    iconColor: "#EE6A7C",
+    rotation: -2.3,
+    t: 6.2, tl: 11, tt: 8, ab: 7, is: 24, ir: 18,
+    icon: <FitnessCenterRoundedIcon />,
+  },
+  {
+    title: "Pharmacy & Medical Devices",
+    description: "Medicine, Medical Devices\n& Healthcare Products",
+    bg: ["#E8F7EB", "#C9EDD1"],
+    iconColor: "#4FB56D",
+    rotation: -3,
+    t: 5.3, tl: 9, tt: 8, ab: 7, is: 25, ir: 16,
+    icon: <MedicationRoundedIcon />,
+  },
+  {
+    title: "Printing & Stationery",
+    description: "Printing, Stationery,\nOffice Supplies & More",
+    bg: ["#ECE8FD", "#D7CFF8"],
+    iconColor: "#9584E6",
+    rotation: -2.5,
+    t: 5.7, tl: 10, tt: 8, ab: 7, is: 21, ir: 17,
+    icon: <PrintRoundedIcon />,
+  },
+
+  // ---------- ROW 4 ----------
+  {
+    title: "Electrical & Hardware",
+    description: "Electrical Works,\nHardware & Tools",
+    bg: ["#E3F7F4", "#C8EDEA"],
+    iconColor: "#45B3C2",
+    rotation: -2,
+    t: 4.8, tl: 8, tt: 7, ab: 6, is: 17, ir: 16,
+    icon: <BoltRoundedIcon />,
+  },
+  {
+    title: "Liquor & Beverages",
+    description: "Liquor, Beverages,\nFood & More",
+    bg: ["#FDE9EF", "#FACDD9"],
+    iconColor: "#F0708F",
+    rotation: -4.8,
+    t: 5.9, tl: 9.6, tt: 7, ab: 6, is: 19, ir: 16,
+    icon: <LiquorRoundedIcon />,
+  },
+  {
+    title: "Oil & Gas",
+    description: "Fuel, Energy, Industrial\nSupplies & More",
+    bg: ["#E8F3FF", "#CDE4FB"],
+    iconColor: "#5FAEEF",
+    rotation: -1,
+    t: 5.7, tl: 8.8, tt: 7, ab: 6, is: 14, ir: 17,
+    icon: <WaterDropRoundedIcon />,
+  },
+  {
+    title: "Packaging",
+    description: "Packaging Materials,\nSupplies & Services",
+    bg: ["#FFEFD9", "#FFD8AE"],
+    iconColor: "#F5A94E",
+    rotation: -3.5,
+    t: 5.3, tl: 10, tt: 7, ab: 6, is: 20, ir: 16,
+    icon: <Inventory2RoundedIcon />,
+  },
+  {
+    title: "Textiles & Garments",
+    description: "Fabrics, Textiles,\nApparel & More",
+    bg: ["#E8F7EB", "#CDEED6"],
+    iconColor: "#52BC79",
+    rotation: -2.5,
+    t: 5, tl: 9, tt: 7, ab: 6, is: 18, ir: 13,
+    icon: <DryCleaningRoundedIcon />,
+  },
+
+  // ---------- ROW 5 ----------
+  {
+    title: "Jewellery & Accessories",
+    description: "Jewellery, Watches,\nAccessories & More",
+    bg: ["#EEE8FD", "#D8CEF8"],
+    iconColor: "#9271DB",
+    rotation: -3,
+    t: 5, tl: 10, tt: 8, ab: 6, is: 18, ir: 18,
+    icon: <DiamondRoundedIcon />,
+  },
+  {
+    title: "Hotels & Hospitality",
+    description: "Hotels, Resorts, Hospitality\nServices & More",
+    bg: ["#FFF4D5", "#FFE3A0"],
+    iconColor: "#F3B93C",
+    rotation: -2.5,
+    t: 5.1, tl: 9.5, tt: 8, ab: 6, is: 20, ir: 20,
+    icon: <RoomServiceRoundedIcon />,
+  },
+  {
+    title: "Travel & Tourism",
+    description: "Tours, Travel, Transport\n& Logistics",
+    bg: ["#E6F3FF", "#C9E3FB"],
+    iconColor: "#4F9FE8",
+    rotation: -1.5,
+    t: 5.2, tl: 9.7, tt: 8, ab: 6, is: 18, ir: 17,
+    icon: <FlightRoundedIcon />,
+  },
+  {
+    title: "Others",
+    description: "Many more industries\nand services",
+    bg: ["#FDE9EC", "#FAD0D6"],
+    iconColor: "#F27A85",
+    rotation: -3.5,
+    t: 5.8, tl: 11.6, tt: 8, ab: 6, is: 15, ir: 14,
+    variant: "dots",
+  },
+  {
+    title: "And many more...",
+    description: "Whatever your business,\nwe're here to support you.",
+    bg: ["#E8F1FF", "#D0E1FB"],
+    iconColor: "#9EBFF5",
+    rotation: -2.5,
+    t: 5.5, tl: 9.4, tt: 12, ab: 6, is: 15, ir: 14,
+    variant: "last",
+  },
+];
+
+// ============================================================
+// INDUSTRY CARD
+//
+// Every measurement inside is in % or `cqw` of the CARD itself, so the
+// text / arrow / icon can never overlap or clip at any size.
+// ============================================================
+
+type Mode = "canvas" | "flow";
+
+const IndustryCard = ({
+  item,
+  mode,
+  quad,
+}: {
+  item: Industry;
+  mode: Mode;
+  quad?: Quad;
+}) => {
+  const canvas = mode === "canvas";
+  const isLast = item.variant === "last";
+  const isDots = item.variant === "dots";
+  const rot = item.rotation;
+  const tt = canvas ? item.tt : 14;
+
+  return (
+    <Box
+      sx={{
+        position: "relative",
+        boxSizing: "border-box",
+        width: "100%",
+        ...(canvas ? { height: "100%" } : { aspectRatio: "1.8 / 1" }),
+        containerType: "inline-size", // enables cqw for children
+        overflow: "hidden",
+        borderRadius: "10px",
+        background: `linear-gradient(135deg, ${item.bg[0]} 0%, ${item.bg[1]} 100%)`,
+        border: "3px solid rgba(255,255,255,0.95)",
+        boxShadow:
+          "0 2px 4px rgba(15,23,42,0.06), 0 8px 18px rgba(15,23,42,0.10)",
+        // canvas: exact warp measured from the reference; flow: simple tilt
+        transform:
+          canvas && quad
+            ? `translate(${quad.cx}px, ${quad.cy}px) scale(${1 + TRIM_X / quad.w}, ${1 + TRIM_Y / quad.h}) translate(${-quad.cx}px, ${-quad.cy}px) ${quad.m}`
+            : "none", // tablet / mobile: cards stay straight
+        transformOrigin: canvas ? "0 0" : "center center",
+        transition:
+          "transform .22s ease, translate .22s ease, box-shadow .22s ease",
+        cursor: "pointer",
+        "&:hover": canvas
+          ? { translate: "0 -3px", boxShadow: "0 10px 22px rgba(15,23,42,0.13)" }
+          : {
+              transform: "translateY(-3px)",
+              boxShadow: "0 10px 22px rgba(15,23,42,0.13)",
+            },
+      }}
+    >
+      {/* soft organic shapes behind the icon */}
+      <Box
+        sx={{
+          position: "absolute",
+          width: "60%",
+          height: "128%",
+          right: "-16%",
+          bottom: "-40%",
+          borderRadius: "52% 48% 44% 56% / 46% 54% 46% 54%",
+          transform: "rotate(-14deg)",
+          background: "rgba(255,255,255,0.30)",
+          zIndex: 0,
+        }}
+      />
+      <Box
+        sx={{
+          position: "absolute",
+          width: "44%",
+          height: "104%",
+          right: "-5%",
+          bottom: "-24%",
+          borderRadius: "40% 60% 38% 62% / 58% 42% 58% 42%",
+          transform: "rotate(-18deg)",
+          background: `${item.iconColor}30`,
+          zIndex: 0,
+        }}
+      />
+
+      {/* text (explicit line breaks = same wrapping as the reference) */}
+      <Box
+        sx={{
+          position: "absolute",
+          left: `${item.tl}%`,
+          top: isLast ? "24%" : `${tt}%`,
+          zIndex: 3,
+        }}
+      >
+        <Typography
+          sx={{
+            color: NAVY,
+            fontWeight: 800,
+            fontSize: `${item.t}cqw`,
+            lineHeight: 1.15,
+            letterSpacing: "-0.02em",
+            whiteSpace: "pre",
+          }}
+        >
+          {item.title}
+        </Typography>
+        <Typography
+          sx={{
+            mt: "2.4cqw",
+            color: SLATE,
+            fontWeight: 400,
+            fontSize: `${(item.t * 0.68).toFixed(2)}cqw`,
+            lineHeight: 1.45,
+            whiteSpace: "pre",
+          }}
+        >
+          {item.description}
+        </Typography>
+      </Box>
+
+      {isLast && (
+        <ArrowForwardRoundedIcon
+          sx={{
+            position: "absolute",
+            right: "7%",
+            bottom: "30%",
+            fontSize: "5.5cqw",
+            color: NAVY,
+            zIndex: 6,
+          }}
+        />
+      )}
+
+      {/* illustration icon (centre = ir% from right, 58% from top) */}
+      {!isLast && !isDots && item.icon && (
+        <Box
+          sx={{
+            position: "absolute",
+            right: `${item.ir}%`,
+            top: "58%",
+            transform: "translate(50%, -50%)",
+            color: item.iconColor,
+            opacity: 0.88,
+            zIndex: 2,
+            display: "flex",
+            pointerEvents: "none",
+            "& svg": { fontSize: `${item.is}cqw` },
+          }}
+        >
+          {item.icon}
+        </Box>
+      )}
+
+      {/* "Others" dotted circle */}
+      {isDots && (
+        <Box
+          sx={{
+            position: "absolute",
+            right: `${item.ir}%`,
+            top: "58%",
+            transform: "translate(50%, -50%)",
+            width: `${item.is}cqw`,
+            height: `${item.is}cqw`,
+            borderRadius: "50%",
+            bgcolor: "rgba(255,255,255,0.65)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#F27A85",
+            zIndex: 2,
+            pointerEvents: "none",
+            "& svg": { fontSize: `${item.is * 0.72}cqw` },
+          }}
+        >
+          <MoreHorizRoundedIcon />
+        </Box>
+      )}
+    </Box>
+  );
+};
+
+// ============================================================
+// DESKTOP CANVAS (900px+): exact scaled copy of the 1344 x 896 reference
+// ============================================================
+
+const NAV_LINKS = ["Home", "Features", "Industries", "Pricing", "About Us"];
+
+const DesktopCanvas = () => {
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [k, setK] = React.useState(1);
+
+  // scale the fixed 1344 x 896 stage to the real width of the section
+  React.useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => setK(el.clientWidth / W);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+  <Box
+    ref={ref}
+    sx={{
+      display: "none",
+      [DESKTOP_MIN]: { display: "block" },
+      position: "relative",
+      width: "100%",
+      aspectRatio: `${W} / ${H - TOP_TRIM}`,
+    }}
+  >
+  <Box
+    sx={{
+      position: "absolute",
+      top: `${-TOP_TRIM * k}px`,
+      left: 0,
+      width: `${W}px`,
+      height: `${H}px`,
+      transformOrigin: "0 0",
+      transform: `scale(${k})`,
+    }}
+  >
+    
+
+    {/* ---------- EYEBROW ---------- */}
+    <Typography
+      sx={{
+        position: "absolute",
+        left: cq(47),
+        top: cq(83),
+        color: BRAND_RED,
+        fontSize: cq(10),
+        fontWeight: 800,
+        letterSpacing: "0.32em",
+        textTransform: "uppercase",
+        lineHeight: 1,
+        whiteSpace: "nowrap",
+      }}
+    >
+      Built for every business
+    </Typography>
+
+    {/* ---------- HEADING ---------- */}
+    <Typography
+      component="h2"
+      sx={{
+        position: "absolute",
+        left: cq(47),
+        top: cq(102),
+        m: 0,
+        color: NAVY,
+        fontWeight: 800,
+        fontSize: cq(47),
+        lineHeight: 0.9,
+        letterSpacing: "-0.045em",
+        whiteSpace: "nowrap",
+      }}
+    >
+      <Box component="span" sx={{ color: BRAND_RED }}>
+        zodu
+      </Box>{" "}
+      is suitable for all
+      <br />
+      types of businesses
+    </Typography>
+
+    {/* ---------- PARAGRAPH ---------- */}
+    <Typography
+      sx={{
+        position: "absolute",
+        left: cq(47),
+        top: cq(198),
+        color: SLATE,
+        fontSize: cq(14.5),
+        lineHeight: 1.38,
+        whiteSpace: "nowrap",
+      }}
+    >
+      From retail shops to service businesses, zodu helps you
+      <br />
+      manage billing, inventory, payments and more — all in one place.
+    </Typography>
+
+    {/* ---------- HANDWRITTEN NOTE ---------- */}
+    <Box
+      sx={{
+        position: "absolute",
+        left: pct(1188, W),
+        top: pct(140, H),
+        transform: "translate(-50%, -50%) rotate(-11deg)",
+        color: BRAND_RED,
+        fontFamily: "'Caveat', 'Segoe Script', 'Brush Script MT', cursive",
+        zIndex: 5,
+      }}
+    >
+      {/* spark marks */}
+      <Box
+        component="svg"
+        viewBox="0 0 50 50"
+        sx={{
+          position: "absolute",
+          left: cq(-46),
+          top: cq(-6),
+          width: cq(30),
+          height: cq(30),
+        }}
+      >
+        <path d="M27 5 L36 15" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M7 22 L17 22" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M18 37 L26 29" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
+      </Box>
+
+      <Typography
+        sx={{
+          fontFamily: "inherit",
+          fontSize: cq(25),
+          fontWeight: 600,
+          fontStyle: "italic",
+          lineHeight: 1.2,
+          whiteSpace: "nowrap",
+        }}
+      >
+        <Box component="span" sx={{ ml: cq(14) }}>
+          Different Businesses.
+        </Box>
+        <br />
+        Same Powerful Solution.
+      </Typography>
+
+      {/* squiggle underline */}
+      <Box
+        component="svg"
+        viewBox="0 0 290 30"
+        sx={{
+          display: "block",
+          width: cq(135),
+          height: cq(16),
+          ml: cq(42),
+          mt: cq(4),
+        }}
+      >
+        <path d="M4 24 C70 20 150 12 285 2" fill="none" stroke={BRAND_RED} strokeWidth="2.6" strokeLinecap="round" />
+      </Box>
+    </Box>
+
+    {/* ---------- CARDS (exact position + warp measured from the reference) ---------- */}
+    {industries.map((item, index) => {
+      const q = QUADS[index];
+      return (
+        <Box
+          key={`${item.title}-${index}`}
+          sx={{
+            position: "absolute",
+            left: `${q.x}px`,
+            top: `${q.y}px`,
+            width: `${q.w}px`,
+            height: `${q.h}px`,
+          }}
+        >
+          <IndustryCard item={item} mode="canvas" quad={q} />
+        </Box>
+      );
+    })}
+  </Box>
+  </Box>
+  );
+};
+
+// ============================================================
+// TABLET / MOBILE (below 900px): normal responsive grid
+// ============================================================
+
+const FlowLayout = () => {
+  return (
+  <Box
+    sx={{ display: "block", [DESKTOP_MIN]: { display: "none" } }}
+  >
+    <Box sx={{ px: { xs: "20px", md: "38px" }, pt: "22px" }}>
+      <Typography
+        sx={{
+          color: BRAND_RED,
+          fontSize: "11px",
+          fontWeight: 800,
+          letterSpacing: "0.32em",
+          textTransform: "uppercase",
+          mb: "12px",
+        }}
+      >
+        Built for every business
+      </Typography>
+      <Typography
+        component="h2"
+        sx={{
+          m: 0,
+          color: NAVY,
+          fontWeight: 800,
+          fontSize: { xs: "36px", md: "46px" },
+          lineHeight: 0.95,
+          letterSpacing: "-0.045em",
+        }}
+      >
+        <Box component="span" sx={{ color: BRAND_RED }}>
+          zodu
+        </Box>{" "}
+        is suitable for all types of businesses
+      </Typography>
+      <Typography
+        sx={{ mt: "16px", maxWidth: "540px", color: SLATE, fontSize: "15px", lineHeight: 1.5 }}
+      >
+        From retail shops to service businesses, zodu helps you manage billing,
+        inventory, payments and more — all in one place.
+      </Typography>
+
+      {/* handwritten note: centred (tablet + mobile) */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          mt: { xs: "30px", md: "28px" },
+        }}
+      >
+        <Box
+          sx={{
+            position: "relative",
+            textAlign: "center",
+            color: BRAND_RED,
+            transform: "rotate(-6deg)",
+            fontFamily: "'Caveat', 'Segoe Script', 'Brush Script MT', cursive",
+          }}
+        >
+          {/* spark marks */}
+          <Box
+            component="svg"
+            viewBox="0 0 50 50"
+            sx={{
+              position: "absolute",
+              left: "-38px",
+              top: "-8px",
+              width: "30px",
+              height: "30px",
+            }}
+          >
+            <path d="M27 5 L36 15" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
+            <path d="M7 22 L17 22" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
+            <path d="M18 37 L26 29" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
+          </Box>
+
+          <Typography
+            sx={{
+              fontFamily: "inherit",
+              fontSize: { xs: "24px", md: "28px" },
+              fontWeight: 600,
+              fontStyle: "italic",
+              lineHeight: 1.2,
+              whiteSpace: "nowrap",
+            }}
+          >
+            Different Businesses.
+            <br />
+            Same Powerful Solution.
+          </Typography>
+
+          {/* squiggle underline */}
+          <Box
+            component="svg"
+            viewBox="0 0 290 30"
+            sx={{
+              display: "block",
+              width: { xs: "150px", md: "170px" },
+              height: "16px",
+              mx: "auto",
+              mt: "4px",
+            }}
+          >
+            <path d="M4 24 C70 20 150 12 285 2" fill="none" stroke={BRAND_RED} strokeWidth="2.6" strokeLinecap="round" />
+          </Box>
+        </Box>
+      </Box>
+    </Box>
+
+    <Box
+      sx={{
+        boxSizing: "border-box",
+        px: { xs: "20px", md: "38px" },
+        mt: "32px",
+        pb: "40px",
+        display: "grid",
+        gridTemplateColumns: {
+          xs: "1fr",
+          sm: "repeat(3, minmax(0, 1fr))", // tablet (600px+)
+        },
+        gap: "16px",
+      }}
+    >
+      {industries.map((item, index) => (
+        <Box key={`${item.title}-${index}`} sx={{ minWidth: 0 }}>
+          <IndustryCard item={item} mode="flow" />
+        </Box>
+      ))}
+    </Box>
+  </Box>
+  );
+};
+
+// ============================================================
+// INDUSTRIES SECTION
+// ============================================================
+
+export const IndustriesSection = () => {
+  return (
+    <Box
+      component="section"
+      id="industries"
+      sx={{
+        boxSizing: "border-box",
+        position: "relative",
+        width: "100%",
+        pt: { xs: "8px", md: "8px" }, // space above the section
+        pb: { xs: "32px", md: "56px" }, // space below the section
+        overflow: "hidden",
+        containerType: "inline-size", // 1cqw = 1% of section width
+        background: "linear-gradient(180deg, #FFFFFF 0%, #F8F9FB 100%)",
+      }}
+    >
+      {/* handwriting font used by the note (remove if already loaded globally) */}
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&display=swap"
+      />
+
+      <DesktopCanvas />
+      <FlowLayout />
+    </Box>
+  );
+};
+
+
+
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -1611,6 +2357,9 @@ const ZoduLandingPage: React.FC = () => {
        
         {/* ── WHAT ZODU DOES FOR YOU ──────────────────────────────────────── */}
         <WhatZoduDoesSection />
+
+        {/* ── INDUSTRIES ───────────────────────────────────────────────────── */}
+        <IndustriesSection />
 
         {/* ── MODULE SUITE ─────────────────────────────────────────────────── */}
         {/* <Box sx={{ bgcolor: LIGHT, py: SPY, px: SX, position: "relative", overflow: "hidden" }}>
