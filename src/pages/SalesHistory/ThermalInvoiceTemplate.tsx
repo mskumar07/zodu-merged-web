@@ -552,6 +552,15 @@ function ReceiptRow({
 const LOGO_SCAN_MAX_PX = 800;   // the blank-margin scan runs on a copy no larger than this
 
 /**
+ * Trimmed logos, kept for the page's lifetime. The receipt is mounted afresh for
+ * every bill, so without this each one re-loads and re-trims the same file — and
+ * prints whatever it has got to in the meantime. Printing turns the logo to ink
+ * from these pixels (see @utils/thermalPrint), and the file as served is
+ * cross-origin, so a bill printed before the trim landed printed a pale logo.
+ */
+const trimmedLogos = new Map<string, { src: string; ratio: number }>();
+
+/**
  * The logo with its blank margin trimmed off (transparent or near-white edge
  * rows/columns), plus the trimmed artwork's width:height ratio. Uploaded logos
  * often carry a wide empty border, which printed as a gap under the logo and
@@ -560,11 +569,14 @@ const LOGO_SCAN_MAX_PX = 800;   // the blank-margin scan runs on a copy no large
  * headers) or has no margin to trim.
  */
 function useTrimmedLogo(src: string): { src: string; ratio: number } | null {
-  const [logo, setLogo] = React.useState<{ src: string; ratio: number } | null>(null);
+  const [logo, setLogo] = React.useState<{ src: string; ratio: number } | null>(
+    () => (src ? trimmedLogos.get(src) ?? null : null),
+  );
 
   React.useEffect(() => {
-    setLogo(null);
-    if (!src) return;
+    const cached = src ? trimmedLogos.get(src) : null;
+    setLogo(cached ?? null);
+    if (!src || cached) return;
     let cancelled = false;
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -616,6 +628,7 @@ function useTrimmedLogo(src: string): { src: string; ratio: number } | null {
       } catch {
         // Unreadable pixels — print the file as it is.
       }
+      trimmedLogos.set(src, result);
       setLogo(result);
     };
     img.src = src;

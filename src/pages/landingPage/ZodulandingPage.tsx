@@ -102,9 +102,7 @@ import {
   Phone as PhoneIcon,
   Notifications as NotificationsIcon,
   Receipt as ReceiptIcon,
-  Home as HomeIcon,
   Bolt as BoltIcon,
-  MoreHoriz as MoreHorizIcon,
   ShoppingBag as ShoppingBagIcon,
 } from '@mui/icons-material';
 
@@ -136,10 +134,7 @@ import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
 import PeopleAltRoundedIcon from '@mui/icons-material/PeopleAltRounded';
 import BarChartRoundedIcon from '@mui/icons-material/BarChartRounded';
-import LightbulbRoundedIcon from '@mui/icons-material/LightbulbRounded';
-import CampaignRoundedIcon from '@mui/icons-material/CampaignRounded';
 import ArrowUpwardRoundedIcon from '@mui/icons-material/ArrowUpwardRounded';
-import ArrowDownwardRoundedIcon from '@mui/icons-material/ArrowDownwardRounded';
 import DevicesRoundedIcon from '@mui/icons-material/DevicesRounded';
 
 import WomanIcon from '@mui/icons-material/Woman';
@@ -150,7 +145,6 @@ import heroSectionBg from '../../assets/Landingpage/herosection_bg.png';
 import heroSectionBgWide from '../../assets/Landingpage/herosection_bg_extended.webp';
 
 
-import SendIcon from '@mui/icons-material/Send';
 import StorefrontRoundedIcon from "@mui/icons-material/StorefrontRounded";
 import AgricultureRoundedIcon from "@mui/icons-material/AgricultureRounded";
 import DirectionsCarRoundedIcon from "@mui/icons-material/DirectionsCarRounded";
@@ -762,19 +756,8 @@ const FzChecklist: React.FC<{ items: string[]; color: string; icon: number; text
   </Box>
 );
 
-const FzLabel: React.FC<{ children: React.ReactNode; size?: number }> = ({ children, size = 10 }) => (
-  <Typography sx={{ fontSize: fz(size), color: FZ_MUTED, lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{children}</Typography>
-);
-
 const FzValue: React.FC<{ children: React.ReactNode; size: number }> = ({ children, size }) => (
   <Typography sx={{ fontSize: fz(size), fontWeight: 800, color: FZ_INK, lineHeight: 1.25, whiteSpace: "nowrap" }}>{children}</Typography>
-);
-
-const FzRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: fz(6) }}>
-    <Box component="span" sx={{ fontSize: fz(10), color: FZ_MUTED, minWidth: 0 }}>{label}</Box>
-    <Box component="span" sx={{ fontSize: fz(10.5), fontWeight: 800, color: FZ_INK, whiteSpace: "nowrap" }}>{value}</Box>
-  </Box>
 );
 
 const fzTabs = [
@@ -792,13 +775,6 @@ const fzPosStats = [
   { value: "₹ 2,850", delta: null, label: "Avg. Order Value" },
 ];
 
-const fzExpenses = [
-  { label: "Rent", amount: "₹ 12,000", icon: <HomeIcon />, color: "#2563EB", bg: "#DBEAFE" },
-  { label: "Utilities", amount: "₹ 6,250", icon: <LightbulbRoundedIcon />, color: "#EA580C", bg: "#FFEDD5" },
-  { label: "Marketing", amount: "₹ 4,200", icon: <CampaignRoundedIcon />, color: FZ_GREEN, bg: "#DCFCE7" },
-  { label: "Others", amount: "₹ 6,000", icon: <MoreHorizIcon />, color: "#D97706", bg: "#FEF3C7" },
-];
-
 const fzBenefits = [
   { icon: <BoltIcon />, title: "Real-time sync", sub: "Access your business anytime, anywhere" },
   { icon: <VerifiedUserIcon />, title: "Secure & reliable", sub: "Your data is always protected" },
@@ -812,7 +788,6 @@ const fzBenefits = [
 type FzPhoto = { src: string; srcSet: string };
 const FZ_MINI_W = [480, 720];
 const FZ_WIDE_W = [640, 1260];
-const FZ_MINI_SIZES = "(min-width: 1536px) 18vw, (min-width: 900px) 30vw, (min-width: 600px) 46vw, 92vw";
 const FZ_WIDE_SIZES = "(min-width: 1200px) 24vw, (min-width: 600px) 60vw, 100vw";
 const fzPhotoUrls = import.meta.glob<string>("../../assets/Landingpage/feature-photos/*.webp", { eager: true, import: "default" });
 const fzPhoto = (slug: string, widths: number[]): FzPhoto => {
@@ -820,134 +795,6 @@ const fzPhoto = (slug: string, widths: number[]): FzPhoto => {
   return { src: url(widths[widths.length - 1]), srcSet: widths.map((w) => `${url(w)} ${w}w`).join(", ") };
 };
 const fzCustomerPhoto = fzPhoto("customer", FZ_MINI_W);
-
-type FzMini = {
-  title: string;
-  sub: string;
-  icon: React.ReactNode;
-  color: string;
-  bg: string;
-  photo: FzPhoto;
-  alt: string;
-  imagePos: string;         // object-position when the photo sits beside the data (wide cards)
-  stackPos: string;         // object-position when the photo sits on top at 16:10 (narrow cards)
-  imageFr: number;          // image column width relative to the data panel (reference ratios)
-  learnMore?: "image" | "panel" | "panel-end";
-  panel: React.ReactNode;
-};
-
-const fzMiniCards: FzMini[] = [
-  {
-    title: "Customer Management", sub: "Build lasting customer relationships.",
-    icon: <PeopleAltRoundedIcon />, color: "#2563EB", bg: "#DBEAFE",
-    photo: fzCustomerPhoto, alt: "Customer checking her loyalty rewards on her phone", imagePos: "38% center", stackPos: "center 30%", imageFr: 0.95,
-    learnMore: "panel",
-    panel: (
-      <Box sx={{ ...fzPanelSx, p: fz(9) }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: fz(8) }}>
-          <Box aria-hidden="true" sx={{
-            width: fz(30), height: fz(30), borderRadius: "50%", flexShrink: 0, border: "2px solid #fff",
-            boxShadow: `0 0 0 1px ${FZ_BORDER}`, backgroundImage: `url("${fzCustomerPhoto.src}")`,  // quoted: dev URLs can contain parentheses
-            backgroundSize: "380%", backgroundPosition: "42% 28%",
-          }} />
-          <Box sx={{ minWidth: 0 }}>
-            <Typography sx={{ fontSize: fz(11.5), fontWeight: 700, color: FZ_INK, lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Priya Sharma</Typography>
-            <Box component="span" sx={{ display: "inline-block", mt: fz(3), px: fz(6), py: fz(1.5), borderRadius: fz(4), bgcolor: "#FEF3C7", color: "#B45309", fontSize: fz(8.5), fontWeight: 700, lineHeight: 1.3 }}>
-              Gold Customer
-            </Box>
-          </Box>
-        </Box>
-        <Box sx={{ mt: fz(10), display: "flex", flexDirection: "column", gap: fz(6) }}>
-          <FzRow label="Total Orders" value="24" />
-          <FzRow label="Total Spent" value="₹ 48,250" />
-          <FzRow label="Loyalty Points" value="1,250" />
-        </Box>
-      </Box>
-    ),
-  },
-  {
-    title: "Payments & Reminders", sub: "Get paid on time with automated reminders.",
-    icon: <AccountBalanceWalletOutlinedIcon />, color: "#EA580C", bg: "#FFEDD5",
-    photo: fzPhoto("payments", FZ_MINI_W), alt: "Payment reminder being sent from the Zodu app", imagePos: "center 60%", stackPos: "center 50%", imageFr: 1.1,
-    panel: (
-      <>
-        <Box sx={{ ...fzPanelSx, p: fz(10) }}>
-          <FzLabel>Outstanding Amount</FzLabel>
-          <Box sx={{ mt: fz(4) }}><FzValue size={16}>₹ 18,750</FzValue></Box>
-        </Box>
-        <Box sx={{ ...fzPanelSx, p: fz(10), display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: fz(6) }}>
-          <Box>
-            <FzLabel>Reminders Sent</FzLabel>
-            <Box sx={{ mt: fz(4) }}><FzValue size={16}>32</FzValue></Box>
-          </Box>
-          <SendIcon sx={{ fontSize: fz(20), color: FZ_RED, transform: "rotate(-30deg)", mb: fz(4), flexShrink: 0 }} />
-        </Box>
-      </>
-    ),
-  },
-  {
-    title: "GST Compliance & Reports", sub: "Stay 100% compliant with easy GST filing.",
-    icon: <DescriptionOutlinedIcon />, color: "#2563EB", bg: "#DBEAFE",
-    photo: fzPhoto("gst", FZ_MINI_W), alt: "GST compliance report with filing status on a desk", imagePos: "center 35%", stackPos: "center 35%", imageFr: 1.8,
-    learnMore: "image",
-    panel: (
-      <>
-        {[["GSTR-1", "Filed"], ["GSTR-3B", "Filed"], ["E-Way Bill", "Generated"]].map(([title, status]) => (
-          <Box key={title} sx={{ ...fzPanelSx, px: fz(8), py: fz(6), display: "flex", alignItems: "center", gap: fz(7) }}>
-            <CheckCircleIcon sx={{ fontSize: fz(17), color: FZ_GREEN, flexShrink: 0 }} />
-            <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ fontSize: fz(10.5), fontWeight: 700, color: FZ_INK, lineHeight: 1.2 }}>{title}</Typography>
-              <Typography sx={{ fontSize: fz(9.5), color: FZ_MUTED, lineHeight: 1.2 }}>{status}</Typography>
-            </Box>
-          </Box>
-        ))}
-      </>
-    ),
-  },
-  {
-    title: "Expense Management", sub: "Track and control your business expenses.",
-    icon: <PaymentOutlinedIcon />, color: FZ_GREEN, bg: "#DCFCE7",
-    photo: fzPhoto("expense", FZ_MINI_W), alt: "Store staff reviewing monthly expenses on a tablet", imagePos: "70% 20%", stackPos: "center 22%", imageFr: 1,
-    panel: (
-      <Box sx={{ ...fzPanelSx, p: fz(8), flex: 1 }}>
-        <FzLabel>This Month</FzLabel>
-        <Box sx={{ mt: fz(3), display: "flex", alignItems: "center", flexWrap: "wrap", columnGap: fz(6) }}>
-          <FzValue size={13.5}>₹ 28,450</FzValue>
-          <Box sx={{ display: "inline-flex", alignItems: "center", color: FZ_GREEN, fontSize: fz(10), fontWeight: 700 }}>
-            <ArrowDownwardRoundedIcon sx={{ fontSize: fz(11) }} />8.4%
-          </Box>
-        </Box>
-        <Box sx={{ mt: fz(8), display: "flex", flexDirection: "column", gap: fz(6) }}>
-          {fzExpenses.map((e) => (
-            <Box key={e.label} sx={{ display: "flex", alignItems: "center", gap: fz(5), fontSize: fz(9.5) }}>
-              <Box sx={{ width: fz(16), height: fz(16), borderRadius: "50%", bgcolor: e.bg, color: e.color, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", "& svg": { fontSize: fz(10) } }}>
-                {e.icon}
-              </Box>
-              <Box component="span" sx={{ flex: 1, minWidth: 0, color: FZ_TEXT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.label}</Box>
-              <Box component="span" sx={{ color: FZ_INK, fontWeight: 700, whiteSpace: "nowrap" }}>{e.amount}</Box>
-            </Box>
-          ))}
-        </Box>
-      </Box>
-    ),
-  },
-  {
-    title: "Purchase Management", sub: "Manage suppliers, purchase orders & receipts.",
-    icon: <ShoppingCartOutlinedIcon />, color: "#9333EA", bg: "#F3E8FF",
-    photo: fzPhoto("purchase", FZ_MINI_W), alt: "Warehouse staff checking purchase orders on a tablet", imagePos: "30% center", stackPos: "center 40%", imageFr: 1.37,
-    learnMore: "panel-end",
-    panel: (
-      <>
-        {[["Total Purchases", "₹ 1,25,000"], ["Purchase Orders", "12"], ["Pending Receipts", "5"]].map(([label, value]) => (
-          <Box key={label} sx={{ ...fzPanelSx, px: fz(10), py: fz(6) }}>
-            <FzLabel size={9.5}>{label}</FzLabel>
-            <FzValue size={12.5}>{value}</FzValue>
-          </Box>
-        ))}
-      </>
-    ),
-  },
-];
 
 const FzPosCard: React.FC = () => (
   // width 100%: an aspect-ratio grid item doesn't stretch inline, so once the row stretches its height the
@@ -1072,58 +919,40 @@ const FzWideCard: React.FC<{ icon: React.ReactNode; color: string; bg: string; t
   </Box>
 );
 
-// Narrow cards (five across on desktop, the 3-up row of the 3 + 2 layout, phones) show the photo on top at
-// full card width and 16:10, so the landscape photos aren't cropped to a sliver; the data sits below.
-// Cards at least 520px wide (the 2-up row) put the photo beside the data instead.
-const FZ_MINI_WIDE = "@container fzmini (min-width: 520px)";
-
-const FzMiniCard: React.FC<{ card: FzMini }> = ({ card }) => {
-  const more = card.learnMore;
-  return (
-    <Box sx={{ ...fzCardSx, containerType: "inline-size", containerName: "fzmini", borderRadius: fz(14), p: fz(10), pt: fz(9), display: "flex", flexDirection: "column", gap: fz(10) }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: fz(14) }}>
-        <FzIconTile icon={card.icon} color={card.color} bg={card.bg} size={40} radius={10} iconSize={21} />
-        <Box sx={{ minWidth: 0 }}>
-          <Typography component="h3" sx={{ fontSize: fz(14.5), fontWeight: 800, color: FZ_INK, lineHeight: 1.25 }}>{card.title}</Typography>
-          <Typography sx={{ mt: fz(2), fontSize: fz(11), color: FZ_MUTED, lineHeight: 1.35 }}>{card.sub}</Typography>
-        </Box>
-      </Box>
-
-      <Box sx={{
-        flex: 1, display: "grid", gap: fz(10),
-        gridTemplateColumns: "minmax(0, 1fr)",
-        gridTemplateRows: more ? "auto 1fr auto" : "auto 1fr",
-        gridTemplateAreas: more ? `"img" "panel" "more"` : `"img" "panel"`,
-        [FZ_MINI_WIDE]: {
-          columnGap: fz(12), rowGap: fz(8),
-          gridTemplateColumns: `minmax(0, ${card.imageFr}fr) minmax(0, 1fr)`,
-          gridTemplateRows: more ? "1fr auto" : "1fr",
-          gridTemplateAreas: more === "image" ? `"img panel" "more panel"` : more ? `"img panel" "img more"` : `"img panel"`,
-        },
-      }}>
-        {/* The photo is absolutely positioned so its natural height never stretches the card. */}
-        <Box sx={{
-          gridArea: "img", position: "relative", overflow: "hidden", borderRadius: fz(8), aspectRatio: "16 / 10",
-          [FZ_MINI_WIDE]: { aspectRatio: "auto", minHeight: fz(more === "image" ? 176 : 200) },
-        }}>
-          <Box component="img" src={card.photo.src} srcSet={card.photo.srcSet} sizes={FZ_MINI_SIZES} alt={card.alt} loading="lazy" decoding="async" sx={{
-            position: "absolute", inset: 0, display: "block", width: "100%", height: "100%",
-            objectFit: "cover", objectPosition: card.stackPos,
-            [FZ_MINI_WIDE]: { objectPosition: card.imagePos },
-          }} />
-        </Box>
-        <Box sx={{ gridArea: "panel", display: "flex", flexDirection: "column", gap: fz(8), minWidth: 0 }}>
-          {card.panel}
-        </Box>
-        {more && (
-          <Box sx={{ gridArea: "more", alignSelf: "end", display: "flex", justifyContent: more === "panel-end" ? "flex-end" : "flex-start", pl: more === "panel" ? fz(3) : 0 }}>
-            <FzLearnMore size={11} />
-          </Box>
-        )}
-      </Box>
-    </Box>
-  );
-};
+// The five module cards below POS / Inventory / Attendance, in the same wide layout. Their photos are
+// the landscape scenes shot for the smaller cards; imagePos keeps each subject in the right-hand crop.
+const fzModuleCards: Array<React.ComponentProps<typeof FzWideCard>> = [
+  {
+    icon: <PeopleAltRoundedIcon />, color: "#2563EB", bg: "#DBEAFE",
+    title: "Customer Management", desc: "Build lasting customer relationships.",
+    items: ["Customer profiles & purchase history", "Loyalty points & rewards", "Total spend & order insights", "Quick customer lookup at billing"],
+    photo: fzCustomerPhoto, alt: "Customer checking her loyalty rewards on her phone", imagePos: "center 30%",
+  },
+  {
+    icon: <AccountBalanceWalletOutlinedIcon />, color: "#EA580C", bg: "#FFEDD5",
+    title: "Payments & Reminders", desc: "Get paid on time with automated reminders.",
+    items: ["Automated payment reminders", "Outstanding amount tracking", "Reminder history per customer", "Collect dues faster"],
+    photo: fzPhoto("payments", FZ_MINI_W), alt: "Payment reminder being sent from the Zodu app", imagePos: "center 50%",
+  },
+  {
+    icon: <DescriptionOutlinedIcon />, color: "#2563EB", bg: "#DBEAFE",
+    title: "GST Compliance & Reports", desc: "Stay 100% compliant with easy GST filing.",
+    items: ["GSTR-1 & GSTR-3B reports", "E-way bill generation", "Filing status at a glance", "GST-ready invoices"],
+    photo: fzPhoto("gst", FZ_MINI_W), alt: "GST compliance report with filing status on a desk", imagePos: "center 35%",
+  },
+  {
+    icon: <PaymentOutlinedIcon />, color: FZ_GREEN, bg: "#DCFCE7",
+    title: "Expense Management", desc: "Track and control your business expenses.",
+    items: ["Daily & monthly expense tracking", "Expense categories", "Monthly spend summary", "See where your money goes"],
+    photo: fzPhoto("expense", FZ_MINI_W), alt: "Store staff reviewing monthly expenses on a tablet", imagePos: "center 22%",
+  },
+  {
+    icon: <ShoppingCartOutlinedIcon />, color: "#9333EA", bg: "#F3E8FF",
+    title: "Purchase Management", desc: "Manage suppliers, purchase orders & receipts.",
+    items: ["Supplier management", "Purchase orders", "Pending receipt tracking", "Purchase totals & history"],
+    photo: fzPhoto("purchase", FZ_MINI_W), alt: "Warehouse staff checking purchase orders on a tablet", imagePos: "center 40%",
+  },
+];
 
 const WhatZoduDoesSection: React.FC = () => (
   <Box component="section" id="what-zodu-does" aria-labelledby="fz-heading" sx={{
@@ -1203,19 +1032,18 @@ const WhatZoduDoesSection: React.FC = () => (
         </Box>
       </Box>
 
-      {/* Five module cards: 1 → 2 → 3 + 2 → 5 columns */}
+      {/* Five module cards, laid out like Inventory / Attendance: one per row below 1200px,
+          two per row from 1200px at the Attendance card's own width (the 1fr of the
+          1.435fr / 1fr row above), centred — the odd one out centred at the same width. */}
       <Box sx={{
         display: "grid", gap: fz(10),
-        gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(6, minmax(0, 1fr))" },
-        "& > *": { gridColumn: { md: "span 2" } },
-        "& > :nth-of-type(n+4)": { gridColumn: { md: "span 3" } },
-        "& > :last-of-type": { gridColumn: { sm: "1 / -1", md: "span 3" } },
-        [FZ_DESK]: {
-          gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
-          "& > *, & > :nth-of-type(n+4), & > :last-of-type": { gridColumn: "auto" },
+        gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: `repeat(2, calc((100% - ${fz(10)}) / 2.435))` },
+        justifyContent: "center",
+        "@media (min-width: 1200px)": {
+          "& > :last-child:nth-of-type(odd)": { gridColumn: "1 / -1", justifySelf: "center", width: `calc(50% - ${fz(5)})` },
         },
       }}>
-        {fzMiniCards.map((card) => <FzMiniCard key={card.title} card={card} />)}
+        {fzModuleCards.map((card) => <FzWideCard key={card.title} {...card} />)}
       </Box>
 
       {/* Benefits strip */}
@@ -1596,27 +1424,6 @@ const industries: Industry[] = [
   },
 ];
 
-// Cards whose arrow is navy (rest are red)
-const NAVY_ARROW_TITLES = new Set([
-  "Automobile",
-  "Construction &\nReal Estate",
-  "Healthcare",
-  "Education &\nCoaching",
-  "Electronics &\nTechnology",
-  "Food & Beverage",
-  "Automotive & Transport",
-  "Beauty & Wellness",
-  "Pharmacy & Medical Devices",
-  "Printing & Stationery",
-  "Electrical & Hardware",
-  "Oil & Gas",
-  "Textiles & Garments",
-  "Travel & Tourism",
-  "Hotels & Hospitality",
-  "Jewellery & Accessories",
-  "And many more...",
-]);
-
 // ============================================================
 // INDUSTRY CARD
 //
@@ -1638,11 +1445,8 @@ const IndustryCard = ({
   const canvas = mode === "canvas";
   const isLast = item.variant === "last";
   const isDots = item.variant === "dots";
-  const arrowColor = NAVY_ARROW_TITLES.has(item.title) ? NAVY : BRAND_RED;
   const rot = item.rotation;
-  const plainTitle = item.title.replace(/\n/g, " ");
   const tt = canvas ? item.tt : 14;
-  const ab = canvas ? item.ab : 9;
 
   return (
     <Box
@@ -1737,31 +1541,6 @@ const IndustryCard = ({
           {item.description}
         </Typography>
       </Box>
-
-      {/* arrow button */}
-      {!isLast && (
-        <IconButton
-          aria-label={`Open ${plainTitle}`}
-          sx={{
-            position: "absolute",
-            left: `${item.tl}%`,
-            bottom: `${ab}%`,
-            width: "8cqw",
-            height: "8cqw",
-            minWidth: 0,
-            minHeight: 0,
-            p: 0,
-            bgcolor: "#FFFFFF",
-            boxShadow: "0 2px 6px rgba(15,23,42,.12)",
-            zIndex: 6,
-            "&:hover": { bgcolor: "#FFFFFF" },
-          }}
-        >
-          <ArrowForwardRoundedIcon
-            sx={{ fontSize: "4.6cqw", color: arrowColor }}
-          />
-        </IconButton>
-      )}
 
       {isLast && (
         <ArrowForwardRoundedIcon

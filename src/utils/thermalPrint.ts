@@ -237,36 +237,53 @@ function receiptRaster(canvas: HTMLCanvasElement, paper: PaperSize, cut: CutMode
  * `clone` to data URLs; a picture whose pixels can't be read (served without CORS
  * headers) keeps its original file.
  */
+/** Pictures whose pixels this page may never read — waited for once, then never again. */
+const unreadablePictures = new Set<string>();
+
+/** Whether this picture's pixels can be read back, which is what the ink conversion needs. */
+function isReadable(img: HTMLImageElement): boolean {
+  if (!img.complete || !img.naturalWidth) return false;
+  try {
+    const probe = document.createElement("canvas");
+    probe.width = 1;
+    probe.height = 1;
+    const ctx = probe.getContext("2d");
+    if (!ctx) return false;
+    ctx.drawImage(img, 0, 0, 1, 1);
+    ctx.getImageData(0, 0, 1, 1); // throws once a cross-origin picture has tainted it
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Waits until the receipt's pictures have loaded and stopped changing.
+ * Waits until the receipt's pictures can be turned to ink.
  *
- * The logo is shown straight from its URL while the template trims its blank
- * margin in the background, then swapped for the trimmed copy. Print in that
- * window — the first bill after a login, before anything is cached — and the
- * picture is either still loading or still the untrimmed file, whose pixels the
- * browser won't let a canvas read: it then went to the printer in colour and the
- * driver screened it into a faint dot pattern. Every later bill printed solid.
+ * The template loads its logo twice: the <img> shows the file as served, while a
+ * second load trims its blank margin and swaps in a readable copy of it. Only that
+ * copy's pixels can be read — the file as served is cross-origin, and reading it
+ * taints the canvas. Print in between, which is what the first bill after a login
+ * did while nothing was cached, and the logo went to the printer in colour for the
+ * driver to screen into a faint dot pattern.
+ *
+ * So the wait is for readability itself, not merely for loading to finish. A
+ * picture that never becomes readable (served without CORS headers) is remembered,
+ * so only the first print of it waits.
  */
-async function awaitPicturesSettled(node: HTMLElement, timeoutMs = 4000): Promise<void> {
+async function awaitPicturesReadable(node: HTMLElement, timeoutMs = 3000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
-  let previous = "";
   for (;;) {
-    const pictures = Array.from(node.querySelectorAll("img"));
-    await Promise.all(pictures.map((img) => (
-      img.complete
-        ? img.decode().catch(() => undefined)
-        : new Promise<void>((resolve) => {
-            const done = () => resolve();
-            img.addEventListener("load", done, { once: true });
-            img.addEventListener("error", done, { once: true });
-            setTimeout(done, Math.max(0, deadline - Date.now()));
-          })
-    )));
-    const sources = pictures.map((img) => img.src).join("|");
-    // Settled once nothing swapped itself out while we waited (the trimmed logo).
-    if (sources === previous || Date.now() >= deadline) return;
-    previous = sources;
-    await new Promise((resolve) => setTimeout(resolve, 60));
+    const pending = Array.from(node.querySelectorAll("img")).filter(
+      (img) => !unreadablePictures.has(img.src) && !isReadable(img),
+    );
+    if (pending.length === 0) return;
+    if (Date.now() >= deadline) {
+      // Give up on these for the rest of the session rather than delay every bill.
+      for (const img of pending) if (img.complete) unreadablePictures.add(img.src);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
   }
 }
 
@@ -321,11 +338,24 @@ function inkPicturesInto(clone: HTMLElement, node: HTMLElement): void {
   });
 }
 
-/** The receipt as rendered right now, with its pictures turned to ink — one copy's markup. */
-function receiptMarkup(node: HTMLElement): string {
+/** One printed page: a receipt's markup and the paper it is laid out on, in mm. */
+interface PrintedReceipt {
+  html: string;
+  widthMm: number;
+  heightMm: number;
+}
+
+/** The receipt as rendered right now, with its pictures turned to ink — one copy's markup and size. */
+function receiptMarkup(node: HTMLElement): PrintedReceipt {
   const clone = node.cloneNode(true) as HTMLElement;
   inkPicturesInto(clone, node);
-  return clone.outerHTML;
+  const box = node.getBoundingClientRect();
+  return {
+    html: clone.outerHTML,
+    widthMm: Math.ceil((box.width / CSS_PX_PER_MM) * 10) / 10,
+    // A little slack, so a rounding error can't spill the last line onto a second page.
+    heightMm: Math.ceil(box.height / CSS_PX_PER_MM) + 2,
+  };
 }
 
 /**
@@ -363,15 +393,25 @@ function fontStyles(): string {
 /**
  * The receipt printed as the web page draws it — its own markup, fonts and
  * weights — so the print dialog's output is the Invoice Settings preview, not a
- * picture of it. The template is laid out in physical units (96 px per inch), so
- * it prints at its own width, centred; with no margin declared the page is
- * whatever paper the printer driver reports. The app's font definitions come
- * along so any web font the template names resolves the same way it does on
- * screen — only those: the app's own print rules (index.css hides everything
- * outside [data-print-content]) printed this page blank.
+ * picture of it. The app's font definitions come along so any web font the
+ * template names resolves the same way it does on screen — only those: the app's
+ * own print rules (index.css hides everything outside [data-print-content])
+ * printed this page blank.
+ *
+ * Each receipt declares its own page, exactly as wide and tall as the receipt.
+ * Left to the paper the driver reports, the page was 80 mm (or A4) wide and the
+ * driver then clipped it to the band its head actually prints — which differs
+ * from printer to printer (72, 70, 64 mm on an 80 mm roll; 48 or 42 mm on 58 mm)
+ * — so the right-hand column came out cut off. With the page the size of the
+ * receipt, the browser fits that page into whatever printable area the printer
+ * has (its default "fit to printable area"), centred and whole, on every roll.
  */
-function thermalPrintDocument(receipts: string[]): string {
+function thermalPrintDocument(receipts: PrintedReceipt[]): string {
   const styles = fontStyles();
+  const pages = receipts
+    .map((r, i) => `@page receipt-${i} { size: ${r.widthMm}mm ${r.heightMm}mm; margin: 0; }
+    .receipt-${i} { page: receipt-${i}; width: ${r.widthMm}mm; }`)
+    .join("");
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -380,15 +420,17 @@ function thermalPrintDocument(receipts: string[]): string {
   ${styles}
   <style>
     @page { margin: 0; }
+    ${pages}
     html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
     body, body * { visibility: visible !important; }
     /* Black bars and rules print as drawn, not dropped as "background graphics". */
     * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .receipt { display: flex; justify-content: flex-start; }
-    .copy-break { break-after: page; page-break-after: always; }
+    .receipt { display: flex; justify-content: center; overflow: hidden; }
+    .receipt > * { max-width: 100%; }
+    .receipt + .receipt { break-before: page; page-break-before: always; }
   </style>
 </head>
-<body>${receipts.map((html) => `<div class="receipt">${html}</div>`).join('<div class="copy-break"></div>')}</body>
+<body>${receipts.map((r, i) => `<div class="receipt receipt-${i}">${r.html}</div>`).join("")}</body>
 </html>`;
 }
 
@@ -398,7 +440,7 @@ function thermalPrintDocument(receipts: string[]): string {
  * by which time the click no longer counts as a user gesture and a popup blocker
  * swallows the window.
  */
-async function printReceiptsInDialog(receipts: string[]): Promise<void> {
+async function printReceiptsInDialog(receipts: PrintedReceipt[]): Promise<void> {
   const iframe = document.createElement("iframe");
   Object.assign(iframe.style, { position: "fixed", right: "0", bottom: "0", width: "0", height: "0", border: "0" });
   document.body.appendChild(iframe);
@@ -452,7 +494,7 @@ export async function printThermalCopies(
     try {
       for (const copy of copies) {
         renderCopy(copy, printer.paper_size);
-        await awaitPicturesSettled(node);
+        await awaitPicturesReadable(node);
         canvases.push(await captureThermalCanvas(node));
       }
     } finally {
@@ -473,18 +515,18 @@ export async function printThermalCopies(
 
   // The print dialog: the template itself, at the width Invoice Settings names —
   // exactly what its preview shows.
-  const receipts: string[] = [];
+  const receipts: PrintedReceipt[] = [];
   try {
     for (const copy of copies) {
       renderCopy(copy, null);
-      await awaitPicturesSettled(node);
+      await awaitPicturesReadable(node);
       receipts.push(receiptMarkup(node));
     }
   } finally {
     renderCopy(null, null);
   }
   for (const extra of opts.after ?? []) {
-    await awaitPicturesSettled(extra);
+    await awaitPicturesReadable(extra);
     receipts.push(receiptMarkup(extra));
   }
   await printReceiptsInDialog(receipts);
