@@ -23,6 +23,11 @@ function getApi() {
 export const POS_TYPE_LABELS = ["Invoice", "Quotation", "Proforma"] as const;
 export type PosTypeLabel = (typeof POS_TYPE_LABELS)[number];
 
+// Restaurant-only: which billing layout the restaurant POS screen opens on —
+// Touch's card-grid picker, or Keyboard's dense tabular billing view.
+export const POS_SCREEN_TYPE_LABELS = ["Touch", "Keyboard"] as const;
+export type PosScreenType = (typeof POS_SCREEN_TYPE_LABELS)[number];
+
 export interface PosSettingsResponse {
   zodu_id: string;
   branch_id: string;
@@ -53,6 +58,13 @@ export interface PosSettingsResponse {
   // Whether POS offers Hold/Recall. Absent on rows that predate the toggle —
   // treat that as on, which is how POS behaved before it existed.
   hold_enabled?: boolean;
+  // Restaurant-only: which billing layout the restaurant POS screen opens on.
+  // Absent on rows that predate the field — treat that as "Touch", the
+  // screen's original default.
+  pos_screen_type?: PosScreenType;
+  // Restaurant-only: print a KOT together with the bill, on the billing PC's
+  // printer. Absent on rows that predate the field — treat that as off.
+  kot_print_enabled?: boolean;
   active: boolean;
   created_at?: string;
   updated_at?: string;
@@ -81,6 +93,8 @@ export interface UpdatePosSettingsPayload {
   proforma_suffix_enabled?: boolean;
   purchase_order_enabled?: boolean;
   hold_enabled?: boolean;
+  pos_screen_type?: PosScreenType;
+  kot_print_enabled?: boolean;
 }
 
 // ─── Normalizing ──────────────────────────────────────────────
@@ -134,6 +148,11 @@ export function normalizePosSettings(raw: unknown): PosSettingsResponse {
     // On unless the row says otherwise — Hold/Recall predates this toggle, so
     // a branch that never saw it must keep the buttons it already has.
     hold_enabled: row.hold_enabled !== false,
+    // "Touch" unless the row says otherwise — matches the restaurant POS
+    // screen's own default before this setting existed.
+    pos_screen_type: row.pos_screen_type === "Keyboard" ? "Keyboard" : "Touch",
+    // Off unless the row says otherwise — no branch starts printing KOTs unasked.
+    kot_print_enabled: row.kot_print_enabled === true,
   };
 }
 

@@ -13,6 +13,7 @@ import RetailPOS from "@pages/POS/pos";
 import RestaurantPOS from "@pages/restaurant/pos/RestaurantPOS";
 import RestaurantMenuList from "@pages/restaurant/menu/RestaurantMenuList";
 import SalesHistoryScreen from "@pages/SalesHistory/SalesHistory";
+import KDSScreen from "@pages/restaurant/kds/KDSScreen";
 import CustomerManagement from "@pages/Customer/Customermanagement";
 import EmployeeManagement from "@pages/Employee/EmployeeManagement";
 import InventoryManagement from "../pages/InventoryScreen/InventoryManagement";
@@ -79,6 +80,10 @@ export const routes = [
        {
     path:"sales-history",
     element: <SalesHistoryScreen/>
+  },
+   {
+    path:"kds",
+    element: <KDSScreen/>
   },
    {
     path: "/pos",

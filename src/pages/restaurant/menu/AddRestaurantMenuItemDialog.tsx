@@ -35,6 +35,8 @@ import {
 import { sanitizeAmountInput } from "@pages/MenuItemScreen/ItemValidation";
 import { useAppSelector } from "@store/store";
 import { InvoiceSettingsData } from "@store/slices/userSlice";
+import { updateKotItemRouting, useKotCounters, useKotItemRouting } from "@pages/MenuItemScreen/kotApi";
+import { useQueryClient } from "@tanstack/react-query";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -184,6 +186,23 @@ const AddRestaurantMenuItemDialog: React.FC<
   const { data: unitOptions = [], isLoading: unitsLoading } = useUnitList();
   const invoiceSettings = useAppSelector(InvoiceSettingsData);
   const defaultGstOption = gstOptions.find((g) => g.label === invoiceSettings?.default_tax_label);
+
+  // ── Kitchen routing: which KOT counter prints this item, and where it goes if
+  // that counter's printer is offline. Only offered once the branch has counters.
+  const queryClient = useQueryClient();
+  const tenant = getTenantContext();
+  const { data: kotCounters = [] } = useKotCounters(tenant.zoduId ?? "", tenant.branchId ?? "");
+  const { data: savedRouting } = useKotItemRouting(tenant.zoduId ?? "", tenant.branchId ?? "", open && isEditMode ? editItem?.menu_id : null);
+  const [kotCounterId, setKotCounterId] = useState<number | "">("");
+  const [fallbackCounterId, setFallbackCounterId] = useState<number | "">("");
+  useEffect(() => {
+    if (!open) return;
+    setKotCounterId(isEditMode ? savedRouting?.kot_counter_id ?? "" : "");
+    setFallbackCounterId(isEditMode ? savedRouting?.fallback_counter_id ?? "" : "");
+  }, [open, isEditMode, savedRouting]);
+  const routingChanged = isEditMode
+    ? (kotCounterId || null) !== (savedRouting?.kot_counter_id ?? null) || (fallbackCounterId || null) !== (savedRouting?.fallback_counter_id ?? null)
+    : kotCounterId !== "" || fallbackCounterId !== "";
 
   // ── Fetch categories when dialog opens or Menu Type changes ────────────────
   useEffect(() => {
@@ -494,18 +513,41 @@ const AddRestaurantMenuItemDialog: React.FC<
     setSubmitting(true);
     try {
       const headers = { "Content-Type": "multipart/form-data", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+      let savedMenuId: string | undefined;
       if (isEditMode && editItem) {
         await axios.put(
           `${API_BASE}/restaurant/api/menu/update/menu_item/${editItem.menu_id}`,
           formData,
           { headers }
         );
+        savedMenuId = editItem.menu_id;
       } else {
-        await axios.post(
+        const res = await axios.post(
           `${API_BASE}/restaurant/api/menu/api/add/menu_item`,
           formData,
           { headers }
         );
+        savedMenuId = res.data?.data?.data?.menu_id ?? res.data?.data?.menu_id;
+      }
+      if (routingChanged && zoduId && branchId) {
+        // The item itself is saved; a routing failure is reported, not treated as a failed save.
+        try {
+          if (!savedMenuId) throw new Error("menu id missing");
+          await updateKotItemRouting(zoduId, branchId, {
+            menu_id: savedMenuId,
+            kot_counter_id: kotCounterId === "" ? null : kotCounterId,
+            fallback_counter_id: fallbackCounterId === "" ? null : fallbackCounterId,
+          });
+          queryClient.invalidateQueries({ queryKey: ["kot"] });
+        } catch (routingErr) {
+          const msg = axios.isAxiosError(routingErr) ? routingErr.response?.data?.message : null;
+          setToastSeverity("error");
+          setToastMsg(`Item saved, but its KOT counter was not updated${msg ? `: ${msg}` : ""}. Set it from KOT Settings.`);
+          // Still close: the item exists, and saving again would create it twice.
+          handleReset();
+          onSuccess?.();
+          return;
+        }
       }
       handleReset();
       onClose();
@@ -1162,6 +1204,53 @@ const AddRestaurantMenuItemDialog: React.FC<
                   >
                     Alert when stock falls below this quantity
                   </Typography>
+                </Box>
+              </Box>
+            </Box>
+          )}
+
+          {/* ── Kitchen routing (KOT counter) ───────────────────────────────── */}
+          {kotCounters.length > 0 && (
+            <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1.5, overflow: "hidden" }}>
+              <Box sx={{ px: 2.5, py: 1.5, bgcolor: "action.hover", borderBottom: "1px solid", borderColor: "divider" }}>
+                <Typography variant="body2" fontWeight={700} color="text.secondary" textTransform="uppercase" letterSpacing="0.06em" fontSize={11}>
+                  Kitchen Routing
+                </Typography>
+              </Box>
+              <Box sx={{ px: 2.5, py: 2.5, display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2.5 }}>
+                <Box>
+                  <FieldLabel text="KOT Counter" />
+                  <TextField
+                    select fullWidth size="small" value={kotCounterId}
+                    onChange={(e) => {
+                      const next = e.target.value === "" ? "" : Number(e.target.value);
+                      setKotCounterId(next);
+                      if (next !== "" && next === fallbackCounterId) setFallbackCounterId("");
+                    }}
+                    SelectProps={{ displayEmpty: true }}
+                    InputProps={{ sx: inputSx }}
+                    helperText="The counter whose printer receives this item's KOT"
+                  >
+                    <MenuItem value="">Default counter</MenuItem>
+                    {kotCounters.filter((c) => c.active || c.id === kotCounterId).map((c) => (
+                      <MenuItem key={c.id} value={c.id}>{c.counter_name} ({c.counter_code})</MenuItem>
+                    ))}
+                  </TextField>
+                </Box>
+                <Box>
+                  <FieldLabel text="Fallback Counter" />
+                  <TextField
+                    select fullWidth size="small" value={fallbackCounterId}
+                    onChange={(e) => setFallbackCounterId(e.target.value === "" ? "" : Number(e.target.value))}
+                    SelectProps={{ displayEmpty: true }}
+                    InputProps={{ sx: inputSx }}
+                    helperText="Used if the counter's printer is offline"
+                  >
+                    <MenuItem value="">Billing printer</MenuItem>
+                    {kotCounters.filter((c) => c.id !== kotCounterId && (c.active || c.id === fallbackCounterId)).map((c) => (
+                      <MenuItem key={c.id} value={c.id}>{c.counter_name} ({c.counter_code})</MenuItem>
+                    ))}
+                  </TextField>
                 </Box>
               </Box>
             </Box>

@@ -43,6 +43,7 @@ import {
   type UpdateInvoiceSettingsPayload,
 } from "./useInvoiceSettingApi";
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "../SalesHistory/ThermalInvoiceTemplate";
+import { THERMAL_TEMPLATE_OPTIONS, toThermalTemplate } from "@utils/thermalTemplate";
 import { InvoicePDFTemplate } from "../SalesHistory/InvoicePDFTemplate";
 import { InvoicePDFTemplateModern } from "../SalesHistory/InvoicePDFTemplateModern";
 import { InvoicePDFTemplateModern2 } from "../SalesHistory/InvoicePDFTemplateModern2";
@@ -67,6 +68,10 @@ const PREVIEW_GRAND_TOTAL = PREVIEW_TAXABLE + PREVIEW_CGST_AMT + PREVIEW_SGST_AM
 const PREVIEW_DATA = {
   sale_id: "PREVIEW-0001",
   date: new Date().toLocaleDateString("en-GB"),
+  // The printed receipt carries the sale's time beside its date; without one the
+  // template fell back to a full clock reading, which the preview then showed
+  // in a format no printed bill uses.
+  time: new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
   due_date: null,
   customer_name: "Sample Customer",
   customer_address: "123 Sample Street, Sample City",
@@ -229,6 +234,7 @@ function Section({ title, subtitle, children }: SectionProps) {
 // pick than as a dropdown buried inside "Print Layout".
 const TEMPLATE_TYPES = [
   { value: "A4", label: "A4 Template", caption: "210 x 297 mm", icon: <DescriptionOutlinedIcon fontSize="small" /> },
+  { value: "2", label: "2 inch Thermal Printer", caption: "48 mm width", icon: <LocalPrintshopOutlinedIcon fontSize="small" /> },
   { value: "3", label: "3 inch Thermal Printer", caption: "72 mm width", icon: <LocalPrintshopOutlinedIcon fontSize="small" /> },
   { value: "5", label: "5 inch Thermal Printer", caption: "120 mm width", icon: <LocalPrintshopOutlinedIcon fontSize="small" /> },
 ];
@@ -465,7 +471,7 @@ function toUiSettings(api: InvoiceSettingsResponse): InvoiceSettings {
       : DEFAULT_INVOICE_COLOR,
     showCompanyLogo: api.show_company_logo,
     defaultPaymentMethod: PAYMENT_METHOD_TO_CODE[api.default_payment_method] ?? "cash",
-    printInch: api.printer_inch === "A4" ? "A4" : api.printer_inch.startsWith("5") ? "5" : "3",
+    printInch: api.printer_inch === "A4" ? "A4" : api.printer_inch.startsWith("2") ? "2" : api.printer_inch.startsWith("5") ? "5" : "3",
     showItemDescription: api.show_description,
     showItemId: api.show_item_id,
     // Older rows predate this field — default to on, matching the prior
@@ -715,7 +721,14 @@ export default function InvoiceSetting() {
     notes: settings.notesText,
     show_signature: settings.showSignature,
     show_bank_details: settings.showBankDetails,
+    invoice_template: settings.invoiceTemplate,
   };
+
+  // A4 offers its three layouts, a thermal roll its two. Both read the one
+  // stored `invoice_template`, so "modern2" shows as Modern on a roll.
+  const templateOptions: ReadonlyArray<{ value: string; label: string }> =
+    settings.printInch === "A4" ? INVOICE_TEMPLATE_OPTIONS : THERMAL_TEMPLATE_OPTIONS;
+  const selectedTemplate = settings.printInch === "A4" ? settings.invoiceTemplate : toThermalTemplate(settings.invoiceTemplate);
 
   // Fit the preview to the panel's WIDTH only — keeps the receipt at a
   // clearly readable size regardless of how tall it gets; the panel scrolls
@@ -731,7 +744,9 @@ export default function InvoiceSetting() {
     if (!viewport || !content) return;
 
     const fit = () => {
-      const availableWidth = viewport.clientWidth;
+      // clientWidth includes the panel padding; fit to the content box so the receipt centres instead of clipping.
+      const pad = getComputedStyle(viewport);
+      const availableWidth = viewport.clientWidth - parseFloat(pad.paddingLeft) - parseFloat(pad.paddingRight);
       const rect = content.getBoundingClientRect();
       if (!availableWidth || !rect.width) return;
 
@@ -1359,10 +1374,9 @@ export default function InvoiceSetting() {
               </Typography>
             </Box>
 
-            {settings.printInch === "A4" && (
-              <Stack direction="row" sx={{ border: "1px solid", borderColor: cardBorder, borderRadius: 999, p: 0.4, gap: 0.4, flexShrink: 0 }}>
-                {INVOICE_TEMPLATE_OPTIONS.map(({ value: option, label: optionLabel }) => {
-                  const selected = settings.invoiceTemplate === option;
+            <Stack direction="row" sx={{ border: "1px solid", borderColor: cardBorder, borderRadius: 999, p: 0.4, gap: 0.4, flexShrink: 0 }}>
+                {templateOptions.map(({ value: option, label: optionLabel }) => {
+                  const selected = selectedTemplate === option;
                   return (
                     <Box
                       key={option}
@@ -1384,8 +1398,7 @@ export default function InvoiceSetting() {
                     </Box>
                   );
                 })}
-              </Stack>
-            )}
+            </Stack>
           </Box>
           <Divider sx={{ borderColor: "#f4f5f8" }} />
           <Box
@@ -1456,6 +1469,8 @@ export default function InvoiceSetting() {
                   theme={theme}
                   logoUrl={companyLogoUrl}
                   signatureUrl={signatureUrl}
+                  copyType={settings.invoiceCopyTypes[0] ?? null}
+                  inkPictures
                 />
               )}
             </Box>

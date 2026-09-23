@@ -46,6 +46,7 @@ import LabelIcon from "@mui/icons-material/Label";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import AddIcon from "@mui/icons-material/Add";
+import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 import { useSelector } from "react-redux";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
 import {
@@ -58,6 +59,8 @@ import {
 } from "./restaurantMenuApi";
 import AddRestaurantMenuItemDialog from "./AddRestaurantMenuItemDialog";
 import CategoryTab from "@pages/MenuItemScreen/CategoryTab";
+import KotPrinterAssignModal from "@pages/MenuItemScreen/KotPrinterAssignModal";
+import SuccessToast from "@components/Common/SuccessToast";
 import { BranchId, ZoduId } from "@store/slices/userSlice";
 import { useModulePermission } from "@hooks/useModulePermission";
 
@@ -592,6 +595,8 @@ const RestaurantMenuList: React.FC = () => {
   const [activeOverrides, setActiveOverrides] = useState<Record<string, boolean>>({});
   const [categorySearch, setCategorySearch]   = useState("");
   const requestAddCategoryRef = useRef<(() => void) | null>(null);
+  const [kotModalOpen, setKotModalOpen] = useState(false);
+  const [kotSuccessMsg, setKotSuccessMsg] = useState("");
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
@@ -706,7 +711,7 @@ const RestaurantMenuList: React.FC = () => {
               "&:hover": { textDecoration: "underline" },
             }}
           >
-            #{row.menu_code}
+            {row.menu_code}
           </Typography>
         ),
       },
@@ -920,11 +925,13 @@ const RestaurantMenuList: React.FC = () => {
         </Tabs>
 
         {activeTab !== "Category" && (
-          <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", flexWrap: "wrap", pb: 1 }}>
+          <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: isMobile ? "wrap" : "nowrap", pb: 1 }}>
             {/* Title + count */}
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: "0 0 auto" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: "0 0 auto", flexShrink: 0 }}>
               <RestaurantMenuIcon sx={{ color: "#d32f2f", fontSize: 20 }} />
-              <Typography sx={{ fontWeight: 700, fontSize: 14, color: "#111827" }}>Menu Items</Typography>
+              <Typography sx={{ fontWeight: 700, fontSize: 14, color: "#111827", whiteSpace: "nowrap" }}>
+                {isTablet ? "Menu" : "Menu Items"}
+              </Typography>
               {totalCount > 0 && (
                 <Chip
                   label={totalCount}
@@ -940,7 +947,7 @@ const RestaurantMenuList: React.FC = () => {
               placeholder="Search..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              sx={{ flex: 1, minWidth: isMobile ? "100%" : 200, bgcolor: "#fff" }}
+              sx={{ flex: isMobile ? "1 1 100%" : "1 1 120px", minWidth: isMobile ? "100%" : 120, bgcolor: "#fff" }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -959,8 +966,8 @@ const RestaurantMenuList: React.FC = () => {
             />
 
             {/* Category filter */}
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <FormControl size="small" sx={{ minWidth: isMobile ? "100%" : 220 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flex: isMobile ? "1 1 100%" : "0 1 220px" }}>
+              <FormControl size="small" sx={{ minWidth: isMobile ? "100%" : 140, width: "100%" }}>
                 <Select
                   multiple
                   value={selectedCategoryIds}
@@ -1043,6 +1050,30 @@ const RestaurantMenuList: React.FC = () => {
               )}
             </Box>
 
+            {/* KOT Settings */}
+            <Button
+              variant="contained"
+              startIcon={!isTablet ? <PrintOutlinedIcon /> : undefined}
+              onClick={() => setKotModalOpen(true)}
+              sx={{
+                borderRadius: 0.5,
+                fontWeight: 700,
+                px: isTablet ? 1.25 : 2,
+                minWidth: 0,
+                height: 40,
+                flexShrink: 0,
+                textTransform: "none",
+                fontSize: 13,
+                whiteSpace: "nowrap",
+                bgcolor: "#1976d2",
+                color: "#fff",
+                boxShadow: "0 4px 14px rgba(25,118,210,0.3)",
+                "&:hover": { bgcolor: "#155fa8", boxShadow: "0 4px 14px rgba(25,118,210,0.4)" },
+              }}
+            >
+              {isTablet ? <PrintOutlinedIcon sx={{ fontSize: 18 }} /> : "KOT Settings"}
+            </Button>
+
             {/* Add button */}
             <Button
               variant="contained"
@@ -1054,13 +1085,14 @@ const RestaurantMenuList: React.FC = () => {
                 fontWeight: 700,
                 px: 2.5,
                 height: 40,
+                flexShrink: 0,
                 textTransform: "none",
                 fontSize: 13,
                 whiteSpace: "nowrap",
                 boxShadow: "0 4px 14px rgba(210,18,46,0.25)",
               }}
             >
-              {isMobile ? "Add" : "Create Menu Item"}
+              {isMobile ? "Add" : "Create Item"}
             </Button>
           </Box>
         )}
@@ -1155,6 +1187,19 @@ const RestaurantMenuList: React.FC = () => {
         onClose={() => { setAddMenuOpen(false); setEditItem(null); }}
         onSuccess={() => { setAddMenuOpen(false); setEditItem(null); refetch(); }}
       />
+
+      {kotModalOpen && (
+        <KotPrinterAssignModal
+          open={kotModalOpen}
+          onClose={() => setKotModalOpen(false)}
+          zoduId={zoduId}
+          branchId={branchId}
+          onAssigned={(counter, itemCount) =>
+            setKotSuccessMsg(`${itemCount} item${itemCount === 1 ? "" : "s"} assigned to ${counter.counter_name}`)
+          }
+        />
+      )}
+      <SuccessToast message={kotSuccessMsg} onClose={() => setKotSuccessMsg("")} />
     </Box>
   );
 };

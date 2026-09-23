@@ -1,16 +1,16 @@
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import LottieLoader from "@components/LottieLoader";
-import { Box, Grid, Paper, Skeleton, Typography } from "@mui/material";
+import { Box, Grid, MenuItem, Paper, Select, Skeleton, Typography } from "@mui/material";
 import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
 import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
-import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import { useTenantContext } from "@store/tenantContext";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
 import {
   usePurchaseSummary,
   usePurchaseMonthlyBreakdown,
+  useActiveYears,
   type PurchaseMonthlyBreakdownRow,
 } from "../usePurchaseReportapi";
 
@@ -91,10 +91,19 @@ const MonthWisePurchaseReport = () => {
   const { zoduId, branchId, businessType } = useTenantContext();
   const isRestaurant = businessType?.toLowerCase() === "restaurant";
 
+  const { data: activeYears = [CURRENT_YEAR], isLoading: yearsLoading } = useActiveYears({
+    zodu_id: zoduId ?? "",
+    branch_id: branchId ?? "",
+    isRestaurant,
+  });
+
+  const [year, setYear] = useState<number>(CURRENT_YEAR);
+  const selectedYear = activeYears.includes(year) ? year : (activeYears[0] ?? CURRENT_YEAR);
+
   const apiParams = {
     zodu_id: zoduId ?? "",
     branch_id: branchId ?? "",
-    year: CURRENT_YEAR,
+    year: selectedYear,
     isRestaurant,
   };
 
@@ -222,9 +231,23 @@ const MonthWisePurchaseReport = () => {
           <Paper sx={{ borderRadius: 1, border: "1px solid #eee", display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
             <Box sx={{ px: 2, pt: 1.5, pb: 1, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
               <Typography fontWeight="bold" fontSize="0.9rem">
-                Monthly Purchase Breakdown — {CURRENT_YEAR}
+                Monthly Purchase Breakdown — {selectedYear}
               </Typography>
-              <TuneOutlinedIcon sx={{ fontSize: 17, color: "text.secondary", cursor: "pointer" }} />
+
+              {yearsLoading ? (
+                <Skeleton width={90} height={32} sx={{ borderRadius: 1 }} />
+              ) : (
+                <Select
+                  size="small"
+                  value={selectedYear}
+                  onChange={(e) => setYear(Number(e.target.value))}
+                  sx={{ fontSize: "0.8rem", height: 32, minWidth: 90 }}
+                >
+                  {activeYears.map((y: number) => (
+                    <MenuItem key={y} value={y} sx={{ fontSize: "0.85rem" }}>{y}</MenuItem>
+                  ))}
+                </Select>
+              )}
             </Box>
 
             <Box sx={{ flex: 1, minHeight: 0 }}>
@@ -239,15 +262,15 @@ const MonthWisePurchaseReport = () => {
                 loadMoreRef={loadMoreRef}
                 tableContainerRef={tableContainerRef}
                 maxHeight="100%"
-                emptyMessage={`No purchase data available for ${CURRENT_YEAR}`}
+                emptyMessage={`No purchase data available for ${selectedYear}`}
               />
             </Box>
 
             <Box sx={{ px: 2, py: 1, display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid #f0f0f0", flexShrink: 0 }}>
               <Typography variant="caption" color="text.secondary">
                 {rows.length > 0
-                  ? `Showing ${rows.length} month${rows.length !== 1 ? "s" : ""} · ${CURRENT_YEAR}`
-                  : `Full year performance · ${CURRENT_YEAR}`}
+                  ? `Showing ${rows.length} month${rows.length !== 1 ? "s" : ""} · ${selectedYear}`
+                  : `Full year performance · ${selectedYear}`}
               </Typography>
               {hasNextPage && !isFetchingNextPage && (
                 <Typography variant="caption" color="text.secondary">Scroll for more</Typography>

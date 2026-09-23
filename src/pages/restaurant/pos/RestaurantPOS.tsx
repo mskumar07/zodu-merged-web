@@ -5,11 +5,12 @@ import { flushSync } from "react-dom";
 import LottieLoader from "@components/LottieLoader";
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "@pages/SalesHistory/ThermalInvoiceTemplate";
 import { gstBreakdownFromLines } from "@utils/gstSummary";
-import { captureThermalReceipt, writeThermalPrint } from "@utils/thermalPrint";
+import { printThermalCopies } from "@utils/thermalPrint";
 import {
   Box, Typography, TextField, InputAdornment, Chip, CircularProgress, Divider,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import SwitchAccountIcon from "@mui/icons-material/SwitchAccount";
 import SearchIcon from "@mui/icons-material/Search";
 import StarIcon from "@mui/icons-material/Star";
 import PauseCircleOutlineIcon from "@mui/icons-material/PauseCircleOutline";
@@ -26,11 +27,16 @@ import CloseIcon from "@mui/icons-material/Close";
 import zoduLogo from "@assets/zlogo.png";
 
 import { useAppSelector } from "../../../store/store";
-import { BranchId, ZoduId, BranchName, AllCompanies, UserProfile, addUserData, setRoleAccess, InvoiceSettingsData } from "@store/slices/userSlice";
+import { BranchId, ZoduId, BranchName, AllCompanies, UserProfile, addUserData, setRoleAccess, InvoiceSettingsData, PosSettingsData } from "@store/slices/userSlice";
+import { setRestaurantBillingView } from "@store/slices/POSslice";
+import { collapsedDrawerWidth } from "@layouts/Sidebar/index";
 import { authApis } from "@pages/auth/Authapi";
 import { useAppDispatch } from "@store/store";
 import { MenuItem, Select, IconButton, Avatar, Badge, Tooltip } from "@mui/material";
 import NotificationsIcon from "@mui/icons-material/Notifications";
+import KeyboardOutlinedIcon from "@mui/icons-material/KeyboardOutlined";
+import TouchAppOutlinedIcon from "@mui/icons-material/TouchAppOutlined";
+import { ThermalKotTemplate, type KotPrintData } from "@pages/restaurant/kot/ThermalKotTemplate";
 
 import {
   useRestaurantMenuQuery,
@@ -57,6 +63,7 @@ import {
 import CategoryNav          from "./components/CategoryNav";
 import ProductCard          from "./components/ProductCard";
 import OrderPanel, { type Totals, type PaymentMethod } from "./components/OrderPanel";
+import KeyboardBillingView from "./components/KeyboardBillingView";
 import { toPaymentTypeLabels } from "@pages/Settings/useInvoiceSettingApi";
 import TableModal           from "./components/modals/TableModal";
 import VariantModal         from "./components/modals/VariantModal";
@@ -116,10 +123,15 @@ function readAutoPrintPref(): boolean {
 // printer_inch is stored as "3 Inch" / "5 Inch" (Restaurant Invoice Settings only offers
 // thermal widths); anything unrecognised falls back to the 3" roll.
 function toThermalPaperSize(printerInch: string | undefined): ThermalPaperSize {
+  if (printerInch?.startsWith("2")) return "2";
   if (printerInch?.startsWith("4")) return "4";
   if (printerInch?.startsWith("5")) return "5";
   return "3";
 }
+
+// ─── Billing view mode (Touch card-grid vs. Keyboard tabular) ──────────────
+
+type BillingViewMode = "touch" | "keyboard";
 
 // One bill line, normalised from either a cart item or an already-sent KOT item.
 interface ReceiptLine {
@@ -163,6 +175,7 @@ const RestaurantPOS: React.FC = () => {
 
   const selectedCompany = companies.find((company) => company.zodu_id === zoduId) ?? null;
   const companyBranches = selectedCompany?.branches ?? [];
+  const isEmployee = profile?.user_type?.toLowerCase() === "employee";
 
   const handleBranchChange = async (selectedBranchId: string) => {
     const found = companyBranches.find((branch) => branch.branch_id === selectedBranchId);
@@ -209,6 +222,7 @@ const RestaurantPOS: React.FC = () => {
   const isBusy = addingOrder || updatingOrder || completingOrder || holdingOrder;
 
   const invoiceSettings = useAppSelector(InvoiceSettingsData);
+  const posSettings     = useAppSelector(PosSettingsData);
 
   // Which payment buttons the billing panel shows, driven by POS Settings' Payment
   // Types picker (payment_types) — same source retail POS reads from. Falls back to
@@ -221,6 +235,14 @@ const RestaurantPOS: React.FC = () => {
   // ── State ────────────────────────────────────────────────────────────────
   const [order,        setOrder       ] = useState<RestaurantOrder>(buildInitialOrder());
   const [cartItems,    setCartItems   ] = useState<RestaurantCartItem[]>([]);
+  // Mirrors cartItems for handlers that need a synchronous read (stock check,
+  // "does this product already have a row") without depending on cartItems
+  // itself — depending on it would change those handlers' identity on every
+  // cart mutation, which defeats the ProductCard grid's React.memo below (it
+  // can hold hundreds of cards, and only the one whose qty actually changed
+  // should re-render).
+  const cartItemsRef = useRef<RestaurantCartItem[]>([]);
+  cartItemsRef.current = cartItems;
   const [filterMode,   setFilterMode  ] = useState<"All" | "Favourites">("All");
   const [activeCategory, setActiveCategory] = useState("All");
 
@@ -230,23 +252,56 @@ const RestaurantPOS: React.FC = () => {
   const [showCustomer, setShowCustomer] = useState(false);
   const [showCameraScan, setShowCameraScan] = useState(false);
   const [runningOrderSummary, setRunningOrderSummary] = useState<RunningOrderOrderedItem[]>([]);
+  const runningOrderSummaryRef = useRef<RunningOrderOrderedItem[]>([]);
+  runningOrderSummaryRef.current = runningOrderSummary;
   const [runningOrderTotal,   setRunningOrderTotal  ] = useState<number>(0);
   const [isEditingSummary,    setIsEditingSummary   ] = useState(false);
+  const isEditingSummaryRef = useRef(false);
+  isEditingSummaryRef.current = isEditingSummary;
   // Snapshot of runningOrderSummary taken when edit mode starts, restored if the edit is cancelled.
   const [summaryBeforeEdit,   setSummaryBeforeEdit  ] = useState<RunningOrderOrderedItem[]>([]);
   const [variantItem,  setVariantItem ] = useState<RestaurantMenuItem | null>(null);
   const [successMsg,   setSuccessMsg  ] = useState("");
   const [errorMsg,     setErrorMsg    ] = useState("");
+
   // hold_id of the hold order currently loaded into the cart (restored but not yet sent/paid) —
   // only deleted from the server once the order is actually sent to KDS, paid, or re-held
   const [activeHoldId, setActiveHoldId] = useState<string | null>(null);
+
+  // Billing view — Touch is the card-grid picker (today's default), Keyboard is the
+  // dense tabular billing screen for a mouse+keyboard cashier workflow. Always opens
+  // on the branch's POS Settings value (pos_screen_type); switching here via the
+  // in-screen toggle only lasts for the current session, not remembered afterward.
+  const [billingView, setBillingView] = useState<BillingViewMode>(
+    posSettings?.pos_screen_type === "Keyboard" ? "keyboard" : "touch"
+  );
+  const handleSetBillingView = useCallback((mode: BillingViewMode) => {
+    setBillingView(mode);
+  }, []);
+
+  // Mirrored into Redux so the app Sidebar (rendered by Layout, outside this
+  // component's tree) knows whether to reserve its hover-expand rail here —
+  // only Keyboard mode gets it; Touch mode stays the full-screen overlay it
+  // always was. Reset back to "touch" on unmount so leaving this screen never
+  // leaves a stale billing-route hint behind for the Sidebar.
+  useEffect(() => {
+    dispatch(setRestaurantBillingView(billingView));
+    return () => { dispatch(setRestaurantBillingView("touch")); };
+  }, [billingView, dispatch]);
 
   // Print toggle — when on, the bill prints automatically after a successful payment,
   // on the paper size picked in Invoice Settings.
   const [printEnabled, setPrintEnabled] = useState<boolean>(readAutoPrintPref);
   const [receiptData,  setReceiptData ] = useState<Record<string, unknown> | null>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
-  const thermalPaperSize = toThermalPaperSize(invoiceSettings?.printer_inch);
+  // The KOT that prints with the bill (POS setting "Print KOT with Bill").
+  const [kotData, setKotData] = useState<KotPrintData | null>(null);
+  const kotRef = useRef<HTMLDivElement>(null);
+  const settingsPaperSize = toThermalPaperSize(invoiceSettings?.printer_inch);
+  // While printing, the receipt is drawn for the roll the chosen printer takes
+  // (see printThermalCopies) rather than the width Invoice Settings names.
+  const [printPaperSize, setPrintPaperSize] = useState<ThermalPaperSize | null>(null);
+  const thermalPaperSize = printPaperSize ?? settingsPaperSize;
 
   const handleTogglePrint = useCallback(() => {
     setPrintEnabled((prev) => {
@@ -418,17 +473,30 @@ const RestaurantPOS: React.FC = () => {
 
   // Total qty in cart for a given menu item (all variants combined).
   // While editing a running KOT, reads/writes go to runningOrderSummary instead of cartItems.
-  const getCartQty = useCallback(
-    (menuId: string) =>
-      isEditingSummary
-        ? runningOrderSummary
-            .filter((it) => it.item_id === menuId)
-            .reduce((s, it) => s + it.qty, 0)
-        : cartItems
-            .filter((c) => c.product.menu_id === menuId)
-            .reduce((s, c) => s + c.quantity, 0),
-    [cartItems, isEditingSummary, runningOrderSummary]
-  );
+  // Deliberately not memoized on cartItems: it's called inline per-card at render
+  // time (see the grid below) purely to compute that card's `qty` prop, so it needs
+  // to see fresh data every render anyway — memoizing it would only churn its own
+  // identity for no benefit, since nothing downstream holds onto this function.
+  const getCartQty = (menuId: string) =>
+    isEditingSummary
+      ? runningOrderSummary
+          .filter((it) => it.item_id === menuId)
+          .reduce((s, it) => s + it.qty, 0)
+      : cartItems
+          .filter((c) => c.product.menu_id === menuId)
+          .reduce((s, c) => s + c.quantity, 0);
+
+  // Same computation as getCartQty, but reading the refs — for use inside the
+  // stable useCallbacks below, which must not depend on cartItems/
+  // runningOrderSummary directly (see cartItemsRef above).
+  const getCartQtyStable = (menuId: string) =>
+    isEditingSummaryRef.current
+      ? runningOrderSummaryRef.current
+          .filter((it) => it.item_id === menuId)
+          .reduce((s, it) => s + it.qty, 0)
+      : cartItemsRef.current
+          .filter((c) => c.product.menu_id === menuId)
+          .reduce((s, c) => s + c.quantity, 0);
 
   // Adds a menu item into the running KOT summary (edit mode), or bumps its qty if already present.
   const addToSummary = useCallback((product: RestaurantMenuItem) => {
@@ -491,11 +559,11 @@ const RestaurantPOS: React.FC = () => {
         setVariantItem(product);
         return;
       }
-      if (isOutOfStock(product, getCartQty(product.menu_id) + 1)) return;
-      if (isEditingSummary) addToSummary(product);
+      if (isOutOfStock(product, getCartQtyStable(product.menu_id) + 1)) return;
+      if (isEditingSummaryRef.current) addToSummary(product);
       else addToCart(product);
     },
-    [addToCart, addToSummary, isEditingSummary, isOutOfStock, getCartQty]
+    [addToCart, addToSummary, isOutOfStock]
   );
 
   // Barcode/QR scan (hardware gun or camera) — looks up the FULL catalogue by exact
@@ -585,32 +653,32 @@ const RestaurantPOS: React.FC = () => {
 
   const incrementByProduct = useCallback(
     (product: RestaurantMenuItem) => {
-      if (isOutOfStock(product, getCartQty(product.menu_id) + 1)) return;
-      if (isEditingSummary) { addToSummary(product); return; }
-      const found = cartItems.find(
+      if (isOutOfStock(product, getCartQtyStable(product.menu_id) + 1)) return;
+      if (isEditingSummaryRef.current) { addToSummary(product); return; }
+      const found = cartItemsRef.current.find(
         (c) => c.product.menu_id === product.menu_id && !(c.product as any).variant_id
       );
       if (found) incrementCart(found);
       else addToCart(product);
     },
-    [cartItems, incrementCart, addToCart, addToSummary, isEditingSummary, isOutOfStock, getCartQty]
+    [incrementCart, addToCart, addToSummary, isOutOfStock]
   );
 
   const decrementByProduct = useCallback(
     (product: RestaurantMenuItem) => {
-      if (isEditingSummary) { decrementSummaryByProduct(product); return; }
-      const found = cartItems.find(
+      if (isEditingSummaryRef.current) { decrementSummaryByProduct(product); return; }
+      const found = cartItemsRef.current.find(
         (c) => c.product.menu_id === product.menu_id && !(c.product as any).variant_id
       );
       if (found) decrementCart(found);
     },
-    [cartItems, decrementCart, decrementSummaryByProduct, isEditingSummary]
+    [decrementCart, decrementSummaryByProduct]
   );
 
   const setQtyByProduct = useCallback(
     (product: RestaurantMenuItem, newQty: number) => {
       if (isOutOfStock(product, newQty)) return;
-      if (isEditingSummary) { setSummaryQtyByProduct(product, newQty); return; }
+      if (isEditingSummaryRef.current) { setSummaryQtyByProduct(product, newQty); return; }
       setCartItems((prev) => {
         const found = prev.find(
           (c) => c.product.menu_id === product.menu_id && !("variant_id" in c.product)
@@ -622,7 +690,7 @@ const RestaurantPOS: React.FC = () => {
         return updated;
       });
     },
-    [isOutOfStock, isEditingSummary, setSummaryQtyByProduct]
+    [isOutOfStock, setSummaryQtyByProduct]
   );
 
   const resetOrder = useCallback(() => {
@@ -632,6 +700,44 @@ const RestaurantPOS: React.FC = () => {
     setOrder(buildInitialOrder());
     setActiveHoldId(null);
     setIsEditingSummary(false);
+  }, []);
+
+  // Clearing the cart abandons whatever hold was restored into it too —
+  // otherwise a fresh order rung up afterward would wrongly delete that
+  // unrelated hold once it's paid (handlePay only keys off activeHoldId).
+  const handleClearCart = useCallback(() => {
+    setCartItems([]);
+    setActiveHoldId(null);
+  }, []);
+
+  // Switching the order type away from Dine In abandons any restored running
+  // order — it belongs to a specific table, which no longer applies once the
+  // order isn't Dine In. Without this, the summary/table state stayed
+  // populated underneath: Touch mode just happened to hide it (its cart view
+  // is gated on isDineIn), while Keyboard mode's item table isn't gated the
+  // same way and kept showing the stale table's items after switching tabs.
+  //
+  // activeHoldId is deliberately left alone here: it tracks a restored HOLD
+  // (cartItems), a completely different thing from a running order
+  // (runningOrderSummary) — a held order can legitimately be Pick Up or
+  // Delivery, and clearing activeHoldId when the cashier merely (re)selects
+  // that same order type meant handlePay's hold cleanup never ran, leaving
+  // the sold hold sitting in the Hold list forever.
+  const handleOrderTypeChange = useCallback((key: "DineIn" | "Delivery" | "PickUp") => {
+    if (key !== "DineIn") {
+      setRunningOrderSummary([]);
+      setRunningOrderTotal(0);
+      setIsEditingSummary(false);
+      setOrder((p) => ({
+        ...p,
+        orderType: key,
+        tableNumber: null,
+        customerName: "",
+        customerPhone: "",
+      }));
+    } else {
+      setOrder((p) => ({ ...p, orderType: key, customerName: "", customerPhone: "" }));
+    }
   }, []);
 
   // ── Edit-mode handlers for already-sent KOT items (runningOrderSummary) ────
@@ -651,6 +757,12 @@ const RestaurantPOS: React.FC = () => {
     setRunningOrderSummary((prev) => prev.filter((_, i) => i !== idx));
   }, []);
 
+  const setSummaryItemQty = useCallback((idx: number, qty: number) => {
+    setRunningOrderSummary((prev) =>
+      prev.map((it, i) => (i === idx ? { ...it, qty: Math.max(1, qty) } : it))
+    );
+  }, []);
+
   const handleEditSummary = useCallback(() => {
     setSummaryBeforeEdit(runningOrderSummary);
     setIsEditingSummary(true);
@@ -664,6 +776,11 @@ const RestaurantPOS: React.FC = () => {
   }, [summaryBeforeEdit]);
 
   // ── Build items payload ───────────────────────────────────────────────────
+  // Kitchen notes ride only on the order endpoints that print KOTs — complete-order
+  // validates its items strictly and has no use for them.
+  const withKitchenNotes = <T extends object>(payload: T[], items: RestaurantCartItem[]) =>
+    payload.map((p, idx) => (items[idx]?.note?.trim() ? { ...p, note: items[idx].note!.trim() } : p));
+
   const buildPayloadItems = (items: RestaurantCartItem[]) =>
     items.map((i) => {
       const price      = getItemPrice(i.product);
@@ -686,6 +803,34 @@ const RestaurantPOS: React.FC = () => {
         sgst:           halfGst,
       };
     });
+
+  // Folds freshly-added cart items into the running order's existing summary items
+  // (merging qty on a shared menu_id) — update/orders replaces an order's whole item
+  // set on every call, so a "just send the new item" payload would silently drop
+  // whatever was already on the table.
+  const mergeCartIntoSummary = (
+    existing: typeof runningOrderSummary,
+    additions: RestaurantCartItem[]
+  ): typeof runningOrderSummary => {
+    const merged = [...existing];
+    additions.forEach((ci) => {
+      const idx = merged.findIndex((it) => it.item_id === ci.product.menu_id);
+      if (idx >= 0) {
+        merged[idx] = { ...merged[idx], qty: merged[idx].qty + ci.quantity };
+      } else {
+        merged.push({
+          item_id:   ci.product.menu_id,
+          item_name: ci.product.menu_name,
+          item_unit: ci.product.menu_unit,
+          qty:       ci.quantity,
+          price:     getItemPrice(ci.product),
+          gst_tax:   ci.product.gst_tax,
+          tax_include_or_exclude: ci.product.tax_include_or_exclude ?? false,
+        });
+      }
+    });
+    return merged;
+  };
 
   const buildSummaryPayloadItems = (items: typeof runningOrderSummary) =>
     items.map((i) => {
@@ -760,6 +905,10 @@ const RestaurantPOS: React.FC = () => {
   };
 
   // ── Actions ───────────────────────────────────────────────────────────────
+  // A running table already has an api_order_id (set by handleRestoreRunningOrder).
+  // Adding fresh cart items to it is still "the same order, more items" from the
+  // backend's point of view, so it must go through update/orders — add/orders is
+  // only for a table/takeaway that has no order yet.
   const handleSendToKDS = async () => {
     if (!cartItems.length)
      { setErrorMsg("Add items first"); return; }
@@ -767,13 +916,13 @@ const RestaurantPOS: React.FC = () => {
     console.log("Sending to KDS with payload:", order);
 
     try {
-      await addOrder({
+      const res = await addOrder({
         zodu_id:         zoduId,
         branch_id:       branchId,
         table_no:        order.tableNumber ?? null,
         order_type:      ADD_ORDER_TYPE_MAP[order.orderType],
         kot_no:          order.kotNo ?? "KOT-1",
-        items:           buildPayloadItems(cartItems),
+        items:           withKitchenNotes(buildPayloadItems(cartItems), cartItems),
         no_of_items:     cartItems.length,
         subtotal:        totals.subtotal,
         total_amt:       totals.grandTotal,
@@ -789,6 +938,7 @@ const RestaurantPOS: React.FC = () => {
         customer_phone:  order.customerPhone,
       });
       setSuccessMsg("Order sent to KDS!");
+      void printKitchenTickets(res);
       if (activeHoldId) {
         try { await deleteHoldOrder(activeHoldId); } catch { /* ignore */ }
       }
@@ -852,32 +1002,59 @@ const RestaurantPOS: React.FC = () => {
     };
   };
 
-  // Prints the rendered receipt through a hidden iframe rather than window.open: this
-  // runs after the payment request resolves, by which point the click that started it
-  // may no longer count as a user gesture and a popup blocker would swallow a new window.
-  const printReceipt = async () => {
-    const node = receiptRef.current;
-    if (!node) return;
-    const image = await captureThermalReceipt(node);
+  // Prints the receipt — the template Invoice Settings names, exactly as its
+  // preview draws it — on the receipt printer connected to this PC, through the
+  // print bridge. Only a PC with no printer to send to falls back to the
+  // browser's print dialog.
+  // The KOT for this order's cart lines — POS setting "Print KOT with Bill".
+  // Null when the setting is off. Kitchen notes ride on the cart lines.
+  const kotForOrder = (
+    orderType: string,
+    orderNo: string | null,
+    items: Array<{ name: string; variant: string | null; qty: number; note: string | null }>,
+  ): KotPrintData | null =>
+    posSettings?.kot_print_enabled
+      ? {
+          kotNo:         order.kotNo,
+          orderNo,
+          orderType:     ADD_ORDER_TYPE_MAP[orderType] ?? orderType,
+          tableNo:       orderType === "DineIn" && order.tableNumber != null ? String(order.tableNumber) : null,
+          customerName:  order.customerName,
+          customerPhone: order.customerPhone,
+          items,
+          printedAt:     new Date(),
+        }
+      : null;
 
-    const iframe = document.createElement("iframe");
-    Object.assign(iframe.style, { position: "fixed", right: "0", bottom: "0", width: "0", height: "0", border: "0" });
-    document.body.appendChild(iframe);
-    const win = iframe.contentWindow;
-    if (!win) { iframe.remove(); return; }
-
-    await writeThermalPrint(win, [image]);
-
-    // After the write — opening the document drops listeners already on its window.
-    const cleanup = () => iframe.remove();
-    win.addEventListener("afterprint", () => setTimeout(cleanup, 0));
-    setTimeout(cleanup, 60000);
-
-    win.focus();
-    win.print();
+  // Prints the bill and, when given, the KOT after it — one print job, one dialog.
+  // Either can be left out: the bill when POS printing is switched off, the KOT
+  // when "Print KOT with Bill" is.
+  const printBillAndKot = async (
+    receipt: (ReturnType<typeof buildReceiptData> & { sale_id: string | null | undefined }) | null,
+    kot: KotPrintData | null,
+  ) => {
+    flushSync(() => {
+      if (receipt) setReceiptData(receipt);
+      setKotData(kot);
+    });
+    const billNode = receipt ? receiptRef.current : null;
+    const kotNode = kot ? kotRef.current : null;
+    const first = billNode ?? kotNode;
+    if (!first) return;
+    const printed = await printThermalCopies(
+      first,
+      [null],
+      (_copy, paper) => flushSync(() => setPrintPaperSize(paper)),
+      {
+        onError: (message) => setErrorMsg(`Bill not printed — ${message}`),
+        after: billNode && kotNode ? [kotNode] : [],
+      },
+    );
+    if (printed) setSuccessMsg(`Bill sent to ${printed}`);
   };
 
   const handlePay = async (payMethod: PaymentMethod) => {
+    const paidOrderType = order.orderType;
     try {
       let receipt: ReturnType<typeof buildReceiptData>;
       let res: unknown;
@@ -913,7 +1090,7 @@ const RestaurantPOS: React.FC = () => {
           branch_id:       branchId,
           table_no:        null,
           order_type:      ADD_ORDER_TYPE_MAP[order.orderType],
-          items:           buildPayloadItems(cartItems),
+          items:           withKitchenNotes(buildPayloadItems(cartItems), cartItems),
           no_of_items:     cartItems.length,
           subtotal:        totals.subtotal,
           total_amt:       totals.grandTotal,
@@ -935,13 +1112,26 @@ const RestaurantPOS: React.FC = () => {
       setSuccessMsg("Payment successful!");
       resetOrder();
 
-      if (printEnabled) {
-        // The payment already went through — a print problem must not read as a failed payment.
+      // "Print KOT with Bill": Pick Up / Delivery print the KOT right after the bill,
+      // in the same print job, so the customer's bill always comes first. A dine-in
+      // order's KOT already printed when it was sent to the kitchen.
+      const kot = paidOrderType === "DineIn" ? null : kotForOrder(
+        paidOrderType,
+        pickOrderNo(res) || null,
+        receipt.items.map((it, idx) => ({
+          name:    it.name,
+          variant: it.variant_name ?? null,
+          qty:     Number(it.qty) || 0,
+          // Kitchen notes are on the cart lines, in the same order as the bill's.
+          note:    cartItems.length > 0 ? cartItems[idx]?.note?.trim() || null : null,
+        })),
+      );
+      // The payment already went through — a print problem must not read as a failed payment.
+      if (printEnabled || kot) {
         try {
-          flushSync(() => setReceiptData({ ...receipt, sale_id: pickOrderNo(res) }));
-          await printReceipt();
-        } catch {
-          setErrorMsg("Payment successful, but the bill could not be printed");
+          await printBillAndKot(printEnabled ? { ...receipt, sale_id: pickOrderNo(res) } : null, kot);
+        } catch (err) {
+          setErrorMsg(`Payment successful, but the bill could not be printed${err instanceof Error ? ` — ${err.message}` : ""}`);
         }
       }
     } catch {
@@ -1098,12 +1288,23 @@ const RestaurantPOS: React.FC = () => {
   // ── Render ────────────────────────────────────────────────────────────────
   if (menuLoading) return <LottieLoader />;
 
+  // Touch mode stays the full-viewport overlay this screen has always been —
+  // maximum space for the card-grid cashier workflow, app chrome hidden.
+  // Keyboard mode instead leaves room on the left for the app Sidebar's
+  // hover-expand rail (see store/slices/POSslice.ts RestaurantBillingView /
+  // layouts/Sidebar), so it sits at a lower z-index than the Sidebar's fixed
+  // drawer paper (theme.zIndex.drawer + 1) and starts after its collapsed width.
+  const isKeyboard = billingView === "keyboard";
+
   return (
     <Box
       sx={{
         position: "fixed",
-        inset: 0,
-        zIndex: 1299,
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: isKeyboard ? collapsedDrawerWidth : 0,
+        zIndex: isKeyboard ? 1200 : 1299,
         display: "flex",
         flexDirection: "column",
         bgcolor: "#f5f5f5",
@@ -1111,9 +1312,12 @@ const RestaurantPOS: React.FC = () => {
       }}
     >
       {/* ════ Header / Navbar ════ */}
+      {/* Keyboard mode matches the Sidebar's 64px toolbar height so its bottom
+          border lines up with the Sidebar's divider instead of the two edges
+          sitting at different heights next to each other. */}
       <Box
         sx={{
-          height: 54,
+          height: isKeyboard ? 64 : 54,
           bgcolor: "#fff",
           borderBottom: "1px solid #e5e7eb",
           display: "flex",
@@ -1123,40 +1327,131 @@ const RestaurantPOS: React.FC = () => {
           flexShrink: 0,
         }}
       >
-        {/* Logo */}
-        <Box
-          component="img"
-          src={zoduLogo}
-          alt="zodu"
-          sx={{
-            height: 40,
-            width: "auto",
-            ml: 4,
-          }}
-        />
-        <Divider orientation="vertical" flexItem sx={{ borderColor: "#e5e7eb", ml: 10.2  }} />
+        {/* Logo + Back — the app Sidebar already shows its own logo and nav
+            once Keyboard mode reserves space for it, so this header's copies
+            would just duplicate that. Touch mode has no Sidebar visible, so
+            it keeps them. */}
+        {!isKeyboard && (
+          <>
+            <Box
+              component="img"
+              src={zoduLogo}
+              alt="zodu"
+              sx={{
+                height: 40,
+                width: "auto",
+                ml: 4,
+              }}
+            />
+            <Divider orientation="vertical" flexItem sx={{ borderColor: "#e5e7eb", ml: 10.2  }} />
 
-        {/* Back + Title */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Box
-            onClick={() => navigate("/sales-history")}
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              bgcolor: "#d32f2f",
-              color: "#fff",
-              borderRadius: "8px",
-              p: 0.5,
-              cursor: "pointer",
-              "&:hover": { bgcolor: "#b71c1c" },
-            }}
-          >
-            <ArrowBackIcon sx={{ fontSize: 18 }} />
-          </Box>
-        </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Box
+                onClick={() => navigate("/sales-history")}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  bgcolor: "#d32f2f",
+                  color: "#fff",
+                  borderRadius: "8px",
+                  p: 0.5,
+                  cursor: "pointer",
+                  "&:hover": { bgcolor: "#b71c1c" },
+                }}
+              >
+                <ArrowBackIcon sx={{ fontSize: 18 }} />
+              </Box>
+            </Box>
+          </>
+        )}
+
+        {/* Company name — this header stands in for the app Topbar on both
+            billing views, so it resolves the name the same way Topbar does. */}
+        <Typography
+          noWrap
+          sx={{
+            color: "#111827",
+            fontWeight: 700,
+            fontSize: { xs: 14, md: 17 },
+            textTransform: "uppercase",
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            ml: isKeyboard ? 0 : 1,
+          }}
+        >
+          {selectedCompany?.restaurant_name || selectedCompany?.company_name || profile?.restaurant_name || ""}
+        </Typography>
+        <Tooltip title={isEmployee ? "" : "Switch Organisation"}>
+          <span>
+            <IconButton
+              size="small"
+              disabled={isEmployee}
+              onClick={() => navigate("/select-branch", { state: { companies, fromSwitch: true } })}
+              sx={{
+                color: "#c8101f",
+                bgcolor: "rgba(200,16,31,0.07)",
+                borderRadius: "8px",
+                p: 0.6,
+                ml: -0.5,
+                flexShrink: 0,
+                "&:hover": { bgcolor: "rgba(200,16,31,0.14)" },
+                "&.Mui-disabled": { color: "#c8c8c8", bgcolor: "rgba(0,0,0,0.04)" },
+              }}
+            >
+              <SwitchAccountIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </span>
+        </Tooltip>
 
         <Box sx={{ flex: 1 }} />
+
+        {/* Billing view toggle: Keyboard (dense tabular billing) vs. Touch (card grid) */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.25,
+            p: 0.4,
+            borderRadius: "8px",
+            bgcolor: "#f3f4f6",
+            flexShrink: 0,
+          }}
+        >
+          {(
+            [
+              { mode: "keyboard" as const, label: "Keyboard", icon: <KeyboardOutlinedIcon sx={{ fontSize: 16 }} /> },
+              { mode: "touch" as const, label: "Touch", icon: <TouchAppOutlinedIcon sx={{ fontSize: 16 }} /> },
+            ]
+          ).map(({ mode, label, icon }) => {
+            const active = billingView === mode;
+            return (
+              <Box
+                key={mode}
+                onClick={() => handleSetBillingView(mode)}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  px: 1.25,
+                  py: 0.6,
+                  borderRadius: "6px",
+                  fontSize: "0.78rem",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  color: active ? "#d32f2f" : "#6b7280",
+                  bgcolor: active ? "#fff" : "transparent",
+                  boxShadow: active ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+                  transition: "all 0.15s",
+                }}
+              >
+                {icon}
+                {label}
+              </Box>
+            );
+          })}
+        </Box>
 
         {/* Branch dropdown */}
         <Select
@@ -1201,6 +1496,52 @@ const RestaurantPOS: React.FC = () => {
       </Box>
 
       {/* ════ Body ════ */}
+      {billingView === "keyboard" ? (
+        <KeyboardBillingView
+          order={order}
+          cartItems={cartItems}
+          totals={totals}
+          isBusy={isBusy}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchEnter={handleSearchEnter}
+          filterMode={filterMode}
+          onToggleFavourites={() => setFilterMode(filterMode === "Favourites" ? "All" : "Favourites")}
+          filteredCategories={filteredCategories}
+          getCartQty={getCartQty}
+          onAddItem={handleProductClick}
+          runningOrders={runningOrders}
+          onRestoreRunningOrder={handleRestoreRunningOrder}
+          runningOrderSummary={runningOrderSummary}
+          runningOrderTotals={runningOrderTotals}
+          onSummaryIncrement={incrementSummaryItem}
+          onSummaryDecrement={decrementSummaryItem}
+          onSummaryRemove={removeSummaryItem}
+          onSummarySetQty={setSummaryItemQty}
+          isEditingSummary={isEditingSummary}
+          onEditSummary={handleEditSummary}
+          onCancelEditSummary={handleCancelEditSummary}
+          onSendEditedKDS={handleSendEditedKDS}
+          onSendToKDS={handleSendToKDS}
+          heldOrders={heldOrders}
+          activeHoldId={activeHoldId}
+          onRestoreHold={handleRestoreHold}
+          onDeleteHold={handleDeleteHold}
+          enabledPaymentTypes={enabledPaymentTypes}
+          onOrderTypeChange={handleOrderTypeChange}
+          onTableClick={() => setShowTable(true)}
+          onCustomerClick={() => setShowCustomer(true)}
+          onDiscountClick={() => setShowDiscount(true)}
+          onPaymentMethodChange={(m) => setOrder((p) => ({ ...p, paymentMethod: m }))}
+          onIncrement={incrementCart}
+          onDecrement={decrementCart}
+          onSetQty={setQtyByProduct}
+          onRemove={removeFromCart}
+          onClearCart={handleClearCart}
+          onHold={handleHold}
+          onPaid={() => handlePay(order.paymentMethod)}
+        />
+      ) : (
       <Box sx={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
 
         {/* ── Category sidebar ── */}
@@ -1543,9 +1884,7 @@ const RestaurantPOS: React.FC = () => {
           runningOrderTotals={runningOrderTotals}
           onTableClick={() => setShowTable(true)}
           onCustomerClick={() => setShowCustomer(true)}
-          onOrderTypeChange={(key) =>
-            setOrder((p) => ({ ...p, orderType: key, customerName: "", customerPhone: "" }))
-          }
+          onOrderTypeChange={handleOrderTypeChange}
           onDiscountClick={() => setShowDiscount(true)}
           onPaymentMethodChange={(m) => setOrder((p) => ({ ...p, paymentMethod: m }))}
           enabledPaymentTypes={enabledPaymentTypes}
@@ -1561,17 +1900,25 @@ const RestaurantPOS: React.FC = () => {
           onSummaryIncrement={incrementSummaryItem}
           onSummaryDecrement={decrementSummaryItem}
           onSummaryRemove={removeSummaryItem}
+          onSummarySetQty={setSummaryItemQty}
           onSendEditedKDS={handleSendEditedKDS}
-          onClearCart={() => setCartItems([])}
+          onClearCart={handleClearCart}
           printEnabled={printEnabled}
           onTogglePrint={handleTogglePrint}
         />
       </Box>
+      )}
 
       {/* Off-screen receipt — captured by printReceipt() after a successful payment */}
       {receiptData && (
         <Box sx={{ position: "fixed", left: -10000, top: 0, pointerEvents: "none", opacity: 0 }}>
           <ThermalInvoiceTemplate ref={receiptRef} data={receiptData} paperSize={thermalPaperSize} />
+        </Box>
+      )}
+      {/* Off-screen KOT — printed after the bill when "Print KOT with Bill" is on */}
+      {kotData && (
+        <Box sx={{ position: "fixed", left: -10000, top: 0, pointerEvents: "none", opacity: 0 }}>
+          <ThermalKotTemplate ref={kotRef} data={kotData} paperSize={thermalPaperSize} />
         </Box>
       )}
 
@@ -1627,6 +1974,7 @@ const RestaurantPOS: React.FC = () => {
 
       <SuccessToast message={successMsg} onClose={() => setSuccessMsg("")} />
       <SuccessToast message={errorMsg} severity="error" onClose={() => setErrorMsg("")} />
+
 
     </Box>
   );

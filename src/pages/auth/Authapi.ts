@@ -312,7 +312,8 @@ export interface InvoiceSettings {
   // "Transport"). Absent on rows that predate this field — treat a missing or
   // empty value as ["Original"].
   invoice_copy_types?: string[];
-  // Which A4 invoice layout to render — "classic" (default) or "modern".
+  // Which invoice layout to render — "classic" (default), "modern" or "modern2" on A4.
+  // Thermal receipts read it too: "modern"/"modern2" print the Modern receipt, anything else Classic.
   invoice_template?: string;
   // POS settings — "Additional Settings". Absent on rows that predate this field.
   stock_check_enabled?: boolean;
@@ -334,6 +335,11 @@ export interface PosSettings {
   purchase_order_enabled?: boolean;
   // Whether POS offers Hold/Recall. Treat a missing value as on.
   hold_enabled?: boolean;
+  // Restaurant-only: which billing layout the restaurant POS screen opens on
+  // ("Touch" | "Keyboard"). Treat a missing value as "Touch".
+  pos_screen_type?: string;
+  // Restaurant-only: print a KOT with the bill. Treat a missing value as off.
+  kot_print_enabled?: boolean;
   active?: boolean;
   created_at?: string;
   updated_at?: string;
@@ -507,6 +513,18 @@ export const authApis = {
   deleteBranch: (zoduId: string, branchId: string) =>
     unwrap<{ message?: string; results?: unknown }>(
       api.delete(`/auth/api/branch/${zoduId}/${branchId}`)
+    ),
+
+  // DELETE /auth/api/company/:zodu_id — cascades across every service and
+  // every branch on the company, and cannot be undone. Same shape/failure
+  // mode as deleteBranch: the endpoint always answers HTTP 200 (FormateData
+  // wraps both success and error as { data: {...} }), so a mid-purge failure
+  // is reported via unwrap() throwing with the real message, and — when the
+  // backend includes one — `partial_results` names the services that were
+  // already purged before the failure.
+  deleteCompany: (zoduId: string) =>
+    unwrap<{ message?: string; results?: unknown; partial_results?: unknown }>(
+      api.delete(`/auth/api/company/${zoduId}`)
     ),
 
   // GET /auth/api/role-access?zodu_id=...&branch_id=... — called once a branch is

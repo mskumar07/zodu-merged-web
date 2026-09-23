@@ -25,6 +25,7 @@ import {
   addUserData,
   setRoleAccess,
 } from "@store/slices/userSlice";
+import { RestaurantBillingView } from "@store/slices/POSslice";
 import { authApis } from "@pages/auth/Authapi";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -48,7 +49,11 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
   // top bar / company name don't sit under a phantom 240px gap. Below `md` the
   // sidebar is an off-canvas overlay (opened via the hamburger button) and never
   // reserves layout space, so the top bar always spans the full width there.
-  const isBillingRoute = location.pathname.startsWith("/pos");
+  const restaurantBillingView = useAppSelector(RestaurantBillingView);
+  const isBillingRoute =
+    location.pathname.startsWith("/pos") ||
+    (location.pathname.startsWith("/restaurant-pos") && restaurantBillingView === "keyboard") ||
+    location.pathname.startsWith("/kds");
   const reservedSidebarWidth = isBillingRoute ? collapsedDrawerWidth : drawerWidth;
   const zoduId = useAppSelector(ZoduId);
   const branchId = useAppSelector(BranchId);

@@ -8,6 +8,7 @@ import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
 import ReceiptIcon from "@mui/icons-material/Receipt";
 import RestaurantMenuIcon from "@mui/icons-material/RestaurantMenu";
 import ChecklistIcon from "@mui/icons-material/Checklist";
+import SoupKitchenIcon from "@mui/icons-material/SoupKitchen";
 import GroupsIcon from '@mui/icons-material/Groups';
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import Logo from "@components/Common/Logo";
@@ -28,12 +29,10 @@ import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import React, { useState, useEffect } from "react";
 import { History, Person, Settings, Badge } from "@mui/icons-material";
-import { useAppDispatch, useAppSelector } from "@store/store";
-import { clearAuthData, BusinessType, RoleAccess } from "@store/slices/userSlice";
-import { tokenStore } from "@pages/auth/Authapi";
-import { db } from "@pages/POS/db";
-import { resetSessionReconciliation } from "@hooks/useReconcilePersistedSession";
-import { useQueryClient } from "@tanstack/react-query";
+import { useAppSelector } from "@store/store";
+import { BusinessType, RoleAccess } from "@store/slices/userSlice";
+import { RestaurantBillingView } from "@store/slices/POSslice";
+import { useSignOut } from "@hooks/useSignOut";
 import { useLocation } from "react-router-dom";
 
 export const drawerWidth = 240;
@@ -63,6 +62,7 @@ const restaurantNavItems = [
   { label: "Dashboard", icon: <DashboardIcon />, path: "/dashboard", module: "Dashboard" },
   { label: "POS", icon: <PointOfSaleIcon />, path: "/restaurant-pos", module: "Billing" },
   { label: "Sales History", icon: <History />, path: "/sales-history", module: "Sales History" },
+  { label: "KDS Screen", icon: <SoupKitchenIcon />, path: "/kds", module: "KDS Screen" },
   { label: "Menu Items", icon: <CategoryIcon />, path: "/restaurant-menu", module: "Menu Items" },
   { label: "Inventory", icon: <ReceiptIcon />, path: "/stock", module: "Inventory" },
   { label: "Purchase", icon: <CategoryIcon />, path: "/purchase", module: "Purchase" },
@@ -84,10 +84,9 @@ interface SidebarProps {
 
 export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const theme = useTheme();
-  const dispatch = useAppDispatch();
-  const queryClient = useQueryClient();
   const location = useLocation();
   const { navigate } = useNavigation();
+  const handleLogout = useSignOut();
   const businessType = useAppSelector(BusinessType);
   const roleAccess = useAppSelector(RoleAccess);
   // Below `md` the sidebar can't rely on hover (touch devices) or afford to
@@ -113,8 +112,15 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
   );
 
   // Billing screen (retail POS) gets a hover-expandable icon rail; every other
-  // route keeps the sidebar at its normal fixed width.
-  const isBillingRoute = location.pathname.startsWith("/pos");
+  // route keeps the sidebar at its normal fixed width. The restaurant POS screen
+  // renders its own full-screen overlay and only wants the rail while its
+  // Keyboard billing layout is active — Touch mode stays full-screen with no
+  // sidebar reserved, same as before.
+  const restaurantBillingView = useAppSelector(RestaurantBillingView);
+  const isBillingRoute =
+    location.pathname.startsWith("/pos") ||
+    (location.pathname.startsWith("/restaurant-pos") && restaurantBillingView === "keyboard") ||
+    location.pathname.startsWith("/kds");
   const [isHovered, setIsHovered] = useState(false);
   // A stale "hovered" flag can survive a route change when the click that navigated
   // here (e.g. from Sales History) left the cursor sitting over the sidebar's screen
@@ -136,18 +142,6 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
     easing: theme.transitions.easing.sharp,
     duration: theme.transitions.duration.enteringScreen,
   });
-
-  const handleLogout = async () => {
-    await db.products.clear();
-    await db.meta.clear();
-    queryClient.clear();
-    tokenStore.clear();
-    dispatch(clearAuthData());
-    // The next sign-in in this same page load has to reconcile its session
-    // again — the guard is module scoped, not component scoped.
-    resetSessionReconciliation();
-    navigate("/login");
-  };
 
   return (
     <Drawer

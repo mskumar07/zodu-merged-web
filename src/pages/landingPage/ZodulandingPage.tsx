@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import {
-  Box, Button, Container, Typography, Stack, Divider,
-  IconButton
-
+  Box, Button, Typography, Stack, Divider,
+   IconButton
+  
 } from "@mui/material";
 import { createTheme, ThemeProvider, alpha } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -54,7 +54,6 @@ import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import CloudDoneIcon from "@mui/icons-material/CloudDone";
 
 import { useNavigate } from "react-router-dom";
-import heroImg from "../../assets/heroImg.png";
 import zlogo from "../../assets/zlogo.png";
 import imgPosBilling from "../../assets/modules/pos-billing.png";
 import imgInventory from "../../assets/modules/inventory.png";
@@ -74,9 +73,6 @@ import showcaseInventory from "../../assets/wzd_2.png";
 import showcaseReports from "../../assets/wzd__3.png";
 import showcaseTeam from "../../assets/wzd__4.png";
 
-// import pos4 from "../../assets/Feature/pos4.png";
-// import pos7 from "../../assets/Feature/pos7.png";
-// import pos6 from "../../assets/Feature/pos6.png";
 
 import barShot1 from "../../assets/Feature/bar1.png";
 import barShot2 from "../../assets/Feature/bar2.png";
@@ -99,16 +95,14 @@ import taskShot3 from "../../assets/Feature/task3.png";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import BoltOutlinedIcon from "@mui/icons-material/BoltOutlined";
 import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
-import {
+import { 
   Face as FaceIcon,
   QrCode as QrCodeIcon,
   LocationOn as LocationOnIcon,
   Phone as PhoneIcon,
   Notifications as NotificationsIcon,
   Receipt as ReceiptIcon,
-  Home as HomeIcon,
   Bolt as BoltIcon,
-  MoreHoriz as MoreHorizIcon,
   ShoppingBag as ShoppingBagIcon,
 } from '@mui/icons-material';
 
@@ -120,28 +114,13 @@ import AddShoppingCartIcon from '@mui/icons-material/AddShoppingCart';
 
 import GroupIcon from '@mui/icons-material/Group';
 
-import posbilling from "../../assets/Landingpage/pos-billing.png";
-import inventoryImage from "../../assets/Landingpage/Inventory-Management.jpeg";
-import CustomerManagementImage from "../../assets/Landingpage/Customer-Management.png";
 
-import womenImage from "../../assets/Landingpage/women-image.png";
-import attendanceImage from "../../assets/Landingpage/Attendance-Management.jpeg";
 
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
-import PaymentsRemindersImage from "../../assets/Landingpage/Payments-reminders.jpeg";
 
-import ExpenseManagementImage from "../../assets/Landingpage/Expense-management.jpeg";
-import purchaseManagementImg from "../../assets/Landingpage/purchase-management.jpeg";
-import reportsAnalyticsImg from '../../assets/Landingpage/reportsAnalyticsImg.png';
-import reportsAnalyticsFullyTransparentImg from "../../assets/Landingpage/reports-analytics-fully-transparent.png";
-import CustomerManagementImage1 from "../../assets/Landingpage/Customer-management1.png";
-import GSTComplianceImage2 from "../../assets/Landingpage/Gst-compliance&reports.png";
 
 import posbilling1 from "../../assets/Landingpage/pos-billing1.png";
-import PaymentsRemindersImage2 from "../../assets/Landingpage/payments&reminder.png";
-import purchaseManagementImg2 from "../../assets/Landingpage/purchase-management1.png";
-import ExpenseManagementImage2 from "../../assets/Landingpage/Expense-management1.png";
 
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
 
@@ -155,10 +134,7 @@ import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
 import PeopleAltRoundedIcon from '@mui/icons-material/PeopleAltRounded';
 import BarChartRoundedIcon from '@mui/icons-material/BarChartRounded';
-import LightbulbRoundedIcon from '@mui/icons-material/LightbulbRounded';
-import CampaignRoundedIcon from '@mui/icons-material/CampaignRounded';
 import ArrowUpwardRoundedIcon from '@mui/icons-material/ArrowUpwardRounded';
-import ArrowDownwardRoundedIcon from '@mui/icons-material/ArrowDownwardRounded';
 import DevicesRoundedIcon from '@mui/icons-material/DevicesRounded';
 
 import WomanIcon from '@mui/icons-material/Woman';
@@ -169,7 +145,6 @@ import heroSectionBg from '../../assets/Landingpage/hero-image.jpeg';
 import heroSectionBgWide from '../../assets/Landingpage/hero-image1.png';
 
 
-import SendIcon from '@mui/icons-material/Send';
 import StorefrontRoundedIcon from "@mui/icons-material/StorefrontRounded";
 import AgricultureRoundedIcon from "@mui/icons-material/AgricultureRounded";
 import DirectionsCarRoundedIcon from "@mui/icons-material/DirectionsCarRounded";
@@ -199,15 +174,16 @@ import AirportShuttleRoundedIcon from "@mui/icons-material/AirportShuttleRounded
 import WeekendRoundedIcon from "@mui/icons-material/WeekendRounded";
 import LiquorRoundedIcon from "@mui/icons-material/LiquorRounded";
 import WaterDropRoundedIcon from "@mui/icons-material/WaterDropRounded";
+
 // ── Design Tokens ───────────────────────────────────────────
 // ──────────────────
-const PRIMARY = "#d32f2f";
-const PRIMARY_DARK = "#b71c1c";
+const PRIMARY       = "#d32f2f";
+const PRIMARY_DARK  = "#b71c1c";
 const PRIMARY_LIGHT = "#ffebee";
-const DARK = "#111827";
-const GRAY = "#6B7280";
-const LIGHT = "#F9FAFB";
-const BORDER = "#E5E7EB";
+const DARK          = "#111827";
+const GRAY          = "#6B7280";
+const LIGHT         = "#F9FAFB";
+const BORDER        = "#E5E7EB";
 
 const theme = createTheme({
   palette: {
@@ -233,181 +209,181 @@ const features: {
   icon: string;
   bg: string;
   img: string;
-  color: string;
+  color:string;
   title: string;
   tagline: string;
   items: string[];
   images?: string[];
 }[] = [
-    {
-      icon: imgPosBilling,
-      bg: "#fff0f0",
-      img: showcaseBilling,
-      title: "Billing",
-      tagline: "Turn every sale into a fast, error-free transaction.",
-      items: [
-        "Create GST-compliant invoices in under 10 seconds",
-        "Accept cash, card, UPI & all digital payment modes",
-        "Apply discounts, offers & loyalty points instantly",
-        "Print or WhatsApp bills directly from the app",
-      ],
-    },
-    {
-      icon: imgInventory,
-      bg: "#f0fdf4",
-      img: showcaseInventory,
-      title: "Never Run Out of Stock Again",
-      tagline: "Know exactly what you have before you need it.",
-      items: [
-        "Real-time stock tracking across all your products",
-        "Automatic low-stock alerts before you run out",
-        "Manage batches, expiry dates & multiple units",
-        "Purchase orders & supplier management built in",
-      ],
-    },
-    {
-      icon: imgReports,
-      bg: "#fff7ed",
-      img: showcaseReports,
-      title: "Know Exactly Where Your Money Goes",
-      tagline: "Stop guessing. Start making data-driven decisions.",
-      items: [
-        "Daily, weekly & monthly profit & loss reports",
-        "See your top-selling and slow-moving products",
-        "Track expenses by category and date range",
-        "Export GST-ready reports to share with your CA",
-      ],
-    },
-    {
-      icon: imgEmployee,
-      bg: "#eff6ff",
-      img: showcaseTeam,
-      color: "#0a99eb",
-      images: [employeeShot1, employeeShot2, employeeShot3],
-      title: "Employee Management",
-      tagline: "Run your whole team without the headache.",
-      items: [
-        "Role-based access control",
-        "Track each staff's sales performance",
-        "Monthly payroll in minutes",
-        "Shift & duty scheduling",
-      ],
-    },
-    {
-      icon: imgPrint,
-      bg: "#eff6ff",
-      img: showcaseTeam,
-      title: "Manage Your Team Without the Headache",
-      tagline: "Save 5+ hours every week on staff management.",
-      items: [
-        "Track attendance automatically with login logs",
-        "Process monthly payroll in under 10 minutes",
-        "Set role-based access — staff see only what they need",
-        "Monitor each employee's sales performance live",
-      ],
-    },
-    {
-      icon: imgGstTax,
-      bg: "#eff6ff",
-      img: showcaseTeam,
-      title: "GST & Tax Reports",
-      tagline: "Stay compliant without the accountant stress.",
-      items: [
-        "Auto GST calculation on every bill",
-        "GSTR-ready exports for your CA",
-        "HSN / SAC code support",
-        "Tax summary dashboards",
-      ],
-    },
-    {
-      icon: imgGstTax,
-      bg: "#eff6ff",
-      img: showcaseTeam,
-      color: "#19bbd4",
-      title: "Customer Management",
-      tagline: "Turn one-time buyers into loyal regulars.",
-      items: [
-        "Customer profiles & purchase history",
-        "Loyalty points & reward offers",
-        "Loyalty points & reward offers",
-        "Credit / khata management",
-        "Targeted offers & reminders"
-      ],
-    },
-    {
-      icon: imgMultiLocation,
-      bg: "#eff6ff",
-      img: showcaseTeam,
-      title: "Multi Location",
-      tagline: "Run every branch from a single account.",
-      items: [
-        "Combined cross-branch reports",
-        "Per-outlet inventory control",
-        "Centralised staff management",
-        "Branch-wise performance",
-      ],
-    },
-    {
-      icon: imgDigitalPayments,
-      bg: "#eff6ff",
-      img: showcaseTeam,
-      color: "#d70fac",
-      images: [digiShot1, digiShot2, digiShot3],
-      title: "Digital Payments",
-      tagline: "Accept every payment mode, auto-reconciled.",
-      items: [
-        "UPI, card & wallet support",
-        "QR-code payments at the counter",
-        "Automatic payment reminders",
-        "Reconciled transaction records",
-      ],
-    },
-    {
-      icon: imgTaskManagement,
-      bg: "#eff6ff",
-      img: showcaseTeam,
-      color: "#03e13b",
-      images: [taskShot1, taskShot2, taskShot3],
-      title: "Task Management",
-      tagline: "Assign work and track it to completion.",
-      items: [
-        "Assign tasks to any staff member",
-        "Track progress in real time",
-        "Due-date reminders & alerts",
-        "Daily task checklists",
-      ],
-    },
-    {
-      icon: imgBarcodeStock,
-      bg: "#eff6ff",
-      img: showcaseTeam,
-      color: "#19bbd4",
-      images: [barShot1, barShot2, barShot3, barShot4],
-      title: "Barcode & Stock",
-      tagline: "Scan-to-bill speed at the counter.",
-      items: [
-        "Barcode scan billing",
-        "Automatic stock deduction",
-        "Label & barcode printing",
-        "Batch & expiry tracking",
-      ],
-    },
-    {
-      icon: imgMobileApp,
-      bg: "#eff6ff",
-      img: showcaseTeam,
-      color: "#4b06ba",
-      images: [mobileShot1, mobileShot2, mobileShot3],
-      title: "Mobile App & Alerts",
-      tagline: "Run your business right from your pocket.",
-      items: [
-        "iOS, Android & tablet apps",
-        "Real-time sales alerts",
-        "Remote dashboard access",
-        "Smart push notifications",
-      ],
-    },
-  ];
+  {
+    icon: imgPosBilling,
+    bg: "#fff0f0",
+    img: showcaseBilling,
+    title: "Billing",
+    tagline: "Turn every sale into a fast, error-free transaction.",
+    items: [
+      "Create GST-compliant invoices in under 10 seconds",
+      "Accept cash, card, UPI & all digital payment modes",
+      "Apply discounts, offers & loyalty points instantly",
+      "Print or WhatsApp bills directly from the app",
+    ],
+  },
+  {
+    icon: imgInventory,
+    bg: "#f0fdf4",
+    img: showcaseInventory,
+    title: "Never Run Out of Stock Again",
+    tagline: "Know exactly what you have before you need it.",
+    items: [
+      "Real-time stock tracking across all your products",
+      "Automatic low-stock alerts before you run out",
+      "Manage batches, expiry dates & multiple units",
+      "Purchase orders & supplier management built in",
+    ],
+  },
+  {
+    icon: imgReports,
+    bg: "#fff7ed",
+    img: showcaseReports,
+    title: "Know Exactly Where Your Money Goes",
+    tagline: "Stop guessing. Start making data-driven decisions.",
+    items: [
+      "Daily, weekly & monthly profit & loss reports",
+      "See your top-selling and slow-moving products",
+      "Track expenses by category and date range",
+      "Export GST-ready reports to share with your CA",
+    ],
+  },
+  {
+    icon: imgEmployee,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+     color: "#0a99eb", 
+    images: [employeeShot1, employeeShot2, employeeShot3],
+    title: "Employee Management",
+    tagline: "Run your whole team without the headache.",
+    items: [
+      "Role-based access control",
+      "Track each staff's sales performance",
+      "Monthly payroll in minutes",
+      "Shift & duty scheduling",
+    ],
+  },
+  {
+    icon: imgPrint,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+    title: "Manage Your Team Without the Headache",
+    tagline: "Save 5+ hours every week on staff management.",
+    items: [
+      "Track attendance automatically with login logs",
+      "Process monthly payroll in under 10 minutes",
+      "Set role-based access — staff see only what they need",
+      "Monitor each employee's sales performance live",
+    ],
+  },
+  {
+    icon: imgGstTax,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+    title: "GST & Tax Reports",
+    tagline: "Stay compliant without the accountant stress.",
+    items: [
+      "Auto GST calculation on every bill",
+      "GSTR-ready exports for your CA",
+      "HSN / SAC code support",
+      "Tax summary dashboards",
+    ],
+  },
+  {
+    icon: imgGstTax,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+     color: "#19bbd4", 
+    title: "Customer Management",
+    tagline: "Turn one-time buyers into loyal regulars.",
+    items: [
+      "Customer profiles & purchase history",
+      "Loyalty points & reward offers",
+      "Loyalty points & reward offers",   
+      "Credit / khata management",
+      "Targeted offers & reminders"
+    ],
+  },
+  {
+    icon: imgMultiLocation,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+    title: "Multi Location",
+    tagline: "Run every branch from a single account.",
+    items: [
+      "Combined cross-branch reports",
+      "Per-outlet inventory control",
+      "Centralised staff management",
+      "Branch-wise performance",
+    ],
+  },
+  {
+    icon: imgDigitalPayments,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+     color: "#d70fac", 
+    images: [digiShot1, digiShot2, digiShot3],
+    title: "Digital Payments",
+    tagline: "Accept every payment mode, auto-reconciled.",
+    items: [
+      "UPI, card & wallet support",
+      "QR-code payments at the counter",
+      "Automatic payment reminders",
+      "Reconciled transaction records",
+    ],
+  },
+  {
+    icon: imgTaskManagement,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+     color: "#03e13b", 
+    images: [taskShot1, taskShot2, taskShot3],
+    title: "Task Management",
+    tagline: "Assign work and track it to completion.",
+    items: [
+      "Assign tasks to any staff member",
+      "Track progress in real time",
+      "Due-date reminders & alerts",
+      "Daily task checklists",
+    ],
+  },
+  {
+    icon: imgBarcodeStock,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+     color: "#19bbd4", 
+    images: [barShot1, barShot2, barShot3, barShot4],
+    title: "Barcode & Stock",
+    tagline: "Scan-to-bill speed at the counter.",
+    items: [
+      "Barcode scan billing",
+      "Automatic stock deduction",
+      "Label & barcode printing",
+      "Batch & expiry tracking",
+    ],
+  },
+  {
+    icon: imgMobileApp,
+    bg: "#eff6ff",
+    img: showcaseTeam,
+     color: "#4b06ba", 
+    images: [mobileShot1, mobileShot2, mobileShot3],
+    title: "Mobile App & Alerts",
+    tagline: "Run your business right from your pocket.",
+    items: [
+      "iOS, Android & tablet apps",
+      "Real-time sales alerts",
+      "Remote dashboard access",
+      "Smart push notifications",
+    ],
+  },
+];
 
 const steps = [
   {
@@ -434,12 +410,12 @@ const steps = [
 ];
 
 const businessTypes = [
-  { icon: StorefrontIcon, title: "Retail Stores", desc: "Clothing, footwear, electronics & general stores" },
-  { icon: RestaurantIcon, title: "Restaurants & Cafés", desc: "QSR, dine-in, cloud kitchens & food courts" },
-  { icon: LocalGroceryStoreIcon, title: "Supermarkets", desc: "Daily needs, FMCG, fresh produce & kirana shops" },
+  { icon: StorefrontIcon,           title: "Retail Stores",       desc: "Clothing, footwear, electronics & general stores" },
+  { icon: RestaurantIcon,           title: "Restaurants & Cafés", desc: "QSR, dine-in, cloud kitchens & food courts" },
+  { icon: LocalGroceryStoreIcon,    title: "Supermarkets",        desc: "Daily needs, FMCG, fresh produce & kirana shops" },
   // { icon: LocalPharmacyIcon,        title: "Pharmacies",          desc: "Medical shops, clinics & diagnostic centres" },
-  { icon: SpaIcon, title: "Beauty & Wellness", desc: "Salons, spas, fitness studios & wellness centres" },
-  { icon: MiscellaneousServicesIcon, title: "Services & Others", desc: "Coaching centres, print shops & service businesses" },
+  { icon: SpaIcon,                  title: "Beauty & Wellness",   desc: "Salons, spas, fitness studios & wellness centres" },
+  { icon: MiscellaneousServicesIcon,title: "Services & Others",   desc: "Coaching centres, print shops & service businesses" },
 ];
 
 // Complete module suite. `icon` renders today; for the modules illustrated in
@@ -455,67 +431,67 @@ const modules: {
   points: string[];
   img?: string;
 }[] = [
-    {
-      icon: <PointOfSaleIcon />, color: "#d32f2f", bg: "#fff0f0", img: imgPosBilling,
-      title: "POS Billing", desc: "Lightning-fast point-of-sale for busy counters.",
-      points: ["GST invoices in under 10 seconds", "Cash, card, UPI & split payments", "Instant discounts & loyalty points", "Print or WhatsApp bills directly"],
-    },
-    {
-      icon: <ShoppingCartIcon />, color: "#ea580c", bg: "#fff7ed", img: imgInventory,
-      title: "Inventory Management", desc: "Always know what's in stock before you run out.",
-      points: ["Real-time stock across all products", "Low-stock & reorder alerts", "Batch, expiry & multi-unit support", "Purchase orders & supplier records"],
-    },
-    {
-      icon: <BadgeIcon />, color: "#2563eb", bg: "#eff6ff", img: imgEmployee,
-      title: "Employee Management", desc: "Run your whole team without the headache.",
-      points: ["Role-based access control", "Track each staff's sales performance", "Monthly payroll in minutes", "Shift & duty scheduling"],
-    },
-    {
-      icon: <FingerprintIcon />, color: "#0d9488", bg: "#f0fdfa",
-      title: "Attendance Management", desc: "Accurate attendance with no manual registers.",
-      points: ["Auto check-in / check-out logs", "Late, early & overtime tracking", "Leave & holiday management", "Attendance-linked payroll"],
-    },
-    {
-      icon: <InsightsIcon />, color: "#7c3aed", bg: "#f5f3ff", img: imgReports,
-      title: "Reports & Insights", desc: "Make every decision backed by real numbers.",
-      points: ["Daily, weekly & monthly P&L", "Top & slow-moving products", "Expense tracking by category", "Export-ready business reports"],
-    },
-    {
-      icon: <ReceiptLongIcon />, color: "#0891b2", bg: "#ecfeff", img: imgGstTax,
-      title: "GST & Tax Reports", desc: "Stay compliant without the accountant stress.",
-      points: ["Auto GST calculation on every bill", "GSTR-ready exports for your CA", "HSN / SAC code support", "Tax summary dashboards"],
-    },
-    {
-      icon: <GroupsIcon />, color: "#ca8a04", bg: "#fefce8",
-      title: "Customer Management", desc: "Turn one-time buyers into loyal regulars.",
-      points: ["Customer profiles & purchase history", "Loyalty points & reward offers", "Credit / khata management", "Targeted offers & reminders"],
-    },
-    {
-      icon: <StorefrontIcon />, color: "#9333ea", bg: "#faf5ff", img: imgMultiLocation,
-      title: "Multi Location", desc: "Run every branch from a single account.",
-      points: ["Combined cross-branch reports", "Per-outlet inventory control", "Centralised staff management", "Branch-wise performance"],
-    },
-    {
-      icon: <CreditCardIcon />, color: "#dc2626", bg: "#fff0f0", img: imgDigitalPayments,
-      title: "Digital Payments", desc: "Accept every payment mode, auto-reconciled.",
-      points: ["UPI, card & wallet support", "QR-code payments at the counter", "Automatic payment reminders", "Reconciled transaction records"],
-    },
-    {
-      icon: <AssignmentTurnedInIcon />, color: "#16a34a", bg: "#f0fdf4", img: imgTaskManagement,
-      title: "Task Management", desc: "Assign work and track it to completion.",
-      points: ["Assign tasks to any staff member", "Track progress in real time", "Due-date reminders & alerts", "Daily task checklists"],
-    },
-    {
-      icon: <QrCodeScannerIcon />, color: "#059669", bg: "#ecfdf5", img: imgBarcodeStock,
-      title: "Barcode & Stock", desc: "Scan-to-bill speed at the counter.",
-      points: ["Barcode scan billing", "Automatic stock deduction", "Label & barcode printing", "Batch & expiry tracking"],
-    },
-    {
-      icon: <NotificationsActiveIcon />, color: "#db2777", bg: "#fdf2f8", img: imgMobileApp,
-      title: "Mobile App & Alerts", desc: "Run your business right from your pocket.",
-      points: ["iOS, Android & tablet apps", "Real-time sales alerts", "Remote dashboard access", "Smart push notifications"],
-    },
-  ];
+  {
+    icon: <PointOfSaleIcon />, color: "#d32f2f", bg: "#fff0f0", img: imgPosBilling,
+    title: "POS Billing", desc: "Lightning-fast point-of-sale for busy counters.",
+    points: ["GST invoices in under 10 seconds", "Cash, card, UPI & split payments", "Instant discounts & loyalty points", "Print or WhatsApp bills directly"],
+  },
+  {
+    icon: <ShoppingCartIcon />, color: "#ea580c", bg: "#fff7ed", img: imgInventory,
+    title: "Inventory Management", desc: "Always know what's in stock before you run out.",
+    points: ["Real-time stock across all products", "Low-stock & reorder alerts", "Batch, expiry & multi-unit support", "Purchase orders & supplier records"],
+  },
+  {
+    icon: <BadgeIcon />, color: "#2563eb", bg: "#eff6ff", img: imgEmployee,
+    title: "Employee Management", desc: "Run your whole team without the headache.",
+    points: ["Role-based access control", "Track each staff's sales performance", "Monthly payroll in minutes", "Shift & duty scheduling"],
+  },
+  {
+    icon: <FingerprintIcon />, color: "#0d9488", bg: "#f0fdfa",
+    title: "Attendance Management", desc: "Accurate attendance with no manual registers.",
+    points: ["Auto check-in / check-out logs", "Late, early & overtime tracking", "Leave & holiday management", "Attendance-linked payroll"],
+  },
+  {
+    icon: <InsightsIcon />, color: "#7c3aed", bg: "#f5f3ff", img: imgReports,
+    title: "Reports & Insights", desc: "Make every decision backed by real numbers.",
+    points: ["Daily, weekly & monthly P&L", "Top & slow-moving products", "Expense tracking by category", "Export-ready business reports"],
+  },
+  {
+    icon: <ReceiptLongIcon />, color: "#0891b2", bg: "#ecfeff", img: imgGstTax,
+    title: "GST & Tax Reports", desc: "Stay compliant without the accountant stress.",
+    points: ["Auto GST calculation on every bill", "GSTR-ready exports for your CA", "HSN / SAC code support", "Tax summary dashboards"],
+  },
+  {
+    icon: <GroupsIcon />, color: "#ca8a04", bg: "#fefce8",
+    title: "Customer Management", desc: "Turn one-time buyers into loyal regulars.",
+    points: ["Customer profiles & purchase history", "Loyalty points & reward offers", "Credit / khata management", "Targeted offers & reminders"],
+  },
+  {
+    icon: <StorefrontIcon />, color: "#9333ea", bg: "#faf5ff", img: imgMultiLocation,
+    title: "Multi Location", desc: "Run every branch from a single account.",
+    points: ["Combined cross-branch reports", "Per-outlet inventory control", "Centralised staff management", "Branch-wise performance"],
+  },
+  {
+    icon: <CreditCardIcon />, color: "#dc2626", bg: "#fff0f0", img: imgDigitalPayments,
+    title: "Digital Payments", desc: "Accept every payment mode, auto-reconciled.",
+    points: ["UPI, card & wallet support", "QR-code payments at the counter", "Automatic payment reminders", "Reconciled transaction records"],
+  },
+  {
+    icon: <AssignmentTurnedInIcon />, color: "#16a34a", bg: "#f0fdf4", img: imgTaskManagement,
+    title: "Task Management", desc: "Assign work and track it to completion.",
+    points: ["Assign tasks to any staff member", "Track progress in real time", "Due-date reminders & alerts", "Daily task checklists"],
+  },
+  {
+    icon: <QrCodeScannerIcon />, color: "#059669", bg: "#ecfdf5", img: imgBarcodeStock,
+    title: "Barcode & Stock", desc: "Scan-to-bill speed at the counter.",
+    points: ["Barcode scan billing", "Automatic stock deduction", "Label & barcode printing", "Batch & expiry tracking"],
+  },
+  {
+    icon: <NotificationsActiveIcon />, color: "#db2777", bg: "#fdf2f8", img: imgMobileApp,
+    title: "Mobile App & Alerts", desc: "Run your business right from your pocket.",
+    points: ["iOS, Android & tablet apps", "Real-time sales alerts", "Remote dashboard access", "Smart push notifications"],
+  },
+];
 
 const plans = [
   {
@@ -628,7 +604,9 @@ const faqs = [
 ];
 
 // ── Shared spacing tokens ──────────────────────────────────────────────────────
-const SX = { xs: 3, md: 10 };          // section horizontal padding
+const PAGE_GUTTER = "clamp(48px, 5.5vw, 112px)";          // lg+ side gutter: the hero copy's inset; every section aligns to it
+const SX = { xs: 2.5, sm: 4, md: 6, lg: PAGE_GUTTER };    // section horizontal padding — same as the hero copy
+const SECTION_MAX_W = 1720;                               // section content cap (≈ 1920px viewport minus both gutters)
 const SPY = { xs: 6, md: 4 };         // section vertical padding
 const HMB = { xs: 4, md: 6 };         // section heading bottom margin
 const POPPINS = "'Poppins', sans-serif";
@@ -712,19 +690,21 @@ const ShowcaseMock: React.FC<{ feature: (typeof features)[number] }> = ({ featur
 // ── "What Zodu does for you" ──────────────────────────────────────────────────
 // Built to the reference design (1600px canvas, 1520px content). Sizes are that design's px
 // values passed through fz(): 1px per unit below 1200px, 0.9px from 1200px, and scaling with
-// the viewport from 1440px up so the desktop layout keeps the reference proportions.
+// the viewport from 1536px up so the desktop layout keeps the reference proportions.
 //   < 900px   POS + wide cards stack (text above photo); mini cards 1 → 2 columns
 //   ≥ 900px   text overlays the photos' blank left side; mini cards on a 6-track grid (3 + 2)
 //   ≥ 1200px  POS | Inventory + Attendance side by side
-//   ≥ 1440px  five mini cards in one row — the reference layout
+//   ≥ 1536px  five mini cards in one row — the reference layout
+// Mini cards pick their own photo placement by their width (container query, see FzMiniCard).
 const FZ_RED = "#E5243B";
 const FZ_INK = "#0F172A";
 const FZ_TEXT = "#334155";
 const FZ_MUTED = "#64748B";
 const FZ_BORDER = "#E8ECF2";
 const FZ_GREEN = "#16A34A";
-const FZ_DESK = "@media (min-width: 1440px)";
-const FZ_LAPTOP = "@media (min-width: 1200px) and (max-width: 1439.98px)";
+// Desktop layout needs ~1368px of content (1520 × 0.9) — with PAGE_GUTTER sides that's a 1536px viewport.
+const FZ_DESK = "@media (min-width: 1536px)";
+const FZ_LAPTOP = "@media (min-width: 1200px) and (max-width: 1535.98px)";
 const fz = (n: number) => `calc(${n} * var(--fz-u))`;
 
 const fzCardSx = {
@@ -777,19 +757,8 @@ const FzChecklist: React.FC<{ items: string[]; color: string; icon: number; text
   </Box>
 );
 
-const FzLabel: React.FC<{ children: React.ReactNode; size?: number }> = ({ children, size = 10 }) => (
-  <Typography sx={{ fontSize: fz(size), color: FZ_MUTED, lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{children}</Typography>
-);
-
 const FzValue: React.FC<{ children: React.ReactNode; size: number }> = ({ children, size }) => (
   <Typography sx={{ fontSize: fz(size), fontWeight: 800, color: FZ_INK, lineHeight: 1.25, whiteSpace: "nowrap" }}>{children}</Typography>
-);
-
-const FzRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: fz(6) }}>
-    <Box component="span" sx={{ fontSize: fz(10), color: FZ_MUTED, minWidth: 0 }}>{label}</Box>
-    <Box component="span" sx={{ fontSize: fz(10.5), fontWeight: 800, color: FZ_INK, whiteSpace: "nowrap" }}>{value}</Box>
-  </Box>
 );
 
 const fzTabs = [
@@ -807,13 +776,6 @@ const fzPosStats = [
   { value: "₹ 2,850", delta: null, label: "Avg. Order Value" },
 ];
 
-const fzExpenses = [
-  { label: "Rent", amount: "₹ 12,000", icon: <HomeIcon />, color: "#2563EB", bg: "#DBEAFE" },
-  { label: "Utilities", amount: "₹ 6,250", icon: <LightbulbRoundedIcon />, color: "#EA580C", bg: "#FFEDD5" },
-  { label: "Marketing", amount: "₹ 4,200", icon: <CampaignRoundedIcon />, color: FZ_GREEN, bg: "#DCFCE7" },
-  { label: "Others", amount: "₹ 6,000", icon: <MoreHorizIcon />, color: "#D97706", bg: "#FEF3C7" },
-];
-
 const fzBenefits = [
   { icon: <BoltIcon />, title: "Real-time sync", sub: "Access your business anytime, anywhere" },
   { icon: <VerifiedUserIcon />, title: "Secure & reliable", sub: "Your data is always protected" },
@@ -827,7 +789,6 @@ const fzBenefits = [
 type FzPhoto = { src: string; srcSet: string };
 const FZ_MINI_W = [480, 720];
 const FZ_WIDE_W = [640, 1260];
-const FZ_MINI_SIZES = "(min-width: 1440px) 12vw, (min-width: 900px) 28vw, (min-width: 600px) 50vw, 60vw";
 const FZ_WIDE_SIZES = "(min-width: 1200px) 24vw, (min-width: 600px) 60vw, 100vw";
 const fzPhotoUrls = import.meta.glob<string>("../../assets/Landingpage/feature-photos/*.webp", { eager: true, import: "default" });
 const fzPhoto = (slug: string, widths: number[]): FzPhoto => {
@@ -835,133 +796,6 @@ const fzPhoto = (slug: string, widths: number[]): FzPhoto => {
   return { src: url(widths[widths.length - 1]), srcSet: widths.map((w) => `${url(w)} ${w}w`).join(", ") };
 };
 const fzCustomerPhoto = fzPhoto("customer", FZ_MINI_W);
-
-type FzMini = {
-  title: string;
-  sub: string;
-  icon: React.ReactNode;
-  color: string;
-  bg: string;
-  photo: FzPhoto;
-  alt: string;
-  imagePos: string;
-  imageFr: number;          // image column width relative to the data panel (reference ratios)
-  learnMore?: "image" | "panel" | "panel-end";
-  panel: React.ReactNode;
-};
-
-const fzMiniCards: FzMini[] = [
-  {
-    title: "Customer Management", sub: "Build lasting customer relationships.",
-    icon: <PeopleAltRoundedIcon />, color: "#2563EB", bg: "#DBEAFE",
-    photo: fzCustomerPhoto, alt: "Customer checking her loyalty rewards on her phone", imagePos: "38% center", imageFr: 0.95,
-    learnMore: "panel",
-    panel: (
-      <Box sx={{ ...fzPanelSx, p: fz(9) }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: fz(8) }}>
-          <Box aria-hidden="true" sx={{
-            width: fz(30), height: fz(30), borderRadius: "50%", flexShrink: 0, border: "2px solid #fff",
-            boxShadow: `0 0 0 1px ${FZ_BORDER}`, backgroundImage: `url("${fzCustomerPhoto.src}")`,  // quoted: dev URLs can contain parentheses
-            backgroundSize: "380%", backgroundPosition: "42% 28%",
-          }} />
-          <Box sx={{ minWidth: 0 }}>
-            <Typography sx={{ fontSize: fz(11.5), fontWeight: 700, color: FZ_INK, lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Priya Sharma</Typography>
-            <Box component="span" sx={{ display: "inline-block", mt: fz(3), px: fz(6), py: fz(1.5), borderRadius: fz(4), bgcolor: "#FEF3C7", color: "#B45309", fontSize: fz(8.5), fontWeight: 700, lineHeight: 1.3 }}>
-              Gold Customer
-            </Box>
-          </Box>
-        </Box>
-        <Box sx={{ mt: fz(10), display: "flex", flexDirection: "column", gap: fz(6) }}>
-          <FzRow label="Total Orders" value="24" />
-          <FzRow label="Total Spent" value="₹ 48,250" />
-          <FzRow label="Loyalty Points" value="1,250" />
-        </Box>
-      </Box>
-    ),
-  },
-  {
-    title: "Payments & Reminders", sub: "Get paid on time with automated reminders.",
-    icon: <AccountBalanceWalletOutlinedIcon />, color: "#EA580C", bg: "#FFEDD5",
-    photo: fzPhoto("payments", FZ_MINI_W), alt: "Payment reminder being sent from the Zodu app", imagePos: "center 60%", imageFr: 1.1,
-    panel: (
-      <>
-        <Box sx={{ ...fzPanelSx, p: fz(10) }}>
-          <FzLabel>Outstanding Amount</FzLabel>
-          <Box sx={{ mt: fz(4) }}><FzValue size={16}>₹ 18,750</FzValue></Box>
-        </Box>
-        <Box sx={{ ...fzPanelSx, p: fz(10), display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: fz(6) }}>
-          <Box>
-            <FzLabel>Reminders Sent</FzLabel>
-            <Box sx={{ mt: fz(4) }}><FzValue size={16}>32</FzValue></Box>
-          </Box>
-          <SendIcon sx={{ fontSize: fz(20), color: FZ_RED, transform: "rotate(-30deg)", mb: fz(4), flexShrink: 0 }} />
-        </Box>
-      </>
-    ),
-  },
-  {
-    title: "GST Compliance & Reports", sub: "Stay 100% compliant with easy GST filing.",
-    icon: <DescriptionOutlinedIcon />, color: "#2563EB", bg: "#DBEAFE",
-    photo: fzPhoto("gst", FZ_MINI_W), alt: "GST compliance report with filing status on a desk", imagePos: "center 35%", imageFr: 1.8,
-    learnMore: "image",
-    panel: (
-      <>
-        {[["GSTR-1", "Filed"], ["GSTR-3B", "Filed"], ["E-Way Bill", "Generated"]].map(([title, status]) => (
-          <Box key={title} sx={{ ...fzPanelSx, px: fz(8), py: fz(6), display: "flex", alignItems: "center", gap: fz(7) }}>
-            <CheckCircleIcon sx={{ fontSize: fz(17), color: FZ_GREEN, flexShrink: 0 }} />
-            <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ fontSize: fz(10.5), fontWeight: 700, color: FZ_INK, lineHeight: 1.2 }}>{title}</Typography>
-              <Typography sx={{ fontSize: fz(9.5), color: FZ_MUTED, lineHeight: 1.2 }}>{status}</Typography>
-            </Box>
-          </Box>
-        ))}
-      </>
-    ),
-  },
-  {
-    title: "Expense Management", sub: "Track and control your business expenses.",
-    icon: <PaymentOutlinedIcon />, color: FZ_GREEN, bg: "#DCFCE7",
-    photo: fzPhoto("expense", FZ_MINI_W), alt: "Store staff reviewing monthly expenses on a tablet", imagePos: "70% 20%", imageFr: 1,
-    panel: (
-      <Box sx={{ ...fzPanelSx, p: fz(8), flex: 1 }}>
-        <FzLabel>This Month</FzLabel>
-        <Box sx={{ mt: fz(3), display: "flex", alignItems: "center", flexWrap: "wrap", columnGap: fz(6) }}>
-          <FzValue size={13.5}>₹ 28,450</FzValue>
-          <Box sx={{ display: "inline-flex", alignItems: "center", color: FZ_GREEN, fontSize: fz(10), fontWeight: 700 }}>
-            <ArrowDownwardRoundedIcon sx={{ fontSize: fz(11) }} />8.4%
-          </Box>
-        </Box>
-        <Box sx={{ mt: fz(8), display: "flex", flexDirection: "column", gap: fz(6) }}>
-          {fzExpenses.map((e) => (
-            <Box key={e.label} sx={{ display: "flex", alignItems: "center", gap: fz(5), fontSize: fz(9.5) }}>
-              <Box sx={{ width: fz(16), height: fz(16), borderRadius: "50%", bgcolor: e.bg, color: e.color, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", "& svg": { fontSize: fz(10) } }}>
-                {e.icon}
-              </Box>
-              <Box component="span" sx={{ flex: 1, minWidth: 0, color: FZ_TEXT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.label}</Box>
-              <Box component="span" sx={{ color: FZ_INK, fontWeight: 700, whiteSpace: "nowrap" }}>{e.amount}</Box>
-            </Box>
-          ))}
-        </Box>
-      </Box>
-    ),
-  },
-  {
-    title: "Purchase Management", sub: "Manage suppliers, purchase orders & receipts.",
-    icon: <ShoppingCartOutlinedIcon />, color: "#9333EA", bg: "#F3E8FF",
-    photo: fzPhoto("purchase", FZ_MINI_W), alt: "Warehouse staff checking purchase orders on a tablet", imagePos: "30% center", imageFr: 1.37,
-    learnMore: "panel-end",
-    panel: (
-      <>
-        {[["Total Purchases", "₹ 1,25,000"], ["Purchase Orders", "12"], ["Pending Receipts", "5"]].map(([label, value]) => (
-          <Box key={label} sx={{ ...fzPanelSx, px: fz(10), py: fz(6) }}>
-            <FzLabel size={9.5}>{label}</FzLabel>
-            <FzValue size={12.5}>{value}</FzValue>
-          </Box>
-        ))}
-      </>
-    ),
-  },
-];
 
 const FzPosCard: React.FC = () => (
   // width 100%: an aspect-ratio grid item doesn't stretch inline, so once the row stretches its height the
@@ -984,7 +818,7 @@ const FzPosCard: React.FC = () => (
         </Box>
       </Box>
 
-      {/* 1200–1439px the card is taller than the artwork, so it sits lower: keep the list left of "Billing Made Simple". */}
+      {/* 1200–1535px the card is taller than the artwork, so it sits lower: keep the list left of "Billing Made Simple". */}
       <Box sx={{ mt: fz(24), pl: fz(10), [FZ_LAPTOP]: { maxWidth: "72%" } }}>
         <FzChecklist
           items={["Quick billing & barcode scanning", "Supports multiple payment methods", "Works offline too", "Perfect for retail, restaurant, pharmacy and more"]}
@@ -1031,7 +865,7 @@ const FzPosCard: React.FC = () => (
       display: "block", width: "100%", position: { md: "absolute" }, inset: { md: 0 },
       height: { xs: "auto", md: "100%" }, aspectRatio: { xs: "4 / 3", sm: "16 / 10", md: "auto" },
       objectFit: "cover", objectPosition: { xs: "90% center", sm: "right center", md: "right top" },
-      // 1200–1439px: the copy makes the card taller than the artwork's ratio; cropping would push
+      // 1200–1535px: the copy makes the card taller than the artwork's ratio; cropping would push
       // "Billing Made Simple" into the checklist, so show the artwork whole and fade its top edge.
       [FZ_LAPTOP]: {
         inset: "auto 0 0 auto", height: "auto", aspectRatio: "1821 / 864",
@@ -1067,7 +901,7 @@ const FzWideCard: React.FC<{ icon: React.ReactNode; color: string; bg: string; t
 
     {/* Frame-free photo panel (it carries the stat card), bled to the card's right, top and bottom edges;
         its white left side fades into the card behind the copy. Capped at 60% of the card so it stays
-        clear of the copy on cards that are tall for their width (1200–1439px); imagePos keeps the subject. */}
+        clear of the copy on cards that are tall for their width (1200–1535px); imagePos keeps the subject. */}
     <Box component="img" src={photo.src} srcSet={photo.srcSet} sizes={FZ_WIDE_SIZES} alt={alt} loading="lazy" decoding="async" sx={{
       display: "block", position: { sm: "absolute" }, inset: { sm: "0 0 0 auto" },
       width: { xs: "100%", sm: "auto" }, maxWidth: { xs: "none", sm: "60%" },
@@ -1075,7 +909,7 @@ const FzWideCard: React.FC<{ icon: React.ReactNode; color: string; bg: string; t
       objectFit: "cover", objectPosition: imagePos,
       WebkitMaskImage: { sm: "linear-gradient(to right, transparent 0%, #000 12%)" },
       maskImage: { sm: "linear-gradient(to right, transparent 0%, #000 12%)" },
-      // 1200–1439px the card is at its tallest relative to its width: keep the photo right of the copy
+      // 1200–1535px the card is at its tallest relative to its width: keep the photo right of the copy
       // and give it a longer fade so the crop's left edge stays soft.
       [FZ_LAPTOP]: {
         maxWidth: "54%",
@@ -1086,46 +920,53 @@ const FzWideCard: React.FC<{ icon: React.ReactNode; color: string; bg: string; t
   </Box>
 );
 
-const FzMiniCard: React.FC<{ card: FzMini }> = ({ card }) => (
-  <Box sx={{ ...fzCardSx, borderRadius: fz(14), p: fz(10), pt: fz(9), display: "flex", flexDirection: "column", gap: fz(10) }}>
-    <Box sx={{ display: "flex", alignItems: "center", gap: fz(14) }}>
-      <FzIconTile icon={card.icon} color={card.color} bg={card.bg} size={40} radius={10} iconSize={21} />
-      <Box sx={{ minWidth: 0 }}>
-        <Typography component="h3" sx={{ fontSize: fz(14.5), fontWeight: 800, color: FZ_INK, lineHeight: 1.25 }}>{card.title}</Typography>
-        <Typography sx={{ mt: fz(2), fontSize: fz(11), color: FZ_MUTED, lineHeight: 1.35 }}>{card.sub}</Typography>
-      </Box>
-    </Box>
-
-    <Box sx={{ flex: 1, display: "grid", gridTemplateColumns: `minmax(0, ${card.imageFr}fr) minmax(0, 1fr)`, gap: fz(12) }}>
-      <Box sx={{ display: "flex", flexDirection: "column", gap: fz(8), minWidth: 0 }}>
-        <Box component="img" src={card.photo.src} srcSet={card.photo.srcSet} sizes={FZ_MINI_SIZES} alt={card.alt} loading="lazy" decoding="async" sx={{
-          display: "block", width: "100%", height: 0, flex: "1 1 auto",
-          minHeight: fz(card.learnMore === "image" ? 108 : 128),
-          objectFit: "cover", objectPosition: card.imagePos, borderRadius: fz(8),
-        }} />
-        {card.learnMore === "image" && <FzLearnMore size={11} />}
-      </Box>
-      <Box sx={{ display: "flex", flexDirection: "column", gap: fz(8), minWidth: 0 }}>
-        {card.panel}
-        {card.learnMore === "panel" && <Box sx={{ mt: "auto", pl: fz(3) }}><FzLearnMore size={11} /></Box>}
-        {card.learnMore === "panel-end" && <Box sx={{ mt: "auto", display: "flex", justifyContent: "flex-end" }}><FzLearnMore size={11} /></Box>}
-      </Box>
-    </Box>
-  </Box>
-);
+// The five module cards below POS / Inventory / Attendance, in the same wide layout. Their photos are
+// the landscape scenes shot for the smaller cards; imagePos keeps each subject in the right-hand crop.
+const fzModuleCards: Array<React.ComponentProps<typeof FzWideCard>> = [
+  {
+    icon: <PeopleAltRoundedIcon />, color: "#2563EB", bg: "#DBEAFE",
+    title: "Customer Management", desc: "Build lasting customer relationships.",
+    items: ["Customer profiles & purchase history", "Loyalty points & rewards", "Total spend & order insights", "Quick customer lookup at billing"],
+    photo: fzCustomerPhoto, alt: "Customer checking her loyalty rewards on her phone", imagePos: "center 30%",
+  },
+  {
+    icon: <AccountBalanceWalletOutlinedIcon />, color: "#EA580C", bg: "#FFEDD5",
+    title: "Payments & Reminders", desc: "Get paid on time with automated reminders.",
+    items: ["Automated payment reminders", "Outstanding amount tracking", "Reminder history per customer", "Collect dues faster"],
+    photo: fzPhoto("payments", FZ_MINI_W), alt: "Payment reminder being sent from the Zodu app", imagePos: "center 50%",
+  },
+  {
+    icon: <DescriptionOutlinedIcon />, color: "#2563EB", bg: "#DBEAFE",
+    title: "GST Compliance & Reports", desc: "Stay 100% compliant with easy GST filing.",
+    items: ["GSTR-1 & GSTR-3B reports", "E-way bill generation", "Filing status at a glance", "GST-ready invoices"],
+    photo: fzPhoto("gst", FZ_MINI_W), alt: "GST compliance report with filing status on a desk", imagePos: "center 35%",
+  },
+  {
+    icon: <PaymentOutlinedIcon />, color: FZ_GREEN, bg: "#DCFCE7",
+    title: "Expense Management", desc: "Track and control your business expenses.",
+    items: ["Daily & monthly expense tracking", "Expense categories", "Monthly spend summary", "See where your money goes"],
+    photo: fzPhoto("expense", FZ_MINI_W), alt: "Store staff reviewing monthly expenses on a tablet", imagePos: "center 22%",
+  },
+  {
+    icon: <ShoppingCartOutlinedIcon />, color: "#9333EA", bg: "#F3E8FF",
+    title: "Purchase Management", desc: "Manage suppliers, purchase orders & receipts.",
+    items: ["Supplier management", "Purchase orders", "Pending receipt tracking", "Purchase totals & history"],
+    photo: fzPhoto("purchase", FZ_MINI_W), alt: "Warehouse staff checking purchase orders on a tablet", imagePos: "center 40%",
+  },
+];
 
 const WhatZoduDoesSection: React.FC = () => (
   <Box component="section" id="what-zodu-does" aria-labelledby="fz-heading" sx={{
     scrollMarginTop: { xs: NAV_H.xs, md: NAV_H.md },
     "--fz-u": "1px",
     "@media (min-width: 1200px)": { "--fz-u": "0.9px" },
-    [FZ_DESK]: { "--fz-u": "clamp(0.9px, calc((100vw - 80px) / 1520), 1px)", px: "40px" },
+    [FZ_DESK]: { "--fz-u": `clamp(0.9px, calc((100vw - 2 * ${PAGE_GUTTER}) / 1520), 1px)` },
     bgcolor: HERO_BASE,
-    px: { xs: 2, sm: 3, md: 4 },
+    px: SX,
     pt: { xs: 5, md: fz(28) },
     pb: { xs: 5, md: fz(32) },
   }}>
-    <Box sx={{ maxWidth: 1520, mx: "auto", display: "flex", flexDirection: "column", gap: fz(10) }}>
+    <Box sx={{ maxWidth: SECTION_MAX_W, mx: "auto", display: "flex", flexDirection: "column", gap: fz(10) }}>
 
       {/* Heading + category tabs */}
       <Box sx={{ textAlign: "center", mb: fz(9) }}>
@@ -1150,7 +991,7 @@ const WhatZoduDoesSection: React.FC = () => (
           // one row: scrolls below md, centred whenever it fits ("safe" falls back to start on overflow)
           mt: fz(22), display: "flex", gap: { xs: "8px", md: fz(14) }, justifyContent: "safe center",
           flexWrap: { xs: "nowrap", md: "wrap" }, overflowX: { xs: "auto", md: "visible" },
-          mx: { xs: -2, sm: -3, md: 0 }, px: { xs: 2, sm: 3, md: 0 }, py: fz(4),
+          mx: { xs: -2.5, sm: -4, md: 0 }, px: { xs: 2.5, sm: 4, md: 0 }, py: fz(4),
           scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" },
         }}>
           {fzTabs.map((tab) => (
@@ -1192,19 +1033,18 @@ const WhatZoduDoesSection: React.FC = () => (
         </Box>
       </Box>
 
-      {/* Five module cards: 1 → 2 → 3 + 2 → 5 columns */}
+      {/* Five module cards, laid out like Inventory / Attendance: one per row below 1200px,
+          two per row from 1200px at the Attendance card's own width (the 1fr of the
+          1.435fr / 1fr row above), centred — the odd one out centred at the same width. */}
       <Box sx={{
         display: "grid", gap: fz(10),
-        gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(6, minmax(0, 1fr))" },
-        "& > *": { gridColumn: { md: "span 2" } },
-        "& > :nth-of-type(n+4)": { gridColumn: { md: "span 3" } },
-        "& > :last-of-type": { gridColumn: { sm: "1 / -1", md: "span 3" } },
-        [FZ_DESK]: {
-          gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
-          "& > *, & > :nth-of-type(n+4), & > :last-of-type": { gridColumn: "auto" },
+        gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: `repeat(2, calc((100% - ${fz(10)}) / 2.435))` },
+        justifyContent: "center",
+        "@media (min-width: 1200px)": {
+          "& > :last-child:nth-of-type(odd)": { gridColumn: "1 / -1", justifySelf: "center", width: `calc(50% - ${fz(5)})` },
         },
       }}>
-        {fzMiniCards.map((card) => <FzMiniCard key={card.title} card={card} />)}
+        {fzModuleCards.map((card) => <FzWideCard key={card.title} {...card} />)}
       </Box>
 
       {/* Benefits strip */}
@@ -1234,6 +1074,7 @@ const WhatZoduDoesSection: React.FC = () => (
     </Box>
   </Box>
 );
+
 {/*BUILT FOR EVERY BUSINESS*/}
 
 // ============================================================
@@ -1585,27 +1426,6 @@ const industries: Industry[] = [
   },
 ];
 
-// Cards whose arrow is navy (rest are red)
-const NAVY_ARROW_TITLES = new Set([
-  "Automobile",
-  "Construction &\nReal Estate",
-  "Healthcare",
-  "Education &\nCoaching",
-  "Electronics &\nTechnology",
-  "Food & Beverage",
-  "Automotive & Transport",
-  "Beauty & Wellness",
-  "Pharmacy & Medical Devices",
-  "Printing & Stationery",
-  "Electrical & Hardware",
-  "Oil & Gas",
-  "Textiles & Garments",
-  "Travel & Tourism",
-  "Hotels & Hospitality",
-  "Jewellery & Accessories",
-  "And many more...",
-]);
-
 // ============================================================
 // INDUSTRY CARD
 //
@@ -1627,11 +1447,8 @@ const IndustryCard = ({
   const canvas = mode === "canvas";
   const isLast = item.variant === "last";
   const isDots = item.variant === "dots";
-  const arrowColor = NAVY_ARROW_TITLES.has(item.title) ? NAVY : BRAND_RED;
   const rot = item.rotation;
-  const plainTitle = item.title.replace(/\n/g, " ");
   const tt = canvas ? item.tt : 14;
-  const ab = canvas ? item.ab : 9;
 
   return (
     <Box
@@ -1726,31 +1543,6 @@ const IndustryCard = ({
           {item.description}
         </Typography>
       </Box>
-
-      {/* arrow button */}
-      {!isLast && (
-        <IconButton
-          aria-label={`Open ${plainTitle}`}
-          sx={{
-            position: "absolute",
-            left: `${item.tl}%`,
-            bottom: `${ab}%`,
-            width: "8cqw",
-            height: "8cqw",
-            minWidth: 0,
-            minHeight: 0,
-            p: 0,
-            bgcolor: "#FFFFFF",
-            boxShadow: "0 2px 6px rgba(15,23,42,.12)",
-            zIndex: 6,
-            "&:hover": { bgcolor: "#FFFFFF" },
-          }}
-        >
-          <ArrowForwardRoundedIcon
-            sx={{ fontSize: "4.6cqw", color: arrowColor }}
-          />
-        </IconButton>
-      )}
 
       {isLast && (
         <ArrowForwardRoundedIcon
@@ -2287,6 +2079,71 @@ const ZoduLandingPage: React.FC = () => {
             baked-in badge (~23% into the artwork) always starts to the right of the copy, whose
             width is capped at 5.5vw padding + 29vw. Below lg the copy sits on top and the
             artwork bleeds edge-to-edge underneath. */}
+        <Box
+          component="section"
+          aria-labelledby="hero-heading"
+          sx={{
+            position: "relative",
+            overflow: "hidden",
+            bgcolor: HERO_BASE,
+            // lg: light scrim for text contrast only; it clears before the first baked-in badge (~34.5vw).
+            "&::before": {
+              content: '""',
+              display: { xs: "none", lg: "block" },
+              position: "absolute",
+              inset: 0,
+              zIndex: 1,
+              pointerEvents: "none",
+              background: `linear-gradient(90deg, ${alpha(HERO_BASE, 0.5)} 0, ${alpha(HERO_BASE, 0.25)} 20vw, ${alpha(HERO_BASE, 0)} 34vw)`,
+            },
+            display: "flex",
+            flexDirection: "column",
+            // Navbar + hero fill exactly one screen (the page scroll container is 100vh).
+            minHeight: { xs: `calc(100vh - ${NAV_H.xs + 1}px)`, md: `calc(100vh - ${NAV_H.md + 1}px)` },
+          }}
+        >
+          {/* Copy */}
+          <Box
+            sx={{
+              position: "relative",
+              zIndex: 2,
+              width: "100%",
+              maxWidth: { xs: 720, lg: "none" },
+              mx: { xs: "auto", lg: 0 },
+              my: "auto",               // centre the copy in the free height; artwork stays at the bottom
+              pl: { xs: 2.5, sm: 4, md: 6, lg: PAGE_GUTTER },
+              pr: { xs: 2.5, sm: 4, md: 6, lg: 4 },
+              pt: { xs: 5, sm: 6 },
+              pb: { xs: 4, sm: 5, lg: 6 },
+              textAlign: { xs: "center", lg: "left" },
+            }}
+          >
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              sx={{
+                display: "inline-flex",
+                maxWidth: "100%",
+                px: { xs: 1.5, md: 1.75 },
+                py: 0.75,
+                mb: { xs: 2.5, md: 3 },
+                borderRadius: "999px",
+                bgcolor: alpha(HERO_BLUE_SOFT, 0.9),
+                border: `1px solid ${alpha(HERO_BLUE, 0.18)}`,
+                color: HERO_BLUE,
+                fontSize: "clamp(0.78rem, 0.72rem + 0.25vw, 0.9rem)",
+                fontWeight: 700,
+                lineHeight: 1.3,
+                textAlign: "left",
+                // ~360px phones: wrap as "Trusted by 10,000+ / Businesses Across India" in a tight
+                // two-line pill instead of orphaning "India".
+                "@media (max-width: 380px)": { "& > span": { maxWidth: "24ch" } },
+              }}
+            >
+              <VerifiedIcon sx={{ fontSize: 18, flexShrink: 0 }} />
+              <Box component="span">Trusted by 10,000+ Businesses Across India</Box>
+            </Stack>
 
 
 <Box
@@ -2620,7 +2477,7 @@ const ZoduLandingPage: React.FC = () => {
             <path d="M-80 190 C100 110 220 238 386 154 C512 92 590 110 720 158 C866 212 998 168 1280 44" fill="none" stroke={alpha(PRIMARY, 0.18)} strokeWidth="3" />
             <path d="M760 0 C898 70 1030 32 1200 92 L1200 220 L780 220 C710 144 706 62 760 0 Z" fill={alpha(PRIMARY, 0.12)} />
           </Box> */}
-        {/* <Container maxWidth="lg">
+          {/* <Container maxWidth="lg">
             <Box sx={{
               position: "relative",
               zIndex: 1,
@@ -2671,22 +2528,14 @@ const ZoduLandingPage: React.FC = () => {
           </Container> */}
         {/* </Box> */}
 
-
+       
         {/* ── WHAT ZODU DOES FOR YOU ──────────────────────────────────────── */}
         <WhatZoduDoesSection />
 
-
-
-{/* Industries Section */}
-<IndustriesSection />
-      
-
-
-
+        {/* ── INDUSTRIES ───────────────────────────────────────────────────── */}
+        <IndustriesSection />
 
         {/* ── MODULE SUITE ─────────────────────────────────────────────────── */}
-
-       
         {/* <Box sx={{ bgcolor: LIGHT, py: SPY, px: SX, position: "relative", overflow: "hidden" }}>
           <Box
             component="svg"
@@ -2825,8 +2674,8 @@ const ZoduLandingPage: React.FC = () => {
 
                   <Divider sx={{ borderColor: alpha(m.color, 0.16), mb: 1.7 }} /> */}
 
-        {/* Explanation points */}
-        {/* <Stack spacing={0.9}>
+                  {/* Explanation points */}
+                  {/* <Stack spacing={0.9}>
                     {m.points.slice(0, 3).map((pt) => (
                       <Box key={pt} sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
                         <CheckCircleIcon sx={{ fontSize: 15, color: m.color, flexShrink: 0, mt: "2px" }} />
@@ -2841,8 +2690,8 @@ const ZoduLandingPage: React.FC = () => {
           </Container>
         </Box> */}
 
-        {/* ── HOW IT WORKS ─────────────────────────────────────────────────── */}
-        {/* <Box sx={{ bgcolor: "#fff", py: { xs: 1.5, md: 2 }, px: SX, position: "relative", overflow: "hidden" ,mb: { xs: 1, md: 2 }}}>
+{/* ── HOW IT WORKS ─────────────────────────────────────────────────── */}
+{/* <Box sx={{ bgcolor: "#fff", py: { xs: 1.5, md: 2 }, px: SX, position: "relative", overflow: "hidden" ,mb: { xs: 1, md: 2 }}}>
   
   <Container maxWidth="lg" sx={{ position: "relative", zIndex: 1 }}>
     <Box textAlign="center" mb={{ xs: 1, md: 1.4 }}>
@@ -2933,102 +2782,102 @@ const ZoduLandingPage: React.FC = () => {
     </Box>
   </Container>
 </Box> */}
-        {/* ── HOW ITS WORK─────────────────────────────────────────────────── */}
+{/* ── HOW ITS WORK─────────────────────────────────────────────────── */}
 
-        <Box sx={{ bgcolor: "#fff", py: { xs: 1.5, md: 2 }, px: SX, position: "relative", overflow: "hidden", mb: { xs: 1, md: 2 } }}>
+<Box sx={{ bgcolor: "#fff", py: { xs: 1.5, md: 2 }, px: SX, position: "relative", overflow: "hidden" ,mb: { xs: 1, md: 2 }}}>
 
-          <Container maxWidth="lg" sx={{ position: "relative", zIndex: 1 }}>
-            <Box textAlign="center" mb={{ xs: 1, md: 1.4 }}>
-              <Typography sx={{ color: PRIMARY, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", mb: 0.2, lineHeight: 1.5 }}>
-                HOW IT WORKS
-              </Typography>
-              <Typography sx={{ fontSize: { xs: "1.3rem", md: "1.75rem" }, fontWeight: 800, color: DARK, letterSpacing: "-0.025em", mb: 0.4, lineHeight: 1.4 }}>
-                Up and Running in 3 Simple Steps
-              </Typography>
-              <Typography sx={{ fontSize: "0.8rem", color: GRAY, maxWidth: 460, mx: "auto", lineHeight: 1.8 }}>
-                No complicated setup. Sign up and start billing in minutes.
+  <Box sx={{ maxWidth: SECTION_MAX_W, mx: "auto", position: "relative", zIndex: 1 }}>
+    <Box textAlign="center" mb={{ xs: 1, md: 1.4 }}>
+      <Typography sx={{ color: PRIMARY, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", mb: 0.2, lineHeight: 1.5 }}>
+        HOW IT WORKS
+      </Typography>
+      <Typography sx={{ fontSize: { xs: "1.3rem", md: "1.75rem" }, fontWeight: 800, color: DARK, letterSpacing: "-0.025em", mb: 0.4, lineHeight: 1.4 }}>
+        Up and Running in 3 Simple Steps
+      </Typography>
+      <Typography sx={{ fontSize: "0.8rem", color: GRAY, maxWidth: 460, mx: "auto", lineHeight: 1.8 }}>
+        No complicated setup. Sign up and start billing in minutes.
+      </Typography>
+    </Box>
+
+    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: { xs: 1.2, md: 1.6 }, alignItems: "stretch" }}>
+      {steps.map((step, i) => (
+        <Box key={step.number} sx={{ position: "relative", height: "100%" }}>
+          {i < steps.length - 1 && (
+            <Box sx={{
+              display: { xs: "none", md: "block" },
+              position: "absolute", top: 32, left: "calc(50% + 38px)",
+              width: "100%", height: "2px",
+              background: `linear-gradient(90deg, ${alpha(PRIMARY, 0.2)} 0%, ${alpha(PRIMARY, 0.05)} 70%, transparent 100%)`,
+              zIndex: 0,
+            }} />
+          )}
+          <Box sx={{
+            position: "relative",
+            zIndex: 1,
+            height: "100%",
+            p: { xs: 1.5, md: 1.7 },
+            borderRadius: "12px",
+            bgcolor: "#fff",
+            border: `1px solid ${alpha(PRIMARY, 0.12)}`,
+            boxShadow: "0 4px 16px rgba(15,23,42,0.04)",
+            transition: "all 0.2s",
+            "&:hover": { transform: "translateY(-2px)", boxShadow: `0 8px 22px ${alpha(PRIMARY, 0.10)}`, borderColor: alpha(PRIMARY, 0.25) },
+          }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: 1 }}>
+              <Box sx={{
+                width: 38,
+                height: 38,
+                bgcolor: PRIMARY_LIGHT,
+                borderRadius: "10px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: `1px solid ${alpha(PRIMARY, 0.18)}`,
+                boxShadow: `0 4px 12px ${alpha(PRIMARY, 0.12)}`,
+                flexShrink: 0,
+              }}>
+                {step.icon}
+              </Box>
+              <Typography sx={{ fontSize: "1.8rem", fontWeight: 900, color: alpha(DARK, 0.10), letterSpacing: "-0.06em", lineHeight: 1 }}>
+                {step.number}
               </Typography>
             </Box>
-
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: { xs: 1.2, md: 1.6 }, alignItems: "stretch" }}>
-              {steps.map((step, i) => (
-                <Box key={step.number} sx={{ position: "relative", height: "100%" }}>
-                  {i < steps.length - 1 && (
-                    <Box sx={{
-                      display: { xs: "none", md: "block" },
-                      position: "absolute", top: 32, left: "calc(50% + 38px)",
-                      width: "100%", height: "2px",
-                      background: `linear-gradient(90deg, ${alpha(PRIMARY, 0.2)} 0%, ${alpha(PRIMARY, 0.05)} 70%, transparent 100%)`,
-                      zIndex: 0,
-                    }} />
-                  )}
-                  <Box sx={{
-                    position: "relative",
-                    zIndex: 1,
-                    height: "100%",
-                    p: { xs: 1.5, md: 1.7 },
-                    borderRadius: "12px",
-                    bgcolor: "#fff",
-                    border: `1px solid ${alpha(PRIMARY, 0.12)}`,
-                    boxShadow: "0 4px 16px rgba(15,23,42,0.04)",
-                    transition: "all 0.2s",
-                    "&:hover": { transform: "translateY(-2px)", boxShadow: `0 8px 22px ${alpha(PRIMARY, 0.10)}`, borderColor: alpha(PRIMARY, 0.25) },
-                  }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: 1 }}>
-                      <Box sx={{
-                        width: 38,
-                        height: 38,
-                        bgcolor: PRIMARY_LIGHT,
-                        borderRadius: "10px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        border: `1px solid ${alpha(PRIMARY, 0.18)}`,
-                        boxShadow: `0 4px 12px ${alpha(PRIMARY, 0.12)}`,
-                        flexShrink: 0,
-                      }}>
-                        {step.icon}
-                      </Box>
-                      <Typography sx={{ fontSize: "1.8rem", fontWeight: 900, color: alpha(DARK, 0.10), letterSpacing: "-0.06em", lineHeight: 1 }}>
-                        {step.number}
-                      </Typography>
-                    </Box>
-                    <Typography sx={{ fontWeight: 850, fontSize: "0.88rem", color: DARK, mb: 0.3, lineHeight: 1.6 }}>{step.title}</Typography>
-                    <Typography sx={{ fontSize: "0.74rem", color: GRAY, lineHeight: 1.8, mb: 1 }}>{step.desc}</Typography>
-                    <Stack direction="row" flexWrap="wrap" gap={0.4}>
-                      {step.tags.map((tag) => (
-                        <Box key={tag} sx={{
-                          bgcolor: alpha(PRIMARY, 0.035), color: "#374151",
-                          px: 0.9, py: 0.2, borderRadius: "4px",
-                          fontSize: "0.62rem", fontWeight: 700, border: `1px solid ${alpha(PRIMARY, 0.11)}`,
-                        }}>
-                          {tag}
-                        </Box>
-                      ))}
-                    </Stack>
-                  </Box>
+            <Typography sx={{ fontWeight: 850, fontSize: "0.88rem", color: DARK, mb: 0.3, lineHeight: 1.6 }}>{step.title}</Typography>
+            <Typography sx={{ fontSize: "0.74rem", color: GRAY, lineHeight: 1.8, mb: 1 }}>{step.desc}</Typography>
+            <Stack direction="row" flexWrap="wrap" gap={0.4}>
+              {step.tags.map((tag) => (
+                <Box key={tag} sx={{
+                  bgcolor: alpha(PRIMARY, 0.035), color: "#374151",
+                  px: 0.9, py: 0.2, borderRadius: "4px",
+                  fontSize: "0.62rem", fontWeight: 700, border: `1px solid ${alpha(PRIMARY, 0.11)}`,
+                }}>
+                  {tag}
                 </Box>
               ))}
-            </Box>
-
-            <Box textAlign="center" mt={{ xs: 1.5, md: 2 }}>
-              <Button variant="contained" size="small" endIcon={<ArrowForwardIcon />} onClick={() => navigate("/signup")} sx={{
-                bgcolor: PRIMARY, color: "#fff", px: 2.8, py: 0.8, borderRadius: "8px",
-                fontSize: "0.85rem", fontWeight: 700,
-                boxShadow: `0 4px 12px ${alpha(PRIMARY, 0.35)}`,
-                "&:hover": { bgcolor: PRIMARY_DARK },
-              }}>
-                Start Free — No Credit Card Needed
-              </Button>
-              <Typography sx={{ fontSize: "0.68rem", color: GRAY, mt: 0.5, lineHeight: 1.7 }}>
-                14-day free trial · Full access · Cancel anytime
-              </Typography>
-            </Box>
-          </Container>
+            </Stack>
+          </Box>
         </Box>
+      ))}
+    </Box>
 
-        {/* ── WHO IS IT FOR ─────────────────────────────────────────────────── */}
-        {/* <Box sx={{ bgcolor: LIGHT, py: { xs: 1.5, md: 2 }, px: SX, position: "relative", overflow: "hidden",mb: { xs: 6, md: 8 }, }}>
+    <Box textAlign="center" mt={{ xs: 1.5, md: 2 }}>
+      <Button variant="contained" size="small" endIcon={<ArrowForwardIcon />} onClick={() => navigate("/signup")} sx={{
+        bgcolor: PRIMARY, color: "#fff", px: 2.8, py: 0.8, borderRadius: "8px",
+        fontSize: "0.85rem", fontWeight: 700,
+        boxShadow: `0 4px 12px ${alpha(PRIMARY, 0.35)}`,
+        "&:hover": { bgcolor: PRIMARY_DARK },
+      }}>
+        Start Free — No Credit Card Needed
+      </Button>
+      <Typography sx={{ fontSize: "0.68rem", color: GRAY, mt: 0.5, lineHeight: 1.7 }}>
+        14-day free trial · Full access · Cancel anytime
+      </Typography>
+    </Box>
+  </Box>
+</Box>
+
+{/* ── WHO IS IT FOR ─────────────────────────────────────────────────── */}
+{/* <Box sx={{ bgcolor: LIGHT, py: { xs: 1.5, md: 2 }, px: SX, position: "relative", overflow: "hidden",mb: { xs: 6, md: 8 }, }}>
   <Container maxWidth="lg">
     <Box textAlign="center" mb={{ xs: 1.2, md: 1.5 }}>
       <Typography sx={{ color: PRIMARY, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", mb: 0.2 }}>
@@ -3088,150 +2937,150 @@ const ZoduLandingPage: React.FC = () => {
     </Box>
   </Container>
 </Box> */}
-        <Box sx={{ bgcolor: LIGHT, py: { xs: 1.5, md: 2 }, px: SX, position: "relative", overflow: "hidden", mb: { xs: 6, md: 8 }, }}>
-          <Container maxWidth="lg">
-            <Box textAlign="center" mb={{ xs: 1.2, md: 1.5 }}>
-              <Typography sx={{ color: PRIMARY, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", mb: 0.2, lineHeight: 1.5 }}>
-                BUILT FOR EVERY BUSINESS
-              </Typography>
-              <Typography sx={{ fontSize: { xs: "1.3rem", md: "1.75rem" }, fontWeight: 800, color: DARK, letterSpacing: "-0.025em", lineHeight: 1.4 }}>
-                Zodu Works for Your Industry
-              </Typography>
-            </Box>
-            <Box sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(5, 1fr)" },
-              gap: { xs: 0.8, md: 1 },
-            }}>
-              {businessTypes.map((biz) => (
-                <Box key={biz.title} sx={{
-                  bgcolor: "#fff",
-                  border: `1px solid ${alpha(PRIMARY, 0.12)}`,
-                  borderRadius: "10px",
-                  p: { xs: 1.2, md: 1 },
-                  textAlign: "center",
-                  cursor: "pointer",
-                  transition: "all 0.2s",
-                  position: "relative",
-                  overflow: "hidden",
-                  "&::before": {
-                    content: '""',
-                    position: "absolute",
-                    inset: 0,
-                    background: `linear-gradient(145deg, ${alpha(PRIMARY, 0.06)}, transparent 52%)`,
-                    opacity: 0,
-                    transition: "opacity 0.2s",
-                  },
-                  "&:hover": { borderColor: alpha(PRIMARY, 0.35), boxShadow: `0 4px 14px ${alpha(PRIMARY, 0.10)}`, transform: "translateY(-2px)" },
-                  "&:hover::before": { opacity: 1 },
-                }}>
-                  <Box sx={{
-                    position: "relative",
-                    zIndex: 1,
-                    width: 32,
-                    height: 32,
-                    mx: "auto",
-                    mb: 0.5,
-                    borderRadius: "8px",
-                    bgcolor: PRIMARY_LIGHT,
-                    border: `1px solid ${alpha(PRIMARY, 0.14)}`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}>
-                    <biz.icon sx={{ fontSize: "1.1rem", color: PRIMARY }} />
-                  </Box>
-                  <Typography sx={{ position: "relative", zIndex: 1, fontWeight: 800, fontSize: "0.75rem", color: DARK, mb: 0.15, lineHeight: 1.5 }}>{biz.title}</Typography>
-                  <Typography sx={{ position: "relative", zIndex: 1, fontSize: "0.6rem", color: GRAY, lineHeight: 1.7 }}>{biz.desc}</Typography>
-                </Box>
-              ))}
-            </Box>
-          </Container>
+<Box sx={{ bgcolor: LIGHT, py: { xs: 1.5, md: 2 }, px: SX, position: "relative", overflow: "hidden",mb: { xs: 6, md: 8 }, }}>
+  <Box sx={{ maxWidth: SECTION_MAX_W, mx: "auto" }}>
+    <Box textAlign="center" mb={{ xs: 1.2, md: 1.5 }}>
+      <Typography sx={{ color: PRIMARY, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", mb: 0.2, lineHeight: 1.5 }}>
+        BUILT FOR EVERY BUSINESS
+      </Typography>
+      <Typography sx={{ fontSize: { xs: "1.3rem", md: "1.75rem" }, fontWeight: 800, color: DARK, letterSpacing: "-0.025em", lineHeight: 1.4 }}>
+        Zodu Works for Your Industry
+      </Typography>
+    </Box>
+    <Box sx={{
+      display: "grid",
+      gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(5, 1fr)" },
+      gap: { xs: 0.8, md: 1 },
+    }}>
+      {businessTypes.map((biz) => (
+        <Box key={biz.title} sx={{
+          bgcolor: "#fff",
+          border: `1px solid ${alpha(PRIMARY, 0.12)}`,
+          borderRadius: "10px",
+          p: { xs: 1.2, md: 1 },
+          textAlign: "center",
+          cursor: "pointer",
+          transition: "all 0.2s",
+          position: "relative",
+          overflow: "hidden",
+          "&::before": {
+            content: '""',
+            position: "absolute",
+            inset: 0,
+            background: `linear-gradient(145deg, ${alpha(PRIMARY, 0.06)}, transparent 52%)`,
+            opacity: 0,
+            transition: "opacity 0.2s",
+          },
+          "&:hover": { borderColor: alpha(PRIMARY, 0.35), boxShadow: `0 4px 14px ${alpha(PRIMARY, 0.10)}`, transform: "translateY(-2px)" },
+          "&:hover::before": { opacity: 1 },
+        }}>
+          <Box sx={{
+            position: "relative",
+            zIndex: 1,
+            width: 32,
+            height: 32,
+            mx: "auto",
+            mb: 0.5,
+            borderRadius: "8px",
+            bgcolor: PRIMARY_LIGHT,
+            border: `1px solid ${alpha(PRIMARY, 0.14)}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}>
+            <biz.icon sx={{ fontSize: "1.1rem", color: PRIMARY }} />
+          </Box>
+          <Typography sx={{ position: "relative", zIndex: 1, fontWeight: 800, fontSize: "0.75rem", color: DARK, mb: 0.15, lineHeight: 1.5 }}>{biz.title}</Typography>
+          <Typography sx={{ position: "relative", zIndex: 1, fontSize: "0.6rem", color: GRAY, lineHeight: 1.7 }}>{biz.desc}</Typography>
         </Box>
+      ))}
+    </Box>
+  </Box>
+</Box>
         {/* ── PRICING ──────────────────────────────────────────────────────── */}
-        {/* Intha outer wrapper/container-la mt (margin-top) add pannunga */}
-        <Box sx={{ mt: { xs: 4, md: 6 }, px: { xs: 2, md: 4 } }}>
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 2.5, alignItems: "stretch" }}>
-            {plans.map((plan) => (
-              <Box key={plan.name} sx={{
-                border: plan.popular ? `2px solid ${PRIMARY}` : `1px solid ${BORDER}`,
-                borderRadius: "22px",
-                p: { xs: 3, md: 3.2 },
-                position: "relative",
-                overflow: "hidden",
-                transform: plan.popular ? { md: "scale(1.03)" } : "none",
-                boxShadow: plan.popular ? `0 18px 54px ${alpha(PRIMARY, 0.15)}` : "0 10px 28px rgba(15,23,42,0.06)",
-                bgcolor: "#fff",
-                display: "flex",
-                flexDirection: "column",
+      {/* Intha outer wrapper/container-la mt (margin-top) add pannunga */}
+<Box sx={{ mt: { xs: 4, md: 6 }, px: SX }}>
+  <Box sx={{ maxWidth: SECTION_MAX_W, mx: "auto", display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 2.5, alignItems: "stretch" }}>
+    {plans.map((plan) => (
+      <Box key={plan.name} sx={{
+        border: plan.popular ? `2px solid ${PRIMARY}` : `1px solid ${BORDER}`,
+        borderRadius: "22px",
+        p: { xs: 3, md: 3.2 },
+        position: "relative",
+        overflow: "hidden",
+        transform: plan.popular ? { md: "scale(1.03)" } : "none",
+        boxShadow: plan.popular ? `0 18px 54px ${alpha(PRIMARY, 0.15)}` : "0 10px 28px rgba(15,23,42,0.06)",
+        bgcolor: "#fff",
+        display: "flex",
+        flexDirection: "column",
+      }}>
+        <Box sx={{ display: "flex", flexDirection: "column", flex: 1 }}>
+          
+          {plan.popular ? (
+            <Box sx={{ display: "flex", justifyContent: "center", mb: 1.5 }}>
+              <Box sx={{
+                bgcolor: PRIMARY, 
+                color: "#fff", 
+                fontSize: "0.65rem", 
+                fontWeight: 800,
+                px: 2, 
+                py: 0.5, 
+                borderRadius: "999px", 
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                whiteSpace: "nowrap"
               }}>
-                <Box sx={{ display: "flex", flexDirection: "column", flex: 1 }}>
+                MOST POPULAR
+              </Box>
+            </Box>
+          ) : (
+            <Box sx={{ height: 26, mb: 1.5 }} />
+          )}
 
-                  {plan.popular ? (
-                    <Box sx={{ display: "flex", justifyContent: "center", mb: 1.5 }}>
-                      <Box sx={{
-                        bgcolor: PRIMARY,
-                        color: "#fff",
-                        fontSize: "0.65rem",
-                        fontWeight: 800,
-                        px: 2,
-                        py: 0.5,
-                        borderRadius: "999px",
-                        letterSpacing: "0.1em",
-                        textTransform: "uppercase",
-                        whiteSpace: "nowrap"
-                      }}>
-                        MOST POPULAR
-                      </Box>
-                    </Box>
-                  ) : (
-                    <Box sx={{ height: 26, mb: 1.5 }} />
-                  )}
+          <Typography sx={{ fontWeight: 850, fontSize: "1.2rem", color: DARK, mb: 0.4 }}>{plan.name}</Typography>
+          <Typography sx={{ fontSize: "0.83rem", color: GRAY, mb: 2.5 }}>{plan.tagline}</Typography>
+          
+          {plan.monthly !== "Custom" ? (
+            <Box mb={3}>
+              <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5 }}>
+                <Typography sx={{ fontSize: "2.5rem", fontWeight: 900, color: DARK, letterSpacing: "-0.03em" }}>
+                  {billing === "monthly" ? plan.monthly : plan.yearly}
+                </Typography>
+                <Typography sx={{ fontSize: "0.85rem", color: GRAY }}>/month</Typography>
+              </Box>
+              {billing === "yearly" && (
+                <Typography sx={{ fontSize: "0.75rem", color: "#16a34a", fontWeight: 600 }}>Billed annually · Save 20%</Typography>
+              )}
+            </Box>
+          ) : (
+            <Box mb={3}>
+              <Typography sx={{ fontSize: "1.8rem", fontWeight: 900, color: DARK, mb: 0.4 }}>Custom</Typography>
+              <Typography sx={{ fontSize: "0.8rem", color: GRAY }}>Tailored to your business size</Typography>
+            </Box>
+          )}
 
-                  <Typography sx={{ fontWeight: 850, fontSize: "1.2rem", color: DARK, mb: 0.4 }}>{plan.name}</Typography>
-                  <Typography sx={{ fontSize: "0.83rem", color: GRAY, mb: 2.5 }}>{plan.tagline}</Typography>
-
-                  {plan.monthly !== "Custom" ? (
-                    <Box mb={3}>
-                      <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5 }}>
-                        <Typography sx={{ fontSize: "2.5rem", fontWeight: 900, color: DARK, letterSpacing: "-0.03em" }}>
-                          {billing === "monthly" ? plan.monthly : plan.yearly}
-                        </Typography>
-                        <Typography sx={{ fontSize: "0.85rem", color: GRAY }}>/month</Typography>
-                      </Box>
-                      {billing === "yearly" && (
-                        <Typography sx={{ fontSize: "0.75rem", color: "#16a34a", fontWeight: 600 }}>Billed annually · Save 20%</Typography>
-                      )}
-                    </Box>
-                  ) : (
-                    <Box mb={3}>
-                      <Typography sx={{ fontSize: "1.8rem", fontWeight: 900, color: DARK, mb: 0.4 }}>Custom</Typography>
-                      <Typography sx={{ fontSize: "0.8rem", color: GRAY }}>Tailored to your business size</Typography>
-                    </Box>
-                  )}
-
-                  <Stack spacing={1.2} mb={3} sx={{ flex: 1 }}>
-                    {plan.items.map((item) => (
-                      <Box key={item} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <CheckCircleIcon sx={{ fontSize: 15, color: plan.popular ? PRIMARY : "#16a34a", flexShrink: 0 }} />
-                        <Typography sx={{ fontSize: "0.85rem", color: "#374151" }}>{item}</Typography>
-                      </Box>
-                    ))}
-                  </Stack>
-
-                  <Button fullWidth variant={plan.popular ? "contained" : "outlined"} onClick={() => navigate(plan.cta === "Talk to Sales" ? "/" : "/signup")} sx={{
-                    py: 1.2, borderRadius: "10px", fontWeight: 700, fontSize: "0.9rem",
-                    ...(plan.popular
-                      ? { bgcolor: PRIMARY, color: "#fff", "&:hover": { bgcolor: PRIMARY_DARK } }
-                      : { borderColor: plan.name === "Enterprise" ? PRIMARY : BORDER, color: plan.name === "Enterprise" ? PRIMARY : DARK, "&:hover": { borderColor: PRIMARY, bgcolor: alpha(PRIMARY, 0.04) } }),
-                  }}>
-                    {plan.cta}
-                  </Button>
-                </Box>
+          <Stack spacing={1.2} mb={3} sx={{ flex: 1 }}>
+            {plan.items.map((item) => (
+              <Box key={item} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <CheckCircleIcon sx={{ fontSize: 15, color: plan.popular ? PRIMARY : "#16a34a", flexShrink: 0 }} />
+                <Typography sx={{ fontSize: "0.85rem", color: "#374151" }}>{item}</Typography>
               </Box>
             ))}
-          </Box>
+          </Stack>
+
+          <Button fullWidth variant={plan.popular ? "contained" : "outlined"} onClick={() => navigate(plan.cta === "Talk to Sales" ? "/" : "/signup")} sx={{
+            py: 1.2, borderRadius: "10px", fontWeight: 700, fontSize: "0.9rem",
+            ...(plan.popular
+              ? { bgcolor: PRIMARY, color: "#fff", "&:hover": { bgcolor: PRIMARY_DARK } }
+              : { borderColor: plan.name === "Enterprise" ? PRIMARY : BORDER, color: plan.name === "Enterprise" ? PRIMARY : DARK, "&:hover": { borderColor: PRIMARY, bgcolor: alpha(PRIMARY, 0.04) } }),
+          }}>
+            {plan.cta}
+          </Button>
         </Box>
+      </Box>
+    ))}
+  </Box>
+</Box>
 
         {/* ── TESTIMONIALS ─────────────────────────────────────────────────── */}
         {/* <Box sx={{ bgcolor: LIGHT, py: SPY, px: SX }}>
@@ -3285,7 +3134,7 @@ const ZoduLandingPage: React.FC = () => {
         </Box> */}
 
         {/* ── FAQ ──────────────────────────────────────────────────────────── */}
-        {/* <Box sx={{ bgcolor: "#fff", py: SPY, px: SX }}>   
+     {/* <Box sx={{ bgcolor: "#fff", py: SPY, px: SX }}>   
           <Container maxWidth="lg">
             <Box textAlign="center" mb={HMB}>
               <Typography sx={{ color: PRIMARY, fontWeight: 700, fontSize: "0.78rem", letterSpacing: "0.18em", textTransform: "uppercase", mb: 1.5 }}>
@@ -3333,7 +3182,7 @@ const ZoduLandingPage: React.FC = () => {
             </defs>
           </Box>
 
-          <Container maxWidth="lg" disableGutters>
+          <Box sx={{ maxWidth: SECTION_MAX_W, mx: "auto" }}>
             <Box sx={{
               borderRadius: { xs: "20px", md: "26px" },
               minHeight: { md: 430 },
@@ -3479,36 +3328,36 @@ const ZoduLandingPage: React.FC = () => {
                       <Box sx={{ width: 82, height: 82, flexShrink: 0, bgcolor: "#fff", borderRadius: "8px", overflow: "hidden", p: "4px" }}>
                         <Box component="svg" viewBox="0 0 21 21" width="74" height="74" sx={{ display: "block" }}>
                           {/* Top-left finder */}
-                          <rect x="0" y="0" width="7" height="7" fill="#111" rx="0.5" />
-                          <rect x="1" y="1" width="5" height="5" fill="#fff" />
-                          <rect x="2" y="2" width="3" height="3" fill="#111" />
+                          <rect x="0" y="0" width="7" height="7" fill="#111" rx="0.5"/>
+                          <rect x="1" y="1" width="5" height="5" fill="#fff"/>
+                          <rect x="2" y="2" width="3" height="3" fill="#111"/>
                           {/* Top-right finder */}
-                          <rect x="14" y="0" width="7" height="7" fill="#111" rx="0.5" />
-                          <rect x="15" y="1" width="5" height="5" fill="#fff" />
-                          <rect x="16" y="2" width="3" height="3" fill="#111" />
+                          <rect x="14" y="0" width="7" height="7" fill="#111" rx="0.5"/>
+                          <rect x="15" y="1" width="5" height="5" fill="#fff"/>
+                          <rect x="16" y="2" width="3" height="3" fill="#111"/>
                           {/* Bottom-left finder */}
-                          <rect x="0" y="14" width="7" height="7" fill="#111" rx="0.5" />
-                          <rect x="1" y="15" width="5" height="5" fill="#fff" />
-                          <rect x="2" y="16" width="3" height="3" fill="#111" />
+                          <rect x="0" y="14" width="7" height="7" fill="#111" rx="0.5"/>
+                          <rect x="1" y="15" width="5" height="5" fill="#fff"/>
+                          <rect x="2" y="16" width="3" height="3" fill="#111"/>
                           {/* Timing patterns */}
-                          <rect x="8" y="6" width="1" height="1" fill="#111" /><rect x="10" y="6" width="1" height="1" fill="#111" /><rect x="12" y="6" width="1" height="1" fill="#111" />
-                          <rect x="6" y="8" width="1" height="1" fill="#111" /><rect x="6" y="10" width="1" height="1" fill="#111" /><rect x="6" y="12" width="1" height="1" fill="#111" />
+                          <rect x="8" y="6" width="1" height="1" fill="#111"/><rect x="10" y="6" width="1" height="1" fill="#111"/><rect x="12" y="6" width="1" height="1" fill="#111"/>
+                          <rect x="6" y="8" width="1" height="1" fill="#111"/><rect x="6" y="10" width="1" height="1" fill="#111"/><rect x="6" y="12" width="1" height="1" fill="#111"/>
                           {/* Data modules */}
-                          <rect x="8" y="0" width="1" height="1" fill="#111" /><rect x="10" y="0" width="2" height="1" fill="#111" /><rect x="13" y="0" width="1" height="1" fill="#111" />
-                          <rect x="9" y="2" width="1" height="1" fill="#111" /><rect x="11" y="2" width="2" height="1" fill="#111" />
-                          <rect x="8" y="4" width="2" height="1" fill="#111" /><rect x="12" y="4" width="2" height="1" fill="#111" />
-                          <rect x="0" y="8" width="1" height="1" fill="#111" /><rect x="2" y="8" width="3" height="1" fill="#111" /><rect x="8" y="8" width="2" height="1" fill="#111" /><rect x="12" y="8" width="2" height="1" fill="#111" /><rect x="16" y="8" width="1" height="1" fill="#111" /><rect x="18" y="8" width="1" height="1" fill="#111" /><rect x="20" y="8" width="1" height="1" fill="#111" />
-                          <rect x="0" y="10" width="1" height="1" fill="#111" /><rect x="3" y="10" width="2" height="1" fill="#111" /><rect x="8" y="10" width="1" height="1" fill="#111" /><rect x="11" y="10" width="2" height="1" fill="#111" /><rect x="15" y="10" width="3" height="1" fill="#111" /><rect x="20" y="10" width="1" height="1" fill="#111" />
-                          <rect x="1" y="12" width="2" height="1" fill="#111" /><rect x="5" y="12" width="1" height="1" fill="#111" /><rect x="9" y="12" width="2" height="1" fill="#111" /><rect x="13" y="12" width="1" height="1" fill="#111" /><rect x="16" y="12" width="2" height="1" fill="#111" />
-                          <rect x="8" y="14" width="1" height="1" fill="#111" /><rect x="10" y="14" width="2" height="1" fill="#111" /><rect x="14" y="14" width="1" height="1" fill="#111" /><rect x="17" y="14" width="2" height="1" fill="#111" /><rect x="20" y="14" width="1" height="1" fill="#111" />
-                          <rect x="9" y="16" width="2" height="1" fill="#111" /><rect x="13" y="16" width="1" height="1" fill="#111" /><rect x="16" y="16" width="1" height="1" fill="#111" /><rect x="19" y="16" width="2" height="1" fill="#111" />
-                          <rect x="8" y="18" width="1" height="1" fill="#111" /><rect x="11" y="18" width="2" height="1" fill="#111" /><rect x="15" y="18" width="1" height="1" fill="#111" /><rect x="18" y="18" width="2" height="1" fill="#111" />
-                          <rect x="9" y="20" width="2" height="1" fill="#111" /><rect x="13" y="20" width="2" height="1" fill="#111" /><rect x="17" y="20" width="1" height="1" fill="#111" /><rect x="20" y="20" width="1" height="1" fill="#111" />
+                          <rect x="8" y="0" width="1" height="1" fill="#111"/><rect x="10" y="0" width="2" height="1" fill="#111"/><rect x="13" y="0" width="1" height="1" fill="#111"/>
+                          <rect x="9" y="2" width="1" height="1" fill="#111"/><rect x="11" y="2" width="2" height="1" fill="#111"/>
+                          <rect x="8" y="4" width="2" height="1" fill="#111"/><rect x="12" y="4" width="2" height="1" fill="#111"/>
+                          <rect x="0" y="8" width="1" height="1" fill="#111"/><rect x="2" y="8" width="3" height="1" fill="#111"/><rect x="8" y="8" width="2" height="1" fill="#111"/><rect x="12" y="8" width="2" height="1" fill="#111"/><rect x="16" y="8" width="1" height="1" fill="#111"/><rect x="18" y="8" width="1" height="1" fill="#111"/><rect x="20" y="8" width="1" height="1" fill="#111"/>
+                          <rect x="0" y="10" width="1" height="1" fill="#111"/><rect x="3" y="10" width="2" height="1" fill="#111"/><rect x="8" y="10" width="1" height="1" fill="#111"/><rect x="11" y="10" width="2" height="1" fill="#111"/><rect x="15" y="10" width="3" height="1" fill="#111"/><rect x="20" y="10" width="1" height="1" fill="#111"/>
+                          <rect x="1" y="12" width="2" height="1" fill="#111"/><rect x="5" y="12" width="1" height="1" fill="#111"/><rect x="9" y="12" width="2" height="1" fill="#111"/><rect x="13" y="12" width="1" height="1" fill="#111"/><rect x="16" y="12" width="2" height="1" fill="#111"/>
+                          <rect x="8" y="14" width="1" height="1" fill="#111"/><rect x="10" y="14" width="2" height="1" fill="#111"/><rect x="14" y="14" width="1" height="1" fill="#111"/><rect x="17" y="14" width="2" height="1" fill="#111"/><rect x="20" y="14" width="1" height="1" fill="#111"/>
+                          <rect x="9" y="16" width="2" height="1" fill="#111"/><rect x="13" y="16" width="1" height="1" fill="#111"/><rect x="16" y="16" width="1" height="1" fill="#111"/><rect x="19" y="16" width="2" height="1" fill="#111"/>
+                          <rect x="8" y="18" width="1" height="1" fill="#111"/><rect x="11" y="18" width="2" height="1" fill="#111"/><rect x="15" y="18" width="1" height="1" fill="#111"/><rect x="18" y="18" width="2" height="1" fill="#111"/>
+                          <rect x="9" y="20" width="2" height="1" fill="#111"/><rect x="13" y="20" width="2" height="1" fill="#111"/><rect x="17" y="20" width="1" height="1" fill="#111"/><rect x="20" y="20" width="1" height="1" fill="#111"/>
                         </Box>
                       </Box>
                       <Box>
-                        <Typography sx={{ fontFamily: POPPINS, fontWeight: 700, fontSize: "0.78rem", color: APP_NAVY, lineHeight: 1.3 }}>Scan to<br />Download</Typography>
-                        <Typography sx={{ fontFamily: POPPINS, fontSize: "0.62rem", color: APP_SLATE, mt: 0.5, lineHeight: 1.4 }}>Point your camera<br />at the QR code</Typography>
+                        <Typography sx={{ fontFamily: POPPINS, fontWeight: 700, fontSize: "0.78rem", color: APP_NAVY, lineHeight: 1.3 }}>Scan to<br/>Download</Typography>
+                        <Typography sx={{ fontFamily: POPPINS, fontSize: "0.62rem", color: APP_SLATE, mt: 0.5, lineHeight: 1.4 }}>Point your camera<br/>at the QR code</Typography>
                       </Box>
                     </Box>
                   </Stack>
@@ -3522,9 +3371,9 @@ const ZoduLandingPage: React.FC = () => {
                     mx: { xs: "auto", md: 0 },
                   }}>
                     {[
-                      { icon: <VerifiedUserIcon sx={{ fontSize: 20, color: APP_RED }} />, tint: alpha(APP_RED, 0.10), title: "Secure & Reliable", sub: "Your data is always safe" },
-                      { icon: <CloudDoneIcon sx={{ fontSize: 20, color: "#3B82F6" }} />, tint: "#EFF6FF", title: "Works Offline", sub: "Auto syncs when online" },
-                      { icon: <SupportAgentIcon sx={{ fontSize: 20, color: "#16A34A" }} />, tint: "#F0FDF4", title: "24/7 Support", sub: "We're here to help" },
+                      { icon: <VerifiedUserIcon sx={{ fontSize: 20, color: APP_RED }} />,   tint: alpha(APP_RED, 0.10),   title: "Secure & Reliable", sub: "Your data is always safe" },
+                      { icon: <CloudDoneIcon sx={{ fontSize: 20, color: "#3B82F6" }} />,    tint: "#EFF6FF",              title: "Works Offline",     sub: "Auto syncs when online" },
+                      { icon: <SupportAgentIcon sx={{ fontSize: 20, color: "#16A34A" }} />, tint: "#F0FDF4",              title: "24/7 Support",      sub: "We're here to help" },
                     ].map((f, i) => (
                       <Box key={f.title} sx={{
                         display: "flex", alignItems: "center", gap: 0.9, p: { xs: 1.4, md: 1.25 },
@@ -3558,113 +3407,113 @@ const ZoduLandingPage: React.FC = () => {
                 </Box>
               </Box>
             </Box>
-          </Container>
+          </Box>
         </Box>
 
         {/* ── FOOTER ───────────────────────────────────────────────────────── */}
-        <Box component="footer" sx={{ position: "relative", overflow: "hidden", bgcolor: "#0B1220", color: "#fff" }}>
-          <Container maxWidth="lg" sx={{ px: { xs: 3, md: 6 }, position: "relative", zIndex: 1, py: { xs: 4, md: 5 } }}>
-
-            {/* Logo and CTA Box in a single row */}
-            <Box sx={{
-              mt: { xs: 2, md: 3 },
-              display: "flex",
-              flexDirection: { xs: "column", lg: "row" },
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 4,
-            }}>
-              {/* Logo */}
-              <Box sx={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}>
-                <img
-                  src={zlogo}
-                  alt="Zodu Logo"
-                  style={{
-                    height: 34,
-                    width: "auto",
-                    objectFit: "contain",
-                    filter: "brightness(0) invert(1)"
-                  }}
-                />
-              </Box>
-
-              {/* Ready to simplify your business Box */}
-              <Box sx={{
-                p: { xs: 2.5, md: 3 },
-                borderRadius: "18px",
-                bgcolor: "rgba(255,255,255,0.06)",
-                border: "1px solid rgba(255,255,255,0.10)",
-                display: "flex",
-                flexDirection: { xs: "column", md: "row" },
-                alignItems: { xs: "flex-start", md: "center" },
-                justifyContent: "space-between",
-                gap: 2.5,
-                backdropFilter: "blur(10px)",
-                flex: 1,
-                width: { xs: "100%", lg: "auto" }
-              }}>
-                <Box>
-                  <Typography sx={{ fontSize: { xs: "1.35rem", md: "1.7rem" }, fontWeight: 800, lineHeight: 1.2, mb: 0.7 }}>
-                    Ready to simplify your business?
-                  </Typography>
-                  <Typography sx={{ color: "#A7B0C0", fontSize: "0.9rem", lineHeight: 1.6 }}>
-                    Start billing, tracking and growing from one clean dashboard.
-                  </Typography>
-                </Box>
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1.2} sx={{ width: { xs: "100%", sm: "auto" } }}>
-                  <Button
-                    variant="contained"
-                    endIcon={<ArrowForwardIcon />}
-                    onClick={() => navigate("/signup")}
-                    sx={{ bgcolor: PRIMARY, px: 2.6, py: 1.1, borderRadius: "10px", fontWeight: 800, "&:hover": { bgcolor: PRIMARY_DARK } }}
-                  >
-                    Start Free Trial
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    sx={{ color: "#fff", borderColor: "rgba(255,255,255,0.22)", px: 2.6, py: 1.1, borderRadius: "10px", fontWeight: 700, "&:hover": { borderColor: "#fff", bgcolor: "rgba(255,255,255,0.06)" } }}
-                  >
-                    Talk to Sales
-                  </Button>
-                </Stack>
-              </Box>
-            </Box>
-
-            <Box sx={{ py: { xs: 3, md: 4 } }} />
-
-            <Divider sx={{ borderColor: "rgba(255,255,255,0.09)" }} />
-
-            {/* Bottom section with Copyright, Social Icons, and Links */}
-            <Box sx={{ py: 2.5, display: "flex", flexDirection: { xs: "column", md: "row" }, justifyContent: "space-between", alignItems: "center", gap: 2.5 }}>
-              <Typography sx={{ color: "#8B95A7", fontSize: "0.8rem" }}>
-                © 2025 Zodu Technologies Pvt. Ltd. All rights reserved.
-              </Typography>
-
-              {/* Social Media Icons in the middle */}
-              <Stack direction="row" spacing={1}>
-                {[<FacebookIcon sx={{ fontSize: 18 }} />, <InstagramIcon sx={{ fontSize: 18 }} />, <LinkedInIcon sx={{ fontSize: 18 }} />, <YouTubeIcon sx={{ fontSize: 18 }} />].map((icon, i) => (
-                  <IconButton key={i} size="small" sx={{
-                    width: 34,
-                    height: 34,
-                    bgcolor: "rgba(255,255,255,0.08)",
-                    color: "#D1D5DB",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    transition: "all 0.18s",
-                    "&:hover": { bgcolor: PRIMARY, color: "#fff", transform: "translateY(-2px)" },
-                  }}>
-                    {icon}
-                  </IconButton>
-                ))}
-              </Stack>
-
-              <Stack direction="row" spacing={2.5}>
-                {["Privacy", "Terms", "Sitemap"].map((l) => (
-                  <Typography key={l} sx={{ color: "#8B95A7", fontSize: "0.8rem", cursor: "pointer", "&:hover": { color: "#fff" } }}>{l}</Typography>
-                ))}
-              </Stack>
-            </Box>
-          </Container>
+        <Box component="footer" sx={{ position: "relative", overflow: "hidden", bgcolor: "#0B1220", color: "#fff", px: SX }}>
+    <Box sx={{ maxWidth: SECTION_MAX_W, mx: "auto", position: "relative", zIndex: 1, py: { xs: 4, md: 5 } }}>
+      
+      {/* Logo and CTA Box in a single row */}
+      <Box sx={{
+        mt: { xs: 2, md: 3 },
+        display: "flex",
+        flexDirection: { xs: "column", lg: "row" },
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 4,
+      }}>
+        {/* Logo */}
+        <Box sx={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}>
+          <img 
+            src={zlogo} 
+            alt="Zodu Logo" 
+            style={{ 
+              height: 34, 
+              width: "auto", 
+              objectFit: "contain",
+              filter: "brightness(0) invert(1)" 
+            }} 
+          />
         </Box>
+
+        {/* Ready to simplify your business Box */}
+        <Box sx={{
+          p: { xs: 2.5, md: 3 },
+          borderRadius: "18px",
+          bgcolor: "rgba(255,255,255,0.06)",
+          border: "1px solid rgba(255,255,255,0.10)",
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          alignItems: { xs: "flex-start", md: "center" },
+          justifyContent: "space-between",
+          gap: 2.5,
+          backdropFilter: "blur(10px)",
+          flex: 1,
+          width: { xs: "100%", lg: "auto" }
+        }}>
+          <Box>
+            <Typography sx={{ fontSize: { xs: "1.35rem", md: "1.7rem" }, fontWeight: 800, lineHeight: 1.2, mb: 0.7 }}>
+              Ready to simplify your business?
+            </Typography>
+            <Typography sx={{ color: "#A7B0C0", fontSize: "0.9rem", lineHeight: 1.6 }}>
+              Start billing, tracking and growing from one clean dashboard.
+            </Typography>
+          </Box>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.2} sx={{ width: { xs: "100%", sm: "auto" } }}>
+            <Button
+              variant="contained"
+              endIcon={<ArrowForwardIcon />}
+              onClick={() => navigate("/signup")}
+              sx={{ bgcolor: PRIMARY, px: 2.6, py: 1.1, borderRadius: "10px", fontWeight: 800, "&:hover": { bgcolor: PRIMARY_DARK } }}
+            >
+              Start Free Trial
+            </Button>
+            <Button
+              variant="outlined"
+              sx={{ color: "#fff", borderColor: "rgba(255,255,255,0.22)", px: 2.6, py: 1.1, borderRadius: "10px", fontWeight: 700, "&:hover": { borderColor: "#fff", bgcolor: "rgba(255,255,255,0.06)" } }}
+            >
+              Talk to Sales
+            </Button>
+          </Stack>
+        </Box>
+      </Box>
+
+      <Box sx={{ py: { xs: 3, md: 4 } }} />
+
+      <Divider sx={{ borderColor: "rgba(255,255,255,0.09)" }} />
+      
+      {/* Bottom section with Copyright, Social Icons, and Links */}
+      <Box sx={{ py: 2.5, display: "flex", flexDirection: { xs: "column", md: "row" }, justifyContent: "space-between", alignItems: "center", gap: 2.5 }}>
+        <Typography sx={{ color: "#8B95A7", fontSize: "0.8rem" }}>
+          © 2025 Zodu Technologies Pvt. Ltd. All rights reserved.
+        </Typography>
+
+        {/* Social Media Icons in the middle */}
+        <Stack direction="row" spacing={1}>
+          {[<FacebookIcon sx={{ fontSize: 18 }} />, <InstagramIcon sx={{ fontSize: 18 }} />, <LinkedInIcon sx={{ fontSize: 18 }} />, <YouTubeIcon sx={{ fontSize: 18 }} />].map((icon, i) => (
+            <IconButton key={i} size="small" sx={{
+              width: 34,
+              height: 34,
+              bgcolor: "rgba(255,255,255,0.08)",
+              color: "#D1D5DB",
+              border: "1px solid rgba(255,255,255,0.08)",
+              transition: "all 0.18s",
+              "&:hover": { bgcolor: PRIMARY, color: "#fff", transform: "translateY(-2px)" },
+            }}>
+              {icon}
+            </IconButton>
+          ))}
+        </Stack>
+
+        <Stack direction="row" spacing={2.5}>
+          {["Privacy", "Terms", "Sitemap"].map((l) => (
+            <Typography key={l} sx={{ color: "#8B95A7", fontSize: "0.8rem", cursor: "pointer", "&:hover": { color: "#fff" } }}>{l}</Typography>
+          ))}
+        </Stack>
+      </Box>
+    </Box>
+  </Box>
       </Box>
     </ThemeProvider>
   );

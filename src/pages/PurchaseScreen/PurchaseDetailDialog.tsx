@@ -170,28 +170,6 @@ function PurchaseDetailContent({ data }: { data: PurchaseDetail }) {
           bgcolor: "#FFFFFF",
         }}
       >
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1.5,
-            px: 2,
-            py: 1.5,
-            borderBottom: "1px solid #EEF2F7",
-            bgcolor: "#FCFCFD",
-            flexWrap: "wrap",
-          }}
-        >
-          <Typography sx={{ fontSize: 16, fontWeight: 800, color: "#0F172A" }}>
-            Invoice Details
-          </Typography>
-          <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#D32F2F" }}>
-            {data.purchase_id}
-          </Typography>
-          <Typography sx={{ fontSize: 11, color: "#94A3B8" }}>
-            {fmtDateTime(data.created_at)}
-          </Typography>
-        </Box>
 
         <Box
           sx={{
@@ -314,11 +292,9 @@ function PurchaseDetailContent({ data }: { data: PurchaseDetail }) {
         </Box>
       </Box>
 
-          <Box>
+          {data.payments.length > 0 && (
+        <Box>
         <SectionLabel>Payment History</SectionLabel>
-        {data.payments.length === 0 ? (
-          <Typography sx={{ fontSize: 13, color: "#9CA3AF" }}>No payment records found.</Typography>
-        ) : (
           <Box sx={{ border: "1px solid #E2E8F0", borderRadius: 1.5, overflow: "hidden" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
@@ -347,8 +323,8 @@ function PurchaseDetailContent({ data }: { data: PurchaseDetail }) {
               </tbody>
             </table>
           </Box>
-        )}
       </Box>
+          )}
 
       {Object.keys(hsnSummary).length > 0 && (
         <Box>
@@ -448,24 +424,29 @@ export default function PurchaseDetailDialog({ purchaseId, onClose }: Props) {
             Purchase Details
           </Typography>
           {data && (
-            <Typography sx={{ fontSize: 15, fontWeight: 600, color: "#64748B" }}>
-              #{data.purchase_id}
-            </Typography>
-          )}
-          {st && (
-            <Chip
-              label={st.label}
-              size="small"
-              sx={{
-                fontSize: 10,
-                fontWeight: 700,
-                height: 22,
-                color: st.color,
-                bgcolor: st.bgcolor,
-                border: `1px solid ${st.border}`,
-                borderRadius: "999px",
-              }}
-            />
+            <>
+              <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#D32F2F" }}>
+                {data.purchase_id}
+              </Typography>
+              <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>
+                {fmtDateTime(data.created_at)}
+              </Typography>
+              {st && (
+                <Chip
+                  label={st.label}
+                  size="small"
+                  sx={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    height: 20,
+                    color: st.color,
+                    bgcolor: st.bgcolor,
+                    border: `1px solid ${st.border}`,
+                    borderRadius: "999px",
+                  }}
+                />
+              )}
+            </>
           )}
         </Box>
 
