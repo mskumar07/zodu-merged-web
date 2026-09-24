@@ -367,7 +367,14 @@ const RestaurantPOS: React.FC = () => {
 
   const runningOrderTotals: Totals = useMemo(() => {
     const discType   = order.discountType === "Amount" ? "FLAT" : "PERCENT";
-    const subtotal   = runningOrderSummary.reduce((sum, i) => sum + i.price * i.qty, 0);
+    const subtotal   = runningOrderSummary.reduce((sum, i) => {
+      const gst = parseFloat(String(i.gst_tax ?? 0)) || 0;
+      if (i.tax_include_or_exclude) {
+        const base = (i.price * i.qty) / (1 + gst / 100);
+        return sum + base;
+      }
+      return sum + i.price * i.qty;
+    }, 0);
     const taxAmount  = runningOrderSummary.reduce((sum, i) => {
       const gst = parseFloat(String(i.gst_tax ?? 0)) || 0;
       if (i.tax_include_or_exclude) {
@@ -858,7 +865,14 @@ const RestaurantPOS: React.FC = () => {
     });
 
   const calcSummaryTotals = (items: typeof runningOrderSummary, discountType: string, discountValue: number) => {
-    const subtotal  = items.reduce((sum, i) => sum + i.price * i.qty, 0);
+    const subtotal  = items.reduce((sum, i) => {
+      const gst = parseFloat(String(i.gst_tax ?? 0)) || 0;
+      if (i.tax_include_or_exclude) {
+        const base = (i.price * i.qty) / (1 + gst / 100);
+        return sum + base;
+      }
+      return sum + i.price * i.qty;
+    }, 0);
     const taxAmount = items.reduce((sum, i) => {
       const gst = parseFloat(String(i.gst_tax ?? 0)) || 0;
       if (i.tax_include_or_exclude) {
