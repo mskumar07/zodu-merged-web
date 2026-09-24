@@ -338,7 +338,7 @@ function ItemOrdersModal({ itemName, rows, onClose }: ItemOrdersModalProps) {
           onClick={onClose}
           sx={{ cursor: "pointer", color: "#9ca3af", "&:hover": { color: "#374151" }, p: 0.5 }}
         >
-          <CloseIcon fontSize="small" />
+          <CloseIcon fontSize="small" />  
         </Box>
       </DialogTitle>
 
@@ -356,7 +356,10 @@ function ItemOrdersModal({ itemName, rows, onClose }: ItemOrdersModalProps) {
             const title = isDineIn
               ? `Table ${row.tableNo}`
               : `Order ID - ${row.publicOrderNo ?? row.apiOrderId.slice(0, 8)}`;
-            const subtitle = isDineIn && row.legacyOrderRef ? row.legacyOrderRef : null;
+            // A Dine-In order is identified by its table number alone — the legacy
+            // order ref no longer rides along. Takeaway/Delivery already show their
+            // order number in the title above.
+            const subtitle = null;
             return (
               <Stack
                 key={row.apiOrderId}
@@ -502,12 +505,12 @@ interface OrderCardProps {
 function OrderCard({ card, isBusy, onMarkReady, now }: OrderCardProps) {
   const style = cardHeaderStyle(card.orderType);
   const isDineIn = card.tableNo != null;
-  // Dine-In's headline is its table, with the legacy order ref riding along
-  // as a reference. Takeaway/Delivery have no table — the type name is
-  // already on the chip badge to the right, so the headline here is just the
-  // customer-facing public order number instead of repeating the type.
+  // Dine-In's headline is just its table — the order ref no longer rides
+  // along. Takeaway/Delivery have no table — the type name is already on the
+  // chip badge to the right, so the headline here is the customer-facing
+  // public order number instead of repeating the type.
   const title = isDineIn ? `Table ${card.tableNo}` : null;
-  const orderRef = isDineIn ? card.legacyOrderRef : (card.publicOrderNo ?? `#${card.apiOrderId.slice(0, 8)}`);
+  const orderRef = isDineIn ? null : (card.publicOrderNo ?? `#${card.apiOrderId.slice(0, 8)}`);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- `now` is the tick that forces this to recompute every minute
   const minutes = useMemo(() => minutesSince(card.createdAt), [card.createdAt, now]);

@@ -122,6 +122,7 @@ export interface RunningOrderOrderedItem {
   price: number;
   gst_tax?: string | number;
   tax_include_or_exclude?: boolean;
+  menu_type?: string | null;
 }
 
 export interface RunningOrder {
@@ -155,6 +156,7 @@ export interface AddOrderPayload {
     variant_name: string | null;
     cgst: number;
     sgst: number;
+    menu_type: string | null;
   }[];
   no_of_items: number;
   subtotal: number;
@@ -204,6 +206,7 @@ export interface UpdateOrderPayload {
     variant_name: string | null;
     variant_id: string | null;
     gst_percentage: number;
+    menu_type: string | null;
   }[];
 }
 
@@ -593,7 +596,13 @@ export function calcTax(items: RestaurantCartItem[]): number {
 export function calcSubtotal(items: RestaurantCartItem[]): number {
   return items.reduce((sum, item) => {
     const price = getItemPrice(item.product);
-    return sum + price * item.quantity;
+    const qty = item.quantity;
+    const gst = parseFloat(item.product.gst_tax) || 0;
+    if (item.product.tax_include_or_exclude) {
+      const base = (price * qty) / (1 + gst / 100);
+      return sum + base;
+    }
+    return sum + price * qty;
   }, 0);
 }
 

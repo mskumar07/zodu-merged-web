@@ -515,6 +515,7 @@ const RestaurantPOS: React.FC = () => {
           price:     getItemPrice(product),
           gst_tax:   product.gst_tax,
           tax_include_or_exclude: product.tax_include_or_exclude ?? false,
+          menu_type: product.menu_type ?? null,
         },
       ];
     });
@@ -801,6 +802,7 @@ const RestaurantPOS: React.FC = () => {
         variant_name:   i.product.variant_name ?? null,
         cgst:           halfGst,
         sgst:           halfGst,
+        menu_type:      i.product.menu_type ?? null,
       };
     });
 
@@ -826,6 +828,7 @@ const RestaurantPOS: React.FC = () => {
           price:     getItemPrice(ci.product),
           gst_tax:   ci.product.gst_tax,
           tax_include_or_exclude: ci.product.tax_include_or_exclude ?? false,
+          menu_type: ci.product.menu_type ?? null,
         });
       }
     });
@@ -850,6 +853,7 @@ const RestaurantPOS: React.FC = () => {
         variant_name:   null,
         cgst:           halfGst,
         sgst:           halfGst,
+        menu_type:      i.menu_type ?? null,
       };
     });
 
@@ -938,7 +942,23 @@ const RestaurantPOS: React.FC = () => {
         customer_phone:  order.customerPhone,
       });
       setSuccessMsg("Order sent to KDS!");
-      void printKitchenTickets(res);
+      const kot = kotForOrder(
+        order.orderType,
+        pickOrderNo(res) || null,
+        withKitchenNotes(buildPayloadItems(cartItems), cartItems).map((it, idx) => ({
+          name:    it.name,
+          variant: it.variant_name ?? null,
+          qty:     Number(it.qty) || 0,
+          note:    cartItems[idx]?.note?.trim() || null,
+        })),
+      );
+      if (kot) {
+        try {
+          await printBillAndKot(null, kot);
+        } catch (err) {
+          setErrorMsg(`Sent to KDS, but the KOT could not be printed${err instanceof Error ? ` — ${err.message}` : ""}`);
+        }
+      }
       if (activeHoldId) {
         try { await deleteHoldOrder(activeHoldId); } catch { /* ignore */ }
       }
@@ -1065,6 +1085,10 @@ const RestaurantPOS: React.FC = () => {
           ? totals
           : calcSummaryTotals(runningOrderSummary, discType, order.discountValue);
         receipt = buildReceiptData(payMethod, t);
+        const completeItems = (cartItems.length > 0
+          ? buildPayloadItems(cartItems)
+          : buildSummaryPayloadItems(runningOrderSummary)
+        ).map(({ menu_type, ...rest }) => rest);
         res = await completeOrder({
           api_order_id:    order.orderId,
           zodu_id:         zoduId,
@@ -1073,9 +1097,7 @@ const RestaurantPOS: React.FC = () => {
           payment_type:    payMethod,
           discount_type:   discType,
           discount_value:  order.discountValue,
-          items: cartItems.length > 0
-            ? buildPayloadItems(cartItems)
-            : buildSummaryPayloadItems(runningOrderSummary),
+          items: completeItems,
           no_of_items:     cartItems.length > 0 ? cartItems.length : runningOrderSummary.length,
           subtotal:        t.subtotal,
           total_amt:       t.grandTotal,
@@ -1209,6 +1231,7 @@ const RestaurantPOS: React.FC = () => {
         ...item,
         gst_tax:                menuItem?.gst_tax              ?? undefined,
         tax_include_or_exclude: menuItem?.tax_include_or_exclude ?? undefined,
+        menu_type:              menuItem?.menu_type ?? item.menu_type ?? null,
       };
     });
 

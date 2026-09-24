@@ -17,6 +17,7 @@ import {
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { useSignupMutation } from './authApi';
+import { setPendingSignup } from '@utils/pendingSignup';
 
 // ─── Theme (shared with Login) ────────────────────────────────
 const theme = createTheme({
@@ -265,6 +266,16 @@ const ZoduSignupPage: React.FC = () => {
         phone_number:    form.phone_number.trim(),
         password:        form.password,
         same_for_branch: form.same_for_branch,
+        business_type:   form.business_type,
+      });
+      // Signup only collects name/email/phone — the fuller business profile
+      // (address, GST, bank) still needs to be filled in. Flag it so the
+      // first login after this lands on Settings with that form pre-filled
+      // and open, instead of the normal dashboard/branch-picker route.
+      setPendingSignup({
+        email:           form.email.trim(),
+        restaurant_name: form.restaurant_name.trim(),
+        phone_number:    form.phone_number.trim(),
         business_type:   form.business_type,
       });
       setSuccess(true);

@@ -488,6 +488,7 @@ import { useLoginMutation, type LoginResponse } from './Authapi';
 import { useAppDispatch, useAppSelector } from '@store/store';
 import { IsAuthenticated, addUserData, setAuthData, setRoleAccess } from '@store/slices/userSlice';
 import { loadBranchSession } from './loadBranchSession';
+import { consumePendingSignup } from '@utils/pendingSignup';
 
 // ─── Theme ────────────────────────────────────────────────────
 const theme = createTheme({
@@ -732,6 +733,17 @@ const ZoduLoginPage: React.FC = () => {
           dispatch(setRoleAccess([]));
         }
       };
+
+      // First login right after signup: the account exists but still only has
+      // the bare name/email/phone collected on that form — no address, GST or
+      // bank details yet. Send them to finish that on Settings instead of the
+      // normal dashboard/branch-picker routes. One-shot: consuming clears the
+      // flag, so every login after this one behaves normally.
+      const pendingSignup = consumePendingSignup(data.user.email);
+      if (pendingSignup) {
+        navigate('/settings', { replace: true, state: { openAddBusiness: pendingSignup } });
+        return;
+      }
 
       // Employees are pinned to the branch returned on their user record —
       // skip the business/branch picker and go straight to the dashboard.
