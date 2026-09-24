@@ -217,7 +217,8 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
     },
   });
 
-  const catType = formik.values.serviceType === 'service' ? 'M' : 'S';
+  // Category dropdown always shows the Product category list — Service picks
+  // from the same categories, no separate type=M fetch.
   const catIsFetchingRef = React.useRef(false);
   const {
     data:                catPages,
@@ -225,7 +226,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
     hasNextPage:         catHasNextPage,
     isFetchingNextPage:  catIsFetchingNextPage,
     fetchNextPage:       catFetchNextPage,
-  } = useInfiniteCategoryList(open, catType, true);
+  } = useInfiniteCategoryList(open, 'S', true);
 
   const categories: Category[] = catPages?.pages.flatMap((p) =>
     p.Data.map((c) => ({ value: String(c.id), label: c.name }))
