@@ -41,7 +41,6 @@ export function useCompanyLogoUrl(): string {
 export const PAYMENT_TYPE_LABELS = [
   "Cash",
   "UPI",
-  "UPI + Cash",
   "Cheque",
   "Bank Transfer",
   "Others",
@@ -92,10 +91,9 @@ export interface InvoiceSettingsResponse {
   notes: string;
   show_signature: boolean;
   show_bank_details: boolean;
-  // Payment types offered at POS checkout, as canonical labels — the server validates
-  // against exactly these six ("Cash" | "UPI" | "UPI + Cash" | "Cheque" | "Bank Transfer" |
-  // "Others") and the column is a TEXT[] with a matching CHECK constraint, so this is an
-  // array of labels, never a comma-separated string of codes.
+  // Payment types offered at POS checkout, as canonical labels ("Cash" | "UPI" | "Cheque" |
+  // "Bank Transfer" | "Others") — the column is a TEXT[] with a matching CHECK constraint,
+  // so this is an array of labels, never a comma-separated string of codes.
   payment_types: PaymentTypeLabel[];
   // Which copy markings the user can download/print — a subset of
   // INVOICE_COPY_TYPE_LABELS. Absent on rows that predate this field; treat a

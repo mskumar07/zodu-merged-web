@@ -305,7 +305,7 @@ export interface InvoiceSettings {
   signature_url?: string | null;
   show_bank_details: boolean;
   // Payment types offered at POS checkout, as canonical labels
-  // (e.g. ["Cash", "UPI", "UPI + Cash", "Others"]). Stored server-side as TEXT[].
+  // (e.g. ["Cash", "UPI", "Others"]). Stored server-side as TEXT[].
   // Absent on rows that predate this field.
   payment_types?: string[];
   // Which copy markings the user can download/print ("Original" | "Duplicate" |

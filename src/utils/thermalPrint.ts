@@ -345,16 +345,29 @@ interface PrintedReceipt {
   heightMm: number;
 }
 
+/**
+ * Paper fed past the last line before the page ends. An auto-cutter sits above
+ * the print head, so without it the cut lands inside the last few lines; it is
+ * also the gap by which one bill is told from the next on a printer with no cutter.
+ */
+const TAIL_FEED_MM = 10;
+
 /** The receipt as rendered right now, with its pictures turned to ink — one copy's markup and size. */
 function receiptMarkup(node: HTMLElement): PrintedReceipt {
   const clone = node.cloneNode(true) as HTMLElement;
   inkPicturesInto(clone, node);
   const box = node.getBoundingClientRect();
+  const widthMm = Math.ceil((box.width / CSS_PX_PER_MM) * 10) / 10;
+  // A little slack on top of the feed, so a rounding error can't spill the last
+  // line onto a second page.
+  const contentMm = Math.ceil(box.height / CSS_PX_PER_MM) + TAIL_FEED_MM + 2;
   return {
     html: clone.outerHTML,
-    widthMm: Math.ceil((box.width / CSS_PX_PER_MM) * 10) / 10,
-    // A little slack, so a rounding error can't spill the last line onto a second page.
-    heightMm: Math.ceil(box.height / CSS_PX_PER_MM) + 2,
+    widthMm,
+    // Never wider than it is tall: a short ticket (a kitchen order of two lines)
+    // then counted as a landscape page, which the driver printed turned on its
+    // side with the roll's width left blank down both edges.
+    heightMm: Math.max(contentMm, Math.ceil(widthMm) + 1),
   };
 }
 
@@ -398,7 +411,12 @@ function fontStyles(): string {
  * own print rules (index.css hides everything outside [data-print-content])
  * printed this page blank.
  *
- * Each receipt declares its own page, exactly as wide and tall as the receipt.
+ * Each receipt — every bill copy, and the kitchen order that follows a bill —
+ * is a page of its own, which is where a printer with a cutter cuts: the bill
+ * comes off the roll separately from the kitchen order, on any printer whose
+ * driver is set to cut between pages.
+ *
+ * Each page is declared exactly as wide and tall as the receipt it holds.
  * Left to the paper the driver reports, the page was 80 mm (or A4) wide and the
  * driver then clipped it to the band its head actually prints — which differs
  * from printer to printer (72, 70, 64 mm on an 80 mm roll; 48 or 42 mm on 58 mm)

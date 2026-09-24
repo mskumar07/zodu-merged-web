@@ -50,7 +50,6 @@ import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import ShareIcon              from "@mui/icons-material/Share";
 import QrCode2Icon            from "@mui/icons-material/QrCode2";
 import AccountBalanceIcon     from "@mui/icons-material/AccountBalance";
-import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import PaymentsIcon           from "@mui/icons-material/Payments";
 import ReceiptIcon            from "@mui/icons-material/Receipt";
 import MoreHorizIcon          from "@mui/icons-material/MoreHoriz";
@@ -329,14 +328,13 @@ const cartScrollbarSx = {
 type Zone = "SEARCH" | "CUSTOMER" | "TABLE" | "FOOTER";
 type SearchFocus = "CODE";
 type FooterFocus = "DISCOUNT_PCT" | "DISCOUNT_AMT" | "PAYMENT_TYPE" | "REF_NO" | "RECEIVED" | "SAVE";
-type PaymentType = "Cash" | "UPI" | "UPI + Cash" | "Cheque" | "Bank Transfer" | "Others";
+type PaymentType = "Cash" | "UPI" | "Cheque" | "Bank Transfer" | "Others";
 
 // Falls back to the original hardcoded four for branches whose settings predate the field.
 const DEFAULT_ENABLED_PAYMENT_TYPES: PaymentType[] = ["Cash", "UPI", "Bank Transfer", "Others"];
 const PAYMENT_TYPE_ICON: Record<PaymentType, typeof QrCode2Icon> = {
   Cash: PaymentsIcon,
   UPI: QrCode2Icon,
-  "UPI + Cash": AccountBalanceWalletIcon,
   Cheque: ReceiptIcon,
   "Bank Transfer": AccountBalanceIcon,
   Others: MoreHorizIcon,

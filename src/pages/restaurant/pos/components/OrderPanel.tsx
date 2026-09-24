@@ -13,7 +13,6 @@ import PauseCircleOutlineIcon from "@mui/icons-material/PauseCircleOutline";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
 import QrCode2Icon from "@mui/icons-material/QrCode2";
 import MoneyIcon from "@mui/icons-material/Money";
-import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import ReceiptIcon from "@mui/icons-material/Receipt";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
@@ -36,7 +35,7 @@ export interface Totals {
   grandTotal: number;
 }
 
-export type PaymentMethod = "Card" | "QR" | "Cash" | "UPI" | "UPI + Cash" | "Cheque" | "Bank Transfer" | "Others";
+export type PaymentMethod = "Card" | "QR" | "Cash" | "UPI" | "Cheque" | "Bank Transfer" | "Others";
 
 interface Props {
   order: RestaurantOrder;
@@ -81,7 +80,6 @@ const ALL_PAYMENT_METHODS: Array<{
   { key: "Card",          label: "Card",          icon: <CreditCardIcon sx={{ fontSize: 15 }} /> },
   { key: "Cash",          label: "Cash",           icon: <MoneyIcon sx={{ fontSize: 15 }} /> },
   { key: "UPI",           label: "UPI",            icon: <QrCode2Icon sx={{ fontSize: 15 }} /> },
-  { key: "UPI + Cash",    label: "UPI + Cash",     icon: <AccountBalanceWalletIcon sx={{ fontSize: 15 }} /> },
   { key: "Cheque",        label: "Cheque",         icon: <ReceiptIcon sx={{ fontSize: 15 }} /> },
   { key: "Bank Transfer", label: "Bank Transfer",  icon: <AccountBalanceIcon sx={{ fontSize: 15 }} /> },
   { key: "Others",        label: "Others",         icon: <MoreHorizIcon sx={{ fontSize: 15 }} /> },

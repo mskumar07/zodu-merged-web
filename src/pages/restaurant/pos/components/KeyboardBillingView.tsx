@@ -35,7 +35,6 @@ import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import PersonAddAlt1OutlinedIcon from "@mui/icons-material/PersonAddAlt1Outlined";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
 import MoneyIcon from "@mui/icons-material/Money";
-import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import ReceiptIcon from "@mui/icons-material/Receipt";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
@@ -119,7 +118,6 @@ const PAYMENT_METHODS: Array<{ key: PaymentMethod; label: string; icon: React.Re
   { key: "UPI",           label: "UPI",           icon: <QrCodeScannerIcon sx={{ fontSize: 16 }} /> },
   { key: "Card",          label: "Card",          icon: <CreditCardIcon sx={{ fontSize: 16 }} /> },
   { key: "Cash",          label: "Cash",          icon: <MoneyIcon sx={{ fontSize: 16 }} /> },
-  { key: "UPI + Cash",    label: "UPI + Cash",    icon: <AccountBalanceWalletIcon sx={{ fontSize: 16 }} /> },
   { key: "Cheque",        label: "Cheque",        icon: <ReceiptIcon sx={{ fontSize: 16 }} /> },
   { key: "Bank Transfer", label: "Bank Transfer", icon: <AccountBalanceIcon sx={{ fontSize: 16 }} /> },
   { key: "Others",        label: "Others",        icon: <MoreHorizIcon sx={{ fontSize: 16 }} /> },

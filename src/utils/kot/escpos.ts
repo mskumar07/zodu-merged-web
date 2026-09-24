@@ -13,7 +13,13 @@ const ESC = 0x1b;
 const GS = 0x1d;
 const LF = 0x0a;
 
-/** Printable dots across the head at 203 dpi: 58 mm → 384, 80 mm → 576, 5" (120 mm) → 960. */
+/**
+ * Dots across the head at 203 dpi. These count the band the head prints on, not
+ * the roll it prints it on — a thermal head never reaches the paper's edges:
+ *   58 mm roll  → 48 mm printed → 384 dots
+ *   80 mm roll  → 72 mm printed → 576 dots
+ *   130 mm (5") → 120 mm printed → 960 dots
+ */
 export const PAPER_DOTS: Record<PaperSize, number> = { "2": 384, "3": 576, "5": 960 };
 
 const INIT = [ESC, 0x40];

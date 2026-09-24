@@ -141,11 +141,16 @@ import WomanIcon from '@mui/icons-material/Woman';
 
 import { Avatar } from '@mui/material';
 import CheckIcon from '@mui/icons-material/Check';
-import heroSectionBg from '../../assets/Landingpage/hero-image.jpeg';
-import heroSectionBgWide from '../../assets/Landingpage/hero-image1.png';
+// The hero artwork (1983 x 793), used at every width: the section's background
+// from lg up, a background on tablets, and an <img> on phones.
+import heroImage from '../../assets/Landingpage/hero-image.png';
+// The device mock-up the hero now leads with — screens plus the store badges.
+import heroDevices from '../../assets/Landingpage/hero-img.png';
 
 
 import StorefrontRoundedIcon from "@mui/icons-material/StorefrontRounded";
+import FactoryRoundedIcon from "@mui/icons-material/FactoryRounded";
+import ShoppingCartRoundedIcon from "@mui/icons-material/ShoppingCartRounded";
 import AgricultureRoundedIcon from "@mui/icons-material/AgricultureRounded";
 import DirectionsCarRoundedIcon from "@mui/icons-material/DirectionsCarRounded";
 import ApartmentRoundedIcon from "@mui/icons-material/ApartmentRounded";
@@ -621,14 +626,6 @@ const HERO_BLUE = "#1D4ED8";       // hero accent text, icons, secondary hover
 const HERO_NAVY = "#0F2A6B";       // navy used inside the hero artwork
 const HERO_BLUE_SOFT = "#EFF6FF";
 const HERO_BASE = "#F8FBFC";       // sampled from the artwork's left edge so the fade is seamless
-const HERO_COPY_W = "min(29vw, 560px)";
-const HERO_MASK_TOP = "linear-gradient(to bottom, transparent 0%, #000 12%)";   // mobile: fade artwork top into HERO_BASE
-// Desktop artwork (herosection_bg_extended.webp) = the 1983×793 original with its own backdrop
-// extended 1200px left, 600px up and 96px down (scripts/extend-hero-bg.py). HERO_WIDE_K
-// scales the rendered height so the original part keeps the size that keeps its badges clear of
-// the copy; the bottom extension lifts it off the hero's bottom edge.
-const HERO_WIDE_K = (793 + 600 + 96) / 793;
-const HERO_WIDE_MASK = "linear-gradient(to right, transparent 0%, #000 4%), linear-gradient(to bottom, transparent 0%, #000 6%)";
 const NAV_H = { xs: 60, md: 64 };  // navbar row height; the hero subtracts it (+1px border) to fill the screen
 
 // ── Showcase mockup ────────────────────────────────────────────────────────────
@@ -879,7 +876,13 @@ const FzPosCard: React.FC = () => (
 const FzWideCard: React.FC<{ icon: React.ReactNode; color: string; bg: string; title: string; desc: string; items: string[]; photo: FzPhoto; alt: string; imagePos?: string }> = ({ icon, color, bg, title, desc, items, photo, alt, imagePos = "right center" }) => (
   <Box sx={{
     ...fzCardSx, flex: { lg: "1 1 0" }, display: "flex", flexDirection: "column", justifyContent: "center",
-    aspectRatio: { sm: "2170 / 725", lg: "auto" },
+    // A touch taller than the reference's 2170/725. The photo fills half the card
+    // with object-fit: cover, so its crop follows the panel's shape: a taller
+    // panel is a shallower crop, which is what "less zoomed" means here — and it
+    // keeps the picture bled to the edges, with none of the gaps that fitting the
+    // whole photo inside the panel would leave.
+    aspectRatio: { sm: "2170 / 800", lg: "auto" },
+    minHeight: { lg: fz(210) },
   }}>
     {/* Kept short enough that two of these stay within the POS artwork's height (1821:864), so the POS
         card is never stretched and its artwork never cropped into the checklist. */}
@@ -904,7 +907,9 @@ const FzWideCard: React.FC<{ icon: React.ReactNode; color: string; bg: string; t
         clear of the copy on cards that are tall for their width (1200–1535px); imagePos keeps the subject. */}
     <Box component="img" src={photo.src} srcSet={photo.srcSet} sizes={FZ_WIDE_SIZES} alt={alt} loading="lazy" decoding="async" sx={{
       display: "block", position: { sm: "absolute" }, inset: { sm: "0 0 0 auto" },
-      width: { xs: "100%", sm: "auto" }, maxWidth: { xs: "none", sm: "60%" },
+      // Half the card, always: at width auto the picture was only as wide as its
+      // own crop made it (nearer 40%), whatever the cap allowed.
+      width: { xs: "100%", sm: "50%" }, maxWidth: { xs: "none", sm: "50%" },
       height: { xs: "auto", sm: "100%" }, aspectRatio: { xs: "16 / 9", sm: "auto" },
       objectFit: "cover", objectPosition: imagePos,
       WebkitMaskImage: { sm: "linear-gradient(to right, transparent 0%, #000 12%)" },
@@ -912,7 +917,8 @@ const FzWideCard: React.FC<{ icon: React.ReactNode; color: string; bg: string; t
       // 1200–1535px the card is at its tallest relative to its width: keep the photo right of the copy
       // and give it a longer fade so the crop's left edge stays soft.
       [FZ_LAPTOP]: {
-        maxWidth: "54%",
+        width: "50%",
+        maxWidth: "50%",
         WebkitMaskImage: "linear-gradient(to right, transparent 0%, #000 18%)",
         maskImage: "linear-gradient(to right, transparent 0%, #000 18%)",
       },
@@ -953,6 +959,13 @@ const fzModuleCards: Array<React.ComponentProps<typeof FzWideCard>> = [
     items: ["Supplier management", "Purchase orders", "Pending receipt tracking", "Purchase totals & history"],
     photo: fzPhoto("purchase", FZ_MINI_W), alt: "Warehouse staff checking purchase orders on a tablet", imagePos: "center 40%",
   },
+  {
+    icon: <StorefrontRoundedIcon />, color: "#0EA5E9", bg: "#E0F2FE",
+    title: "Multi-Location Handling", desc: "Run every branch from one account.",
+    items: ["Branch-wise stock & sales", "Switch branch in one tap", "Per-branch pricing & taxes", "Consolidated reports across branches"],
+    // Shares the warehouse photo with the Inventory card until a branch-specific one is shot.
+    photo: fzPhoto("inventory", FZ_WIDE_W), alt: "Staff checking stock for a branch on a tablet", imagePos: "center 40%",
+  },
 ];
 
 const WhatZoduDoesSection: React.FC = () => (
@@ -983,11 +996,11 @@ const WhatZoduDoesSection: React.FC = () => (
         }}>
           Everything You Need to Run Your Business Smarter
         </Typography>
-        <Typography sx={{ mt: fz(8), mx: "auto", maxWidth: fz(640), fontSize: { xs: "0.95rem", lg: fz(15) }, color: "#475569", lineHeight: 1.5 }}>
+        {/* <Typography sx={{ mt: fz(8), mx: "auto", maxWidth: fz(640), fontSize: { xs: "0.95rem", lg: fz(15) }, color: "#475569", lineHeight: 1.5 }}>
           From billing and inventory to payments, GST, staff, and insights — Zodu brings every essential operation into one connected platform.
-        </Typography>
+        </Typography> */}
 
-        <Box sx={{
+        {/* <Box sx={{
           // one row: scrolls below md, centred whenever it fits ("safe" falls back to start on overflow)
           mt: fz(22), display: "flex", gap: { xs: "8px", md: fz(14) }, justifyContent: "safe center",
           flexWrap: { xs: "nowrap", md: "wrap" }, overflowX: { xs: "auto", md: "visible" },
@@ -1011,11 +1024,11 @@ const WhatZoduDoesSection: React.FC = () => (
               {tab.label}
             </Box>
           ))}
-        </Box>
+        </Box> */}
       </Box>
 
       {/* POS | Inventory + Attendance */}
-      <Box sx={{ display: "grid", gap: fz(10), gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(0, 1.435fr) minmax(0, 1fr)" } }}>
+      <Box sx={{ display: "grid", gap: fz(10), gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(0, 1.2fr) minmax(0, 1fr)" } }}>
         <FzPosCard />
         <Box sx={{ display: "flex", flexDirection: "column", gap: fz(10), minWidth: 0 }}>
           <FzWideCard
@@ -1033,16 +1046,11 @@ const WhatZoduDoesSection: React.FC = () => (
         </Box>
       </Box>
 
-      {/* Five module cards, laid out like Inventory / Attendance: one per row below 1200px,
-          two per row from 1200px at the Attendance card's own width (the 1fr of the
-          1.435fr / 1fr row above), centred — the odd one out centred at the same width. */}
+      {/* Six module cards: one per row below 1200px, then two per row across the
+          section's full width — three even rows, so nothing is left over. */}
       <Box sx={{
         display: "grid", gap: fz(10),
-        gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: `repeat(2, calc((100% - ${fz(10)}) / 2.435))` },
-        justifyContent: "center",
-        "@media (min-width: 1200px)": {
-          "& > :last-child:nth-of-type(odd)": { gridColumn: "1 / -1", justifySelf: "center", width: `calc(50% - ${fz(5)})` },
-        },
+        gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "repeat(2, minmax(0, 1fr))" },
       }}>
         {fzModuleCards.map((card) => <FzWideCard key={card.title} {...card} />)}
       </Box>
@@ -1100,6 +1108,18 @@ const TOP_TRIM = 60;
 /** from this width the exact 5-column canvas is used; below it the responsive layout */
 const DESKTOP_MIN = "@media (min-width:900px)";
 
+/** desktop section padding (top, and top + bottom) — the canvas is scaled to fit what is left */
+const SECTION_PT = 8;
+const SECTION_PAD_Y = 32;
+
+/**
+ * When the height limits the scale, the stage is stretched sideways (up to this
+ * factor) instead of leaving wide empty margins: card columns spread apart and the
+ * cards widen by at most CARD_W_SPREAD, so their text never outgrows their height.
+ */
+const MAX_SPREAD = 1.1;
+const CARD_W_SPREAD = 2;
+
 /** design px (the stage is 1344 x 896 and is scaled to fit the screen) */
 const cq = (px: number) => `${px}px`;
 /** design-px -> % of canvas axis */
@@ -1132,7 +1152,13 @@ type Quad = {
   m: string;
 };
 
-const QUADS: Quad[] = [
+/** card height factor (1 = reference height); lower rows are pulled up to close the gap */
+const CARD_H_SCALE = 0.8;
+/** px every card moves up (the paragraph under the heading was removed) */
+const CARDS_LIFT = 62;
+const COLS = 5;
+
+const RAW_QUADS: Quad[] = [
   { x: 21.07, y: 263.07, w: 284.37, h: 137.51, cx: 147.62, cy: 72.97, m: "matrix3d(1.213726,0.03739939,0,0.0007341279,0.08211135,1.096377,0,3.248395e-05,0,0,1,0,0,0,0,1)" },
   { x: 325.34, y: 273.93, w: 233.37, h: 121.66, cx: 122.28, cy: 50.80, m: "matrix3d(1.010293,-0.08473227,0,3.171937e-05,0.09961352,1.011732,0,0.0001061115,0,0,1,0,0,0,0,1)" },
   { x: 576.99, y: 246.76, w: 249.23, h: 135.15, cx: 129.35, cy: 52.20, m: "matrix3d(0.9005311,-0.1090456,0,-0.0004301058,0.08070702,0.9669437,0,0.000212275,0,0,1,0,0,0,0,1)" },
@@ -1159,6 +1185,21 @@ const QUADS: Quad[] = [
   { x: 832.34, y: 785.36, w: 216.23, h: 88.95, cx: 112.00, cy: 34.55, m: "matrix3d(1.035285,-0.09300992,0,0.000154595,0.09903242,1.023675,0,0.0001362714,0,0,1,0,0,0,0,1)" },
   { x: 1083.94, y: 778.09, w: 229.51, h: 82.21, cx: 115.95, cy: 34.48, m: "matrix3d(1.029145,-0.05911279,0,0.0001348999,0.03337287,1.01479,0,1.177212e-06,0,0,1,0,0,0,0,1)" },
 ];
+
+/** height removed from each row (average card height of the row x (1 - scale)) */
+const ROW_SHRINK = Array.from({ length: Math.ceil(RAW_QUADS.length / COLS) }, (_, r) => {
+  const row = RAW_QUADS.slice(r * COLS, r * COLS + COLS);
+  return (row.reduce((s, q) => s + q.h, 0) / row.length) * (1 - CARD_H_SCALE);
+});
+
+const QUADS: Quad[] = RAW_QUADS.map((q, i) => {
+  const row = Math.floor(i / COLS);
+  const lift = CARDS_LIFT + ROW_SHRINK.slice(0, row).reduce((s, v) => s + v, 0);
+  return { ...q, y: q.y - lift, h: q.h * CARD_H_SCALE, cy: q.cy * CARD_H_SCALE };
+});
+
+/** visible stage height: from the trimmed top to just below the lowest card (+ room for its shadow) */
+const STAGE_H = Math.max(...QUADS.map((q) => q.y + q.h)) + 24 - TOP_TRIM;
 
 type Industry = {
   title: string; // "\n" = forced line break (matches reference wrapping)
@@ -1456,11 +1497,15 @@ const IndustryCard = ({
         position: "relative",
         boxSizing: "border-box",
         width: "100%",
-        ...(canvas ? { height: "100%" } : { aspectRatio: "1.8 / 1" }),
+        ...(canvas
+          ? { height: "100%" }
+          : { aspectRatio: { xs: "2.4 / 1", sm: "2 / 1" } }),
         containerType: "inline-size", // enables cqw for children
         overflow: "hidden",
         borderRadius: "10px",
-        background: `linear-gradient(135deg, ${item.bg[0]} 0%, ${item.bg[1]} 100%)`,
+        // Both tints softened rather than restated on all 24 entries: the card
+        // colours are blended back towards the white behind them.
+        background: `linear-gradient(135deg, ${alpha(item.bg[0], 0.55)} 0%, ${alpha(item.bg[1], 0.55)} 100%)`,
         border: "3px solid rgba(255,255,255,0.95)",
         boxShadow:
           "0 2px 4px rgba(15,23,42,0.06), 0 8px 18px rgba(15,23,42,0.10)",
@@ -1504,7 +1549,7 @@ const IndustryCard = ({
           bottom: "-24%",
           borderRadius: "40% 60% 38% 62% / 58% 42% 58% 42%",
           transform: "rotate(-18deg)",
-          background: `${item.iconColor}30`,
+          background: alpha(item.iconColor, 0.12),
           zIndex: 0,
         }}
       />
@@ -1514,7 +1559,8 @@ const IndustryCard = ({
         sx={{
           position: "absolute",
           left: `${item.tl}%`,
-          top: isLast ? "24%" : `${tt}%`,
+          right: "5%",
+          top: isLast ? "18%" : `${tt}%`,
           zIndex: 3,
         }}
       >
@@ -1525,19 +1571,21 @@ const IndustryCard = ({
             fontSize: `${item.t}cqw`,
             lineHeight: 1.15,
             letterSpacing: "-0.02em",
-            whiteSpace: "pre",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
           }}
         >
-          {item.title}
+          {item.title.replace(/\n/g, " ")}
         </Typography>
         <Typography
           sx={{
-            mt: "2.4cqw",
+            mt: "1.6cqw",
             color: SLATE,
             fontWeight: 400,
             fontSize: `${(item.t * 0.68).toFixed(2)}cqw`,
-            lineHeight: 1.45,
-            whiteSpace: "pre",
+            lineHeight: 1.35,
+            whiteSpace: "pre-line", // honour the "\n" breaks so text stays inside the card
           }}
         >
           {item.description}
@@ -1566,7 +1614,7 @@ const IndustryCard = ({
             top: "58%",
             transform: "translate(50%, -50%)",
             color: item.iconColor,
-            opacity: 0.88,
+            opacity: 0.62,
             zIndex: 2,
             display: "flex",
             pointerEvents: "none",
@@ -1614,16 +1662,30 @@ const NAV_LINKS = ["Home", "Features", "Industries", "Pricing", "About Us"];
 const DesktopCanvas = () => {
   const ref = React.useRef<HTMLDivElement>(null);
   const [k, setK] = React.useState(1);
+  const [offsetX, setOffsetX] = React.useState(0);
+  const [spread, setSpread] = React.useState(1);
 
-  // scale the fixed 1344 x 896 stage to the real width of the section
+  // scale the fixed 1344 x 896 stage so the whole section fits the screen:
+  // limited by the section width, or by the viewport height below the sticky navbar
   React.useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const update = () => setK(el.clientWidth / W);
+    const update = () => {
+      const availH = window.innerHeight - (NAV_H.md + 1) - SECTION_PAD_Y;
+      const next = Math.min(el.clientWidth / W, availH / STAGE_H);
+      const nextSpread = Math.min(MAX_SPREAD, el.clientWidth / (W * next));
+      setK(next);
+      setSpread(nextSpread);
+      setOffsetX(Math.max(0, (el.clientWidth - W * nextSpread * next) / 2));
+    };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
-    return () => ro.disconnect();
+    window.addEventListener("resize", update);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
   }, []);
 
   return (
@@ -1634,15 +1696,15 @@ const DesktopCanvas = () => {
       [DESKTOP_MIN]: { display: "block" },
       position: "relative",
       width: "100%",
-      aspectRatio: `${W} / ${H - TOP_TRIM}`,
+      height: `${STAGE_H * k}px`,
     }}
   >
   <Box
     sx={{
       position: "absolute",
       top: `${-TOP_TRIM * k}px`,
-      left: 0,
-      width: `${W}px`,
+      left: `${offsetX}px`,
+      width: `${W * spread}px`,
       height: `${H}px`,
       transformOrigin: "0 0",
       transform: `scale(${k})`,
@@ -1678,8 +1740,8 @@ const DesktopCanvas = () => {
         m: 0,
         color: NAVY,
         fontWeight: 800,
-        fontSize: cq(47),
-        lineHeight: 0.9,
+        fontSize: cq(40),
+        lineHeight: 1,
         letterSpacing: "-0.045em",
         whiteSpace: "nowrap",
       }}
@@ -1687,34 +1749,16 @@ const DesktopCanvas = () => {
       <Box component="span" sx={{ color: BRAND_RED }}>
         zodu
       </Box>{" "}
-      is suitable for all
-      <br />
-      types of businesses
+      is suitable for all types of businesses
     </Typography>
 
-    {/* ---------- PARAGRAPH ---------- */}
-    <Typography
-      sx={{
-        position: "absolute",
-        left: cq(47),
-        top: cq(198),
-        color: SLATE,
-        fontSize: cq(14.5),
-        lineHeight: 1.38,
-        whiteSpace: "nowrap",
-      }}
-    >
-      From retail shops to service businesses, zodu helps you
-      <br />
-      manage billing, inventory, payments and more — all in one place.
-    </Typography>
 
     {/* ---------- HANDWRITTEN NOTE ---------- */}
     <Box
       sx={{
         position: "absolute",
         left: pct(1188, W),
-        top: pct(140, H),
+        top: pct(118, H),
         transform: "translate(-50%, -50%) rotate(-11deg)",
         color: BRAND_RED,
         fontFamily: "'Caveat', 'Segoe Script', 'Brush Script MT', cursive",
@@ -1773,13 +1817,17 @@ const DesktopCanvas = () => {
 
     {/* ---------- CARDS (exact position + warp measured from the reference) ---------- */}
     {industries.map((item, index) => {
-      const q = QUADS[index];
+      const raw = QUADS[index];
+      // widen the card a little (kept centred on its spread-out column position)
+      const cw = Math.min(spread, CARD_W_SPREAD);
+      const q = { ...raw, w: raw.w * cw, cx: raw.cx * cw };
+      const left = (raw.x + raw.w / 2) * spread - q.w / 2;
       return (
         <Box
           key={`${item.title}-${index}`}
           sx={{
             position: "absolute",
-            left: `${q.x}px`,
+            left: `${left}px`,
             top: `${q.y}px`,
             width: `${q.w}px`,
             height: `${q.h}px`,
@@ -1831,12 +1879,6 @@ const FlowLayout = () => {
           zodu
         </Box>{" "}
         is suitable for all types of businesses
-      </Typography>
-      <Typography
-        sx={{ mt: "16px", maxWidth: "540px", color: SLATE, fontSize: "15px", lineHeight: 1.5 }}
-      >
-        From retail shops to service businesses, zodu helps you manage billing,
-        inventory, payments and more — all in one place.
       </Typography>
 
       {/* handwritten note: centred (tablet + mobile) */}
@@ -1943,8 +1985,8 @@ export const IndustriesSection = () => {
         boxSizing: "border-box",
         position: "relative",
         width: "100%",
-        pt: { xs: "8px", md: "8px" }, // space above the section
-        pb: { xs: "32px", md: "56px" }, // space below the section
+        pt: { xs: "8px", md: `${SECTION_PT}px` }, // space above the section
+        pb: { xs: "32px", md: `${SECTION_PAD_Y - SECTION_PT}px` }, // space below the section
         overflow: "hidden",
         containerType: "inline-size", // 1cqw = 1% of section width
         background: "linear-gradient(180deg, #FFFFFF 0%, #F8F9FB 100%)",
@@ -1967,7 +2009,141 @@ export const IndustriesSection = () => {
 // ── HERO─────────────────────────────────────────────────────────────────
 
 
-const HERO_ASPECT = "1983 / 793"; // heroSectionBg-oda real width / height
+/**
+ * The industries scattered across the hero's top right — the artwork's own
+ * corner, kept clear of the copy on the left.
+ *
+ * Name, icon and colour all come from the `industries` list the "Built for every
+ * business" section is drawn from, so the two never drift apart: this is a
+ * placement list, nothing more. `left`/`top` are percentages of the layer, which
+ * spans the right of the hero only, so no chip can wander over the heading
+ * however wide the screen gets.
+ *
+ * Three rows, each chip's `top` nudged a few percent off its row so they read as
+ * scattered rather than ruled. `label` re-wraps a long name onto two lines where
+ * one line would be wide enough to run into its neighbour — the section's own
+ * wording is untouched. All three rows stay in the top half: the devices in the
+ * artwork start around 50% down.
+ */
+/** Off for now: the previous hero (artwork background + industry chips), kept whole. */
+const HERO_LEGACY: boolean = false;
+
+/** The four points below the hero copy. */
+const HERO_FEATURES = [
+  { icon: <ShoppingCartRoundedIcon />, title: "POS Billing", sub: "Fast & reliable billing",         color: "#EB0029", bg: "#FFE4E6" },
+  { icon: <Inventory2RoundedIcon />,   title: "Inventory",   sub: "Real-time stock tracking",        color: "#14B8A6", bg: "#CCFBF1" },
+  { icon: <PeopleAltRoundedIcon />,    title: "Customers",   sub: "Manage customer relationships",   color: "#8B5CF6", bg: "#EDE9FE" },
+  { icon: <BarChartRoundedIcon />,     title: "Reports",     sub: "Powerful insights for your growth", color: "#F59E0B", bg: "#FFEDD5" },
+];
+
+const HERO_CHIPS: Array<{ title: string; left?: number; right?: number; top: number }> = [
+  // Left, in the clear strip above the "Trusted by" badge — the copy itself
+  // starts lower down, so these three sit over nothing.
+  { title: "Retail &\nGeneral Trade",      left: 2,    top: 4 },
+  { title: "Food & Beverage",              left: 19,   top: 23 },
+  { title: "Home & Furniture",             left: 32,   top: 0 },
+
+  // Middle, over the sky.
+  { title: "Hotels & Hospitality",         left: 40,   top: 31 },
+  { title: "Automotive & Transport",       left: 58,   top: 4 },
+  { title: "Education &\nCoaching",        left: 43,   top: 69 },
+  { title: "Healthcare",                   left: 52,   top: 54 },
+  { title: "Fashion & Lifestyle",          left: 45,   top: 88 },
+  { title: "Beauty & Wellness",            left: 63,   top: 88 },
+
+  // Right, hung off the right edge so a long name grows inwards, never off-screen.
+  { title: "Construction &\nReal Estate",  right: 0,   top: 0 },
+  { title: "Electronics &\nTechnology",    right: 18,  top: 31 },
+  { title: "Textiles & Garments",          right: 0,   top: 38 },
+  { title: "Pharmacy & Medical Devices",   right: 16,  top: 61 },
+  // Clear of the chakra, which sits around 75-81% across the hero.
+  { title: "Jewellery & Accessories",      right: 1,   top: 85 },
+];
+
+
+
+
+/** Every chip size scales with the viewport, so the scatter holds its shape from 1200px up. */
+const HeroIndustryChips: React.FC = () => (
+  <Box
+    aria-hidden
+    sx={{
+      // Below lg the copy sits on top of the artwork, with no room beside it.
+      display: { xs: "none", lg: "block" },
+      position: "absolute",
+      // Full width: the chips on the left live in the band above the badge,
+      // which is why every one of them is placed high in the layer.
+      left: "2%",
+      right: "1.5%",
+      top: "2%",
+      // The band stops where the artwork's skyline starts, so no chip is ever
+      // drawn over a temple, a dome or the bridge.
+      height: "26%",
+      zIndex: 3,
+      pointerEvents: "none",
+    }}
+  >
+    {HERO_CHIPS.map((chip) => {
+      const industry = industries.find((i) => i.title === chip.title);
+      if (!industry) return null;
+      return (
+        <Stack
+          key={chip.title}
+          direction="row"
+          alignItems="center"
+          spacing="0.55vw"
+          sx={{
+            position: "absolute",
+            ...(chip.right === undefined ? { left: `${chip.left}%` } : { right: `${chip.right}%` }),
+            top: `${chip.top}%`,
+            // Sized by the name it holds, never by the room left in the layer.
+            width: "max-content",
+            px: "clamp(8px, 0.6vw, 14px)",
+            py: "clamp(4px, 0.32vw, 8px)",
+            borderRadius: "999px",
+            // No fill: the artwork shows through the pill, only the ring and the
+            // lettering sit on top of it.
+            bgcolor: "transparent",
+            border: `1.5px solid ${alpha(industry.iconColor, 0.7)}`,
+            boxShadow: `0 4px 14px ${alpha(industry.iconColor, 0.22)}`,
+            // "pre", not "pre-line": the break the name carries, never one the
+            // box forces on a chip that has run out of room.
+            whiteSpace: "pre",
+          }}
+        >
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              bgcolor: "#ffffff",
+              borderRadius: "999px",
+              width: "clamp(21px, calc(1.4vw + 3px), 31px)",
+              height: "clamp(24px, calc(1.9vw + 2px), 40px)",
+              color: industry.iconColor,
+              "& svg": { fontSize: "clamp(18px, calc(1.25vw + 3px), 28px)" },
+            }}
+          >
+            {industry.icon}
+          </Box>
+          <Typography
+            sx={{
+              fontWeight: 700,
+              lineHeight: 1.2,
+              // Black, not the industry's colour: the icon and the ring already
+              // carry that, and the name reads better against the artwork.
+              color: "#0F172A",
+              fontSize: "clamp(9px, calc(0.62vw + 1px), 14px)",
+            }}
+          >
+            {industry.title}
+          </Typography>
+        </Stack>
+      );
+    })}
+  </Box>
+);
 
 const HERO_RED_DARK = "#C70027";
 
@@ -2073,6 +2249,228 @@ const ZoduLandingPage: React.FC = () => {
         </Box>
 
         {/* ── HERO ─────────────────────────────────────────────────────────── */}
+        {/* Devices on the left, the pitch on the right; below lg they stack with
+            the copy first, since a phone should read the promise before the screens. */}
+        <Box
+          component="section"
+          aria-labelledby="hero-heading"
+          sx={{
+            bgcolor: "#fff",
+            px: { xs: 2.5, sm: 4, md: 6, lg: "4vw" },
+            py: { xs: 4, sm: 5, lg: "3vw" },
+            display: "flex",
+            flexDirection: { xs: "column-reverse", lg: "row" },
+            alignItems: "center",
+            gap: { xs: 4, lg: "3vw" },
+          }}
+        >
+          {/* Devices. The picture is 1655px wide, and a flex item never shrinks
+              below its own content unless it is told to, hence minWidth 0 on the
+              column, or the artwork pushes the copy off the screen. */}
+          <Box
+            sx={{
+              flex: { lg: "0 1 52%" },
+              minWidth: 0,
+              width: "100%",
+              maxWidth: { xs: 560, sm: 680, lg: "none" },
+              mx: { xs: "auto", lg: 0 },
+            }}
+          >
+            <Box
+              component="img"
+              src={heroDevices}
+              alt="Zodu running on a desktop, a tablet and a phone"
+              sx={{ width: "100%", maxWidth: "100%", height: "auto", display: "block" }}
+            />
+
+            {/* Store badges, centred under the devices, in the same pattern as
+                the download section further down the page. */}
+            <Stack
+              direction="row"
+              spacing={{ xs: 1.5, md: 2 }}
+              justifyContent="center"
+              flexWrap="wrap"
+              useFlexGap
+              sx={{ mt: { xs: 2, md: 2.5 } }}
+            >
+              <Box component="a" href="#" aria-label="Get Zodu on Google Play" sx={{
+                display: "inline-flex", alignItems: "center", gap: 1.2, textDecoration: "none",
+                bgcolor: "#000", color: "#fff",
+                px: { xs: 1.8, md: 2.2 }, py: { xs: 0.9, md: 1.05 },
+                borderRadius: "10px",
+                boxShadow: "0 6px 18px rgba(0,0,0,0.22)", transition: "all 0.18s",
+                "&:hover": { transform: "translateY(-2px)", boxShadow: "0 10px 26px rgba(0,0,0,0.3)" },
+              }}>
+                <Box component="img" src={gPlayLogo} alt="" sx={{ width: { xs: 22, md: 26 }, height: { xs: 22, md: 26 }, objectFit: "contain", flexShrink: 0 }} />
+                <Box sx={{ textAlign: "left", lineHeight: 1 }}>
+                  <Typography sx={{ fontSize: { xs: "0.5rem", md: "0.56rem" }, color: "rgba(255,255,255,0.8)", letterSpacing: "0.04em" }}>GET IT ON</Typography>
+                  <Typography sx={{ fontSize: { xs: "0.85rem", md: "0.98rem" }, fontWeight: 700, mt: "2px", color: "#fff" }}>Google Play</Typography>
+                </Box>
+              </Box>
+
+              <Box component="a" href="#" aria-label="Download Zodu on the App Store" sx={{
+                display: "inline-flex", alignItems: "center", gap: 1.2, textDecoration: "none",
+                bgcolor: "#000", color: "#fff",
+                px: { xs: 1.8, md: 2.2 }, py: { xs: 0.9, md: 1.05 },
+                borderRadius: "10px",
+                boxShadow: "0 6px 18px rgba(0,0,0,0.22)", transition: "all 0.18s",
+                "&:hover": { transform: "translateY(-2px)", boxShadow: "0 10px 26px rgba(0,0,0,0.3)" },
+              }}>
+                <AppleIcon sx={{ fontSize: { xs: 24, md: 28 }, color: "#fff", flexShrink: 0 }} />
+                <Box sx={{ textAlign: "left", lineHeight: 1 }}>
+                  <Typography sx={{ fontSize: { xs: "0.5rem", md: "0.56rem" }, color: "rgba(255,255,255,0.8)", letterSpacing: "0.04em" }}>Download on the</Typography>
+                  <Typography sx={{ fontSize: { xs: "0.85rem", md: "0.98rem" }, fontWeight: 700, mt: "2px", color: "#fff" }}>App Store</Typography>
+                </Box>
+              </Box>
+            </Stack>
+          </Box>
+
+          {/* Copy */}
+          <Box sx={{ flex: { lg: "1 1 48%" }, minWidth: 0, width: "100%", textAlign: { xs: "center", lg: "left" } }}>
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              sx={{
+                display: "inline-flex",
+                px: { xs: 1.5, lg: "0.9vw" },
+                py: { xs: 0.6, lg: "0.4vw" },
+                mb: { xs: 2, lg: "1.4vw" },
+                borderRadius: "9999px",
+                bgcolor: alpha(HERO_BLUE_SOFT, 0.95),
+                border: `1px solid ${alpha(HERO_BLUE, 0.2)}`,
+                color: HERO_BLUE,
+                fontSize: { xs: "0.72rem", sm: "0.82rem", lg: "clamp(0.72rem, 0.85vw, 1.05rem)" },
+                fontWeight: 700,
+              }}
+            >
+              <VerifiedIcon sx={{ fontSize: { xs: 15, lg: "clamp(15px, 1.1vw, 22px)" }, flexShrink: 0 }} />
+              <Box component="span">Trusted by 1,00,000+ Businesses Across India</Box>
+            </Stack>
+
+            <Typography
+              component="h1"
+              id="hero-heading"
+              sx={{
+                color: DARK,
+                fontWeight: 800,
+                lineHeight: 1.12,
+                letterSpacing: "-0.03em",
+                fontSize: {
+                  xs: "clamp(1.8rem, 7.4vw, 2.5rem)",
+                  sm: "2.6rem",
+                  md: "3rem",
+                  lg: "clamp(2.1rem, 3.1vw, 4rem)",
+                },
+              }}
+            >
+              Smart Billing &amp;
+              <Box component="span" sx={{ display: "block", color: HERO_NAVY }}>
+                Business Management
+              </Box>
+              <Box component="span" sx={{ display: "block", color: CTA_RED }}>
+                All in One Platform
+              </Box>
+            </Typography>
+
+            <Typography
+              sx={{
+                mt: { xs: 2, lg: "1.2vw" },
+                mx: { xs: "auto", lg: 0 },
+                maxWidth: { xs: 520, lg: "44ch" },
+                color: "#475569",
+                fontWeight: 500,
+                lineHeight: 1.55,
+                fontSize: { xs: "1rem", sm: "1.08rem", lg: "clamp(0.95rem, 1.15vw, 1.35rem)" },
+              }}
+            >
+              Bill, manage, analyse and grow your business effortlessly with one
+              powerful platform. No tech skills required.
+            </Typography>
+
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={{ xs: 1.5, sm: 2 }}
+              alignItems="center"
+              justifyContent={{ xs: "center", lg: "flex-start" }}
+              sx={{ mt: { xs: 3, lg: "1.8vw" } }}
+            >
+              <Button
+                variant="contained"
+                disableElevation
+                endIcon={<ArrowForwardIcon />}
+                onClick={() => navigate("/signup")}
+                sx={{
+                  bgcolor: CTA_RED, color: "#fff", textTransform: "none", fontWeight: 700,
+                  borderRadius: "10px", whiteSpace: "nowrap",
+                  px: { xs: 3, lg: "1.8vw" }, py: { xs: 1.3, lg: "0.8vw" },
+                  fontSize: { xs: "1rem", lg: "clamp(0.95rem, 1.05vw, 1.25rem)" },
+                  boxShadow: `0 8px 20px ${alpha(CTA_RED, 0.3)}`,
+                  "&:hover": { bgcolor: CTA_RED_HOVER },
+                  width: { xs: "100%", sm: "auto" },
+                }}
+              >
+                Start Free Trial
+              </Button>
+              <Button
+                variant="outlined"
+                sx={{
+                  bgcolor: "#fff", color: "#0F172A", textTransform: "none", fontWeight: 700,
+                  borderRadius: "10px", borderColor: "#E2E8F0", whiteSpace: "nowrap",
+                  px: { xs: 3, lg: "1.8vw" }, py: { xs: 1.3, lg: "0.8vw" },
+                  fontSize: { xs: "1rem", lg: "clamp(0.95rem, 1.05vw, 1.25rem)" },
+                  "&:hover": { bgcolor: "#F8FAFC", borderColor: "#CBD5E1" },
+                  width: { xs: "100%", sm: "auto" },
+                }}
+              >
+                Book a Demo
+              </Button>
+            </Stack>
+
+            {/* Four points: two per row on phones, four across from sm up */}
+            {/* <Box
+              sx={{
+                mt: { xs: 3.5, lg: "2.2vw" },
+                display: "grid",
+                gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(4, minmax(0, 1fr))" },
+                gap: { xs: 2.5, lg: "1.2vw" },
+              }}
+            >
+              {HERO_FEATURES.map((f) => (
+                <Box key={f.title} sx={{ textAlign: "center" }}>
+                  <Box
+                    aria-hidden
+                    sx={{
+                      width: { xs: 52, lg: "clamp(48px, 3.6vw, 78px)" },
+                      height: { xs: 52, lg: "clamp(48px, 3.6vw, 78px)" },
+                      mx: "auto",
+                      mb: 1,
+                      borderRadius: "50%",
+                      bgcolor: f.bg,
+                      color: f.color,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      "& svg": { fontSize: { xs: 26, lg: "clamp(24px, 1.8vw, 38px)" } },
+                    }}
+                  >
+                    {f.icon}
+                  </Box>
+                  <Typography sx={{ fontWeight: 700, color: DARK, lineHeight: 1.25, fontSize: { xs: "0.95rem", lg: "clamp(0.9rem, 1.05vw, 1.25rem)" } }}>
+                    {f.title}
+                  </Typography>
+                  <Typography sx={{ color: "#64748B", lineHeight: 1.35, fontSize: { xs: "0.8rem", lg: "clamp(0.75rem, 0.85vw, 1rem)" } }}>
+                    {f.sub}
+                  </Typography>
+                </Box>
+              ))}
+            </Box> */}
+          </Box>
+        </Box>
+
+        {/* The previous hero — artwork background with the industry chips.
+            Switched off by HERO_LEGACY above rather than deleted. */}
+        {HERO_LEGACY && (
 
 <Box
   component="section"
@@ -2104,10 +2502,13 @@ const ZoduLandingPage: React.FC = () => {
 
     backgroundImage: {
       xs: "none",
-      lg: `url(${heroSectionBg})`,
+      lg: `url(${heroImage})`,
     },
     backgroundRepeat: "no-repeat",
-    backgroundSize: "cover",
+    // "cover" blew the artwork up to ~125% of the hero's width to fill its height,
+    // cropping the sides. 110% shows more of it and frees a band along the top for
+    // the industry chips; the colour behind it is sampled from the artwork's edge.
+    backgroundSize: { xs: "cover", lg: "110% auto" },
 
     // ✅ Right edge eppavum full-ah theriyum, bottom-la gap varaadhu
     backgroundPosition: {
@@ -2115,7 +2516,8 @@ const ZoduLandingPage: React.FC = () => {
       xl: "right bottom",
     },
 
-    // Left soft white fade
+    // Left soft white fade — enough to keep the heading legible over the artwork,
+    // no more: at 0.88 it washed the whole left of the hero out.
     "&::before": {
       content: '""',
       position: "absolute",
@@ -2125,10 +2527,10 @@ const ZoduLandingPage: React.FC = () => {
       display: { xs: "none", lg: "block" },
       background: `linear-gradient(
         90deg,
-        ${alpha("#FFFFFF", 0.88)} 0%,
-        ${alpha("#FFFFFF", 0.75)} 22%,
-        ${alpha("#FFFFFF", 0.4)} 36%,
-        ${alpha("#FFFFFF", 0)} 48%
+        ${alpha("#FFFFFF", 0.62)} 0%,
+        ${alpha("#FFFFFF", 0.48)} 22%,
+        ${alpha("#FFFFFF", 0.22)} 36%,
+        ${alpha("#FFFFFF", 0)} 46%
       )`,
     },
   }}
@@ -2208,21 +2610,26 @@ const ZoduLandingPage: React.FC = () => {
         fontWeight: 800,
         lineHeight: 1.1,
         letterSpacing: "-0.03em",
+        // One line, all of it. The whole title runs about 17.5em, so each size
+        // keeps that inside the space it has: the copy column below lg, and from
+        // lg the heading alone is allowed past the column into the sky above the
+        // artwork (the subtitle and buttons stay in the narrow column).
+        whiteSpace: "nowrap",
+        width: "max-content",
+        maxWidth: { xs: "100%", lg: "none" },
+        mx: { xs: "auto", lg: 0 },
         fontSize: {
-          xs: "clamp(1.9rem, 8vw, 2.4rem)",
-          sm: "2.8rem",
-          md: "3.2rem",
-          lg: "clamp(2.2rem, 3.3vw, 4.6rem)",
-          xl: "clamp(2.8rem, 3.3vw, 5rem)",
+          xs: "clamp(1.05rem, 4.6vw, 1.9rem)",
+          sm: "clamp(1.5rem, 3.6vw, 2.2rem)",
+          md: "clamp(1.8rem, 3.4vw, 2.6rem)",
+          lg: "clamp(1.9rem, 2.9vw, 4rem)",
+          xl: "clamp(2.4rem, 2.9vw, 4.4rem)",
         },
       }}
     >
-      Smart Billing &amp;
-      <Box component="span" sx={{ display: "block", color: HERO_NAVY }}>
-        Business
-      </Box>
-      <Box component="span" sx={{ display: "block", color: HERO_NAVY }}>
-        Management
+      Smart Billing &amp;{" "}
+      <Box component="span" sx={{ color: HERO_NAVY }}>
+        Business Management
       </Box>
     </Typography>
 
@@ -2349,6 +2756,9 @@ const ZoduLandingPage: React.FC = () => {
     </Stack>
   </Box>
 
+  {/* Industries, scattered across the artwork's top right corner */}
+  {/* <HeroIndustryChips /> */}
+
   {/* MOBILE IMAGE */}
   <Box
     aria-hidden
@@ -2361,7 +2771,7 @@ const ZoduLandingPage: React.FC = () => {
   >
     <Box
       component="img"
-      src={heroSectionBgWide}
+      src={heroImage}
       alt=""
       sx={{
         display: "block",
@@ -2378,13 +2788,14 @@ const ZoduLandingPage: React.FC = () => {
       display: { xs: "none", sm: "block", lg: "none" },
       width: "100%",
       aspectRatio: { sm: "16 / 9", md: "2 / 1" },
-      backgroundImage: `url(${heroSectionBg})`,
+      backgroundImage: `url(${heroImage})`,
       backgroundRepeat: "no-repeat",
       backgroundSize: "cover",
       backgroundPosition: "right bottom",
     }}
   />
 </Box>
+        )}
 
         {/* ── STATS BAR ────────────────────────────────────────────────────── */}
         {/* <Box sx={{
@@ -2712,7 +3123,7 @@ const ZoduLandingPage: React.FC = () => {
 </Box> */}
 {/* ── HOW ITS WORK─────────────────────────────────────────────────── */}
 
-<Box sx={{ bgcolor: "#fff", py: { xs: 1.5, md: 2 }, px: SX, position: "relative", overflow: "hidden" ,mb: { xs: 1, md: 2 }}}>
+{/* <Box sx={{ bgcolor: "#fff", py: { xs: 1.5, md: 2 }, px: SX, position: "relative", overflow: "hidden" ,mb: { xs: 1, md: 2 }}}>
 
   <Box sx={{ maxWidth: SECTION_MAX_W, mx: "auto", position: "relative", zIndex: 1 }}>
     <Box textAlign="center" mb={{ xs: 1, md: 1.4 }}>
@@ -2802,7 +3213,7 @@ const ZoduLandingPage: React.FC = () => {
       </Typography>
     </Box>
   </Box>
-</Box>
+</Box> */}
 
 {/* ── WHO IS IT FOR ─────────────────────────────────────────────────── */}
 {/* <Box sx={{ bgcolor: LIGHT, py: { xs: 1.5, md: 2 }, px: SX, position: "relative", overflow: "hidden",mb: { xs: 6, md: 8 }, }}>
@@ -2865,7 +3276,7 @@ const ZoduLandingPage: React.FC = () => {
     </Box>
   </Container>
 </Box> */}
-<Box sx={{ bgcolor: LIGHT, py: { xs: 1.5, md: 2 }, px: SX, position: "relative", overflow: "hidden",mb: { xs: 6, md: 8 }, }}>
+{/* <Box sx={{ bgcolor: LIGHT, py: { xs: 1.5, md: 2 }, px: SX, position: "relative", overflow: "hidden",mb: { xs: 6, md: 8 }, }}>
   <Box sx={{ maxWidth: SECTION_MAX_W, mx: "auto" }}>
     <Box textAlign="center" mb={{ xs: 1.2, md: 1.5 }}>
       <Typography sx={{ color: PRIMARY, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", mb: 0.2, lineHeight: 1.5 }}>
@@ -2924,7 +3335,7 @@ const ZoduLandingPage: React.FC = () => {
       ))}
     </Box>
   </Box>
-</Box>
+</Box> */}
         {/* ── PRICING ──────────────────────────────────────────────────────── */}
       {/* Intha outer wrapper/container-la mt (margin-top) add pannunga */}
 <Box sx={{ mt: { xs: 4, md: 6 }, px: SX }}>
@@ -3340,16 +3751,15 @@ const ZoduLandingPage: React.FC = () => {
 
         {/* ── FOOTER ───────────────────────────────────────────────────────── */}
         <Box component="footer" sx={{ position: "relative", overflow: "hidden", bgcolor: "#0B1220", color: "#fff", px: SX }}>
-    <Box sx={{ maxWidth: SECTION_MAX_W, mx: "auto", position: "relative", zIndex: 1, py: { xs: 4, md: 5 } }}>
+    <Box sx={{ maxWidth: SECTION_MAX_W, mx: "auto", position: "relative", zIndex: 1, pt: { xs: 3, md: 3.5 } }}>
       
       {/* Logo and CTA Box in a single row */}
       <Box sx={{
-        mt: { xs: 2, md: 3 },
         display: "flex",
         flexDirection: { xs: "column", lg: "row" },
         alignItems: "center",
         justifyContent: "space-between",
-        gap: 4,
+        gap: { xs: 2.5, lg: 4 },
       }}>
         {/* Logo */}
         <Box sx={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}>
@@ -3367,7 +3777,8 @@ const ZoduLandingPage: React.FC = () => {
 
         {/* Ready to simplify your business Box */}
         <Box sx={{
-          p: { xs: 2.5, md: 3 },
+          px: { xs: 2.5, md: 3 },
+          py: { xs: 2, md: 2.25 },
           borderRadius: "18px",
           bgcolor: "rgba(255,255,255,0.06)",
           border: "1px solid rgba(255,255,255,0.10)",
@@ -3407,12 +3818,10 @@ const ZoduLandingPage: React.FC = () => {
         </Box>
       </Box>
 
-      <Box sx={{ py: { xs: 3, md: 4 } }} />
-
-      <Divider sx={{ borderColor: "rgba(255,255,255,0.09)" }} />
+      <Divider sx={{ mt: { xs: 3, md: 3.5 }, borderColor: "rgba(255,255,255,0.09)" }} />
       
       {/* Bottom section with Copyright, Social Icons, and Links */}
-      <Box sx={{ py: 2.5, display: "flex", flexDirection: { xs: "column", md: "row" }, justifyContent: "space-between", alignItems: "center", gap: 2.5 }}>
+      <Box sx={{ py: 2, display: "flex", flexDirection: { xs: "column", md: "row" }, justifyContent: "space-between", alignItems: "center", gap: { xs: 1.5, md: 2.5 } }}>
         <Typography sx={{ color: "#8B95A7", fontSize: "0.8rem" }}>
           © 2025 Zodu Technologies Pvt. Ltd. All rights reserved.
         </Typography>

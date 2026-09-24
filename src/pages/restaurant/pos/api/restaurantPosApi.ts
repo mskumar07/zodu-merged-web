@@ -102,7 +102,7 @@ export interface RestaurantOrder {
   discountType: "Percent" | "Amount";
   discountValue: number;
   grandTotal: number;
-  paymentMethod: "Card" | "QR" | "Cash" | "UPI" | "UPI + Cash" | "Cheque" | "Bank Transfer" | "Others";
+  paymentMethod: "Card" | "QR" | "Cash" | "UPI" | "Cheque" | "Bank Transfer" | "Others";
   notes: string;
 }
 
