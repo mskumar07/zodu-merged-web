@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import LottieLoader from "@components/LottieLoader";
 import SuccessToast from "@components/Common/SuccessToast";
 import {
@@ -63,6 +63,7 @@ import RoleManagement from "@pages/auth/Role/RoleManagement";
 import { useAppDispatch, useAppSelector } from "@store/store";
 import { useModulePermission } from "@hooks/useModulePermission";
 import { setCompanies, BusinessType, BranchId, ZoduId } from "@store/slices/userSlice";
+import type { PendingSignup } from "@utils/pendingSignup";
 
 const PHONE_REGEX = /^[0-9]{10}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -258,6 +259,7 @@ export default function Setting() {
   const queryClient = useQueryClient();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const businessType = useAppSelector(BusinessType);
   // The branch/company currently active for this session — deleting either
   // one out from under the logged-in user leaves no valid context to keep
@@ -269,6 +271,7 @@ export default function Setting() {
   const [expandedCompanyIds, setExpandedCompanyIds] = useState<string[]>([]);
   const [branchModalOpen, setBranchModalOpen] = useState(false);
   const [companyModalOpen, setCompanyModalOpen] = useState(false);
+  const [companyModalPrefill, setCompanyModalPrefill] = useState<PendingSignup | null>(null);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
   const [branchCompanyId, setBranchCompanyId] = useState<string>("");
   const [editingCompany, setEditingCompany] = useState<CompanyWithBranches | null>(null);
@@ -335,7 +338,22 @@ export default function Setting() {
     setSubmitError(null);
     setCompanyModalOpen(false);
     setEditingCompany(null);
+    setCompanyModalPrefill(null);
   };
+
+  // Arriving here right after signup (Login redirects with this state once,
+  // for that account's first login only): open Add Business already filled
+  // with what the user typed on the signup form. Consumed immediately via
+  // `replace` so refreshing or navigating back never reopens it.
+  useEffect(() => {
+    const prefill = (location.state as { openAddBusiness?: PendingSignup } | null)?.openAddBusiness;
+    if (!prefill) return;
+    setEditingCompany(null);
+    setCompanyModalPrefill(prefill);
+    setCompanyModalOpen(true);
+    navigate(location.pathname, { replace: true, state: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on arrival only
+  }, []);
 
   const openDeleteCompany = (company: CompanyWithBranches) => {
     setDeletingCompany(company);
@@ -1440,6 +1458,14 @@ export default function Setting() {
         open={companyModalOpen}
         onClose={closeCompanyModal}
         business={editingCompany}
+        initialValues={
+          companyModalPrefill && {
+            type:             companyModalPrefill.business_type,
+            restaurant_name:  companyModalPrefill.restaurant_name,
+            email:            companyModalPrefill.email,
+            phone_number:     companyModalPrefill.phone_number,
+          }
+        }
         onSubmit={handleCompanySubmit}
         submitting={createCompanyMutation.isPending || editCompanyMutation.isPending}
       />

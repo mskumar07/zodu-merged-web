@@ -157,6 +157,11 @@ interface Props {
   open: boolean;
   onClose: () => void;
   business?: CompanyFormInitialData | null;
+  // Prefills a brand-new (non-edit) company with values the user already gave
+  // elsewhere — e.g. name/email/phone typed at signup. Unlike `business`, this
+  // never flips the modal into edit mode or routes the submit through the edit
+  // mutation.
+  initialValues?: Partial<Pick<BusinessFormData, "restaurant_name" | "email" | "phone_number" | "type">> | null;
   onSubmit: (data: BusinessFormData, isEdit: boolean) => void;
   submitting?: boolean;
 }
@@ -191,6 +196,7 @@ export default function BusinessFormModal({
   open,
   onClose,
   business,
+  initialValues,
   onSubmit,
   submitting = false,
 }: Props) {
@@ -203,7 +209,9 @@ export default function BusinessFormModal({
   useEffect(() => {
     if (!open) return;
 
-    if (business) {
+    if (!business && initialValues) {
+      setForm({ ...EMPTY_FORM, ...initialValues });
+    } else if (business) {
       setForm({
         type: (business as any).type ?? "Retail",
         restaurant_name: business.restaurant_name ?? "",
@@ -233,7 +241,7 @@ export default function BusinessFormModal({
 
     setStateSearch("");
     setLogoError(null);
-  }, [open, business]);
+  }, [open, business, initialValues]);
 
   // A picked file has no URL until it's uploaded, so preview it from an object URL
   // and revoke it when the pick changes or the modal closes — otherwise every
@@ -460,7 +468,7 @@ export default function BusinessFormModal({
                   </FormControl>
                 </Grid>
                 <Grid size={{ xs: 12 }}>
-                  <FieldLabel>Restaurant / Business Name *</FieldLabel>
+                  <FieldLabel>Business / Company Name *</FieldLabel>
                   <TextField
                     fullWidth
                     placeholder="e.g. Zodu Retail Private Limited"

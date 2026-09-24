@@ -290,8 +290,9 @@ const KeyboardBillingView: React.FC<Props> = ({
   useEffect(() => {
     // A fresh result set invalidates both the selection and the refs that
     // pointed into the previous list — reset together so a stale index can
-    // never scrollIntoView an element from the wrong list.
-    setHighlightedIndex(-1);
+    // never scrollIntoView an element from the wrong list. A single match
+    // is pre-highlighted so Enter adds it immediately, no arrow key needed.
+    setHighlightedIndex(searchResults.length === 1 ? 0 : -1);
     resultRefs.current = [];
   }, [searchResults]);
   useEffect(() => {
@@ -501,15 +502,18 @@ const KeyboardBillingView: React.FC<Props> = ({
                   );
                   return;
                 }
+                // Rows render newest-first, so the visual highlightedRowIndex
+                // maps to the real array index in reverse.
+                const realHighlightedIndex = activeRowCount - 1 - highlightedRowIndex;
                 if (e.key === "Enter") {
                   e.preventDefault();
                   if (showSearchResults && highlightedIndex >= 0 && highlightedIndex < searchResults.length) {
                     handlePickResult(searchResults[highlightedIndex]);
                   } else if (!summaryLocked && highlightedRowIndex >= 0 && highlightedRowIndex < activeRowCount) {
                     if (showingSummary) {
-                      setEditingSummaryIdx(highlightedRowIndex);
+                      setEditingSummaryIdx(realHighlightedIndex);
                     } else {
-                      setEditingQtyKey(cartItemKey(cartItems[highlightedRowIndex]));
+                      setEditingQtyKey(cartItemKey(cartItems[realHighlightedIndex]));
                     }
                   } else {
                     onSearchEnter();
@@ -526,9 +530,9 @@ const KeyboardBillingView: React.FC<Props> = ({
                 ) {
                   e.preventDefault();
                   if (showingSummary) {
-                    onSummaryRemove(highlightedRowIndex);
+                    onSummaryRemove(realHighlightedIndex);
                   } else {
-                    onRemove(cartItems[highlightedRowIndex]);
+                    onRemove(cartItems[realHighlightedIndex]);
                   }
                   setHighlightedRowIndex((i) => Math.min(i, activeRowCount - 2));
                   return;
@@ -765,19 +769,23 @@ const KeyboardBillingView: React.FC<Props> = ({
               ) : showingSummary ? (
                 // Restored running order — same rows/edit affordances as a fresh
                 // cart, but backed by runningOrderSummary + the summary handlers.
-                runningOrderSummary.map((item, idx) => {
+                // Rendered newest-first: displayIdx is the visual row position
+                // (drives row number, refs, highlight); idx maps back to the
+                // actual runningOrderSummary index every handler/state key expects.
+                [...runningOrderSummary].reverse().map((item, displayIdx) => {
+                  const idx = runningOrderSummary.length - 1 - displayIdx;
                   const rowTotal = item.price * item.qty;
-                  const isHighlightedRow = idx === highlightedRowIndex;
+                  const isHighlightedRow = displayIdx === highlightedRowIndex;
                   return (
                     <TableRow
                       key={`${item.item_id}-${idx}`}
-                      ref={(el: HTMLTableRowElement | null) => { rowRefs.current[idx] = el; }}
+                      ref={(el: HTMLTableRowElement | null) => { rowRefs.current[displayIdx] = el; }}
                       hover
                       selected={isHighlightedRow}
-                      onClick={() => { setHighlightedRowIndex(idx); searchInputRef.current?.focus(); }}
+                      onClick={() => { setHighlightedRowIndex(displayIdx); searchInputRef.current?.focus(); }}
                       sx={{ cursor: "pointer" }}
                     >
-                      <TableCell sx={{ fontSize: 13, color: "#6b7280" }}>{idx + 1}</TableCell>
+                      <TableCell sx={{ fontSize: 13, color: "#6b7280" }}>{displayIdx + 1}</TableCell>
                       <TableCell sx={{ fontSize: 13, fontWeight: 700, color: "#1f2937" }}>{item.item_id}</TableCell>
                       <TableCell sx={{ fontSize: 13, color: "#1f2937" }}>{item.item_name}</TableCell>
                       <TableCell align="right" sx={{ fontSize: 13, color: "#4b5563" }}>{item.price.toFixed(2)}</TableCell>
@@ -836,21 +844,23 @@ const KeyboardBillingView: React.FC<Props> = ({
                   );
                 })
               ) : (
-                cartItems.map((ci, idx) => {
+                // Rendered newest-first — cartItems handlers below all take the
+                // item object directly, so no index translation is needed.
+                [...cartItems].reverse().map((ci, displayIdx) => {
                   const price = getItemPrice(ci.product);
                   const rowTotal = price * ci.quantity;
                   const isEditingQty = editingQtyKey === cartItemKey(ci);
-                  const isHighlightedRow = idx === highlightedRowIndex;
+                  const isHighlightedRow = displayIdx === highlightedRowIndex;
                   return (
                     <TableRow
-                      key={`${ci.product.menu_id}-${ci.product.variant_id ?? ""}-${idx}`}
-                      ref={(el: HTMLTableRowElement | null) => { rowRefs.current[idx] = el; }}
+                      key={`${ci.product.menu_id}-${ci.product.variant_id ?? ""}-${displayIdx}`}
+                      ref={(el: HTMLTableRowElement | null) => { rowRefs.current[displayIdx] = el; }}
                       hover
                       selected={isHighlightedRow}
-                      onClick={() => { setHighlightedRowIndex(idx); searchInputRef.current?.focus(); }}
+                      onClick={() => { setHighlightedRowIndex(displayIdx); searchInputRef.current?.focus(); }}
                       sx={{ cursor: "pointer" }}
                     >
-                      <TableCell sx={{ fontSize: 13, color: "#6b7280" }}>{idx + 1}</TableCell>
+                      <TableCell sx={{ fontSize: 13, color: "#6b7280" }}>{displayIdx + 1}</TableCell>
                       <TableCell sx={{ fontSize: 13, fontWeight: 700, color: "#1f2937" }}>{ci.product.menu_code || ci.product.menu_id}</TableCell>
                       <TableCell sx={{ fontSize: 13, color: "#1f2937" }}>
                         {ci.product.menu_name}
