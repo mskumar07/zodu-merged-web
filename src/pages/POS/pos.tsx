@@ -3135,7 +3135,7 @@ console.log("test",serverHolds)
             ) : invoiceSettings?.invoice_template === "modern" ? (
               <InvoicePDFTemplateModern ref={pdfRef} data={savedPdfData} copyType={renderCopyType} />
             ) : (
-              <InvoicePDFTemplate ref={pdfRef} data={savedPdfData} copyType={renderCopyType} />
+              <InvoicePDFTemplate ref={pdfRef} data={savedPdfData} copyType={renderCopyType} hideTaxBreakdown={invoiceSettings?.invoice_template === "classic2"} />
             )}
           </Box>
         )}
@@ -3164,7 +3164,7 @@ console.log("test",serverHolds)
                 ) : invoiceSettings?.invoice_template === "modern" ? (
                   <InvoicePDFTemplateModern data={previewPdfData} />
                 ) : (
-                  <InvoicePDFTemplate data={previewPdfData} />
+                  <InvoicePDFTemplate data={previewPdfData} hideTaxBreakdown={invoiceSettings?.invoice_template === "classic2"} />
                 )}
               </Box>
             )}

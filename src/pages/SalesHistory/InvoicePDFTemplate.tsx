@@ -4,6 +4,7 @@ import { AllCompanies, InvoiceSettingsData } from "@store/slices/userSlice";
 import React from "react";
 import { saleDocumentLabel } from "@utils/saleType";
 import { gstSummaryRows } from "@utils/gstSummary";
+import zoduLogo from "@assets/zlogo.png";
 
 // ── Inline style constants ────────────────────────────────────
 const styles = {
@@ -290,13 +291,20 @@ const styles = {
 
   // Footer
   // Gap above the signature, whether it follows the bank box or starts the column.
-  footer: { marginTop: "58px" },
+  // footer: { marginTop: "58px" },
   signBox: { textAlign: "right" as const },
   // The blank band above the signature line — room to sign by hand, and where
   // an uploaded signature sits.
   signSpace: { height: "56px", display: "flex", alignItems: "flex-end", justifyContent: "flex-end", marginBottom: "4px" },
   signLine: { borderTop: "1px solid #0F172A", width: "180px", marginLeft: "auto", marginBottom: "6px" },
   signLabel: { fontSize: "10px", fontWeight: 700, color: "#475569", letterSpacing: "1px", textTransform: "uppercase" as const },
+  poweredByWrap: { marginTop: "14px", display: "flex", alignItems: "stretch", justifyContent: "center", gap: "12px" },
+  // Logo as tall as the two text lines beside it.
+  poweredByLogo: { height: "32px", width: "auto", display: "block", alignSelf: "center" },
+  poweredByRule: { width: "1.5px", background: "#CBD5E1", alignSelf: "stretch" },
+  poweredByText: { display: "flex", flexDirection: "column" as const, justifyContent: "center", gap: "4px" },
+  poweredBy: { fontSize: "14px", fontWeight: 500, color: "#334155", lineHeight: 1.2 },
+  poweredByUrl: { fontSize: "11px", color: "#64748B", letterSpacing: "0.02em", lineHeight: 1.2 },
 };
 
 // ── Helper components ─────────────────────────────────────────
@@ -334,7 +342,10 @@ function hasValue(v: unknown): v is string {
 
 
 // ── Main template ─────────────────────────────────────────────
-export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, theme = "classic", accentColor, logoUrl, headerImageUrl, signatureUrl, copyType }: any, ref: any) => {
+// `hideTaxBreakdown` is the "Classic 2" layout: the same page without the HSN and
+// Tax columns, any tax lines in the totals or the HSN-wise table, and with a
+// "Powered by zodu" line at the foot of the page.
+export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, theme = "classic", accentColor, logoUrl, headerImageUrl, signatureUrl, copyType, hideTaxBreakdown = false }: any, ref: any) => {
   const isCompact = theme === "compact";
   const {
     sale_id, date, due_date,
@@ -374,7 +385,8 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
   // the previous always-print-when-present behavior.
   const showShippingAddress = invoiceSettings?.show_shipping_address ?? true;
   const showShipToDetails = showCustomerDetails && showShippingAddress && hasValue(customer_shipping_address);
-  const showTaxDetails = invoiceSettings?.show_tax_details ?? true;
+  const showTaxDetails = !hideTaxBreakdown && (invoiceSettings?.show_tax_details ?? true);
+  const showHsn = !hideTaxBreakdown;
   const showPaymentDetails = invoiceSettings?.show_payment_details ?? false;
   const showTermsConditions = invoiceSettings?.show_terms_conditions ?? false;
   const termsConditionsText = invoiceSettings?.terms_conditions ?? "";
@@ -595,7 +607,7 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
           {showItemId && <col style={{ width: "96px" }} />}
           <col />
           {/* HSN codes run up to 8 digits under GST — must fit without truncation. */}
-          <col style={{ width: "68px" }} />
+          {showHsn && <col style={{ width: "68px" }} />}
           {showTaxDetails && <col style={{ width: "36px" }} />}
           <col style={{ width: "40px" }} />
           {/* Amount columns are sized to fit large totals (up to 8-digit
@@ -614,7 +626,9 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
               <th style={{ ...styles.theadTh, padding: isCompact ? "6px 8px" : styles.theadTh.padding }}>Item ID</th>
             )}
             <th style={{ ...styles.theadTh, padding: isCompact ? "6px 8px" : styles.theadTh.padding }}>Item Name</th>
-            <th style={{ ...styles.theadThCenter, padding: isCompact ? "6px 8px" : styles.theadThCenter.padding }}>HSN</th>
+            {showHsn && (
+              <th style={{ ...styles.theadThCenter, padding: isCompact ? "6px 8px" : styles.theadThCenter.padding }}>HSN</th>
+            )}
             {showTaxDetails && (
               <th style={{ ...styles.theadThCenter, padding: isCompact ? "6px 8px" : styles.theadThCenter.padding }}>Tax</th>
             )}
@@ -646,7 +660,9 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
                   <div style={styles.itemSub}>{item.category}</div>
                 )} */}
               </td>
-              <td style={{ ...styles.tdCenter, padding: isCompact ? "5px 8px" : styles.tdCenter.padding }}>{item.hsn || "—"}</td>
+              {showHsn && (
+                <td style={{ ...styles.tdCenter, padding: isCompact ? "5px 8px" : styles.tdCenter.padding }}>{item.hsn || "—"}</td>
+              )}
               {showTaxDetails && (
                 <td style={{ ...styles.tdCenter, padding: isCompact ? "5px 8px" : styles.tdCenter.padding }}>{Number(item.tax).toFixed(0)}%</td>
               )}
@@ -676,7 +692,7 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
           {/* Tax totals are part of the bill amount, not the "Tax Details"
               breakdown — the setting only controls the per-item Tax column
               and the HSN-wise table below. */}
-          {taxSummaryRows.map((row) => (
+          {!hideTaxBreakdown && taxSummaryRows.map((row) => (
             <SummaryRow key={row.label} label={`${row.label}:`} value={fmt(row.amount)} compact={isCompact} />
           ))}
 
@@ -814,6 +830,22 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
             )}
           </div>
         </div>
+
+
+        {hideTaxBreakdown && (
+          <>
+            <div style={styles.redDivider} />
+            {/* logo | tagline over the URL — the rule runs the full height of the text block */}
+            <div style={styles.poweredByWrap}>
+              <img src={zoduLogo} alt="zodu" style={styles.poweredByLogo} />
+              <div style={styles.poweredByRule} />
+              <div style={styles.poweredByText}>
+                <span style={styles.poweredBy}>Try for your Business Today!</span>
+                <span style={styles.poweredByUrl}>www.zodu.in</span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

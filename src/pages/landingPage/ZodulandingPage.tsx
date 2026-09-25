@@ -54,6 +54,13 @@ import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import CloudDoneIcon from "@mui/icons-material/CloudDone";
 
 import { useNavigate } from "react-router-dom";
+import {
+  Archive, ArrowRight, Building2, Car, ConciergeBell, Cross, Droplet, Dumbbell, Ellipsis,
+  Flower2, Gem, GraduationCap, Laptop, Pill, Plane, Printer, Shirt, ShoppingBag, Sofa,
+  Sprout, Truck, Utensils, Wine, Zap,
+  Bell, Package, ShoppingCart, Store,
+  type LucideIcon,
+} from "lucide-react";
 import zlogo from "../../assets/zlogo.png";
 import imgPosBilling from "../../assets/modules/pos-billing.png";
 import imgInventory from "../../assets/modules/inventory.png";
@@ -151,34 +158,12 @@ import heroDevices from '../../assets/Landingpage/hero-img.png';
 import StorefrontRoundedIcon from "@mui/icons-material/StorefrontRounded";
 import FactoryRoundedIcon from "@mui/icons-material/FactoryRounded";
 import ShoppingCartRoundedIcon from "@mui/icons-material/ShoppingCartRounded";
-import AgricultureRoundedIcon from "@mui/icons-material/AgricultureRounded";
 import DirectionsCarRoundedIcon from "@mui/icons-material/DirectionsCarRounded";
-import ApartmentRoundedIcon from "@mui/icons-material/ApartmentRounded";
-import LocalHospitalRoundedIcon from "@mui/icons-material/LocalHospitalRounded";
-import SchoolRoundedIcon from "@mui/icons-material/SchoolRounded";
-import CheckroomRoundedIcon from "@mui/icons-material/CheckroomRounded";
-import LaptopMacRoundedIcon from "@mui/icons-material/LaptopMacRounded";
-import RestaurantRoundedIcon from "@mui/icons-material/RestaurantRounded";
 import ChairRoundedIcon from "@mui/icons-material/ChairRounded";
-import LocalShippingRoundedIcon from "@mui/icons-material/LocalShippingRounded";
-import SpaRoundedIcon from "@mui/icons-material/SpaRounded";
-import FitnessCenterRoundedIcon from "@mui/icons-material/FitnessCenterRounded";
-import MedicationRoundedIcon from "@mui/icons-material/MedicationRounded";
-import PrintRoundedIcon from "@mui/icons-material/PrintRounded";
-import BoltRoundedIcon from "@mui/icons-material/BoltRounded";
 import LocalBarRoundedIcon from "@mui/icons-material/LocalBarRounded";
 import OpacityRoundedIcon from "@mui/icons-material/OpacityRounded";
 
-import DryCleaningRoundedIcon from "@mui/icons-material/DryCleaningRounded";
-import DiamondRoundedIcon from "@mui/icons-material/DiamondRounded";
-import RoomServiceRoundedIcon from "@mui/icons-material/RoomServiceRounded";
-import FlightRoundedIcon from "@mui/icons-material/FlightRounded";
-import MoreHorizRoundedIcon from "@mui/icons-material/MoreHorizRounded";
 
-import AirportShuttleRoundedIcon from "@mui/icons-material/AirportShuttleRounded";
-import WeekendRoundedIcon from "@mui/icons-material/WeekendRounded";
-import LiquorRoundedIcon from "@mui/icons-material/LiquorRounded";
-import WaterDropRoundedIcon from "@mui/icons-material/WaterDropRounded";
 
 // ── Design Tokens ───────────────────────────────────────────
 // ──────────────────
@@ -627,6 +612,11 @@ const HERO_NAVY = "#0F2A6B";       // navy used inside the hero artwork
 const HERO_BLUE_SOFT = "#EFF6FF";
 const HERO_BASE = "#F8FBFC";       // sampled from the artwork's left edge so the fade is seamless
 const NAV_H = { xs: 60, md: 64 };  // navbar row height; the hero subtracts it (+1px border) to fill the screen
+/** One screen minus the sticky navbar (+1px border): navbar + hero = exactly the viewport. */
+const HERO_SCREEN = {
+  xs: `calc(100dvh - ${NAV_H.xs + 1}px)`,
+  md: `calc(100dvh - ${NAV_H.md + 1}px)`,
+};
 
 // ── Showcase mockup ────────────────────────────────────────────────────────────
 // Browser-framed faux dashboard used as a product-screenshot placeholder.
@@ -1054,167 +1044,55 @@ const WhatZoduDoesSection: React.FC = () => (
       }}>
         {fzModuleCards.map((card) => <FzWideCard key={card.title} {...card} />)}
       </Box>
-
-      {/* Benefits strip */}
-      <Box sx={{
-        ...fzCardSx, borderRadius: fz(14), display: "grid",
-        gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" },
-      }}>
-        {fzBenefits.map((b, i) => (
-          <Box key={b.title} sx={{
-            position: "relative", display: "flex", alignItems: "center", justifyContent: { md: "center" },
-            gap: fz(14), px: fz(24), py: fz(12),
-            borderTop: { xs: i ? `1px solid ${FZ_BORDER}` : "none", sm: i >= 2 ? `1px solid ${FZ_BORDER}` : "none", md: "none" },
-            borderLeft: { sm: i % 2 ? `1px solid ${FZ_BORDER}` : "none", md: "none" },
-            "&::before": {
-              content: '""', display: { xs: "none", md: i ? "block" : "none" },
-              position: "absolute", left: 0, top: "25%", bottom: "25%", width: "1px", bgcolor: FZ_BORDER,
-            },
-          }}>
-            <FzIconTile icon={b.icon} color={FZ_RED} bg="#FFE4E6" size={40} radius={20} iconSize={21} />
-            <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ fontSize: fz(13.5), fontWeight: 700, color: FZ_INK, lineHeight: 1.3 }}>{b.title}</Typography>
-              <Typography sx={{ fontSize: fz(11.5), color: FZ_MUTED, lineHeight: 1.35 }}>{b.sub}</Typography>
-            </Box>
-          </Box>
-        ))}
-      </Box>
     </Box>
+  </Box>
+);
+
+/** The four benefits, one strip — shown full width along the bottom of the hero. */
+const FzBenefitsStrip: React.FC = () => (
+  <Box sx={{
+    // Own scale unit: the strip lives in the hero, outside the section that sets --fz-u.
+    "--fz-u": "1px",
+    "@media (min-width: 1200px)": { "--fz-u": "0.9px" },
+    [FZ_DESK]: { "--fz-u": `clamp(0.9px, calc((100vw - 2 * ${PAGE_GUTTER}) / 1520), 1px)` },
+    ...fzCardSx, borderRadius: fz(14), display: "grid", width: "100%",
+    gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" },
+  }}>
+    {fzBenefits.map((b, i) => (
+      <Box key={b.title} sx={{
+        position: "relative", display: "flex", alignItems: "center", justifyContent: { md: "center" },
+        gap: fz(14), px: fz(24), py: fz(12),
+        borderTop: { xs: i ? `1px solid ${FZ_BORDER}` : "none", sm: i >= 2 ? `1px solid ${FZ_BORDER}` : "none", md: "none" },
+        borderLeft: { sm: i % 2 ? `1px solid ${FZ_BORDER}` : "none", md: "none" },
+        "&::before": {
+          content: '""', display: { xs: "none", md: i ? "block" : "none" },
+          position: "absolute", left: 0, top: "25%", bottom: "25%", width: "1px", bgcolor: FZ_BORDER,
+        },
+      }}>
+        <FzIconTile icon={b.icon} color={FZ_RED} bg="#FFE4E6" size={40} radius={20} iconSize={21} />
+        <Box sx={{ minWidth: 0 }}>
+          <Typography sx={{ fontSize: fz(13.5), fontWeight: 700, color: FZ_INK, lineHeight: 1.3 }}>{b.title}</Typography>
+          <Typography sx={{ fontSize: fz(11.5), color: FZ_MUTED, lineHeight: 1.35 }}>{b.sub}</Typography>
+        </Box>
+      </Box>
+    ))}
   </Box>
 );
 
 {/*BUILT FOR EVERY BUSINESS*/}
 
 // ============================================================
-// HOW THIS WORKS
+// BUILT FOR EVERY BUSINESS
 //
-// The reference design is 1344 x 896. On desktop / laptop / large tablet (900px+) the whole
-// section is ONE scaled canvas with that exact aspect ratio:
-//   - every element is placed by its measured position in the reference
-//   - every font/size uses `cqw` (1cqw = 1% of the section width),
-//     so at ANY desktop width the layout is an exact scaled copy.
-// Below 900px (tablet / mobile) a normal responsive grid is used.
+// Heading on one line with the handwritten note beside it, then the industries
+// as a plain grid of white cards: tinted icon circle, name and a two-line note.
 // ============================================================
 
-const W = 1344;
-const H = 896;
-
-/**
- * The desktop stage still reserves the top 67px that the navbar used to occupy.
- * Since the navbar is not part of this section, that empty band is cropped away.
- */
-const TOP_TRIM = 60;
-
-/** from this width the exact 5-column canvas is used; below it the responsive layout */
-const DESKTOP_MIN = "@media (min-width:900px)";
-
-/** desktop section padding (top, and top + bottom) — the canvas is scaled to fit what is left */
-const SECTION_PT = 8;
-const SECTION_PAD_Y = 32;
-
-/**
- * When the height limits the scale, the stage is stretched sideways (up to this
- * factor) instead of leaving wide empty margins: card columns spread apart and the
- * cards widen by at most CARD_W_SPREAD, so their text never outgrows their height.
- */
-const MAX_SPREAD = 1.1;
-const CARD_W_SPREAD = 2;
-
-/** design px (the stage is 1344 x 896 and is scaled to fit the screen) */
-const cq = (px: number) => `${px}px`;
-/** design-px -> % of canvas axis */
-const pct = (v: number, base: number) => `${((v / base) * 100).toFixed(3)}%`;
-
-const HERO_EDGE_TOP = "#F3F6FA";
-const HERO_EDGE_BOTTOM = "#F8F1E9";
-// ------------------------------------------------------------
-// MEASURED CARD SHAPES (from the 1344 x 896 reference)
-//
-// Every card in the reference is slightly rotated AND perspective-warped
-// (top edge and bottom edge are not parallel). Each entry below is the
-// exact 4-corner shape of that card, converted to a CSS matrix3d:
-//   x, y = top-left corner   w, h = un-warped size   m = the warp
-// ------------------------------------------------------------
-
-// Gap control: every card is enlarged a little around its own centre,
-// which shrinks the space between neighbouring cards.
-// (reference-measured gaps are ~21px horizontal / ~17px vertical)
-const TRIM_X = 8; // px added to each card's width  -> horizontal gap - 8px
-const TRIM_Y = 6; // px added to each card's height -> vertical gap - 6px
-
-type Quad = {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  cx: number; // warped-shape centre, relative to the top-left corner
-  cy: number;
-  m: string;
-};
-
-/** card height factor (1 = reference height); lower rows are pulled up to close the gap */
-const CARD_H_SCALE = 0.8;
-/** px every card moves up (the paragraph under the heading was removed) */
-const CARDS_LIFT = 62;
-const COLS = 5;
-
-const RAW_QUADS: Quad[] = [
-  { x: 21.07, y: 263.07, w: 284.37, h: 137.51, cx: 147.62, cy: 72.97, m: "matrix3d(1.213726,0.03739939,0,0.0007341279,0.08211135,1.096377,0,3.248395e-05,0,0,1,0,0,0,0,1)" },
-  { x: 325.34, y: 273.93, w: 233.37, h: 121.66, cx: 122.28, cy: 50.80, m: "matrix3d(1.010293,-0.08473227,0,3.171937e-05,0.09961352,1.011732,0,0.0001061115,0,0,1,0,0,0,0,1)" },
-  { x: 576.99, y: 246.76, w: 249.23, h: 135.15, cx: 129.35, cy: 52.20, m: "matrix3d(0.9005311,-0.1090456,0,-0.0004301058,0.08070702,0.9669437,0,0.000212275,0,0,1,0,0,0,0,1)" },
-  { x: 848.0, y: 229.99, w: 241.63, h: 134.65, cx: 120.77, cy: 70.98, m: "matrix3d(1.09218,0.0328945,0,0.0003581141,0,1.053695,0,8.909753e-05,0,0,1,0,0,0,0,1)" },
-  { x: 1108.65, y: 240.96, w: 223.01, h: 134.09, cx: 108.40, cy: 71.05, m: "matrix3d(1.065644,0.03922278,0,0.0002841433,-0.04532106,1.036666,0,5.228079e-05,0,0,1,0,0,0,0,1)" },
-  { x: 27.88, y: 427.2, w: 246.89, h: 119.92, cx: 124.15, cy: 55.37, m: "matrix3d(1.025207,-0.03798946,0,0.0001452664,0.01434192,0.9983992,0,-0.0001598359,0,0,1,0,0,0,0,1)" },
-  { x: 288.67, y: 418.41, w: 248.99, h: 114.78, cx: 128.87, cy: 45.85, m: "matrix3d(0.9611226,-0.08772333,0,-0.0001718184,0.08482058,0.9901222,0,0.0001395083,0,0,1,0,0,0,0,1)" },
-  { x: 556.95, y: 392.8, w: 233.06, h: 134.28, cx: 119.17, cy: 60.13, m: "matrix3d(1.033621,-0.06187672,0,0.0001746897,0.04326045,1.009338,0,-7.263617e-05,0,0,1,0,0,0,0,1)" },
-  { x: 807.65, y: 392.53, w: 247.48, h: 123.61, cx: 126.32, cy: 56.20, m: "matrix3d(1.036006,-0.04660692,0,0.0001619635,0.04506608,1.012783,0,-4.715892e-05,0,0,1,0,0,0,0,1)" },
-  { x: 1069.83, y: 399.65, w: 247.21, h: 117.16, cx: 128.37, cy: 53.20, m: "matrix3d(1.070888,-0.0447908,0,0.0002749652,0.085414,1.036497,0,5.886999e-05,0,0,1,0,0,0,0,1)" },
-  { x: 23.3, y: 563.86, w: 263.79, h: 98.04, cx: 132.95, cy: 43.95, m: "matrix3d(1.060145,-0.04009893,0,0.0002142611,0.02514834,1.036186,0,9.500744e-05,0,0,1,0,0,0,0,1)" },
-  { x: 304.05, y: 549.57, w: 244.64, h: 113.32, cx: 123.95, cy: 48.38, m: "matrix3d(1.017498,-0.06862581,0,7.994263e-05,0.03484232,1.0099,0,7.473963e-06,0,0,1,0,0,0,0,1)" },
-  { x: 572.04, y: 547.72, w: 217.79, h: 110.73, cx: 110.85, cy: 50.40, m: "matrix3d(0.964971,-0.04383515,0,-0.0001527012,0.03617768,0.9808824,0,-1.401004e-05,0,0,1,0,0,0,0,1)" },
-  { x: 806.21, y: 530.0, w: 259.66, h: 115.74, cx: 132.95, cy: 57.82, m: "matrix3d(1.12183,0,0,0.0004496266,0.05583982,1.062775,0,7.482201e-05,0,0,1,0,0,0,0,1)" },
-  { x: 1084.22, y: 532.24, w: 237.72, h: 110.35, cx: 122.30, cy: 48.70, m: "matrix3d(1.032404,-0.05543408,0,0.0001152029,0.06679514,1.024328,0,0.0001180404,0,0,1,0,0,0,0,1)" },
-  { x: 26.74, y: 673.14, w: 257.23, h: 90.22, cx: 132.35, cy: 42.83, m: "matrix3d(1.102927,-0.01881024,0,0.000357983,0.08556561,1.062217,0,0.0002282964,0,0,1,0,0,0,0,1)" },
-  { x: 317.88, y: 675.52, w: 232.68, h: 86.05, cx: 117.60, cy: 36.88, m: "matrix3d(1.037437,-0.05478411,0,0.0001610384,0.03429935,1.020911,0,3.712814e-05,0,0,1,0,0,0,0,1)" },
-  { x: 576.0, y: 666.91, w: 225.62, h: 93.97, cx: 112.77, cy: 47.02, m: "matrix3d(1.093289,0.0006278393,0,0.0004383512,4.725779e-18,1.036603,0,-0.0001101114,0,0,1,0,0,0,0,1)" },
-  { x: 817.54, y: 668.19, w: 234.35, h: 98.51, cx: 119.53, cy: 43.75, m: "matrix3d(1.087929,-0.05051991,0,0.0003723961,0.05253894,1.044685,0,4.25497e-05,0,0,1,0,0,0,0,1)" },
-  { x: 1091.16, y: 661.28, w: 227.36, h: 101.81, cx: 114.28, cy: 44.78, m: "matrix3d(0.9761183,-0.05251486,0,-7.612553e-05,0.01485962,0.9809364,0,-0.0001034874,0,0,1,0,0,0,0,1)" },
-  { x: 31.67, y: 777.0, w: 250.05, h: 87.6, cx: 127.58, cy: 43.73, m: "matrix3d(1.251034,0,0,0.0009861266,0.06380825,1.115586,0,8.138283e-05,0,0,1,0,0,0,0,1)" },
-  { x: 298.96, y: 777.42, w: 247.9, h: 89.09, cx: 128.23, cy: 40.00, m: "matrix3d(1.186256,-0.04209415,0,0.0007196786,0.104835,1.092936,0,0.0001701433,0,0,1,0,0,0,0,1)" },
-  { x: 567.85, y: 776.21, w: 241.82, h: 89.61, cx: 123.15, cy: 44.75, m: "matrix3d(1.20658,-6.022599e-05,0,0.0008482591,0.05201308,1.09373,0,2.038107e-05,0,0,1,0,0,0,0,1)" },
-  { x: 832.34, y: 785.36, w: 216.23, h: 88.95, cx: 112.00, cy: 34.55, m: "matrix3d(1.035285,-0.09300992,0,0.000154595,0.09903242,1.023675,0,0.0001362714,0,0,1,0,0,0,0,1)" },
-  { x: 1083.94, y: 778.09, w: 229.51, h: 82.21, cx: 115.95, cy: 34.48, m: "matrix3d(1.029145,-0.05911279,0,0.0001348999,0.03337287,1.01479,0,1.177212e-06,0,0,1,0,0,0,0,1)" },
-];
-
-/** height removed from each row (average card height of the row x (1 - scale)) */
-const ROW_SHRINK = Array.from({ length: Math.ceil(RAW_QUADS.length / COLS) }, (_, r) => {
-  const row = RAW_QUADS.slice(r * COLS, r * COLS + COLS);
-  return (row.reduce((s, q) => s + q.h, 0) / row.length) * (1 - CARD_H_SCALE);
-});
-
-const QUADS: Quad[] = RAW_QUADS.map((q, i) => {
-  const row = Math.floor(i / COLS);
-  const lift = CARDS_LIFT + ROW_SHRINK.slice(0, row).reduce((s, v) => s + v, 0);
-  return { ...q, y: q.y - lift, h: q.h * CARD_H_SCALE, cy: q.cy * CARD_H_SCALE };
-});
-
-/** visible stage height: from the trimmed top to just below the lowest card (+ room for its shadow) */
-const STAGE_H = Math.max(...QUADS.map((q) => q.y + q.h)) + 24 - TOP_TRIM;
-
 type Industry = {
-  title: string; // "\n" = forced line break (matches reference wrapping)
+  title: string; // "\n" = line break used by the hero chips; shown on one line in the cards
   description: string; // "\n" = forced line break
-  bg: [string, string];
   iconColor: string;
-  rotation: number; // deg
-  t: number; // title font-size, in cqw of the CARD width
-  tl: number; // text + arrow left offset, % of card width
-  tt: number; // text top offset, % of card height
-  ab: number; // arrow bottom offset, % of card height
-  is: number; // icon size, cqw of card width
-  ir: number; // icon centre distance from right edge, % of card width
-  icon?: React.ReactNode;
-  variant?: "last" | "dots";
+  icon: React.ReactNode;
 };
 
 // ------------------------------------------------------------
@@ -1222,755 +1100,116 @@ type Industry = {
 // ------------------------------------------------------------
 
 const NAVY = "#0B1F4B";
-const SLATE = "#5B6577";
 const BRAND_RED = "#E11D48";
 
+// ------------------------------------------------------------
+// DATA  (order = reading order, 5 per row)
+// ------------------------------------------------------------
 
-// ------------------------------------------------------------
-// DATA  (order = reading order in the reference, 5 x 5)
-// ------------------------------------------------------------
+/** every card icon: same outline weight and size */
+const lucideIcon = (Icon: LucideIcon) => <Icon size={24} strokeWidth={1.6} />;
 
 const industries: Industry[] = [
   // ---------- ROW 1 ----------
-  {
-    title: "Retail &\nGeneral Trade",
-    description: "Shops, Supermarkets,\nKirana & More",
-    bg: ["#FDE9EC", "#FAC9CF"],
-    iconColor: "#F26D74",
-    rotation: 1.7,
-    t: 6.5, tl: 12, tt: 12, ab: 8, is: 30, ir: 14,
-    icon: <StorefrontRoundedIcon />,
-  },
-  {
-    title: "Agriculture",
-    description: "Farms, Agri Products,\nDairy & Livestock",
-    bg: ["#EAF7EC", "#CDEBD3"],
-    iconColor: "#3FAF5E",
-    rotation: -4,
-    t: 6.4, tl: 11, tt: 14, ab: 10, is: 28, ir: 15,
-    icon: <AgricultureRoundedIcon />,
-  },
-  {
-    title: "Automobile",
-    description: "Vehicles, Spare Parts,\nService Centres & Transport",
-    bg: ["#EFEBFE", "#D9D0F9"],
-    iconColor: "#A596EE",
-    rotation: -5,
-    t: 6.4, tl: 12, tt: 14, ab: 10, is: 22, ir: 13,
-    icon: <AirportShuttleRoundedIcon />,
-  },
-  {
-    title: "Construction &\nReal Estate",
-    description: "Building Materials,\nConstruction, Rentals & Lease",
-    bg: ["#FFF5DA", "#FFE6A8"],
-    iconColor: "#F2BE4A",
-    rotation: 0.8,
-    t: 6.1, tl: 8.5, tt: 14, ab: 10, is: 32, ir: 15,
-    icon: <ApartmentRoundedIcon />,
-  },
-  {
-    title: "Healthcare",
-    description: "Clinics, Hospitals,\nPharmacies & More",
-    bg: ["#E9F4FF", "#CFE5FB"],
-    iconColor: "#86B9F3",
-    rotation: 1.5,
-    t: 6.6, tl: 8, tt: 14, ab: 10, is: 27, ir: 16,
-    icon: <LocalHospitalRoundedIcon />,
-  },
+  { title: "Retail &\nGeneral Trade", description: "Shops, Supermarkets,\nKirana & More", iconColor: "#E5485F", icon: lucideIcon(ShoppingBag) },
+  { title: "Agriculture", description: "Farms, Agri Products,\nDairy & Livestock", iconColor: "#22A35A", icon: lucideIcon(Sprout) },
+  { title: "Automobile", description: "Vehicles, Spare Parts,\nService Centres & Transport", iconColor: "#6D5BD0", icon: lucideIcon(Car) },
+  { title: "Construction &\nReal Estate", description: "Building Materials,\nConstruction, Rentals & Lease", iconColor: "#F59E0B", icon: lucideIcon(Building2) },
+  { title: "Healthcare", description: "Clinics, Hospitals,\nPharmacies & More", iconColor: "#3B82F6", icon: lucideIcon(Cross) },
 
   // ---------- ROW 2 ----------
-  {
-    title: "Education &\nCoaching",
-    description: "Schools, Colleges,\nCoaching & Training",
-    bg: ["#E8F3FF", "#CFE4FB"],
-    iconColor: "#8FA6CF",
-    rotation: -2.5,
-    t: 6.4, tl: 12, tt: 10.5, ab: 9, is: 32, ir: 19,
-    icon: <SchoolRoundedIcon />,
-  },
-  {
-    title: "Fashion & Lifestyle",
-    description: "Garments, Footwear,\nJewellery, Beauty & More",
-    bg: ["#FDEBE9", "#FAD0CC"],
-    iconColor: "#F27B7B",
-    rotation: -4,
-    t: 5.9, tl: 8, tt: 12, ab: 9, is: 26, ir: 14,
-    icon: <CheckroomRoundedIcon />,
-  },
-  {
-    title: "Electronics &\nTechnology",
-    description: "Mobiles, Electronics,\nIT Services & Accessories",
-    bg: ["#E6F7F4", "#C8EDE7"],
-    iconColor: "#4DBBAA",
-    rotation: -3.5,
-    t: 6.2, tl: 10, tt: 13, ab: 9, is: 30, ir: 17,
-    icon: <LaptopMacRoundedIcon />,
-  },
-  {
-    title: "Food & Beverage",
-    description: "Restaurants, Cafes,\nHotels & Catering",
-    bg: ["#ECE8FD", "#D6CEF8"],
-    iconColor: "#9B8BE8",
-    rotation: -4,
-    t: 6, tl: 9.6, tt: 12, ab: 9, is: 24, ir: 13,
-    icon: <RestaurantRoundedIcon />,
-  },
-  {
-    title: "Home & Furniture",
-    description: "Furniture, Home Services,\nInteriors & More",
-    bg: ["#FDECEE", "#F9D5DA"],
-    iconColor: "#F08290",
-    rotation: -2,
-    t: 5.9, tl: 9, tt: 12, ab: 9, is: 23, ir: 13,
-    icon: <WeekendRoundedIcon />,
-  },
+  { title: "Education &\nCoaching", description: "Schools, Colleges,\nCoaching & Training", iconColor: "#2563EB", icon: lucideIcon(GraduationCap) },
+  { title: "Fashion & Lifestyle", description: "Garments, Footwear,\nJewellery, Beauty & More", iconColor: "#EF4444", icon: lucideIcon(Shirt) },
+  { title: "Electronics &\nTechnology", description: "Mobiles, Electronics,\nIT Services & Accessories", iconColor: "#14B8A6", icon: lucideIcon(Laptop) },
+  { title: "Food & Beverage", description: "Restaurants, Cafes,\nHotels & Catering", iconColor: "#7C5CE0", icon: lucideIcon(Utensils) },
+  { title: "Home & Furniture", description: "Furniture, Home Services,\nInteriors & More", iconColor: "#E5485F", icon: lucideIcon(Sofa) },
 
   // ---------- ROW 3 ----------
-  {
-    title: "Automotive & Transport",
-    description: "Vehicles, Logistics,\nTransport & Fleet",
-    bg: ["#FFF1D3", "#FFDDA0"],
-    iconColor: "#F6B94E",
-    rotation: -3.5,
-    t: 5.5, tl: 8, tt: 8, ab: 7, is: 30, ir: 15,
-    icon: <LocalShippingRoundedIcon />,
-  },
-  {
-    title: "Beauty & Wellness",
-    description: "Spa, Fitness, Wellness\n& Personal Care",
-    bg: ["#E9F0FE", "#D2DEFB"],
-    iconColor: "#A3B4F3",
-    rotation: -4.5,
-    t: 5.9, tl: 10, tt: 8, ab: 7, is: 24, ir: 14,
-    icon: <SpaRoundedIcon />,
-  },
-  {
-    title: "Health & Fitness",
-    description: "Gyms, Fitness, Sports\n& Wellness",
-    bg: ["#FDE9ED", "#F9CDD5"],
-    iconColor: "#EE6A7C",
-    rotation: -2.3,
-    t: 6.2, tl: 11, tt: 8, ab: 7, is: 24, ir: 18,
-    icon: <FitnessCenterRoundedIcon />,
-  },
-  {
-    title: "Pharmacy & Medical Devices",
-    description: "Medicine, Medical Devices\n& Healthcare Products",
-    bg: ["#E8F7EB", "#C9EDD1"],
-    iconColor: "#4FB56D",
-    rotation: -3,
-    t: 5.3, tl: 9, tt: 8, ab: 7, is: 25, ir: 16,
-    icon: <MedicationRoundedIcon />,
-  },
-  {
-    title: "Printing & Stationery",
-    description: "Printing, Stationery,\nOffice Supplies & More",
-    bg: ["#ECE8FD", "#D7CFF8"],
-    iconColor: "#9584E6",
-    rotation: -2.5,
-    t: 5.7, tl: 10, tt: 8, ab: 7, is: 21, ir: 17,
-    icon: <PrintRoundedIcon />,
-  },
+  { title: "Automotive & Transport", description: "Vehicles, Logistics,\nTransport & Fleet", iconColor: "#F59E0B", icon: lucideIcon(Truck) },
+  { title: "Beauty & Wellness", description: "Spa, Fitness, Wellness\n& Personal Care", iconColor: "#8B5CF6", icon: lucideIcon(Flower2) },
+  { title: "Health & Fitness", description: "Gyms, Fitness, Sports\n& Wellness", iconColor: "#E11D48", icon: lucideIcon(Dumbbell) },
+  { title: "Pharmacy & Medical Devices", description: "Medicine, Medical Devices\n& Healthcare Products", iconColor: "#22A35A", icon: lucideIcon(Pill) },
+  { title: "Printing & Stationery", description: "Printing, Stationery,\nOffice Supplies & More", iconColor: "#7C5CE0", icon: lucideIcon(Printer) },
 
   // ---------- ROW 4 ----------
-  {
-    title: "Electrical & Hardware",
-    description: "Electrical Works,\nHardware & Tools",
-    bg: ["#E3F7F4", "#C8EDEA"],
-    iconColor: "#45B3C2",
-    rotation: -2,
-    t: 4.8, tl: 8, tt: 7, ab: 6, is: 17, ir: 16,
-    icon: <BoltRoundedIcon />,
-  },
-  {
-    title: "Liquor & Beverages",
-    description: "Liquor, Beverages,\nFood & More",
-    bg: ["#FDE9EF", "#FACDD9"],
-    iconColor: "#F0708F",
-    rotation: -4.8,
-    t: 5.9, tl: 9.6, tt: 7, ab: 6, is: 19, ir: 16,
-    icon: <LiquorRoundedIcon />,
-  },
-  {
-    title: "Oil & Gas",
-    description: "Fuel, Energy, Industrial\nSupplies & More",
-    bg: ["#E8F3FF", "#CDE4FB"],
-    iconColor: "#5FAEEF",
-    rotation: -1,
-    t: 5.7, tl: 8.8, tt: 7, ab: 6, is: 14, ir: 17,
-    icon: <WaterDropRoundedIcon />,
-  },
-  {
-    title: "Packaging",
-    description: "Packaging Materials,\nSupplies & Services",
-    bg: ["#FFEFD9", "#FFD8AE"],
-    iconColor: "#F5A94E",
-    rotation: -3.5,
-    t: 5.3, tl: 10, tt: 7, ab: 6, is: 20, ir: 16,
-    icon: <Inventory2RoundedIcon />,
-  },
-  {
-    title: "Textiles & Garments",
-    description: "Fabrics, Textiles,\nApparel & More",
-    bg: ["#E8F7EB", "#CDEED6"],
-    iconColor: "#52BC79",
-    rotation: -2.5,
-    t: 5, tl: 9, tt: 7, ab: 6, is: 18, ir: 13,
-    icon: <DryCleaningRoundedIcon />,
-  },
+  { title: "Electrical & Hardware", description: "Electrical Works,\nHardware & Tools", iconColor: "#10B981", icon: lucideIcon(Zap) },
+  { title: "Liquor & Beverages", description: "Liquor, Beverages,\nFood & More", iconColor: "#E11D48", icon: lucideIcon(Wine) },
+  { title: "Oil & Gas", description: "Fuel, Energy, Industrial\nSupplies & More", iconColor: "#3B82F6", icon: lucideIcon(Droplet) },
+  { title: "Packaging", description: "Packaging Materials,\nSupplies & Services", iconColor: "#F59E0B", icon: lucideIcon(Archive) },
+  { title: "Textiles & Garments", description: "Fabrics, Textiles,\nApparel & More", iconColor: "#22A35A", icon: lucideIcon(Shirt) },
 
   // ---------- ROW 5 ----------
-  {
-    title: "Jewellery & Accessories",
-    description: "Jewellery, Watches,\nAccessories & More",
-    bg: ["#EEE8FD", "#D8CEF8"],
-    iconColor: "#9271DB",
-    rotation: -3,
-    t: 5, tl: 10, tt: 8, ab: 6, is: 18, ir: 18,
-    icon: <DiamondRoundedIcon />,
-  },
-  {
-    title: "Hotels & Hospitality",
-    description: "Hotels, Resorts, Hospitality\nServices & More",
-    bg: ["#FFF4D5", "#FFE3A0"],
-    iconColor: "#F3B93C",
-    rotation: -2.5,
-    t: 5.1, tl: 9.5, tt: 8, ab: 6, is: 20, ir: 20,
-    icon: <RoomServiceRoundedIcon />,
-  },
-  {
-    title: "Travel & Tourism",
-    description: "Tours, Travel, Transport\n& Logistics",
-    bg: ["#E6F3FF", "#C9E3FB"],
-    iconColor: "#4F9FE8",
-    rotation: -1.5,
-    t: 5.2, tl: 9.7, tt: 8, ab: 6, is: 18, ir: 17,
-    icon: <FlightRoundedIcon />,
-  },
-  {
-    title: "Others",
-    description: "Many more industries\nand services",
-    bg: ["#FDE9EC", "#FAD0D6"],
-    iconColor: "#F27A85",
-    rotation: -3.5,
-    t: 5.8, tl: 11.6, tt: 8, ab: 6, is: 15, ir: 14,
-    variant: "dots",
-  },
-  {
-    title: "And many more...",
-    description: "Whatever your business,\nwe're here to support you.",
-    bg: ["#E8F1FF", "#D0E1FB"],
-    iconColor: "#9EBFF5",
-    rotation: -2.5,
-    t: 5.5, tl: 9.4, tt: 12, ab: 6, is: 15, ir: 14,
-    variant: "last",
-  },
+  { title: "Jewellery & Accessories", description: "Jewellery, Watches,\nAccessories & More", iconColor: "#8B5CF6", icon: lucideIcon(Gem) },
+  { title: "Hotels & Hospitality", description: "Hotels, Resorts, Hospitality\nServices & More", iconColor: "#F59E0B", icon: lucideIcon(ConciergeBell) },
+  { title: "Travel & Tourism", description: "Tours, Travel, Transport\n& Logistics", iconColor: "#2563EB", icon: lucideIcon(Plane) },
+  { title: "Others", description: "Many more industries\nand services", iconColor: "#E11D48", icon: lucideIcon(Ellipsis) },
+  { title: "And many more...", description: "Whatever your business,\nwe're here to support you.", iconColor: NAVY, icon: lucideIcon(ArrowRight) },
 ];
 
 // ============================================================
 // INDUSTRY CARD
-//
-// Every measurement inside is in % or `cqw` of the CARD itself, so the
-// text / arrow / icon can never overlap or clip at any size.
 // ============================================================
 
-type Mode = "canvas" | "flow";
-
-const IndustryCard = ({
-  item,
-  mode,
-  quad,
-}: {
-  item: Industry;
-  mode: Mode;
-  quad?: Quad;
-}) => {
-  const canvas = mode === "canvas";
-  const isLast = item.variant === "last";
-  const isDots = item.variant === "dots";
-  const rot = item.rotation;
-  const tt = canvas ? item.tt : 14;
-
-  return (
+const IndustryCard = ({ item }: { item: Industry }) => (
+  <Box
+    sx={{
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
+      minWidth: 0,
+      height: "100%",
+      boxSizing: "border-box",
+      px: "14px",
+      py: "12px",
+      bgcolor: "#fff",
+      border: "1px solid #EEF0F4",
+      borderRadius: "14px",
+      boxShadow: "0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.04)",
+      transition: "box-shadow .2s ease",
+      "&:hover": { boxShadow: "0 6px 18px rgba(15,23,42,0.08)" },
+    }}
+  >
     <Box
       sx={{
-        position: "relative",
-        boxSizing: "border-box",
-        width: "100%",
-        ...(canvas
-          ? { height: "100%" }
-          : { aspectRatio: { xs: "2.4 / 1", sm: "2 / 1" } }),
-        containerType: "inline-size", // enables cqw for children
-        overflow: "hidden",
-        borderRadius: "10px",
-        // Both tints softened rather than restated on all 24 entries: the card
-        // colours are blended back towards the white behind them.
-        background: `linear-gradient(135deg, ${alpha(item.bg[0], 0.55)} 0%, ${alpha(item.bg[1], 0.55)} 100%)`,
-        border: "3px solid rgba(255,255,255,0.95)",
-        boxShadow:
-          "0 2px 4px rgba(15,23,42,0.06), 0 8px 18px rgba(15,23,42,0.10)",
-        // canvas: exact warp measured from the reference; flow: simple tilt
-        transform:
-          canvas && quad
-            ? `translate(${quad.cx}px, ${quad.cy}px) scale(${1 + TRIM_X / quad.w}, ${1 + TRIM_Y / quad.h}) translate(${-quad.cx}px, ${-quad.cy}px) ${quad.m}`
-            : "none", // tablet / mobile: cards stay straight
-        transformOrigin: canvas ? "0 0" : "center center",
-        transition:
-          "transform .22s ease, translate .22s ease, box-shadow .22s ease",
-        cursor: "pointer",
-        "&:hover": canvas
-          ? { translate: "0 -3px", boxShadow: "0 10px 22px rgba(15,23,42,0.13)" }
-          : {
-              transform: "translateY(-3px)",
-              boxShadow: "0 10px 22px rgba(15,23,42,0.13)",
-            },
+        flexShrink: 0,
+        width: { xs: 44, xl: 50 },
+        height: { xs: 44, xl: 50 },
+        borderRadius: "50%",
+        bgcolor: alpha(item.iconColor, 0.08),
+        color: item.iconColor,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
       }}
     >
-      {/* soft organic shapes behind the icon */}
-      <Box
-        sx={{
-          position: "absolute",
-          width: "60%",
-          height: "128%",
-          right: "-16%",
-          bottom: "-40%",
-          borderRadius: "52% 48% 44% 56% / 46% 54% 46% 54%",
-          transform: "rotate(-14deg)",
-          background: "rgba(255,255,255,0.30)",
-          zIndex: 0,
-        }}
-      />
-      <Box
-        sx={{
-          position: "absolute",
-          width: "44%",
-          height: "104%",
-          right: "-5%",
-          bottom: "-24%",
-          borderRadius: "40% 60% 38% 62% / 58% 42% 58% 42%",
-          transform: "rotate(-18deg)",
-          background: alpha(item.iconColor, 0.12),
-          zIndex: 0,
-        }}
-      />
-
-      {/* text (explicit line breaks = same wrapping as the reference) */}
-      <Box
-        sx={{
-          position: "absolute",
-          left: `${item.tl}%`,
-          right: "5%",
-          top: isLast ? "18%" : `${tt}%`,
-          zIndex: 3,
-        }}
-      >
-        <Typography
-          sx={{
-            color: NAVY,
-            fontWeight: 800,
-            fontSize: `${item.t}cqw`,
-            lineHeight: 1.15,
-            letterSpacing: "-0.02em",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {item.title.replace(/\n/g, " ")}
-        </Typography>
-        <Typography
-          sx={{
-            mt: "1.6cqw",
-            color: SLATE,
-            fontWeight: 400,
-            fontSize: `${(item.t * 0.68).toFixed(2)}cqw`,
-            lineHeight: 1.35,
-            whiteSpace: "pre-line", // honour the "\n" breaks so text stays inside the card
-          }}
-        >
-          {item.description}
-        </Typography>
-      </Box>
-
-      {isLast && (
-        <ArrowForwardRoundedIcon
-          sx={{
-            position: "absolute",
-            right: "7%",
-            bottom: "30%",
-            fontSize: "5.5cqw",
-            color: NAVY,
-            zIndex: 6,
-          }}
-        />
-      )}
-
-      {/* illustration icon (centre = ir% from right, 58% from top) */}
-      {!isLast && !isDots && item.icon && (
-        <Box
-          sx={{
-            position: "absolute",
-            right: `${item.ir}%`,
-            top: "58%",
-            transform: "translate(50%, -50%)",
-            color: item.iconColor,
-            opacity: 0.62,
-            zIndex: 2,
-            display: "flex",
-            pointerEvents: "none",
-            "& svg": { fontSize: `${item.is}cqw` },
-          }}
-        >
-          {item.icon}
-        </Box>
-      )}
-
-      {/* "Others" dotted circle */}
-      {isDots && (
-        <Box
-          sx={{
-            position: "absolute",
-            right: `${item.ir}%`,
-            top: "58%",
-            transform: "translate(50%, -50%)",
-            width: `${item.is}cqw`,
-            height: `${item.is}cqw`,
-            borderRadius: "50%",
-            bgcolor: "rgba(255,255,255,0.65)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#F27A85",
-            zIndex: 2,
-            pointerEvents: "none",
-            "& svg": { fontSize: `${item.is * 0.72}cqw` },
-          }}
-        >
-          <MoreHorizRoundedIcon />
-        </Box>
-      )}
+      {item.icon}
     </Box>
-  );
-};
-
-// ============================================================
-// DESKTOP CANVAS (900px+): exact scaled copy of the 1344 x 896 reference
-// ============================================================
-
-const NAV_LINKS = ["Home", "Features", "Industries", "Pricing", "About Us"];
-
-const DesktopCanvas = () => {
-  const ref = React.useRef<HTMLDivElement>(null);
-  const [k, setK] = React.useState(1);
-  const [offsetX, setOffsetX] = React.useState(0);
-  const [spread, setSpread] = React.useState(1);
-
-  // scale the fixed 1344 x 896 stage so the whole section fits the screen:
-  // limited by the section width, or by the viewport height below the sticky navbar
-  React.useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const update = () => {
-      const availH = window.innerHeight - (NAV_H.md + 1) - SECTION_PAD_Y;
-      const next = Math.min(el.clientWidth / W, availH / STAGE_H);
-      const nextSpread = Math.min(MAX_SPREAD, el.clientWidth / (W * next));
-      setK(next);
-      setSpread(nextSpread);
-      setOffsetX(Math.max(0, (el.clientWidth - W * nextSpread * next) / 2));
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    window.addEventListener("resize", update);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", update);
-    };
-  }, []);
-
-  return (
-  <Box
-    ref={ref}
-    sx={{
-      display: "none",
-      [DESKTOP_MIN]: { display: "block" },
-      position: "relative",
-      width: "100%",
-      height: `${STAGE_H * k}px`,
-    }}
-  >
-  <Box
-    sx={{
-      position: "absolute",
-      top: `${-TOP_TRIM * k}px`,
-      left: `${offsetX}px`,
-      width: `${W * spread}px`,
-      height: `${H}px`,
-      transformOrigin: "0 0",
-      transform: `scale(${k})`,
-    }}
-  >
-    
-
-    {/* ---------- EYEBROW ---------- */}
-    <Typography
-      sx={{
-        position: "absolute",
-        left: cq(47),
-        top: cq(83),
-        color: BRAND_RED,
-        fontSize: cq(10),
-        fontWeight: 800,
-        letterSpacing: "0.32em",
-        textTransform: "uppercase",
-        lineHeight: 1,
-        whiteSpace: "nowrap",
-      }}
-    >
-      Built for every business
-    </Typography>
-
-    {/* ---------- HEADING ---------- */}
-    <Typography
-      component="h2"
-      sx={{
-        position: "absolute",
-        left: cq(47),
-        top: cq(102),
-        m: 0,
-        color: NAVY,
-        fontWeight: 800,
-        fontSize: cq(40),
-        lineHeight: 1,
-        letterSpacing: "-0.045em",
-        whiteSpace: "nowrap",
-      }}
-    >
-      <Box component="span" sx={{ color: BRAND_RED }}>
-        zodu
-      </Box>{" "}
-      is suitable for all types of businesses
-    </Typography>
-
-
-    {/* ---------- HANDWRITTEN NOTE ---------- */}
-    <Box
-      sx={{
-        position: "absolute",
-        left: pct(1188, W),
-        top: pct(118, H),
-        transform: "translate(-50%, -50%) rotate(-11deg)",
-        color: BRAND_RED,
-        fontFamily: "'Caveat', 'Segoe Script', 'Brush Script MT', cursive",
-        zIndex: 5,
-      }}
-    >
-      {/* spark marks */}
-      <Box
-        component="svg"
-        viewBox="0 0 50 50"
-        sx={{
-          position: "absolute",
-          left: cq(-46),
-          top: cq(-6),
-          width: cq(30),
-          height: cq(30),
-        }}
-      >
-        <path d="M27 5 L36 15" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
-        <path d="M7 22 L17 22" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
-        <path d="M18 37 L26 29" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
-      </Box>
-
+    <Box sx={{ minWidth: 0 }}>
       <Typography
         sx={{
-          fontFamily: "inherit",
-          fontSize: cq(25),
-          fontWeight: 600,
-          fontStyle: "italic",
-          lineHeight: 1.2,
-          whiteSpace: "nowrap",
+          color: "#0F172A",
+          fontWeight: 700,
+          fontSize: { xs: "13.5px", md: "14px" },
+          lineHeight: 1.3,
+          letterSpacing: "-0.01em",
         }}
       >
-        <Box component="span" sx={{ ml: cq(14) }}>
-          Different Businesses.
-        </Box>
-        <br />
-        Same Powerful Solution.
+        {item.title.replace(/\n/g, " ")}
       </Typography>
-
-      {/* squiggle underline */}
-      <Box
-        component="svg"
-        viewBox="0 0 290 30"
-        sx={{
-          display: "block",
-          width: cq(135),
-          height: cq(16),
-          ml: cq(42),
-          mt: cq(4),
-        }}
-      >
-        <path d="M4 24 C70 20 150 12 285 2" fill="none" stroke={BRAND_RED} strokeWidth="2.6" strokeLinecap="round" />
-      </Box>
-    </Box>
-
-    {/* ---------- CARDS (exact position + warp measured from the reference) ---------- */}
-    {industries.map((item, index) => {
-      const raw = QUADS[index];
-      // widen the card a little (kept centred on its spread-out column position)
-      const cw = Math.min(spread, CARD_W_SPREAD);
-      const q = { ...raw, w: raw.w * cw, cx: raw.cx * cw };
-      const left = (raw.x + raw.w / 2) * spread - q.w / 2;
-      return (
-        <Box
-          key={`${item.title}-${index}`}
-          sx={{
-            position: "absolute",
-            left: `${left}px`,
-            top: `${q.y}px`,
-            width: `${q.w}px`,
-            height: `${q.h}px`,
-          }}
-        >
-          <IndustryCard item={item} mode="canvas" quad={q} />
-        </Box>
-      );
-    })}
-  </Box>
-  </Box>
-  );
-};
-
-// ============================================================
-// TABLET / MOBILE (below 900px): normal responsive grid
-// ============================================================
-
-const FlowLayout = () => {
-  return (
-  <Box
-    sx={{ display: "block", [DESKTOP_MIN]: { display: "none" } }}
-  >
-    <Box sx={{ px: { xs: "20px", md: "38px" }, pt: "22px" }}>
       <Typography
         sx={{
-          color: BRAND_RED,
+          mt: "4px",
+          color: "#64748B",
           fontSize: "11px",
-          fontWeight: 800,
-          letterSpacing: "0.32em",
-          textTransform: "uppercase",
-          mb: "12px",
+          lineHeight: 1.45,
+          whiteSpace: "pre-line", // the "\n" in the data = the line break in the card
         }}
       >
-        Built for every business
+        {item.description}
       </Typography>
-      <Typography
-        component="h2"
-        sx={{
-          m: 0,
-          color: NAVY,
-          fontWeight: 800,
-          fontSize: { xs: "36px", md: "46px" },
-          lineHeight: 0.95,
-          letterSpacing: "-0.045em",
-        }}
-      >
-        <Box component="span" sx={{ color: BRAND_RED }}>
-          zodu
-        </Box>{" "}
-        is suitable for all types of businesses
-      </Typography>
-
-      {/* handwritten note: centred (tablet + mobile) */}
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          mt: { xs: "30px", md: "28px" },
-        }}
-      >
-        <Box
-          sx={{
-            position: "relative",
-            textAlign: "center",
-            color: BRAND_RED,
-            transform: "rotate(-6deg)",
-            fontFamily: "'Caveat', 'Segoe Script', 'Brush Script MT', cursive",
-          }}
-        >
-          {/* spark marks */}
-          <Box
-            component="svg"
-            viewBox="0 0 50 50"
-            sx={{
-              position: "absolute",
-              left: "-38px",
-              top: "-8px",
-              width: "30px",
-              height: "30px",
-            }}
-          >
-            <path d="M27 5 L36 15" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
-            <path d="M7 22 L17 22" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
-            <path d="M18 37 L26 29" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
-          </Box>
-
-          <Typography
-            sx={{
-              fontFamily: "inherit",
-              fontSize: { xs: "24px", md: "28px" },
-              fontWeight: 600,
-              fontStyle: "italic",
-              lineHeight: 1.2,
-              whiteSpace: "nowrap",
-            }}
-          >
-            Different Businesses.
-            <br />
-            Same Powerful Solution.
-          </Typography>
-
-          {/* squiggle underline */}
-          <Box
-            component="svg"
-            viewBox="0 0 290 30"
-            sx={{
-              display: "block",
-              width: { xs: "150px", md: "170px" },
-              height: "16px",
-              mx: "auto",
-              mt: "4px",
-            }}
-          >
-            <path d="M4 24 C70 20 150 12 285 2" fill="none" stroke={BRAND_RED} strokeWidth="2.6" strokeLinecap="round" />
-          </Box>
-        </Box>
-      </Box>
-    </Box>
-
-    <Box
-      sx={{
-        boxSizing: "border-box",
-        px: { xs: "20px", md: "38px" },
-        mt: "32px",
-        pb: "40px",
-        display: "grid",
-        gridTemplateColumns: {
-          xs: "1fr",
-          sm: "repeat(3, minmax(0, 1fr))", // tablet (600px+)
-        },
-        gap: "16px",
-      }}
-    >
-      {industries.map((item, index) => (
-        <Box key={`${item.title}-${index}`} sx={{ minWidth: 0 }}>
-          <IndustryCard item={item} mode="flow" />
-        </Box>
-      ))}
     </Box>
   </Box>
-  );
-};
+);
 
 // ============================================================
 // INDUSTRIES SECTION
@@ -1985,10 +1224,10 @@ export const IndustriesSection = () => {
         boxSizing: "border-box",
         position: "relative",
         width: "100%",
-        pt: { xs: "8px", md: `${SECTION_PT}px` }, // space above the section
-        pb: { xs: "32px", md: `${SECTION_PAD_Y - SECTION_PT}px` }, // space below the section
+        px: { xs: "20px", md: "44px" },
+        pt: { xs: "28px", md: "32px" },
+        pb: { xs: "32px", md: "40px" },
         overflow: "hidden",
-        containerType: "inline-size", // 1cqw = 1% of section width
         background: "linear-gradient(180deg, #FFFFFF 0%, #F8F9FB 100%)",
       }}
     >
@@ -1998,8 +1237,114 @@ export const IndustriesSection = () => {
         href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&display=swap"
       />
 
-      <DesktopCanvas />
-      <FlowLayout />
+      {/* ---------- HEADER ---------- */}
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          alignItems: { xs: "flex-start", md: "flex-end" },
+          justifyContent: "space-between",
+          gap: { xs: "20px", md: "32px" },
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
+          <Typography
+            sx={{
+              color: BRAND_RED,
+              fontSize: "11px",
+              fontWeight: 800,
+              letterSpacing: "0.32em",
+              textTransform: "uppercase",
+              mb: "10px",
+            }}
+          >
+            Built for every business
+          </Typography>
+          <Typography
+            component="h2"
+            sx={{
+              m: 0,
+              color: NAVY,
+              fontWeight: 800,
+              fontSize: { xs: "30px", md: "clamp(28px, 3vw, 46px)" },
+              lineHeight: 1.05,
+              letterSpacing: "-0.045em",
+              whiteSpace: { md: "nowrap" },
+            }}
+          >
+            <Box component="span" sx={{ color: BRAND_RED }}>
+              zodu
+            </Box>{" "}
+            is suitable for all types of businesses
+          </Typography>
+        </Box>
+
+        {/* handwritten note */}
+        <Box
+          sx={{
+            position: "relative",
+            flexShrink: 0,
+            alignSelf: { xs: "center", md: "flex-end" },
+            textAlign: "center",
+            color: BRAND_RED,
+            transform: "rotate(-8deg)",
+            fontFamily: "'Caveat', 'Segoe Script', 'Brush Script MT', cursive",
+            mr: { md: "16px" },
+          }}
+        >
+          {/* spark marks */}
+          <Box
+            component="svg"
+            viewBox="0 0 50 50"
+            sx={{ position: "absolute", left: "-36px", top: "-6px", width: "28px", height: "28px" }}
+          >
+            <path d="M27 5 L36 15" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
+            <path d="M7 22 L17 22" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
+            <path d="M18 37 L26 29" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
+          </Box>
+          <Typography
+            sx={{
+              fontFamily: "inherit",
+              fontSize: { xs: "22px", md: "24px" },
+              fontWeight: 600,
+              fontStyle: "italic",
+              lineHeight: 1.2,
+              whiteSpace: "nowrap",
+            }}
+          >
+            Different Businesses.
+            <br />
+            Same Powerful Solution.
+          </Typography>
+          {/* squiggle underline */}
+          <Box
+            component="svg"
+            viewBox="0 0 290 30"
+            sx={{ display: "block", width: "150px", height: "14px", mx: "auto", mt: "4px" }}
+          >
+            <path d="M4 24 C70 20 150 12 285 2" fill="none" stroke={BRAND_RED} strokeWidth="2.6" strokeLinecap="round" />
+          </Box>
+        </Box>
+      </Box>
+
+      {/* ---------- CARDS ---------- */}
+      <Box
+        sx={{
+          mt: { xs: "24px", md: "28px" },
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "minmax(0, 1fr)",
+            sm: "repeat(2, minmax(0, 1fr))",
+            md: "repeat(3, minmax(0, 1fr))",
+            lg: "repeat(5, minmax(0, 1fr))",
+          },
+          gap: { xs: "12px", md: "14px" },
+        }}
+      >
+        {industries.map((item) => (
+          <IndustryCard key={item.title} item={item} />
+        ))}
+      </Box>
     </Box>
   );
 };
@@ -2151,6 +1496,288 @@ const HERO_RED_DARK = "#C70027";
 const CTA_RED = "#E8002D";
 const CTA_RED_HOVER = "#C90027";
 
+// ── GET THE APP ─────────────────────────────────────────────────────────────
+
+/** Store badge: dark pill with the logo and two lines of text. */
+const AppStoreBadge: React.FC<{ icon: React.ReactNode; small: string; big: string; label: string }> = ({ icon, small, big, label }) => (
+  <Box component="a" href="#" aria-label={label} sx={{
+    display: "inline-flex", alignItems: "center", gap: 1.4, textDecoration: "none",
+    bgcolor: "#0B0B0F", color: "#fff",
+    px: { xs: 1.8, md: 2 }, py: { xs: 0.8, md: 0.85 },
+    borderRadius: "10px",
+    minWidth: 0,
+    boxShadow: "0 8px 20px rgba(0,0,0,0.18)", transition: "all 0.18s",
+    "&:hover": { transform: "translateY(-2px)", boxShadow: "0 12px 26px rgba(0,0,0,0.26)" },
+  }}>
+    {icon}
+    <Box sx={{ textAlign: "left", lineHeight: 1 }}>
+      <Typography sx={{ fontFamily: POPPINS, fontSize: { xs: "0.58rem", md: "0.66rem" }, color: "rgba(255,255,255,0.85)" }}>{small}</Typography>
+      <Typography sx={{ fontFamily: POPPINS, fontSize: { xs: "1rem", md: "1.1rem" }, fontWeight: 600, mt: "2px", color: "#fff", whiteSpace: "nowrap" }}>{big}</Typography>
+    </Box>
+  </Box>
+);
+
+/** Placeholder QR mark until the real store link QR is generated. */
+const AppQrMark: React.FC = () => (
+  <Box component="svg" viewBox="0 0 21 21" sx={{ display: "block", width: "100%", height: "100%" }}>
+    <rect x="0" y="0" width="7" height="7" fill="#111" rx="0.5"/><rect x="1" y="1" width="5" height="5" fill="#fff"/><rect x="2" y="2" width="3" height="3" fill="#111"/>
+    <rect x="14" y="0" width="7" height="7" fill="#111" rx="0.5"/><rect x="15" y="1" width="5" height="5" fill="#fff"/><rect x="16" y="2" width="3" height="3" fill="#111"/>
+    <rect x="0" y="14" width="7" height="7" fill="#111" rx="0.5"/><rect x="1" y="15" width="5" height="5" fill="#fff"/><rect x="2" y="16" width="3" height="3" fill="#111"/>
+    <rect x="8" y="6" width="1" height="1" fill="#111"/><rect x="10" y="6" width="1" height="1" fill="#111"/><rect x="12" y="6" width="1" height="1" fill="#111"/>
+    <rect x="6" y="8" width="1" height="1" fill="#111"/><rect x="6" y="10" width="1" height="1" fill="#111"/><rect x="6" y="12" width="1" height="1" fill="#111"/>
+    <rect x="8" y="0" width="1" height="1" fill="#111"/><rect x="10" y="0" width="2" height="1" fill="#111"/><rect x="13" y="0" width="1" height="1" fill="#111"/>
+    <rect x="9" y="2" width="1" height="1" fill="#111"/><rect x="11" y="2" width="2" height="1" fill="#111"/>
+    <rect x="8" y="4" width="2" height="1" fill="#111"/><rect x="12" y="4" width="2" height="1" fill="#111"/>
+    <rect x="0" y="8" width="1" height="1" fill="#111"/><rect x="2" y="8" width="3" height="1" fill="#111"/><rect x="8" y="8" width="2" height="1" fill="#111"/><rect x="12" y="8" width="2" height="1" fill="#111"/><rect x="16" y="8" width="1" height="1" fill="#111"/><rect x="18" y="8" width="1" height="1" fill="#111"/><rect x="20" y="8" width="1" height="1" fill="#111"/>
+    <rect x="0" y="10" width="1" height="1" fill="#111"/><rect x="3" y="10" width="2" height="1" fill="#111"/><rect x="8" y="10" width="1" height="1" fill="#111"/><rect x="11" y="10" width="2" height="1" fill="#111"/><rect x="15" y="10" width="3" height="1" fill="#111"/><rect x="20" y="10" width="1" height="1" fill="#111"/>
+    <rect x="1" y="12" width="2" height="1" fill="#111"/><rect x="5" y="12" width="1" height="1" fill="#111"/><rect x="9" y="12" width="2" height="1" fill="#111"/><rect x="13" y="12" width="1" height="1" fill="#111"/><rect x="16" y="12" width="2" height="1" fill="#111"/>
+    <rect x="8" y="14" width="1" height="1" fill="#111"/><rect x="10" y="14" width="2" height="1" fill="#111"/><rect x="14" y="14" width="1" height="1" fill="#111"/><rect x="17" y="14" width="2" height="1" fill="#111"/><rect x="20" y="14" width="1" height="1" fill="#111"/>
+    <rect x="9" y="16" width="2" height="1" fill="#111"/><rect x="13" y="16" width="1" height="1" fill="#111"/><rect x="16" y="16" width="1" height="1" fill="#111"/><rect x="19" y="16" width="2" height="1" fill="#111"/>
+    <rect x="8" y="18" width="1" height="1" fill="#111"/><rect x="11" y="18" width="2" height="1" fill="#111"/><rect x="15" y="18" width="1" height="1" fill="#111"/><rect x="18" y="18" width="2" height="1" fill="#111"/>
+    <rect x="9" y="20" width="2" height="1" fill="#111"/><rect x="13" y="20" width="2" height="1" fill="#111"/><rect x="17" y="20" width="1" height="1" fill="#111"/><rect x="20" y="20" width="1" height="1" fill="#111"/>
+  </Box>
+);
+
+const APP_TRUST = [
+  { icon: <VerifiedUserIcon />, title: "Secure & Reliable", sub: "Your data is always safe" },
+  { icon: <CloudDoneIcon />,    title: "Works Offline",     sub: "Auto syncs when online" },
+  { icon: <SupportAgentIcon />, title: "24/7 Support",      sub: "We're here to help" },
+];
+
+/**
+ * The feature cards around the phone, placed on a 700 x 600 stage (the phone
+ * artwork sits in its middle). `x`/`y` = card top-left, `lx`/`ly` = where its
+ * dashed line meets the phone. Everything is converted to % of the stage.
+ */
+const APP_STAGE = { w: 700, h: 600 };
+const APP_CARD = 108;
+const APP_FEATURES: Array<{
+  label: string; icon: React.ReactNode; color: string; side: "left" | "right";
+  x: number; y: number; lx: number; ly: number; badge?: string;
+}> = [
+  { label: "Sales &\nBilling",            icon: <ShoppingCart strokeWidth={2} />,  color: "#E11D48", side: "left",  x: 62,  y: 70,  lx: 262, ly: 205 },
+  { label: "Inventory\nManagement",       icon: <Package strokeWidth={2} />,       color: "#16A34A", side: "left",  x: 26,  y: 212, lx: 238, ly: 330 },
+  { label: "Customer\nManagement",        icon: <PeopleAltRoundedIcon />,          color: "#F59E0B", side: "left",  x: 0,   y: 352, lx: 222, ly: 450 },
+  { label: "Reports &\nInsights",         icon: <BarChartRoundedIcon />,           color: "#E11D48", side: "right", x: 566, y: 130, lx: 478, ly: 250 },
+  { label: "Instant\nAlerts",             icon: <Bell strokeWidth={2} />,          color: "#E11D48", side: "right", x: 556, y: 268, lx: 462, ly: 372, badge: "3" },
+  { label: "Multi-Branch\nManagement",    icon: <Store strokeWidth={2} />,         color: "#E11D48", side: "right", x: 540, y: 404, lx: 446, ly: 490 },
+];
+
+const pctW = (v: number) => `${(v / APP_STAGE.w) * 100}%`;
+const pctH = (v: number) => `${(v / APP_STAGE.h) * 100}%`;
+
+/** Phone artwork with the feature cards and dashed connectors around it. */
+const AppPhoneStage: React.FC = () => (
+  <Box sx={{
+    position: "relative", width: "100%", maxWidth: 560, mx: "auto",
+    aspectRatio: `${APP_STAGE.w} / ${APP_STAGE.h}`,
+    containerType: "inline-size", // card text / icons scale with the stage (cqw)
+  }}>
+    {/* dashed connectors */}
+    <Box component="svg" viewBox={`0 0 ${APP_STAGE.w} ${APP_STAGE.h}`} aria-hidden
+      sx={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: { xs: "none", sm: "block" }, zIndex: 1 }}>
+      {APP_FEATURES.map((f) => {
+        const sx = f.side === "left" ? f.x + APP_CARD : f.x; // card edge facing the phone
+        const sy = f.y + APP_CARD / 2;
+        const mx = (sx + f.lx) / 2;
+        return (
+          <path key={f.label}
+            d={`M ${sx} ${sy} C ${mx} ${sy}, ${mx} ${f.ly}, ${f.lx} ${f.ly}`}
+            fill="none" stroke={alpha(APP_RED, 0.75)} strokeWidth="1.6" strokeDasharray="5 5" strokeLinecap="round" />
+        );
+      })}
+    </Box>
+
+
+    {/* phone */}
+    <Box component="img" src={getAppImg} alt="Zodu mobile app dashboard" sx={{
+      // 408 x 612 artwork: 372 wide = 558 tall, so it ends just inside the 600 stage
+      position: "absolute", left: pctW(158), top: pctH(30), width: pctW(372), height: "auto",
+      display: "block", zIndex: 2,
+      filter: "drop-shadow(0 22px 34px rgba(15,23,42,0.18))",
+    }} />
+
+    {/* feature cards */}
+    {APP_FEATURES.map((f) => (
+      <Box key={f.label} sx={{
+        position: "absolute", left: pctW(f.x), top: pctH(f.y), width: pctW(APP_CARD),
+        aspectRatio: "1 / 1", zIndex: 3,
+        display: { xs: "none", sm: "flex" }, flexDirection: "column", alignItems: "center", justifyContent: "center",
+        gap: "1.2cqw",
+        bgcolor: "#fff", borderRadius: "2.6cqw",
+        boxShadow: "0 10px 26px rgba(15,23,42,0.10)",
+        transform: "rotate(6deg)",
+      }}>
+        <Box sx={{ position: "relative", color: f.color, display: "flex", "& svg": { width: "5.4cqw", height: "5.4cqw", fontSize: "5.4cqw" } }}>
+          {f.icon}
+          {f.badge && (
+            <Box sx={{
+              position: "absolute", top: "-1.2cqw", right: "-1.6cqw",
+              minWidth: "2.8cqw", height: "2.8cqw", px: "0.4cqw", borderRadius: "999px",
+              bgcolor: APP_RED, color: "#fff", fontSize: "1.7cqw", fontWeight: 700, fontFamily: POPPINS,
+              display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1,
+            }}>{f.badge}</Box>
+          )}
+        </Box>
+        <Typography sx={{
+          fontFamily: POPPINS, fontWeight: 600, color: APP_NAVY, textAlign: "center",
+          fontSize: "1.75cqw", lineHeight: 1.25, whiteSpace: "pre",
+        }}>
+          {f.label}
+        </Typography>
+      </Box>
+    ))}
+  </Box>
+);
+
+const GetAppSection: React.FC = () => (
+  <Box sx={{ py: { xs: 3, md: 4 }, px: SX, bgcolor: LIGHT, fontFamily: POPPINS }}>
+    <Box sx={{ maxWidth: SECTION_MAX_W, mx: "auto" }}>
+      <Box sx={{
+        position: "relative", overflow: "hidden",
+        borderRadius: { xs: "20px", md: "26px" },
+        bgcolor: "#fff",
+        boxShadow: "0 14px 42px rgba(15,23,42,0.07)",
+      }}>
+        {/* soft pink shapes behind the phone */}
+        <Box aria-hidden sx={{
+          position: "absolute", right: "-12%", top: "-35%", width: "68%", height: "170%", borderRadius: "50%",
+          background: `radial-gradient(closest-side, ${alpha("#FBC9CF", 0.75)}, ${alpha("#FDE4E7", 0.55)} 60%, transparent)`,
+          zIndex: 0,
+        }} />
+        <Box aria-hidden sx={{
+          position: "absolute", right: "-6%", bottom: "-55%", width: "60%", height: "100%", borderRadius: "50%",
+          bgcolor: alpha("#FBD0D5", 0.45), zIndex: 0,
+        }} />
+
+        {/* dot patterns */}
+        <Box aria-hidden sx={{
+          position: "absolute", top: 36, right: 40, width: 110, height: 90, zIndex: 0,
+          backgroundImage: `radial-gradient(${alpha(APP_RED, 0.35)} 1.5px, transparent 1.5px)`,
+          backgroundSize: "16px 16px", display: { xs: "none", md: "block" },
+        }} />
+        <Box aria-hidden sx={{
+          position: "absolute", bottom: 24, left: 20, width: 70, height: 110, zIndex: 0,
+          backgroundImage: `radial-gradient(${alpha(APP_RED, 0.35)} 1.5px, transparent 1.5px)`,
+          backgroundSize: "16px 16px", display: { xs: "none", md: "block" },
+        }} />
+
+        <Box sx={{
+          position: "relative", zIndex: 1,
+          display: "flex", flexDirection: { xs: "column", md: "row" }, alignItems: "center",
+          gap: { xs: 3, md: 2 },
+          px: { xs: 2.5, md: 5 }, py: { xs: 3, md: 3 },
+        }}>
+          {/* LEFT — copy */}
+          <Box sx={{ flex: { md: "0 0 52%" }, minWidth: 0, width: "100%", textAlign: { xs: "center", md: "left" } }}>
+            {/* eyebrow */}
+            <Box sx={{
+              display: "inline-flex", alignItems: "center", gap: 1,
+              bgcolor: alpha(APP_RED, 0.08), border: `1px solid ${alpha(APP_RED, 0.12)}`,
+              borderRadius: "999px", px: 1.8, py: 0.6, mb: { xs: 1.6, md: 1.8 },
+            }}>
+              <SmartphoneIcon sx={{ fontSize: 20, color: APP_RED }} />
+              <Typography sx={{ fontFamily: POPPINS, fontWeight: 700, fontSize: { xs: "0.72rem", md: "0.8rem" }, letterSpacing: "0.14em", color: APP_RED }}>
+                ZODU MOBILE APP
+              </Typography>
+            </Box>
+
+            {/* heading */}
+            <Typography component="h2" sx={{
+              fontFamily: POPPINS, fontWeight: 800, color: APP_NAVY,
+              fontSize: { xs: "2rem", sm: "2.4rem", md: "clamp(2.2rem, 2.9vw, 3rem)" },
+              lineHeight: 1.1, letterSpacing: "-0.03em", mb: { xs: 1.5, md: 1.6 },
+            }}>
+              Your Whole Business,<br />
+              In Your{" "}
+              <Box component="span" sx={{
+                color: APP_RED, position: "relative", display: "inline-block",
+                "&::after": { content: '""', position: "absolute", left: 0, right: 0, bottom: { xs: -4, md: -6 }, height: { xs: 3, md: 4 }, borderRadius: "999px", bgcolor: APP_RED },
+              }}>
+                Pocket
+              </Box>
+            </Typography>
+
+            {/* subtext */}
+            <Typography sx={{
+              fontFamily: POPPINS, color: APP_SLATE, lineHeight: 1.6,
+              fontSize: { xs: "0.92rem", md: "clamp(0.92rem, 1vw, 1.1rem)" },
+              maxWidth: 620, mx: { xs: "auto", md: 0 }, mb: { xs: 2.2, md: 2.4 },
+            }}>
+              Bill customers, track stock, check live reports and get instant alerts — anytime, anywhere. Free on iOS &amp; Android.
+            </Typography>
+
+            {/* Badges row + trust strip share one width and the same three equal
+                columns, so their edges line up. */}
+            <Box sx={{
+              display: "grid", gap: { xs: 2, md: 2.2 },
+              width: "100%", maxWidth: 720,
+              mx: { xs: "auto", md: 0 },
+            }}>
+            {/* store badges + QR */}
+            <Box sx={{
+              display: "grid", alignItems: "stretch", gap: { xs: 1.5, md: 1.6 },
+              gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))" },
+            }}>
+              <AppStoreBadge label="Download Zodu on the App Store" small="Download on the" big="App Store"
+                icon={<AppleIcon sx={{ fontSize: { xs: 26, md: 28 }, color: "#fff", flexShrink: 0 }} />} />
+              <AppStoreBadge label="Get Zodu on Google Play" small="GET IT ON" big="Google Play"
+                icon={<Box component="img" src={gPlayLogo} alt="" sx={{ width: { xs: 22, md: 24 }, height: { xs: 22, md: 24 }, objectFit: "contain", flexShrink: 0 }} />} />
+              <Box sx={{
+                display: { xs: "none", sm: "flex" }, alignItems: "center", gap: 1.5,
+                bgcolor: "#fff", borderRadius: "12px", border: `1px solid ${BORDER}`,
+                boxShadow: "0 6px 20px rgba(0,0,0,0.06)", px: 1.2, py: 0.6,
+              }}>
+                <Box sx={{ width: 48, height: 48, flexShrink: 0 }}><AppQrMark /></Box>
+                <Box sx={{ textAlign: "left" }}>
+                  <Typography sx={{ fontFamily: POPPINS, fontWeight: 600, fontSize: "0.8rem", color: APP_NAVY, lineHeight: 1.2 }}>Scan to<br />Download</Typography>
+                  <Typography sx={{ fontFamily: POPPINS, fontSize: "0.64rem", color: APP_SLATE, mt: 0.3, lineHeight: 1.3 }}>Point your camera<br />at the QR code</Typography>
+                </Box>
+              </Box>
+            </Box>
+
+            {/* trust strip */}
+            <Box sx={{
+              display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" },
+              bgcolor: "#fff", borderRadius: "14px", border: `1px solid ${BORDER}`,
+              boxShadow: "0 8px 22px rgba(15,23,42,0.05)",
+              width: "100%", minWidth: 0,
+            }}>
+              {APP_TRUST.map((t, i) => (
+                <Box key={t.title} sx={{
+                  display: "flex", alignItems: "center", gap: 1.1, px: 1.5, py: 1.1, minWidth: 0,
+                  justifyContent: { xs: "center", sm: "flex-start" },
+                  borderLeft: { sm: i ? `1px solid ${BORDER}` : "none" },
+                  borderTop: { xs: i ? `1px solid ${BORDER}` : "none", sm: "none" },
+                }}>
+                  <Box sx={{
+                    width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
+                    bgcolor: alpha(APP_RED, 0.1), color: APP_RED,
+                    display: "flex", alignItems: "center", justifyContent: "center", "& svg": { fontSize: 19 },
+                  }}>
+                    {t.icon}
+                  </Box>
+                  <Box sx={{ textAlign: "left", minWidth: 0 }}>
+                    <Typography sx={{ fontFamily: POPPINS, fontSize: "0.8rem", fontWeight: 600, color: APP_NAVY, lineHeight: 1.25 }}>{t.title}</Typography>
+                    <Typography sx={{ fontFamily: POPPINS, fontSize: "0.7rem", color: APP_SLATE, lineHeight: 1.35 }}>{t.sub}</Typography>
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+            </Box>
+          </Box>
+
+          {/* RIGHT — phone with the feature cards */}
+          <Box sx={{ flex: { md: "1 1 48%" }, minWidth: 0, width: "100%", maxWidth: { xs: 520, md: "none" } }}>
+            <AppPhoneStage />
+          </Box>
+        </Box>
+      </Box>
+    </Box>
+  </Box>
+);
+
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 const ZoduLandingPage: React.FC = () => {
@@ -2168,7 +1795,7 @@ const ZoduLandingPage: React.FC = () => {
           to: { opacity: 1 },
         },
       }} />
-      <Box sx={{ height: "100vh", overflowY: "auto", overflowX: "hidden", bgcolor: "#fff", scrollBehavior: "smooth" }}>
+      <Box sx={{ height: "100dvh", overflowY: "auto", overflowX: "hidden", bgcolor: "#fff", scrollBehavior: "smooth" }}>
 
         {/* ── NAV ─────────────────────────────────────────────────────────── */}
         <Box component="nav" sx={{
@@ -2256,14 +1883,31 @@ const ZoduLandingPage: React.FC = () => {
           aria-labelledby="hero-heading"
           sx={{
             bgcolor: "#fff",
+            // Fills the screen under the navbar on every device. min-, not fixed,
+            // height: a short landscape phone can still scroll the content.
+            minHeight: HERO_SCREEN,
+            boxSizing: "border-box",
             px: { xs: 2.5, sm: 4, md: 6, lg: "4vw" },
-            py: { xs: 4, sm: 5, lg: "3vw" },
+            py: { xs: 3, sm: 4, lg: "min(3vw, 4dvh)" },
             display: "flex",
-            flexDirection: { xs: "column-reverse", lg: "row" },
-            alignItems: "center",
-            gap: { xs: 4, lg: "3vw" },
+            flexDirection: "column",
+            justifyContent: "center",
+            gap: { xs: 3, lg: "min(2vw, 3dvh)" },
           }}
         >
+          {/* Devices + copy; the benefits strip runs full width underneath. */}
+          <Box
+            sx={{
+              flex: { lg: 1 },
+              minHeight: 0,
+              width: "100%",
+              display: "flex",
+              flexDirection: { xs: "column-reverse", lg: "row" },
+              alignItems: "center",
+              justifyContent: "center",
+              gap: { xs: 3, sm: 4, lg: "3vw" },
+            }}
+          >
           {/* Devices. The picture is 1655px wide, and a flex item never shrinks
               below its own content unless it is told to, hence minWidth 0 on the
               column, or the artwork pushes the copy off the screen. */}
@@ -2280,7 +1924,21 @@ const ZoduLandingPage: React.FC = () => {
               component="img"
               src={heroDevices}
               alt="Zodu running on a desktop, a tablet and a phone"
-              sx={{ width: "100%", maxWidth: "100%", height: "auto", display: "block" }}
+              sx={{
+                display: "block",
+                width: "auto",
+                maxWidth: "100%",
+                height: "auto",
+                mx: "auto",
+                // Leaves room for the copy above it on phones/tablets; on desktop for
+                // the store badges below it (~80px), the benefits strip and its gap
+                // (~100px) plus the section padding.
+                maxHeight: {
+                  xs: "30dvh",
+                  sm: "36dvh",
+                  lg: `calc(100dvh - ${NAV_H.md + 1}px - 2 * min(3vw, 4dvh) - 180px)`,
+                },
+              }}
             />
 
             {/* Store badges, centred under the devices, in the same pattern as
@@ -2360,7 +2018,7 @@ const ZoduLandingPage: React.FC = () => {
                   xs: "clamp(1.8rem, 7.4vw, 2.5rem)",
                   sm: "2.6rem",
                   md: "3rem",
-                  lg: "clamp(2.1rem, 3.1vw, 4rem)",
+                  lg: "clamp(2rem, min(3.1vw, 5.6dvh), 4rem)",
                 },
               }}
             >
@@ -2381,7 +2039,7 @@ const ZoduLandingPage: React.FC = () => {
                 color: "#475569",
                 fontWeight: 500,
                 lineHeight: 1.55,
-                fontSize: { xs: "1rem", sm: "1.08rem", lg: "clamp(0.95rem, 1.15vw, 1.35rem)" },
+                fontSize: { xs: "1rem", sm: "1.08rem", lg: "clamp(0.95rem, min(1.15vw, 2.2dvh), 1.35rem)" },
               }}
             >
               Bill, manage, analyse and grow your business effortlessly with one
@@ -2466,6 +2124,9 @@ const ZoduLandingPage: React.FC = () => {
               ))}
             </Box> */}
           </Box>
+          </Box>
+
+          <FzBenefitsStrip />
         </Box>
 
         {/* The previous hero — artwork background with the industry chips.
@@ -3508,246 +3169,7 @@ const ZoduLandingPage: React.FC = () => {
         </Box> */}
 
         {/* ── GET THE APP ──────────────────────────────────────────────────── */}
-        <Box sx={{ py: { xs: 3, md: 4 }, px: SX, bgcolor: LIGHT, fontFamily: POPPINS }}>
-          {/* Hidden gradient def for the Google Play triangle */}
-          <Box component="svg" width="0" height="0" sx={{ position: "absolute" }}>
-            <defs>
-              <linearGradient id="gplay" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#00C3FF" />
-                <stop offset="38%" stopColor="#22D36B" />
-                <stop offset="68%" stopColor="#FFCE00" />
-                <stop offset="100%" stopColor="#FF3D3D" />
-              </linearGradient>
-            </defs>
-          </Box>
-
-          <Box sx={{ maxWidth: SECTION_MAX_W, mx: "auto" }}>
-            <Box sx={{
-              borderRadius: { xs: "20px", md: "26px" },
-              minHeight: { md: 430 },
-              position: "relative", overflow: "hidden",
-              backgroundImage: `linear-gradient(135deg, #FFFFFF 0%, #FFF7F7 48%, #FEECEC 100%)`,
-              border: "2px solid rgba(255,255,255,0.9)",
-              boxShadow: "0 14px 42px rgba(15,23,42,0.09)",
-            }}>
-              {/* Red wave shape behind the illustration */}
-              <Box
-                component="svg"
-                viewBox="0 0 1000 720"
-                preserveAspectRatio="none"
-                sx={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 0, display: { xs: "none", md: "block" } }}
-              >
-                <defs>
-                  <linearGradient id="appwave" x1="0" y1="0" x2="0.5" y2="1">
-                    <stop offset="0%" stopColor="#F35858" />
-                    <stop offset="100%" stopColor="#E02424" />
-                  </linearGradient>
-                </defs>
-                {/* lighter coral underlay — peeks as a rim on the wave edge + lower sweep */}
-                <path d="M1000 46 C900 150 790 164 690 168 C540 174 480 266 470 390 C462 500 370 600 240 720 L1000 720 Z" fill={alpha(APP_RED, 0.44)} />
-                {/* main red wave — right blob sweeping across the bottom */}
-                <path d="M1000 72 C888 172 788 176 678 184 C540 196 492 290 502 402 C512 536 398 628 310 720 L1000 720 Z" fill="url(#appwave)" />
-              </Box>
-
-              {/* Faint concentric rings behind the phone */}
-              {[420, 320, 220].map((d) => (
-                <Box key={d} sx={{
-                  position: "absolute", top: "30%", right: "24%",
-                  width: d * 0.7, height: d * 0.7, mt: `${-(d * 0.7) / 2}px`, mr: `${-(d * 0.7) / 2}px`,
-                  borderRadius: "50%", border: `1.5px solid ${alpha(APP_RED, 0.12)}`,
-                  zIndex: 0, display: { xs: "none", md: "block" }, pointerEvents: "none",
-                }} />
-              ))}
-
-              {/* Decorative dot patterns */}
-              <Box sx={{
-                position: "absolute", top: 22, right: 28, width: 100, height: 70, opacity: 0.5, zIndex: 0,
-                backgroundImage: `radial-gradient(${alpha(APP_RED, 0.5)} 1.6px, transparent 1.6px)`,
-                backgroundSize: "16px 16px", display: { xs: "none", md: "block" },
-              }} />
-              <Box sx={{
-                position: "absolute", bottom: 20, left: 22, width: 76, height: 62, opacity: 0.4, zIndex: 0,
-                backgroundImage: `radial-gradient(${alpha(APP_RED, 0.45)} 1.6px, transparent 1.6px)`,
-                backgroundSize: "16px 16px", display: { xs: "none", md: "block" },
-              }} />
-
-              <Box sx={{
-                display: "flex", flexDirection: { xs: "column", md: "row" }, alignItems: "center",
-                gap: { xs: 3, md: 1.5 }, position: "relative", zIndex: 1,
-                p: { xs: 2.5, md: 4 },
-                minHeight: { md: 430 },
-              }}>
-                {/* LEFT — copy */}
-                <Box sx={{ flex: { md: "0 0 48%" }, width: "100%", textAlign: { xs: "center", md: "left" } }}>
-                  {/* Eyebrow badge */}
-                  <Box sx={{
-                    display: "inline-flex", alignItems: "center", gap: 1.2,
-                    bgcolor: alpha(APP_RED, 0.10), borderRadius: "999px", pl: 0.5, pr: 1.6, py: 0.45, mb: { xs: 2, md: 2 },
-                  }}>
-                    <Box sx={{ width: 32, height: 32, borderRadius: "8px", bgcolor: APP_RED, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <SmartphoneIcon sx={{ fontSize: 18, color: "#fff" }} />
-                    </Box>
-                    <Typography sx={{ fontFamily: POPPINS, fontWeight: 800, fontSize: { xs: "0.7rem", md: "0.78rem" }, letterSpacing: "0.14em", color: APP_RED }}>
-                      ZODU MOBILE APP
-                    </Typography>
-                  </Box>
-
-                  {/* Heading */}
-                  <Typography sx={{ fontFamily: POPPINS, fontSize: { xs: "1.9rem", md: "2.75rem" }, fontWeight: 800, color: APP_NAVY, lineHeight: 1.1, letterSpacing: "-0.02em", mb: { xs: 1.5, md: 1.8 } }}>
-                    Your Whole Business,<br />
-                    In Your{" "}
-                    <Box component="span" sx={{
-                      color: APP_RED, position: "relative", display: "inline-block",
-                      "&::after": { content: '""', position: "absolute", left: "4%", right: "2%", bottom: { xs: -5, md: -7 }, height: { xs: 3, md: 4 }, borderRadius: "999px", bgcolor: APP_RED, opacity: 0.85, transform: "rotate(-2deg)" },
-                    }}>
-                      Pocket
-                    </Box>
-                  </Typography>
-
-                  {/* Subtext */}
-                  <Typography sx={{ fontFamily: POPPINS, fontSize: { xs: "0.86rem", md: "0.98rem" }, color: APP_SLATE, lineHeight: 1.6, mb: { xs: 2.2, md: 2.4 }, maxWidth: 500, mx: { xs: "auto", md: 0 } }}>
-                    Bill customers, track stock, check live reports and get instant alerts — anytime, anywhere. Free on iOS &amp; Android.
-                  </Typography>
-
-                  {/* Bullets */}
-                  {/* <Stack spacing={1} mb={2.5} sx={{ alignItems: { xs: "center", md: "flex-start" } }}>
-                    {["Real-time sales & low-stock alerts", "Manage every branch on the move", "Works offline — syncs automatically"].map((t) => (
-                      <Box key={t} sx={{ display: "flex", alignItems: "center", gap: 1.3 }}>
-                        <CheckCircleIcon sx={{ fontSize: 22, color: APP_RED }} />
-                        <Typography sx={{ fontFamily: POPPINS, fontSize: "0.95rem", color: APP_NAVY, fontWeight: 500 }}>{t}</Typography>
-                      </Box>
-                    ))}
-                  </Stack> */}
-
-                  {/* Store badges + QR code */}
-                  <Stack direction={{ xs: "column", sm: "row" }} spacing={2} mb={{ xs: 2.4, md: 2.6 }} sx={{ justifyContent: { xs: "center", md: "flex-start" }, alignItems: { xs: "stretch", sm: "center" } }}>
-                    {/* Buttons column */}
-                    <Stack spacing={1.4} sx={{ flex: { sm: "0 0 auto" } }}>
-                      {/* Google Play — dark */}
-                      <Box component="a" href="#" sx={{
-                        display: "inline-flex", alignItems: "center", gap: 1.4, textDecoration: "none",
-                        bgcolor: "#000", color: "#fff",
-                        px: { xs: 2.2, md: 2.4 }, py: { xs: 1.05, md: 1.08 },
-                        borderRadius: "10px", border: "1px solid rgba(255,255,255,0.25)",
-                        minWidth: { xs: "100%", sm: 192, md: 200 },
-                        boxShadow: "0 6px 18px rgba(0,0,0,0.22)", transition: "all 0.18s",
-                        "&:hover": { transform: "translateY(-2px)", boxShadow: "0 10px 26px rgba(0,0,0,0.3)" },
-                      }}>
-                        <Box component="img" src={gPlayLogo} alt="Google Play" sx={{ width: 28, height: 28, objectFit: "contain", flexShrink: 0 }} />
-                        <Box sx={{ textAlign: "left", lineHeight: 1 }}>
-                          <Typography sx={{ fontFamily: POPPINS, fontSize: "0.58rem", color: "rgba(255,255,255,0.8)", letterSpacing: "0.04em" }}>GET IT ON</Typography>
-                          <Typography sx={{ fontFamily: POPPINS, fontSize: "1.05rem", fontWeight: 700, mt: "2px", color: "#fff" }}>Google Play</Typography>
-                        </Box>
-                      </Box>
-                      {/* App Store — dark */}
-                      <Box component="a" href="#" sx={{
-                        display: "inline-flex", alignItems: "center", gap: 1.4, textDecoration: "none",
-                        bgcolor: "#000", color: "#fff",
-                        px: { xs: 2.2, md: 2.4 }, py: { xs: 1.05, md: 1.08 },
-                        borderRadius: "10px", border: "1px solid rgba(255,255,255,0.25)",
-                        minWidth: { xs: "100%", sm: 192, md: 200 },
-                        boxShadow: "0 6px 18px rgba(0,0,0,0.22)", transition: "all 0.18s",
-                        "&:hover": { transform: "translateY(-2px)", boxShadow: "0 10px 26px rgba(0,0,0,0.3)" },
-                      }}>
-                        <AppleIcon sx={{ fontSize: 30, color: "#fff", flexShrink: 0 }} />
-                        <Box sx={{ textAlign: "left", lineHeight: 1 }}>
-                          <Typography sx={{ fontFamily: POPPINS, fontSize: "0.58rem", color: "rgba(255,255,255,0.8)", letterSpacing: "0.04em" }}>Download on the</Typography>
-                          <Typography sx={{ fontFamily: POPPINS, fontSize: "1.05rem", fontWeight: 700, mt: "2px", color: "#fff" }}>App Store</Typography>
-                        </Box>
-                      </Box>
-                    </Stack>
-
-                    {/* QR code — desktop only */}
-                    <Box sx={{
-                      display: { xs: "none", sm: "flex" }, alignItems: "center", gap: 1.5,
-                      bgcolor: "#fff", borderRadius: "14px", border: `1px solid ${BORDER}`,
-                      boxShadow: "0 6px 20px rgba(0,0,0,0.08)", p: 1.5,
-                    }}>
-                      {/* QR code SVG placeholder */}
-                      <Box sx={{ width: 82, height: 82, flexShrink: 0, bgcolor: "#fff", borderRadius: "8px", overflow: "hidden", p: "4px" }}>
-                        <Box component="svg" viewBox="0 0 21 21" width="74" height="74" sx={{ display: "block" }}>
-                          {/* Top-left finder */}
-                          <rect x="0" y="0" width="7" height="7" fill="#111" rx="0.5"/>
-                          <rect x="1" y="1" width="5" height="5" fill="#fff"/>
-                          <rect x="2" y="2" width="3" height="3" fill="#111"/>
-                          {/* Top-right finder */}
-                          <rect x="14" y="0" width="7" height="7" fill="#111" rx="0.5"/>
-                          <rect x="15" y="1" width="5" height="5" fill="#fff"/>
-                          <rect x="16" y="2" width="3" height="3" fill="#111"/>
-                          {/* Bottom-left finder */}
-                          <rect x="0" y="14" width="7" height="7" fill="#111" rx="0.5"/>
-                          <rect x="1" y="15" width="5" height="5" fill="#fff"/>
-                          <rect x="2" y="16" width="3" height="3" fill="#111"/>
-                          {/* Timing patterns */}
-                          <rect x="8" y="6" width="1" height="1" fill="#111"/><rect x="10" y="6" width="1" height="1" fill="#111"/><rect x="12" y="6" width="1" height="1" fill="#111"/>
-                          <rect x="6" y="8" width="1" height="1" fill="#111"/><rect x="6" y="10" width="1" height="1" fill="#111"/><rect x="6" y="12" width="1" height="1" fill="#111"/>
-                          {/* Data modules */}
-                          <rect x="8" y="0" width="1" height="1" fill="#111"/><rect x="10" y="0" width="2" height="1" fill="#111"/><rect x="13" y="0" width="1" height="1" fill="#111"/>
-                          <rect x="9" y="2" width="1" height="1" fill="#111"/><rect x="11" y="2" width="2" height="1" fill="#111"/>
-                          <rect x="8" y="4" width="2" height="1" fill="#111"/><rect x="12" y="4" width="2" height="1" fill="#111"/>
-                          <rect x="0" y="8" width="1" height="1" fill="#111"/><rect x="2" y="8" width="3" height="1" fill="#111"/><rect x="8" y="8" width="2" height="1" fill="#111"/><rect x="12" y="8" width="2" height="1" fill="#111"/><rect x="16" y="8" width="1" height="1" fill="#111"/><rect x="18" y="8" width="1" height="1" fill="#111"/><rect x="20" y="8" width="1" height="1" fill="#111"/>
-                          <rect x="0" y="10" width="1" height="1" fill="#111"/><rect x="3" y="10" width="2" height="1" fill="#111"/><rect x="8" y="10" width="1" height="1" fill="#111"/><rect x="11" y="10" width="2" height="1" fill="#111"/><rect x="15" y="10" width="3" height="1" fill="#111"/><rect x="20" y="10" width="1" height="1" fill="#111"/>
-                          <rect x="1" y="12" width="2" height="1" fill="#111"/><rect x="5" y="12" width="1" height="1" fill="#111"/><rect x="9" y="12" width="2" height="1" fill="#111"/><rect x="13" y="12" width="1" height="1" fill="#111"/><rect x="16" y="12" width="2" height="1" fill="#111"/>
-                          <rect x="8" y="14" width="1" height="1" fill="#111"/><rect x="10" y="14" width="2" height="1" fill="#111"/><rect x="14" y="14" width="1" height="1" fill="#111"/><rect x="17" y="14" width="2" height="1" fill="#111"/><rect x="20" y="14" width="1" height="1" fill="#111"/>
-                          <rect x="9" y="16" width="2" height="1" fill="#111"/><rect x="13" y="16" width="1" height="1" fill="#111"/><rect x="16" y="16" width="1" height="1" fill="#111"/><rect x="19" y="16" width="2" height="1" fill="#111"/>
-                          <rect x="8" y="18" width="1" height="1" fill="#111"/><rect x="11" y="18" width="2" height="1" fill="#111"/><rect x="15" y="18" width="1" height="1" fill="#111"/><rect x="18" y="18" width="2" height="1" fill="#111"/>
-                          <rect x="9" y="20" width="2" height="1" fill="#111"/><rect x="13" y="20" width="2" height="1" fill="#111"/><rect x="17" y="20" width="1" height="1" fill="#111"/><rect x="20" y="20" width="1" height="1" fill="#111"/>
-                        </Box>
-                      </Box>
-                      <Box>
-                        <Typography sx={{ fontFamily: POPPINS, fontWeight: 700, fontSize: "0.78rem", color: APP_NAVY, lineHeight: 1.3 }}>Scan to<br/>Download</Typography>
-                        <Typography sx={{ fontFamily: POPPINS, fontSize: "0.62rem", color: APP_SLATE, mt: 0.5, lineHeight: 1.4 }}>Point your camera<br/>at the QR code</Typography>
-                      </Box>
-                    </Box>
-                  </Stack>
-
-                  {/* Trust strip */}
-                  <Box sx={{
-                    display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
-                    bgcolor: "#fff", borderRadius: "14px", border: `1px solid ${BORDER}`,
-                    boxShadow: "0 8px 22px rgba(15,23,42,0.07)", overflow: "hidden",
-                    maxWidth: 520,
-                    mx: { xs: "auto", md: 0 },
-                  }}>
-                    {[
-                      { icon: <VerifiedUserIcon sx={{ fontSize: 20, color: APP_RED }} />,   tint: alpha(APP_RED, 0.10),   title: "Secure & Reliable", sub: "Your data is always safe" },
-                      { icon: <CloudDoneIcon sx={{ fontSize: 20, color: "#3B82F6" }} />,    tint: "#EFF6FF",              title: "Works Offline",     sub: "Auto syncs when online" },
-                      { icon: <SupportAgentIcon sx={{ fontSize: 20, color: "#16A34A" }} />, tint: "#F0FDF4",              title: "24/7 Support",      sub: "We're here to help" },
-                    ].map((f, i) => (
-                      <Box key={f.title} sx={{
-                        display: "flex", alignItems: "center", gap: 0.9, p: { xs: 1.4, md: 1.25 },
-                        borderRight: { sm: i < 2 ? `1px solid ${BORDER}` : "none" },
-                        borderBottom: { xs: i < 2 ? `1px solid ${BORDER}` : "none", sm: "none" },
-                        justifyContent: { xs: "center", sm: "flex-start" },
-                      }}>
-                        <Box sx={{ width: 34, height: 34, borderRadius: "50%", bgcolor: f.tint, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          {f.icon}
-                        </Box>
-                        <Box sx={{ textAlign: "left" }}>
-                          <Typography sx={{ fontFamily: POPPINS, fontSize: "0.72rem", fontWeight: 700, color: APP_NAVY, lineHeight: 1.2 }}>{f.title}</Typography>
-                          <Typography sx={{ fontFamily: POPPINS, fontSize: "0.58rem", color: APP_SLATE, lineHeight: 1.3 }}>{f.sub}</Typography>
-                        </Box>
-                      </Box>
-                    ))}
-                  </Box>
-                </Box>
-
-                {/* RIGHT — illustration */}
-                <Box sx={{ flex: { md: "0 0 52%" }, width: "100%", display: "flex", justifyContent: "center", alignItems: "center", alignSelf: "stretch" }}>
-                  <Box component="img" src={getAppImg} alt="Zodu mobile app dashboard"
-                    sx={{
-                      width: { xs: "100%", md: "96%" },
-                      maxWidth: { xs: 430, md: 580 },
-                      display: "block",
-                      objectFit: "contain",
-                      transform: { md: "translate(14px, 4px)" },
-                      filter: "drop-shadow(0 18px 30px rgba(15,23,42,0.14))",
-                    }} />
-                </Box>
-              </Box>
-            </Box>
-          </Box>
-        </Box>
+        <GetAppSection />
 
         {/* ── FOOTER ───────────────────────────────────────────────────────── */}
         <Box component="footer" sx={{ position: "relative", overflow: "hidden", bgcolor: "#0B1220", color: "#fff", px: SX }}>
