@@ -456,6 +456,7 @@ const COPY_TYPE_CAPTIONS: Record<InvoiceCopyTypeLabel, string> = {
 
 const INVOICE_TEMPLATE_OPTIONS = [
   { value: "classic", label: "Classic" },
+  { value: "classic2", label: "Classic 2" },
   { value: "modern", label: "Modern" },
   { value: "modern2", label: "Modern 2" },
 ] as const;
@@ -724,7 +725,7 @@ export default function InvoiceSetting() {
     invoice_template: settings.invoiceTemplate,
   };
 
-  // A4 offers its three layouts, a thermal roll its two. Both read the one
+  // A4 offers its four layouts, a thermal roll its two. Both read the one
   // stored `invoice_template`, so "modern2" shows as Modern on a roll.
   const templateOptions: ReadonlyArray<{ value: string; label: string }> =
     settings.printInch === "A4" ? INVOICE_TEMPLATE_OPTIONS : THERMAL_TEMPLATE_OPTIONS;
@@ -1453,6 +1454,7 @@ export default function InvoiceSetting() {
                 ) : (
                   <InvoicePDFTemplate
                     data={PREVIEW_DATA}
+                    hideTaxBreakdown={settings.invoiceTemplate === "classic2"}
                     settingsOverride={previewSettingsOverride}
                     theme={theme}
                     accentColor={settings.invoiceThemeColor}
