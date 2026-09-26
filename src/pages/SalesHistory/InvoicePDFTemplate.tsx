@@ -832,8 +832,10 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
         </div>
 
 
+        {/* data-pdf-page-footer: the PDF pins this to the bottom of every
+            page rather than printing it where the content happens to end. */}
         {hideTaxBreakdown && (
-          <>
+          <div data-pdf-page-footer>
             <div style={styles.redDivider} />
             {/* logo | tagline over the URL — the rule runs the full height of the text block */}
             <div style={styles.poweredByWrap}>
@@ -844,7 +846,7 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
                 <span style={styles.poweredByUrl}>www.zodu.in</span>
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>

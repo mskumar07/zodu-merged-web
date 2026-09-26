@@ -741,7 +741,30 @@ const ZoduLoginPage: React.FC = () => {
       // flag, so every login after this one behaves normally.
       const pendingSignup = consumePendingSignup(data.user.email);
       if (pendingSignup) {
-        navigate('/settings', { replace: true, state: { openAddBusiness: pendingSignup } });
+        // Select the business signup created (and its first branch) exactly as
+        // the single-business path below does — without it nothing is active,
+        // so the Topbar has no business name to show and no settings load.
+        const email = pendingSignup.email.trim().toLowerCase();
+        const name = pendingSignup.restaurant_name.trim().toLowerCase();
+        const signupCompany =
+          companies.find((c) => c.is_primary) ??
+          companies.find((c) => c.email?.trim().toLowerCase() === email) ??
+          companies.find((c) => c.restaurant_name?.trim().toLowerCase() === name) ??
+          companies[0] ??
+          null;
+        const firstBranch = signupCompany?.branches?.[0];
+        if (signupCompany) {
+          dispatch(
+            addUserData({
+              zoduId: signupCompany.zodu_id,
+              branchId: firstBranch?.branch_id ?? "",
+              branchName: firstBranch?.branch_name ?? "",
+              businessType: signupCompany.business_type ?? pendingSignup.business_type,
+            })
+          );
+          if (firstBranch) await loadSession(signupCompany.zodu_id, firstBranch.branch_id);
+        }
+        navigate('/settings', { replace: true, state: { openEditBusiness: pendingSignup } });
         return;
       }
 
