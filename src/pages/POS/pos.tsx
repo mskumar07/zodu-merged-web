@@ -1140,6 +1140,8 @@ console.log("test",serverHolds)
       mobile:  h.customer_phone ?? "",
       address: "",
       gstin:   "",
+      shippingAddress: "",
+      sameAsBillingAddress: true,
     },
     time:        new Date(h.created_at),
     totalAmount: Number(h.total_amount),

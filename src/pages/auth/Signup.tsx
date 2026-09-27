@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import {
   Box, TextField, Button, Typography, Link, Stack,
-  Alert, CircularProgress, InputAdornment, IconButton, LinearProgress,
+  CircularProgress, InputAdornment, IconButton, LinearProgress,
   Checkbox, FormControlLabel, Select, MenuItem, FormControl,
 } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
@@ -18,6 +18,7 @@ import {
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { useSignupMutation } from './authApi';
 import { setPendingSignup } from '@utils/pendingSignup';
+import SuccessToast from '@components/Common/SuccessToast';
 
 // ─── Theme (shared with Login) ────────────────────────────────
 const theme = createTheme({
@@ -218,7 +219,7 @@ const ZoduSignupPage: React.FC = () => {
   });
   const [showPassword,        setShowPassword]  = useState(false);
   const [showConfirmPassword, setShowConfirmPw] = useState(false);
-  const [error,               setError]         = useState('');
+  const [toastMsg,            setToastMsg]      = useState('');
   const [success,             setSuccess]       = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof typeof form, string>>>({});
 
@@ -257,7 +258,7 @@ const ZoduSignupPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setToastMsg('');
     if (!validate()) return;
     try {
       await signup({
@@ -281,7 +282,7 @@ const ZoduSignupPage: React.FC = () => {
       setSuccess(true);
       setTimeout(() => navigate('/login'), 1800);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
+      setToastMsg(err instanceof Error ? err.message : 'Registration failed. Please try again.');
     }
   };
 
@@ -433,15 +434,6 @@ const ZoduSignupPage: React.FC = () => {
                   </Select>
                 </FormControl>
               </Box>
-
-              {/* Error */}
-              {error && (
-                <Alert severity="error" onClose={() => setError('')}
-                  sx={{ mb: 3, borderRadius: 2, fontSize: '0.85rem', fontWeight: 600 }}
-                >
-                  {error}
-                </Alert>
-              )}
 
               {/* Form */}
               <Box component="form" onSubmit={handleSubmit} noValidate>
@@ -669,6 +661,8 @@ const ZoduSignupPage: React.FC = () => {
           </Box>
         </Box>
       </Box>
+
+      <SuccessToast message={toastMsg} severity="error" onClose={() => setToastMsg('')} />
     </ThemeProvider>
   );
 };

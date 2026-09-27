@@ -473,7 +473,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   Box, TextField, Button, Typography, Link, Stack,
-  Alert, CircularProgress, InputAdornment, IconButton,
+  CircularProgress, InputAdornment, IconButton,
 } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
@@ -489,6 +489,7 @@ import { useAppDispatch, useAppSelector } from '@store/store';
 import { IsAuthenticated, addUserData, setAuthData, setRoleAccess } from '@store/slices/userSlice';
 import { loadBranchSession } from './loadBranchSession';
 import { consumePendingSignup } from '@utils/pendingSignup';
+import SuccessToast from '@components/Common/SuccessToast';
 
 // ─── Theme ────────────────────────────────────────────────────
 const theme = createTheme({
@@ -667,7 +668,7 @@ const ZoduLoginPage: React.FC = () => {
   const [identity,     setIdentity]     = useState('');
   const [password,     setPassword]     = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error,        setError]        = useState('');
+  const [toastMsg,     setToastMsg]     = useState('');
   const [fieldErrors,  setFieldErrors]  = useState<{ identity?: string; password?: string }>({});
 
   // If already authenticated (e.g. user visits /login while logged in), send to dashboard.
@@ -691,7 +692,7 @@ const ZoduLoginPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setToastMsg('');
     if (!validate()) return;
     const isEmail = identity.includes('@');
     const payload = isEmail
@@ -794,7 +795,7 @@ const ZoduLoginPage: React.FC = () => {
 
       navigate('/select-branch', { replace: true, state: { companies } });
     } catch {
-      setError('Login failed. Please check your credentials and try again.');
+      setToastMsg('Login failed. Please check your credentials and try again.');
     }
   };
 
@@ -869,17 +870,6 @@ const ZoduLoginPage: React.FC = () => {
                   Enter your credentials to access your command center.
                 </Typography>
               </Box>
-
-              {/* Error alert */}
-              {error && (
-                <Alert
-                  severity="error"
-                  onClose={() => setError('')}
-                  sx={{ mb: 3, borderRadius: 2, fontSize: '0.85rem', fontWeight: 600 }}
-                >
-                  {error}
-                </Alert>
-              )}
 
               {/* Form */}
               <Box component="form" onSubmit={handleSubmit} noValidate>
@@ -1025,6 +1015,8 @@ const ZoduLoginPage: React.FC = () => {
           </Box>
         </Box>
       </Box>
+
+      <SuccessToast message={toastMsg} severity="error" onClose={() => setToastMsg('')} />
     </ThemeProvider>
   );
 };
