@@ -18,22 +18,10 @@ import { loadBranchSession } from "@pages/auth/loadBranchSession";
 import SubscriptionExpiredModal from "@components/Modals/SubscriptionExpiredModal";
 import SuccessToast from "@components/Common/SuccessToast";
 import zlogo from "../../../assets/zlogo.png";
+import { getBranchSubscription } from "@utils/subscription";
 
-// Parses "16 Apr 2031" style dates; returns null if unparseable so callers
-// can treat missing/garbled expiry as "not expired" rather than blocking access.
-const parseExpiryDate = (value?: string): Date | null => {
-  if (!value) return null;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
-
-const isSubscriptionExpired = (company: CompanyWithBranches): boolean => {
-  const expiry = parseExpiryDate(company.subscription_expiry_date);
-  if (!expiry) return false;
-  const endOfExpiryDay = new Date(expiry);
-  endOfExpiryDay.setHours(23, 59, 59, 999);
-  return endOfExpiryDay.getTime() < Date.now();
-};
+// Subscriptions are per branch — a branch without subscription data is never blocked.
+const isBranchExpired = (branch?: Branch | null): boolean => !!getBranchSubscription(branch)?.expired;
 
 const BRAND_RED = "#c8101f";
 const CARD_BORDER = "rgba(19, 30, 56, 0.07)";
@@ -62,6 +50,7 @@ function BranchRow({
   index: number;
   onSelect: () => void;
 }) {
+  const sub = getBranchSubscription(branch);
   return (
     <Box
       sx={{
@@ -121,6 +110,34 @@ function BranchRow({
               {getBranchAddress(branch)}
             </Typography>
           )}
+          {/* Trial / subscription end for this branch */}
+          {sub && (
+            <Box
+              sx={{
+                mt: 0.6,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.5,
+                px: 1,
+                py: 0.3,
+                borderRadius: "999px",
+                bgcolor: sub.expired ? "rgba(220,38,38,0.08)" : sub.isTrial ? "rgba(234,138,0,0.1)" : "rgba(37,99,235,0.08)",
+                maxWidth: "100%",
+              }}
+            >
+              <ScheduleOutlinedIcon sx={{ fontSize: 12, color: sub.expired ? "#dc2626" : sub.isTrial ? "#b45309" : "#2563eb" }} />
+              <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: sub.expired ? "#dc2626" : sub.isTrial ? "#b45309" : "#2563eb", whiteSpace: "nowrap" }}>
+                {sub.isTrial
+                  ? sub.expired ? `Trial ended ${sub.dateLabel}` : `Trial ends ${sub.dateLabel}`
+                  : sub.expired ? `Expired ${sub.dateLabel}` : `Expires ${sub.dateLabel}`}
+              </Typography>
+              {!sub.expired && sub.daysLabel && (
+                <Typography sx={{ fontSize: 10.5, fontWeight: 800, color: sub.color, whiteSpace: "nowrap" }}>
+                  · {sub.daysLabel}
+                </Typography>
+              )}
+            </Box>
+          )}
         </Box>
       </Box>
 
@@ -159,8 +176,6 @@ function CompanyCard({
   company: CompanyWithBranches;
   onSelectBranch: (branchId: string, branchName: string) => void;
 }) {
-  const expired = useMemo(() => isSubscriptionExpired(company), [company]);
-
   return (
     <Box
       sx={{
@@ -260,31 +275,6 @@ function CompanyCard({
               {`Zodu ID - ${company.zodu_id}`}
             </Typography>
           </Box>
-          {company.subscription_expiry_date && (
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 0.5,
-                px: 1.1,
-                py: 0.4,
-                borderRadius: "999px",
-                bgcolor: expired ? "rgba(220,38,38,0.08)" : "rgba(37,99,235,0.08)",
-                whiteSpace: "nowrap",
-              }}
-            >
-              <ScheduleOutlinedIcon sx={{ fontSize: 12, color: expired ? "#dc2626" : "#2563eb" }} />
-              <Typography
-                sx={{
-                  fontSize: 10.5,
-                  fontWeight: 700,
-                  color: expired ? "#dc2626" : "#2563eb",
-                }}
-              >
-                {expired ? "Expired" : `Exp: ${company.subscription_expiry_date}`}
-              </Typography>
-            </Box>
-          )}
         </Box>
       </Box>
 
@@ -325,7 +315,7 @@ const SelectBranch: React.FC = () => {
     [companiesFromState, storedCompanies]
   );
 
-  const [expiredCompany, setExpiredCompany] = useState<CompanyWithBranches | null>(null);
+  const [expired, setExpired] = useState<{ company: CompanyWithBranches; branch: Branch } | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Permissions and settings are both scoped per zodu_id + branch_id and only
@@ -357,8 +347,9 @@ const SelectBranch: React.FC = () => {
     branchId: string,
     branchName: string
   ) => {
-    if (isSubscriptionExpired(company)) {
-      setExpiredCompany(company);
+    const branch = company.branches.find((b) => b.branch_id === branchId);
+    if (branch && isBranchExpired(branch)) {
+      setExpired({ company, branch });
       return;
     }
     dispatch(addUserData({ branchId, branchName, zoduId: company.zodu_id, businessType: company.business_type ?? "" }));
@@ -373,6 +364,8 @@ const SelectBranch: React.FC = () => {
     const branches = onlyCompany?.branches ?? [];
     if (branches.length !== 1) return;
     const onlyBranch = branches[0];
+    // An expired branch stays on this screen so its status is visible.
+    if (isBranchExpired(onlyBranch)) return;
     dispatch(
       addUserData({
         zoduId: onlyCompany.zodu_id,
@@ -526,15 +519,14 @@ const SelectBranch: React.FC = () => {
       </Box>
 
       <SubscriptionExpiredModal
-        open={expiredCompany !== null}
+        open={expired !== null}
         businessName={
-          expiredCompany?.restaurant_name ||
-          expiredCompany?.business_name ||
-          expiredCompany?.company_name ||
-          ""
+          expired
+            ? `${expired.company.restaurant_name || expired.company.business_name || expired.company.company_name || ""} - ${expired.branch.branch_name}`
+            : ""
         }
-        expiryDate={expiredCompany?.subscription_expiry_date}
-        onClose={() => setExpiredCompany(null)}
+        expiryDate={expired ? getBranchSubscription(expired.branch)?.dateLabel : undefined}
+        onClose={() => setExpired(null)}
       />
 
       <SuccessToast

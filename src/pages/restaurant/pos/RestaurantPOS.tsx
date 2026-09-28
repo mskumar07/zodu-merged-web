@@ -2,6 +2,8 @@ import React, {
   useState, useMemo, useCallback, useRef, useEffect,
 } from "react";
 import { flushSync } from "react-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import InsufficientStockDialog, { type InsufficientStockInfo } from "@components/Common/InsufficientStockDialog";
 import LottieLoader from "@components/LottieLoader";
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "@pages/SalesHistory/ThermalInvoiceTemplate";
 import { gstBreakdownFromLines } from "@utils/gstSummary";
@@ -547,19 +549,53 @@ const RestaurantPOS: React.FC = () => {
     });
   }, []);
 
-  // Returns true (and shows a toast) when the requested qty would exceed available stock.
-  // Items without a stock_qty are not stock-tracked and are never blocked.
+  // ── Stock check → "adjust inventory?" prompt ────────────────────────────
+  // Stock set from the prompt applies straight away through this ref; the menu
+  // query cache is patched as well so the cards show the new count.
+  const queryClient = useQueryClient();
+  const stockOverridesRef = useRef<Record<string, number>>({});
+  const [stockPrompt, setStockPrompt] = useState<(InsufficientStockInfo & { retry?: () => void }) | null>(null);
+  const stockCheckEnabled = !!invoiceSettings?.stock_check_enabled;
+
+  // Returns true when the requested qty would exceed available stock and asks to
+  // adjust inventory. Only with the Stock Check setting on — with it off the sale
+  // goes through and the backend lets stock go negative. Items without a
+  // stock_qty are not stock-tracked and are never blocked.
   const isOutOfStock = useCallback(
-    (product: RestaurantMenuItem, requestedQty: number) => {
-      if (product.stock_qty == null) return false;
-      if (requestedQty > product.stock_qty) {
-        setErrorMsg(`${product.menu_name} is out of stock`);
+    (product: RestaurantMenuItem, requestedQty: number, retry?: () => void) => {
+      if (!stockCheckEnabled || product.stock_qty == null) return false;
+      const stock = stockOverridesRef.current[product.menu_id] ?? product.stock_qty;
+      if (requestedQty > stock) {
+        setStockPrompt({
+          name: product.menu_name,
+          code: product.menu_id,
+          altCodes: [product.menu_code, product.qr_code],
+          available: stock,
+          requested: requestedQty,
+          retry,
+        });
         return true;
       }
       return false;
     },
-    []
+    [stockCheckEnabled]
   );
+
+  const handleStockAdjusted = useCallback((newQty: number) => {
+    if (!stockPrompt) return;
+    const { code, requested, retry } = stockPrompt;
+    stockOverridesRef.current[code] = newQty;
+    queryClient.setQueriesData<RestaurantCategory[]>({ queryKey: ["restaurant", "menu"] }, (old) =>
+      Array.isArray(old)
+        ? old.map((c) => !Array.isArray(c?.items) ? c : ({
+            ...c,
+            items: c.items.map((i) => (i.menu_id === code ? { ...i, stock_qty: newQty } : i)),
+          }))
+        : old
+    );
+    if (newQty >= requested) retry?.();
+    else setErrorMsg(`Stock updated to ${newQty} — still not enough for ${requested}`);
+  }, [stockPrompt, queryClient]);
 
   const handleProductClick = useCallback(
     (product: RestaurantMenuItem) => {
@@ -567,7 +603,7 @@ const RestaurantPOS: React.FC = () => {
         setVariantItem(product);
         return;
       }
-      if (isOutOfStock(product, getCartQtyStable(product.menu_id) + 1)) return;
+      if (isOutOfStock(product, getCartQtyStable(product.menu_id) + 1, () => handleProductClick(product))) return;
       if (isEditingSummaryRef.current) addToSummary(product);
       else addToCart(product);
     },
@@ -609,7 +645,7 @@ const RestaurantPOS: React.FC = () => {
         return;
       }
       const priorQty = getCartQty(product.menu_id);
-      if (isOutOfStock(product, priorQty + 1)) return;
+      if (isOutOfStock(product, priorQty + 1, () => handleScanCode(code))) return;
       if (isEditingSummary) addToSummary(product); else addToCart(product);
       setSuccessMsg(priorQty > 0 ? `"${product.menu_name}" qty increased to ${priorQty + 1}` : `Added "${product.menu_name}"`);
     },
@@ -635,14 +671,14 @@ const RestaurantPOS: React.FC = () => {
 
   // Whether any dialog is currently open — the page-level scanner listener below must
   // stay off while one is, so it doesn't fight with a dialog's own scan handling.
-  const anyModalOpen = showCameraScan || showTable || showDiscount || showCustomer || Boolean(variantItem);
+  const anyModalOpen = showCameraScan || showTable || showDiscount || showCustomer || Boolean(variantItem) || Boolean(stockPrompt);
 
   // Auto-detects a connected hardware USB/Bluetooth scanner without requiring the
   // scan bar to be clicked first — active whenever this screen has no dialog open.
   useHardwareScannerListener({ onScan: handleScanCode, active: !anyModalOpen });
 
   const incrementCart = useCallback((ci: RestaurantCartItem) => {
-    if (isOutOfStock(ci.product, ci.quantity + 1)) return;
+    if (isOutOfStock(ci.product, ci.quantity + 1, () => incrementCart(ci))) return;
     setCartItems((prev) => prev.map((c) => (c === ci ? { ...c, quantity: c.quantity + 1 } : c)));
   }, [isOutOfStock]);
 
@@ -661,7 +697,7 @@ const RestaurantPOS: React.FC = () => {
 
   const incrementByProduct = useCallback(
     (product: RestaurantMenuItem) => {
-      if (isOutOfStock(product, getCartQtyStable(product.menu_id) + 1)) return;
+      if (isOutOfStock(product, getCartQtyStable(product.menu_id) + 1, () => incrementByProduct(product))) return;
       if (isEditingSummaryRef.current) { addToSummary(product); return; }
       const found = cartItemsRef.current.find(
         (c) => c.product.menu_id === product.menu_id && !(c.product as any).variant_id
@@ -685,7 +721,7 @@ const RestaurantPOS: React.FC = () => {
 
   const setQtyByProduct = useCallback(
     (product: RestaurantMenuItem, newQty: number) => {
-      if (isOutOfStock(product, newQty)) return;
+      if (isOutOfStock(product, newQty, () => setQtyByProduct(product, newQty))) return;
       if (isEditingSummaryRef.current) { setSummaryQtyByProduct(product, newQty); return; }
       setCartItems((prev) => {
         const found = prev.find(
@@ -2011,6 +2047,11 @@ const RestaurantPOS: React.FC = () => {
 
       <SuccessToast message={successMsg} onClose={() => setSuccessMsg("")} />
       <SuccessToast message={errorMsg} severity="error" onClose={() => setErrorMsg("")} />
+      <InsufficientStockDialog
+        info={stockPrompt}
+        onClose={() => setStockPrompt(null)}
+        onAdjusted={handleStockAdjusted}
+      />
 
 
     </Box>

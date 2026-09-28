@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useForceRefreshProducts, usePosSearch, usePosProducts } from "./useposproducts";
-import type { PosProduct } from "./db";
+import { useForceRefreshProducts, usePosSearch, usePosProducts, posProductsKey } from "./useposproducts";
+import { bulkUpsertProducts, type PosProduct } from "./db";
 import { useSaveOrder, SALE_TYPE_BY_POS_MODE, type SaveOrderResult } from "./usesaveOrder";
 import { useDocSequence, docSequenceQueryKeys, type DocType } from "@pages/Settings/useDocSequenceApi";
 import {
@@ -80,6 +80,7 @@ import { InvoicePDFTemplate } from "../SalesHistory/InvoicePDFTemplate";
 import { InvoicePDFTemplateModern } from "../SalesHistory/InvoicePDFTemplateModern";
 import { InvoicePDFTemplateModern2 } from "../SalesHistory/InvoicePDFTemplateModern2";
 import InvoiceCopyActions from "@components/Common/InvoiceCopyActions";
+import InsufficientStockDialog, { type InsufficientStockInfo } from "@components/Common/InsufficientStockDialog";
 import { invoiceCopyTypesForSale, normalizeInvoiceCopyTypes } from "@utils/invoiceCopyTypes";
 import { isProformaSaleType, isQuotationSaleType, saleDocumentLabel } from "@utils/saleType";
 import { printThermalCopies } from "@utils/thermalPrint";
@@ -957,19 +958,54 @@ useEffect(() => {
     setItems(prev => prev.map(i => i.code === code ? { ...i, itemDescription: trimmed } : i));
   }, []);
 
+  // ── Stock check → "adjust inventory?" prompt ──────────────────
+  // Stock levels changed from the prompt apply immediately via this ref; the
+  // cached catalogue (react-query + IndexedDB) is patched alongside it.
+  const stockOverridesRef = useRef<Record<string, number>>({});
+  const [stockPrompt, setStockPrompt] = useState<(InsufficientStockInfo & { retry: () => void }) | null>(null);
+
+  const stockOf = useCallback((code: string, fallback: number) =>
+    stockOverridesRef.current[code] ?? fallback, []);
+
+  const promptStock = useCallback((code: string, available: number, requested: number, retry: () => void) => {
+    const p = allProducts.find(prod => prod.item_id === code);
+    setStockPrompt({
+      name: p?.item_name ?? items.find(i => i.code === code)?.description ?? code,
+      code,
+      altCodes: [p?.item_uuid, p?.barcode, p?.sku],
+      available,
+      requested,
+      retry,
+    });
+  }, [allProducts, items]);
+
+  const handleStockAdjusted = useCallback((newQty: number) => {
+    if (!stockPrompt) return;
+    const { code, requested, retry } = stockPrompt;
+    stockOverridesRef.current[code] = newQty;
+    queryClient.setQueryData<PosProduct[]>(posProductsKey(branchId ?? "", zoduId ?? ""), old =>
+      old?.map(prod => prod.item_id === code ? { ...prod, stock_qty: newQty } : prod));
+    const updated = allProducts.find(prod => prod.item_id === code);
+    if (updated) void bulkUpsertProducts([{ ...updated, stock_qty: newQty }]).catch(() => {});
+    if (newQty >= requested) {
+      retry();
+    } else {
+      setToastSeverity('error');
+      setScanMsg(`Stock updated to ${newQty} — still not enough for ${requested}`);
+    }
+  }, [stockPrompt, queryClient, branchId, zoduId, allProducts]);
+
   // Shared by manual suggestion clicks, Enter-to-add, and barcode/QR scans —
   // bumps qty if the product's already on the order, otherwise prepends a new line.
   // This is the single source of truth for qty — callers must not re-set it afterwards,
   // or a repeat scan/Enter of the same item stops incrementing.
-  const addProductLine = useCallback((p: PosProduct) => {
+  const addProductLine = useCallback((p: PosProduct): boolean => {
     if (invoiceSettings?.stock_check_enabled) {
       const existingQty = items.find(i => i.code === p.item_id)?.qty ?? 0;
-      if (existingQty + 1 > p.stock_qty) {
-        setToastSeverity('error');
-        setScanMsg(p.stock_qty > 0
-          ? `Only ${p.stock_qty} in stock for "${p.item_name}"`
-          : `"${p.item_name}" is out of stock`);
-        return;
+      const stock = stockOf(p.item_id, p.stock_qty);
+      if (existingQty + 1 > stock) {
+        promptStock(p.item_id, stock, existingQty + 1, () => addProductLine(p));
+        return false;
       }
     }
     setItems(prev => {
@@ -978,7 +1014,8 @@ useEffect(() => {
       return [toLineItem(p), ...prev];
     });
     setFlashRow(p.item_id); setTimeout(() => setFlashRow(null), 700);
-  }, [items, invoiceSettings]);
+    return true;
+  }, [items, invoiceSettings, stockOf, promptStock]);
 
   const doAddItem = useCallback((itemId: string) => {
     const p = suggestions.find(s => s.item_id === itemId);
@@ -1005,7 +1042,7 @@ useEffect(() => {
       return;
     }
     const existing = items.find(i => i.code === p.item_id);
-    addProductLine(p);
+    if (!addProductLine(p)) return;
     setToastSeverity('success');
     setScanMsg(existing ? `"${p.item_name}" qty increased to ${existing.qty + 1}` : `Added "${p.item_name}"`);
   }, [allProducts, addProductLine, items]);
@@ -1014,7 +1051,7 @@ useEffect(() => {
   // stay off while one is, so it doesn't fight with a dialog's own scan handling
   // (e.g. AddItemModal's Item ID field owns scans while that modal is open).
   const anyModalOpen = addItemOpen || cameraScanOpen || addCustomerOpen || customerLedgerOpen
-    || discountModalOpen || noteModalOpen || holdDialogOpen || Boolean(saveResult?.open);
+    || discountModalOpen || noteModalOpen || holdDialogOpen || Boolean(saveResult?.open) || Boolean(stockPrompt);
 
   // Auto-detects a connected hardware USB/Bluetooth scanner without requiring the
   // scan bar to be clicked first — active whenever the POS screen has no dialog open.
@@ -1269,12 +1306,10 @@ console.log("test",serverHolds)
   const updateQty  = (code: string, delta: number) => {
     if (delta > 0 && invoiceSettings?.stock_check_enabled) {
       const item = items.find(i => i.code === code);
-      const stockQty = allProducts.find(p => p.item_id === code)?.stock_qty;
+      const catalogueQty = allProducts.find(p => p.item_id === code)?.stock_qty;
+      const stockQty = catalogueQty === undefined ? undefined : stockOf(code, catalogueQty);
       if (item && stockQty !== undefined && item.qty + delta > stockQty) {
-        setToastSeverity('error');
-        setScanMsg(stockQty > 0
-          ? `Only ${stockQty} in stock for "${item.description}"`
-          : `"${item.description}" is out of stock`);
+        promptStock(code, stockQty, item.qty + delta, () => updateQty(code, delta));
         return;
       }
     }
@@ -1291,13 +1326,12 @@ console.log("test",serverHolds)
   const commitQtyDraft = (code: string, rawValue: string) => {
     let newQty = Math.max(1, parseFloat(rawValue) || 1);
     if (invoiceSettings?.stock_check_enabled) {
-      const stockQty = allProducts.find(p => p.item_id === code)?.stock_qty;
+      const catalogueQty = allProducts.find(p => p.item_id === code)?.stock_qty;
+      const stockQty = catalogueQty === undefined ? undefined : stockOf(code, catalogueQty);
       if (stockQty !== undefined && newQty > stockQty) {
+        // Cap for now; the prompt re-applies the typed qty once stock is adjusted.
+        promptStock(code, stockQty, newQty, () => commitQtyDraft(code, rawValue));
         newQty = Math.max(1, stockQty);
-        setToastSeverity('error');
-        setScanMsg(stockQty > 0
-          ? `Only ${stockQty} in stock — quantity capped at ${newQty}`
-          : `Item is out of stock`);
       }
     }
     setItems(prev => prev.map(i => {
@@ -3197,6 +3231,11 @@ console.log("test",serverHolds)
           onScan={handleScanCode}
         />
         <SuccessToast message={scanMsg} severity={toastSeverity} onClose={() => setScanMsg("")} />
+        <InsufficientStockDialog
+          info={stockPrompt}
+          onClose={() => setStockPrompt(null)}
+          onAdjusted={handleStockAdjusted}
+        />
       </Box>
     </ThemeProvider>
   );

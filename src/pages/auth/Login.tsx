@@ -477,8 +477,6 @@ import {
 } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
-  TrendingUp as TrendingUpIcon,
-  Payments as PaymentsIcon,
   Visibility, VisibilityOff,
   EmailOutlined, LockOutlined,
   Login as LoginIcon,
@@ -489,6 +487,7 @@ import { useAppDispatch, useAppSelector } from '@store/store';
 import { IsAuthenticated, addUserData, setAuthData, setRoleAccess } from '@store/slices/userSlice';
 import { loadBranchSession } from './loadBranchSession';
 import { consumePendingSignup } from '@utils/pendingSignup';
+import AuthLayout from './AuthLayout';
 
 // ─── Theme ────────────────────────────────────────────────────
 const theme = createTheme({
@@ -538,125 +537,6 @@ const theme = createTheme({
     },
   },
 });
-
-// ─── Left Branding Panel ──────────────────────────────────────
-const BrandingPanel: React.FC = () => (
-  <Box
-    sx={{
-      display:       { xs: 'none', md: 'flex' },
-      width:         '50%',
-      flexShrink:    0,
-      flexDirection: 'column',
-      justifyContent:'space-between',
-      position:      'relative',
-      overflow:      'hidden',
-      bgcolor:       '#f3f4f5',
-      p:             { md: 6, lg: 10 },
-    }}
-  >
-    {/* Decorative blobs */}
-    <Box sx={{ position: 'absolute', top: -96, left: -96, width: 384, height: 384, bgcolor: 'rgba(175,16,26,0.05)', borderRadius: '50%', filter: 'blur(64px)' }} />
-    <Box sx={{ position: 'absolute', bottom: 80, right: 0, width: 256, height: 256, bgcolor: 'rgba(0,95,123,0.05)', borderRadius: '50%', filter: 'blur(64px)' }} />
-
-    {/* Headline */}
-    <Box sx={{ position: 'relative', zIndex: 1, maxWidth: 440 }}>
-      <Typography
-        sx={{
-          fontFamily:    "'Plus Jakarta Sans', sans-serif",
-          fontSize:      { md: '3rem', lg: '4.5rem' },
-          fontWeight:    800,
-          color:         '#191c1d',
-          lineHeight:    1.1,
-          letterSpacing: '-0.02em',
-          mb:            3,
-        }}
-      >
-        Fast &amp; Easy{' '}
-        <Box component="span" sx={{ color: 'primary.main' }}>Billing</Box>
-      </Typography>
-      <Typography sx={{ fontSize: '1.1rem', color: '#5b403d', lineHeight: 1.625, maxWidth: 380 }}>
-        Command your business from any device with precision and ease.
-        Experience the pulse of your finances in real-time.
-      </Typography>
-    </Box>
-
-    {/* Metric card */}
-    <Box sx={{ position: 'relative', zIndex: 1 }}>
-      <Box
-        sx={{
-          bgcolor:      '#ffffff',
-          borderRadius: 3,
-          p:            4,
-          maxWidth:     340,
-          boxShadow:    '0 25px 50px -12px rgba(0,0,0,0.08)',
-          transition:   'transform 0.5s ease',
-          '&:hover':    { transform: 'translateY(-8px)' },
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-          <Box
-            sx={{
-              width:          48,
-              height:         48,
-              borderRadius:   '50%',
-              bgcolor:        '#ffdad6',
-              display:        'flex',
-              alignItems:     'center',
-              justifyContent: 'center',
-            }}
-          >
-            <PaymentsIcon sx={{ color: 'primary.main', fontSize: 22 }} />
-          </Box>
-          <Box>
-            <Typography sx={{ fontSize: '0.8rem', color: '#5b403d', fontWeight: 500 }}>
-              Total Invoiced
-            </Typography>
-            <Typography
-              sx={{
-                fontFamily: "'Plus Jakarta Sans', sans-serif",
-                fontSize:   '1.5rem',
-                fontWeight: 800,
-                color:      '#191c1d',
-                lineHeight: 1.2,
-              }}
-            >
-              $142,850.00
-            </Typography>
-          </Box>
-        </Box>
-        {/* Progress bar */}
-        <Box sx={{ mb: 1.5 }}>
-          <Box sx={{ height: 8, bgcolor: '#e7e8e9', borderRadius: 8, overflow: 'hidden' }}>
-            <Box sx={{ height: '100%', width: '85%', bgcolor: 'primary.main', borderRadius: 8 }} />
-          </Box>
-        </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <TrendingUpIcon sx={{ fontSize: 14, color: 'primary.main' }} />
-          <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: '#5b403d' }}>
-            12% increase from last month
-          </Typography>
-        </Box>
-      </Box>
-
-      {/* Grayscale office image — decorative */}
-      <Box
-        component="img"
-        src="https://lh3.googleusercontent.com/aida-public/AB6AXuAGM7YosMDJTh9k4abAECbFZaHG6Nvb5Ec18sUqSKVXSd1nep1dtgY28fDUTSubXu3Z1IqI0amYmB51LIBMONx8-bQOr4pUSi81iR4vqcVy99JD9-deGzbFPb0jmmeSA9ujiybqvIW0gj8qpW4IwFw3DWhCct-SkCut0bZyuZs_shmzgHdHdnaoepQPdCpFFVyMD-EcG9r60HpT2b0YNl1VrHiLeVqdSkbKyHIrm6FbGrgCRj7n2JRx2-AaQh12YQMO1GNudOfhTP8"
-        alt="Office workspace"
-        sx={{
-          position:  'absolute',
-          bottom:    48,
-          right:     48,
-          width:     '50%',
-          opacity:   0.18,
-          filter:    'grayscale(100%) contrast(1.25)',
-          borderRadius: 3,
-          pointerEvents: 'none',
-        }}
-      />
-    </Box>
-  </Box>
-);
 
 // ─── Login Page ───────────────────────────────────────────────
 const ZoduLoginPage: React.FC = () => {
@@ -826,57 +706,10 @@ const ZoduLoginPage: React.FC = () => {
       {/* Google Fonts */}
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@700;800&display=swap');`}</style>
 
-      <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#f8f9fa' }}>
-        <BrandingPanel />
-
-        {/* ── Right: form panel ── */}
-        <Box
-          sx={{
-            flex:           1,
-            display:        'flex',
-            flexDirection:  'column',
-            bgcolor:        '#ffffff',
-            position:       'relative',
-            minHeight:      '100vh',
-          }}
-        >
-          {/* ── Logo — top right ── */}
-          <Box
-            sx={{
-              position: 'absolute',
-              top:      { xs: 20, sm: 28 },
-              right:    { xs: 24, sm: 36 },
-              zIndex:   10,
-            }}
-          >
-            <Typography
-              sx={{
-                fontFamily:    "'Plus Jakarta Sans', sans-serif",
-                fontSize:      '2rem',
-                fontWeight:    800,
-                color:         'primary.main',
-                letterSpacing: '-0.04em',
-                lineHeight:    1,
-              }}
-            >
-              zodu
-            </Typography>
-          </Box>
-
-          {/* ── Centered form ── */}
-          <Box
-            sx={{
-              flex:           1,
-              display:        'flex',
-              alignItems:     'center',
-              justifyContent: 'center',
-              px:             { xs: 3, sm: 6, lg: 10 },
-              py:             { xs: 8, sm: 6 },
-            }}
-          >
-            <Box sx={{ width: '100%', maxWidth: 420 }}>
+      <AuthLayout cardMaxWidth={500}>
+            <Box sx={{ width: '100%' }}>
               {/* Heading */}
-              <Box sx={{ textAlign: 'center', mb: 5 }}>
+              <Box sx={{ mb: 4 }}>
                 <Typography
                   sx={{
                     fontFamily:    "'Plus Jakarta Sans', sans-serif",
@@ -996,7 +829,7 @@ const ZoduLoginPage: React.FC = () => {
                 </Stack>
 
                 {/* Sign up link */}
-                <Box sx={{ mt: 5, textAlign: 'center' }}>
+                <Box sx={{ mt: 3.5, textAlign: 'center' }}>
                   <Typography sx={{ color: '#5b403d', fontSize: '0.9rem' }}>
                     Don't have an account?{' '}
                     <Link
@@ -1010,44 +843,7 @@ const ZoduLoginPage: React.FC = () => {
                 </Box>
               </Box>
             </Box>
-          </Box>
-
-          {/* ── Footer ── */}
-          <Box
-            component="footer"
-            sx={{
-              display:        'flex',
-              flexDirection:  { xs: 'column', sm: 'row' },
-              justifyContent: 'space-between',
-              alignItems:     'center',
-              px:             { xs: 3, sm: 5 },
-              py:             2.5,
-              bgcolor:        '#f3f4f5',
-              borderTop:      '1px solid #e4beba',
-              gap:            1.5,
-            }}
-          >
-            <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: '#191c1d', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              zodu
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
-              {['Privacy Policy', 'Terms of Service', 'Help Center', 'Contact'].map(item => (
-                <Link
-                  key={item}
-                  href="#"
-                  underline="hover"
-                  sx={{ fontSize: '0.8rem', color: '#8f6f6c', '&:hover': { color: 'primary.main' }, transition: 'color 0.15s' }}
-                >
-                  {item}
-                </Link>
-              ))}
-            </Box>
-            <Typography sx={{ fontSize: '0.78rem', color: '#8f6f6c' }}>
-              © 2026 ZODU. All rights reserved.
-            </Typography>
-          </Box>
-        </Box>
-      </Box>
+      </AuthLayout>
     </ThemeProvider>
   );
 };

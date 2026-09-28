@@ -54,6 +54,13 @@ export interface Branch {
   pincode?: string;
   same_as_address?: boolean;
   same_as_bank_details?: boolean;
+  // Subscription lives per branch (tbl_subscription, joined in getBranches).
+  subscription_status?: string | null;           // "trial" | "active" | ...
+  subscription_effective_status?: string | null; // adds "trial_expired" / "subscription_expired"
+  subscription_plan_code?: string | null;
+  trial_end_date?: string | null;
+  subscription_end_date?: string | null;
+  trial_days_left?: number | null;
 }
 
 export interface CompanyWithBranches {
