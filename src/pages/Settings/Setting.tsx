@@ -271,7 +271,6 @@ export default function Setting() {
   const [expandedCompanyIds, setExpandedCompanyIds] = useState<string[]>([]);
   const [branchModalOpen, setBranchModalOpen] = useState(false);
   const [companyModalOpen, setCompanyModalOpen] = useState(false);
-  const [companyModalPrefill, setCompanyModalPrefill] = useState<PendingSignup | null>(null);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
   const [branchCompanyId, setBranchCompanyId] = useState<string>("");
   const [editingCompany, setEditingCompany] = useState<CompanyWithBranches | null>(null);
@@ -338,19 +337,18 @@ export default function Setting() {
     setSubmitError(null);
     setCompanyModalOpen(false);
     setEditingCompany(null);
-    setCompanyModalPrefill(null);
   };
 
   // Arriving here right after signup (Login redirects with this state once,
-  // for that account's first login only): open Add Business already filled
-  // with what the user typed on the signup form. Consumed immediately via
-  // `replace` so refreshing or navigating back never reopens it.
+  // for that account's first login only). Signup already created the
+  // business, so this opens *Edit* on it — Add would create a second one.
+  // The state is cleared immediately via `replace` so refreshing or navigating
+  // back never reopens it; the business is picked once the list has loaded.
+  const [pendingSignupEdit, setPendingSignupEdit] = useState<PendingSignup | null>(null);
   useEffect(() => {
-    const prefill = (location.state as { openAddBusiness?: PendingSignup } | null)?.openAddBusiness;
+    const prefill = (location.state as { openEditBusiness?: PendingSignup } | null)?.openEditBusiness;
     if (!prefill) return;
-    setEditingCompany(null);
-    setCompanyModalPrefill(prefill);
-    setCompanyModalOpen(true);
+    setPendingSignupEdit(prefill);
     navigate(location.pathname, { replace: true, state: null });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on arrival only
   }, []);
@@ -368,6 +366,23 @@ export default function Setting() {
     queryKey: ["settings", "companies"],
     queryFn: authApis.getMyCompanies,
   });
+
+  // The business signup created: the primary one, else the one carrying the
+  // signup email / name, else the only one there is. Opens Edit on it.
+  useEffect(() => {
+    if (!pendingSignupEdit || !companiesQuery.data) return;
+    const companies = companiesQuery.data;
+    const email = pendingSignupEdit.email.trim().toLowerCase();
+    const name = pendingSignupEdit.restaurant_name.trim().toLowerCase();
+    const signupCompany =
+      companies.find((c) => c.is_primary) ??
+      companies.find((c) => c.email?.trim().toLowerCase() === email) ??
+      companies.find((c) => c.restaurant_name?.trim().toLowerCase() === name) ??
+      (companies.length === 1 ? companies[0] : undefined);
+    setPendingSignupEdit(null);
+    if (signupCompany) openEditCompany(signupCompany);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fires once, when the list arrives
+  }, [pendingSignupEdit, companiesQuery.data]);
 
   const createCompanyMutation = useMutation({
     mutationFn: (payload: CreateCompanyPayload) => authApis.createCompany(payload),
@@ -1458,14 +1473,6 @@ export default function Setting() {
         open={companyModalOpen}
         onClose={closeCompanyModal}
         business={editingCompany}
-        initialValues={
-          companyModalPrefill && {
-            type:             companyModalPrefill.business_type,
-            restaurant_name:  companyModalPrefill.restaurant_name,
-            email:            companyModalPrefill.email,
-            phone_number:     companyModalPrefill.phone_number,
-          }
-        }
         onSubmit={handleCompanySubmit}
         submitting={createCompanyMutation.isPending || editCompanyMutation.isPending}
       />

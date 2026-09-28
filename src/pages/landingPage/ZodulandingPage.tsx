@@ -54,6 +54,14 @@ import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import CloudDoneIcon from "@mui/icons-material/CloudDone";
 
 import { useNavigate } from "react-router-dom";
+import {
+  Archive, ArrowRight, Building2, Car, ConciergeBell, Cross, Droplet, Dumbbell, Ellipsis,
+  Flower2, Gem, GraduationCap, Laptop, Pill, Plane, Printer, Shirt, ShoppingBag, Sofa,
+  Sprout, Truck, Utensils, Wine, Zap,
+  Bell, Package, ShoppingCart, Store,
+  Crown, Headphones, RefreshCw, ShieldCheck, Tag,
+  type LucideIcon,
+} from "lucide-react";
 import zlogo from "../../assets/zlogo.png";
 import imgPosBilling from "../../assets/modules/pos-billing.png";
 import imgInventory from "../../assets/modules/inventory.png";
@@ -151,34 +159,12 @@ import heroDevices from '../../assets/Landingpage/hero-img.png';
 import StorefrontRoundedIcon from "@mui/icons-material/StorefrontRounded";
 import FactoryRoundedIcon from "@mui/icons-material/FactoryRounded";
 import ShoppingCartRoundedIcon from "@mui/icons-material/ShoppingCartRounded";
-import AgricultureRoundedIcon from "@mui/icons-material/AgricultureRounded";
 import DirectionsCarRoundedIcon from "@mui/icons-material/DirectionsCarRounded";
-import ApartmentRoundedIcon from "@mui/icons-material/ApartmentRounded";
-import LocalHospitalRoundedIcon from "@mui/icons-material/LocalHospitalRounded";
-import SchoolRoundedIcon from "@mui/icons-material/SchoolRounded";
-import CheckroomRoundedIcon from "@mui/icons-material/CheckroomRounded";
-import LaptopMacRoundedIcon from "@mui/icons-material/LaptopMacRounded";
-import RestaurantRoundedIcon from "@mui/icons-material/RestaurantRounded";
 import ChairRoundedIcon from "@mui/icons-material/ChairRounded";
-import LocalShippingRoundedIcon from "@mui/icons-material/LocalShippingRounded";
-import SpaRoundedIcon from "@mui/icons-material/SpaRounded";
-import FitnessCenterRoundedIcon from "@mui/icons-material/FitnessCenterRounded";
-import MedicationRoundedIcon from "@mui/icons-material/MedicationRounded";
-import PrintRoundedIcon from "@mui/icons-material/PrintRounded";
-import BoltRoundedIcon from "@mui/icons-material/BoltRounded";
 import LocalBarRoundedIcon from "@mui/icons-material/LocalBarRounded";
 import OpacityRoundedIcon from "@mui/icons-material/OpacityRounded";
 
-import DryCleaningRoundedIcon from "@mui/icons-material/DryCleaningRounded";
-import DiamondRoundedIcon from "@mui/icons-material/DiamondRounded";
-import RoomServiceRoundedIcon from "@mui/icons-material/RoomServiceRounded";
-import FlightRoundedIcon from "@mui/icons-material/FlightRounded";
-import MoreHorizRoundedIcon from "@mui/icons-material/MoreHorizRounded";
 
-import AirportShuttleRoundedIcon from "@mui/icons-material/AirportShuttleRounded";
-import WeekendRoundedIcon from "@mui/icons-material/WeekendRounded";
-import LiquorRoundedIcon from "@mui/icons-material/LiquorRounded";
-import WaterDropRoundedIcon from "@mui/icons-material/WaterDropRounded";
 
 // ── Design Tokens ───────────────────────────────────────────
 // ──────────────────
@@ -627,6 +613,11 @@ const HERO_NAVY = "#0F2A6B";       // navy used inside the hero artwork
 const HERO_BLUE_SOFT = "#EFF6FF";
 const HERO_BASE = "#F8FBFC";       // sampled from the artwork's left edge so the fade is seamless
 const NAV_H = { xs: 60, md: 64 };  // navbar row height; the hero subtracts it (+1px border) to fill the screen
+/** One screen minus the sticky navbar (+1px border): navbar + hero = exactly the viewport. */
+const HERO_SCREEN = {
+  xs: `calc(100dvh - ${NAV_H.xs + 1}px)`,
+  md: `calc(100dvh - ${NAV_H.md + 1}px)`,
+};
 
 // ── Showcase mockup ────────────────────────────────────────────────────────────
 // Browser-framed faux dashboard used as a product-screenshot placeholder.
@@ -928,293 +919,321 @@ const FzWideCard: React.FC<{ icon: React.ReactNode; color: string; bg: string; t
 
 // The five module cards below POS / Inventory / Attendance, in the same wide layout. Their photos are
 // the landscape scenes shot for the smaller cards; imagePos keeps each subject in the right-hand crop.
-const fzModuleCards: Array<React.ComponentProps<typeof FzWideCard>> = [
-  {
-    icon: <PeopleAltRoundedIcon />, color: "#2563EB", bg: "#DBEAFE",
-    title: "Customer Management", desc: "Build lasting customer relationships.",
-    items: ["Customer profiles & purchase history", "Loyalty points & rewards", "Total spend & order insights", "Quick customer lookup at billing"],
-    photo: fzCustomerPhoto, alt: "Customer checking her loyalty rewards on her phone", imagePos: "center 30%",
-  },
-  {
-    icon: <AccountBalanceWalletOutlinedIcon />, color: "#EA580C", bg: "#FFEDD5",
-    title: "Payments & Reminders", desc: "Get paid on time with automated reminders.",
-    items: ["Automated payment reminders", "Outstanding amount tracking", "Reminder history per customer", "Collect dues faster"],
-    photo: fzPhoto("payments", FZ_MINI_W), alt: "Payment reminder being sent from the Zodu app", imagePos: "center 50%",
-  },
-  {
-    icon: <DescriptionOutlinedIcon />, color: "#2563EB", bg: "#DBEAFE",
-    title: "GST Compliance & Reports", desc: "Stay 100% compliant with easy GST filing.",
-    items: ["GSTR-1 & GSTR-3B reports", "E-way bill generation", "Filing status at a glance", "GST-ready invoices"],
-    photo: fzPhoto("gst", FZ_MINI_W), alt: "GST compliance report with filing status on a desk", imagePos: "center 35%",
-  },
-  {
-    icon: <PaymentOutlinedIcon />, color: FZ_GREEN, bg: "#DCFCE7",
-    title: "Expense Management", desc: "Track and control your business expenses.",
-    items: ["Daily & monthly expense tracking", "Expense categories", "Monthly spend summary", "See where your money goes"],
-    photo: fzPhoto("expense", FZ_MINI_W), alt: "Store staff reviewing monthly expenses on a tablet", imagePos: "center 22%",
-  },
-  {
-    icon: <ShoppingCartOutlinedIcon />, color: "#9333EA", bg: "#F3E8FF",
-    title: "Purchase Management", desc: "Manage suppliers, purchase orders & receipts.",
-    items: ["Supplier management", "Purchase orders", "Pending receipt tracking", "Purchase totals & history"],
-    photo: fzPhoto("purchase", FZ_MINI_W), alt: "Warehouse staff checking purchase orders on a tablet", imagePos: "center 40%",
-  },
-  {
-    icon: <StorefrontRoundedIcon />, color: "#0EA5E9", bg: "#E0F2FE",
-    title: "Multi-Location Handling", desc: "Run every branch from one account.",
-    items: ["Branch-wise stock & sales", "Switch branch in one tap", "Per-branch pricing & taxes", "Consolidated reports across branches"],
-    // Shares the warehouse photo with the Inventory card until a branch-specific one is shot.
-    photo: fzPhoto("inventory", FZ_WIDE_W), alt: "Staff checking stock for a branch on a tablet", imagePos: "center 40%",
-  },
+type ZoduBentoFeature = {
+  title: string; description: string; highlights: string[]; icon: React.ReactNode;
+  color: string; tint: string; photo: FzPhoto; alt: string; imagePos?: string; desktopSpan?: number;
+};
+
+const zoduBentoFeatures: ZoduBentoFeature[] = [
+  { title: "POS Billing", description: "Fast, simple billing for every business.", highlights: ["Quick billing & barcode scanning", "Multiple payment methods"], icon: <ShoppingCartOutlinedIcon />, color: HERO_RED, tint: "#FFE5EA", photo: fzPhoto("inventory", FZ_WIDE_W), alt: "Zodu POS billing", desktopSpan: 2 },
+  { title: "Inventory Management", description: "Know what is selling, in real time.", highlights: ["Live stock tracking", "Low-stock alerts"], icon: <Inventory2RoundedIcon />, color: "#0B1F4B", tint: "#F0F3F8", photo: fzPhoto("inventory", FZ_WIDE_W), alt: "Warehouse staff checking stock", imagePos: "center" },
+  { title: "Attendance Management", description: "Keep teams, shifts and leaves in sync.", highlights: ["Check-in and check-out", "Shift & leave management"], icon: <AccessTimeOutlinedIcon />, color: HERO_RED, tint: "#FFF0F2", photo: fzPhoto("attendance", FZ_WIDE_W), alt: "Employee using attendance app", imagePos: "88% center" },
+  { title: "Customer Management", description: "Turn every purchase into a relationship.", highlights: ["Profiles & purchase history", "Loyalty points & rewards"], icon: <PeopleAltRoundedIcon />, color: HERO_RED, tint: "#FFF0F2", photo: fzCustomerPhoto, alt: "Customer loyalty rewards" },
+  { title: "Payments & Reminders", description: "Get paid on time, without chasing.", highlights: ["Automated payment reminders", "Outstanding amount tracking"], icon: <AccountBalanceWalletOutlinedIcon />, color: HERO_RED, tint: "#FFE5EA", photo: fzPhoto("payments", FZ_MINI_W), alt: "Payment reminder in Zodu", desktopSpan: 2 },
+  { title: "GST & Reports", description: "Stay compliant and see the bigger picture.", highlights: ["GST-ready invoices", "GSTR-1 & GSTR-3B reports"], icon: <DescriptionOutlinedIcon />, color: "#0B1F4B", tint: "#F0F3F8", photo: fzPhoto("gst", FZ_MINI_W), alt: "GST compliance report" },
+  { title: "Expense Management", description: "See where every rupee goes.", highlights: ["Daily expense tracking", "Monthly spend summary"], icon: <PaymentOutlinedIcon />, color: "#0B1F4B", tint: "#F0F3F8", photo: fzPhoto("expense", FZ_MINI_W), alt: "Expense management" },
+  { title: "Purchase Management", description: "Bring suppliers and purchases together.", highlights: ["Purchase orders", "Pending receipt tracking"], icon: <ShoppingCartOutlinedIcon />, color: HERO_RED, tint: "#FFF0F2", photo: fzPhoto("purchase", FZ_MINI_W), alt: "Purchase orders" },
+  { title: "Multi-Location", description: "Run every branch from one account.", highlights: ["Branch-wise stock & sales", "Consolidated reporting"], icon: <StorefrontRoundedIcon />, color: HERO_RED, tint: "#FFE5EA", photo: fzPhoto("inventory", FZ_WIDE_W), alt: "Multi-location inventory", desktopSpan: 2 },
 ];
 
-const WhatZoduDoesSection: React.FC = () => (
-  <Box component="section" id="what-zodu-does" aria-labelledby="fz-heading" sx={{
-    scrollMarginTop: { xs: NAV_H.xs, md: NAV_H.md },
+// Decorative product metaphors; no fabricated business metrics or live data.
+const BentoArtwork = ({ index, color }: { index: number; color: string }) => (
+  <svg viewBox="0 0 240 120" width="100%" height="100%" fill="none" aria-hidden="true">
+    {/* soft blob behind every illustration */}
+    <ellipse cx="122" cy="62" rx="74" ry="54" fill={color} fillOpacity=".07" />
+    <g stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      {/* 01 POS Billing — tilted monitor with a tile grid, card terminal and receipt */}
+      {index === 0 && <g>
+        <g transform="rotate(-6 112 58)">
+          <rect x="58" y="16" width="108" height="68" rx="8" fill="white" strokeWidth="2" />
+          {Array.from({ length: 12 }, (_, i) => (
+            <rect key={i} x={72 + (i % 4) * 22} y={28 + Math.floor(i / 4) * 16} width="13" height="9" rx="2.5"
+              fill={color} fillOpacity={[3, 6, 8, 9].includes(i) ? ".85" : ".2"} stroke="none" />
+          ))}
+          <path d="M104 84h14l3 9h-20z" fill={color} stroke="none" />
+          <rect x="94" y="93" width="34" height="5" rx="2.5" fill={color} stroke="none" />
+        </g>
+        <rect x="146" y="64" width="20" height="40" rx="8" fill={color} fillOpacity=".85" />
+        <rect x="160" y="56" width="34" height="48" rx="5" fill="white" />
+        <path d="M168 68h18M168 76h14M168 84h18M168 92h10" opacity=".5" />
+        <circle cx="176" cy="38" r="3" fill={color} fillOpacity=".3" stroke="none" />
+        <path d="M184 24l3-6M190 32l7-3M180 18v-6" />
+      </g>}
+      {/* 02 Inventory — three boxes, the middle one barcoded */}
+      {index === 1 && <g>
+        <path d="M52 97h140" opacity=".35" />
+        {[[64, 52, 40, 45], [140, 52, 40, 45], [100, 30, 44, 67]].map(([x, y, w, h], i) => (
+          <g key={i}>
+            <rect x={x} y={y} width={w} height={h} rx="5" fill="white" />
+            <path d={`M${x + w / 2 - 6} ${y}v12l6-3 6 3V${y}`} fill={color} fillOpacity=".15" />
+          </g>
+        ))}
+        <path d="M110 74v12M113 74v12M117 74v12M121 74v12M124 74v12M128 74v12M132 74v12" strokeWidth="1.4" />
+      </g>}
+      {/* 03 Attendance — calendar with a clock */}
+      {index === 2 && <g>
+        <rect x="70" y="22" width="86" height="74" rx="9" fill="white" />
+        <path d="M70 40h86" />
+        <path d="M79 22h68a9 9 0 0 1 9 9v9H70v-9a9 9 0 0 1 9-9z" fill={color} fillOpacity=".15" stroke="none" />
+        <path d="M89 15v13M137 15v13" />
+        {[[88, 56], [108, 56], [128, 56], [88, 76], [108, 76], [128, 76]].map(([cx, cy], i) => (
+          <circle key={i} cx={cx} cy={cy} r="5" fill={color} fillOpacity={i === 4 ? ".9" : ".25"} stroke="none" />
+        ))}
+        <circle cx="162" cy="82" r="22" fill="white" strokeWidth="3" />
+        <path d="M162 70v12h9" strokeWidth="2.4" />
+      </g>}
+      {/* 04 Customers — featured customer in a frame with a star, one either side */}
+      {index === 3 && <g>
+        <rect x="98" y="14" width="50" height="58" rx="10" fill="white" strokeWidth="2" />
+        <circle cx="123" cy="34" r="8" fill="white" />
+        <path d="M109 62v-3a14 11 0 0 1 28 0v3z" fill="white" />
+        <circle cx="82" cy="70" r="9" fill="white" />
+        <path d="M66 102v-8a16 13 0 0 1 32 0v8z" fill="white" />
+        <circle cx="164" cy="70" r="9" fill="white" />
+        <path d="M148 102v-8a16 13 0 0 1 32 0v8z" fill="white" />
+        <circle cx="150" cy="16" r="11" fill={color} stroke="none" />
+        <path d="m150 9 2.2 4.5 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.5 5-.7z" fill="white" stroke="none" />
+      </g>}
+      {/* 05 Payments — card, paid tick and a reminder bell */}
+      {index === 4 && <g>
+        <g transform="rotate(-6 112 66)">
+          <rect x="62" y="36" width="100" height="60" rx="8" fill="white" />
+          <rect x="62" y="48" width="100" height="10" fill={color} fillOpacity=".2" stroke="none" />
+          <path d="M74 76h26M74 84h16" opacity=".45" />
+        </g>
+        <circle cx="152" cy="86" r="16" fill={color} stroke="none" />
+        <path d="m144 86 5 5 10-10" stroke="white" strokeWidth="3" />
+        <path d="M168 46c0-10 4-16 10-16s10 6 10 16l3 5h-26z" fill="white" />
+        <path d="M175 54a3 3 0 0 0 6 0M178 27v3M195 24l5-4M198 34h6" />
+      </g>}
+      {/* 06 GST & Reports — report with a GST tag, bars and a pie */}
+      {index === 5 && <g>
+        <rect x="74" y="16" width="76" height="88" rx="8" fill="white" />
+        <path d="M86 32h26M86 42h16" opacity=".4" />
+        <rect x="120" y="26" width="40" height="18" rx="5" fill={color} stroke="none" />
+        <text x="140" y="39" textAnchor="middle" fill="white" stroke="none" fontSize="10" fontWeight="700">GST</text>
+        <rect x="88" y="78" width="8" height="16" rx="1.5" fill={color} fillOpacity=".85" stroke="none" />
+        <rect x="102" y="68" width="8" height="26" rx="1.5" fill={color} fillOpacity=".85" stroke="none" />
+        <rect x="116" y="58" width="8" height="36" rx="1.5" fill={color} fillOpacity=".85" stroke="none" />
+        <circle cx="160" cy="84" r="18" fill="white" />
+        <circle cx="160" cy="84" r="18" fill={color} fillOpacity=".25" stroke="none" />
+        <path d="M160 84V66a18 18 0 0 1 17 24z" fill={color} stroke="none" />
+      </g>}
+      {/* 07 Expenses — rupee receipt and a calculator */}
+      {index === 6 && <g>
+        <path d="M78 22l6-4 6 4 6-4 6 4 6-4 6 4 6-4 6 4v78H78z" fill="white" />
+        <text x="102" y="60" textAnchor="middle" fill={color} stroke="none" fontSize="24" fontWeight="600">₹</text>
+        <path d="M88 72h28M88 80h20" opacity=".4" />
+        <rect x="124" y="46" width="46" height="58" rx="7" fill="white" />
+        <rect x="132" y="54" width="30" height="11" rx="2" fill={color} fillOpacity=".85" stroke="none" />
+        {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+          <rect key={i} x={133 + (i % 3) * 10} y={72 + Math.floor(i / 3) * 10} width="6" height="6" rx="1.5" fill={color} stroke="none" />
+        ))}
+      </g>}
+      {/* 08 Purchases — incoming parcel with a cart badge */}
+      {index === 7 && <g>
+        <path d="M60 58h24M66 68h18M60 78h22" opacity=".45" />
+        <path d="m96 42 30-14 30 14-30 14z" fill={color} fillOpacity=".15" />
+        <path d="M96 42v36l30 14V56z" fill="white" />
+        <path d="M156 42v36l-30 14V56z" fill="white" />
+        <path d="m111 35 30 14v10" opacity=".6" />
+        <circle cx="160" cy="86" r="17" fill={color} stroke="none" />
+        <path d="M150 79h3l3 12h11l3-9h-16" stroke="white" strokeWidth="2" />
+        <circle cx="157.5" cy="95" r="1.6" fill="white" stroke="none" />
+        <circle cx="166" cy="95" r="1.6" fill="white" stroke="none" />
+      </g>}
+      {/* 09 Multi-location — a pin linking three stores */}
+      {index === 8 && <g>
+        <path d="M120 48v16M120 52c-24 0-42 6-48 16M120 52c24 0 42 6 48 16" strokeDasharray="3 4" opacity=".6" />
+        <path d="M120 45c-8-9-12-15-12-21a12 12 0 0 1 24 0c0 6-4 12-12 21z" fill={color} stroke="none" />
+        <circle cx="120" cy="24" r="4.5" fill="white" stroke="none" />
+        {[[50, 68], [100, 72], [150, 68]].map(([x, y], i) => (
+          <g key={i} transform={`translate(${x} ${y})`}>
+            <rect x="4" y="10" width="32" height="26" rx="2" fill="white" />
+            <rect x="15" y="22" width="10" height="14" fill={color} fillOpacity=".15" />
+            <path d="m2 10 4-8h28l4 8" fill="white" />
+            <path d="M2 10c2.2 4 6.8 4 9 0 2.2 4 6.8 4 9 0 2.2 4 6.8 4 9 0 2.2 4 6.8 4 9 0" fill={color} fillOpacity=".2" />
+          </g>
+        ))}
+      </g>}
+    </g>
+  </svg>
+);
+
+/**
+ * Highlights ticker along the bottom of the "What Zodu does" section. Always one
+ * row: it scrolls on its own, and with reduced motion it stays still and can be
+ * scrolled sideways by hand instead of wrapping onto a second line.
+ */
+const ZODU_TICKER_ITEMS = ["Bill faster", "Stock in sync", "Simplify GST", "Stay connected", "Manage every branch", "Grow with Zodu", "Secure payments", "Works offline", "Real-time insights", "Built to scale"];
+
+const ZoduTicker: React.FC = () => (
+  <Box role="region" aria-label="Zodu product highlights" tabIndex={0} sx={{
+    flexShrink: 0,
+    bgcolor: HERO_RED, color: "#fff", overflow: "hidden", py: { xs: 1.4, md: 1.8 },
+    borderBlock: "1px solid rgba(255,255,255,.15)",
+    "@keyframes zoduTickerRight": {
+      from: { transform: "translateX(-50%)" },
+      to: { transform: "translateX(0)" },
+    },
+    "&:hover .zodu-ticker-track, &:focus-within .zodu-ticker-track": { animationPlayState: "paused" },
+    "&:focus-visible": { outline: "3px solid #0B1F4B", outlineOffset: "-3px" },
+    "@media (prefers-reduced-motion: reduce)": {
+      overflowX: "auto", scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" },
+      "& .zodu-ticker-track": { animation: "none", transform: "none" },
+      "& .zodu-ticker-duplicate": { display: "none" },
+    },
+  }}>
+    <Box className="zodu-ticker-track" sx={{ display: "flex", flexWrap: "nowrap", width: "max-content", animation: "zoduTickerRight 38s linear infinite" }}>
+      {[0, 1].map(copy => (
+        <Box key={copy} className={`zodu-ticker-copy${copy ? " zodu-ticker-duplicate" : ""}`} aria-hidden={copy === 1 ? true : undefined}
+          sx={{ display: "flex", flexWrap: "nowrap", alignItems: "center", justifyContent: "space-around", flexShrink: 0, minWidth: "100vw", px: { xs: 1, md: 1.5 } }}>
+          {ZODU_TICKER_ITEMS.map(label => (
+            <React.Fragment key={label}>
+              <Box component="span" aria-hidden="true" sx={{ px: { xs: 1.5, md: 2.5 }, flex: "0 0 auto", fontSize: { xs: 13, md: 16 }, lineHeight: 1, opacity: .7 }}>✦</Box>
+              <Box component="span" sx={{ flex: "0 0 auto", whiteSpace: "nowrap", fontSize: { xs: 13, md: 15 }, fontWeight: 750, letterSpacing: ".025em" }}>{label}</Box>
+            </React.Fragment>
+          ))}
+        </Box>
+      ))}
+    </Box>
+  </Box>
+);
+
+const WhatZoduDoesSection: React.FC = () => {
+  const [activeFeature, setActiveFeature] = useState<number | null>(null);
+
+  return (
+    <Box component="section" id="what-zodu-does" aria-labelledby="fz-heading" sx={{
+      scrollMarginTop: { xs: NAV_H.xs, md: NAV_H.md }, bgcolor: HERO_BASE,
+      height: { md: `calc(100svh - ${NAV_H.md}px)` }, boxSizing: "border-box", display: "flex", flexDirection: "column", overflow: "hidden",
+    }}>
+      <Box sx={{ flex: 1, minHeight: 0, display: "flex", px: SX, py: { xs: 5, md: 2.5 } }}>
+      <Box sx={{ width: "100%", maxWidth: SECTION_MAX_W, mx: "auto", minHeight: 0, display: "flex", flexDirection: "column" }}>
+        <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, alignItems: { md: "flex-end" }, justifyContent: "space-between", gap: { xs: 1.25, md: 4 }, mb: { xs: 3, md: 1.75 } }}>
+          <Box>
+            <Typography sx={{ color: FZ_RED, fontSize: "0.7rem", fontWeight: 800, letterSpacing: "0.16em", textTransform: "uppercase" }}>What Zodu does for you</Typography>
+            <Typography component="h2" id="fz-heading" sx={{ mt: 0.55, fontSize: { xs: "1.85rem", md: "clamp(1.75rem, 2.25vw, 2.6rem)" }, fontWeight: 800, color: FZ_INK, lineHeight: 1.08, letterSpacing: "-0.045em" }}>
+              Your business, all in flow.
+            </Typography>
+          </Box>
+          <Typography sx={{ maxWidth: { md: 285 }, color: FZ_MUTED, fontSize: { xs: "0.86rem", md: "0.78rem" }, lineHeight: 1.45, pb: { md: 0.25 } }}>
+            Nine connected tools that make the daily work of running a business feel effortless.
+          </Typography>
+        </Box>
+
+        <Box sx={{
+          display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(3, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" },
+          gridTemplateRows: { md: "repeat(3, minmax(0, 1fr))" }, flex: { md: 1 },
+          minHeight: 0, gap: { xs: 1.5, md: 1.5 },
+        }}>
+          {zoduBentoFeatures.map((feature, index) => {
+            const active = activeFeature === index;
+            const number = String(index + 1).padStart(2, "0");
+
+            return (
+              <Box key={feature.title} component="button" type="button" aria-expanded={active}
+                onPointerEnter={(event) => { if (event.pointerType === "mouse") setActiveFeature(index); }}
+                onPointerLeave={(event) => { if (event.pointerType === "mouse") setActiveFeature(null); }}
+                onFocus={(event) => { if (event.currentTarget.matches(":focus-visible")) setActiveFeature(index); }}
+                onBlur={() => setActiveFeature(null)}
+                onClick={() => setActiveFeature(current => current === index ? null : index)}
+                sx={{
+                  position: "relative", gridColumn: { lg: `span ${feature.desktopSpan || 1}` }, height: { md: "100%" }, minHeight: { xs: 188, md: 0 },
+                  overflow: "hidden", textAlign: "left", border: `1px solid ${active ? alpha(feature.color, 0.6) : alpha(feature.color, 0.16)}`,
+                  borderRadius: { xs: 3, md: 4 }, p: { xs: 2.5, md: 2.1 }, bgcolor: feature.tint, cursor: "pointer", fontFamily: "inherit",
+                  boxShadow: active ? `0 18px 38px ${alpha(feature.color, 0.22)}` : "0 5px 18px rgba(15,23,42,0.055)",
+                  transition: "border-color 320ms ease, box-shadow 320ms ease, background-color 320ms ease",
+                  "&::before": { content: '""', position: "absolute", width: "72%", aspectRatio: "1", borderRadius: "50%", right: "-26%", top: "-45%", bgcolor: alpha(feature.color, active ? 0.18 : 0.1), filter: "blur(1px)", transition: "transform 650ms cubic-bezier(.2,.8,.2,1), opacity 300ms ease", transform: active ? "scale(1.6)" : "scale(1)" },
+                  "&:focus-visible": { outline: `3px solid ${alpha(feature.color, 0.45)}`, outlineOffset: 3 },
+                }}>
+                <Box sx={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, ${alpha("#fff", 0.55)}, ${alpha(feature.tint, 0.86)})` }} />
+                <Box sx={{ position: "relative", zIndex: 1, height: "100%", display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+                  <Box sx={{ position: "relative", zIndex: 2, display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between" }}>
+                    <Typography sx={{ color: alpha(feature.color, 0.76), fontSize: "0.68rem", fontWeight: 800, letterSpacing: "0.14em" }}>{number}</Typography>
+                    <Box sx={{ width: 34, height: 34, borderRadius: "50%", display: "grid", placeItems: "center", color: feature.color, bgcolor: alpha("#fff", 0.72), border: `1px solid ${alpha(feature.color, 0.13)}`, "& svg": { fontSize: 18 } }}>{feature.icon}</Box>
+                  </Box>
+                  <Box aria-hidden="true" sx={{
+                    position: "absolute", top: 0, right: 52, width: feature.desktopSpan ? { xs: "70%", lg: "52%" } : "80%",
+                    // Stays in view on hover — just a slight lift and shrink for the text below.
+                    height: "calc(100% - 55px)", pointerEvents: "none",
+                    transformOrigin: "top right",
+                    transform: active ? "translateY(-4px) scale(.94)" : "none",
+                    transition: "transform 380ms ease",
+                    filter: `drop-shadow(0 8px 8px ${alpha(feature.color, 0.12)})`,
+                    "@media (prefers-reduced-motion: reduce)": { transition: "none" },
+                  }}>
+                    <BentoArtwork index={index} color={feature.color} />
+                  </Box>
+                  <Box sx={{ mt: "auto", maxWidth: active ? 335 : 250, transition: "max-width 300ms ease" }}>
+                    <Typography component="h3" sx={{ color: FZ_INK, fontSize: { xs: "1.18rem", md: "clamp(0.98rem, 1.2vw, 1.2rem)" }, fontWeight: 800, lineHeight: 1.12, letterSpacing: "-0.025em" }}>{feature.title}</Typography>
+                    <Box sx={{ mt: 0.7, display: "inline-flex", alignItems: "center", gap: 0.55, color: feature.color, fontSize: "0.7rem", fontWeight: 800, "& svg": { fontSize: 15, transform: active ? "translateX(3px)" : "none", transition: "transform 280ms ease" } }}>
+                      Explore feature <ArrowForwardRoundedIcon />
+                    </Box>
+                    <Box sx={{ display: "grid", gap: 0.45, maxHeight: active ? 64 : 0, mt: active ? 1.05 : 0, opacity: active ? 1 : 0, transform: active ? "translateY(0)" : "translateY(10px)", overflow: "hidden", transition: "max-height 380ms ease, margin 320ms ease, opacity 230ms ease, transform 380ms ease" }}>
+                      <Typography sx={{ color: FZ_MUTED, fontSize: { xs: "0.78rem", md: "0.69rem" }, lineHeight: 1.3 }}>{feature.description}</Typography>
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.45 }}>
+                        {feature.highlights.map((highlight) => <Typography key={highlight} sx={{ color: feature.color, fontSize: { xs: "0.68rem", md: "0.62rem" }, fontWeight: 700, lineHeight: 1.2, px: 0.7, py: 0.35, borderRadius: "999px", bgcolor: alpha(feature.color, 0.1) }}>{highlight}</Typography>)}
+                      </Box>
+                    </Box>
+                  </Box>
+                </Box>
+              </Box>
+            );
+          })}
+        </Box>
+      </Box>
+      </Box>
+      <ZoduTicker />
+    </Box>
+  );
+};
+
+/** The four benefits, one strip — shown full width along the bottom of the hero. */
+const FzBenefitsStrip: React.FC = () => (
+  <Box sx={{
+    // Own scale unit: the strip lives in the hero, outside the section that sets --fz-u.
     "--fz-u": "1px",
     "@media (min-width: 1200px)": { "--fz-u": "0.9px" },
     [FZ_DESK]: { "--fz-u": `clamp(0.9px, calc((100vw - 2 * ${PAGE_GUTTER}) / 1520), 1px)` },
-    bgcolor: HERO_BASE,
-    px: SX,
-    pt: { xs: 5, md: fz(28) },
-    pb: { xs: 5, md: fz(32) },
+    ...fzCardSx, borderRadius: fz(14), display: "grid", width: "100%",
+    gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" },
   }}>
-    <Box sx={{ maxWidth: SECTION_MAX_W, mx: "auto", display: "flex", flexDirection: "column", gap: fz(10) }}>
-
-      {/* Heading + category tabs */}
-      <Box sx={{ textAlign: "center", mb: fz(9) }}>
-        <Box sx={{
-          display: "inline-flex", alignItems: "center", gap: fz(14), color: FZ_RED,
-          fontSize: fz(12.5), fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", lineHeight: 1.4,
-          "&::before, &::after": { content: '""', width: fz(30), height: "1px", bgcolor: alpha(FZ_RED, 0.45) },
-        }}>
-          What Zodu does for you
-        </Box>
-        <Typography component="h2" id="fz-heading" sx={{
-          mt: fz(12), fontSize: { xs: "1.75rem", sm: "2.1rem", lg: fz(38) }, fontWeight: 800, color: "#0B1220",
-          lineHeight: 1.15, letterSpacing: "-0.025em",
-        }}>
-          Everything You Need to Run Your Business Smarter
-        </Typography>
-        {/* <Typography sx={{ mt: fz(8), mx: "auto", maxWidth: fz(640), fontSize: { xs: "0.95rem", lg: fz(15) }, color: "#475569", lineHeight: 1.5 }}>
-          From billing and inventory to payments, GST, staff, and insights — Zodu brings every essential operation into one connected platform.
-        </Typography> */}
-
-        {/* <Box sx={{
-          // one row: scrolls below md, centred whenever it fits ("safe" falls back to start on overflow)
-          mt: fz(22), display: "flex", gap: { xs: "8px", md: fz(14) }, justifyContent: "safe center",
-          flexWrap: { xs: "nowrap", md: "wrap" }, overflowX: { xs: "auto", md: "visible" },
-          mx: { xs: -2.5, sm: -4, md: 0 }, px: { xs: 2.5, sm: 4, md: 0 }, py: fz(4),
-          scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" },
-        }}>
-          {fzTabs.map((tab) => (
-            <Box key={tab.label} component="button" type="button" aria-pressed={tab.active} sx={{
-              flexShrink: 0, display: "inline-flex", alignItems: "center", gap: fz(8), height: fz(38),
-              px: { xs: fz(tab.active ? 18 : 16), md: fz(tab.active ? 24 : 20) },
-              borderRadius: "999px", border: `1px solid ${tab.active ? FZ_RED : FZ_BORDER}`,
-              bgcolor: tab.active ? FZ_RED : "#fff", color: tab.active ? "#fff" : FZ_TEXT,
-              boxShadow: tab.active ? `0 8px 18px ${alpha(FZ_RED, 0.3)}` : "0 1px 2px rgba(15,23,42,0.04)",
-              fontFamily: "inherit", fontSize: fz(13), fontWeight: 600, whiteSpace: "nowrap", cursor: "pointer",
-              transition: "border-color 0.18s ease, color 0.18s ease",
-              "& svg": { fontSize: fz(17), color: tab.color },
-              "&:hover": tab.active ? {} : { borderColor: alpha(FZ_RED, 0.35), color: FZ_INK },
-              "&:focus-visible": { outline: `3px solid ${alpha(FZ_RED, 0.3)}`, outlineOffset: 2 },
-            }}>
-              {tab.icon}
-              {tab.label}
-            </Box>
-          ))}
-        </Box> */}
-      </Box>
-
-      {/* POS | Inventory + Attendance */}
-      <Box sx={{ display: "grid", gap: fz(10), gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(0, 1.2fr) minmax(0, 1fr)" } }}>
-        <FzPosCard />
-        <Box sx={{ display: "flex", flexDirection: "column", gap: fz(10), minWidth: 0 }}>
-          <FzWideCard
-            icon={<Inventory2RoundedIcon />} color={FZ_GREEN} bg="#DCFCE7"
-            title="Inventory Management" desc="Track stock in real time and never run out of best-selling items."
-            items={["Real-time stock tracking", "Low stock alerts", "Multi-location inventory", "Barcode & batch management"]}
-            photo={fzPhoto("inventory", FZ_WIDE_W)} alt="Warehouse staff checking stock levels on a tablet"
-          />
-          <FzWideCard
-            icon={<AccessTimeOutlinedIcon />} color="#7C3AED" bg="#EDE9FE"
-            title="Attendance Management" desc="Track staff attendance, shifts and leaves with ease."
-            items={["Real-time check-in/out", "Shift & leave management", "Location-based attendance", "Detailed attendance reports"]}
-            photo={fzPhoto("attendance", FZ_WIDE_W)} alt="Employee checking in on the Zodu attendance app" imagePos="88% center"
-          />
+    {fzBenefits.map((b, i) => (
+      <Box key={b.title} sx={{
+        position: "relative", display: "flex", alignItems: "center", justifyContent: { md: "center" },
+        gap: fz(14), px: fz(24), py: fz(12),
+        borderTop: { xs: i ? `1px solid ${FZ_BORDER}` : "none", sm: i >= 2 ? `1px solid ${FZ_BORDER}` : "none", md: "none" },
+        borderLeft: { sm: i % 2 ? `1px solid ${FZ_BORDER}` : "none", md: "none" },
+        "&::before": {
+          content: '""', display: { xs: "none", md: i ? "block" : "none" },
+          position: "absolute", left: 0, top: "25%", bottom: "25%", width: "1px", bgcolor: FZ_BORDER,
+        },
+      }}>
+        <FzIconTile icon={b.icon} color={FZ_RED} bg="#FFE4E6" size={40} radius={20} iconSize={21} />
+        <Box sx={{ minWidth: 0 }}>
+          <Typography sx={{ fontSize: fz(13.5), fontWeight: 700, color: FZ_INK, lineHeight: 1.3 }}>{b.title}</Typography>
+          <Typography sx={{ fontSize: fz(11.5), color: FZ_MUTED, lineHeight: 1.35 }}>{b.sub}</Typography>
         </Box>
       </Box>
-
-      {/* Six module cards: one per row below 1200px, then two per row across the
-          section's full width — three even rows, so nothing is left over. */}
-      <Box sx={{
-        display: "grid", gap: fz(10),
-        gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "repeat(2, minmax(0, 1fr))" },
-      }}>
-        {fzModuleCards.map((card) => <FzWideCard key={card.title} {...card} />)}
-      </Box>
-
-      {/* Benefits strip */}
-      <Box sx={{
-        ...fzCardSx, borderRadius: fz(14), display: "grid",
-        gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" },
-      }}>
-        {fzBenefits.map((b, i) => (
-          <Box key={b.title} sx={{
-            position: "relative", display: "flex", alignItems: "center", justifyContent: { md: "center" },
-            gap: fz(14), px: fz(24), py: fz(12),
-            borderTop: { xs: i ? `1px solid ${FZ_BORDER}` : "none", sm: i >= 2 ? `1px solid ${FZ_BORDER}` : "none", md: "none" },
-            borderLeft: { sm: i % 2 ? `1px solid ${FZ_BORDER}` : "none", md: "none" },
-            "&::before": {
-              content: '""', display: { xs: "none", md: i ? "block" : "none" },
-              position: "absolute", left: 0, top: "25%", bottom: "25%", width: "1px", bgcolor: FZ_BORDER,
-            },
-          }}>
-            <FzIconTile icon={b.icon} color={FZ_RED} bg="#FFE4E6" size={40} radius={20} iconSize={21} />
-            <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ fontSize: fz(13.5), fontWeight: 700, color: FZ_INK, lineHeight: 1.3 }}>{b.title}</Typography>
-              <Typography sx={{ fontSize: fz(11.5), color: FZ_MUTED, lineHeight: 1.35 }}>{b.sub}</Typography>
-            </Box>
-          </Box>
-        ))}
-      </Box>
-    </Box>
+    ))}
   </Box>
 );
 
 {/*BUILT FOR EVERY BUSINESS*/}
 
 // ============================================================
-// HOW THIS WORKS
+// BUILT FOR EVERY BUSINESS
 //
-// The reference design is 1344 x 896. On desktop / laptop / large tablet (900px+) the whole
-// section is ONE scaled canvas with that exact aspect ratio:
-//   - every element is placed by its measured position in the reference
-//   - every font/size uses `cqw` (1cqw = 1% of the section width),
-//     so at ANY desktop width the layout is an exact scaled copy.
-// Below 900px (tablet / mobile) a normal responsive grid is used.
+// Heading on one line with the handwritten note beside it, then the industries
+// as a plain grid of white cards: tinted icon circle, name and a two-line note.
 // ============================================================
 
-const W = 1344;
-const H = 896;
-
-/**
- * The desktop stage still reserves the top 67px that the navbar used to occupy.
- * Since the navbar is not part of this section, that empty band is cropped away.
- */
-const TOP_TRIM = 60;
-
-/** from this width the exact 5-column canvas is used; below it the responsive layout */
-const DESKTOP_MIN = "@media (min-width:900px)";
-
-/** desktop section padding (top, and top + bottom) — the canvas is scaled to fit what is left */
-const SECTION_PT = 8;
-const SECTION_PAD_Y = 32;
-
-/**
- * When the height limits the scale, the stage is stretched sideways (up to this
- * factor) instead of leaving wide empty margins: card columns spread apart and the
- * cards widen by at most CARD_W_SPREAD, so their text never outgrows their height.
- */
-const MAX_SPREAD = 1.1;
-const CARD_W_SPREAD = 2;
-
-/** design px (the stage is 1344 x 896 and is scaled to fit the screen) */
-const cq = (px: number) => `${px}px`;
-/** design-px -> % of canvas axis */
-const pct = (v: number, base: number) => `${((v / base) * 100).toFixed(3)}%`;
-
-const HERO_EDGE_TOP = "#F3F6FA";
-const HERO_EDGE_BOTTOM = "#F8F1E9";
-// ------------------------------------------------------------
-// MEASURED CARD SHAPES (from the 1344 x 896 reference)
-//
-// Every card in the reference is slightly rotated AND perspective-warped
-// (top edge and bottom edge are not parallel). Each entry below is the
-// exact 4-corner shape of that card, converted to a CSS matrix3d:
-//   x, y = top-left corner   w, h = un-warped size   m = the warp
-// ------------------------------------------------------------
-
-// Gap control: every card is enlarged a little around its own centre,
-// which shrinks the space between neighbouring cards.
-// (reference-measured gaps are ~21px horizontal / ~17px vertical)
-const TRIM_X = 8; // px added to each card's width  -> horizontal gap - 8px
-const TRIM_Y = 6; // px added to each card's height -> vertical gap - 6px
-
-type Quad = {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  cx: number; // warped-shape centre, relative to the top-left corner
-  cy: number;
-  m: string;
-};
-
-/** card height factor (1 = reference height); lower rows are pulled up to close the gap */
-const CARD_H_SCALE = 0.8;
-/** px every card moves up (the paragraph under the heading was removed) */
-const CARDS_LIFT = 62;
-const COLS = 5;
-
-const RAW_QUADS: Quad[] = [
-  { x: 21.07, y: 263.07, w: 284.37, h: 137.51, cx: 147.62, cy: 72.97, m: "matrix3d(1.213726,0.03739939,0,0.0007341279,0.08211135,1.096377,0,3.248395e-05,0,0,1,0,0,0,0,1)" },
-  { x: 325.34, y: 273.93, w: 233.37, h: 121.66, cx: 122.28, cy: 50.80, m: "matrix3d(1.010293,-0.08473227,0,3.171937e-05,0.09961352,1.011732,0,0.0001061115,0,0,1,0,0,0,0,1)" },
-  { x: 576.99, y: 246.76, w: 249.23, h: 135.15, cx: 129.35, cy: 52.20, m: "matrix3d(0.9005311,-0.1090456,0,-0.0004301058,0.08070702,0.9669437,0,0.000212275,0,0,1,0,0,0,0,1)" },
-  { x: 848.0, y: 229.99, w: 241.63, h: 134.65, cx: 120.77, cy: 70.98, m: "matrix3d(1.09218,0.0328945,0,0.0003581141,0,1.053695,0,8.909753e-05,0,0,1,0,0,0,0,1)" },
-  { x: 1108.65, y: 240.96, w: 223.01, h: 134.09, cx: 108.40, cy: 71.05, m: "matrix3d(1.065644,0.03922278,0,0.0002841433,-0.04532106,1.036666,0,5.228079e-05,0,0,1,0,0,0,0,1)" },
-  { x: 27.88, y: 427.2, w: 246.89, h: 119.92, cx: 124.15, cy: 55.37, m: "matrix3d(1.025207,-0.03798946,0,0.0001452664,0.01434192,0.9983992,0,-0.0001598359,0,0,1,0,0,0,0,1)" },
-  { x: 288.67, y: 418.41, w: 248.99, h: 114.78, cx: 128.87, cy: 45.85, m: "matrix3d(0.9611226,-0.08772333,0,-0.0001718184,0.08482058,0.9901222,0,0.0001395083,0,0,1,0,0,0,0,1)" },
-  { x: 556.95, y: 392.8, w: 233.06, h: 134.28, cx: 119.17, cy: 60.13, m: "matrix3d(1.033621,-0.06187672,0,0.0001746897,0.04326045,1.009338,0,-7.263617e-05,0,0,1,0,0,0,0,1)" },
-  { x: 807.65, y: 392.53, w: 247.48, h: 123.61, cx: 126.32, cy: 56.20, m: "matrix3d(1.036006,-0.04660692,0,0.0001619635,0.04506608,1.012783,0,-4.715892e-05,0,0,1,0,0,0,0,1)" },
-  { x: 1069.83, y: 399.65, w: 247.21, h: 117.16, cx: 128.37, cy: 53.20, m: "matrix3d(1.070888,-0.0447908,0,0.0002749652,0.085414,1.036497,0,5.886999e-05,0,0,1,0,0,0,0,1)" },
-  { x: 23.3, y: 563.86, w: 263.79, h: 98.04, cx: 132.95, cy: 43.95, m: "matrix3d(1.060145,-0.04009893,0,0.0002142611,0.02514834,1.036186,0,9.500744e-05,0,0,1,0,0,0,0,1)" },
-  { x: 304.05, y: 549.57, w: 244.64, h: 113.32, cx: 123.95, cy: 48.38, m: "matrix3d(1.017498,-0.06862581,0,7.994263e-05,0.03484232,1.0099,0,7.473963e-06,0,0,1,0,0,0,0,1)" },
-  { x: 572.04, y: 547.72, w: 217.79, h: 110.73, cx: 110.85, cy: 50.40, m: "matrix3d(0.964971,-0.04383515,0,-0.0001527012,0.03617768,0.9808824,0,-1.401004e-05,0,0,1,0,0,0,0,1)" },
-  { x: 806.21, y: 530.0, w: 259.66, h: 115.74, cx: 132.95, cy: 57.82, m: "matrix3d(1.12183,0,0,0.0004496266,0.05583982,1.062775,0,7.482201e-05,0,0,1,0,0,0,0,1)" },
-  { x: 1084.22, y: 532.24, w: 237.72, h: 110.35, cx: 122.30, cy: 48.70, m: "matrix3d(1.032404,-0.05543408,0,0.0001152029,0.06679514,1.024328,0,0.0001180404,0,0,1,0,0,0,0,1)" },
-  { x: 26.74, y: 673.14, w: 257.23, h: 90.22, cx: 132.35, cy: 42.83, m: "matrix3d(1.102927,-0.01881024,0,0.000357983,0.08556561,1.062217,0,0.0002282964,0,0,1,0,0,0,0,1)" },
-  { x: 317.88, y: 675.52, w: 232.68, h: 86.05, cx: 117.60, cy: 36.88, m: "matrix3d(1.037437,-0.05478411,0,0.0001610384,0.03429935,1.020911,0,3.712814e-05,0,0,1,0,0,0,0,1)" },
-  { x: 576.0, y: 666.91, w: 225.62, h: 93.97, cx: 112.77, cy: 47.02, m: "matrix3d(1.093289,0.0006278393,0,0.0004383512,4.725779e-18,1.036603,0,-0.0001101114,0,0,1,0,0,0,0,1)" },
-  { x: 817.54, y: 668.19, w: 234.35, h: 98.51, cx: 119.53, cy: 43.75, m: "matrix3d(1.087929,-0.05051991,0,0.0003723961,0.05253894,1.044685,0,4.25497e-05,0,0,1,0,0,0,0,1)" },
-  { x: 1091.16, y: 661.28, w: 227.36, h: 101.81, cx: 114.28, cy: 44.78, m: "matrix3d(0.9761183,-0.05251486,0,-7.612553e-05,0.01485962,0.9809364,0,-0.0001034874,0,0,1,0,0,0,0,1)" },
-  { x: 31.67, y: 777.0, w: 250.05, h: 87.6, cx: 127.58, cy: 43.73, m: "matrix3d(1.251034,0,0,0.0009861266,0.06380825,1.115586,0,8.138283e-05,0,0,1,0,0,0,0,1)" },
-  { x: 298.96, y: 777.42, w: 247.9, h: 89.09, cx: 128.23, cy: 40.00, m: "matrix3d(1.186256,-0.04209415,0,0.0007196786,0.104835,1.092936,0,0.0001701433,0,0,1,0,0,0,0,1)" },
-  { x: 567.85, y: 776.21, w: 241.82, h: 89.61, cx: 123.15, cy: 44.75, m: "matrix3d(1.20658,-6.022599e-05,0,0.0008482591,0.05201308,1.09373,0,2.038107e-05,0,0,1,0,0,0,0,1)" },
-  { x: 832.34, y: 785.36, w: 216.23, h: 88.95, cx: 112.00, cy: 34.55, m: "matrix3d(1.035285,-0.09300992,0,0.000154595,0.09903242,1.023675,0,0.0001362714,0,0,1,0,0,0,0,1)" },
-  { x: 1083.94, y: 778.09, w: 229.51, h: 82.21, cx: 115.95, cy: 34.48, m: "matrix3d(1.029145,-0.05911279,0,0.0001348999,0.03337287,1.01479,0,1.177212e-06,0,0,1,0,0,0,0,1)" },
-];
-
-/** height removed from each row (average card height of the row x (1 - scale)) */
-const ROW_SHRINK = Array.from({ length: Math.ceil(RAW_QUADS.length / COLS) }, (_, r) => {
-  const row = RAW_QUADS.slice(r * COLS, r * COLS + COLS);
-  return (row.reduce((s, q) => s + q.h, 0) / row.length) * (1 - CARD_H_SCALE);
-});
-
-const QUADS: Quad[] = RAW_QUADS.map((q, i) => {
-  const row = Math.floor(i / COLS);
-  const lift = CARDS_LIFT + ROW_SHRINK.slice(0, row).reduce((s, v) => s + v, 0);
-  return { ...q, y: q.y - lift, h: q.h * CARD_H_SCALE, cy: q.cy * CARD_H_SCALE };
-});
-
-/** visible stage height: from the trimmed top to just below the lowest card (+ room for its shadow) */
-const STAGE_H = Math.max(...QUADS.map((q) => q.y + q.h)) + 24 - TOP_TRIM;
-
 type Industry = {
-  title: string; // "\n" = forced line break (matches reference wrapping)
+  title: string; // "\n" = line break used by the hero chips; shown on one line in the cards
   description: string; // "\n" = forced line break
-  bg: [string, string];
   iconColor: string;
-  rotation: number; // deg
-  t: number; // title font-size, in cqw of the CARD width
-  tl: number; // text + arrow left offset, % of card width
-  tt: number; // text top offset, % of card height
-  ab: number; // arrow bottom offset, % of card height
-  is: number; // icon size, cqw of card width
-  ir: number; // icon centre distance from right edge, % of card width
-  icon?: React.ReactNode;
-  variant?: "last" | "dots";
+  icon: React.ReactNode;
 };
 
 // ------------------------------------------------------------
@@ -1222,755 +1241,124 @@ type Industry = {
 // ------------------------------------------------------------
 
 const NAVY = "#0B1F4B";
-const SLATE = "#5B6577";
 const BRAND_RED = "#E11D48";
 
+// ------------------------------------------------------------
+// DATA  (order = reading order, 5 per row)
+// ------------------------------------------------------------
 
-// ------------------------------------------------------------
-// DATA  (order = reading order in the reference, 5 x 5)
-// ------------------------------------------------------------
+/** every card icon: same outline weight and size */
+const lucideIcon = (Icon: LucideIcon) => <Icon size={24} strokeWidth={1.6} />;
 
 const industries: Industry[] = [
   // ---------- ROW 1 ----------
-  {
-    title: "Retail &\nGeneral Trade",
-    description: "Shops, Supermarkets,\nKirana & More",
-    bg: ["#FDE9EC", "#FAC9CF"],
-    iconColor: "#F26D74",
-    rotation: 1.7,
-    t: 6.5, tl: 12, tt: 12, ab: 8, is: 30, ir: 14,
-    icon: <StorefrontRoundedIcon />,
-  },
-  {
-    title: "Agriculture",
-    description: "Farms, Agri Products,\nDairy & Livestock",
-    bg: ["#EAF7EC", "#CDEBD3"],
-    iconColor: "#3FAF5E",
-    rotation: -4,
-    t: 6.4, tl: 11, tt: 14, ab: 10, is: 28, ir: 15,
-    icon: <AgricultureRoundedIcon />,
-  },
-  {
-    title: "Automobile",
-    description: "Vehicles, Spare Parts,\nService Centres & Transport",
-    bg: ["#EFEBFE", "#D9D0F9"],
-    iconColor: "#A596EE",
-    rotation: -5,
-    t: 6.4, tl: 12, tt: 14, ab: 10, is: 22, ir: 13,
-    icon: <AirportShuttleRoundedIcon />,
-  },
-  {
-    title: "Construction &\nReal Estate",
-    description: "Building Materials,\nConstruction, Rentals & Lease",
-    bg: ["#FFF5DA", "#FFE6A8"],
-    iconColor: "#F2BE4A",
-    rotation: 0.8,
-    t: 6.1, tl: 8.5, tt: 14, ab: 10, is: 32, ir: 15,
-    icon: <ApartmentRoundedIcon />,
-  },
-  {
-    title: "Healthcare",
-    description: "Clinics, Hospitals,\nPharmacies & More",
-    bg: ["#E9F4FF", "#CFE5FB"],
-    iconColor: "#86B9F3",
-    rotation: 1.5,
-    t: 6.6, tl: 8, tt: 14, ab: 10, is: 27, ir: 16,
-    icon: <LocalHospitalRoundedIcon />,
-  },
+  { title: "Retail &\nGeneral Trade", description: "Shops, Supermarkets,\nKirana & More", iconColor: "#E5485F", icon: lucideIcon(ShoppingBag) },
+  { title: "Agriculture", description: "Farms, Agri Products,\nDairy & Livestock", iconColor: "#22A35A", icon: lucideIcon(Sprout) },
+  { title: "Automobile", description: "Vehicles, Spare Parts,\nService Centres & Transport", iconColor: "#6D5BD0", icon: lucideIcon(Car) },
+  { title: "Construction &\nReal Estate", description: "Building Materials,\nConstruction, Rentals & Lease", iconColor: "#F59E0B", icon: lucideIcon(Building2) },
+  { title: "Healthcare", description: "Clinics, Hospitals,\nPharmacies & More", iconColor: "#3B82F6", icon: lucideIcon(Cross) },
 
   // ---------- ROW 2 ----------
-  {
-    title: "Education &\nCoaching",
-    description: "Schools, Colleges,\nCoaching & Training",
-    bg: ["#E8F3FF", "#CFE4FB"],
-    iconColor: "#8FA6CF",
-    rotation: -2.5,
-    t: 6.4, tl: 12, tt: 10.5, ab: 9, is: 32, ir: 19,
-    icon: <SchoolRoundedIcon />,
-  },
-  {
-    title: "Fashion & Lifestyle",
-    description: "Garments, Footwear,\nJewellery, Beauty & More",
-    bg: ["#FDEBE9", "#FAD0CC"],
-    iconColor: "#F27B7B",
-    rotation: -4,
-    t: 5.9, tl: 8, tt: 12, ab: 9, is: 26, ir: 14,
-    icon: <CheckroomRoundedIcon />,
-  },
-  {
-    title: "Electronics &\nTechnology",
-    description: "Mobiles, Electronics,\nIT Services & Accessories",
-    bg: ["#E6F7F4", "#C8EDE7"],
-    iconColor: "#4DBBAA",
-    rotation: -3.5,
-    t: 6.2, tl: 10, tt: 13, ab: 9, is: 30, ir: 17,
-    icon: <LaptopMacRoundedIcon />,
-  },
-  {
-    title: "Food & Beverage",
-    description: "Restaurants, Cafes,\nHotels & Catering",
-    bg: ["#ECE8FD", "#D6CEF8"],
-    iconColor: "#9B8BE8",
-    rotation: -4,
-    t: 6, tl: 9.6, tt: 12, ab: 9, is: 24, ir: 13,
-    icon: <RestaurantRoundedIcon />,
-  },
-  {
-    title: "Home & Furniture",
-    description: "Furniture, Home Services,\nInteriors & More",
-    bg: ["#FDECEE", "#F9D5DA"],
-    iconColor: "#F08290",
-    rotation: -2,
-    t: 5.9, tl: 9, tt: 12, ab: 9, is: 23, ir: 13,
-    icon: <WeekendRoundedIcon />,
-  },
+  { title: "Education &\nCoaching", description: "Schools, Colleges,\nCoaching & Training", iconColor: "#2563EB", icon: lucideIcon(GraduationCap) },
+  { title: "Fashion & Lifestyle", description: "Garments, Footwear,\nJewellery, Beauty & More", iconColor: "#EF4444", icon: lucideIcon(Shirt) },
+  { title: "Electronics &\nTechnology", description: "Mobiles, Electronics,\nIT Services & Accessories", iconColor: "#14B8A6", icon: lucideIcon(Laptop) },
+  { title: "Food & Beverage", description: "Restaurants, Cafes,\nHotels & Catering", iconColor: "#7C5CE0", icon: lucideIcon(Utensils) },
+  { title: "Home & Furniture", description: "Furniture, Home Services,\nInteriors & More", iconColor: "#E5485F", icon: lucideIcon(Sofa) },
 
   // ---------- ROW 3 ----------
-  {
-    title: "Automotive & Transport",
-    description: "Vehicles, Logistics,\nTransport & Fleet",
-    bg: ["#FFF1D3", "#FFDDA0"],
-    iconColor: "#F6B94E",
-    rotation: -3.5,
-    t: 5.5, tl: 8, tt: 8, ab: 7, is: 30, ir: 15,
-    icon: <LocalShippingRoundedIcon />,
-  },
-  {
-    title: "Beauty & Wellness",
-    description: "Spa, Fitness, Wellness\n& Personal Care",
-    bg: ["#E9F0FE", "#D2DEFB"],
-    iconColor: "#A3B4F3",
-    rotation: -4.5,
-    t: 5.9, tl: 10, tt: 8, ab: 7, is: 24, ir: 14,
-    icon: <SpaRoundedIcon />,
-  },
-  {
-    title: "Health & Fitness",
-    description: "Gyms, Fitness, Sports\n& Wellness",
-    bg: ["#FDE9ED", "#F9CDD5"],
-    iconColor: "#EE6A7C",
-    rotation: -2.3,
-    t: 6.2, tl: 11, tt: 8, ab: 7, is: 24, ir: 18,
-    icon: <FitnessCenterRoundedIcon />,
-  },
-  {
-    title: "Pharmacy & Medical Devices",
-    description: "Medicine, Medical Devices\n& Healthcare Products",
-    bg: ["#E8F7EB", "#C9EDD1"],
-    iconColor: "#4FB56D",
-    rotation: -3,
-    t: 5.3, tl: 9, tt: 8, ab: 7, is: 25, ir: 16,
-    icon: <MedicationRoundedIcon />,
-  },
-  {
-    title: "Printing & Stationery",
-    description: "Printing, Stationery,\nOffice Supplies & More",
-    bg: ["#ECE8FD", "#D7CFF8"],
-    iconColor: "#9584E6",
-    rotation: -2.5,
-    t: 5.7, tl: 10, tt: 8, ab: 7, is: 21, ir: 17,
-    icon: <PrintRoundedIcon />,
-  },
+  { title: "Automotive & Transport", description: "Vehicles, Logistics,\nTransport & Fleet", iconColor: "#F59E0B", icon: lucideIcon(Truck) },
+  { title: "Beauty & Wellness", description: "Spa, Fitness, Wellness\n& Personal Care", iconColor: "#8B5CF6", icon: lucideIcon(Flower2) },
+  { title: "Health & Fitness", description: "Gyms, Fitness, Sports\n& Wellness", iconColor: "#E11D48", icon: lucideIcon(Dumbbell) },
+  { title: "Pharmacy & Medical Devices", description: "Medicine, Medical Devices\n& Healthcare Products", iconColor: "#22A35A", icon: lucideIcon(Pill) },
+  { title: "Printing & Stationery", description: "Printing, Stationery,\nOffice Supplies & More", iconColor: "#7C5CE0", icon: lucideIcon(Printer) },
 
   // ---------- ROW 4 ----------
-  {
-    title: "Electrical & Hardware",
-    description: "Electrical Works,\nHardware & Tools",
-    bg: ["#E3F7F4", "#C8EDEA"],
-    iconColor: "#45B3C2",
-    rotation: -2,
-    t: 4.8, tl: 8, tt: 7, ab: 6, is: 17, ir: 16,
-    icon: <BoltRoundedIcon />,
-  },
-  {
-    title: "Liquor & Beverages",
-    description: "Liquor, Beverages,\nFood & More",
-    bg: ["#FDE9EF", "#FACDD9"],
-    iconColor: "#F0708F",
-    rotation: -4.8,
-    t: 5.9, tl: 9.6, tt: 7, ab: 6, is: 19, ir: 16,
-    icon: <LiquorRoundedIcon />,
-  },
-  {
-    title: "Oil & Gas",
-    description: "Fuel, Energy, Industrial\nSupplies & More",
-    bg: ["#E8F3FF", "#CDE4FB"],
-    iconColor: "#5FAEEF",
-    rotation: -1,
-    t: 5.7, tl: 8.8, tt: 7, ab: 6, is: 14, ir: 17,
-    icon: <WaterDropRoundedIcon />,
-  },
-  {
-    title: "Packaging",
-    description: "Packaging Materials,\nSupplies & Services",
-    bg: ["#FFEFD9", "#FFD8AE"],
-    iconColor: "#F5A94E",
-    rotation: -3.5,
-    t: 5.3, tl: 10, tt: 7, ab: 6, is: 20, ir: 16,
-    icon: <Inventory2RoundedIcon />,
-  },
-  {
-    title: "Textiles & Garments",
-    description: "Fabrics, Textiles,\nApparel & More",
-    bg: ["#E8F7EB", "#CDEED6"],
-    iconColor: "#52BC79",
-    rotation: -2.5,
-    t: 5, tl: 9, tt: 7, ab: 6, is: 18, ir: 13,
-    icon: <DryCleaningRoundedIcon />,
-  },
+  { title: "Electrical & Hardware", description: "Electrical Works,\nHardware & Tools", iconColor: "#10B981", icon: lucideIcon(Zap) },
+  { title: "Liquor & Beverages", description: "Liquor, Beverages,\nFood & More", iconColor: "#E11D48", icon: lucideIcon(Wine) },
+  { title: "Oil & Gas", description: "Fuel, Energy, Industrial\nSupplies & More", iconColor: "#3B82F6", icon: lucideIcon(Droplet) },
+  { title: "Packaging", description: "Packaging Materials,\nSupplies & Services", iconColor: "#F59E0B", icon: lucideIcon(Archive) },
+  { title: "Textiles & Garments", description: "Fabrics, Textiles,\nApparel & More", iconColor: "#22A35A", icon: lucideIcon(Shirt) },
 
   // ---------- ROW 5 ----------
-  {
-    title: "Jewellery & Accessories",
-    description: "Jewellery, Watches,\nAccessories & More",
-    bg: ["#EEE8FD", "#D8CEF8"],
-    iconColor: "#9271DB",
-    rotation: -3,
-    t: 5, tl: 10, tt: 8, ab: 6, is: 18, ir: 18,
-    icon: <DiamondRoundedIcon />,
-  },
-  {
-    title: "Hotels & Hospitality",
-    description: "Hotels, Resorts, Hospitality\nServices & More",
-    bg: ["#FFF4D5", "#FFE3A0"],
-    iconColor: "#F3B93C",
-    rotation: -2.5,
-    t: 5.1, tl: 9.5, tt: 8, ab: 6, is: 20, ir: 20,
-    icon: <RoomServiceRoundedIcon />,
-  },
-  {
-    title: "Travel & Tourism",
-    description: "Tours, Travel, Transport\n& Logistics",
-    bg: ["#E6F3FF", "#C9E3FB"],
-    iconColor: "#4F9FE8",
-    rotation: -1.5,
-    t: 5.2, tl: 9.7, tt: 8, ab: 6, is: 18, ir: 17,
-    icon: <FlightRoundedIcon />,
-  },
-  {
-    title: "Others",
-    description: "Many more industries\nand services",
-    bg: ["#FDE9EC", "#FAD0D6"],
-    iconColor: "#F27A85",
-    rotation: -3.5,
-    t: 5.8, tl: 11.6, tt: 8, ab: 6, is: 15, ir: 14,
-    variant: "dots",
-  },
-  {
-    title: "And many more...",
-    description: "Whatever your business,\nwe're here to support you.",
-    bg: ["#E8F1FF", "#D0E1FB"],
-    iconColor: "#9EBFF5",
-    rotation: -2.5,
-    t: 5.5, tl: 9.4, tt: 12, ab: 6, is: 15, ir: 14,
-    variant: "last",
-  },
+  { title: "Jewellery & Accessories", description: "Jewellery, Watches,\nAccessories & More", iconColor: "#8B5CF6", icon: lucideIcon(Gem) },
+  { title: "Hotels & Hospitality", description: "Hotels, Resorts, Hospitality\nServices & More", iconColor: "#F59E0B", icon: lucideIcon(ConciergeBell) },
+  { title: "Travel & Tourism", description: "Tours, Travel, Transport\n& Logistics", iconColor: "#2563EB", icon: lucideIcon(Plane) },
+  { title: "Others", description: "Many more industries\nand services", iconColor: "#E11D48", icon: lucideIcon(Ellipsis) },
+  { title: "And many more...", description: "Whatever your business,\nwe're here to support you.", iconColor: NAVY, icon: lucideIcon(ArrowRight) },
 ];
 
 // ============================================================
 // INDUSTRY CARD
-//
-// Every measurement inside is in % or `cqw` of the CARD itself, so the
-// text / arrow / icon can never overlap or clip at any size.
 // ============================================================
 
-type Mode = "canvas" | "flow";
+/**
+ * Industries scale unit, used from lg up only: the section is exactly one
+ * screen there, so card text and spacing follow the viewport height (0.72px on
+ * a short laptop up to 1.1px on a tall monitor) and the 5 x 5 grid always fits.
+ */
+const iz = (n: number) => `calc(${n} * var(--iz-u))`;
 
-const IndustryCard = ({
-  item,
-  mode,
-  quad,
-}: {
-  item: Industry;
-  mode: Mode;
-  quad?: Quad;
-}) => {
-  const canvas = mode === "canvas";
-  const isLast = item.variant === "last";
-  const isDots = item.variant === "dots";
-  const rot = item.rotation;
-  const tt = canvas ? item.tt : 14;
-
-  return (
-    <Box
-      sx={{
-        position: "relative",
-        boxSizing: "border-box",
-        width: "100%",
-        ...(canvas
-          ? { height: "100%" }
-          : { aspectRatio: { xs: "2.4 / 1", sm: "2 / 1" } }),
-        containerType: "inline-size", // enables cqw for children
-        overflow: "hidden",
-        borderRadius: "10px",
-        // Both tints softened rather than restated on all 24 entries: the card
-        // colours are blended back towards the white behind them.
-        background: `linear-gradient(135deg, ${alpha(item.bg[0], 0.55)} 0%, ${alpha(item.bg[1], 0.55)} 100%)`,
-        border: "3px solid rgba(255,255,255,0.95)",
-        boxShadow:
-          "0 2px 4px rgba(15,23,42,0.06), 0 8px 18px rgba(15,23,42,0.10)",
-        // canvas: exact warp measured from the reference; flow: simple tilt
-        transform:
-          canvas && quad
-            ? `translate(${quad.cx}px, ${quad.cy}px) scale(${1 + TRIM_X / quad.w}, ${1 + TRIM_Y / quad.h}) translate(${-quad.cx}px, ${-quad.cy}px) ${quad.m}`
-            : "none", // tablet / mobile: cards stay straight
-        transformOrigin: canvas ? "0 0" : "center center",
-        transition:
-          "transform .22s ease, translate .22s ease, box-shadow .22s ease",
-        cursor: "pointer",
-        "&:hover": canvas
-          ? { translate: "0 -3px", boxShadow: "0 10px 22px rgba(15,23,42,0.13)" }
-          : {
-              transform: "translateY(-3px)",
-              boxShadow: "0 10px 22px rgba(15,23,42,0.13)",
-            },
-      }}
-    >
-      {/* soft organic shapes behind the icon */}
-      <Box
-        sx={{
-          position: "absolute",
-          width: "60%",
-          height: "128%",
-          right: "-16%",
-          bottom: "-40%",
-          borderRadius: "52% 48% 44% 56% / 46% 54% 46% 54%",
-          transform: "rotate(-14deg)",
-          background: "rgba(255,255,255,0.30)",
-          zIndex: 0,
-        }}
-      />
-      <Box
-        sx={{
-          position: "absolute",
-          width: "44%",
-          height: "104%",
-          right: "-5%",
-          bottom: "-24%",
-          borderRadius: "40% 60% 38% 62% / 58% 42% 58% 42%",
-          transform: "rotate(-18deg)",
-          background: alpha(item.iconColor, 0.12),
-          zIndex: 0,
-        }}
-      />
-
-      {/* text (explicit line breaks = same wrapping as the reference) */}
-      <Box
-        sx={{
-          position: "absolute",
-          left: `${item.tl}%`,
-          right: "5%",
-          top: isLast ? "18%" : `${tt}%`,
-          zIndex: 3,
-        }}
-      >
-        <Typography
-          sx={{
-            color: NAVY,
-            fontWeight: 800,
-            fontSize: `${item.t}cqw`,
-            lineHeight: 1.15,
-            letterSpacing: "-0.02em",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {item.title.replace(/\n/g, " ")}
-        </Typography>
-        <Typography
-          sx={{
-            mt: "1.6cqw",
-            color: SLATE,
-            fontWeight: 400,
-            fontSize: `${(item.t * 0.68).toFixed(2)}cqw`,
-            lineHeight: 1.35,
-            whiteSpace: "pre-line", // honour the "\n" breaks so text stays inside the card
-          }}
-        >
-          {item.description}
-        </Typography>
-      </Box>
-
-      {isLast && (
-        <ArrowForwardRoundedIcon
-          sx={{
-            position: "absolute",
-            right: "7%",
-            bottom: "30%",
-            fontSize: "5.5cqw",
-            color: NAVY,
-            zIndex: 6,
-          }}
-        />
-      )}
-
-      {/* illustration icon (centre = ir% from right, 58% from top) */}
-      {!isLast && !isDots && item.icon && (
-        <Box
-          sx={{
-            position: "absolute",
-            right: `${item.ir}%`,
-            top: "58%",
-            transform: "translate(50%, -50%)",
-            color: item.iconColor,
-            opacity: 0.62,
-            zIndex: 2,
-            display: "flex",
-            pointerEvents: "none",
-            "& svg": { fontSize: `${item.is}cqw` },
-          }}
-        >
-          {item.icon}
-        </Box>
-      )}
-
-      {/* "Others" dotted circle */}
-      {isDots && (
-        <Box
-          sx={{
-            position: "absolute",
-            right: `${item.ir}%`,
-            top: "58%",
-            transform: "translate(50%, -50%)",
-            width: `${item.is}cqw`,
-            height: `${item.is}cqw`,
-            borderRadius: "50%",
-            bgcolor: "rgba(255,255,255,0.65)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#F27A85",
-            zIndex: 2,
-            pointerEvents: "none",
-            "& svg": { fontSize: `${item.is * 0.72}cqw` },
-          }}
-        >
-          <MoreHorizRoundedIcon />
-        </Box>
-      )}
-    </Box>
-  );
-};
-
-// ============================================================
-// DESKTOP CANVAS (900px+): exact scaled copy of the 1344 x 896 reference
-// ============================================================
-
-const NAV_LINKS = ["Home", "Features", "Industries", "Pricing", "About Us"];
-
-const DesktopCanvas = () => {
-  const ref = React.useRef<HTMLDivElement>(null);
-  const [k, setK] = React.useState(1);
-  const [offsetX, setOffsetX] = React.useState(0);
-  const [spread, setSpread] = React.useState(1);
-
-  // scale the fixed 1344 x 896 stage so the whole section fits the screen:
-  // limited by the section width, or by the viewport height below the sticky navbar
-  React.useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const update = () => {
-      const availH = window.innerHeight - (NAV_H.md + 1) - SECTION_PAD_Y;
-      const next = Math.min(el.clientWidth / W, availH / STAGE_H);
-      const nextSpread = Math.min(MAX_SPREAD, el.clientWidth / (W * next));
-      setK(next);
-      setSpread(nextSpread);
-      setOffsetX(Math.max(0, (el.clientWidth - W * nextSpread * next) / 2));
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    window.addEventListener("resize", update);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", update);
-    };
-  }, []);
-
-  return (
-  <Box
-    ref={ref}
-    sx={{
-      display: "none",
-      [DESKTOP_MIN]: { display: "block" },
-      position: "relative",
-      width: "100%",
-      height: `${STAGE_H * k}px`,
-    }}
-  >
+const IndustryCard = ({ item }: { item: Industry }) => (
   <Box
     sx={{
-      position: "absolute",
-      top: `${-TOP_TRIM * k}px`,
-      left: `${offsetX}px`,
-      width: `${W * spread}px`,
-      height: `${H}px`,
-      transformOrigin: "0 0",
-      transform: `scale(${k})`,
+      display: "flex",
+      alignItems: "center",
+      gap: { xs: "14px", lg: iz(14) },
+      minWidth: 0,
+      height: "100%",
+      boxSizing: "border-box",
+      px: { xs: "16px", lg: iz(16) },
+      py: { xs: "12px", lg: iz(10) },
+      bgcolor: "#fff",
+      border: "1px solid #EEF0F4",
+      borderRadius: "14px",
+      boxShadow: "0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.04)",
+      transition: "box-shadow .2s ease",
+      "&:hover": { boxShadow: "0 6px 18px rgba(15,23,42,0.08)" },
     }}
   >
-    
-
-    {/* ---------- EYEBROW ---------- */}
-    <Typography
-      sx={{
-        position: "absolute",
-        left: cq(47),
-        top: cq(83),
-        color: BRAND_RED,
-        fontSize: cq(10),
-        fontWeight: 800,
-        letterSpacing: "0.32em",
-        textTransform: "uppercase",
-        lineHeight: 1,
-        whiteSpace: "nowrap",
-      }}
-    >
-      Built for every business
-    </Typography>
-
-    {/* ---------- HEADING ---------- */}
-    <Typography
-      component="h2"
-      sx={{
-        position: "absolute",
-        left: cq(47),
-        top: cq(102),
-        m: 0,
-        color: NAVY,
-        fontWeight: 800,
-        fontSize: cq(40),
-        lineHeight: 1,
-        letterSpacing: "-0.045em",
-        whiteSpace: "nowrap",
-      }}
-    >
-      <Box component="span" sx={{ color: BRAND_RED }}>
-        zodu
-      </Box>{" "}
-      is suitable for all types of businesses
-    </Typography>
-
-
-    {/* ---------- HANDWRITTEN NOTE ---------- */}
     <Box
       sx={{
-        position: "absolute",
-        left: pct(1188, W),
-        top: pct(118, H),
-        transform: "translate(-50%, -50%) rotate(-11deg)",
-        color: BRAND_RED,
-        fontFamily: "'Caveat', 'Segoe Script', 'Brush Script MT', cursive",
-        zIndex: 5,
+        flexShrink: 0,
+        width: { xs: 50, lg: iz(56) },
+        height: { xs: 50, lg: iz(56) },
+        borderRadius: "50%",
+        bgcolor: alpha(item.iconColor, 0.08),
+        "& svg": { width: { xs: 26, lg: iz(28) }, height: { xs: 26, lg: iz(28) } },
+        color: item.iconColor,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
       }}
     >
-      {/* spark marks */}
-      <Box
-        component="svg"
-        viewBox="0 0 50 50"
-        sx={{
-          position: "absolute",
-          left: cq(-46),
-          top: cq(-6),
-          width: cq(30),
-          height: cq(30),
-        }}
-      >
-        <path d="M27 5 L36 15" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
-        <path d="M7 22 L17 22" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
-        <path d="M18 37 L26 29" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
-      </Box>
-
+      {item.icon}
+    </Box>
+    <Box sx={{ minWidth: 0 }}>
       <Typography
         sx={{
-          fontFamily: "inherit",
-          fontSize: cq(25),
-          fontWeight: 600,
-          fontStyle: "italic",
-          lineHeight: 1.2,
-          whiteSpace: "nowrap",
+          color: "#0F172A",
+          fontWeight: 700,
+          fontSize: { xs: "15px", md: "15.5px", lg: iz(17) },
+          lineHeight: 1.3,
+          letterSpacing: "-0.01em",
         }}
       >
-        <Box component="span" sx={{ ml: cq(14) }}>
-          Different Businesses.
-        </Box>
-        <br />
-        Same Powerful Solution.
-      </Typography>
-
-      {/* squiggle underline */}
-      <Box
-        component="svg"
-        viewBox="0 0 290 30"
-        sx={{
-          display: "block",
-          width: cq(135),
-          height: cq(16),
-          ml: cq(42),
-          mt: cq(4),
-        }}
-      >
-        <path d="M4 24 C70 20 150 12 285 2" fill="none" stroke={BRAND_RED} strokeWidth="2.6" strokeLinecap="round" />
-      </Box>
-    </Box>
-
-    {/* ---------- CARDS (exact position + warp measured from the reference) ---------- */}
-    {industries.map((item, index) => {
-      const raw = QUADS[index];
-      // widen the card a little (kept centred on its spread-out column position)
-      const cw = Math.min(spread, CARD_W_SPREAD);
-      const q = { ...raw, w: raw.w * cw, cx: raw.cx * cw };
-      const left = (raw.x + raw.w / 2) * spread - q.w / 2;
-      return (
-        <Box
-          key={`${item.title}-${index}`}
-          sx={{
-            position: "absolute",
-            left: `${left}px`,
-            top: `${q.y}px`,
-            width: `${q.w}px`,
-            height: `${q.h}px`,
-          }}
-        >
-          <IndustryCard item={item} mode="canvas" quad={q} />
-        </Box>
-      );
-    })}
-  </Box>
-  </Box>
-  );
-};
-
-// ============================================================
-// TABLET / MOBILE (below 900px): normal responsive grid
-// ============================================================
-
-const FlowLayout = () => {
-  return (
-  <Box
-    sx={{ display: "block", [DESKTOP_MIN]: { display: "none" } }}
-  >
-    <Box sx={{ px: { xs: "20px", md: "38px" }, pt: "22px" }}>
-      <Typography
-        sx={{
-          color: BRAND_RED,
-          fontSize: "11px",
-          fontWeight: 800,
-          letterSpacing: "0.32em",
-          textTransform: "uppercase",
-          mb: "12px",
-        }}
-      >
-        Built for every business
+        {item.title.replace(/\n/g, " ")}
       </Typography>
       <Typography
-        component="h2"
         sx={{
-          m: 0,
-          color: NAVY,
-          fontWeight: 800,
-          fontSize: { xs: "36px", md: "46px" },
-          lineHeight: 0.95,
-          letterSpacing: "-0.045em",
+          mt: { xs: "4px", lg: iz(3) },
+          color: "#64748B",
+          fontSize: { xs: "12.5px", lg: iz(13.5) },
+          lineHeight: 1.45,
+          whiteSpace: "pre-line", // the "\n" in the data = the line break in the card
         }}
       >
-        <Box component="span" sx={{ color: BRAND_RED }}>
-          zodu
-        </Box>{" "}
-        is suitable for all types of businesses
+        {item.description}
       </Typography>
-
-      {/* handwritten note: centred (tablet + mobile) */}
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          mt: { xs: "30px", md: "28px" },
-        }}
-      >
-        <Box
-          sx={{
-            position: "relative",
-            textAlign: "center",
-            color: BRAND_RED,
-            transform: "rotate(-6deg)",
-            fontFamily: "'Caveat', 'Segoe Script', 'Brush Script MT', cursive",
-          }}
-        >
-          {/* spark marks */}
-          <Box
-            component="svg"
-            viewBox="0 0 50 50"
-            sx={{
-              position: "absolute",
-              left: "-38px",
-              top: "-8px",
-              width: "30px",
-              height: "30px",
-            }}
-          >
-            <path d="M27 5 L36 15" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
-            <path d="M7 22 L17 22" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
-            <path d="M18 37 L26 29" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
-          </Box>
-
-          <Typography
-            sx={{
-              fontFamily: "inherit",
-              fontSize: { xs: "24px", md: "28px" },
-              fontWeight: 600,
-              fontStyle: "italic",
-              lineHeight: 1.2,
-              whiteSpace: "nowrap",
-            }}
-          >
-            Different Businesses.
-            <br />
-            Same Powerful Solution.
-          </Typography>
-
-          {/* squiggle underline */}
-          <Box
-            component="svg"
-            viewBox="0 0 290 30"
-            sx={{
-              display: "block",
-              width: { xs: "150px", md: "170px" },
-              height: "16px",
-              mx: "auto",
-              mt: "4px",
-            }}
-          >
-            <path d="M4 24 C70 20 150 12 285 2" fill="none" stroke={BRAND_RED} strokeWidth="2.6" strokeLinecap="round" />
-          </Box>
-        </Box>
-      </Box>
-    </Box>
-
-    <Box
-      sx={{
-        boxSizing: "border-box",
-        px: { xs: "20px", md: "38px" },
-        mt: "32px",
-        pb: "40px",
-        display: "grid",
-        gridTemplateColumns: {
-          xs: "1fr",
-          sm: "repeat(3, minmax(0, 1fr))", // tablet (600px+)
-        },
-        gap: "16px",
-      }}
-    >
-      {industries.map((item, index) => (
-        <Box key={`${item.title}-${index}`} sx={{ minWidth: 0 }}>
-          <IndustryCard item={item} mode="flow" />
-        </Box>
-      ))}
     </Box>
   </Box>
-  );
-};
+);
 
 // ============================================================
 // INDUSTRIES SECTION
@@ -1985,10 +1373,22 @@ export const IndustriesSection = () => {
         boxSizing: "border-box",
         position: "relative",
         width: "100%",
-        pt: { xs: "8px", md: `${SECTION_PT}px` }, // space above the section
-        pb: { xs: "32px", md: `${SECTION_PAD_Y - SECTION_PT}px` }, // space below the section
+        // At least one screen under the sticky navbar everywhere; exactly one
+        // from lg up, where the 5 x 5 grid stretches to fill it.
+        minHeight: { xs: `calc(100dvh - ${NAV_H.xs + 1}px)`, md: `calc(100dvh - ${NAV_H.md + 1}px)` },
+        "--iz-u": "1px",
+        "@media (min-width: 1200px)": {
+          height: `calc(100dvh - ${NAV_H.md + 1}px)`,
+          "--iz-u": `clamp(0.72px, calc((100dvh - ${NAV_H.md + 1}px) / 860), 1.1px)`,
+        },
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        scrollMarginTop: { xs: NAV_H.xs, md: NAV_H.md },
+        px: { xs: "20px", md: "44px" },
+        pt: { xs: "28px", md: "32px", lg: iz(26) },
+        pb: { xs: "32px", md: "40px", lg: iz(28) },
         overflow: "hidden",
-        containerType: "inline-size", // 1cqw = 1% of section width
         background: "linear-gradient(180deg, #FFFFFF 0%, #F8F9FB 100%)",
       }}
     >
@@ -1998,8 +1398,117 @@ export const IndustriesSection = () => {
         href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&display=swap"
       />
 
-      <DesktopCanvas />
-      <FlowLayout />
+      {/* ---------- HEADER ---------- */}
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          alignItems: { xs: "flex-start", md: "flex-end" },
+          justifyContent: "space-between",
+          gap: { xs: "20px", md: "32px" },
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
+          <Typography
+            sx={{
+              color: BRAND_RED,
+              fontSize: { xs: "11px", lg: iz(11) },
+              fontWeight: 800,
+              letterSpacing: "0.32em",
+              textTransform: "uppercase",
+              mb: { xs: "10px", lg: iz(8) },
+            }}
+          >
+            Built for every business
+          </Typography>
+          <Typography
+            component="h2"
+            sx={{
+              m: 0,
+              color: NAVY,
+              fontWeight: 800,
+              fontSize: { xs: "clamp(24px, 7vw, 30px)", sm: "32px", md: "clamp(28px, 3vw, 46px)", lg: `min(3vw, ${iz(44)})` },
+              lineHeight: 1.05,
+              letterSpacing: "-0.045em",
+              whiteSpace: { md: "nowrap" },
+            }}
+          >
+            <Box component="span" sx={{ color: BRAND_RED }}>
+              zodu
+            </Box>{" "}
+            is suitable for all types of businesses
+          </Typography>
+        </Box>
+
+        {/* handwritten note */}
+        <Box
+          sx={{
+            position: "relative",
+            flexShrink: 0,
+            alignSelf: { xs: "center", md: "flex-end" },
+            textAlign: "center",
+            color: BRAND_RED,
+            transform: "rotate(-8deg)",
+            fontFamily: "'Caveat', 'Segoe Script', 'Brush Script MT', cursive",
+            mr: { md: "16px" },
+          }}
+        >
+          {/* spark marks */}
+          <Box
+            component="svg"
+            viewBox="0 0 50 50"
+            sx={{ position: "absolute", left: "-36px", top: "-6px", width: "28px", height: "28px" }}
+          >
+            <path d="M27 5 L36 15" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
+            <path d="M7 22 L17 22" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
+            <path d="M18 37 L26 29" fill="none" stroke={BRAND_RED} strokeWidth="2.4" strokeLinecap="round" />
+          </Box>
+          <Typography
+            sx={{
+              fontFamily: "inherit",
+              fontSize: { xs: "22px", md: "24px", lg: iz(24) },
+              fontWeight: 600,
+              fontStyle: "italic",
+              lineHeight: 1.2,
+              whiteSpace: "nowrap",
+            }}
+          >
+            Different Businesses.
+            <br />
+            Same Powerful Solution.
+          </Typography>
+          {/* squiggle underline */}
+          <Box
+            component="svg"
+            viewBox="0 0 290 30"
+            sx={{ display: "block", width: "150px", height: "14px", mx: "auto", mt: "4px" }}
+          >
+            <path d="M4 24 C70 20 150 12 285 2" fill="none" stroke={BRAND_RED} strokeWidth="2.6" strokeLinecap="round" />
+          </Box>
+        </Box>
+      </Box>
+
+      {/* ---------- CARDS ---------- */}
+      <Box
+        sx={{
+          mt: { xs: "24px", md: "28px", lg: iz(22) },
+          display: "grid",
+          flex: { lg: 1 },
+          minHeight: 0,
+          gridTemplateRows: { lg: "repeat(5, minmax(0, 1fr))" },
+          gridTemplateColumns: {
+            xs: "minmax(0, 1fr)",
+            sm: "repeat(2, minmax(0, 1fr))",
+            md: "repeat(3, minmax(0, 1fr))",
+            lg: "repeat(5, minmax(0, 1fr))",
+          },
+          gap: { xs: "12px", md: "14px", lg: iz(12) },
+        }}
+      >
+        {industries.map((item) => (
+          <IndustryCard key={item.title} item={item} />
+        ))}
+      </Box>
     </Box>
   );
 };
@@ -2151,10 +1660,524 @@ const HERO_RED_DARK = "#C70027";
 const CTA_RED = "#E8002D";
 const CTA_RED_HOVER = "#C90027";
 
+// ── GET THE APP ─────────────────────────────────────────────────────────────
+
+/** Store badge: dark pill with the logo and two lines of text. */
+const AppStoreBadge: React.FC<{ icon: React.ReactNode; small: string; big: string; label: string }> = ({ icon, small, big, label }) => (
+  <Box component="a" href="#" aria-label={label} sx={{
+    display: "inline-flex", alignItems: "center", gap: 1.4, textDecoration: "none",
+    bgcolor: "#0B0B0F", color: "#fff",
+    px: { xs: 1.8, md: 2 }, py: { xs: 0.8, md: 0.85 },
+    borderRadius: "10px",
+    minWidth: 0,
+    boxShadow: "0 8px 20px rgba(0,0,0,0.18)", transition: "all 0.18s",
+    "&:hover": { transform: "translateY(-2px)", boxShadow: "0 12px 26px rgba(0,0,0,0.26)" },
+  }}>
+    {icon}
+    <Box sx={{ textAlign: "left", lineHeight: 1 }}>
+      <Typography sx={{ fontFamily: POPPINS, fontSize: { xs: "0.58rem", md: "0.66rem" }, color: "rgba(255,255,255,0.85)" }}>{small}</Typography>
+      <Typography sx={{ fontFamily: POPPINS, fontSize: { xs: "1rem", md: "1.1rem" }, fontWeight: 600, mt: "2px", color: "#fff", whiteSpace: "nowrap" }}>{big}</Typography>
+    </Box>
+  </Box>
+);
+
+/** Placeholder QR mark until the real store link QR is generated. */
+const AppQrMark: React.FC = () => (
+  <Box component="svg" viewBox="0 0 21 21" sx={{ display: "block", width: "100%", height: "100%" }}>
+    <rect x="0" y="0" width="7" height="7" fill="#111" rx="0.5"/><rect x="1" y="1" width="5" height="5" fill="#fff"/><rect x="2" y="2" width="3" height="3" fill="#111"/>
+    <rect x="14" y="0" width="7" height="7" fill="#111" rx="0.5"/><rect x="15" y="1" width="5" height="5" fill="#fff"/><rect x="16" y="2" width="3" height="3" fill="#111"/>
+    <rect x="0" y="14" width="7" height="7" fill="#111" rx="0.5"/><rect x="1" y="15" width="5" height="5" fill="#fff"/><rect x="2" y="16" width="3" height="3" fill="#111"/>
+    <rect x="8" y="6" width="1" height="1" fill="#111"/><rect x="10" y="6" width="1" height="1" fill="#111"/><rect x="12" y="6" width="1" height="1" fill="#111"/>
+    <rect x="6" y="8" width="1" height="1" fill="#111"/><rect x="6" y="10" width="1" height="1" fill="#111"/><rect x="6" y="12" width="1" height="1" fill="#111"/>
+    <rect x="8" y="0" width="1" height="1" fill="#111"/><rect x="10" y="0" width="2" height="1" fill="#111"/><rect x="13" y="0" width="1" height="1" fill="#111"/>
+    <rect x="9" y="2" width="1" height="1" fill="#111"/><rect x="11" y="2" width="2" height="1" fill="#111"/>
+    <rect x="8" y="4" width="2" height="1" fill="#111"/><rect x="12" y="4" width="2" height="1" fill="#111"/>
+    <rect x="0" y="8" width="1" height="1" fill="#111"/><rect x="2" y="8" width="3" height="1" fill="#111"/><rect x="8" y="8" width="2" height="1" fill="#111"/><rect x="12" y="8" width="2" height="1" fill="#111"/><rect x="16" y="8" width="1" height="1" fill="#111"/><rect x="18" y="8" width="1" height="1" fill="#111"/><rect x="20" y="8" width="1" height="1" fill="#111"/>
+    <rect x="0" y="10" width="1" height="1" fill="#111"/><rect x="3" y="10" width="2" height="1" fill="#111"/><rect x="8" y="10" width="1" height="1" fill="#111"/><rect x="11" y="10" width="2" height="1" fill="#111"/><rect x="15" y="10" width="3" height="1" fill="#111"/><rect x="20" y="10" width="1" height="1" fill="#111"/>
+    <rect x="1" y="12" width="2" height="1" fill="#111"/><rect x="5" y="12" width="1" height="1" fill="#111"/><rect x="9" y="12" width="2" height="1" fill="#111"/><rect x="13" y="12" width="1" height="1" fill="#111"/><rect x="16" y="12" width="2" height="1" fill="#111"/>
+    <rect x="8" y="14" width="1" height="1" fill="#111"/><rect x="10" y="14" width="2" height="1" fill="#111"/><rect x="14" y="14" width="1" height="1" fill="#111"/><rect x="17" y="14" width="2" height="1" fill="#111"/><rect x="20" y="14" width="1" height="1" fill="#111"/>
+    <rect x="9" y="16" width="2" height="1" fill="#111"/><rect x="13" y="16" width="1" height="1" fill="#111"/><rect x="16" y="16" width="1" height="1" fill="#111"/><rect x="19" y="16" width="2" height="1" fill="#111"/>
+    <rect x="8" y="18" width="1" height="1" fill="#111"/><rect x="11" y="18" width="2" height="1" fill="#111"/><rect x="15" y="18" width="1" height="1" fill="#111"/><rect x="18" y="18" width="2" height="1" fill="#111"/>
+    <rect x="9" y="20" width="2" height="1" fill="#111"/><rect x="13" y="20" width="2" height="1" fill="#111"/><rect x="17" y="20" width="1" height="1" fill="#111"/><rect x="20" y="20" width="1" height="1" fill="#111"/>
+  </Box>
+);
+
+const APP_TRUST = [
+  { icon: <VerifiedUserIcon />, title: "Secure & Reliable", sub: "Your data is always safe" },
+  { icon: <CloudDoneIcon />,    title: "Works Offline",     sub: "Auto syncs when online" },
+  { icon: <SupportAgentIcon />, title: "24/7 Support",      sub: "We're here to help" },
+];
+
+/**
+ * The feature cards around the phone, placed on a 700 x 600 stage (the phone
+ * artwork sits in its middle). `x`/`y` = card top-left, `lx`/`ly` = where its
+ * dashed line meets the phone. Everything is converted to % of the stage.
+ */
+const APP_STAGE = { w: 700, h: 600 };
+const APP_CARD = 108;
+const APP_FEATURES: Array<{
+  label: string; icon: React.ReactNode; color: string; side: "left" | "right";
+  x: number; y: number; lx: number; ly: number; badge?: string;
+}> = [
+  { label: "Sales &\nBilling",            icon: <ShoppingCart strokeWidth={2} />,  color: "#E11D48", side: "left",  x: 62,  y: 70,  lx: 262, ly: 205 },
+  { label: "Inventory\nManagement",       icon: <Package strokeWidth={2} />,       color: "#16A34A", side: "left",  x: 26,  y: 212, lx: 238, ly: 330 },
+  { label: "Customer\nManagement",        icon: <PeopleAltRoundedIcon />,          color: "#F59E0B", side: "left",  x: 0,   y: 352, lx: 222, ly: 450 },
+  { label: "Reports &\nInsights",         icon: <BarChartRoundedIcon />,           color: "#E11D48", side: "right", x: 566, y: 130, lx: 478, ly: 250 },
+  { label: "Instant\nAlerts",             icon: <Bell strokeWidth={2} />,          color: "#E11D48", side: "right", x: 556, y: 268, lx: 462, ly: 372, badge: "3" },
+  { label: "Multi-Branch\nManagement",    icon: <Store strokeWidth={2} />,         color: "#E11D48", side: "right", x: 540, y: 404, lx: 446, ly: 490 },
+];
+
+const pctW = (v: number) => `${(v / APP_STAGE.w) * 100}%`;
+const pctH = (v: number) => `${(v / APP_STAGE.h) * 100}%`;
+
+/** Phone artwork with the feature cards and dashed connectors around it. */
+const AppPhoneStage: React.FC = () => (
+  <Box sx={{
+    position: "relative", width: "100%", maxWidth: 560, mx: "auto",
+    aspectRatio: `${APP_STAGE.w} / ${APP_STAGE.h}`,
+    containerType: "inline-size", // card text / icons scale with the stage (cqw)
+  }}>
+    {/* dashed connectors */}
+    <Box component="svg" viewBox={`0 0 ${APP_STAGE.w} ${APP_STAGE.h}`} aria-hidden
+      sx={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: { xs: "none", sm: "block" }, zIndex: 1 }}>
+      {APP_FEATURES.map((f) => {
+        const sx = f.side === "left" ? f.x + APP_CARD : f.x; // card edge facing the phone
+        const sy = f.y + APP_CARD / 2;
+        const mx = (sx + f.lx) / 2;
+        return (
+          <path key={f.label}
+            d={`M ${sx} ${sy} C ${mx} ${sy}, ${mx} ${f.ly}, ${f.lx} ${f.ly}`}
+            fill="none" stroke={alpha(APP_RED, 0.75)} strokeWidth="1.6" strokeDasharray="5 5" strokeLinecap="round" />
+        );
+      })}
+    </Box>
+
+
+    {/* phone */}
+    <Box component="img" src={getAppImg} alt="Zodu mobile app dashboard" sx={{
+      // 408 x 612 artwork: 372 wide = 558 tall, so it ends just inside the 600 stage
+      position: "absolute", left: pctW(158), top: pctH(30), width: pctW(372), height: "auto",
+      display: "block", zIndex: 2,
+      filter: "drop-shadow(0 22px 34px rgba(15,23,42,0.18))",
+    }} />
+
+    {/* feature cards */}
+    {APP_FEATURES.map((f) => (
+      <Box key={f.label} sx={{
+        position: "absolute", left: pctW(f.x), top: pctH(f.y), width: pctW(APP_CARD),
+        aspectRatio: "1 / 1", zIndex: 3,
+        display: { xs: "none", sm: "flex" }, flexDirection: "column", alignItems: "center", justifyContent: "center",
+        gap: "1.2cqw",
+        bgcolor: "#fff", borderRadius: "2.6cqw",
+        boxShadow: "0 10px 26px rgba(15,23,42,0.10)",
+        transform: "rotate(6deg)",
+      }}>
+        <Box sx={{ position: "relative", color: f.color, display: "flex", "& svg": { width: "5.4cqw", height: "5.4cqw", fontSize: "5.4cqw" } }}>
+          {f.icon}
+          {f.badge && (
+            <Box sx={{
+              position: "absolute", top: "-1.2cqw", right: "-1.6cqw",
+              minWidth: "2.8cqw", height: "2.8cqw", px: "0.4cqw", borderRadius: "999px",
+              bgcolor: APP_RED, color: "#fff", fontSize: "1.7cqw", fontWeight: 700, fontFamily: POPPINS,
+              display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1,
+            }}>{f.badge}</Box>
+          )}
+        </Box>
+        <Typography sx={{
+          fontFamily: POPPINS, fontWeight: 600, color: APP_NAVY, textAlign: "center",
+          fontSize: "1.75cqw", lineHeight: 1.25, whiteSpace: "pre",
+        }}>
+          {f.label}
+        </Typography>
+      </Box>
+    ))}
+  </Box>
+);
+
+const GetAppSection: React.FC = () => (
+  <Box sx={{ py: { xs: 3, md: 4 }, px: SX, bgcolor: LIGHT, fontFamily: POPPINS }}>
+    <Box sx={{ maxWidth: SECTION_MAX_W, mx: "auto" }}>
+      <Box sx={{
+        position: "relative", overflow: "hidden",
+        borderRadius: { xs: "20px", md: "26px" },
+        bgcolor: "#fff",
+        boxShadow: "0 14px 42px rgba(15,23,42,0.07)",
+      }}>
+        {/* soft pink shapes behind the phone */}
+        <Box aria-hidden sx={{
+          position: "absolute", right: "-12%", top: "-35%", width: "68%", height: "170%", borderRadius: "50%",
+          background: `radial-gradient(closest-side, ${alpha("#FBC9CF", 0.75)}, ${alpha("#FDE4E7", 0.55)} 60%, transparent)`,
+          zIndex: 0,
+        }} />
+        <Box aria-hidden sx={{
+          position: "absolute", right: "-6%", bottom: "-55%", width: "60%", height: "100%", borderRadius: "50%",
+          bgcolor: alpha("#FBD0D5", 0.45), zIndex: 0,
+        }} />
+
+        {/* dot patterns */}
+        <Box aria-hidden sx={{
+          position: "absolute", top: 36, right: 40, width: 110, height: 90, zIndex: 0,
+          backgroundImage: `radial-gradient(${alpha(APP_RED, 0.35)} 1.5px, transparent 1.5px)`,
+          backgroundSize: "16px 16px", display: { xs: "none", md: "block" },
+        }} />
+        <Box aria-hidden sx={{
+          position: "absolute", bottom: 24, left: 20, width: 70, height: 110, zIndex: 0,
+          backgroundImage: `radial-gradient(${alpha(APP_RED, 0.35)} 1.5px, transparent 1.5px)`,
+          backgroundSize: "16px 16px", display: { xs: "none", md: "block" },
+        }} />
+
+        <Box sx={{
+          position: "relative", zIndex: 1,
+          display: "flex", flexDirection: { xs: "column", md: "row" }, alignItems: "center",
+          gap: { xs: 3, md: 2 },
+          px: { xs: 2.5, md: 5 }, py: { xs: 3, md: 3 },
+        }}>
+          {/* LEFT — copy */}
+          <Box sx={{ flex: { md: "0 0 52%" }, minWidth: 0, width: "100%", textAlign: { xs: "center", md: "left" } }}>
+            {/* eyebrow */}
+            <Box sx={{
+              display: "inline-flex", alignItems: "center", gap: 1,
+              bgcolor: alpha(APP_RED, 0.08), border: `1px solid ${alpha(APP_RED, 0.12)}`,
+              borderRadius: "999px", px: 1.8, py: 0.6, mb: { xs: 1.6, md: 1.8 },
+            }}>
+              <SmartphoneIcon sx={{ fontSize: 20, color: APP_RED }} />
+              <Typography sx={{ fontFamily: POPPINS, fontWeight: 700, fontSize: { xs: "0.72rem", md: "0.8rem" }, letterSpacing: "0.14em", color: APP_RED }}>
+                ZODU MOBILE APP
+              </Typography>
+            </Box>
+
+            {/* heading */}
+            <Typography component="h2" sx={{
+              fontFamily: POPPINS, fontWeight: 800, color: APP_NAVY,
+              fontSize: { xs: "2rem", sm: "2.4rem", md: "clamp(2.2rem, 2.9vw, 3rem)" },
+              lineHeight: 1.1, letterSpacing: "-0.03em", mb: { xs: 1.5, md: 1.6 },
+            }}>
+              Your Whole Business,<br />
+              In Your{" "}
+              <Box component="span" sx={{
+                color: APP_RED, position: "relative", display: "inline-block",
+                "&::after": { content: '""', position: "absolute", left: 0, right: 0, bottom: { xs: -4, md: -6 }, height: { xs: 3, md: 4 }, borderRadius: "999px", bgcolor: APP_RED },
+              }}>
+                Pocket
+              </Box>
+            </Typography>
+
+            {/* subtext */}
+            <Typography sx={{
+              fontFamily: POPPINS, color: APP_SLATE, lineHeight: 1.6,
+              fontSize: { xs: "0.92rem", md: "clamp(0.92rem, 1vw, 1.1rem)" },
+              maxWidth: 620, mx: { xs: "auto", md: 0 }, mb: { xs: 2.2, md: 2.4 },
+            }}>
+              Bill customers, track stock, check live reports and get instant alerts — anytime, anywhere. Free on iOS &amp; Android.
+            </Typography>
+
+            {/* Badges row + trust strip share one width and the same three equal
+                columns, so their edges line up. */}
+            <Box sx={{
+              display: "grid", gap: { xs: 2, md: 2.2 },
+              width: "100%", maxWidth: 720,
+              mx: { xs: "auto", md: 0 },
+            }}>
+            {/* store badges + QR */}
+            <Box sx={{
+              display: "grid", alignItems: "stretch", gap: { xs: 1.5, md: 1.6 },
+              gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))" },
+            }}>
+              <AppStoreBadge label="Download Zodu on the App Store" small="Download on the" big="App Store"
+                icon={<AppleIcon sx={{ fontSize: { xs: 26, md: 28 }, color: "#fff", flexShrink: 0 }} />} />
+              <AppStoreBadge label="Get Zodu on Google Play" small="GET IT ON" big="Google Play"
+                icon={<Box component="img" src={gPlayLogo} alt="" sx={{ width: { xs: 22, md: 24 }, height: { xs: 22, md: 24 }, objectFit: "contain", flexShrink: 0 }} />} />
+              <Box sx={{
+                display: { xs: "none", sm: "flex" }, alignItems: "center", gap: 1.5,
+                bgcolor: "#fff", borderRadius: "12px", border: `1px solid ${BORDER}`,
+                boxShadow: "0 6px 20px rgba(0,0,0,0.06)", px: 1.2, py: 0.6,
+              }}>
+                <Box sx={{ width: 48, height: 48, flexShrink: 0 }}><AppQrMark /></Box>
+                <Box sx={{ textAlign: "left" }}>
+                  <Typography sx={{ fontFamily: POPPINS, fontWeight: 600, fontSize: "0.8rem", color: APP_NAVY, lineHeight: 1.2 }}>Scan to<br />Download</Typography>
+                  <Typography sx={{ fontFamily: POPPINS, fontSize: "0.64rem", color: APP_SLATE, mt: 0.3, lineHeight: 1.3 }}>Point your camera<br />at the QR code</Typography>
+                </Box>
+              </Box>
+            </Box>
+
+            {/* trust strip */}
+            <Box sx={{
+              display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" },
+              bgcolor: "#fff", borderRadius: "14px", border: `1px solid ${BORDER}`,
+              boxShadow: "0 8px 22px rgba(15,23,42,0.05)",
+              width: "100%", minWidth: 0,
+            }}>
+              {APP_TRUST.map((t, i) => (
+                <Box key={t.title} sx={{
+                  display: "flex", alignItems: "center", gap: 1.1, px: 1.5, py: 1.1, minWidth: 0,
+                  justifyContent: { xs: "center", sm: "flex-start" },
+                  borderLeft: { sm: i ? `1px solid ${BORDER}` : "none" },
+                  borderTop: { xs: i ? `1px solid ${BORDER}` : "none", sm: "none" },
+                }}>
+                  <Box sx={{
+                    width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
+                    bgcolor: alpha(APP_RED, 0.1), color: APP_RED,
+                    display: "flex", alignItems: "center", justifyContent: "center", "& svg": { fontSize: 19 },
+                  }}>
+                    {t.icon}
+                  </Box>
+                  <Box sx={{ textAlign: "left", minWidth: 0 }}>
+                    <Typography sx={{ fontFamily: POPPINS, fontSize: "0.8rem", fontWeight: 600, color: APP_NAVY, lineHeight: 1.25 }}>{t.title}</Typography>
+                    <Typography sx={{ fontFamily: POPPINS, fontSize: "0.7rem", color: APP_SLATE, lineHeight: 1.35 }}>{t.sub}</Typography>
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+            </Box>
+          </Box>
+
+          {/* RIGHT — phone with the feature cards */}
+          <Box sx={{ flex: { md: "1 1 48%" }, minWidth: 0, width: "100%", maxWidth: { xs: 520, md: "none" } }}>
+            <AppPhoneStage />
+          </Box>
+        </Box>
+      </Box>
+    </Box>
+  </Box>
+);
+
+
+// ── PRICING ─────────────────────────────────────────────────────────────────
+
+/**
+ * Pricing scale unit: 1px on phones/tablets; on desktop it shrinks with the
+ * viewport height (down to 0.7px) so the whole section fits one screen under
+ * the sticky navbar, the same way the features section scales with --fz-u.
+ */
+const pz = (n: number) => `calc(${n} * var(--pz-u))`;
+
+const PLAN_ICONS: Record<string, React.ReactNode> = {
+  Starter: <Store strokeWidth={2} />,
+  Growth: <BarChartRoundedIcon />,
+  Enterprise: <Building2 strokeWidth={2} />,
+};
+
+const PRICING_TRUST = [
+  { icon: <Headphones strokeWidth={1.8} />,  title: "24/7 Support",      sub: "We're here to help" },
+  { icon: <ShieldCheck strokeWidth={1.8} />, title: "Secure & Reliable", sub: "Your data is always safe" },
+  { icon: <RefreshCw strokeWidth={1.8} />,   title: "Regular Updates",   sub: "Always get the latest features" },
+  { icon: <Tag strokeWidth={1.8} />,         title: "No Hidden Fees",    sub: "Transparent pricing" },
+];
+
+const PricingSection: React.FC = () => {
+  const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
+  const navigate = useNavigate();
+
+  return (
+    <Box component="section" id="pricing" aria-labelledby="pricing-heading" sx={{
+      "--pz-u": "1px",
+      "@media (min-width: 900px)": {
+        "--pz-u": `clamp(0.7px, calc((100dvh - ${NAV_H.md + 1}px) / 860), 1px)`,
+        minHeight: `calc(100dvh - ${NAV_H.md + 1}px)`,
+      },
+      scrollMarginTop: { xs: NAV_H.xs, md: NAV_H.md },
+      bgcolor: "#fff", px: SX, py: { xs: 5, md: pz(36) },
+      display: "flex", flexDirection: "column", justifyContent: "center",
+    }}>
+      <Box sx={{ maxWidth: 1200, mx: "auto", width: "100%" }}>
+        {/* ---------- header ---------- */}
+        <Box sx={{ textAlign: "center" }}>
+          <Typography sx={{ color: CTA_RED, fontWeight: 600, fontSize: { xs: "0.72rem", md: pz(14) }, letterSpacing: "0.3em", textTransform: "uppercase", mb: { xs: 1, md: pz(8) } }}>
+            Simple pricing. Powerful features.
+          </Typography>
+          <Typography component="h2" id="pricing-heading" sx={{
+            fontWeight: 800, color: DARK, letterSpacing: "-0.03em", lineHeight: 1.15,
+            fontSize: { xs: "1.8rem", sm: "2.3rem", md: pz(44) },
+          }}>
+            Choose the Plan that{" "}
+            <Box component="span" sx={{ color: CTA_RED }}>Fits Your Business</Box>
+          </Typography>
+          <Typography sx={{ color: GRAY, mt: { xs: 1, md: pz(8) }, fontSize: { xs: "0.92rem", md: pz(17) }, lineHeight: 1.5 }}>
+            All the tools you need to run, manage and grow your business — at a price that works for you.
+          </Typography>
+
+          {/* monthly / yearly toggle */}
+          <Box role="group" aria-label="Billing period" sx={{
+            display: "inline-flex", alignItems: "center", gap: 0.5, p: "4px",
+            mt: { xs: 2.5, md: pz(20) },
+            border: `1px solid ${BORDER}`, borderRadius: "999px", bgcolor: "#fff",
+          }}>
+            {(["monthly", "yearly"] as const).map((b) => {
+              const active = billing === b;
+              return (
+                <Box key={b} component="button" type="button" aria-pressed={active} onClick={() => setBilling(b)} sx={{
+                  display: "inline-flex", alignItems: "center", gap: 1,
+                  border: 0, cursor: "pointer", font: "inherit",
+                  px: { xs: 2.2, md: pz(26) }, py: { xs: 0.9, md: pz(8) }, borderRadius: "999px",
+                  fontSize: { xs: "0.88rem", md: pz(15) }, fontWeight: active ? 700 : 500,
+                  bgcolor: active ? CTA_RED : "transparent", color: active ? "#fff" : DARK,
+                  transition: "background-color .18s ease, color .18s ease",
+                }}>
+                  {b === "monthly" ? "Monthly" : "Yearly"}
+                  {b === "yearly" && (
+                    <Box component="span" sx={{
+                      fontSize: { xs: "0.68rem", md: pz(12) }, fontWeight: 700, borderRadius: "999px", px: 1, py: 0.2,
+                      bgcolor: active ? "rgba(255,255,255,0.22)" : alpha(CTA_RED, 0.1), color: active ? "#fff" : CTA_RED,
+                    }}>
+                      Save 20%
+                    </Box>
+                  )}
+                </Box>
+              );
+            })}
+          </Box>
+        </Box>
+
+        {/* ---------- plans ---------- */}
+        <Box sx={{
+          mt: { xs: 4, md: pz(34) },
+          display: "grid", alignItems: "stretch",
+          gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(3, minmax(0, 1fr))" },
+          gap: { xs: 3.5, md: pz(22) },
+          maxWidth: { xs: 520, md: "none" }, mx: "auto",
+        }}>
+          {plans.map((plan, i) => {
+            const popular = plan.popular;
+            const custom = plan.monthly === "Custom";
+            // On desktop the plain plans have no box, just a faint rule on their
+            // left; the popular one is the only card with a border.
+            const rule = !popular && i > 0;
+            return (
+              <Box key={plan.name} sx={{
+                position: "relative", display: "flex", flexDirection: "column", minWidth: 0,
+                px: { xs: 3, md: pz(30) }, py: { xs: 3, md: pz(26) },
+                borderRadius: "16px",
+                border: popular ? `2px solid ${CTA_RED}` : { xs: `1px solid ${BORDER}`, md: "2px solid transparent" },
+                bgcolor: "#fff",
+                boxShadow: popular ? `0 18px 44px ${alpha(CTA_RED, 0.12)}` : "none",
+                "&::before": {
+                  content: '""', position: "absolute", left: pz(-11), top: "6%", bottom: "6%", width: "1px",
+                  bgcolor: BORDER, display: { xs: "none", md: rule ? "block" : "none" },
+                },
+              }}>
+                {popular && (
+                  <Box sx={{
+                    position: "absolute", top: 0, left: "50%", transform: "translate(-50%, -55%)",
+                    display: "inline-flex", alignItems: "center", gap: 0.8, whiteSpace: "nowrap",
+                    bgcolor: CTA_RED, color: "#fff", borderRadius: "10px",
+                    px: { xs: 2, md: pz(22) }, py: { xs: 0.7, md: pz(7) },
+                    fontSize: { xs: "0.76rem", md: pz(14) }, fontWeight: 700, letterSpacing: "0.04em",
+                    "& svg": { width: { xs: 16, md: pz(18) }, height: { xs: 16, md: pz(18) } },
+                  }}>
+                    <Crown strokeWidth={2.2} />
+                    MOST POPULAR
+                  </Box>
+                )}
+
+                {/* icon + name */}
+                <Box sx={{ display: "flex", flexDirection: "row", alignItems: "center", minHeight: { md: pz(120) }, gap: { xs: 2, md: pz(20) } }}>
+                <Box sx={{
+                  width: { xs: 60, md: pz(68) }, height: { xs: 60, md: pz(68) }, borderRadius: "50%",
+                  bgcolor: alpha(CTA_RED, 0.08), color: CTA_RED,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  "& svg": { width: { xs: 28, md: pz(32) }, height: { xs: 28, md: pz(32) }, fontSize: { xs: 28, md: pz(32) } },
+                }}>
+                  {PLAN_ICONS[plan.name]}
+                </Box>
+                <Box>
+                <Typography sx={{ mt: { xs: 1.5, md: pz(14) }, fontWeight: 800, color: DARK, fontSize: { xs: "1.5rem", md: pz(28) }, lineHeight: 1.2, letterSpacing: "-0.02em" }}>
+                  {plan.name}
+                </Typography>
+                <Typography sx={{ color: GRAY, fontSize: { xs: "0.9rem", md: pz(16) }, mt: { xs: 0.3, md: pz(3) } }}>
+                  {plan.tagline}
+                </Typography>
+                </Box>
+                </Box>
+
+                <Box sx={{ borderTop: `1px solid ${BORDER}`, my: { xs: 2, md: pz(16) } }} />
+
+                {/* price */}
+                <Box sx={{ minHeight: { md: pz(64) }, mb: { xs: 2, md: pz(14) } }}>
+                  {custom ? (
+                    <>
+                      <Typography sx={{ fontWeight: 900, color: DARK, fontSize: { xs: "2.4rem", md: pz(46) }, lineHeight: 1.05, letterSpacing: "-0.03em" }}>Custom</Typography>
+                      <Typography sx={{ color: GRAY, fontSize: { xs: "0.88rem", md: pz(15) }, mt: { xs: 0.5, md: pz(4) } }}>Tailored to your business size</Typography>
+                    </>
+                  ) : (
+                    <>
+                      <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
+                        <Typography sx={{ fontWeight: 900, color: DARK, fontSize: { xs: "2.6rem", md: pz(50) }, lineHeight: 1.05, letterSpacing: "-0.03em" }}>
+                          {billing === "monthly" ? plan.monthly : plan.yearly}
+                        </Typography>
+                        <Typography sx={{ color: GRAY, fontSize: { xs: "0.95rem", md: pz(17) } }}>/month</Typography>
+                      </Box>
+                      {billing === "yearly" && (
+                        <Typography sx={{ color: "#16A34A", fontWeight: 600, fontSize: { xs: "0.78rem", md: pz(13) }, mt: { xs: 0.3, md: pz(3) } }}>
+                          Billed annually · Save 20%
+                        </Typography>
+                      )}
+                    </>
+                  )}
+                </Box>
+
+                {/* features */}
+                <Box component="ul" sx={{ listStyle: "none", m: 0, p: 0, flex: 1, display: "grid", alignContent: "start", gap: { xs: 1.2, md: pz(10) } }}>
+                  {plan.items.map((item) => (
+                    <Box component="li" key={item} sx={{ display: "flex", alignItems: "center", gap: { xs: 1.5, md: pz(14) } }}>
+                      <CheckCircleIcon sx={{ color: CTA_RED, fontSize: { xs: 22, md: pz(22) }, flexShrink: 0 }} />
+                      <Typography sx={{ color: "#1F2937", fontSize: { xs: "0.95rem", md: pz(16) }, lineHeight: 1.35 }}>{item}</Typography>
+                    </Box>
+                  ))}
+                </Box>
+
+                {/* action */}
+                <Button
+                  fullWidth
+                  variant={popular ? "contained" : "outlined"}
+                  disableElevation
+                  onClick={() => navigate(plan.cta === "Talk to Sales" ? "/" : "/signup")}
+                  sx={{
+                    mt: { xs: 3, md: pz(24) }, py: { xs: 1.3, md: pz(12) }, borderRadius: "10px",
+                    textTransform: "none", fontWeight: 700, fontSize: { xs: "1rem", md: pz(18) },
+                    ...(popular
+                      ? { bgcolor: CTA_RED, color: "#fff", "&:hover": { bgcolor: CTA_RED_HOVER } }
+                      : { borderColor: CTA_RED, color: CTA_RED, borderWidth: "1.5px", "&:hover": { borderColor: CTA_RED_HOVER, borderWidth: "1.5px", bgcolor: alpha(CTA_RED, 0.04) } }),
+                  }}
+                >
+                  {plan.cta}
+                </Button>
+              </Box>
+            );
+          })}
+        </Box>
+
+        {/* ---------- trust row ---------- */}
+        {/* <Box sx={{
+          mt: { xs: 4, md: pz(34) },
+          display: "grid",
+          gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" },
+          rowGap: 2.5,
+        }}>
+          {PRICING_TRUST.map((t, i) => (
+            <Box key={t.title} sx={{
+              display: "flex", alignItems: "center", justifyContent: { md: "center" },
+              gap: { xs: 1.2, md: pz(14) }, px: { xs: 1, md: pz(16) }, minWidth: 0,
+              borderLeft: { xs: i % 2 ? `1px solid ${alpha(CTA_RED, 0.25)}` : "none", md: i ? `1px solid ${alpha(CTA_RED, 0.25)}` : "none" },
+            }}>
+              <Box sx={{ color: CTA_RED, display: "flex", flexShrink: 0, "& svg": { width: { xs: 26, md: pz(34) }, height: { xs: 26, md: pz(34) } } }}>
+                {t.icon}
+              </Box>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography sx={{ fontWeight: 700, color: DARK, fontSize: { xs: "0.85rem", md: pz(16) }, lineHeight: 1.3 }}>{t.title}</Typography>
+                <Typography sx={{ color: GRAY, fontSize: { xs: "0.76rem", md: pz(15) }, lineHeight: 1.35 }}>{t.sub}</Typography>
+              </Box>
+            </Box>
+          ))}
+        </Box> */}
+      </Box>
+    </Box>
+  );
+};
+
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 const ZoduLandingPage: React.FC = () => {
-  const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -2168,7 +2191,7 @@ const ZoduLandingPage: React.FC = () => {
           to: { opacity: 1 },
         },
       }} />
-      <Box sx={{ height: "100vh", overflowY: "auto", overflowX: "hidden", bgcolor: "#fff", scrollBehavior: "smooth" }}>
+      <Box sx={{ height: "100dvh", overflowY: "auto", overflowX: "hidden", bgcolor: "#fff", scrollBehavior: "smooth" }}>
 
         {/* ── NAV ─────────────────────────────────────────────────────────── */}
         <Box component="nav" sx={{
@@ -2255,13 +2278,35 @@ const ZoduLandingPage: React.FC = () => {
           component="section"
           aria-labelledby="hero-heading"
           sx={{
-            bgcolor: "#fff",
+            position: "relative",
+            isolation: "isolate",
+            overflow: "hidden",
+            bgcolor: "#FFF9FA",
+            backgroundImage: {
+              xs: "radial-gradient(ellipse at 20% 78%, rgba(235,0,41,.10), transparent 60%), linear-gradient(155deg, #FFF8FA 0%, #FFFFFF 48%, #F0F4FA 100%)",
+              lg: "radial-gradient(ellipse at 22% 48%, rgba(235,0,41,.10) 0%, transparent 53%), radial-gradient(ellipse at 96% 12%, rgba(11,31,75,.045), transparent 50%), linear-gradient(120deg, #FFF6F8 0%, #FFFCFD 54%, #F5F7FB 100%)",
+            },
+            "&::before": {
+              content: '""', position: "absolute", zIndex: -1, pointerEvents: "none",
+              width: "clamp(380px, 48vw, 900px)", aspectRatio: "1", left: "-9%", top: "7%",
+              borderRadius: "50%", border: "1px solid rgba(235,0,41,.055)",
+              boxShadow: "0 0 0 55px rgba(235,0,41,.018), 0 0 0 110px rgba(235,0,41,.012)",
+            },
+            "&::after": {
+              content: '""', position: "absolute", zIndex: -1, pointerEvents: "none",
+              inset: "auto 0 0", height: "80px", background: "linear-gradient(transparent, #F8FBFC)",
+            },
+            // Fills the screen under the navbar on every device. min-, not fixed,
+            // height: a short landscape phone can still scroll the content.
+            minHeight: HERO_SCREEN,
+            boxSizing: "border-box",
             px: { xs: 2.5, sm: 4, md: 6, lg: "4vw" },
-            py: { xs: 4, sm: 5, lg: "3vw" },
+            py: { xs: 3, sm: 4, lg: "min(3vw, 4dvh)" },
             display: "flex",
             flexDirection: { xs: "column-reverse", lg: "row" },
             alignItems: "center",
-            gap: { xs: 4, lg: "3vw" },
+            justifyContent: "center",
+            gap: { xs: 3, sm: 4, lg: "3vw" },
           }}
         >
           {/* Devices. The picture is 1655px wide, and a flex item never shrinks
@@ -2276,12 +2321,53 @@ const ZoduLandingPage: React.FC = () => {
               mx: { xs: "auto", lg: 0 },
             }}
           >
+            <Box sx={{ position: "relative", isolation: "isolate",
+              "@keyframes zoduTileFloat": {
+                "0%, 100%": { transform: "translate3d(0, 0, 0) rotate(-2deg)" },
+                "50%": { transform: "translate3d(0, -9px, 0) rotate(1deg)" },
+              },
+            }}>
             <Box
               component="img"
               src={heroDevices}
               alt="Zodu running on a desktop, a tablet and a phone"
-              sx={{ width: "100%", maxWidth: "100%", height: "auto", display: "block" }}
+              sx={{
+                display: "block",
+                width: "auto",
+                maxWidth: "100%",
+                height: "auto",
+                mx: "auto",
+                // Leaves room for the copy above it on phones/tablets, and for the
+                // store badges below it (~80px) plus the section padding on desktop.
+                maxHeight: {
+                  xs: "30dvh",
+                  sm: "36dvh",
+                  lg: `calc(100dvh - ${NAV_H.md + 1}px - 2 * min(3vw, 4dvh) - 80px)`,
+                },
+              }}
             />
+            {[
+              { title: "Billing, simplified", detail: "Scan. Bill. Done.", icon: <ReceiptLongIcon />, top: "8%", left: "0%", delay: "-1s" },
+              { title: "Stock in sync", detail: "Across every store", icon: <Inventory2RoundedIcon />, top: "3%", right: "1%", delay: "-3s" },
+              { title: "Insights at a glance", detail: "Your business, connected", icon: <InsightsIcon />, bottom: "8%", left: "5%", delay: "-5s" },
+            ].map((tile, index) => (
+              <Box key={tile.title} aria-hidden="true" sx={{
+                position: "absolute", zIndex: 2, top: tile.top, bottom: tile.bottom, left: tile.left, right: tile.right,
+                display: { xs: index === 2 ? "none" : "flex", sm: "flex" }, alignItems: "center", gap: { xs: .65, sm: 1 },
+                px: { xs: 1, sm: 1.4 }, py: { xs: .85, sm: 1.2 }, borderRadius: { xs: "12px", sm: "16px" },
+                bgcolor: "rgba(255,255,255,.94)", border: "1px solid rgba(235,0,41,.12)", backdropFilter: "blur(12px)",
+                boxShadow: "0 10px 30px rgba(15,31,75,.1), 0 2px 5px rgba(15,31,75,.04)",
+                pointerEvents: "none", animation: `zoduTileFloat ${6 + index}s ease-in-out ${tile.delay} infinite`,
+                "@media (prefers-reduced-motion: reduce)": { animation: "none" },
+              }}>
+                <Box sx={{ width: { xs: 25, sm: 34 }, height: { xs: 25, sm: 34 }, display: "grid", placeItems: "center", borderRadius: "10px", bgcolor: "#FFF0F3", color: HERO_RED, "& svg": { fontSize: { xs: 15, sm: 19 } } }}>{tile.icon}</Box>
+                <Box>
+                  <Typography sx={{ color: "#0B1F4B", fontSize: { xs: 9, sm: 12 }, lineHeight: 1.3, fontWeight: 750 }}>{tile.title}</Typography>
+                  <Typography sx={{ mt: .25, color: "#64748B", fontSize: { xs: 8, sm: 10 }, lineHeight: 1.3 }}>{tile.detail}</Typography>
+                </Box>
+              </Box>
+            ))}
+            </Box>
 
             {/* Store badges, centred under the devices, in the same pattern as
                 the download section further down the page. */}
@@ -2360,7 +2446,7 @@ const ZoduLandingPage: React.FC = () => {
                   xs: "clamp(1.8rem, 7.4vw, 2.5rem)",
                   sm: "2.6rem",
                   md: "3rem",
-                  lg: "clamp(2.1rem, 3.1vw, 4rem)",
+                  lg: "clamp(2rem, min(3.1vw, 5.6dvh), 4rem)",
                 },
               }}
             >
@@ -2381,7 +2467,7 @@ const ZoduLandingPage: React.FC = () => {
                 color: "#475569",
                 fontWeight: 500,
                 lineHeight: 1.55,
-                fontSize: { xs: "1rem", sm: "1.08rem", lg: "clamp(0.95rem, 1.15vw, 1.35rem)" },
+                fontSize: { xs: "1rem", sm: "1.08rem", lg: "clamp(0.95rem, min(1.15vw, 2.2dvh), 1.35rem)" },
               }}
             >
               Bill, manage, analyse and grow your business effortlessly with one
@@ -2427,6 +2513,21 @@ const ZoduLandingPage: React.FC = () => {
               </Button>
             </Stack>
 
+            <Box aria-label="A connected business workflow" sx={{ mt: 3, pt: 2.25, borderTop: "1px solid #E8ECF2", display: "flex", alignItems: "center", flexWrap: "wrap", gap: { xs: 1.2, lg: 1.8 } }}>
+              {[
+                { icon: <ReceiptLongIcon />, label: "Bill faster" },
+                { icon: <Inventory2RoundedIcon />, label: "Track stock" },
+                { icon: <InsightsIcon />, label: "See the bigger picture" },
+              ].map((step, index) => (
+                <React.Fragment key={step.label}>
+                  {index > 0 && <ArrowForwardRoundedIcon aria-hidden sx={{ fontSize: 13, color: "#B6BECC" }} />}
+                  <Box sx={{ display: "flex", alignItems: "center", gap: .7, color: "#475569", fontSize: { xs: 11, lg: 12 }, fontWeight: 600 }}>
+                    <Box sx={{ display: "grid", placeItems: "center", width: 28, height: 28, borderRadius: "9px", bgcolor: "#FFF0F3", color: HERO_RED, "& svg": { fontSize: 16 } }}>{step.icon}</Box>
+                    {step.label}
+                  </Box>
+                </React.Fragment>
+              ))}
+            </Box>
             {/* Four points: two per row on phones, four across from sm up */}
             {/* <Box
               sx={{
@@ -3337,89 +3438,7 @@ const ZoduLandingPage: React.FC = () => {
   </Box>
 </Box> */}
         {/* ── PRICING ──────────────────────────────────────────────────────── */}
-      {/* Intha outer wrapper/container-la mt (margin-top) add pannunga */}
-<Box sx={{ mt: { xs: 4, md: 6 }, px: SX }}>
-  <Box sx={{ maxWidth: SECTION_MAX_W, mx: "auto", display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 2.5, alignItems: "stretch" }}>
-    {plans.map((plan) => (
-      <Box key={plan.name} sx={{
-        border: plan.popular ? `2px solid ${PRIMARY}` : `1px solid ${BORDER}`,
-        borderRadius: "22px",
-        p: { xs: 3, md: 3.2 },
-        position: "relative",
-        overflow: "hidden",
-        transform: plan.popular ? { md: "scale(1.03)" } : "none",
-        boxShadow: plan.popular ? `0 18px 54px ${alpha(PRIMARY, 0.15)}` : "0 10px 28px rgba(15,23,42,0.06)",
-        bgcolor: "#fff",
-        display: "flex",
-        flexDirection: "column",
-      }}>
-        <Box sx={{ display: "flex", flexDirection: "column", flex: 1 }}>
-          
-          {plan.popular ? (
-            <Box sx={{ display: "flex", justifyContent: "center", mb: 1.5 }}>
-              <Box sx={{
-                bgcolor: PRIMARY, 
-                color: "#fff", 
-                fontSize: "0.65rem", 
-                fontWeight: 800,
-                px: 2, 
-                py: 0.5, 
-                borderRadius: "999px", 
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                whiteSpace: "nowrap"
-              }}>
-                MOST POPULAR
-              </Box>
-            </Box>
-          ) : (
-            <Box sx={{ height: 26, mb: 1.5 }} />
-          )}
-
-          <Typography sx={{ fontWeight: 850, fontSize: "1.2rem", color: DARK, mb: 0.4 }}>{plan.name}</Typography>
-          <Typography sx={{ fontSize: "0.83rem", color: GRAY, mb: 2.5 }}>{plan.tagline}</Typography>
-          
-          {plan.monthly !== "Custom" ? (
-            <Box mb={3}>
-              <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5 }}>
-                <Typography sx={{ fontSize: "2.5rem", fontWeight: 900, color: DARK, letterSpacing: "-0.03em" }}>
-                  {billing === "monthly" ? plan.monthly : plan.yearly}
-                </Typography>
-                <Typography sx={{ fontSize: "0.85rem", color: GRAY }}>/month</Typography>
-              </Box>
-              {billing === "yearly" && (
-                <Typography sx={{ fontSize: "0.75rem", color: "#16a34a", fontWeight: 600 }}>Billed annually · Save 20%</Typography>
-              )}
-            </Box>
-          ) : (
-            <Box mb={3}>
-              <Typography sx={{ fontSize: "1.8rem", fontWeight: 900, color: DARK, mb: 0.4 }}>Custom</Typography>
-              <Typography sx={{ fontSize: "0.8rem", color: GRAY }}>Tailored to your business size</Typography>
-            </Box>
-          )}
-
-          <Stack spacing={1.2} mb={3} sx={{ flex: 1 }}>
-            {plan.items.map((item) => (
-              <Box key={item} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <CheckCircleIcon sx={{ fontSize: 15, color: plan.popular ? PRIMARY : "#16a34a", flexShrink: 0 }} />
-                <Typography sx={{ fontSize: "0.85rem", color: "#374151" }}>{item}</Typography>
-              </Box>
-            ))}
-          </Stack>
-
-          <Button fullWidth variant={plan.popular ? "contained" : "outlined"} onClick={() => navigate(plan.cta === "Talk to Sales" ? "/" : "/signup")} sx={{
-            py: 1.2, borderRadius: "10px", fontWeight: 700, fontSize: "0.9rem",
-            ...(plan.popular
-              ? { bgcolor: PRIMARY, color: "#fff", "&:hover": { bgcolor: PRIMARY_DARK } }
-              : { borderColor: plan.name === "Enterprise" ? PRIMARY : BORDER, color: plan.name === "Enterprise" ? PRIMARY : DARK, "&:hover": { borderColor: PRIMARY, bgcolor: alpha(PRIMARY, 0.04) } }),
-          }}>
-            {plan.cta}
-          </Button>
-        </Box>
-      </Box>
-    ))}
-  </Box>
-</Box>
+        <PricingSection />
 
         {/* ── TESTIMONIALS ─────────────────────────────────────────────────── */}
         {/* <Box sx={{ bgcolor: LIGHT, py: SPY, px: SX }}>
@@ -3508,246 +3527,7 @@ const ZoduLandingPage: React.FC = () => {
         </Box> */}
 
         {/* ── GET THE APP ──────────────────────────────────────────────────── */}
-        <Box sx={{ py: { xs: 3, md: 4 }, px: SX, bgcolor: LIGHT, fontFamily: POPPINS }}>
-          {/* Hidden gradient def for the Google Play triangle */}
-          <Box component="svg" width="0" height="0" sx={{ position: "absolute" }}>
-            <defs>
-              <linearGradient id="gplay" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#00C3FF" />
-                <stop offset="38%" stopColor="#22D36B" />
-                <stop offset="68%" stopColor="#FFCE00" />
-                <stop offset="100%" stopColor="#FF3D3D" />
-              </linearGradient>
-            </defs>
-          </Box>
-
-          <Box sx={{ maxWidth: SECTION_MAX_W, mx: "auto" }}>
-            <Box sx={{
-              borderRadius: { xs: "20px", md: "26px" },
-              minHeight: { md: 430 },
-              position: "relative", overflow: "hidden",
-              backgroundImage: `linear-gradient(135deg, #FFFFFF 0%, #FFF7F7 48%, #FEECEC 100%)`,
-              border: "2px solid rgba(255,255,255,0.9)",
-              boxShadow: "0 14px 42px rgba(15,23,42,0.09)",
-            }}>
-              {/* Red wave shape behind the illustration */}
-              <Box
-                component="svg"
-                viewBox="0 0 1000 720"
-                preserveAspectRatio="none"
-                sx={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 0, display: { xs: "none", md: "block" } }}
-              >
-                <defs>
-                  <linearGradient id="appwave" x1="0" y1="0" x2="0.5" y2="1">
-                    <stop offset="0%" stopColor="#F35858" />
-                    <stop offset="100%" stopColor="#E02424" />
-                  </linearGradient>
-                </defs>
-                {/* lighter coral underlay — peeks as a rim on the wave edge + lower sweep */}
-                <path d="M1000 46 C900 150 790 164 690 168 C540 174 480 266 470 390 C462 500 370 600 240 720 L1000 720 Z" fill={alpha(APP_RED, 0.44)} />
-                {/* main red wave — right blob sweeping across the bottom */}
-                <path d="M1000 72 C888 172 788 176 678 184 C540 196 492 290 502 402 C512 536 398 628 310 720 L1000 720 Z" fill="url(#appwave)" />
-              </Box>
-
-              {/* Faint concentric rings behind the phone */}
-              {[420, 320, 220].map((d) => (
-                <Box key={d} sx={{
-                  position: "absolute", top: "30%", right: "24%",
-                  width: d * 0.7, height: d * 0.7, mt: `${-(d * 0.7) / 2}px`, mr: `${-(d * 0.7) / 2}px`,
-                  borderRadius: "50%", border: `1.5px solid ${alpha(APP_RED, 0.12)}`,
-                  zIndex: 0, display: { xs: "none", md: "block" }, pointerEvents: "none",
-                }} />
-              ))}
-
-              {/* Decorative dot patterns */}
-              <Box sx={{
-                position: "absolute", top: 22, right: 28, width: 100, height: 70, opacity: 0.5, zIndex: 0,
-                backgroundImage: `radial-gradient(${alpha(APP_RED, 0.5)} 1.6px, transparent 1.6px)`,
-                backgroundSize: "16px 16px", display: { xs: "none", md: "block" },
-              }} />
-              <Box sx={{
-                position: "absolute", bottom: 20, left: 22, width: 76, height: 62, opacity: 0.4, zIndex: 0,
-                backgroundImage: `radial-gradient(${alpha(APP_RED, 0.45)} 1.6px, transparent 1.6px)`,
-                backgroundSize: "16px 16px", display: { xs: "none", md: "block" },
-              }} />
-
-              <Box sx={{
-                display: "flex", flexDirection: { xs: "column", md: "row" }, alignItems: "center",
-                gap: { xs: 3, md: 1.5 }, position: "relative", zIndex: 1,
-                p: { xs: 2.5, md: 4 },
-                minHeight: { md: 430 },
-              }}>
-                {/* LEFT — copy */}
-                <Box sx={{ flex: { md: "0 0 48%" }, width: "100%", textAlign: { xs: "center", md: "left" } }}>
-                  {/* Eyebrow badge */}
-                  <Box sx={{
-                    display: "inline-flex", alignItems: "center", gap: 1.2,
-                    bgcolor: alpha(APP_RED, 0.10), borderRadius: "999px", pl: 0.5, pr: 1.6, py: 0.45, mb: { xs: 2, md: 2 },
-                  }}>
-                    <Box sx={{ width: 32, height: 32, borderRadius: "8px", bgcolor: APP_RED, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <SmartphoneIcon sx={{ fontSize: 18, color: "#fff" }} />
-                    </Box>
-                    <Typography sx={{ fontFamily: POPPINS, fontWeight: 800, fontSize: { xs: "0.7rem", md: "0.78rem" }, letterSpacing: "0.14em", color: APP_RED }}>
-                      ZODU MOBILE APP
-                    </Typography>
-                  </Box>
-
-                  {/* Heading */}
-                  <Typography sx={{ fontFamily: POPPINS, fontSize: { xs: "1.9rem", md: "2.75rem" }, fontWeight: 800, color: APP_NAVY, lineHeight: 1.1, letterSpacing: "-0.02em", mb: { xs: 1.5, md: 1.8 } }}>
-                    Your Whole Business,<br />
-                    In Your{" "}
-                    <Box component="span" sx={{
-                      color: APP_RED, position: "relative", display: "inline-block",
-                      "&::after": { content: '""', position: "absolute", left: "4%", right: "2%", bottom: { xs: -5, md: -7 }, height: { xs: 3, md: 4 }, borderRadius: "999px", bgcolor: APP_RED, opacity: 0.85, transform: "rotate(-2deg)" },
-                    }}>
-                      Pocket
-                    </Box>
-                  </Typography>
-
-                  {/* Subtext */}
-                  <Typography sx={{ fontFamily: POPPINS, fontSize: { xs: "0.86rem", md: "0.98rem" }, color: APP_SLATE, lineHeight: 1.6, mb: { xs: 2.2, md: 2.4 }, maxWidth: 500, mx: { xs: "auto", md: 0 } }}>
-                    Bill customers, track stock, check live reports and get instant alerts — anytime, anywhere. Free on iOS &amp; Android.
-                  </Typography>
-
-                  {/* Bullets */}
-                  {/* <Stack spacing={1} mb={2.5} sx={{ alignItems: { xs: "center", md: "flex-start" } }}>
-                    {["Real-time sales & low-stock alerts", "Manage every branch on the move", "Works offline — syncs automatically"].map((t) => (
-                      <Box key={t} sx={{ display: "flex", alignItems: "center", gap: 1.3 }}>
-                        <CheckCircleIcon sx={{ fontSize: 22, color: APP_RED }} />
-                        <Typography sx={{ fontFamily: POPPINS, fontSize: "0.95rem", color: APP_NAVY, fontWeight: 500 }}>{t}</Typography>
-                      </Box>
-                    ))}
-                  </Stack> */}
-
-                  {/* Store badges + QR code */}
-                  <Stack direction={{ xs: "column", sm: "row" }} spacing={2} mb={{ xs: 2.4, md: 2.6 }} sx={{ justifyContent: { xs: "center", md: "flex-start" }, alignItems: { xs: "stretch", sm: "center" } }}>
-                    {/* Buttons column */}
-                    <Stack spacing={1.4} sx={{ flex: { sm: "0 0 auto" } }}>
-                      {/* Google Play — dark */}
-                      <Box component="a" href="#" sx={{
-                        display: "inline-flex", alignItems: "center", gap: 1.4, textDecoration: "none",
-                        bgcolor: "#000", color: "#fff",
-                        px: { xs: 2.2, md: 2.4 }, py: { xs: 1.05, md: 1.08 },
-                        borderRadius: "10px", border: "1px solid rgba(255,255,255,0.25)",
-                        minWidth: { xs: "100%", sm: 192, md: 200 },
-                        boxShadow: "0 6px 18px rgba(0,0,0,0.22)", transition: "all 0.18s",
-                        "&:hover": { transform: "translateY(-2px)", boxShadow: "0 10px 26px rgba(0,0,0,0.3)" },
-                      }}>
-                        <Box component="img" src={gPlayLogo} alt="Google Play" sx={{ width: 28, height: 28, objectFit: "contain", flexShrink: 0 }} />
-                        <Box sx={{ textAlign: "left", lineHeight: 1 }}>
-                          <Typography sx={{ fontFamily: POPPINS, fontSize: "0.58rem", color: "rgba(255,255,255,0.8)", letterSpacing: "0.04em" }}>GET IT ON</Typography>
-                          <Typography sx={{ fontFamily: POPPINS, fontSize: "1.05rem", fontWeight: 700, mt: "2px", color: "#fff" }}>Google Play</Typography>
-                        </Box>
-                      </Box>
-                      {/* App Store — dark */}
-                      <Box component="a" href="#" sx={{
-                        display: "inline-flex", alignItems: "center", gap: 1.4, textDecoration: "none",
-                        bgcolor: "#000", color: "#fff",
-                        px: { xs: 2.2, md: 2.4 }, py: { xs: 1.05, md: 1.08 },
-                        borderRadius: "10px", border: "1px solid rgba(255,255,255,0.25)",
-                        minWidth: { xs: "100%", sm: 192, md: 200 },
-                        boxShadow: "0 6px 18px rgba(0,0,0,0.22)", transition: "all 0.18s",
-                        "&:hover": { transform: "translateY(-2px)", boxShadow: "0 10px 26px rgba(0,0,0,0.3)" },
-                      }}>
-                        <AppleIcon sx={{ fontSize: 30, color: "#fff", flexShrink: 0 }} />
-                        <Box sx={{ textAlign: "left", lineHeight: 1 }}>
-                          <Typography sx={{ fontFamily: POPPINS, fontSize: "0.58rem", color: "rgba(255,255,255,0.8)", letterSpacing: "0.04em" }}>Download on the</Typography>
-                          <Typography sx={{ fontFamily: POPPINS, fontSize: "1.05rem", fontWeight: 700, mt: "2px", color: "#fff" }}>App Store</Typography>
-                        </Box>
-                      </Box>
-                    </Stack>
-
-                    {/* QR code — desktop only */}
-                    <Box sx={{
-                      display: { xs: "none", sm: "flex" }, alignItems: "center", gap: 1.5,
-                      bgcolor: "#fff", borderRadius: "14px", border: `1px solid ${BORDER}`,
-                      boxShadow: "0 6px 20px rgba(0,0,0,0.08)", p: 1.5,
-                    }}>
-                      {/* QR code SVG placeholder */}
-                      <Box sx={{ width: 82, height: 82, flexShrink: 0, bgcolor: "#fff", borderRadius: "8px", overflow: "hidden", p: "4px" }}>
-                        <Box component="svg" viewBox="0 0 21 21" width="74" height="74" sx={{ display: "block" }}>
-                          {/* Top-left finder */}
-                          <rect x="0" y="0" width="7" height="7" fill="#111" rx="0.5"/>
-                          <rect x="1" y="1" width="5" height="5" fill="#fff"/>
-                          <rect x="2" y="2" width="3" height="3" fill="#111"/>
-                          {/* Top-right finder */}
-                          <rect x="14" y="0" width="7" height="7" fill="#111" rx="0.5"/>
-                          <rect x="15" y="1" width="5" height="5" fill="#fff"/>
-                          <rect x="16" y="2" width="3" height="3" fill="#111"/>
-                          {/* Bottom-left finder */}
-                          <rect x="0" y="14" width="7" height="7" fill="#111" rx="0.5"/>
-                          <rect x="1" y="15" width="5" height="5" fill="#fff"/>
-                          <rect x="2" y="16" width="3" height="3" fill="#111"/>
-                          {/* Timing patterns */}
-                          <rect x="8" y="6" width="1" height="1" fill="#111"/><rect x="10" y="6" width="1" height="1" fill="#111"/><rect x="12" y="6" width="1" height="1" fill="#111"/>
-                          <rect x="6" y="8" width="1" height="1" fill="#111"/><rect x="6" y="10" width="1" height="1" fill="#111"/><rect x="6" y="12" width="1" height="1" fill="#111"/>
-                          {/* Data modules */}
-                          <rect x="8" y="0" width="1" height="1" fill="#111"/><rect x="10" y="0" width="2" height="1" fill="#111"/><rect x="13" y="0" width="1" height="1" fill="#111"/>
-                          <rect x="9" y="2" width="1" height="1" fill="#111"/><rect x="11" y="2" width="2" height="1" fill="#111"/>
-                          <rect x="8" y="4" width="2" height="1" fill="#111"/><rect x="12" y="4" width="2" height="1" fill="#111"/>
-                          <rect x="0" y="8" width="1" height="1" fill="#111"/><rect x="2" y="8" width="3" height="1" fill="#111"/><rect x="8" y="8" width="2" height="1" fill="#111"/><rect x="12" y="8" width="2" height="1" fill="#111"/><rect x="16" y="8" width="1" height="1" fill="#111"/><rect x="18" y="8" width="1" height="1" fill="#111"/><rect x="20" y="8" width="1" height="1" fill="#111"/>
-                          <rect x="0" y="10" width="1" height="1" fill="#111"/><rect x="3" y="10" width="2" height="1" fill="#111"/><rect x="8" y="10" width="1" height="1" fill="#111"/><rect x="11" y="10" width="2" height="1" fill="#111"/><rect x="15" y="10" width="3" height="1" fill="#111"/><rect x="20" y="10" width="1" height="1" fill="#111"/>
-                          <rect x="1" y="12" width="2" height="1" fill="#111"/><rect x="5" y="12" width="1" height="1" fill="#111"/><rect x="9" y="12" width="2" height="1" fill="#111"/><rect x="13" y="12" width="1" height="1" fill="#111"/><rect x="16" y="12" width="2" height="1" fill="#111"/>
-                          <rect x="8" y="14" width="1" height="1" fill="#111"/><rect x="10" y="14" width="2" height="1" fill="#111"/><rect x="14" y="14" width="1" height="1" fill="#111"/><rect x="17" y="14" width="2" height="1" fill="#111"/><rect x="20" y="14" width="1" height="1" fill="#111"/>
-                          <rect x="9" y="16" width="2" height="1" fill="#111"/><rect x="13" y="16" width="1" height="1" fill="#111"/><rect x="16" y="16" width="1" height="1" fill="#111"/><rect x="19" y="16" width="2" height="1" fill="#111"/>
-                          <rect x="8" y="18" width="1" height="1" fill="#111"/><rect x="11" y="18" width="2" height="1" fill="#111"/><rect x="15" y="18" width="1" height="1" fill="#111"/><rect x="18" y="18" width="2" height="1" fill="#111"/>
-                          <rect x="9" y="20" width="2" height="1" fill="#111"/><rect x="13" y="20" width="2" height="1" fill="#111"/><rect x="17" y="20" width="1" height="1" fill="#111"/><rect x="20" y="20" width="1" height="1" fill="#111"/>
-                        </Box>
-                      </Box>
-                      <Box>
-                        <Typography sx={{ fontFamily: POPPINS, fontWeight: 700, fontSize: "0.78rem", color: APP_NAVY, lineHeight: 1.3 }}>Scan to<br/>Download</Typography>
-                        <Typography sx={{ fontFamily: POPPINS, fontSize: "0.62rem", color: APP_SLATE, mt: 0.5, lineHeight: 1.4 }}>Point your camera<br/>at the QR code</Typography>
-                      </Box>
-                    </Box>
-                  </Stack>
-
-                  {/* Trust strip */}
-                  <Box sx={{
-                    display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
-                    bgcolor: "#fff", borderRadius: "14px", border: `1px solid ${BORDER}`,
-                    boxShadow: "0 8px 22px rgba(15,23,42,0.07)", overflow: "hidden",
-                    maxWidth: 520,
-                    mx: { xs: "auto", md: 0 },
-                  }}>
-                    {[
-                      { icon: <VerifiedUserIcon sx={{ fontSize: 20, color: APP_RED }} />,   tint: alpha(APP_RED, 0.10),   title: "Secure & Reliable", sub: "Your data is always safe" },
-                      { icon: <CloudDoneIcon sx={{ fontSize: 20, color: "#3B82F6" }} />,    tint: "#EFF6FF",              title: "Works Offline",     sub: "Auto syncs when online" },
-                      { icon: <SupportAgentIcon sx={{ fontSize: 20, color: "#16A34A" }} />, tint: "#F0FDF4",              title: "24/7 Support",      sub: "We're here to help" },
-                    ].map((f, i) => (
-                      <Box key={f.title} sx={{
-                        display: "flex", alignItems: "center", gap: 0.9, p: { xs: 1.4, md: 1.25 },
-                        borderRight: { sm: i < 2 ? `1px solid ${BORDER}` : "none" },
-                        borderBottom: { xs: i < 2 ? `1px solid ${BORDER}` : "none", sm: "none" },
-                        justifyContent: { xs: "center", sm: "flex-start" },
-                      }}>
-                        <Box sx={{ width: 34, height: 34, borderRadius: "50%", bgcolor: f.tint, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          {f.icon}
-                        </Box>
-                        <Box sx={{ textAlign: "left" }}>
-                          <Typography sx={{ fontFamily: POPPINS, fontSize: "0.72rem", fontWeight: 700, color: APP_NAVY, lineHeight: 1.2 }}>{f.title}</Typography>
-                          <Typography sx={{ fontFamily: POPPINS, fontSize: "0.58rem", color: APP_SLATE, lineHeight: 1.3 }}>{f.sub}</Typography>
-                        </Box>
-                      </Box>
-                    ))}
-                  </Box>
-                </Box>
-
-                {/* RIGHT — illustration */}
-                <Box sx={{ flex: { md: "0 0 52%" }, width: "100%", display: "flex", justifyContent: "center", alignItems: "center", alignSelf: "stretch" }}>
-                  <Box component="img" src={getAppImg} alt="Zodu mobile app dashboard"
-                    sx={{
-                      width: { xs: "100%", md: "96%" },
-                      maxWidth: { xs: 430, md: 580 },
-                      display: "block",
-                      objectFit: "contain",
-                      transform: { md: "translate(14px, 4px)" },
-                      filter: "drop-shadow(0 18px 30px rgba(15,23,42,0.14))",
-                    }} />
-                </Box>
-              </Box>
-            </Box>
-          </Box>
-        </Box>
+        <GetAppSection />
 
         {/* ── FOOTER ───────────────────────────────────────────────────────── */}
         <Box component="footer" sx={{ position: "relative", overflow: "hidden", bgcolor: "#0B1220", color: "#fff", px: SX }}>

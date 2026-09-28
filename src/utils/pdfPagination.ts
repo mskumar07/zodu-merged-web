@@ -3,8 +3,10 @@ import jsPDF from "jspdf";
 
 // Tuned for invoice templates that mark a repeating page header with
 // [data-pdf-header] / [data-pdf-header-divider], a repeating items-table
-// column header with [data-pdf-repeat-thead], and sections that must never be
-// sliced across a page boundary with [data-pdf-keep-together].
+// column header with [data-pdf-repeat-thead], sections that must never be
+// sliced across a page boundary with [data-pdf-keep-together], and an optional
+// page footer with [data-pdf-page-footer] — taken out of the content flow and
+// pinned to the bottom of every page instead of following the last line.
 export const PDF_CAPTURE_SCALE = 1.6;
 export const PDF_IMAGE_QUALITY = 0.72;
 const PDF_HEADER_GAP_MM = 4;
@@ -17,6 +19,10 @@ const PDF_THEAD_GAP_MM = 1.5;
 // image to whatever content actually filled the slice, so a page that ends
 // early gets more white space, never less than this.
 const PDF_PAGE_BOTTOM_GAP_MM = 14;
+// A [data-pdf-page-footer] block sits this far above the physical page edge,
+// with at least PDF_FOOTER_GAP_MM between it and the content above it.
+const PDF_FOOTER_BOTTOM_MARGIN_MM = 8;
+const PDF_FOOTER_GAP_MM = 4;
 // How far ABOVE the ideal page end we're willing to pull the break back to
 // land on a blank canvas row. Never search below it: a slice taller than the
 // usable page height gets silently clipped by the page edge, which is what
@@ -381,6 +387,7 @@ export async function renderPaginatedInvoicePdf(
   const headerEl = container.querySelector("[data-pdf-header]") as HTMLElement | null;
   const headerDividerEl = container.querySelector("[data-pdf-header-divider]") as HTMLElement | null;
   const theadEl = container.querySelector("[data-pdf-repeat-thead]") as HTMLElement | null;
+  const pageFooterEl = container.querySelector("[data-pdf-page-footer]") as HTMLElement | null;
   const keepTogetherEls = Array.from(
     container.querySelectorAll("[data-pdf-keep-together]"),
   ) as HTMLElement[];
@@ -397,6 +404,17 @@ export async function renderPaginatedInvoicePdf(
       end: toCanvasY(elRect.bottom),
     };
   });
+
+  // The page footer's band in the capture — everything from its top down is
+  // cut out of the content and stamped at the foot of each page instead.
+  let footerTopPx = 0;
+  let footerBottomPx = 0;
+  if (pageFooterEl) {
+    const footerRect = pageFooterEl.getBoundingClientRect();
+    footerTopPx = toCanvasY(footerRect.top);
+    footerBottomPx = toCanvasY(footerRect.bottom);
+  }
+  const hasPageFooter = footerBottomPx > footerTopPx;
 
   let theadBottomPx = 0;
   let itemsTableBottomPx = 0;
@@ -417,7 +435,8 @@ export async function renderPaginatedInvoicePdf(
   for (const o of overlays.values()) {
     keepTogetherRanges.push({ start: Math.round(o.top), end: Math.round(o.top + o.height) });
   }
-  const overlayBottomPx = Math.max(0, ...Array.from(overlays.values(), (o) => Math.ceil(o.top + o.height)));
+  const overlayBottomPx = Math.max(0, ...Array.from(overlays.values(), (o) =>
+    hasPageFooter && o.top >= footerTopPx ? 0 : Math.ceil(o.top + o.height)));
 
   const capturedCanvas = await html2canvas(container, {
     scale: PDF_CAPTURE_SCALE,
@@ -426,8 +445,12 @@ export async function renderPaginatedInvoicePdf(
     logging: false,
     onclone: hideOverlaidImages(overlays),
   });
+  const footerBand = hasPageFooter ? cropCanvasBand(capturedCanvas, footerTopPx, footerBottomPx) : null;
+  const contentCanvas = footerBand
+    ? cropCanvasBand(capturedCanvas, 0, footerTopPx) ?? capturedCanvas
+    : capturedCanvas;
   // An image at the very bottom is blank in the capture — don't trim it away.
-  const canvas = trimCanvasBottom(capturedCanvas, overlayBottomPx);
+  const canvas = trimCanvasBottom(contentCanvas, overlayBottomPx);
 
   let headerImgData: string | null = null;
   let headerHeightPx = 0;
@@ -469,10 +492,23 @@ export async function renderPaginatedInvoicePdf(
   const toMm = (px: number) => px / pxPerMm;
 
   const pageBottomGapPx = Math.max(0, Math.round(PDF_PAGE_BOTTOM_GAP_MM * pxPerMm));
+  const footerHeightMm = footerBand ? toMm(footerBand.height) : 0;
+  const footerYMm = pageHeight - PDF_FOOTER_BOTTOM_MARGIN_MM - footerHeightMm;
+  const footerImgData = footerBand ? footerBand.toDataURL("image/jpeg", PDF_IMAGE_QUALITY) : null;
+  // Content stops short of the footer on every page (or the usual bottom gap
+  // when there is no footer).
   const renderedPageHeightPx = Math.max(
     1,
-    Math.floor(pageHeight * pxPerMm) - pageBottomGapPx,
+    footerBand
+      ? Math.floor((footerYMm - PDF_FOOTER_GAP_MM) * pxPerMm)
+      : Math.floor(pageHeight * pxPerMm) - pageBottomGapPx,
   );
+  /** Stamps the page footer (and its logo) at the bottom of the current page. */
+  const drawPageFooter = () => {
+    if (!footerBand || !footerImgData) return;
+    pdf.addImage(footerImgData, "JPEG", 0, footerYMm, pageWidth, footerHeightMm, undefined, "MEDIUM");
+    drawImageOverlays(pdf, overlays, footerTopPx, footerBottomPx, 0, footerYMm, 1 / pxPerMm);
+  };
   const headerHeightMm = headerImgData ? toMm(headerHeightPx) : 0;
   const theadHeightMm = theadImgData ? toMm(theadHeightPx) : 0;
   const headerGapPx = headerImgData ? Math.max(0, Math.round(PDF_HEADER_GAP_MM * pxPerMm)) : 0;
@@ -508,6 +544,7 @@ export async function renderPaginatedInvoicePdf(
       "MEDIUM",
     );
     drawImageOverlays(pdf, overlays, 0, canvas.height, (pageWidth - imgWidthMm) / 2, 0, fitScale / pxPerMm);
+    drawPageFooter();
     return pdf;
   }
 
@@ -613,6 +650,7 @@ export async function renderPaginatedInvoicePdf(
       "MEDIUM",
     );
     drawImageOverlays(pdf, overlays, sourceY, sourceY + sliceHeight, 0, cursorMm, 1 / pxPerMm);
+    drawPageFooter();
 
     sourceY += sliceHeight;
   }

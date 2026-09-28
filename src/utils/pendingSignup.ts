@@ -1,7 +1,8 @@
 /**
  * Marks "this account just signed up and has no business details filled in
  * yet" across the /signup → /login navigation, so the first successful login
- * can route straight to Settings with the Add Business modal pre-filled
+ * can route straight to Settings with the Edit Business modal open on the
+ * business signup created (never Add — that would create a second one),
  * instead of the normal dashboard/branch-picker flow.
  *
  * Backed by localStorage (not router state) because it must survive the full

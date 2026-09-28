@@ -1251,7 +1251,7 @@ export default function InvoiceDetailsModal({
         ) : invoiceSettings?.invoice_template === "modern" ? (
           <InvoicePDFTemplateModern ref={pdfRef} data={pdfData} copyType={renderCopyType} />
         ) : (
-          <InvoicePDFTemplate ref={pdfRef} data={pdfData} copyType={renderCopyType} />
+          <InvoicePDFTemplate ref={pdfRef} data={pdfData} copyType={renderCopyType} hideTaxBreakdown={invoiceSettings?.invoice_template === "classic2"} />
         )}
         <ThermalInvoiceTemplate ref={thermalRef} data={pdfData} paperSize={thermalPaperSize} copyType={renderCopyType} />
       </div>
