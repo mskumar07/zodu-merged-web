@@ -623,6 +623,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { useCreateVendor, useUpdateVendor, type VendorRecord } from "./useVendorApi";
 import SuccessToast from "@components/Common/SuccessToast";
 import { getTenantContext } from "@store/tenantContext";
+import { closeFromControlsOnly } from "@utils/dialog";
 
 const theme = createTheme({
   palette: {
@@ -896,7 +897,12 @@ const AddVendorModal: React.FC<AddVendorModalProps> = ({ open, onClose, onSave, 
 
   return (
     <ThemeProvider theme={theme}>
-      <Dialog open={open} onClose={handleCancel} maxWidth="sm" fullWidth>
+      <Dialog
+        open={open}
+        onClose={closeFromControlsOnly(handleCancel)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle
           sx={{
             px: 3,

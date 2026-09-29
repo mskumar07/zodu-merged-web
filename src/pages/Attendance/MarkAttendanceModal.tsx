@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { closeFromControlsOnly } from "@utils/dialog";
 import {
   Box, Button, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, IconButton, Tooltip, TextField, Typography,
@@ -228,7 +229,7 @@ export default function MarkAttendanceModal({
 
   return (
     <ThemeProvider theme={theme}>
-      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <Dialog open={open} onClose={closeFromControlsOnly(onClose)} maxWidth="md" fullWidth>
         {/* ── Header ── */}
         <DialogTitle sx={{
           px: 3, py: 2, borderBottom: "1px solid #F1F5F9",

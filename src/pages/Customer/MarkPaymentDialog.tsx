@@ -3,6 +3,7 @@
  * Records a customer payment against one or more outstanding bills.
  */
 import React, { useEffect, useMemo, useState } from "react";
+import { closeFromControlsOnly } from "@utils/dialog";
 import {
   Dialog, DialogContent, Box, Typography, IconButton, Button,
   TextField, Select, MenuItem, Checkbox, Table, TableHead, TableBody,
@@ -177,7 +178,7 @@ export default function MarkPaymentDialog({ customer, onClose, onSuccess }: Prop
   return (
     <Dialog
       open
-      onClose={onClose}
+      onClose={closeFromControlsOnly(onClose)}
       maxWidth="md"
       fullWidth
       PaperProps={{

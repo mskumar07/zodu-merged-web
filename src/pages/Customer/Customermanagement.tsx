@@ -17,6 +17,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
+import { closeFromControlsOnly } from "@utils/dialog";
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
@@ -73,7 +74,7 @@ function CustomerStatusDialog({ open, isDelete, isPending, onConfirm, onCancel }
   open: boolean; isDelete: boolean; isPending: boolean; onConfirm: () => void; onCancel: () => void;
 }) {
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="xs" fullWidth slotProps={{ paper: { sx: { borderRadius: 2 } } }}>
+    <Dialog open={open} onClose={closeFromControlsOnly(onCancel)} maxWidth="xs" fullWidth slotProps={{ paper: { sx: { borderRadius: 2 } } }}>
       <DialogTitle sx={{ fontWeight: 700, fontSize: 16, pb: 1 }}>
         {isDelete ? "Inactive Customer" : "Restore Customer"}
       </DialogTitle>

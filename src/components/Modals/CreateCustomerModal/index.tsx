@@ -9,6 +9,7 @@ import {
   Stack,
 } from "@mui/material";
 import { toast } from "react-toastify";
+import { closeFromControlsOnly } from "@utils/dialog";
 
 interface Props {
   open: boolean;
@@ -72,7 +73,7 @@ const CreateCustomerModal: React.FC<Props> = ({ open, onClose, onSubmit, formDat
   };
 
   return (
-    <Dialog open={open} onClose={onClose}>
+    <Dialog open={open} onClose={closeFromControlsOnly(onClose)}>
       <DialogTitle>Create New Customer</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1, width: "300px" }}>

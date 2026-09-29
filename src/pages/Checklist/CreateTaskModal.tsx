@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
+import { closeFromControlsOnly } from "@utils/dialog";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Box, Button, TextField, Typography, IconButton,
@@ -514,7 +515,7 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
     <ThemeProvider theme={theme}>
       <Dialog
         open={open}
-        onClose={handleClose}
+        onClose={closeFromControlsOnly(handleClose)}
         maxWidth="md"
         fullWidth
         slotProps={{ paper: { sx: { borderRadius: 3, maxHeight: "90vh" } } }}
