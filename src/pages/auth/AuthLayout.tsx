@@ -187,9 +187,6 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children, cardMaxWidth = 500 })
           py: 'clamp(16px, 4vh, 40px)',
         }}
       >
-        <Box sx={{ flexShrink: 0 }}>
-          <Logo />
-        </Box>
 
         <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 'clamp(12px, 3vh, 32px)' }}>
           <Box>
@@ -253,9 +250,18 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children, cardMaxWidth = 500 })
           bgcolor: '#ffffff',
         }}
       >
-        {/* Logo — only when the left panel is hidden */}
-        <Box ref={headerRef} sx={{ flexShrink: 0, display: { xs: 'block', md: 'none' }, px: { xs: 2.5, sm: 5 }, pt: 2 }}>
-          <Logo height={{ xs: 28 }} />
+        {/* Logo — top-right of the form half (top-left on phones) */}
+        <Box
+          ref={headerRef}
+          sx={{
+            flexShrink: 0,
+            display: 'flex',
+            justifyContent: { xs: 'flex-start', md: 'flex-end' },
+            px: { xs: 2.5, sm: 5, lg: 6 },
+            pt: { xs: 2, md: 'clamp(14px, 3.4vh, 36px)' },
+          }}
+        >
+          <Logo />
         </Box>
 
         <Box

@@ -8,6 +8,9 @@ import type { Branch } from "@pages/auth/Authapi";
 /** Show "Pay Now" once the trial / subscription ends within this many days. */
 export const PAY_NOW_WINDOW_DAYS = 10;
 
+/** The navbar trial / subscription notice appears only within this many days of the end. */
+export const SUBSCRIPTION_NOTICE_DAYS = 30;
+
 export interface BranchSubscriptionInfo {
   isTrial: boolean;
   /** e.g. "31 Dec 2025", or "-" when no end date is known. */

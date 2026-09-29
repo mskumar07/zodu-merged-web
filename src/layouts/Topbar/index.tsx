@@ -15,7 +15,7 @@ import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import CreditCardOutlinedIcon from "@mui/icons-material/CreditCardOutlined";
 import Button from "@mui/material/Button";
-import { getBranchSubscription } from "@utils/subscription";
+import { getBranchSubscription, SUBSCRIPTION_NOTICE_DAYS } from "@utils/subscription";
 import styles from "./index.module.css";
 import { useTheme } from "@mui/material/styles";
 import { drawerWidth, collapsedDrawerWidth } from "../Sidebar/index";
@@ -81,6 +81,11 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
 
   // Trial / subscription of the branch in session (subscriptions are per branch).
   const subscription = getBranchSubscription(currentBranch);
+  // The end date always shows; the days-left tag only in the final 30 days
+  // (or once it has ended).
+  const showDaysLeft =
+    !!subscription &&
+    (subscription.expired || (subscription.daysLeft !== null && subscription.daysLeft <= SUBSCRIPTION_NOTICE_DAYS));
   // Plans are shown on the landing page's pricing section.
   const handlePayNow = () => window.open("/#pricing", "_blank", "noopener");
 
@@ -233,7 +238,7 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
                   {subscription.dateLabel}
                 </Box>
               </Typography>
-              {subscription.daysLabel && (
+              {showDaysLeft && subscription.daysLabel && (
                 <Box
                   component="span"
                   sx={{
