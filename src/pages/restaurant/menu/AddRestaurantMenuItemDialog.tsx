@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { closeFromControlsOnly } from "@utils/dialog";
 import {
   Dialog,
   DialogTitle,
@@ -571,7 +572,7 @@ const AddRestaurantMenuItemDialog: React.FC<
     <>
     <Dialog
       open={open}
-      onClose={handleClose}
+      onClose={closeFromControlsOnly(handleClose)}
       maxWidth="md"
       fullWidth
       PaperProps={{
@@ -1312,7 +1313,7 @@ const AddRestaurantMenuItemDialog: React.FC<
       </DialogActions>
 
       {/* ── Variant Modal ─────────────────────────────────────────────────── */}
-      <Dialog open={variantModalOpen} onClose={() => setVariantModalOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={variantModalOpen} onClose={closeFromControlsOnly(() => setVariantModalOpen(false))} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 800, fontSize: 16, borderBottom: "1px solid #F1F5F9", pb: 1.5 }}>
           Variants
         </DialogTitle>

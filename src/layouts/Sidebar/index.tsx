@@ -276,10 +276,10 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
                     duration: theme.transitions.duration.enteringScreen,
                   }),
                   "& .MuiTypography-root": {
-                    fontWeight: i === activeIndex ? 500 : 400,
+                    fontWeight: 500,
                     fontSize: "13px",
                     lineHeight: 1.25,
-                    color: i === activeIndex ? "#fff" : "#888",
+                    color: i === activeIndex ? "#fff" : "rgb(71, 85, 105)",
                     whiteSpace: "nowrap",
                   },
                 }}

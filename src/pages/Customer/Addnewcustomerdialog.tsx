@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { closeFromControlsOnly } from "@utils/dialog";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Box, Typography, TextField, Button, IconButton,
@@ -202,7 +203,7 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved, editingCu
 
   return (
     <ThemeProvider theme={theme}>
-      <Dialog open={open} onClose={isPending ? undefined : handleCancel} fullWidth maxWidth="md"
+      <Dialog open={open} onClose={isPending ? undefined : closeFromControlsOnly(handleCancel)} fullWidth maxWidth="md"
         PaperProps={{ sx: { borderRadius: 3, maxHeight: "90vh", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 25px 60px rgba(15,23,42,0.18)" } }}>
 
         {/* Header */}

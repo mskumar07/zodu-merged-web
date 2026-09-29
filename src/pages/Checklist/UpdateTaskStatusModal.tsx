@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { closeFromControlsOnly } from "@utils/dialog";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Box, Button, Typography, IconButton, Divider, Chip,
@@ -619,7 +620,7 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
     <ThemeProvider theme={theme}>
       <Dialog
         open={open}
-        onClose={onClose}
+        onClose={closeFromControlsOnly(onClose)}
         maxWidth="lg"
         fullWidth
         slotProps={{ paper: { sx: { borderRadius: 3, maxHeight: "94vh" } } }}

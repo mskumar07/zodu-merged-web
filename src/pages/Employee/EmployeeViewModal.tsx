@@ -1,4 +1,5 @@
 import React from "react";
+import { closeFromControlsOnly } from "@utils/dialog";
 import {
   Box, Dialog, DialogContent, DialogTitle,
   Divider, IconButton, Typography,
@@ -109,7 +110,7 @@ export default function EmployeeViewModal({ open, onClose, employeeId }: Props) 
 
   return (
     <ThemeProvider theme={theme}>
-      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <Dialog open={open} onClose={closeFromControlsOnly(onClose)} maxWidth="md" fullWidth>
 
         {/* Header */}
         <DialogTitle sx={{

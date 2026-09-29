@@ -12,6 +12,7 @@ import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import Circle from "@mui/icons-material/Circle";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
+import { closeFromControlsOnly } from "@utils/dialog";
 import { useInfiniteEmployees, useDeleteEmployee, type EmployeeListItem } from "./useEmployeeApi";
 import EmployeeFormModal from "./EmployeeFormModal";
 import EmployeeViewModal from "./EmployeeViewModal";
@@ -60,7 +61,7 @@ function DeleteDialog({ open, name, isPending, onConfirm, onCancel }: {
   open: boolean; name: string; isPending: boolean; onConfirm: () => void; onCancel: () => void;
 }) {
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="xs" fullWidth
+    <Dialog open={open} onClose={closeFromControlsOnly(onCancel)} maxWidth="xs" fullWidth
       slotProps={{ paper: { sx: { borderRadius: 2 } } }}>
       <DialogTitle sx={{ fontWeight: 700, fontSize: 16, pb: 1 }}>Delete Employee</DialogTitle>
       <DialogContent>

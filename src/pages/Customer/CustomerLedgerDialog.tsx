@@ -14,6 +14,7 @@
  */
 
 import React, { useMemo, useState, useCallback, useEffect } from "react";
+import { closeFromControlsOnly } from "@utils/dialog";
 import {
   Dialog,
   DialogTitle,
@@ -380,7 +381,7 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
     <ThemeProvider theme={theme}>
       <Dialog
         open={open}
-        onClose={onClose}
+        onClose={closeFromControlsOnly(onClose)}
         maxWidth="xl"
         fullWidth
         PaperProps={{

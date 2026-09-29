@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
+import { closeFromControlsOnly } from "@utils/dialog";
 import {
   Box, Button, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, Divider, Grid, IconButton, InputAdornment,
@@ -496,7 +497,7 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
 
   return (
     <ThemeProvider theme={theme}>
-      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <Dialog open={open} onClose={closeFromControlsOnly(onClose)} maxWidth="md" fullWidth>
 
         {/* ── Header ── */}
         <DialogTitle sx={{ px: 3, py: 2, borderBottom: "1px solid #F1F5F9",
