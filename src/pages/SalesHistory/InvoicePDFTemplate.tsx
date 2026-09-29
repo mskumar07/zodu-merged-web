@@ -812,7 +812,7 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
               <div
                 style={{
                   ...styles.signBox,
-                  marginTop: isCompact ? 20 : styles.footer.marginTop,
+                  marginTop: isCompact ? 20 : "58px",
                 }}
               >
                 <div style={styles.signSpace}>

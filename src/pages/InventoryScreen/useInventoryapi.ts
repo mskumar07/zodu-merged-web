@@ -235,7 +235,7 @@ function normalizeRestaurantItem(r: RestaurantInventoryRaw): InventoryItem {
   };
 }
 
-async function fetchInventoryList(
+export async function fetchInventoryList(
   params: InventoryListParams
 ): Promise<InventoryListResponse> {
   const { zoduId, branchId, businessType } = getTenantContext();

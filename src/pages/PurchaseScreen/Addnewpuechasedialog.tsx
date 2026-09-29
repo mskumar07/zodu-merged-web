@@ -27,7 +27,7 @@ import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
-import { useInfiniteMenuItems, type MenuItem as ApiMenuItem } from "../MenuItemScreen/useMenuItemApi";
+import { useInfiniteMenuItems, useMenuItems, fetchMenuItems, type MenuItem as ApiMenuItem } from "../MenuItemScreen/useMenuItemApi";
 import {
   useCreatePurchase,
   useUpdatePurchase,
@@ -166,8 +166,10 @@ function getFileExt(name: string) { return name.split(".").pop()?.toUpperCase() 
 interface QtyCounterProps {
   value: number; onChange: (v: number) => void;
   disabled?: boolean; min?: number; size?: "compact" | "full";
+  /** Keyboard entry (purchase rows): focus target + key handling for the number field. */
+  inputRef?: React.Ref<HTMLInputElement>; onInputKeyDown?: React.KeyboardEventHandler<HTMLInputElement>;
 }
-function QtyCounter({ value, onChange, disabled = false, min = 0, size = "compact" }: QtyCounterProps) {
+function QtyCounter({ value, onChange, disabled = false, min = 0, size = "compact", inputRef, onInputKeyDown }: QtyCounterProps) {
   const h = size === "compact" ? 28 : 32;
   const btnW = size === "compact" ? 26 : 28;
   const numW = size === "compact" ? 52 : 68;
@@ -182,11 +184,11 @@ function QtyCounter({ value, onChange, disabled = false, min = 0, size = "compac
   const numColor = active ? "#0F172A" : "#94A3B8";
   return (
     <Box sx={{ display: "inline-flex", alignItems: "center", height: h, border: `1.5px solid ${border}`, borderRadius: "8px", overflow: "hidden", bgcolor: bg, transition: "border-color 0.15s, background 0.15s" }}>
-      <Box component="button" onClick={dec} disabled={disabled || value <= min} sx={{ width: btnW, height: "100%", border: "none", borderRight: `1px solid ${divider}`, bgcolor: "transparent", cursor: disabled || value <= min ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: disabled || value <= min ? "#CBD5E1" : btnColor, transition: "background 0.1s", "&:hover:not(:disabled)": { bgcolor: "rgba(210,31,60,0.07)" }, "&:active:not(:disabled)": { bgcolor: "rgba(210,31,60,0.13)" }, p: 0, m: 0, flexShrink: 0 }}>
+      <Box component="button" tabIndex={-1} onClick={dec} disabled={disabled || value <= min} sx={{ width: btnW, height: "100%", border: "none", borderRight: `1px solid ${divider}`, bgcolor: "transparent", cursor: disabled || value <= min ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: disabled || value <= min ? "#CBD5E1" : btnColor, transition: "background 0.1s", "&:hover:not(:disabled)": { bgcolor: "rgba(210,31,60,0.07)" }, "&:active:not(:disabled)": { bgcolor: "rgba(210,31,60,0.13)" }, p: 0, m: 0, flexShrink: 0 }}>
         <RemoveIcon sx={{ fontSize: fs + 1 }} />
       </Box>
-      <Box component="input" type="number" step="any" value={value} disabled={disabled} onClick={e => e.stopPropagation()} onChange={e => { const raw = e.target.value; if (raw === "") return; const v = parseFloat(raw); if (!isNaN(v)) onChange(Math.max(min, v)); }} sx={{ width: numW, height: "100%", border: "none", outline: "none", textAlign: "center", fontSize: fs, fontWeight: 700, color: numColor, bgcolor: "transparent", fontFamily: "inherit", "&::-webkit-outer-spin-button, &::-webkit-inner-spin-button": { WebkitAppearance: "none" }, MozAppearance: "textfield", p: 0 }} />
-      <Box component="button" onClick={inc} disabled={disabled} sx={{ width: btnW, height: "100%", border: "none", borderLeft: `1px solid ${divider}`, bgcolor: "transparent", cursor: disabled ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: disabled ? "#CBD5E1" : btnColor, transition: "background 0.1s", "&:hover:not(:disabled)": { bgcolor: "rgba(210,31,60,0.07)" }, "&:active:not(:disabled)": { bgcolor: "rgba(210,31,60,0.13)" }, p: 0, m: 0, flexShrink: 0 }}>
+      <Box component="input" ref={inputRef} onKeyDown={onInputKeyDown} onFocus={(e: React.FocusEvent<HTMLInputElement>) => e.currentTarget.select()} type="number" step="any" value={value} disabled={disabled} onClick={e => e.stopPropagation()} onChange={e => { const raw = e.target.value; if (raw === "") return; const v = parseFloat(raw); if (!isNaN(v)) onChange(Math.max(min, v)); }} sx={{ width: numW, height: "100%", border: "none", outline: "none", textAlign: "center", fontSize: fs, fontWeight: 700, color: numColor, bgcolor: "transparent", fontFamily: "inherit", "&::-webkit-outer-spin-button, &::-webkit-inner-spin-button": { WebkitAppearance: "none" }, MozAppearance: "textfield", p: 0 }} />
+      <Box component="button" tabIndex={-1} onClick={inc} disabled={disabled} sx={{ width: btnW, height: "100%", border: "none", borderLeft: `1px solid ${divider}`, bgcolor: "transparent", cursor: disabled ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: disabled ? "#CBD5E1" : btnColor, transition: "background 0.1s", "&:hover:not(:disabled)": { bgcolor: "rgba(210,31,60,0.07)" }, "&:active:not(:disabled)": { bgcolor: "rgba(210,31,60,0.13)" }, p: 0, m: 0, flexShrink: 0 }}>
         <AddIcon sx={{ fontSize: fs + 1 }} />
       </Box>
     </Box>
@@ -197,8 +199,9 @@ function QtyCounter({ value, onChange, disabled = false, min = 0, size = "compac
 interface PriceInputProps {
   value: number; onChange: (v: number) => void;
   disabled?: boolean; size?: "compact" | "full";
+  inputRef?: React.Ref<HTMLInputElement>; onInputKeyDown?: React.KeyboardEventHandler<HTMLInputElement>;
 }
-function PriceInput({ value, onChange, disabled = false, size = "compact" }: PriceInputProps) {
+function PriceInput({ value, onChange, disabled = false, size = "compact", inputRef, onInputKeyDown }: PriceInputProps) {
   const h = size === "compact" ? 28 : 32;
   const fs = size === "compact" ? 12 : 13;
   const w = size === "compact" ? 84 : 96;
@@ -207,7 +210,7 @@ function PriceInput({ value, onChange, disabled = false, size = "compact" }: Pri
       <Box sx={{ px: "8px", height: "100%", display: "flex", alignItems: "center", borderRight: "1px solid #E2E8F0", bgcolor: "#F8FAFC", flexShrink: 0 }}>
         <Typography sx={{ fontSize: fs - 1, fontWeight: 700, color: "#9CA3AF", lineHeight: 1 }}>₹</Typography>
       </Box>
-      <Box component="input" type="number" value={value === 0 ? "" : value} placeholder="0.00" disabled={disabled} onClick={e => e.stopPropagation()} onChange={e => { const v = parseFloat(e.target.value); onChange(isNaN(v) ? 0 : Math.max(0, v)); }} sx={{ width: w, height: "100%", border: "none", outline: "none", textAlign: "right", fontSize: fs, fontWeight: 600, color: "#0F172A", bgcolor: "transparent", fontFamily: "inherit", px: "8px", "&::placeholder": { color: "#CBD5E1", fontWeight: 400 }, "&::-webkit-outer-spin-button, &::-webkit-inner-spin-button": { WebkitAppearance: "none" }, MozAppearance: "textfield" }} />
+      <Box component="input" ref={inputRef} onKeyDown={onInputKeyDown} onFocus={(e: React.FocusEvent<HTMLInputElement>) => e.currentTarget.select()} type="number" value={value === 0 ? "" : value} placeholder="0.00" disabled={disabled} onClick={e => e.stopPropagation()} onChange={e => { const v = parseFloat(e.target.value); onChange(isNaN(v) ? 0 : Math.max(0, v)); }} sx={{ width: w, height: "100%", border: "none", outline: "none", textAlign: "right", fontSize: fs, fontWeight: 600, color: "#0F172A", bgcolor: "transparent", fontFamily: "inherit", px: "8px", "&::placeholder": { color: "#CBD5E1", fontWeight: 400 }, "&::-webkit-outer-spin-button, &::-webkit-inner-spin-button": { WebkitAppearance: "none" }, MozAppearance: "textfield" }} />
     </Box>
   );
 }
@@ -344,12 +347,18 @@ function FieldLabel({ children, sx }: { children: React.ReactNode; sx?: object }
 // ─── Item Picker Dialog ───────────────────────────────────────
 interface ItemPickerDialogProps {
   open: boolean; onClose: () => void; alreadyAdded: string[];
+  /** Qty / price of items already on the purchase, shown (read-only) on their rows. */
+  addedDetails?: Record<string, { qty: number; unitPrice: number }>;
   onConfirm: (items: Array<CatalogueItem & { qty: number }>) => void;
 }
 
-function ItemPickerDialog({ open, onClose, alreadyAdded, onConfirm }: ItemPickerDialogProps) {
+function ItemPickerDialog({ open, onClose, alreadyAdded, addedDetails = {}, onConfirm }: ItemPickerDialogProps) {
   const [qtys, setQtys]           = useState<Record<string, number>>({});
   const [prices, setPrices]       = useState<Record<string, number>>({});
+  // Every item ticked so far, kept across searches — the visible catalogue only
+  // holds the current search's results, so confirming from it alone dropped
+  // items picked under an earlier search.
+  const [picked, setPicked]       = useState<Record<string, CatalogueItem>>({});
   const [search, setSearch]       = useState("");
   const [debSearch, setDebSearch] = useState("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -386,7 +395,7 @@ function ItemPickerDialog({ open, onClose, alreadyAdded, onConfirm }: ItemPicker
       const cur = prev[id] ?? 0;
       if (cur > 0) { setPrices(p => { const n = { ...p }; delete n[id]; return n; }); return { ...prev, [id]: 0 }; }
       const item = catalogue.find(c => c.id === id);
-      if (item) setPrices(p => ({ ...p, [id]: item.unitPrice }));
+      if (item) { setPrices(p => ({ ...p, [id]: item.unitPrice })); setPicked(p => ({ ...p, [id]: item })); }
       return { ...prev, [id]: 1 };
     });
   };
@@ -397,7 +406,7 @@ function ItemPickerDialog({ open, onClose, alreadyAdded, onConfirm }: ItemPicker
     setQtys(prev => {
       const was = prev[id] ?? 0;
       if (next === 0) { setPrices(p => { const n = { ...p }; delete n[id]; return n; }); }
-      else if (was === 0 && next > 0) { const item = catalogue.find(c => c.id === id); if (item) setPrices(p => ({ ...p, [id]: item.unitPrice })); }
+      else if (was === 0 && next > 0) { const item = catalogue.find(c => c.id === id); if (item) { setPrices(p => ({ ...p, [id]: item.unitPrice })); setPicked(p => ({ ...p, [id]: item })); } }
       return { ...prev, [id]: next };
     });
   };
@@ -405,10 +414,12 @@ function ItemPickerDialog({ open, onClose, alreadyAdded, onConfirm }: ItemPicker
   const setPrice = (id: string, price: number, fallback: number) =>
     setPrices(prev => ({ ...prev, [id]: Math.max(0, Number.isFinite(price) ? price : fallback) }));
 
-  const reset = () => { setQtys({}); setPrices({}); setSearch(""); setDebSearch(""); };
+  const reset = () => { setQtys({}); setPrices({}); setPicked({}); setSearch(""); setDebSearch(""); };
   const handleClose   = () => { reset(); onClose(); };
   const handleConfirm = () => {
-    const items = catalogue.filter(c => (qtys[c.id] ?? 0) > 0).map(c => ({ ...c, unitPrice: prices[c.id] ?? c.unitPrice, qty: qtys[c.id] }));
+    const items = Object.entries(qtys)
+      .filter(([id, q]) => q > 0 && picked[id] && !alreadyAdded.includes(id))
+      .map(([id, q]) => ({ ...picked[id], unitPrice: prices[id] ?? picked[id].unitPrice, qty: q }));
     onConfirm(items); reset(); onClose();
   };
 
@@ -448,19 +459,24 @@ function ItemPickerDialog({ open, onClose, alreadyAdded, onConfirm }: ItemPicker
             </TableHead>
             <TableBody>
               {catalogue.map(cat => {
-                const qty = qtys[cat.id] ?? 0;
-                const isSelected = qty > 0;
                 const isAdded = alreadyAdded.includes(cat.id);
-                const price = prices[cat.id] ?? cat.unitPrice;
+                const added = isAdded ? addedDetails[cat.id] : undefined;
+                // Items already on the purchase show their current qty / price.
+                const qty = added ? added.qty : qtys[cat.id] ?? 0;
+                const isSelected = !isAdded && qty > 0;
+                const price = added ? added.unitPrice : prices[cat.id] ?? cat.unitPrice;
                 return (
-                  <TableRow key={cat.id} onClick={() => !isAdded && toggleItem(cat.id)} sx={{ cursor: isAdded ? "not-allowed" : "pointer", bgcolor: isSelected ? "#FFF9F9" : "transparent", opacity: isAdded ? 0.4 : 1, borderLeft: `3px solid ${isSelected ? "#D21F3C" : "transparent"}`, "&:hover": { bgcolor: isAdded ? "transparent" : isSelected ? "#FFF1F2" : "#FAFAFA" }, transition: "all 0.1s" }}>
-                    <TableCell sx={{ borderBottom: "1px solid #F3F4F6" }}><Checkbox checked={isSelected} disabled={isAdded} size="small" sx={{ color: "#D1D5DB", "&.Mui-checked": { color: "#D21F3C" }, p: 0.5 }} /></TableCell>
+                  <TableRow key={cat.id} onClick={() => !isAdded && toggleItem(cat.id)} sx={{ cursor: isAdded ? "not-allowed" : "pointer", bgcolor: isSelected ? "#FFF9F9" : "transparent", opacity: isAdded ? 0.6 : 1, borderLeft: `3px solid ${isSelected ? "#D21F3C" : "transparent"}`, "&:hover": { bgcolor: isAdded ? "transparent" : isSelected ? "#FFF1F2" : "#FAFAFA" }, transition: "all 0.1s" }}>
+                    <TableCell sx={{ borderBottom: "1px solid #F3F4F6" }}><Checkbox checked={isSelected || isAdded} disabled={isAdded} size="small" sx={{ color: "#D1D5DB", "&.Mui-checked": { color: "#D21F3C" }, p: 0.5 }} /></TableCell>
                     <TableCell sx={{ borderBottom: "1px solid #F3F4F6" }}>
-                      <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{cat.name}</Typography>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{cat.name}</Typography>
+                        {isAdded && <Chip label="Added" size="small" sx={{ height: 18, fontSize: 10, fontWeight: 700, bgcolor: "#F0FDF4", color: "#166534" }} />}
+                      </Box>
                       <Typography sx={{ fontSize: 10, color: "#9CA3AF", fontFamily: "monospace" }}>{cat.sku} · {cat.unit}</Typography>
                     </TableCell>
                     <TableCell align="center" sx={{ borderBottom: "1px solid #F3F4F6" }} onClick={e => e.stopPropagation()}><QtyCounter value={qty} onChange={v => setQty(cat.id, v)} disabled={isAdded} min={0} size="compact" /></TableCell>
-                    <TableCell align="right" sx={{ borderBottom: "1px solid #F3F4F6" }} onClick={e => e.stopPropagation()}><PriceInput value={isSelected ? price : cat.unitPrice} onChange={v => setPrice(cat.id, v, cat.unitPrice)} disabled={isAdded || !isSelected} size="compact" /></TableCell>
+                    <TableCell align="right" sx={{ borderBottom: "1px solid #F3F4F6" }} onClick={e => e.stopPropagation()}><PriceInput value={isSelected || isAdded ? price : cat.unitPrice} onChange={v => setPrice(cat.id, v, cat.unitPrice)} disabled={isAdded || !isSelected} size="compact" /></TableCell>
                     <TableCell align="center" sx={{ borderBottom: "1px solid #F3F4F6" }}><Chip label={`${cat.gstPct}%`} size="small" sx={{ fontSize: 10, fontWeight: 700, height: 18, bgcolor: "#EDE9FE", color: "#5B21B6" }} /></TableCell>
                   </TableRow>
                 );
@@ -641,6 +657,139 @@ export default function AddNewPurchaseDialog({
   const paid       = parseFloat(form.paidAmount) || 0;
   const balanceDue = Math.max(0, grandTotal - paid);
   const alreadyAdded = form.items.map(i => i.itemUuid);
+  // Qty (summed if the item appears on more than one line) and price per added item.
+  const addedDetails = useMemo(() => {
+    const map: Record<string, { qty: number; unitPrice: number }> = {};
+    for (const it of form.items) {
+      const cur = map[it.itemUuid];
+      map[it.itemUuid] = { qty: (cur?.qty ?? 0) + it.qty, unitPrice: cur?.unitPrice ?? it.unitPrice };
+    }
+    return map;
+  }, [form.items]);
+
+  // ─── Keyboard item entry (same flow as the POS) ──────────────
+  // Search box: type / scan → ↑↓ pick a suggestion → Enter adds (an existing
+  // item gets +1 qty); ↓ with no suggestions open moves into the rows.
+  // Rows: ↑↓ move, Enter/Q qty, P price, G GST, +/− qty, Del remove, Esc back.
+  const quickRef = useRef<HTMLInputElement>(null);
+  const rowRefs   = useRef<Record<string, HTMLTableRowElement | null>>({});
+  const qtyRefs   = useRef<Record<string, HTMLInputElement | null>>({});
+  const priceRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const gstRefs   = useRef<Record<string, HTMLInputElement | null>>({});
+  const [quick, setQuick]         = useState("");
+  const [debQuick, setDebQuick]   = useState("");
+  const [showSug, setShowSug]     = useState(false);
+  const [sugIdx, setSugIdx]       = useState(-1);
+  const [activeRow, setActiveRow] = useState(-1);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebQuick(quick.trim()), 200);
+    return () => window.clearTimeout(t);
+  }, [quick]);
+
+  const sugParams = useMemo(() => ({ search: debQuick || undefined, status: "active" as const, limit: 8 }), [debQuick]);
+  const { data: sugRes, isFetching: sugLoading } = useMenuItems(sugParams);
+  const suggestions = useMemo(
+    () => (debQuick ? (sugRes?.data ?? []).map(menuItemToCatalogue) : []),
+    [debQuick, sugRes],
+  );
+
+  const resetQuick = () => { setQuick(""); setDebQuick(""); setShowSug(false); setSugIdx(-1); };
+  const focusQuick = () => { setActiveRow(-1); window.requestAnimationFrame(() => quickRef.current?.focus()); };
+  const focusRow = (idx: number) => {
+    const item = form.items[idx];
+    if (!item) return;
+    setActiveRow(idx);
+    window.requestAnimationFrame(() => rowRefs.current[item.id]?.focus());
+  };
+  const focusField = (refs: React.MutableRefObject<Record<string, HTMLInputElement | null>>, id: string) =>
+    window.requestAnimationFrame(() => refs.current[id]?.focus());
+
+  const addCatalogueItem = (cat: CatalogueItem) => {
+    const existing = form.items.findIndex(i => i.itemUuid === cat.id);
+    setForm(prev => {
+      const idx = prev.items.findIndex(i => i.itemUuid === cat.id);
+      if (idx >= 0) return { ...prev, items: prev.items.map((i, n) => n === idx ? { ...i, qty: i.qty + 1 } : i) };
+      return { ...prev, items: [...prev.items, catalogueToItem({ ...cat, qty: 1 })] };
+    });
+    setActiveRow(existing >= 0 ? existing : form.items.length);
+  };
+
+  /** Enter in the search box: the highlighted suggestion, else an exact code / SKU / name match. */
+  const addFromQuick = async () => {
+    const q = quick.trim();
+    if (!q) return;
+    if (sugIdx >= 0 && suggestions[sugIdx]) { addCatalogueItem(suggestions[sugIdx]); resetQuick(); return; }
+    const lower = q.toLowerCase();
+    const pick = (list: CatalogueItem[]) =>
+      list.find(c => c.sku.toLowerCase() === lower || c.itemId.toLowerCase() === lower)
+      ?? list.find(c => c.name.toLowerCase() === lower)
+      ?? (list.length === 1 ? list[0] : undefined);
+    // A scanner types and presses Enter faster than the debounce — look it up directly then.
+    let found = debQuick === q ? pick(suggestions) : undefined;
+    if (!found) {
+      try {
+        const res = await fetchMenuItems({ search: q, status: "active", limit: 8 });
+        found = pick((res.data ?? []).map(menuItemToCatalogue));
+      } catch { /* falls through to "not found" */ }
+    }
+    if (found) { addCatalogueItem(found); resetQuick(); }
+    else { setSaveError(`No item found for "${q}" — pick one from the list or press F3 to browse.`); setShowSug(true); }
+  };
+
+  const handleQuickKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const open = showSug && suggestions.length > 0;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (open) setSugIdx(i => Math.min(i + 1, suggestions.length - 1));
+      else if (form.items.length) focusRow(activeRow >= 0 && activeRow < form.items.length ? activeRow : 0);
+      return;
+    }
+    if (e.key === "ArrowUp" && open) { e.preventDefault(); setSugIdx(i => Math.max(i - 1, -1)); return; }
+    if (e.key === "Enter") { e.preventDefault(); void addFromQuick(); return; }
+    if (e.key === "Escape" && (open || quick)) { e.preventDefault(); e.stopPropagation(); resetQuick(); return; }
+    if (e.key === "Tab") setShowSug(false);
+  };
+
+  const handleRowKeyDown = (e: React.KeyboardEvent<HTMLTableRowElement>, idx: number) => {
+    if (e.target !== e.currentTarget) return; // typing inside the row's own inputs
+    const item = form.items[idx];
+    if (!item) return;
+    const k = e.key;
+    if (k === "ArrowDown") { e.preventDefault(); if (idx < form.items.length - 1) focusRow(idx + 1); return; }
+    if (k === "ArrowUp")   { e.preventDefault(); if (idx > 0) focusRow(idx - 1); else focusQuick(); return; }
+    if (k === "Escape")    { e.preventDefault(); e.stopPropagation(); focusQuick(); return; }
+    if (k === "Enter" || k === "q" || k === "Q") { e.preventDefault(); focusField(qtyRefs, item.id); return; }
+    if (k === "p" || k === "P") { e.preventDefault(); focusField(priceRefs, item.id); return; }
+    if (k === "g" || k === "G") { e.preventDefault(); focusField(gstRefs, item.id); return; }
+    if (k === "+" || k === "=") { e.preventDefault(); updateItemQty(item.id, item.qty + 1); return; }
+    if (k === "-")         { e.preventDefault(); updateItemQty(item.id, item.qty - 1); return; }
+    if (k === "Delete" || k === "Backspace") {
+      e.preventDefault();
+      const next = form.items[idx + 1] ?? form.items[idx - 1];
+      removeItem(item.id);
+      if (next) { const n = idx + 1 < form.items.length ? idx : idx - 1; setActiveRow(n); window.requestAnimationFrame(() => rowRefs.current[next.id]?.focus()); }
+      else focusQuick();
+    }
+  };
+
+  /** Enter / Esc inside a row's Qty, Price or GST field: back to that row. */
+  const fieldKeyDown = (idx: number) => (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === "Escape") { e.preventDefault(); e.stopPropagation(); focusRow(idx); }
+  };
+
+  // Keep the highlighted row in view.
+  useEffect(() => {
+    const item = form.items[activeRow];
+    if (item) rowRefs.current[item.id]?.scrollIntoView({ block: "nearest" });
+  }, [activeRow, form.items]);
+
+  // Ready to scan / type as soon as the form is.
+  useEffect(() => {
+    if (!open || (isEditMode && detailLoading)) return;
+    const t = window.setTimeout(() => quickRef.current?.focus(), 150);
+    return () => window.clearTimeout(t);
+  }, [open, isEditMode, detailLoading]);
 
   const paymentStatus = (): "paid" | "partial" | "pending" => {
     if (paid >= grandTotal && grandTotal > 0) return "paid";
@@ -704,6 +853,23 @@ export default function AddNewPurchaseDialog({
     }
   };
 
+  // F2 search · F3 browse · F8 / Ctrl+S save — while this dialog (not the picker) is on top.
+  const saveRef = useRef(handleSave);
+  saveRef.current = handleSave;
+  useEffect(() => {
+    if (!open || pickerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "F2") { e.preventDefault(); setActiveRow(-1); quickRef.current?.focus(); return; }
+      if (e.key === "F3") { e.preventDefault(); setPickerOpen(true); return; }
+      if (e.key === "F8" || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s")) {
+        e.preventDefault();
+        if (!isBusy && paid <= grandTotal) void saveRef.current();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, pickerOpen, isBusy, paid, grandTotal]);
+
   const inputSx = {
     "& .MuiOutlinedInput-root": {
       bgcolor: "#F8FAFC", fontSize: 13, borderRadius: "8px",
@@ -724,7 +890,7 @@ export default function AddNewPurchaseDialog({
 
   return (
     <ThemeProvider theme={theme}>
-      <ItemPickerDialog open={pickerOpen} onClose={() => setPickerOpen(false)} alreadyAdded={alreadyAdded} onConfirm={handlePickerConfirm} />
+      <ItemPickerDialog open={pickerOpen} onClose={() => setPickerOpen(false)} alreadyAdded={alreadyAdded} addedDetails={addedDetails} onConfirm={handlePickerConfirm} />
 
       <Dialog open={open} onClose={closeFromControlsOnly(handleDiscard)} fullWidth maxWidth="lg" PaperProps={{ sx: { borderRadius: 3, maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 25px 60px rgba(15,23,42,0.2)" } }}>
 
@@ -864,9 +1030,63 @@ export default function AddNewPurchaseDialog({
                   {form.items.length > 0 && <Chip label={`${form.items.length} item${form.items.length !== 1 ? "s" : ""}`} size="small" sx={{ fontSize: 10, fontWeight: 700, height: 20, bgcolor: "#FFF1F2", color: "#D21F3C", border: "1px solid #FECDD3" }} />}
                 </Box>
                 <Button size="small" startIcon={<AddIcon sx={{ fontSize: 15 }} />} onClick={() => setPickerOpen(true)} sx={{ fontSize: 12, fontWeight: 700, color: "#D21F3C", bgcolor: "rgba(210,31,60,0.07)", px: 1.5, py: 0.6, borderRadius: 1.5, "&:hover": { bgcolor: "rgba(210,31,60,0.14)" } }}>
-                  Add Items
+                  Browse Items (F3)
                 </Button>
               </Box>
+
+              {/* Quick add — type or scan, Enter adds (POS style) */}
+              <Box sx={{ position: "relative", mb: 1 }}>
+                <TextField
+                  inputRef={quickRef}
+                  size="small" fullWidth autoComplete="off"
+                  value={quick}
+                  onChange={e => { setQuick(e.target.value); setShowSug(true); setSugIdx(-1); }}
+                  onKeyDown={handleQuickKeyDown}
+                  onFocus={() => { setActiveRow(-1); if (quick) setShowSug(true); }}
+                  onBlur={() => window.setTimeout(() => setShowSug(false), 120)}
+                  placeholder="Scan barcode or type item name / code — Enter to add"
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 17, color: "#9CA3AF" }} /></InputAdornment>,
+                    endAdornment: sugLoading && quick ? <InputAdornment position="end"><CircularProgress size={14} sx={{ color: "#D21F3C" }} /></InputAdornment> : null,
+                  }}
+                  sx={inputSx}
+                />
+                {showSug && quick.trim() && (
+                  <Paper elevation={0} sx={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 30, maxHeight: 280, overflowY: "auto", border: "1px solid #E5E7EB", borderRadius: 2, boxShadow: "0 12px 32px rgba(15,23,42,0.14)" }}>
+                    {suggestions.length === 0 ? (
+                      <Typography sx={{ px: 2, py: 1.5, fontSize: 12.5, color: "#9CA3AF" }}>
+                        {sugLoading || debQuick !== quick.trim() ? "Searching…" : "No matching items — press F3 to browse"}
+                      </Typography>
+                    ) : suggestions.map((cat, i) => {
+                      const inList = form.items.find(it => it.itemUuid === cat.id);
+                      return (
+                        <Box key={cat.id}
+                          onMouseDown={e => e.preventDefault()}
+                          onMouseEnter={() => setSugIdx(i)}
+                          onClick={() => { addCatalogueItem(cat); resetQuick(); quickRef.current?.focus(); }}
+                          sx={{ px: 2, py: 1, display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer", bgcolor: i === sugIdx ? "#FFF1F2" : "transparent", borderLeft: `3px solid ${i === sugIdx ? "#D21F3C" : "transparent"}` }}>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cat.name}</Typography>
+                            <Typography sx={{ fontSize: 10.5, color: "#9CA3AF", fontFamily: "monospace" }}>{cat.sku} · {cat.unit} · GST {cat.gstPct}%</Typography>
+                          </Box>
+                          {inList && <Chip label={`In list ×${inList.qty}`} size="small" sx={{ height: 18, fontSize: 10, fontWeight: 700, bgcolor: "#F0FDF4", color: "#166534" }} />}
+                          <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: "#374151", fontFamily: "monospace" }}>{INR(cat.unitPrice)}</Typography>
+                        </Box>
+                      );
+                    })}
+                  </Paper>
+                )}
+              </Box>
+              {/* Keyboard shortcut hints — hidden for now
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 1.5 }}>
+                {[["F2", "Search"], ["↑ ↓", "Move"], ["Enter", "Add / Edit qty"], ["P", "Price"], ["G", "GST"], ["+ −", "Qty"], ["Del", "Remove"], ["Esc", "Back"], ["F3", "Browse"], ["F8", "Save"]].map(([k, label]) => (
+                  <Box key={k} sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}>
+                    <Box component="kbd" sx={{ fontFamily: "inherit", fontSize: 10, fontWeight: 700, color: "#374151", bgcolor: "#F3F4F6", border: "1px solid #E5E7EB", borderRadius: "4px", px: 0.6, py: 0.1 }}>{k}</Box>
+                    <Typography sx={{ fontSize: 10.5, color: "#9CA3AF" }}>{label}</Typography>
+                  </Box>
+                ))}
+              </Box>
+              */}
               <Paper elevation={0} sx={{ border: "1px solid #E5E7EB", borderRadius: 2, overflow: "hidden" }}>
                 <Table size="small">
                   <TableHead>
@@ -892,24 +1112,28 @@ export default function AddNewPurchaseDialog({
                           </Box>
                         </TableCell>
                       </TableRow>
-                    ) : form.items.map(item => (
-                      <TableRow key={item.id} sx={{ "&:hover": { bgcolor: "#FAFAFA" }, transition: "background 0.1s" }}>
+                    ) : form.items.map((item, idx) => (
+                      <TableRow key={item.id} tabIndex={0}
+                        ref={el => { rowRefs.current[item.id] = el; }}
+                        onKeyDown={e => handleRowKeyDown(e, idx)}
+                        onFocus={e => { if (e.target === e.currentTarget) setActiveRow(idx); }}
+                        sx={{ outline: "none", bgcolor: idx === activeRow ? "#FFF5F5" : "transparent", boxShadow: idx === activeRow ? "inset 3px 0 0 #D21F3C" : "none", "&:hover": { bgcolor: idx === activeRow ? "#FFF1F2" : "#FAFAFA" }, "&:focus-visible": { bgcolor: "#FFF1F2", boxShadow: "inset 3px 0 0 #D21F3C" }, transition: "background 0.1s" }}>
                         <TableCell>
                           <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{item.itemName}</Typography>
                           <Typography sx={{ fontSize: 10, color: "#9CA3AF", fontFamily: "monospace" }}>{item.sku} · {item.unit}</Typography>
                         </TableCell>
-                        <TableCell align="center"><QtyCounter value={item.qty} onChange={v => updateItemQty(item.id, v)} min={1} size="full" /></TableCell>
-                        <TableCell><PriceInput value={item.unitPrice} onChange={v => updateItemPrice(item.id, v)} size="full" /></TableCell>
+                        <TableCell align="center"><QtyCounter value={item.qty} onChange={v => updateItemQty(item.id, v)} min={1} size="full" inputRef={el => { qtyRefs.current[item.id] = el; }} onInputKeyDown={fieldKeyDown(idx)} /></TableCell>
+                        <TableCell><PriceInput value={item.unitPrice} onChange={v => updateItemPrice(item.id, v)} size="full" inputRef={el => { priceRefs.current[item.id] = el; }} onInputKeyDown={fieldKeyDown(idx)} /></TableCell>
                         <TableCell align="center">
                           <Box sx={{ display: "inline-flex", alignItems: "center", height: 32, border: "1.5px solid #E2E8F0", borderRadius: "8px", overflow: "hidden", bgcolor: "#fff", "&:focus-within": { borderColor: "#D21F3C" } }}>
-                            <Box component="input" type="number" value={item.taxPct} onChange={e => updateItemTax(item.id, parseFloat(e.target.value) || 0)} sx={{ width: 36, height: "100%", border: "none", outline: "none", textAlign: "center", fontSize: 13, fontWeight: 600, color: "#374151", bgcolor: "transparent", fontFamily: "inherit", px: 0.5, "&::-webkit-outer-spin-button, &::-webkit-inner-spin-button": { WebkitAppearance: "none" }, MozAppearance: "textfield" }} />
+                            <Box component="input" ref={(el: HTMLInputElement | null) => { gstRefs.current[item.id] = el; }} onKeyDown={fieldKeyDown(idx)} onFocus={(e: React.FocusEvent<HTMLInputElement>) => e.currentTarget.select()} type="number" value={item.taxPct} onChange={e => updateItemTax(item.id, parseFloat(e.target.value) || 0)} sx={{ width: 36, height: "100%", border: "none", outline: "none", textAlign: "center", fontSize: 13, fontWeight: 600, color: "#374151", bgcolor: "transparent", fontFamily: "inherit", px: 0.5, "&::-webkit-outer-spin-button, &::-webkit-inner-spin-button": { WebkitAppearance: "none" }, MozAppearance: "textfield" }} />
                             <Box sx={{ pr: "6px", display: "flex", alignItems: "center" }}><Typography sx={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF" }}>%</Typography></Box>
                           </Box>
                         </TableCell>
                         <TableCell align="right"><Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151", fontFamily: "monospace" }}>{INR(itemSubtotal(item))}</Typography></TableCell>
                         <TableCell>
                           <Tooltip title="Remove" placement="top">
-                            <IconButton size="small" onClick={() => removeItem(item.id)} sx={{ color: "#D1D5DB", p: 0.5, borderRadius: 1, "&:hover": { color: "#EF4444", bgcolor: "#FEF2F2" }, transition: "all 0.12s" }}>
+                            <IconButton size="small" tabIndex={-1} onClick={() => removeItem(item.id)} sx={{ color: "#D1D5DB", p: 0.5, borderRadius: 1, "&:hover": { color: "#EF4444", bgcolor: "#FEF2F2" }, transition: "all 0.12s" }}>
                               <DeleteOutlineIcon sx={{ fontSize: 16 }} />
                             </IconButton>
                           </Tooltip>

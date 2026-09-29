@@ -322,7 +322,7 @@ interface RestaurantMenuRaw {
   }>;
 }
 
-async function fetchMenuItems(
+export async function fetchMenuItems(
   params: MenuItemListParams
 ): Promise<MenuItemListResponse> {
   const { zoduId, branchId, businessType } = getTenantContext();

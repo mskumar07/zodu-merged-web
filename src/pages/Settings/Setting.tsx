@@ -22,13 +22,14 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
+  InputAdornment,
   Tooltip,
   Typography,
 } from "@mui/material";
 import ApartmentRoundedIcon from "@mui/icons-material/ApartmentRounded";
 import BusinessRoundedIcon from "@mui/icons-material/BusinessRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
-import DomainAddRoundedIcon from "@mui/icons-material/DomainAddRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import ExpandLessRoundedIcon from "@mui/icons-material/ExpandLessRounded";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
@@ -40,6 +41,9 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import CallOutlinedIcon from "@mui/icons-material/CallOutlined";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlined";
+import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
+import LocationOnRoundedIcon from "@mui/icons-material/LocationOnRounded";
+import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   authApis,
@@ -64,6 +68,7 @@ import { useAppDispatch, useAppSelector } from "@store/store";
 import { useModulePermission } from "@hooks/useModulePermission";
 import { setCompanies, BusinessType, BranchId, ZoduId } from "@store/slices/userSlice";
 import type { PendingSignup } from "@utils/pendingSignup";
+import { getBranchSubscription } from "@utils/subscription";
 
 const PHONE_REGEX = /^[0-9]{10}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -248,6 +253,57 @@ const formatLocation = (branch?: Branch) => {
   return parts.length ? parts.join(", ") : getBranchState(branch) || "-";
 };
 
+function StatusPill({ label }: { label: string }) {
+  const active = label.toLowerCase() === "active";
+  return (
+    <Box
+      component="span"
+      sx={{
+        display: "inline-flex",
+        px: 1.25,
+        py: 0.35,
+        borderRadius: 1,
+        fontSize: 12,
+        fontWeight: 700,
+        bgcolor: active ? "#e8f7ee" : "#fdecef",
+        color: active ? "#16a34a" : redTint,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </Box>
+  );
+}
+
+function HeaderStat({ icon, iconColor, label, children }: { icon: ReactNode; iconColor: string; label: string; children: ReactNode }) {
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
+      <Box sx={{ color: iconColor, display: "flex", "& svg": { fontSize: 26 } }}>{icon}</Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography sx={{ fontSize: 11.5, color: subtleText, lineHeight: 1.3 }}>{label}</Typography>
+        {children}
+      </Box>
+    </Box>
+  );
+}
+
+const branchHeadCellSx = {
+  borderBottomColor: "#eef0f4",
+  color: "#6b7280",
+  fontSize: 12,
+  fontWeight: 600,
+  py: 1,
+  whiteSpace: "nowrap",
+  bgcolor: "#f7f8fb",
+} as const;
+
+const branchCellSx = {
+  py: 1.25,
+  fontSize: 13,
+  color: "#4b5563",
+  borderBottomColor: "#f1f2f6",
+} as const;
+
 const getCompanyIcon = (index: number) => {
   if (index % 3 === 0) return <BusinessRoundedIcon fontSize="small" />;
   if (index % 3 === 1) return <ApartmentRoundedIcon fontSize="small" />;
@@ -269,6 +325,7 @@ export default function Setting() {
   const activeZoduId = useAppSelector(ZoduId);
   const [activeTab, setActiveTab] = useState<SettingsTab>("company");
   const [expandedCompanyIds, setExpandedCompanyIds] = useState<string[]>([]);
+  const [companySearch, setCompanySearch] = useState("");
   const [branchModalOpen, setBranchModalOpen] = useState(false);
   const [companyModalOpen, setCompanyModalOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
@@ -400,6 +457,23 @@ export default function Setting() {
     () => companiesQuery.data ?? [],
     [companiesQuery.data]
   );
+
+  // Search matches a company by name / GSTIN (all its branches stay visible)
+  // or narrows the list down to the branches whose name, location or phone match.
+  const visibleCompanies = useMemo(() => {
+    const q = companySearch.trim().toLowerCase();
+    if (!q) return companies.map((company) => ({ company, branches: company.branches ?? [] }));
+    return companies.flatMap((company) => {
+      const branches = company.branches ?? [];
+      const companyHit = [company.restaurant_name, company.company_name, company.gst_no]
+        .some((v) => v?.toLowerCase().includes(q));
+      if (companyHit) return [{ company, branches }];
+      const hits = branches.filter((b) =>
+        [b.branch_name, formatLocation(b), b.branch_mobile_no].some((v) => v?.toLowerCase().includes(q))
+      );
+      return hits.length ? [{ company, branches: hits }] : [];
+    });
+  }, [companies, companySearch]);
 
   useEffect(() => {
     if (companies.length > 0) dispatch(setCompanies(companies));
@@ -807,53 +881,66 @@ export default function Setting() {
 
           {activeTab === "company" && (
           <Stack
-            direction={{ xs: "column", sm: "row" }}
+            direction={{ xs: "column", md: "row" }}
             justifyContent="space-between"
-            alignItems={{ xs: "flex-start", sm: "center" }}
+            alignItems={{ xs: "stretch", md: "center" }}
             spacing={2}
           >
             <Box>
               <Typography
                 sx={{
-                  fontSize: { xs: 28, md: 32 },
+                  fontSize: { xs: 22, md: 26 },
                   fontWeight: 800,
                   color: headingText,
-                  lineHeight: 1.1,
+                  lineHeight: 1.15,
                 }}
               >
-                Companies
+                Company / Branch Location Settings
               </Typography>
-              <Typography
-                sx={{
-                  mt: 0.5,
-                  fontSize: 14,
-                  color: subtleText,
-                }}
-              >
-                Manage corporate entities and their global branch networks.
+              <Typography sx={{ mt: 0.5, fontSize: 13.5, color: subtleText }}>
+                Manage your company details and multiple branch locations from one place.
               </Typography>
             </Box>
 
-            <Button
-              variant="contained"
-              startIcon={<DomainAddRoundedIcon />}
-              onClick={openAddCompany}
-              disabled={!canCreate}
-              sx={{
-                alignSelf: { xs: "stretch", sm: "center" },
-                px: 2.5,
-                py: 1.15,
-                borderRadius: 1,
-                bgcolor: redTint,
-                boxShadow: "0 10px 24px rgba(202,0,34,0.22)",
-                fontWeight: 700,
-                "&:hover": {
-                  bgcolor: "#b1001d",
-                },
-              }}
-            >
-              Add New Company
-            </Button>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ xs: "stretch", sm: "center" }}>
+              <TextField
+                size="small"
+                value={companySearch}
+                onChange={(e) => setCompanySearch(e.target.value)}
+                placeholder="Search company or branch..."
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchRoundedIcon sx={{ fontSize: 19, color: "#9ca3af" }} />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{
+                  width: { xs: "100%", sm: 260, lg: 300 },
+                  "& .MuiOutlinedInput-root": { borderRadius: 1, fontSize: 13.5, bgcolor: "#fff" },
+                  "& .MuiOutlinedInput-notchedOutline": { borderColor: cardBorder },
+                  "& .Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: redTint },
+                }}
+              />
+              <Button
+                variant="contained"
+                startIcon={<AddRoundedIcon />}
+                onClick={openAddCompany}
+                disabled={!canCreate}
+                sx={{
+                  px: 2.5,
+                  py: 1,
+                  borderRadius: 1,
+                  whiteSpace: "nowrap",
+                  bgcolor: redTint,
+                  boxShadow: "0 10px 24px rgba(202,0,34,0.22)",
+                  fontWeight: 700,
+                  "&:hover": { bgcolor: "#b1001d" },
+                }}
+              >
+                Add New Company
+              </Button>
+            </Stack>
           </Stack>
           )}
 
@@ -876,13 +963,23 @@ export default function Setting() {
               <CircularProgress size={28} />
             </Paper>
           ) : (
-            <Stack spacing={1.75}>
-              {companies.map((company, index) => {
+            <Stack spacing={2}>
+              {companySearch.trim() && visibleCompanies.length === 0 && (
+                <Typography sx={{ py: 5, textAlign: "center", fontSize: 14, color: subtleText }}>
+                  No company or branch matches "{companySearch.trim()}".
+                </Typography>
+              )}
+              {visibleCompanies.map(({ company, branches: companyBranches }, index) => {
                 const expanded = expandedCompanyIds.includes(company.zodu_id);
-                const companyBranches = company.branches ?? [];
-                const branchCount = companyBranches.length;
-
-                console.log(companies)
+                const branchCount = company.branches?.length ?? 0;
+                // status may arrive as a string ("active") or a boolean
+                const rawStatus = company.status as unknown;
+                const companyStatus =
+                  typeof rawStatus === "string" && rawStatus.trim()
+                    ? rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1)
+                    : rawStatus === false
+                      ? "Inactive"
+                      : "Active";
 
                 return (
                   <Paper
@@ -890,325 +987,222 @@ export default function Setting() {
                     elevation={0}
                     sx={{
                       overflow: "hidden",
-                      borderRadius: 1,
+                      borderRadius: 1.5,
                       border: "1px solid",
                       borderColor: cardBorder,
                       bgcolor: "#fff",
                     }}
                   >
+                    {/* Company header */}
                     <Box
                       onClick={() => toggleCompanyExpanded(company.zodu_id)}
                       sx={{
                         px: { xs: 2, md: 2.5 },
-                        py: 2,
+                        py: 1.75,
                         cursor: "pointer",
-                        transition: "background-color 0.18s ease",
-                        "&:hover": {
-                          bgcolor: "#fcfcfe",
-                        },
+                        bgcolor: "#f8f9fc",
+                        borderBottom: expanded ? "1px solid" : "none",
+                        borderColor: cardBorder,
+                        display: "flex",
+                        flexWrap: { xs: "wrap", lg: "nowrap" },
+                        alignItems: "center",
+                        gap: { xs: 1.5, md: 2.5 },
                       }}
                     >
-                      <Stack
-                        direction="row"
-                        alignItems="center"
-                        justifyContent="space-between"
-                        spacing={2}
-                      >
-                        <Stack
-                          direction="row"
-                          spacing={2}
-                          alignItems="center"
-                          sx={{ minWidth: 0, flex: 1 }}
-                        >
-                          {/* The uploaded logo takes over the avatar slot when there is
-                              one; companies without a logo keep the generated icon. */}
-                          <Avatar
-                            src={company.company_logo_url ?? undefined}
-                            imgProps={{ style: { objectFit: "contain" } }}
-                            sx={{
-                              width: 40,
-                              height: 40,
-                              bgcolor: company.company_logo_url
-                                ? "#fff"
-                                : expanded ? "#fdecef" : "#f4f5f8",
-                              color: expanded ? redTint : "#6f7785",
-                              border: company.company_logo_url ? "1px solid #ececf2" : "none",
-                            }}
-                          >
-                            {getCompanyIcon(index)}
-                          </Avatar>
-
-                          <Box
-                            sx={{
-                              display: "grid",
-                              gridTemplateColumns: {
-                                xs: "1fr",
-                                md: "minmax(240px, 1.6fr) minmax(180px, 1fr) minmax(170px, 1fr)",
-                              },
-                              gap: { xs: 1.25, md: 3.5 },
-                              alignItems: "center",
-                              width: "100%",
-                            }}
-                          >
-                            <Box sx={{ minWidth: 0 }}>
-                              <Typography
-                                sx={{
-                                  fontSize: 10,
-                                  fontWeight: 800,
-                                  letterSpacing: 0.7,
-                                  color: "#b0b7c4",
-                                  textTransform: "uppercase",
-                                }}
-                              >
-                                Company Name
-                              </Typography>
-                              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.35 }}>
-                                <Typography
-                                  sx={{
-                                    fontSize: 19,
-                                    fontWeight: 800,
-                                    color: headingText,
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                  }}
-                                >
-                                  {company.restaurant_name}
-                                </Typography>
-                                <Tooltip title="View Details">
-                                  <IconButton
-                                    size="small"
-                                    sx={{ color: "#7a8392", flexShrink: 0 }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setViewingCompany(company);
-                                    }}
-                                  >
-                                    <VisibilityOutlinedIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
-                              </Box>
-                            </Box>
-
-                            <Box>
-                              <Typography
-                                sx={{
-                                  fontSize: 10,
-                                  fontWeight: 800,
-                                  letterSpacing: 0.7,
-                                  color: "#b0b7c4",
-                                  textTransform: "uppercase",
-                                }}
-                              >
-                                GSTIN
-                              </Typography>
-                              <Typography
-                                sx={{
-                                  mt: 0.35,
-                                  fontSize: 14,
-                                  fontWeight: 700,
-                                  color: "#6f7785",
-                                }}
-                              >
-                                {company.gst_no || "-"}
-                              </Typography>
-                            </Box>
-
-                            <Box>
-                              <Typography
-                                sx={{
-                                  fontSize: 10,
-                                  fontWeight: 800,
-                                  letterSpacing: 0.7,
-                                  color: "#b0b7c4",
-                                  textTransform: "uppercase",
-                                }}
-                              >
-                                Total Locations
-                              </Typography>
-                              <Box
-                                sx={{
-                                  mt: 0.45,
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  px: 1.2,
-                                  py: 0.45,
-                                  borderRadius: 999,
-                                  bgcolor: expanded ? "#fdecef" : "#f3f4f7",
-                                  color: expanded ? redTint : "#7d8592",
-                                  fontSize: 12,
-                                  fontWeight: 700,
-                                }}
-                              >
-                                {branchCount} Branch{branchCount === 1 ? "" : "es"}
-                              </Box>
-                            </Box>
-                          </Box>
-                        </Stack>
-
-                        <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"}>
-                          <span>
-                            <IconButton
-                              size="small"
-                              disabled={!canEdit}
-                              sx={{ color: "#1976d2", flexShrink: 0, "&:hover": { color: "#1565C0", bgcolor: "#EFF6FF" } }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openEditCompany(company);
-                              }}
-                            >
-                              <EditOutlinedIcon fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-
-                        <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"}>
-                          <span>
-                            <IconButton
-                              size="small"
-                              disabled={!canDelete}
-                              sx={{ color: "#af101a", flexShrink: 0, "&:hover": { color: "#8c0d15", bgcolor: "#FDECEC" } }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openDeleteCompany(company);
-                              }}
-                            >
-                              <DeleteOutlineRoundedIcon fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-
-                        <IconButton
-                          size="small"
-                          sx={{ color: "#a5adba", flexShrink: 0 }}
-                        >
-                          {expanded ? (
-                            <ExpandLessRoundedIcon />
-                          ) : (
-                            <ExpandMoreRoundedIcon />
-                          )}
-                        </IconButton>
-                      </Stack>
-                    </Box>
-
-                    {expanded && (
-                      <Box
-                        sx={{
-                          px: { xs: 2, md: 2.5 },
-                          pb: 2.25,
-                          bgcolor: "#fffdfa",
-                        }}
-                      >
-                        <Paper
-                          elevation={0}
+                      <Stack direction="row" spacing={1.75} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
+                        {/* The uploaded logo takes over the avatar slot when there is
+                            one; companies without a logo keep the generated icon. */}
+                        <Avatar
+                          src={company.company_logo_url ?? undefined}
+                          imgProps={{ style: { objectFit: "contain" } }}
                           sx={{
-                            borderRadius: 1,
-                            border: "1px solid",
-                            borderColor: "#efeff4",
-                            overflow: "hidden",
-                            bgcolor: "#fff",
+                            width: 46,
+                            height: 46,
+                            bgcolor: company.company_logo_url ? "#fff" : "#fdecef",
+                            color: redTint,
+                            border: company.company_logo_url ? "1px solid #ececf2" : "none",
                           }}
                         >
-                          <TableContainer
+                          {getCompanyIcon(index)}
+                        </Avatar>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                            <Typography
+                              sx={{
+                                fontSize: 17,
+                                fontWeight: 800,
+                                color: headingText,
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
+                              {company.restaurant_name}
+                            </Typography>
+                            <Tooltip title={canEdit ? "Edit company" : "You don't have permission to edit"}>
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  disabled={!canEdit}
+                                  sx={{ color: "#7a8392", flexShrink: 0, "&:hover": { color: "#1565C0", bgcolor: "#EFF6FF" } }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openEditCompany(company);
+                                  }}
+                                >
+                                  <EditOutlinedIcon sx={{ fontSize: 17 }} />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                            <Tooltip title="View Details">
+                              <IconButton
+                                size="small"
+                                sx={{ color: "#7a8392", flexShrink: 0 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setViewingCompany(company);
+                                }}
+                              >
+                                <VisibilityOutlinedIcon sx={{ fontSize: 17 }} />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
+                          <Typography sx={{ fontSize: 13, color: "#6f7785" }}>
+                            GSTIN: {company.gst_no || "-"}
+                          </Typography>
+                        </Box>
+                      </Stack>
+
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: { xs: 2, md: 3 },
+                          flexWrap: "wrap",
+                          width: { xs: "100%", lg: "auto" },
+                          justifyContent: { xs: "space-between", lg: "flex-end" },
+                        }}
+                      >
+                        <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 2, md: 3 } }}>
+                          <HeaderStat icon={<ApartmentRoundedIcon />} iconColor="#7c3aed" label="Total Branches">
+                            <Typography sx={{ fontSize: 17, fontWeight: 800, color: headingText, lineHeight: 1.3 }}>
+                              {branchCount}
+                            </Typography>
+                          </HeaderStat>
+                          <Divider orientation="vertical" flexItem sx={{ borderColor: cardBorder }} />
+                          <Box>
+                            <Typography sx={{ fontSize: 11.5, color: subtleText, mb: 0.4 }}>Status</Typography>
+                            <StatusPill label={companyStatus} />
+                          </Box>
+                        </Box>
+
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                          <Tooltip title={canDelete ? "Delete company" : "You don't have permission to delete"}>
+                            <span>
+                              <IconButton
+                                size="small"
+                                disabled={!canDelete}
+                                sx={{ color: "#af101a", "&:hover": { color: "#8c0d15", bgcolor: "#FDECEC" } }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openDeleteCompany(company);
+                                }}
+                              >
+                                <DeleteOutlineRoundedIcon fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                          <IconButton
+                            size="small"
+                            sx={{ color: "#4b5563", bgcolor: "#fff", border: "1px solid", borderColor: cardBorder, "&:hover": { bgcolor: "#f3f4f7" } }}
+                          >
+                            {expanded ? <ExpandLessRoundedIcon /> : <ExpandMoreRoundedIcon />}
+                          </IconButton>
+                        </Box>
+                      </Box>
+                    </Box>
+
+                    {/* Branches */}
+                    {expanded && (
+                      <Box sx={{ px: { xs: 2, md: 2.5 }, py: 1.75 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, mb: 1.25 }}>
+                          <Typography sx={{ fontSize: 15, fontWeight: 800, color: headingText }}>
+                            Branches ({companyBranches.length})
+                          </Typography>
+                          <Button
+                            variant="contained"
+                            size="small"
+                            startIcon={<AddRoundedIcon />}
+                            onClick={() => openAddBranch(company.zodu_id)}
+                            disabled={!canCreate}
                             sx={{
-                              maxHeight: 400,
-                              overflow: "auto",
-                              "&::-webkit-scrollbar": {
-                                width: 8,
-                                height: 8,
-                              },
-                              "&::-webkit-scrollbar-track": {
-                                background: "transparent",
-                              },
-                              "&::-webkit-scrollbar-thumb": {
-                                background: "#cbd5e1",
-                                borderRadius: "4px",
-                                "&:hover": {
-                                  background: "#94a3b8",
-                                },
-                              },
+                              borderRadius: 0.8,
+                              bgcolor: redTint,
+                              fontWeight: 700,
+                              px: 1.6,
+                              whiteSpace: "nowrap",
+                              "&:hover": { bgcolor: "#b1001d" },
                             }}
                           >
-                            <Table size="small">
-                              <TableHead>
-                                <TableRow sx={{ bgcolor: "#fafbfc" }}>
-                                  <TableCell
-                                    sx={{
-                                      borderBottomColor: "#f0f1f5",
-                                      color: "#98a0ae",
-                                      fontSize: 12,
-                                      fontWeight: 800,
-                                    }}
-                                  >
-                                    Branch Name
-                                  </TableCell>
-                                  <TableCell
-                                    sx={{
-                                      borderBottomColor: "#f0f1f5",
-                                      color: "#98a0ae",
-                                      fontSize: 12,
-                                      fontWeight: 800,
-                                    }}
-                                  >
-                                    Location
-                                  </TableCell>
-                                  <TableCell
-                                    sx={{
-                                      borderBottomColor: "#f0f1f5",
-                                      color: "#98a0ae",
-                                      fontSize: 12,
-                                      fontWeight: 800,
-                                    }}
-                                  >
-                                    Contact Number
-                                  </TableCell>
-                                  <TableCell
-                                    align="right"
-                                    sx={{
-                                      borderBottomColor: "#f0f1f5",
-                                      color: "#98a0ae",
-                                      fontSize: 12,
-                                      fontWeight: 800,
-                                    }}
-                                  >
-                                    Actions
+                            Add New Branch
+                          </Button>
+                        </Box>
+
+                        <TableContainer
+                          sx={{
+                            maxHeight: 400,
+                            overflow: "auto",
+                            border: "1px solid",
+                            borderColor: "#eef0f4",
+                            borderRadius: 1,
+                            "&::-webkit-scrollbar": { width: 8, height: 8 },
+                            "&::-webkit-scrollbar-track": { background: "transparent" },
+                            "&::-webkit-scrollbar-thumb": {
+                              background: "#cbd5e1",
+                              borderRadius: "4px",
+                              "&:hover": { background: "#94a3b8" },
+                            },
+                          }}
+                        >
+                          <Table size="small" stickyHeader sx={{ minWidth: 960 }}>
+                            <TableHead>
+                              <TableRow>
+                                <TableCell sx={{ ...branchHeadCellSx, width: 48 }} align="center">#</TableCell>
+                                <TableCell sx={branchHeadCellSx}>Branch Name</TableCell>
+                                <TableCell sx={branchHeadCellSx}>Branch Code</TableCell>
+                                <TableCell sx={branchHeadCellSx}>Location</TableCell>
+                                <TableCell sx={branchHeadCellSx}>Contact Number</TableCell>
+                                <TableCell sx={branchHeadCellSx}>Subscription Expires</TableCell>
+                                <TableCell sx={branchHeadCellSx} align="center">Status</TableCell>
+                                <TableCell sx={branchHeadCellSx} align="center">Actions</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {companyBranches.length === 0 ? (
+                                <TableRow>
+                                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                                    <Typography sx={{ fontSize: 14, color: subtleText }}>
+                                      No branches available for this company.
+                                    </Typography>
                                   </TableCell>
                                 </TableRow>
-                              </TableHead>
-                              <TableBody>
-                                {companyBranches.length === 0 ? (
-                                  <TableRow>
-                                    <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
-                                      <Typography sx={{ fontSize: 14, color: subtleText }}>
-                                        No branches available for this company.
-                                      </Typography>
-                                    </TableCell>
-                                  </TableRow>
-                                ) : (
-                                  companyBranches.map((branch) => (
-                                    <TableRow
-                                      key={branch.branch_id}
-                                      hover
-                                      sx={{
-                                        "& td": {
-                                          borderBottomColor: "#f4f4f7",
-                                        },
-                                      }}
-                                    >
-                                      <TableCell
-                                        sx={{
-                                          py: 2,
-                                          fontSize: 13,
-                                          fontWeight: 700,
-                                          color: headingText,
-                                        }}
-                                      >
-                                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                              ) : (
+                                companyBranches.map((branch) => {
+                                  // Position within the company's full branch list, so the
+                                  // number and code stay put while searching.
+                                  const position = (company.branches ?? []).indexOf(branch) + 1;
+                                  const location = formatLocation(branch);
+                                  const sub = getBranchSubscription(branch);
+                                  return (
+                                    <TableRow key={branch.branch_id} hover sx={{ "&:last-child td": { borderBottom: 0 } }}>
+                                      <TableCell sx={branchCellSx} align="center">{position}</TableCell>
+                                      <TableCell sx={{ ...branchCellSx, fontWeight: 700, color: headingText }}>
+                                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                                           {branch.branch_name}
                                           <Tooltip title="View Details">
                                             <IconButton
                                               size="small"
-                                              sx={{ color: "#7a8392", p: 0 }}
+                                              sx={{ color: "#7a8392", p: 0.25 }}
                                               onClick={(e) => {
                                                 e.stopPropagation();
                                                 setViewingBranch(branch);
@@ -1219,30 +1213,35 @@ export default function Setting() {
                                           </Tooltip>
                                         </Box>
                                       </TableCell>
-                                      <TableCell
-                                        sx={{
-                                          py: 2,
-                                          fontSize: 13,
-                                          color: "#6f7785",
-                                        }}
-                                      >
-                                        {formatLocation(branch)}
+                                      <TableCell sx={branchCellSx}>BR{String(position).padStart(3, "0")}</TableCell>
+                                      <TableCell sx={{ ...branchCellSx, maxWidth: 300 }}>
+                                        {location === "-" ? "-" : (
+                                          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.75 }}>
+                                            <LocationOnRoundedIcon sx={{ fontSize: 17, color: "#64748b", mt: "1px" }} />
+                                            <span>{location}</span>
+                                          </Box>
+                                        )}
                                       </TableCell>
-                                      <TableCell
-                                        sx={{
-                                          py: 2,
-                                          fontSize: 13,
-                                          color: "#6f7785",
-                                        }}
-                                      >
-                                        {branch.branch_mobile_no || "-"}
+                                      <TableCell sx={branchCellSx}>{branch.branch_mobile_no || "-"}</TableCell>
+                                      <TableCell sx={{ ...branchCellSx, whiteSpace: "nowrap" }}>
+                                        {sub ? (
+                                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                            <CalendarMonthRoundedIcon sx={{ fontSize: 18, color: "#1e88e5" }} />
+                                            <Box>
+                                              <Typography sx={{ fontSize: 13, fontWeight: 700, color: headingText, lineHeight: 1.3 }}>
+                                                {sub.dateLabel}
+                                              </Typography>
+                                              <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: sub.color, lineHeight: 1.3 }}>
+                                                {sub.isTrial ? "Trial · " : ""}{sub.daysLabel}
+                                              </Typography>
+                                            </Box>
+                                          </Box>
+                                        ) : "-"}
                                       </TableCell>
-                                      <TableCell align="right" sx={{ py: 1.25 }}>
-                                        {/* <Tooltip title="View">
-                                          <IconButton size="small" sx={{ color: "#7a8392" }}>
-                                            <VisibilityOutlinedIcon fontSize="small" />
-                                          </IconButton>
-                                        </Tooltip> */}
+                                      <TableCell sx={branchCellSx} align="center">
+                                        <StatusPill label={branch.active === false ? "Inactive" : "Active"} />
+                                      </TableCell>
+                                      <TableCell sx={{ ...branchCellSx, py: 0.75, whiteSpace: "nowrap" }} align="center">
                                         <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"}>
                                           <span>
                                             <IconButton
@@ -1271,43 +1270,12 @@ export default function Setting() {
                                         </Tooltip>
                                       </TableCell>
                                     </TableRow>
-                                  ))
-                                )}
-                              </TableBody>
-                            </Table>
-                          </TableContainer>
-
-                          <Divider />
-
-                          <Box
-                            sx={{
-                              px: 2,
-                              py: 1.5,
-                              display: "flex",
-                              justifyContent: "flex-end",
-                              bgcolor: "#fff",
-                            }}
-                          >
-                            <Button
-                              variant="contained"
-                              size="small"
-                              startIcon={<AddRoundedIcon />}
-                              onClick={() => openAddBranch(company.zodu_id)}
-                              disabled={!canCreate}
-                              sx={{
-                                borderRadius: 0.8,
-                                bgcolor: redTint,
-                                fontWeight: 700,
-                                px: 1.6,
-                                "&:hover": {
-                                  bgcolor: "#b1001d",
-                                },
-                              }}
-                            >
-                              Add New Branch
-                            </Button>
-                          </Box>
-                        </Paper>
+                                  );
+                                })
+                              )}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
                       </Box>
                     )}
                   </Paper>

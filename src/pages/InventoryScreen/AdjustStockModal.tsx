@@ -33,7 +33,7 @@ import {
   useAdjustStock,
   type InventoryItem,
   type AdjustStockResponse,
-} from './useInventoryApi';
+} from './useInventoryapi';
 
 const theme = createTheme({
   palette: {
@@ -49,6 +49,9 @@ interface AdjustStockModalProps {
   preselectedItem?: InventoryItem | null;
   inventoryItems?:  InventoryItem[];
   onSuccess?:       (res: AdjustStockResponse) => void;
+  // Prefill used when the modal is opened from the POS "insufficient stock" prompt.
+  defaultQuantity?: number;
+  defaultReason?:   string;
 }
 
 const REASONS = [
@@ -65,6 +68,8 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
   preselectedItem,
   inventoryItems = [],
   onSuccess,
+  defaultQuantity,
+  defaultReason,
 }) => {
   // ── State ──────────────────────────────────────────────────
   const [selectedUuid,       setSelectedUuid]       = useState('');
@@ -89,8 +94,13 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
     if (open && preselectedItem) {
       setSelectedUuid(preselectedItem.inventory_uuid);
       setStockAlert(preselectedItem.reorder_level ?? '');
+      if (defaultQuantity && defaultQuantity > 0) {
+        setAdjustmentType('add');
+        setAdjustmentQuantity(String(defaultQuantity));
+      }
+      if (defaultReason) setReason(defaultReason);
     }
-  }, [open, preselectedItem]);
+  }, [open, preselectedItem, defaultQuantity, defaultReason]);
 
   // ── Reset form on close ───────────────────────────────────
   useEffect(() => {

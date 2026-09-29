@@ -54,12 +54,12 @@ export interface Branch {
   pincode?: string;
   same_as_address?: boolean;
   same_as_bank_details?: boolean;
-  // Subscription is tracked per branch, not per company.
-  subscription_status?: string;
+  // Subscription lives per branch (tbl_subscription, joined in getBranches).
+  subscription_status?: string | null;           // "trial" | "active" | ...
+  subscription_effective_status?: string | null; // adds "trial_expired" / "subscription_expired"
   subscription_plan_code?: string | null;
   trial_end_date?: string | null;
   subscription_end_date?: string | null;
-  subscription_effective_status?: "trial" | "active" | "trial_expired" | "subscription_expired" | string;
   trial_days_left?: number | null;
 }
 

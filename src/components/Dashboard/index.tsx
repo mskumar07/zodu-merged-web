@@ -248,7 +248,7 @@ function SectionCard({
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: 0, ...sx }}>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-        <Typography sx={{ fontSize: "0.9rem", fontWeight: 700, color: "#0F172A" }}>{title}</Typography>
+        <Typography component="div" sx={{ fontSize: "0.9rem", fontWeight: 700, color: "#0F172A" }}>{title}</Typography>
         {action}
       </Box>
       <Box sx={{ ...card, flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>

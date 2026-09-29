@@ -1,4 +1,4 @@
-import { useSelector } from "react-redux";
+import { shallowEqual, useSelector } from "react-redux";
 import { store } from "./store";
 import type { RootState } from "./store";
 
@@ -28,7 +28,7 @@ export function useTenantContext() {
     profile:  state.user.profile,
     company: state.user.company,
     businessType: state.user.businessType,
-  }));
+  }), shallowEqual);
 }
 
 export function getTenantContext() {

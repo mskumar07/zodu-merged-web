@@ -23,7 +23,7 @@ import {
   type InventoryItem,
   type InventoryListParams,
   type StockStatus,
-} from './useInventoryApi';
+} from './useInventoryapi';
 import StockHistoryModal from './StockHistoryModal';
 import { useModulePermission } from '@hooks/useModulePermission';
 
