@@ -4,15 +4,17 @@ import EditOutlinedIcon  from "@mui/icons-material/EditOutlined";
 import type { Vendor } from "../PurchaseScreen/usePuchaseapi";
 import AddVendorModal from "./AddVendorDialog";
 import { vendorDisplayName, type VendorRowActions } from "./useVendorRowActions";
+import { useSubscriptionGuard } from "@hooks/useSubscriptionGuard";
 
 /** Edit + delete icon pair for a vendor row inside an Autocomplete's renderOption. */
 export function VendorRowActionIcons({ vendor, actions }: { vendor: Vendor; actions: VendorRowActions }) {
+  const { guard } = useSubscriptionGuard();
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 0.25, flexShrink: 0 }}>
       <Tooltip title="Edit vendor">
         <IconButton
           size="small"
-          onClick={e => { e.stopPropagation(); actions.openEdit(vendor); }}
+          onClick={guard(e => { e.stopPropagation(); actions.openEdit(vendor); })}
           sx={{ color: "#6B7280", p: 0.5, "&:hover": { color: "#2563EB", bgcolor: "#EFF6FF" } }}
         >
           <EditOutlinedIcon sx={{ fontSize: 15 }} />

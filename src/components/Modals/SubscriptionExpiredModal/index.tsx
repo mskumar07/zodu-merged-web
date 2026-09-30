@@ -14,6 +14,8 @@ export interface SubscriptionExpiredModalProps {
   open: boolean;
   businessName: string;
   expiryDate?: string;
+  /** "blocked": access denied (business picker). "viewOnly": inside the app, changes are disabled. */
+  mode?: "blocked" | "viewOnly";
   onClose: () => void;
 }
 
@@ -23,8 +25,10 @@ const SubscriptionExpiredModal: React.FC<SubscriptionExpiredModalProps> = ({
   open,
   businessName,
   expiryDate,
+  mode = "blocked",
   onClose,
 }) => {
+  const viewOnly = mode === "viewOnly";
   return (
     <Dialog
       open={open}
@@ -77,7 +81,9 @@ const SubscriptionExpiredModal: React.FC<SubscriptionExpiredModalProps> = ({
           ) : (
             "has ended"
           )}
-          . Renew to continue accessing this business.
+          {viewOnly
+            ? ". This business is now view-only — renew to add, edit or delete anything."
+            : ". Renew to continue accessing this business."}
         </Typography>
 
         <Box
@@ -117,7 +123,7 @@ const SubscriptionExpiredModal: React.FC<SubscriptionExpiredModalProps> = ({
             "&:hover": { bgcolor: "#a80d19" },
           }}
         >
-          Back to Business List
+          {viewOnly ? "Got it" : "Back to Business List"}
         </Button>
       </Box>
     </Dialog>

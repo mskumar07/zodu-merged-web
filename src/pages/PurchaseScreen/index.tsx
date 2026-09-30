@@ -26,6 +26,7 @@ import {
 import PurchasePaymentDialog from "./purchasePaymentDialog";
 import { useModulePermission } from "@hooks/useModulePermission";
 import { closeFromControlsOnly } from "@utils/dialog";
+import { useSubscriptionGuard } from "@hooks/useSubscriptionGuard";
 
 const theme = createTheme({
   palette: {
@@ -87,6 +88,7 @@ function StatsSkeleton() {
 }
 
 export default function PurchaseScreen() {
+  const { guard } = useSubscriptionGuard();
   const { canCreate, canEdit, canDelete } = useModulePermission("Purchase");
   const [search, setSearch]               = useState("");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<PurchaseStatus | "">("");
@@ -307,7 +309,7 @@ export default function PurchaseScreen() {
                 <IconButton
                   size="small"
                   disabled={!canEdit}
-                  onClick={() => handleEdit(p.purchase_id)}
+                  onClick={guard(() => handleEdit(p.purchase_id))}
                   sx={{
                     color: "#1976d2", p: 0.6, borderRadius: 1,
                     "&:hover": { color: "#1565C0", bgcolor: "#EFF6FF" },
@@ -322,7 +324,7 @@ export default function PurchaseScreen() {
               <span>
                 <IconButton
                   size="small"
-                  onClick={() => setDeleteTarget(p)}
+                  onClick={guard(() => setDeleteTarget(p))}
                   disabled={isDeleting || !canDelete}
                   sx={{
                     color: "#D2122E", p: 0.6, borderRadius: 1.5,
@@ -404,7 +406,7 @@ export default function PurchaseScreen() {
               <Button
                 variant="contained" size="small"
                 startIcon={<AddIcon sx={{ fontSize: 16 }} />}
-                onClick={() => { setEditPurchaseId(null); setAddDialog(true); }}
+                onClick={guard(() => { setEditPurchaseId(null); setAddDialog(true); })}
                 disableElevation
                 disabled={!canCreate}
                 sx={{ flexShrink: 0, fontSize: 14, fontWeight: 700, bgcolor: "#D32F2F", color: "#fff", px: 2, py: 0.9, borderRadius: 1.5, boxShadow: "0 4px 14px rgba(211,47,47,0.3)", "&:hover": { bgcolor: "#B71C1C" }, "&:active": { transform: "scale(0.97)" }, transition: "all 0.15s", whiteSpace: "nowrap", display: { xs: "none", md: "inline-flex" } }}
@@ -432,7 +434,7 @@ export default function PurchaseScreen() {
 
         {/* FAB */}
         {canCreate && (
-          <Fab color="primary" onClick={() => { setEditPurchaseId(null); setAddDialog(true); }}
+          <Fab color="primary" onClick={guard(() => { setEditPurchaseId(null); setAddDialog(true); })}
             sx={{ position: "fixed", bottom: 24, right: 24, display: { xs: "flex", md: "none" }, bgcolor: "#D32F2F", boxShadow: "0 8px 24px rgba(211,47,47,0.4)", "&:hover": { bgcolor: "#B71C1C" } }}>
             <AddIcon />
           </Fab>

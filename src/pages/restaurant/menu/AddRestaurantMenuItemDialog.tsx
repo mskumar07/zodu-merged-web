@@ -38,6 +38,7 @@ import { useAppSelector } from "@store/store";
 import { InvoiceSettingsData } from "@store/slices/userSlice";
 import { updateKotItemRouting, useKotCounters, useKotItemRouting } from "@pages/MenuItemScreen/kotApi";
 import { useQueryClient } from "@tanstack/react-query";
+import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -158,6 +159,7 @@ const FieldLabel: React.FC<{ text: string; required?: boolean }> = ({
 const AddRestaurantMenuItemDialog: React.FC<
   AddRestaurantMenuItemDialogProps
 > = ({ open, onClose, onSuccess, editItem }) => {
+  useBlockWhenReadOnly(open, onClose);
   const isEditMode = !!editItem;
   const originalMenuType = editItem?.menu_type ?? null;
   // ── State ──────────────────────────────────────────────────────────────────

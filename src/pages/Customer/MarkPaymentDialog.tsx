@@ -21,6 +21,7 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs, { Dayjs } from "dayjs";
 import { useOutstandingBills, useMarkPayment } from "./useCustomerapi";
+import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 const RED = "#D32F2F";
 
@@ -77,6 +78,7 @@ function fmtSize(bytes: number): string {
 }
 
 export default function MarkPaymentDialog({ customer, onClose, onSuccess }: Props) {
+  useBlockWhenReadOnly(true, onClose);
   const { data, isLoading, isError, error } = useOutstandingBills(customer.custUuid);
 
   const bills: PayableBill[] = useMemo(

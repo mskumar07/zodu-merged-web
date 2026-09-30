@@ -29,6 +29,7 @@ import {
 import { toast } from "react-toastify";
 import { API_BASE, fetchSaleDetail, salesQueryKeys, getBranchId, getZoduId, createSaleReturn, type CreateSaleReturnPayload, type Sale } from "./useSaleshistory";
 import { INR } from "./dialogHelpers";
+import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 interface Props {
   sale: Sale;
@@ -67,6 +68,7 @@ function TH({ children, align = "left" }: { children: React.ReactNode; align?: "
 }
 
 export default function SalesReturnDialog({ sale, onClose, onSuccess }: Props) {
+  useBlockWhenReadOnly(true, onClose);
   const queryClient = useQueryClient();
   // The detail endpoint (and its cache key) address a sale by uuid.
   const saleId = sale.sale_uuid;

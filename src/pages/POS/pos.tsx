@@ -94,6 +94,7 @@ import { BranchId, ZoduId, InvoiceSettingsData, PosSettingsData, setPosSettings 
 import { Download } from "@mui/icons-material";
 import CheckCircleIcon        from "@mui/icons-material/CheckCircle";
 import CurrencyRupeeIcon      from "@mui/icons-material/CurrencyRupee";
+import { runIfSubscribed } from "@utils/subscriptionGuard";
 
 const INR = (v: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(v);
@@ -1186,6 +1187,7 @@ console.log("test",serverHolds)
 
   // ── handleHold now safely references all computed values above ──
   const handleHold = useCallback(async () => {
+    if (!runIfSubscribed()) return;
     if (items.length === 0 || holdSaving) return;
     console.log(items)
 
@@ -1259,6 +1261,7 @@ console.log("test",serverHolds)
   ]);
 
   const handleDeleteHold = async (id: string) => {
+    if (!runIfSubscribed()) return;
     try { await deleteHoldApi(id);
       await refetchHolds();
      }
@@ -1382,6 +1385,7 @@ console.log("test",serverHolds)
   }, []);
 
   const handleSave = useCallback(async () => {
+    if (!runIfSubscribed()) return;
     if (items.length === 0 || saving) return;
     if (invoiceSettings?.customer_mandatory && !customer.id) {
       setSaveResult({ open: true, success: false, message: "Please select a customer before completing this sale." });
@@ -2070,7 +2074,7 @@ console.log("test",serverHolds)
                   <Button size="small" disabled={holdSaving || items.length === 0}
                     startIcon={holdSaving ? <CircularProgress size={10} /> : <PauseCircleOutlineIcon sx={{ fontSize: { xs: 13, md: 16 } }} />}
                     onClick={handleHold}
-                    sx={{ minWidth: { xs: 0, md: 82 }, height: { xs: 24, md: 26 }, px: { xs: 0.75, md: 1 }, borderRadius: 1.25, bgcolor: "#4B5563", color: "#fff", fontSize: { xs: 9, md: 10 }, fontWeight: 800, boxShadow: "0 2px 6px rgba(75,85,99,0.22)", "&:hover": { bgcolor: "#374151" } }}>
+                    sx={{ minWidth: { xs: 0, md: 82 }, height: { xs: 24, md: 28 }, px: { xs: 0.75, md: 1.25 }, borderRadius: 1.5, bgcolor: "#A5F3FC", color: "#0E7490", border: "1px solid #06B6D4", fontSize: { xs: 9, md: 11 }, fontWeight: 800, "&:hover": { bgcolor: "#67E8F9", borderColor: "#0891B2" }, "&.Mui-disabled": { bgcolor: "#A5F3FC", color: "#0E7490", borderColor: "#06B6D4", opacity: 0.75 } }}>
                     HOLD <Box component="span" sx={{ display: { xs: "none", md: "inline" }, fontSize: 9, opacity: 0.8, ml: 0.3 }}>[F9]</Box>
                   </Button>
                   <Badge badgeContent={heldOrders.length} invisible={heldOrders.length === 0} sx={{ "& .MuiBadge-badge": { fontSize: 8, minWidth: 14, height: 14, bgcolor: "#C8102E", color: "#fff", fontWeight: 800 } }}>

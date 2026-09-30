@@ -624,6 +624,7 @@ import { useCreateVendor, useUpdateVendor, type VendorRecord } from "./useVendor
 import SuccessToast from "@components/Common/SuccessToast";
 import { getTenantContext } from "@store/tenantContext";
 import { closeFromControlsOnly } from "@utils/dialog";
+import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 const theme = createTheme({
   palette: {
@@ -732,6 +733,7 @@ const emptyForm = (): VendorFormState => ({
 });
 
 const AddVendorModal: React.FC<AddVendorModalProps> = ({ open, onClose, onSave, vendorType = "Purchase", vendor = null }) => {
+  useBlockWhenReadOnly(open, onClose);
   const isEditMode = !!vendor?.vendor_id;
   const [form, setForm] = useState<VendorFormState>(emptyForm);
   const [stateSearch, setStateSearch] = useState("");

@@ -34,6 +34,7 @@ import StatCard            from "@components/StatCard";
 import { useNavigate }     from "react-router-dom";
 import { useModulePermission } from "@hooks/useModulePermission";
 import { isProformaSaleType, isQuotationSaleType } from "@utils/saleType";
+import { useSubscriptionGuard } from "@hooks/useSubscriptionGuard";
 
 // ─── Formatter ────────────────────────────────────────────────
 const INR = (v: number) =>
@@ -202,6 +203,7 @@ const queryClient = new QueryClient();
 
 // ─── Main screen ──────────────────────────────────────────────
 export default function SalesHistoryPage() {
+  const { guard } = useSubscriptionGuard();
   const navigate = useNavigate();
 
   const { branchId, businessType } = useTenantContext();
@@ -446,7 +448,7 @@ export default function SalesHistoryPage() {
                   <Button
                     size="small" variant="contained" color="primary" disableElevation
                     disabled={!canEdit}
-                    onClick={() => setPaymentDialog(sale)}
+                    onClick={guard(() => setPaymentDialog(sale))}
                     sx={{ fontSize: "0.65rem", py: 0.4, px: 1.5, height: 24, width: "100%", whiteSpace: "nowrap" }}
                   >
                     Mark as Paid
@@ -510,7 +512,7 @@ export default function SalesHistoryPage() {
                   <IconButton
                     size="small"
                     disabled={isReturned || !canEdit}
-                    onClick={() => setReturnDialog(sale)}
+                    onClick={guard(() => setReturnDialog(sale))}
                     sx={{
                       color: isReturned ? "text.disabled" : "text.secondary",
                       borderRadius: 1.5,
@@ -530,7 +532,7 @@ export default function SalesHistoryPage() {
                 <IconButton
                   size="small"
                   disabled={!canEdit}
-                  onClick={() => navigate(getPosEditUrl(sale))}
+                  onClick={guard(() => navigate(getPosEditUrl(sale)))}
                   sx={{ color: "text.secondary", borderRadius: 1.5, "&:hover": { color: "primary.main", bgcolor: alpha("#E53935", 0.06) } }}
                 >
                   <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -545,7 +547,7 @@ export default function SalesHistoryPage() {
                 <IconButton
                   size="small"
                   disabled={!canDelete}
-                  onClick={() => setDeleteDialog(sale)}
+                  onClick={guard(() => setDeleteDialog(sale))}
                   sx={{ color: "text.secondary", borderRadius: 1.5, "&:hover": { color: "#C62828", bgcolor: alpha("#C62828", 0.06) } }}
                 >
                   <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">

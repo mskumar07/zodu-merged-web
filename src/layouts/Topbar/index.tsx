@@ -233,7 +233,7 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
               <Typography sx={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
                 {subscription.isTrial
                   ? subscription.expired ? "Trial ended on " : "Trial ends on "
-                  : subscription.expired ? "Subscription expired on " : "Subscription expires on "}
+                  : subscription.expired ? "Subscription ended on " : "Subscription ends on "}
                 <Box component="span" sx={{ fontWeight: 700, color: "#111827" }}>
                   {subscription.dateLabel}
                 </Box>

@@ -22,6 +22,7 @@ import ExpenseStats from "./ExpenseStats";
 import CategoryTab from "@pages/MenuItemScreen/CategoryTab";
 import { useModulePermission } from "@hooks/useModulePermission";
 import { closeFromControlsOnly } from "@utils/dialog";
+import { useSubscriptionGuard } from "@hooks/useSubscriptionGuard";
 
 const theme = createTheme({
   palette: {
@@ -81,6 +82,7 @@ function StatusBadge({ status }: { status: ExpenseStatus }) {
 
 
 export default function ExpenseScreen() {
+  const { guard } = useSubscriptionGuard();
   const { canCreate, canEdit, canDelete } = useModulePermission("Expense");
   const [activeTab, setActiveTab] = useState(0);
   const [search, setSearch]             = useState("");
@@ -282,7 +284,7 @@ export default function ExpenseScreen() {
                 <IconButton
                   size="small"
                   disabled={!canEdit}
-                  onClick={() => { setEditExpenseId(e.expense_id); setAddDialogOpen(true); }}
+                  onClick={guard(() => { setEditExpenseId(e.expense_id); setAddDialogOpen(true); })}
                   sx={{ color: "#1976d2", p: 0.6, borderRadius: 1, "&:hover": { color: "#1565C0", bgcolor: "#EFF6FF" }, transition: "all 0.12s" }}
                 >
                   <EditOutlinedIcon sx={{ fontSize: 16 }} />
@@ -294,7 +296,7 @@ export default function ExpenseScreen() {
                 <IconButton
                   size="small"
                   disabled={!canDelete}
-                  onClick={() => setDeleteTarget(e.expense_id)}
+                  onClick={guard(() => setDeleteTarget(e.expense_id))}
                   sx={{ color: "#D2122E", p: 0.6, borderRadius: 1.5, "&:hover": { bgcolor: "#D2122E22" }, transition: "all 0.12s" }}
                 >
                   <DeleteOutlineIcon sx={{ fontSize: 16 }} />
@@ -368,7 +370,7 @@ export default function ExpenseScreen() {
                   variant="contained"
                   size="small"
                   startIcon={<AddIcon sx={{ fontSize: 16 }} />}
-                  onClick={() => { setEditExpenseId(null); setAddDialogOpen(true); }}
+                  onClick={guard(() => { setEditExpenseId(null); setAddDialogOpen(true); })}
                   disableElevation
                   disabled={!canCreate}
                   sx={{ flexShrink: 0, fontSize: 14, fontWeight: 700, bgcolor: "#D32F2F", color: "#fff", px: 2, py: 0.9, borderRadius: 1.5, boxShadow: "0 4px 14px rgba(211,47,47,0.3)", "&:hover": { bgcolor: "#B71C1C" }, whiteSpace: "nowrap" }}
@@ -446,7 +448,7 @@ export default function ExpenseScreen() {
         {canCreate && (
           <Fab
             color="primary"
-            onClick={() => { setEditExpenseId(null); setAddDialogOpen(true); }}
+            onClick={guard(() => { setEditExpenseId(null); setAddDialogOpen(true); })}
             sx={{ position: "fixed", bottom: 24, right: 24, display: { xs: "flex", md: "none" }, bgcolor: "#D32F2F", boxShadow: "0 8px 24px rgba(211,47,47,0.4)", "&:hover": { bgcolor: "#B71C1C" } }}
           >
             <AddIcon />

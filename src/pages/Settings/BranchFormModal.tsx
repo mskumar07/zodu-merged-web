@@ -25,6 +25,7 @@ import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import SearchIcon from "@mui/icons-material/Search";
 import type { Branch } from "@pages/auth/Authapi";
+import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
 
@@ -217,6 +218,7 @@ export default function BranchFormModal({
   submitting = false,
   company = {},
 }: Props) {
+  useBlockWhenReadOnly(open, onClose);
   const isEdit = Boolean(branch);
 
   const [form, setForm] = useState<BranchFormData>(EMPTY_FORM);

@@ -24,6 +24,7 @@ import {
   type Sale,
 } from "./useSaleshistory";
 import { toast } from "react-toastify";
+import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 interface Props {
   sale:      Sale;
@@ -54,6 +55,7 @@ const inputSx = {
 const PAYMENT_TYPES = ["Cash", "UPI", "Bank Transfer","Others"] as const;
 
 export default function MarkPaymentDialog({ sale, onClose, onSuccess }: Props) {
+  useBlockWhenReadOnly(true, onClose);
   const queryClient = useQueryClient();
   const balance     = Number(sale.balance_amount);
 

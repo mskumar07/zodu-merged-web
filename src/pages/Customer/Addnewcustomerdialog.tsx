@@ -14,6 +14,7 @@ import SaveIcon      from "@mui/icons-material/Save";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import { useAddCustomer, useUpdateCustomer, buildCustomerPayload, buildUpdateCustomerPayload } from "./useCustomerapi";
 import type { AddCustomerResponse } from "./useCustomerapi";
+import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 const theme = createTheme({
   palette: {
@@ -104,6 +105,7 @@ const sx = {
 };
 
 export default function AddNewCustomerDialog({ open, onClose, onSaved, editingCustomer }: Props) {
+  useBlockWhenReadOnly(open, onClose);
   const isEditing = editingCustomer !== null && editingCustomer !== undefined;
   
   const [form, setForm]       = useState<CustomerForm>(EMPTY);

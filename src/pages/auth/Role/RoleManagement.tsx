@@ -16,6 +16,7 @@ import { useRoles, useDeleteRole, type RoleListItem } from "./useRoleApi";
 import RoleEditPage from "./RoleEditPage";
 import LottieLoader from "@components/LottieLoader";
 import SuccessToast from "@components/Common/SuccessToast";
+import { useSubscriptionGuard } from "@hooks/useSubscriptionGuard";
 
 const theme = createTheme({
   palette: { primary: { main: "#E11D48" } },
@@ -157,6 +158,7 @@ function RoleCard({
 type PageMode = "view" | "edit" | "add";
 
 export default function RoleManagement() {
+  const { guard } = useSubscriptionGuard();
   const [search,       setSearch]       = useState("");
   const [selectedId,   setSelectedId]   = useState<string | null>(null);
   const [pageMode,     setPageMode]     = useState<PageMode>("view");
@@ -187,8 +189,8 @@ export default function RoleManagement() {
   });
 
   const handleSelect = useCallback((id: string) => { setSelectedId(id);   setPageMode("view"); }, []);
-  const handleEdit   = useCallback((id: string) => { setSelectedId(id);   setPageMode("edit"); }, []);
-  const handleAdd    = useCallback(()            => { setSelectedId(null); setPageMode("add");  }, []);
+  const handleEdit   = guard((id: string) => { setSelectedId(id);   setPageMode("edit"); });
+  const handleAdd    = guard(()            => { setSelectedId(null); setPageMode("add");  });
   const handleSaved  = useCallback((newId?: string) => {
     setPageMode("view");
     if (newId) setSelectedId(newId);
@@ -357,10 +359,10 @@ export default function RoleManagement() {
               onCancel={() => setPageMode("view")}
               onAdd={handleAdd}
               onEdit={() => handleEdit(effectiveId)}
-              onDelete={() =>
+              onDelete={guard(() =>
                 selectedRole &&
                 setDeleteTarget({ roleId: selectedRole.role_id, roleName: selectedRole.role_name })
-              }
+              )}
             />
           ) : (
             <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>

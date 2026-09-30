@@ -14,6 +14,7 @@ import { getTenantContext } from "@store/tenantContext";
 import { toast } from "react-toastify";
 import type { ExpenseRow } from "./useExpenseApi";
 import { closeFromControlsOnly } from "@utils/dialog";
+import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 interface Props {
   expense: ExpenseRow | null;
@@ -41,6 +42,7 @@ const inputSx = {
 const PAYMENT_TYPES = ["Cash", "UPI", "Bank Transfer", "Others"] as const;
 
 export default function ExpensePaymentDialog({ expense, onClose, onSuccess }: Props) {
+  useBlockWhenReadOnly(true, onClose);
   const balance = Number(expense?.balance_amount ?? 0);
 
   const [form, setForm] = useState({

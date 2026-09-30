@@ -28,6 +28,7 @@ import {
 import { useRoles } from "@pages/auth/Role/useRoleApi";
 import LottieLoader from "@components/LottieLoader";
 import SuccessToast from "@components/Common/SuccessToast";
+import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 // ─── Theme ───────────────────────────────────────────────────
 const theme = createTheme({
@@ -132,6 +133,7 @@ interface Props {
 }
 
 export default function EmployeeFormModal({ open, onClose, mode, employeeId }: Props) {
+  useBlockWhenReadOnly(open, onClose);
   const isEdit   = mode === "edit";
   const readOnly = false;
 

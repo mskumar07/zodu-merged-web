@@ -41,6 +41,7 @@ import {
 } from './useMenuItemApi';
 import AddCategoryDialog from './AddCategoryDialog';
 import { closeFromControlsOnly } from "@utils/dialog";
+import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 interface AddItemModalProps {
   open:      boolean;
@@ -104,6 +105,7 @@ const Label: React.FC<{ text: string; required?: boolean }> = ({ text, required 
 
 // ─── Main AddItemModal ────────────────────────────────────────
 const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, editItem }) => {
+  useBlockWhenReadOnly(open, onClose);
   const isEditMode = Boolean(editItem);
   const qc = useQueryClient();
 

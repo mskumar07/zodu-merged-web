@@ -34,6 +34,7 @@ import {
   useUpdateDocSequence,
   type DocType,
 } from "./useDocSequenceApi";
+import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 // Only the three POS counters are adjustable from this screen. The service
 // keeps others (PUR, EXP, CUS) that belong to their own modules.
@@ -53,6 +54,7 @@ interface Props {
 }
 
 export default function DocSequenceDialog({ open, onClose, onSaved }: Props) {
+  useBlockWhenReadOnly(open, onClose);
   const [docType, setDocType] = useState<DocType>("INV");
   const [lastSeqInput, setLastSeqInput] = useState("");
   const [confirming, setConfirming] = useState(false);
