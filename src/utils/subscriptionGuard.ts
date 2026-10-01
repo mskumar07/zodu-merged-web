@@ -1,5 +1,7 @@
 import axios, { type InternalAxiosRequestConfig } from "axios";
 import axiosInstance from "@store/services/axiosInstance";
+import type { Branch } from "@pages/auth/Authapi";
+import { getBranchSubscription } from "@utils/subscription";
 
 // An expired trial / subscription leaves the business in VIEW-ONLY mode: every
 // read keeps working, every write (add / edit / delete / update / mark
@@ -52,6 +54,16 @@ export function runIfSubscribed(action?: () => void): boolean {
   }
   action?.();
   return true;
+}
+
+/**
+ * Call right after entering a branch (picker / login fast path), once the
+ * dashboard has been navigated to: an expired branch still opens, view-only,
+ * and the expired modal is shown once on arrival so the user knows why
+ * changes are disabled.
+ */
+export function notifyIfBranchExpired(branch?: Branch | null) {
+  if (getBranchSubscription(branch)?.expired) subscriptionGuardStore.openModal();
 }
 
 export class SubscriptionExpiredError extends Error {

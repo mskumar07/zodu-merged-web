@@ -137,6 +137,13 @@ const TH_SX = {
   py: 1.25,
 };
 
+/** Compact, consistent horizontal padding so all columns fit without clipping */
+const LEDGER_TABLE_SX = {
+  "& .MuiTableCell-root": { px: 1.25 },
+  "& .MuiTableCell-root:first-of-type": { pl: 2 },
+  "& .MuiTableCell-root:last-of-type": { pr: 2 },
+};
+
 // ─── Skeleton row helpers ─────────────────────────────────────
 function SalesSkeletonRows() {
   return (
@@ -546,7 +553,7 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", lg: "1.15fr 1fr" },
+              gridTemplateColumns: { xs: "1fr", lg: "1.3fr 1fr" },
               gap: 3,
               alignItems: "start",
             }}
@@ -571,7 +578,7 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                   overflow:    "auto",
                 }}
               >
-                <Table size="small" stickyHeader>
+                <Table size="small" stickyHeader sx={LEDGER_TABLE_SX}>
                   <TableHead>
                     <TableRow>
                       <TableCell sx={TH_SX}>Date</TableCell>
@@ -714,13 +721,13 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                   overflow:     "auto",
                 }}
               >
-                <Table size="small" stickyHeader>
+                <Table size="small" stickyHeader sx={LEDGER_TABLE_SX}>
                   <TableHead>
                     <TableRow>
                       <TableCell sx={TH_SX}>Date</TableCell>
                       <TableCell sx={TH_SX}>Invoice ID</TableCell>
-                      <TableCell sx={TH_SX}>Reference No / Transaction Type</TableCell>
-                      <TableCell align="right" sx={{ ...TH_SX, pr: 1 }}>Amount</TableCell>
+                      <TableCell sx={{ ...TH_SX, whiteSpace: "normal" }}>Reference No / Transaction Type</TableCell>
+                      <TableCell align="right" sx={TH_SX}>Amount</TableCell>
                     </TableRow>
                   </TableHead>
 
@@ -783,7 +790,6 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                                 fontWeight: 700,
                                 color:      isRefund ? "#dc2626" : "#16a34a",
                                 py: 1.5,
-                                pr: 1,
                                 whiteSpace: "nowrap",
                               }}
                             >

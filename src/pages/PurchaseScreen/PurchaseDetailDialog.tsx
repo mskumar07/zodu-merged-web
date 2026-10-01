@@ -21,6 +21,7 @@ import { usePurchaseById, type PurchaseDetail } from "./usePuchaseapi";
 import AddNewPurchaseDialog from "./Addnewpuechasedialog";
 import { useModulePermission } from "@hooks/useModulePermission";
 import { closeFromControlsOnly } from "@utils/dialog";
+import AttachmentList, { parseAttachments } from "@components/Common/AttachmentList";
 
 const INR = (v: number | string) =>
   new Intl.NumberFormat("en-IN", {
@@ -110,6 +111,7 @@ function PurchaseDetailContent({ data }: { data: PurchaseDetail }) {
   const totalSgst = data.items.reduce((sum, item) => sum + Number(item.sgst ?? 0), 0);
   const totalTax = data.items.reduce((sum, item) => sum + Number(item.tax_amount ?? 0), 0);
   const dueDate = data.due_date_formatted ?? data.due_date_formated;
+  const attachments = parseAttachments(data.attachment_url);
 
   const vendorAddress = [
     data.vendor_address_1,
@@ -360,7 +362,13 @@ function PurchaseDetailContent({ data }: { data: PurchaseDetail }) {
         </Box>
       )}
 
-  
+      {/* Attachments — icon + name only; a file is fetched when clicked */}
+      {attachments.length > 0 && (
+        <Box>
+          <SectionLabel>Attachments ({attachments.length})</SectionLabel>
+          <AttachmentList attachments={attachments} />
+        </Box>
+      )}
     </Box>
   );
 }

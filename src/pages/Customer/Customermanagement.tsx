@@ -30,6 +30,7 @@ import SuccessToast from "@components/Common/SuccessToast";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
 import { useInfiniteCustomers, useSetCustomerActive } from "./useCustomerapi";
 import { useModulePermission } from "@hooks/useModulePermission";
+import { runIfSubscribed } from "@utils/subscriptionGuard";
 
 const theme = createTheme({
   palette: {
@@ -206,12 +207,13 @@ export default function CustomerManagement({
     return () => observer.disconnect();
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
+  // On a view-only (expired) business the confirm never opens — the expired modal does.
   const handleDelete = useCallback((customer: Customer) => {
-    setStatusTarget({ customer, isDelete: true });
+    runIfSubscribed(() => setStatusTarget({ customer, isDelete: true }));
   }, []);
 
   const handleRestore = useCallback((customer: Customer) => {
-    setStatusTarget({ customer, isDelete: false });
+    runIfSubscribed(() => setStatusTarget({ customer, isDelete: false }));
   }, []);
 
   const handleStatusConfirm = useCallback(() => {

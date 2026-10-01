@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForceRefreshProducts, usePosSearch, usePosProducts, posProductsKey } from "./useposproducts";
 import { bulkUpsertProducts, type PosProduct } from "./db";
@@ -907,7 +907,10 @@ const {
       setShowSuggestions(true);
   }, [catalogueLoading]);
 
-useEffect(() => {
+// Layout effect, not a plain effect: the received amount must catch up with the
+// new total before paint, or the Balance Due row flashes for one frame on every
+// qty change.
+useLayoutEffect(() => {
   if (!receivedDirty && grandTotal > 0) {
     setReceivedAmount(String(grandTotal));
   }

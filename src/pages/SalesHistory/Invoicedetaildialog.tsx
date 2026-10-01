@@ -23,6 +23,7 @@ import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import RestaurantMenuOutlinedIcon from "@mui/icons-material/RestaurantMenuOutlined";
 import jsPDF                  from "jspdf";
 import { useNavigate }        from "react-router-dom";
+import { runIfSubscribed } from "@utils/subscriptionGuard";
 import { numberToWords }      from "@utils/numberToWords";
 import {
   fetchSaleDetail,
@@ -515,6 +516,65 @@ export default function InvoiceDetailsModal({
   const printDate     = saleDateFmt.replace(TRAILING_TIME, "");
   const printTime     = sale?.sale_time_fmt || saleDateFmt.match(TRAILING_TIME)?.[1] || null;
 
+  // ── Net of returns ────────────────────────────────────────
+  // A printed invoice states only what the customer finally kept: each line is
+  // cut down to quantity − returned_qty (its amounts scaled to match), fully
+  // returned lines are dropped, and the HSN summary is scaled per slab by how
+  // much of that slab's value survived. The dialog above still shows the
+  // original lines alongside the return history.
+  const lineValue = (i: any) => Number(i.total_amount ?? 0);
+  const printItems: any[] = items
+    .map((i: any) => {
+      const qty      = Number(i.quantity ?? 0);
+      const returned = Number(i.returned_qty ?? 0);
+      if (!(returned > 0) || !(qty > 0)) return i;
+      const netQty = Math.max(0, qty - returned);
+      const ratio  = netQty / qty;
+      return {
+        ...i,
+        quantity:     netQty,
+        total_amount: lineValue(i) * ratio,
+        tax_amount:   Number(i.tax_amount ?? 0) * ratio,
+        cgst:         Number(i.cgst ?? 0) * ratio,
+        sgst:         Number(i.sgst ?? 0) * ratio,
+        discount:     Number(i.discount ?? 0) * ratio,
+      };
+    })
+    .filter((i: any) => Number(i.quantity ?? 0) > 0);
+  const hasReturns     = !isRestaurant && items.some((i: any) => Number(i.returned_qty ?? 0) > 0);
+  const origItemsValue = items.reduce((s: number, i: any) => s + lineValue(i), 0);
+  const netItemsValue  = printItems.reduce((s: number, i: any) => s + lineValue(i), 0);
+  const keptRatio      = origItemsValue > 0 ? netItemsValue / origItemsValue : 1;
+
+  const sameSlab = (i: any, row: HsnWiseTax) =>
+    String(i.hsn_code ?? "") === String(row.hsn_code ?? "") &&
+    Math.abs(Number(i.gst_percentage ?? 0) / 2 - Number(row.cgst_percent ?? 0)) < 0.001;
+  const printHsnWiseTax: HsnWiseTax[] = !hasReturns ? hsnWiseTax : hsnWiseTax
+    .map((row) => {
+      const orig = items.filter((i: any) => sameSlab(i, row)).reduce((s: number, i: any) => s + lineValue(i), 0);
+      const net  = printItems.filter((i: any) => sameSlab(i, row)).reduce((s: number, i: any) => s + lineValue(i), 0);
+      const r    = orig > 0 ? net / orig : keptRatio;
+      const scale = (v: string | undefined) => (Number(v ?? 0) * r).toFixed(2);
+      return {
+        ...row,
+        taxable_value: scale(row.taxable_value),
+        cgst_amount:   scale(row.cgst_amount),
+        sgst_amount:   scale(row.sgst_amount),
+        total_tax:     scale(row.total_tax),
+        ...(row.item_wise_discount_amount != null && { item_wise_discount_amount: scale(row.item_wise_discount_amount) }),
+      };
+    })
+    .filter((row) => Number(row.taxable_value) > 0 || Number(row.total_tax) > 0);
+  const printCgst = printHsnWiseTax.reduce((s, r) => s + Number(r.cgst_amount), 0);
+  const printSgst = printHsnWiseTax.reduce((s, r) => s + Number(r.sgst_amount), 0);
+  const printTotal = hasReturns ? adjustedTotal : originalTotal;
+  // A percentage discount shrinks with the bill; a flat one stays as given.
+  const printDiscount = hasDiscount
+    ? (hasReturns && sale?.discount_type === "percentage"
+        ? Number(sale?.discount_amount ?? 0) * keptRatio
+        : sale?.discount_amount)
+    : null;
+
   // Restaurant menu items rarely carry an HSN code, and the server's HSN-wise
   // summary skips every line without one — so the printed GST summary came out
   // empty. Rebuild the slabs from the lines, the way the POS taxed them.
@@ -546,7 +606,7 @@ export default function InvoiceDetailsModal({
     customer_shipping_address: hasShippingAddress ? customerShippingAddress : null,
     payment_mode:      history?.[0]?.transaction_type ?? "Cash",
     payment_status:    sale?.payment_status,
-    items: items.map((i: any) => ({
+    items: printItems.map((i: any) => ({
       item_id:  isRestaurant ? (i.menu_code || i.item_id) : i.item_id,
       name:     i.item_name,
       description: i.description,   // may be absent — item had no description at sale time
@@ -558,17 +618,17 @@ export default function InvoiceDetailsModal({
       tax:      i.gst_percentage,
       total:    i.total_amount,
     })),
-    subtotal:       sale?.subtotal,
-    discount:       hasDiscount ? sale?.discount_amount : null,
+    subtotal:       hasReturns ? Number(sale?.subtotal ?? 0) * keptRatio : sale?.subtotal,
+    discount:       printDiscount,
     discount_label: discountLabel,
-    cgst:           restaurantGstBreakdown ? restaurantGstBreakdown.reduce((s, r) => s + r.cgstAmount, 0) : hsnTotals.cgst,
-    sgst:           restaurantGstBreakdown ? restaurantGstBreakdown.reduce((s, r) => s + r.sgstAmount, 0) : hsnTotals.sgst,
-    cgst_pct:       Number(hsnWiseTax[0]?.cgst_percent ?? 0) || 2.5,
-    sgst_pct:       Number(hsnWiseTax[0]?.sgst_percent ?? 0) || 2.5,
+    cgst:           restaurantGstBreakdown ? restaurantGstBreakdown.reduce((s, r) => s + r.cgstAmount, 0) : printCgst,
+    sgst:           restaurantGstBreakdown ? restaurantGstBreakdown.reduce((s, r) => s + r.sgstAmount, 0) : printSgst,
+    cgst_pct:       Number(printHsnWiseTax[0]?.cgst_percent ?? 0) || 2.5,
+    sgst_pct:       Number(printHsnWiseTax[0]?.sgst_percent ?? 0) || 2.5,
     round_off:      hasRoundOff ? sale?.round_off : null,
-    total:          originalTotal,
-    amount_in_words: `${numberToWords(Math.round(originalTotal))} Rupees Only`,
-    gst_breakdown: restaurantGstBreakdown ?? hsnWiseTax.map((row) => ({
+    total:          printTotal,
+    amount_in_words: `${numberToWords(Math.round(printTotal))} Rupees Only`,
+    gst_breakdown: restaurantGstBreakdown ?? printHsnWiseTax.map((row) => ({
       hsn:            row.hsn_code,
       taxable:        row.taxable_value,
       cgstRate:       Number(row.cgst_percent).toFixed(2),
@@ -633,7 +693,7 @@ export default function InvoiceDetailsModal({
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           {!isRestaurant && !isCancelledTab && (
             <Tooltip title="Edit in POS">
-              <IconButton size="small" onClick={() => navigate(getPosEditUrl(sale?.sale_uuid, sale?.sale_type))}
+              <IconButton size="small" onClick={() => runIfSubscribed(() => navigate(getPosEditUrl(sale?.sale_uuid, sale?.sale_type)))}
                 sx={{ color: "#2563EB", bgcolor: "#EFF6FF", "&:hover": { bgcolor: "#DBEAFE" }, borderRadius: "50%", width: 32, height: 32 }}>
                 <EditIcon sx={{ fontSize: 16 }} />
               </IconButton>

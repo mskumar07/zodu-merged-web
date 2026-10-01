@@ -187,7 +187,7 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
                       ? `${currentBranch.branch_id} - ${currentBranch.branch_name}`
                       : branchName}
                   </Box>
-                  {branchCity && ` · ${branchCity}`}
+                  {/* {branchCity && ` · ${branchCity}`} */}
                 </Typography>
               </Box>
             )}

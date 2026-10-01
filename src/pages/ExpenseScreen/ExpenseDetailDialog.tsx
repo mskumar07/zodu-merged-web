@@ -24,6 +24,7 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useModulePermission } from "@hooks/useModulePermission";
 import { closeFromControlsOnly } from "@utils/dialog";
+import AttachmentList, { parseAttachments } from "@components/Common/AttachmentList";
 
 const INR = (v: number | string) =>
   new Intl.NumberFormat("en-IN", {
@@ -121,6 +122,8 @@ function ExpenseDetailContent({ data }: { data: ExpenseDetail }) {
     data.vendor_state,
     data.vendor_pincode,
   ].filter(Boolean).join(", ");
+
+  const attachments = parseAttachments(data.attachment_url);
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
@@ -256,6 +259,14 @@ function ExpenseDetailContent({ data }: { data: ExpenseDetail }) {
           <Box sx={{ p: 2, bgcolor: "#F8FAFC", borderRadius: 1.5, border: "1px solid #E2E8F0" }}>
             <Typography sx={{ fontSize: 13, color: "#334155" }}>{data.notes}</Typography>
           </Box>
+        </Box>
+      )}
+
+      {/* Attachments — icon + name only; a file is fetched when clicked */}
+      {attachments.length > 0 && (
+        <Box>
+          <SectionLabel>Attachments ({attachments.length})</SectionLabel>
+          <AttachmentList attachments={attachments} />
         </Box>
       )}
     </Box>

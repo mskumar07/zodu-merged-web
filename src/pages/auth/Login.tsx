@@ -486,6 +486,7 @@ import { useLoginMutation, type LoginResponse } from './Authapi';
 import { useAppDispatch, useAppSelector } from '@store/store';
 import { IsAuthenticated, addUserData, setAuthData, setRoleAccess } from '@store/slices/userSlice';
 import { loadBranchSession } from './loadBranchSession';
+import { notifyIfBranchExpired } from '@utils/subscriptionGuard';
 import { consumePendingSignup } from '@utils/pendingSignup';
 import AuthLayout from './AuthLayout';
 
@@ -672,6 +673,7 @@ const ZoduLoginPage: React.FC = () => {
         );
         await loadSession(employeeZoduId, employeeBranchId);
         navigate('/dashboard', { replace: true });
+        notifyIfBranchExpired(employeeBranch);
         return;
       }
 
@@ -692,6 +694,7 @@ const ZoduLoginPage: React.FC = () => {
         );
         await loadSession(singleCompany.zodu_id, onlyBranch.branch_id);
         navigate('/dashboard', { replace: true });
+        notifyIfBranchExpired(onlyBranch);
         return;
       }
 

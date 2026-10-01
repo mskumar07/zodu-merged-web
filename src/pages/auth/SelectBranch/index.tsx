@@ -18,6 +18,7 @@ import { loadBranchSession } from "@pages/auth/loadBranchSession";
 import SuccessToast from "@components/Common/SuccessToast";
 import zlogo from "../../../assets/zlogo.png";
 import { getBranchSubscription } from "@utils/subscription";
+import { notifyIfBranchExpired } from "@utils/subscriptionGuard";
 
 const BRAND_RED = "#c8101f";
 const CARD_BORDER = "rgba(19, 30, 56, 0.07)";
@@ -342,11 +343,13 @@ const SelectBranch: React.FC = () => {
     branchId: string,
     branchName: string
   ) => {
-    // An expired branch is still enterable — it opens view-only, and
-    // <SubscriptionGuard> raises the expired modal on any attempted change.
+    // An expired branch is still enterable — it opens view-only on the
+    // dashboard, the expired modal shows once on arrival, and <SubscriptionGuard>
+    // raises it again on any attempted change.
     dispatch(addUserData({ branchId, branchName, zoduId: company.zodu_id, businessType: company.business_type ?? "" }));
     if (!(await loadSession(company.zodu_id, branchId))) return;
     navigate("/dashboard", { replace: true });
+    notifyIfBranchExpired(company.branches.find((b) => b.branch_id === branchId));
   };
 
   useEffect(() => {
@@ -365,7 +368,9 @@ const SelectBranch: React.FC = () => {
       })
     );
     loadSession(onlyCompany.zodu_id, onlyBranch.branch_id).then((ok) => {
-      if (ok) navigate("/dashboard", { replace: true });
+      if (!ok) return;
+      navigate("/dashboard", { replace: true });
+      notifyIfBranchExpired(onlyBranch);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companies, dispatch, navigate, fromSwitch]);
