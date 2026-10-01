@@ -44,6 +44,7 @@ import axios from "axios";
 import SuccessToast from "@components/Common/SuccessToast";
 import { getTenantContext, getAccessToken } from "@store/tenantContext";
 import { closeFromControlsOnly } from "@utils/dialog";
+import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 
@@ -679,6 +680,7 @@ interface AddNewExpenseDialogProps {
 }
 
 export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpenseId }: AddNewExpenseDialogProps) {
+  useBlockWhenReadOnly(open, onClose);
   const isEditMode = !!editExpenseId;
   const queryClient = useQueryClient();
 

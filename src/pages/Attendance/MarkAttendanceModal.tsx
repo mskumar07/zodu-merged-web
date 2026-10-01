@@ -18,6 +18,7 @@ import {
   type AttendanceStatus,
   type MarkAttendanceRecord,
 } from "@store/services/attendanceApi";
+import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 // ─── Theme ───────────────────────────────────────────────────
 
@@ -134,6 +135,7 @@ function StatusToggle({ value, onChange }: { value: MarkStatus; onChange: (s: Ma
 export default function MarkAttendanceModal({
   open, onClose, zoduId, branchId, markedById, markedByName, onSuccess, onError,
 }: MarkAttendanceModalProps) {
+  useBlockWhenReadOnly(open, onClose);
   const today = new Date().toISOString().slice(0, 10);
   const [date, setDate] = useState(today);
   const [page, setPage] = useState(1);

@@ -34,6 +34,7 @@ import {
   type InventoryItem,
   type AdjustStockResponse,
 } from './useInventoryapi';
+import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 const theme = createTheme({
   palette: {
@@ -71,6 +72,7 @@ const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
   defaultQuantity,
   defaultReason,
 }) => {
+  useBlockWhenReadOnly(open, onClose);
   // ── State ──────────────────────────────────────────────────
   const [selectedUuid,       setSelectedUuid]       = useState('');
   const [adjustmentType,     setAdjustmentType]     = useState<'add' | 'subtract'>('add');

@@ -18,6 +18,7 @@ import EmployeeFormModal from "./EmployeeFormModal";
 import EmployeeViewModal from "./EmployeeViewModal";
 import LottieLoader from "@components/LottieLoader";
 import { useModulePermission } from "@hooks/useModulePermission";
+import { useSubscriptionGuard } from "@hooks/useSubscriptionGuard";
 
 const theme = createTheme({
   palette: {
@@ -87,6 +88,7 @@ function DeleteDialog({ open, name, isPending, onConfirm, onCancel }: {
 
 // ─── Main ─────────────────────────────────────────────────────
 export default function EmployeeManagement() {
+  const { guard } = useSubscriptionGuard();
   const { canCreate, canEdit, canDelete } = useModulePermission("Staff / User Management");
   const [modalOpen, setModalOpen]   = useState(false);
   const [modalMode, setModalMode]   = useState<"add" | "edit" | "view">("add");
@@ -202,7 +204,7 @@ export default function EmployeeManagement() {
           </Tooltip>
           <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"} placement="top">
             <span>
-              <IconButton size="small" disabled={!canEdit} onClick={(e) => { e.stopPropagation(); openEdit(row.employee_id); }}
+              <IconButton size="small" disabled={!canEdit} onClick={guard((e) => { e.stopPropagation(); openEdit(row.employee_id); })}
                 sx={{ color: "#1976d2", p: 0.6, borderRadius: 1, "&:hover": { bgcolor: "#EFF6FF", color: "#1565C0" }, transition: "all 0.12s" }}>
                 <EditOutlinedIcon sx={{ fontSize: 16 }} />
               </IconButton>
@@ -211,7 +213,7 @@ export default function EmployeeManagement() {
           {status === "active" && (
             <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"} placement="top">
               <span>
-                <IconButton size="small" disabled={!canDelete} onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: row.employee_id, name: row.name }); }}
+                <IconButton size="small" disabled={!canDelete} onClick={guard((e) => { e.stopPropagation(); setDeleteTarget({ id: row.employee_id, name: row.name }); })}
                   sx={{ color: "#D2122E", p: 0.6, borderRadius: 1.5, "&:hover": { bgcolor: "#D2122E22" }, transition: "all 0.12s" }}>
                   <DeleteOutlineIcon sx={{ fontSize: 16 }} />
                 </IconButton>
@@ -260,7 +262,7 @@ export default function EmployeeManagement() {
               ) } }}
             />
             <Button variant="contained" size="small" startIcon={<AddIcon sx={{ fontSize: 16 }} />}
-              onClick={openAdd} disableElevation disabled={!canCreate}
+              onClick={guard(openAdd)} disableElevation disabled={!canCreate}
               sx={{ flexShrink: 0, fontSize: 13, fontWeight: 700, bgcolor: "#E11D48", color: "#fff", px: 2, py: 0.8,
                 borderRadius: 1.5, boxShadow: "0 4px 14px rgba(225,29,72,0.3)",
                 "&:hover": { bgcolor: "#BE123C" }, transition: "all 0.15s", whiteSpace: "nowrap" }}>

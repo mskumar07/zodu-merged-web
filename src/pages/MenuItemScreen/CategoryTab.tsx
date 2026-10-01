@@ -30,6 +30,7 @@ import AddCategoryDialog from "./AddCategoryDialog";
 import SuccessToast from "@components/Common/SuccessToast";
 import { useQueryClient } from "@tanstack/react-query";
 import { closeFromControlsOnly } from "@utils/dialog";
+import { useSubscriptionGuard } from "@hooks/useSubscriptionGuard";
 
 // ── Props ─────────────────────────────────────────────────────
 
@@ -64,6 +65,7 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
   canEdit = true,
   canDelete = true,
 }) => {
+  const { guard } = useSubscriptionGuard();
   const qc = useQueryClient();
 
   // ── Add / Edit dialog ─────────────────────────────────────────────────────
@@ -224,7 +226,7 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
           <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
             <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"}>
               <span>
-                <IconButton size="small" onClick={() => openEdit(row)} disabled={!canEdit}
+                <IconButton size="small" onClick={guard(() => openEdit(row))} disabled={!canEdit}
                   sx={{ color: "text.disabled", "&:hover": { color: "primary.main", bgcolor: "primary.light" + "22" }, borderRadius: 1.5 }}>
                   <EditIcon fontSize="small" />
                 </IconButton>
@@ -232,7 +234,7 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
             </Tooltip>
             <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"}>
               <span>
-                <IconButton size="small" onClick={() => setDeleteTarget(row)} disabled={!canDelete}
+                <IconButton size="small" onClick={guard(() => setDeleteTarget(row))} disabled={!canDelete}
                   sx={{ color: "#D2122E", "&:hover": { bgcolor: "#D2122E22" }, borderRadius: 1.5 }}>
                   <DeleteIcon fontSize="small" />
                 </IconButton>
@@ -280,7 +282,7 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
             }}
           />
           <Button
-            variant="contained" startIcon={<AddIcon />} onClick={openAdd}
+            variant="contained" startIcon={<AddIcon />} onClick={guard(openAdd)}
             sx={{ borderRadius: 0.5, fontWeight: 700, px: 2.5, height: 40, textTransform: "none", fontSize: 13, whiteSpace: "nowrap", boxShadow: "0 4px 14px rgba(210,18,46,0.25)" }}
           >
             Add Category

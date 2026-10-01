@@ -72,6 +72,7 @@ import VariantModal         from "./components/modals/VariantModal";
 import DiscountModal        from "./components/modals/DiscountModal";
 import CustomerModal, { type CustomerFormData } from "./components/modals/CustomerModal";
 import { useNavigate } from "react-router-dom";
+import { runIfSubscribed } from "@utils/subscriptionGuard";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -925,6 +926,7 @@ const RestaurantPOS: React.FC = () => {
   };
 
   const handleSendEditedKDS = async () => {
+    if (!runIfSubscribed()) return;
     if (!order.orderId || !runningOrderSummary.length) { setErrorMsg("No items to update"); return; }
     const discType = order.discountType === "Amount" ? "FLAT" : "PERCENT";
     const t = calcSummaryTotals(runningOrderSummary, discType, order.discountValue);
@@ -964,6 +966,7 @@ const RestaurantPOS: React.FC = () => {
   // backend's point of view, so it must go through update/orders — add/orders is
   // only for a table/takeaway that has no order yet.
   const handleSendToKDS = async () => {
+    if (!runIfSubscribed()) return;
     if (!cartItems.length)
      { setErrorMsg("Add items first"); return; }
     if (order.orderType === "DineIn" && !order.tableNumber) { setShowTable(true); return; }
@@ -1124,6 +1127,7 @@ const RestaurantPOS: React.FC = () => {
   };
 
   const handlePay = async (payMethod: PaymentMethod) => {
+    if (!runIfSubscribed()) return;
     const paidOrderType = order.orderType;
     try {
       let receipt: ReturnType<typeof buildReceiptData>;
@@ -1212,6 +1216,7 @@ const RestaurantPOS: React.FC = () => {
   };
 
   const handleHold = async () => {
+    if (!runIfSubscribed()) return;
     if (!cartItems.length) { setErrorMsg("No items to hold"); return; }
     // Holding abandons any restored running-order view immediately, before the API call resolves.
     setRunningOrderSummary([]);
@@ -1303,6 +1308,7 @@ const RestaurantPOS: React.FC = () => {
 
   const handleDeleteHold = async (holdId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!runIfSubscribed()) return;
     try {
       await deleteHoldOrder(holdId);
       setSuccessMsg("Hold order removed");

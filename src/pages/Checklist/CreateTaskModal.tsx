@@ -40,6 +40,7 @@ import {
   type ChecklistResponse,
 } from "./checklistNewApi";
 import { EvidenceThumb } from "./UpdateTaskStatusModal";
+import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 // ─── Theme ──────────────────────────────────────────────────────────────────────
 
@@ -153,6 +154,7 @@ function getFileCategory(name: string): "image" | "pdf" | "excel" | "word" | "ot
 // ─── Main Component ───────────────────────────────────────────────────────────────
 
 export default function CreateTaskModal({ open, onClose, onSuccess, onError, editChecklist }: Props) {
+  useBlockWhenReadOnly(open, onClose);
   const zoduId = useAppSelector(ZoduId);
   const branchId = useAppSelector(BranchId);
   const profile = useAppSelector(UserProfile);

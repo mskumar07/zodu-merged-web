@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 import { toast } from "react-toastify";
 import { closeFromControlsOnly } from "@utils/dialog";
+import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 interface Props {
   open: boolean;
@@ -30,6 +31,7 @@ interface Props {
 }
 
 const CreateCustomerModal: React.FC<Props> = ({ open, onClose, onSubmit, formData, setFormData }) => {
+  useBlockWhenReadOnly(open, onClose);
   // const [formData, setFormData] = React.useState({
   //   name: "",
   //   phone: "",

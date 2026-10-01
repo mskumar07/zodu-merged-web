@@ -11,6 +11,7 @@ import { createTheme, ThemeProvider } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import WarningRoundedIcon from "@mui/icons-material/WarningRounded";
 import type { Branch } from "@pages/auth/Authapi";
+import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 const theme = createTheme({
   palette: {
@@ -53,6 +54,7 @@ export default function DeleteBranchDialog({
   onClose,
   onConfirm,
 }: DeleteBranchDialogProps) {
+  useBlockWhenReadOnly(open, onClose);
   const [confirmText, setConfirmText] = useState("");
   const branchName = branch?.branch_name ?? "";
   const isMatch = confirmText.trim().toLowerCase() === branchName.trim().toLowerCase();

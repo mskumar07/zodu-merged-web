@@ -26,6 +26,7 @@ import {
 } from './useMenuItemApi';
 import SuccessToast from '@components/Common/SuccessToast';
 import { closeFromControlsOnly } from "@utils/dialog";
+import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 // ── Props ─────────────────────────────────────────────────────
 
@@ -90,6 +91,7 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
   onAdded,
   onEdited,
 }) => {
+  useBlockWhenReadOnly(open, onClose);
   const isRestaurant = businessType === 'Restaurant';
   const typeOptions  = isRestaurant ? TYPE_OPTIONS_RESTAURANT : TYPE_OPTIONS_RETAIL;
   const defaultCode: TypeCode = isRestaurant ? 'F' : 'S';

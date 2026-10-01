@@ -19,6 +19,7 @@ import {
 import { useMarkPayment, getZoduId, getBranchId } from "./usePuchaseapi";
 import { toast } from "react-toastify";
 import { closeFromControlsOnly } from "@utils/dialog";
+import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 interface Props {
   purchase: any;
@@ -49,6 +50,7 @@ const inputSx = {
 const PAYMENT_TYPES = ["Cash", "UPI","Bank Transfer", "Others"] as const;
 
 export default function PurchasePaymentDialog({ purchase, onClose, onSuccess }: Props) {
+  useBlockWhenReadOnly(true, onClose);
   const queryClient = useQueryClient();
 const balance = Number(purchase.balance_amount);
 

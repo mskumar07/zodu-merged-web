@@ -4,6 +4,7 @@ import {
   Button, TextField, Box, Typography,
 } from "@mui/material";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
+import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 export interface CustomerFormData {
   name: string;
@@ -21,6 +22,7 @@ interface Props {
 const EMPTY: CustomerFormData = { name: "", phone: "", email: "", address: "" };
 
 const CustomerModal: React.FC<Props> = ({ open, onSave, onClose }) => {
+  useBlockWhenReadOnly(open, onClose);
   const [form, setForm] = useState<CustomerFormData>(EMPTY);
   const [errors, setErrors] = useState<Partial<CustomerFormData>>({});
 

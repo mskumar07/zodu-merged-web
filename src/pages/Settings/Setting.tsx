@@ -61,6 +61,7 @@ import BusinessFormModal, { type BusinessFormData } from "./CompanyFormModal";
 import InvoiceSetting from "./InvoiceSetting";
 import RestaurantInvoiceSetting from "./RestaurantInvoiceSetting";
 import PosSetting from "./PosSetting";
+import ReadOnlyClickGuard from "@components/SubscriptionGuard/ReadOnlyClickGuard";
 import RestaurantPosSetting from "./RestaurantPosSetting";
 // import PrinterSettings from "./PrinterSettings";
 import RoleManagement from "@pages/auth/Role/RoleManagement";
@@ -1339,9 +1340,17 @@ export default function Setting() {
             </Stack>
           ))}
 
-          {activeTab === "invoice" && (businessType === "Restaurant" ? <RestaurantInvoiceSetting /> : <InvoiceSetting />)}
+          {activeTab === "invoice" && (
+            <ReadOnlyClickGuard>
+              {businessType === "Restaurant" ? <RestaurantInvoiceSetting /> : <InvoiceSetting />}
+            </ReadOnlyClickGuard>
+          )}
 
-          {activeTab === "pos" && (businessType === "Restaurant" ? <RestaurantPosSetting /> : <PosSetting />)}
+          {activeTab === "pos" && (
+            <ReadOnlyClickGuard>
+              {businessType === "Restaurant" ? <RestaurantPosSetting /> : <PosSetting />}
+            </ReadOnlyClickGuard>
+          )}
 
           {/* {activeTab === "kot" && businessType === "Restaurant" && <PrinterSettings />} */}
 

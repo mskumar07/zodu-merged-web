@@ -32,6 +32,7 @@ import {
   useUpdateMenuItemStatus,
 } from './useMenuItemApi';
 import { closeFromControlsOnly } from "@utils/dialog";
+import { useSubscriptionGuard } from "@hooks/useSubscriptionGuard";
 
 const queryClient = new QueryClient();
 
@@ -66,6 +67,7 @@ function toProduct(item: MenuItemData) {
 }
 
 function MenuItemScreen() {
+  const { guard } = useSubscriptionGuard();
   const qc = useQueryClient();
   const { canCreate, canEdit, canDelete } = useModulePermission('Menu Items');
 
@@ -150,9 +152,9 @@ function MenuItemScreen() {
   });
 
   // 🔥 DELETE HANDLERS
-  const openDeleteDialog = (uuid: string) => {
+  const openDeleteDialog = guard((uuid: string) => {
     setDeleteTarget(uuid);
-  };
+  });
 
   const confirmDelete = () => {
     if (!deleteTarget) return;
@@ -216,15 +218,15 @@ function MenuItemScreen() {
     return data.pages.flatMap((page) => page.data.map(toProduct));
   }, [data]);
 
-  const handleEditClick = (item: MenuItemData) => {
+  const handleEditClick = guard((item: MenuItemData) => {
     setEditItem(item);
     setModalOpen(true);
-  };
+  });
 
-  const handleEditFromDialog = (itemUuid: string) => {
+  const handleEditFromDialog = guard((itemUuid: string) => {
     setEditItem({ item_uuid: itemUuid } as MenuItemData);
     setModalOpen(true);
-  };
+  });
 
   const handleSave = (_data: AddMenuItemResponse) => {
     qc.invalidateQueries({ queryKey: ['menu', 'items'] });
@@ -312,7 +314,7 @@ function MenuItemScreen() {
         </Box>
       )}
 
-      <Button variant="contained" startIcon={<AddIcon />} disabled={!canCreate} onClick={() => { setEditItem(null); setModalOpen(true); }}
+      <Button variant="contained" startIcon={<AddIcon />} disabled={!canCreate} onClick={guard(() => { setEditItem(null); setModalOpen(true); })}
         sx={{ borderRadius: 0.5, fontWeight: 700, px: 2.5, height: 40, textTransform: 'none', fontSize: 13, whiteSpace: 'nowrap', boxShadow: '0 4px 14px rgba(210,18,46,0.25)' }}>
         Add Item
       </Button>
@@ -375,7 +377,7 @@ function MenuItemScreen() {
               onEdit={(p) => handleEditClick((p as any)._raw)}
               onEditFromDialog={handleEditFromDialog}
               onDelete={(p) => openDeleteDialog((p as any).item_uuid)}
-              onToggleStatus={(p, newStatus) => updateStatus({ item_uuid: p.item_uuid, status: newStatus })}
+              onToggleStatus={guard((p, newStatus) => updateStatus({ item_uuid: p.item_uuid, status: newStatus }))}
               hasNextPage={hasNextPage}
               isFetchingNextPage={isFetchingNextPage}
               loadMoreRef={sentinelRef}

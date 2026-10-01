@@ -46,6 +46,7 @@ import axios from "axios";
 import SuccessToast from "@components/Common/SuccessToast";
 import { getTenantContext, getAccessToken } from "@store/tenantContext";
 import { closeFromControlsOnly } from "@utils/dialog";
+import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 
@@ -551,6 +552,7 @@ dueDate: detail.due_date
 export default function AddNewPurchaseDialog({
   open, onClose, onSuccess, editPurchaseId,
 }: AddNewPurchaseDialogProps) {
+  useBlockWhenReadOnly(open, onClose);
   const isEditMode = !!editPurchaseId;
 
   const [form, setForm]               = useState<PurchaseForm>(emptyForm);

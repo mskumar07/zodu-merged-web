@@ -27,6 +27,7 @@ import ImageIcon from "@mui/icons-material/Image";
 import { useAppSelector } from "@store/store";
 import { ZoduId, BranchId, UserProfile } from "@store/slices/userSlice";
 import { useUpdateTaskStatusMutation, useUploadItemFileMutation, useDeleteChecklistItemMutation, useUploadChecklistAttachmentsMutation, useDeleteItemFileMutation, useDeleteChecklistAttachmentMutation, type TaskStatusItemPayload } from "./checklistNewApi";
+import ReadOnlyClickGuard from "@components/SubscriptionGuard/ReadOnlyClickGuard";
 
 // ─── Theme ──────────────────────────────────────────────────────────────────────
 
@@ -645,9 +646,11 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
             </Box>
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: -0.5 }}>
               {isOwner && canEdit && (
-                <IconButton onClick={onEdit} size="small" sx={{ color: "#6B7280" }}>
-                  <EditOutlinedIcon fontSize="small" />
-                </IconButton>
+                <ReadOnlyClickGuard>
+                  <IconButton onClick={onEdit} size="small" sx={{ color: "#6B7280" }}>
+                    <EditOutlinedIcon fontSize="small" />
+                  </IconButton>
+                </ReadOnlyClickGuard>
               )}
               <IconButton onClick={onClose} size="small">
                 <CloseIcon fontSize="small" />
@@ -659,6 +662,7 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
         <Divider sx={{ mx: 3 }} />
 
         <DialogContent sx={{ px: 3, py: 2.5, overflowY: "auto", bgcolor: "#F9FAFB" }}>
+          <ReadOnlyClickGuard>
 
           {/* ── Task Information ── */}
           <Box sx={{ bgcolor: "#fff", border: "1px solid #F1F5F9", borderRadius: 2.5, p: 1.75, mb: 2 }}>
@@ -902,19 +906,23 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
               </Box>
             </Box>
           </Box>
+          </ReadOnlyClickGuard>
         </DialogContent>
 
         <Divider />
 
         {/* ── Footer ── */}
         <DialogActions sx={{ px: 3, py: 2, gap: 1.5, justifyContent: "space-between" }}>
-          <Button variant="outlined" disabled={!canEdit} sx={{ borderColor: "#E5E7EB", color: "#374151", px: 3 }}>
-            Save as Draft
-          </Button>
+          <ReadOnlyClickGuard>
+            <Button variant="outlined" disabled={!canEdit} sx={{ borderColor: "#E5E7EB", color: "#374151", px: 3 }}>
+              Save as Draft
+            </Button>
+          </ReadOnlyClickGuard>
           <Box sx={{ display: "flex", gap: 1.5 }}>
             <Button variant="outlined" onClick={onClose} sx={{ borderColor: "#E5E7EB", color: "#374151", px: 3 }}>
               Cancel
             </Button>
+            <ReadOnlyClickGuard>
             <Button
               variant="contained" disableElevation
               onClick={handleSubmit}
@@ -924,6 +932,7 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
             >
               Submit & Update Status
             </Button>
+            </ReadOnlyClickGuard>
           </Box>
         </DialogActions>
       </Dialog>

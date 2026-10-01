@@ -29,6 +29,7 @@ import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
 import StorefrontIcon from "@mui/icons-material/Storefront";
 import RestaurantMenuIcon from "@mui/icons-material/RestaurantMenu";
 import type { CompanyDetails, CompanyWithBranches } from "@pages/auth/Authapi";
+import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 const theme = createTheme({
   palette: {
@@ -200,6 +201,7 @@ export default function BusinessFormModal({
   onSubmit,
   submitting = false,
 }: Props) {
+  useBlockWhenReadOnly(open, onClose);
   const isEdit = Boolean(business);
   const [form, setForm] = useState<BusinessFormData>(EMPTY_FORM);
   const [stateSearch, setStateSearch] = useState("");

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import LottieLoader from "@components/LottieLoader";
 import {
+  alpha,
   Avatar,
   Box,
   Checkbox,
@@ -63,6 +64,7 @@ import KotPrinterAssignModal from "@pages/MenuItemScreen/KotPrinterAssignModal";
 import SuccessToast from "@components/Common/SuccessToast";
 import { BranchId, ZoduId } from "@store/slices/userSlice";
 import { useModulePermission } from "@hooks/useModulePermission";
+import { useSubscriptionGuard } from "@hooks/useSubscriptionGuard";
 
 type MenuTab = "all" | "food" | "product" | "Category";
 
@@ -575,6 +577,7 @@ const DeleteConfirmDialog: React.FC<{
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 const RestaurantMenuList: React.FC = () => {
+  const { guard } = useSubscriptionGuard();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isTablet = useMediaQuery(theme.breakpoints.down("md"));
@@ -740,20 +743,19 @@ const RestaurantMenuList: React.FC = () => {
                   }}
                 />
               ) : (
+                // No photo: same soft green initial badge as the retail Menu Item table.
                 <Avatar
-                  variant="rounded"
                   sx={{
-                    width: 40,
-                    height: 40,
+                    width: 24,
+                    height: 24,
                     flexShrink: 0,
-                    bgcolor: "rgba(211,47,47,0.1)",
-                    color: "#c62828",
-                    fontSize: "0.75rem",
+                    bgcolor: alpha("#10B981", 0.15),
+                    color: "#10B981",
+                    fontSize: "0.65rem",
                     fontWeight: 700,
-                    border: `1px solid ${theme.palette.divider}`,
                   }}
                 >
-                  {initials}
+                  {row.menu_name.charAt(0).toUpperCase()}
                 </Avatar>
               )}
               <Box>
@@ -863,7 +865,7 @@ const RestaurantMenuList: React.FC = () => {
                   <IconButton
                     size="small"
                     disabled={!canEdit}
-                    onClick={(e) => { e.stopPropagation(); setEditItem(row); setAddMenuOpen(true); }}
+                    onClick={guard((e) => { e.stopPropagation(); setEditItem(row); setAddMenuOpen(true); })}
                     sx={{ color: "text.disabled", "&:hover": { color: "primary.main", bgcolor: "primary.light" + "22" }, borderRadius: 1.5 }}
                   >
                     <EditIcon fontSize="small" />
@@ -875,7 +877,7 @@ const RestaurantMenuList: React.FC = () => {
                   <IconButton
                     size="small"
                     disabled={!canDelete}
-                    onClick={(e) => { e.stopPropagation(); setDeleteItem(row); }}
+                    onClick={guard((e) => { e.stopPropagation(); setDeleteItem(row); })}
                     sx={{ color: "primary.main", "&:hover": { bgcolor: "primary.light" + "22" }, borderRadius: 1.5 }}
                   >
                     <DeleteIcon fontSize="small" />
@@ -1079,7 +1081,7 @@ const RestaurantMenuList: React.FC = () => {
               variant="contained"
               startIcon={<AddIcon />}
               disabled={!canCreate}
-              onClick={() => setAddMenuOpen(true)}
+              onClick={guard(() => setAddMenuOpen(true))}
               sx={{
                 borderRadius: 0.5,
                 fontWeight: 700,

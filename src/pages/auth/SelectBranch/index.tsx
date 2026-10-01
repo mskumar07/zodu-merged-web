@@ -15,13 +15,9 @@ import { useAppDispatch, useAppSelector } from "@store/store";
 import { addUserData, AllCompanies, UserProfile, setRoleAccess, setInvoiceSettings, setPosSettings } from "@store/slices/userSlice";
 import { type Branch, type CompanyWithBranches } from "@pages/auth/Authapi";
 import { loadBranchSession } from "@pages/auth/loadBranchSession";
-import SubscriptionExpiredModal from "@components/Modals/SubscriptionExpiredModal";
 import SuccessToast from "@components/Common/SuccessToast";
 import zlogo from "../../../assets/zlogo.png";
 import { getBranchSubscription } from "@utils/subscription";
-
-// Subscriptions are per branch — a branch without subscription data is never blocked.
-const isBranchExpired = (branch?: Branch | null): boolean => !!getBranchSubscription(branch)?.expired;
 
 const BRAND_RED = "#c8101f";
 const CARD_BORDER = "rgba(19, 30, 56, 0.07)";
@@ -315,7 +311,6 @@ const SelectBranch: React.FC = () => {
     [companiesFromState, storedCompanies]
   );
 
-  const [expired, setExpired] = useState<{ company: CompanyWithBranches; branch: Branch } | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Permissions and settings are both scoped per zodu_id + branch_id and only
@@ -347,11 +342,8 @@ const SelectBranch: React.FC = () => {
     branchId: string,
     branchName: string
   ) => {
-    const branch = company.branches.find((b) => b.branch_id === branchId);
-    if (branch && isBranchExpired(branch)) {
-      setExpired({ company, branch });
-      return;
-    }
+    // An expired branch is still enterable — it opens view-only, and
+    // <SubscriptionGuard> raises the expired modal on any attempted change.
     dispatch(addUserData({ branchId, branchName, zoduId: company.zodu_id, businessType: company.business_type ?? "" }));
     if (!(await loadSession(company.zodu_id, branchId))) return;
     navigate("/dashboard", { replace: true });
@@ -364,8 +356,6 @@ const SelectBranch: React.FC = () => {
     const branches = onlyCompany?.branches ?? [];
     if (branches.length !== 1) return;
     const onlyBranch = branches[0];
-    // An expired branch stays on this screen so its status is visible.
-    if (isBranchExpired(onlyBranch)) return;
     dispatch(
       addUserData({
         zoduId: onlyCompany.zodu_id,
@@ -517,17 +507,6 @@ const SelectBranch: React.FC = () => {
           </Box>
         )}
       </Box>
-
-      <SubscriptionExpiredModal
-        open={expired !== null}
-        businessName={
-          expired
-            ? `${expired.company.restaurant_name || expired.company.business_name || expired.company.company_name || ""} - ${expired.branch.branch_name}`
-            : ""
-        }
-        expiryDate={expired ? getBranchSubscription(expired.branch)?.dateLabel : undefined}
-        onClose={() => setExpired(null)}
-      />
 
       <SuccessToast
         message={errorMsg || ""}

@@ -11,6 +11,7 @@ import { createTheme, ThemeProvider } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import WarningRoundedIcon from "@mui/icons-material/WarningRounded";
 import type { CompanyWithBranches } from "@pages/auth/Authapi";
+import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 const theme = createTheme({
   palette: {
@@ -51,6 +52,7 @@ export default function DeleteCompanyDialog({
   onClose,
   onConfirm,
 }: DeleteCompanyDialogProps) {
+  useBlockWhenReadOnly(open, onClose);
   const [confirmText, setConfirmText] = useState("");
   const companyName = company?.restaurant_name ?? company?.business_name ?? "";
   const isMatch = confirmText.trim().toLowerCase() === companyName.trim().toLowerCase();
