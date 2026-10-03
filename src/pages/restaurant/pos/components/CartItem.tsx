@@ -2,7 +2,7 @@ import React from "react";
 import { Box, Typography, Avatar, IconButton } from "@mui/material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import type { RestaurantCartItem } from "../api/restaurantPosApi";
-import { getItemPrice } from "../api/restaurantPosApi";
+import { getItemPrice, isKgUnit } from "../api/restaurantPosApi";
 
 interface Props {
   item: RestaurantCartItem;
@@ -140,7 +140,7 @@ const CartItem: React.FC<Props> = ({ item, onIncrement, onDecrement, onRemove })
               justifyContent: "center",
             }}
           >
-            {item.quantity}
+            {item.quantity}{isKgUnit(item.product.menu_unit) ? " kg" : ""}
           </Typography>
           <Box
             onClick={onIncrement}

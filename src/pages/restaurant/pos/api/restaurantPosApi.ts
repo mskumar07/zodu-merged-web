@@ -580,6 +580,15 @@ export function getItemPrice(item: RestaurantMenuItem): number {
   return parseFloat(item.sell_price) || 0;
 }
 
+// Weighed items are sold by fractional kg (picked in WeightModal) rather than
+// whole pieces. The backend stores the unit as either "KG" or "kg".
+export const isKgUnit = (unit: string | null | undefined) => (unit ?? "").toLowerCase() === "kg";
+
+// The +/- step for a kg line, and the rounding that keeps repeated 0.25 steps
+// from drifting into float noise like 0.7500000001.
+export const KG_STEP = 0.25;
+export const roundQty = (q: number) => Math.round(q * 1000) / 1000;
+
 export function calcTax(items: RestaurantCartItem[]): number {
   return items.reduce((total, cartItem) => {
     const price = getItemPrice(cartItem.product);

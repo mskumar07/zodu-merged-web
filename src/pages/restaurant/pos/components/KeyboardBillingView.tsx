@@ -47,7 +47,7 @@ import type {
   RunningOrderOrderedItem,
   HoldOrder,
 } from "../api/restaurantPosApi";
-import { getItemPrice } from "../api/restaurantPosApi";
+import { getItemPrice, isKgUnit } from "../api/restaurantPosApi";
 import { ORDER_TYPES, OrderTypePill, type Totals, type PaymentMethod } from "./OrderPanel";
 
 const RED = "#d32f2f";
@@ -184,6 +184,9 @@ const KeyboardBillingView: React.FC<Props> = ({
   const handlePickResult = (product: RestaurantMenuItem) => {
     onAddItem(product);
     onSearchChange("");
+    // kg items open the weight picker instead of landing in the cart straight
+    // away, so there is no row to put into qty-edit mode yet.
+    if (isKgUnit(product.menu_unit)) return;
     // While editing a running order, onAddItem writes into runningOrderSummary
     // (not cartItems) — bumping qty in place if the item's already a row, or
     // appending a new one otherwise. Focus whichever row it landed on.
@@ -233,7 +236,7 @@ const KeyboardBillingView: React.FC<Props> = ({
   const commitQtyEdit = (ci: RestaurantCartItem, refocusSearch = false) => {
     if (qtyEditCommittedRef.current) return;
     qtyEditCommittedRef.current = true;
-    const parsed = parseInt(qtyDraft, 10);
+    const parsed = isKgUnit(ci.product.menu_unit) ? parseFloat(qtyDraft) : parseInt(qtyDraft, 10);
     if (Number.isFinite(parsed) && parsed > 0) {
       onSetQty(ci.product, parsed);
     }
@@ -270,7 +273,7 @@ const KeyboardBillingView: React.FC<Props> = ({
   const commitSummaryQtyEdit = (idx: number, refocusSearch = false) => {
     if (qtyEditCommittedRef.current) return;
     qtyEditCommittedRef.current = true;
-    const parsed = parseInt(qtyDraft, 10);
+    const parsed = isKgUnit(runningOrderSummary[idx]?.item_unit) ? parseFloat(qtyDraft) : parseInt(qtyDraft, 10);
     if (Number.isFinite(parsed) && parsed > 0) {
       onSummarySetQty(idx, parsed);
     }
@@ -817,7 +820,7 @@ const KeyboardBillingView: React.FC<Props> = ({
                             </IconButton>
                             <Typography
                               onClick={() => { if (!summaryLocked) setEditingSummaryIdx(idx); }}
-                              sx={{ fontSize: 13, fontWeight: 700, width: 24, textAlign: "center", cursor: summaryLocked ? "default" : "pointer" }}
+                              sx={{ fontSize: 13, fontWeight: 700, minWidth: 24, textAlign: "center", cursor: summaryLocked ? "default" : "pointer" }}
                             >
                               {item.qty}
                             </Typography>
@@ -898,7 +901,7 @@ const KeyboardBillingView: React.FC<Props> = ({
                             </IconButton>
                             <Typography
                               onClick={() => setEditingQtyKey(cartItemKey(ci))}
-                              sx={{ fontSize: 13, fontWeight: 700, width: 24, textAlign: "center", cursor: "pointer" }}
+                              sx={{ fontSize: 13, fontWeight: 700, minWidth: 24, textAlign: "center", cursor: "pointer" }}
                             >
                               {ci.quantity}
                             </Typography>

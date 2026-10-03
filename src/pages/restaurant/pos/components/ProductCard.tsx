@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Box, Typography } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import type { RestaurantMenuItem } from "../api/restaurantPosApi";
-import { getItemPrice } from "../api/restaurantPosApi";
+import { getItemPrice, isKgUnit } from "../api/restaurantPosApi";
 
 interface Props {
   item: RestaurantMenuItem;
@@ -39,6 +39,7 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
   const initials      = item.menu_name.slice(0, 2).toUpperCase();
   const isUnavailable = !item.active;
   const hasVariant    = !!(item.variants && item.variants.length > 0);
+  const isKg          = isKgUnit(item.menu_unit);
   const inCart        = qty > 0;
   const tracksStock   = item.stock_qty != null;
   const remainingStock = tracksStock ? Math.max(0, (item.stock_qty as number) - qty) : null;
@@ -51,7 +52,7 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
   }, [qty]);
 
   function commitInput() {
-    const parsed = parseInt(inputVal, 10);
+    const parsed = isKg ? parseFloat(inputVal) : parseInt(inputVal, 10);
     if (!isNaN(parsed) && parsed > 0) {
       onSetQty?.(item, parsed);
     } else {

@@ -55,6 +55,9 @@ import {
   calcDiscount,
   calcGrandTotal,
   getItemPrice,
+  isKgUnit,
+  KG_STEP,
+  roundQty,
   type RestaurantCategory,
   type RestaurantMenuItem,
   type RestaurantCartItem,
@@ -69,12 +72,17 @@ import KeyboardBillingView from "./components/KeyboardBillingView";
 import { toPaymentTypeLabels } from "@pages/Settings/useInvoiceSettingApi";
 import TableModal           from "./components/modals/TableModal";
 import VariantModal         from "./components/modals/VariantModal";
+import WeightModal          from "./components/modals/WeightModal";
 import DiscountModal        from "./components/modals/DiscountModal";
 import CustomerModal, { type CustomerFormData } from "./components/modals/CustomerModal";
 import { useNavigate } from "react-router-dom";
 import { runIfSubscribed } from "@utils/subscriptionGuard";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
+
+// A typed/set qty: kg lines keep any positive weight, piece lines never drop below 1.
+const clampQty = (unit: string | null | undefined, qty: number) =>
+  isKgUnit(unit) ? roundQty(qty) : Math.max(1, qty);
 
 // Used by hold-order API
 const HOLD_ORDER_TYPE_MAP: Record<string, string> = {
@@ -264,6 +272,8 @@ const RestaurantPOS: React.FC = () => {
   // Snapshot of runningOrderSummary taken when edit mode starts, restored if the edit is cancelled.
   const [summaryBeforeEdit,   setSummaryBeforeEdit  ] = useState<RunningOrderOrderedItem[]>([]);
   const [variantItem,  setVariantItem ] = useState<RestaurantMenuItem | null>(null);
+  // kg-sold item whose weight is being entered/edited in WeightModal.
+  const [weightItem,   setWeightItem  ] = useState<RestaurantMenuItem | null>(null);
   const [successMsg,   setSuccessMsg  ] = useState("");
   const [errorMsg,     setErrorMsg    ] = useState("");
 
@@ -509,25 +519,24 @@ const RestaurantPOS: React.FC = () => {
           .reduce((s, c) => s + c.quantity, 0);
 
   // Adds a menu item into the running KOT summary (edit mode), or bumps its qty if already present.
+  const buildSummaryItem = (product: RestaurantMenuItem, qty: number): RunningOrderOrderedItem => ({
+    item_id:   product.menu_id,
+    item_name: product.menu_name,
+    item_unit: product.menu_unit,
+    qty,
+    price:     getItemPrice(product),
+    gst_tax:   product.gst_tax,
+    tax_include_or_exclude: product.tax_include_or_exclude ?? false,
+    menu_type: product.menu_type ?? null,
+  });
+
   const addToSummary = useCallback((product: RestaurantMenuItem) => {
     setRunningOrderSummary((prev) => {
       const found = prev.find((it) => it.item_id === product.menu_id);
       if (found) {
         return prev.map((it) => (it === found ? { ...it, qty: it.qty + 1 } : it));
       }
-      return [
-        ...prev,
-        {
-          item_id:   product.menu_id,
-          item_name: product.menu_name,
-          item_unit: product.menu_unit,
-          qty:       1,
-          price:     getItemPrice(product),
-          gst_tax:   product.gst_tax,
-          tax_include_or_exclude: product.tax_include_or_exclude ?? false,
-          menu_type: product.menu_type ?? null,
-        },
-      ];
+      return [...prev, buildSummaryItem(product, 1)];
     });
   }, []);
 
@@ -535,8 +544,9 @@ const RestaurantPOS: React.FC = () => {
     setRunningOrderSummary((prev) => {
       const found = prev.find((it) => it.item_id === product.menu_id);
       if (!found) return prev;
+      const step = isKgUnit(found.item_unit) ? KG_STEP : 1;
       const updated = prev.map((it) =>
-        it === found ? { ...it, qty: it.qty - 1 } : it
+        it === found ? { ...it, qty: roundQty(it.qty - step) } : it
       );
       return updated.filter((it) => it.qty > 0);
     });
@@ -546,7 +556,7 @@ const RestaurantPOS: React.FC = () => {
     setRunningOrderSummary((prev) => {
       const found = prev.find((it) => it.item_id === product.menu_id);
       if (!found) return prev;
-      return prev.map((it) => (it === found ? { ...it, qty: Math.max(1, newQty) } : it));
+      return prev.map((it) => (it === found ? { ...it, qty: clampQty(it.item_unit, newQty) } : it));
     });
   }, []);
 
@@ -604,6 +614,7 @@ const RestaurantPOS: React.FC = () => {
         setVariantItem(product);
         return;
       }
+      if (isKgUnit(product.menu_unit)) { setWeightItem(product); return; }
       if (isOutOfStock(product, getCartQtyStable(product.menu_id) + 1, () => handleProductClick(product))) return;
       if (isEditingSummaryRef.current) addToSummary(product);
       else addToCart(product);
@@ -645,6 +656,7 @@ const RestaurantPOS: React.FC = () => {
         setVariantItem(product);
         return;
       }
+      if (isKgUnit(product.menu_unit)) { setWeightItem(product); return; }
       const priorQty = getCartQty(product.menu_id);
       if (isOutOfStock(product, priorQty + 1, () => handleScanCode(code))) return;
       if (isEditingSummary) addToSummary(product); else addToCart(product);
@@ -672,21 +684,23 @@ const RestaurantPOS: React.FC = () => {
 
   // Whether any dialog is currently open — the page-level scanner listener below must
   // stay off while one is, so it doesn't fight with a dialog's own scan handling.
-  const anyModalOpen = showCameraScan || showTable || showDiscount || showCustomer || Boolean(variantItem) || Boolean(stockPrompt);
+  const anyModalOpen = showCameraScan || showTable || showDiscount || showCustomer || Boolean(variantItem) || Boolean(weightItem) || Boolean(stockPrompt);
 
   // Auto-detects a connected hardware USB/Bluetooth scanner without requiring the
   // scan bar to be clicked first — active whenever this screen has no dialog open.
   useHardwareScannerListener({ onScan: handleScanCode, active: !anyModalOpen });
 
   const incrementCart = useCallback((ci: RestaurantCartItem) => {
+    if (isKgUnit(ci.product.menu_unit)) { setWeightItem(ci.product); return; }
     if (isOutOfStock(ci.product, ci.quantity + 1, () => incrementCart(ci))) return;
     setCartItems((prev) => prev.map((c) => (c === ci ? { ...c, quantity: c.quantity + 1 } : c)));
   }, [isOutOfStock]);
 
   const decrementCart = useCallback((ci: RestaurantCartItem) => {
     setCartItems((prev) => {
+      const step = isKgUnit(ci.product.menu_unit) ? KG_STEP : 1;
       const updated = prev.map((c) =>
-        c === ci ? { ...c, quantity: Math.max(0, c.quantity - 1) } : c
+        c === ci ? { ...c, quantity: Math.max(0, roundQty(c.quantity - step)) } : c
       );
       return updated.filter((c) => c.quantity > 0);
     });
@@ -698,6 +712,7 @@ const RestaurantPOS: React.FC = () => {
 
   const incrementByProduct = useCallback(
     (product: RestaurantMenuItem) => {
+      if (isKgUnit(product.menu_unit)) { setWeightItem(product); return; }
       if (isOutOfStock(product, getCartQtyStable(product.menu_id) + 1, () => incrementByProduct(product))) return;
       if (isEditingSummaryRef.current) { addToSummary(product); return; }
       const found = cartItemsRef.current.find(
@@ -730,12 +745,37 @@ const RestaurantPOS: React.FC = () => {
         );
         if (!found) return prev;
         const updated = prev.map((c) =>
-          c === found ? { ...c, quantity: Math.max(1, newQty) } : c
+          c === found ? { ...c, quantity: clampQty(c.product.menu_unit, newQty) } : c
         );
         return updated;
       });
     },
     [isOutOfStock, setSummaryQtyByProduct]
+  );
+
+  // WeightModal confirm: the entered weight replaces the line's qty (adding the
+  // line if it isn't on the order yet), in the cart or the running KOT being edited.
+  const applyWeight = useCallback(
+    (product: RestaurantMenuItem, weight: number) => {
+      const qty = roundQty(weight);
+      if (isOutOfStock(product, qty, () => applyWeight(product, qty))) return;
+      if (isEditingSummaryRef.current) {
+        setRunningOrderSummary((prev) => {
+          const found = prev.find((it) => it.item_id === product.menu_id);
+          if (found) return prev.map((it) => (it === found ? { ...it, qty } : it));
+          return [...prev, buildSummaryItem(product, qty)];
+        });
+        return;
+      }
+      setCartItems((prev) => {
+        const found = prev.find(
+          (c) => c.product.menu_id === product.menu_id && !(c.product as any).variant_id
+        );
+        if (found) return prev.map((c) => (c === found ? { ...c, quantity: qty } : c));
+        return [...prev, { product, quantity: qty }];
+      });
+    },
+    [isOutOfStock]
   );
 
   const resetOrder = useCallback(() => {
@@ -787,14 +827,30 @@ const RestaurantPOS: React.FC = () => {
 
   // ── Edit-mode handlers for already-sent KOT items (runningOrderSummary) ────
   const incrementSummaryItem = useCallback((idx: number) => {
+    // kg lines open the weight picker, like the cart does; fall back to a
+    // plain 0.25 kg step if the item has since left the menu.
+    const target = runningOrderSummaryRef.current[idx];
+    if (target && isKgUnit(target.item_unit)) {
+      const product = allMenuItems.find((i) => i.menu_id === target.item_id);
+      if (product) { setWeightItem(product); return; }
+      setRunningOrderSummary((prev) =>
+        prev.map((it, i) => (i === idx ? { ...it, qty: roundQty(it.qty + KG_STEP) } : it))
+      );
+      return;
+    }
     setRunningOrderSummary((prev) =>
       prev.map((it, i) => (i === idx ? { ...it, qty: it.qty + 1 } : it))
     );
-  }, []);
+  }, [allMenuItems]);
 
   const decrementSummaryItem = useCallback((idx: number) => {
     setRunningOrderSummary((prev) =>
-      prev.map((it, i) => (i === idx ? { ...it, qty: Math.max(1, it.qty - 1) } : it))
+      prev.map((it, i) => {
+        if (i !== idx) return it;
+        return isKgUnit(it.item_unit)
+          ? { ...it, qty: Math.max(KG_STEP, roundQty(it.qty - KG_STEP)) }
+          : { ...it, qty: Math.max(1, it.qty - 1) };
+      })
     );
   }, []);
 
@@ -804,7 +860,7 @@ const RestaurantPOS: React.FC = () => {
 
   const setSummaryItemQty = useCallback((idx: number, qty: number) => {
     setRunningOrderSummary((prev) =>
-      prev.map((it, i) => (i === idx ? { ...it, qty: Math.max(1, qty) } : it))
+      prev.map((it, i) => (i === idx ? { ...it, qty: clampQty(it.item_unit, qty) } : it))
     );
   }, []);
 
@@ -2049,6 +2105,14 @@ const RestaurantPOS: React.FC = () => {
           setVariantItem(null);
         }}
         onClose={() => setVariantItem(null)}
+      />
+
+      <WeightModal
+        open={!!weightItem}
+        product={weightItem}
+        initialQty={weightItem ? getCartQty(weightItem.menu_id) : undefined}
+        onConfirm={applyWeight}
+        onClose={() => setWeightItem(null)}
       />
 
       <SuccessToast message={successMsg} onClose={() => setSuccessMsg("")} />
