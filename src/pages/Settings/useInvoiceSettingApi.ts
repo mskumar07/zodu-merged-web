@@ -87,10 +87,24 @@ export interface InvoiceSettingsResponse {
   show_payment_details: boolean;
   show_terms_conditions: boolean;
   terms_conditions: string;
+  // Quotation / proforma terms: with the toggle on, that document type prints
+  // its own text instead of the general terms. Absent on older rows.
+  show_quotation_terms?: boolean;
+  quotation_terms?: string | null;
+  show_proforma_terms?: boolean;
+  proforma_terms?: string | null;
   show_notes: boolean;
   notes: string;
   show_signature: boolean;
   show_bank_details: boolean;
+  // Faded image printed behind the invoice body; falls back to the company
+  // logo when no watermark image is uploaded. Absent on rows that predate it.
+  show_watermark?: boolean;
+  watermark_url?: string | null;
+  // Printed on the left, opposite the authorised signature; an empty
+  // signing line when no image is uploaded. Absent on rows that predate it.
+  show_receiver_signature?: boolean;
+  receiver_signature_url?: string | null;
   // Payment types offered at POS checkout, as canonical labels ("Cash" | "UPI" | "Cheque" |
   // "Bank Transfer" | "Others") — the column is a TEXT[] with a matching CHECK constraint,
   // so this is an array of labels, never a comma-separated string of codes.
@@ -135,10 +149,16 @@ export type UpdateInvoiceSettingsPayload = Partial<
     | "show_payment_details"
     | "show_terms_conditions"
     | "terms_conditions"
+    | "show_quotation_terms"
+    | "quotation_terms"
+    | "show_proforma_terms"
+    | "proforma_terms"
     | "show_notes"
     | "notes"
     | "show_signature"
     | "show_bank_details"
+    | "show_watermark"
+    | "show_receiver_signature"
     | "payment_types"
     | "invoice_copy_types"
     | "invoice_template"
@@ -165,7 +185,13 @@ function resolveSignatureUrl(settings: Record<string, unknown> | null | undefine
     (settings.signature_image as string | undefined) ??
     (settings.signature as string | undefined) ??
     null;
-  if (!raw) return null;
+  return resolveFileUrl(raw);
+}
+
+// A stored image value → a usable <img src>: full URLs pass through, a bare
+// filename is resolved against the GET /auth/file/:name route.
+function resolveFileUrl(raw: unknown): string | null {
+  if (!raw || typeof raw !== "string") return null;
   if (/^https?:\/\//i.test(raw)) return raw;
   const name = raw.split("/").pop();
   return `${API_BASE}/auth/file/${name}`;
@@ -195,7 +221,24 @@ function normalizeSettings(raw: Record<string, unknown>): InvoiceSettingsRespons
     ...(raw as unknown as InvoiceSettingsResponse),
     payment_types: toPaymentTypeLabels(raw.payment_types),
     signature_url: resolveSignatureUrl(raw),
+    watermark_url: resolveFileUrl(raw.watermark_url),
+    receiver_signature_url: resolveFileUrl(raw.receiver_signature_url),
   };
+}
+
+// The signature / watermark / receiver-signature endpoints answer
+// `{ data: { message, settings } }` — and older deploys answer a failed upload
+// with a 200 `{ data: { error } }`. Throw on that (so the mutation's onError
+// fires) instead of caching `{ error }` as if it were the settings row, which
+// crashed the settings screen on the missing fields.
+function settingsFromImageResponse(data: any): InvoiceSettingsResponse {
+  const error = data?.error ?? data?.data?.error;
+  if (error) throw new Error(String(error));
+  const settings = data?.settings ?? data?.data?.settings;
+  if (!settings || typeof settings !== "object") {
+    throw new Error("Unexpected response from the server");
+  }
+  return normalizeSettings(settings);
 }
 
 // ─── Fetch invoice settings ───────────────────────────────────
@@ -257,9 +300,10 @@ function extractErrorMessage(err: unknown, fallback: string): string {
   return axios.isAxiosError(err)
     ? (typeof err.response?.data?.errors === "string" ? err.response.data.errors : undefined) ??
        err.response?.data?.error ??
+       err.response?.data?.data?.error ??
        err.response?.data?.message ??
        err.message
-    : fallback;
+    : err instanceof Error && err.message ? err.message : fallback;
 }
 
 // ─── Signature upload / delete ─────────────────────────────────
@@ -273,7 +317,7 @@ async function uploadInvoiceSignature(file: File): Promise<InvoiceSettingsRespon
     formData,
     { headers: { "Content-Type": "multipart/form-data" } }
   );
-  return normalizeSettings(data.settings ?? data.data?.settings ?? data.data ?? data);
+  return settingsFromImageResponse(data);
 }
 
 export function useUploadInvoiceSignature(options?: {
@@ -303,7 +347,7 @@ async function deleteInvoiceSignature(): Promise<InvoiceSettingsResponse> {
   const { data } = await getApi().delete(
     `/invoice-settings/${zoduId}/${branchId}/signature`
   );
-  return normalizeSettings(data.settings ?? data.data?.settings ?? data.data ?? data);
+  return settingsFromImageResponse(data);
 }
 
 export function useDeleteInvoiceSignature(options?: {
@@ -324,6 +368,68 @@ export function useDeleteInvoiceSignature(options?: {
     },
     onError: (err: unknown) => {
       options?.onError?.(extractErrorMessage(err, "Failed to remove signature"));
+    },
+  });
+}
+
+// ─── Watermark / receiver signature upload & delete ────────────
+// Same contract as the signature endpoints above, one route per image.
+
+export type InvoiceImageKind = "watermark" | "receiver_signature";
+
+const INVOICE_IMAGE_ENDPOINT: Record<InvoiceImageKind, { path: string; field: string; label: string }> = {
+  watermark:          { path: "watermark",          field: "watermark",          label: "watermark" },
+  receiver_signature: { path: "receiver-signature", field: "receiver_signature", label: "receiver signature" },
+};
+
+export function useUploadInvoiceImage(
+  kind: InvoiceImageKind,
+  options?: { onSuccess?: (settings: InvoiceSettingsResponse) => void; onError?: (msg: string) => void }
+) {
+  const queryClient = useQueryClient();
+  const { zoduId, branchId } = getTenantContext();
+  const { path, field, label } = INVOICE_IMAGE_ENDPOINT[kind];
+
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append(field, file);
+      const { data } = await getApi().post(
+        `/invoice-settings/${zoduId}/${branchId}/${path}`,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+      return settingsFromImageResponse(data);
+    },
+    onSuccess: (settings) => {
+      queryClient.setQueryData(invoiceSettingsQueryKeys.detail(zoduId ?? "", branchId ?? ""), settings);
+      options?.onSuccess?.(settings);
+    },
+    onError: (err: unknown) => {
+      options?.onError?.(extractErrorMessage(err, `Failed to upload ${label}`));
+    },
+  });
+}
+
+export function useDeleteInvoiceImage(
+  kind: InvoiceImageKind,
+  options?: { onSuccess?: (settings: InvoiceSettingsResponse) => void; onError?: (msg: string) => void }
+) {
+  const queryClient = useQueryClient();
+  const { zoduId, branchId } = getTenantContext();
+  const { path, label } = INVOICE_IMAGE_ENDPOINT[kind];
+
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await getApi().delete(`/invoice-settings/${zoduId}/${branchId}/${path}`);
+      return settingsFromImageResponse(data);
+    },
+    onSuccess: (settings) => {
+      queryClient.setQueryData(invoiceSettingsQueryKeys.detail(zoduId ?? "", branchId ?? ""), settings);
+      options?.onSuccess?.(settings);
+    },
+    onError: (err: unknown) => {
+      options?.onError?.(extractErrorMessage(err, `Failed to remove ${label}`));
     },
   });
 }

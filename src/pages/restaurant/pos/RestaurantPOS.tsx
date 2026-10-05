@@ -1889,6 +1889,7 @@ const RestaurantPOS: React.FC = () => {
                         onIncrement={incrementByProduct}
                         onDecrement={decrementByProduct}
                         onSetQty={setQtyByProduct}
+                        showImage={posSettings?.show_item_image !== false}
                       />
                     ))}
                   </Box>

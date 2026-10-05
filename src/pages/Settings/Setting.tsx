@@ -83,10 +83,10 @@ function validateContactFields(params: {
   const { name, nameLabel, phone, email } = params;
 
   if (!name?.trim()) return `${nameLabel} is required.`;
-  if (!phone?.trim()) return "Phone number is required.";
-  if (!PHONE_REGEX.test(phone.trim())) return "Phone number must be exactly 10 digits.";
-  if (!email?.trim()) return "Email ID is required.";
-  if (!EMAIL_REGEX.test(email.trim())) return "Enter a valid email address.";
+  // Either one is enough; whichever is filled in must still be valid.
+  if (!phone?.trim() && !email?.trim()) return "Enter a mobile number or an email ID.";
+  if (phone?.trim() && !PHONE_REGEX.test(phone.trim())) return "Phone number must be exactly 10 digits.";
+  if (email?.trim() && !EMAIL_REGEX.test(email.trim())) return "Enter a valid email address.";
   return null;
 }
 

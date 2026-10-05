@@ -743,14 +743,14 @@ const ZoduLoginPage: React.FC = () => {
               {/* Form */}
               <Box component="form" onSubmit={handleSubmit} noValidate>
                 <Stack spacing={3}>
-                  {/* Email field */}
+                  {/* Email / phone field */}
                   <Box>
                     <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: '#5b403d', mb: 0.75, ml: 0.5 }}>
-                      Email Address
+                      Email Id / Phone Number
                     </Typography>
                     <TextField
                       fullWidth
-                      placeholder="name@company.com"
+                      placeholder="name@company.com or 9876543210"
                       value={identity}
                       onChange={e => { setIdentity(e.target.value); if (fieldErrors.identity) setFieldErrors(p => ({ ...p, identity: undefined })); }}
                       error={!!fieldErrors.identity}

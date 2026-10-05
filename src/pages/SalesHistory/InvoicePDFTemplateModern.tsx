@@ -3,7 +3,9 @@ import { useTenantContext } from "@store/tenantContext";
 import { AllCompanies, InvoiceSettingsData } from "@store/slices/userSlice";
 import React from "react";
 import { saleDocumentLabel } from "@utils/saleType";
+import { resolveTermsForSaleType } from "@utils/invoiceTerms";
 import { gstSummaryRows } from "@utils/gstSummary";
+import { InvoiceWatermark, resolveInvoiceExtras } from "./InvoiceWatermark";
 
 // ── Inline style constants ────────────────────────────────────
 // A cleaner, minimal alternative to InvoicePDFTemplate — same data shape and
@@ -205,7 +207,7 @@ function hasValue(v: unknown): v is string {
 
 
 // ── Modern template ─────────────────────────────────────────────
-export const InvoicePDFTemplateModern = React.forwardRef(({ data, settingsOverride, theme = "classic", accentColor, logoUrl, headerImageUrl, signatureUrl, copyType }: any, ref: any) => {
+export const InvoicePDFTemplateModern = React.forwardRef(({ data, settingsOverride, theme = "classic", accentColor, logoUrl, headerImageUrl, signatureUrl, watermarkUrl, receiverSignatureUrl, copyType }: any, ref: any) => {
   const isCompact = theme === "compact";
   const {
     sale_id, date, due_date,
@@ -245,8 +247,9 @@ export const InvoicePDFTemplateModern = React.forwardRef(({ data, settingsOverri
   const showShipToDetails = showCustomerDetails && showShippingAddress && hasValue(customer_shipping_address);
   const showTaxDetails = invoiceSettings?.show_tax_details ?? true;
   const showPaymentDetails = invoiceSettings?.show_payment_details ?? false;
-  const showTermsConditions = invoiceSettings?.show_terms_conditions ?? false;
-  const termsConditionsText = invoiceSettings?.terms_conditions ?? "";
+  // Quotations / proformas print their own terms when theirs are switched on.
+  const termsConditionsText = resolveTermsForSaleType(invoiceSettings, sale_type);
+  const showTermsConditions = termsConditionsText !== "";
   const showNotes = invoiceSettings?.show_notes ?? false;
   const notesText = invoiceSettings?.notes ?? "";
   const showSignature = invoiceSettings?.show_signature ?? false;
@@ -255,6 +258,8 @@ export const InvoicePDFTemplateModern = React.forwardRef(({ data, settingsOverri
   // company (Company Details), not on invoice settings — real invoice
   // rendering never passes `logoUrl` at all, it just reads the company row.
   const resolvedLogoUrl = logoUrl || selectedCompany?.company_logo_url || "";
+  const { watermarkSrc, showReceiverSignature, receiverSignatureSrc } =
+    resolveInvoiceExtras(invoiceSettings, { watermarkUrl, receiverSignatureUrl, logoUrl: resolvedLogoUrl });
   const showBankDetails = invoiceSettings?.show_bank_details ?? true;
   // Only terms share the panel with the bank details — notes sit below the table.
   const showTermsPanel = Boolean(showTermsConditions && termsConditionsText);
@@ -324,6 +329,7 @@ export const InvoicePDFTemplateModern = React.forwardRef(({ data, settingsOverri
 
   return (
     <div ref={ref} style={{ ...styles.page, padding: isCompact ? "20px 24px" : styles.page.padding }}>
+      <InvoiceWatermark src={watermarkSrc} />
 
       {headerImageUrl && (
         <img
@@ -623,16 +629,32 @@ export const InvoicePDFTemplateModern = React.forwardRef(({ data, settingsOverri
           </table>
         )}
 
-        {((showNotes && notesText) || showSignature) && (
+        {((showNotes && notesText) || showSignature || showReceiverSignature) && (
           <table style={styles.closingTable}>
             <tbody>
               <tr>
-                <td style={styles.closingNotesTd}>
+                {/* Notes, then the receiver's signature under them — bottom-aligned
+                    with the authorised signatory's opposite it on the right. */}
+                <td style={showReceiverSignature ? { ...styles.closingNotesTd, verticalAlign: "bottom" as const } : styles.closingNotesTd}>
                   {showNotes && notesText && (
                     <>
                       <p style={styles.noteLabel}>Notes</p>
                       <p style={{ ...styles.noteText, whiteSpace: "pre-line" as const, margin: 0 }}>{notesText}</p>
                     </>
+                  )}
+                  {showReceiverSignature && (
+                    <div style={{ ...styles.signBox, textAlign: "left" as const }}>
+                      <div style={{ ...styles.signSpace, justifyContent: "flex-start" }}>
+                        {receiverSignatureSrc && (
+                          <img
+                            src={receiverSignatureSrc}
+                            alt="Receiver signature"
+                            style={{ maxHeight: 46, maxWidth: 180, objectFit: "contain", display: "block" }}
+                          />
+                        )}
+                      </div>
+                      <p style={styles.signRole}>Receiver&apos;s Signature</p>
+                    </div>
                   )}
                 </td>
                 <td style={styles.closingSignTd}>

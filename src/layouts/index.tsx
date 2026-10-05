@@ -28,6 +28,11 @@ const Layout: React.FC = () => {
           minWidth: 0,
           bgcolor: theme.palette.background.default,
           height: "100vh",
+          // Mobile browsers size 100vh as if their toolbars were hidden, but only
+          // this shell's inner box scrolls, so the toolbars never hide and the
+          // bottom of every page (e.g. the POS Save button) sat unreachable
+          // behind them. dvh is the height actually visible.
+          "@supports (height: 100dvh)": { height: "100dvh" },
           display: "flex",
           flexDirection: "column",
         }}

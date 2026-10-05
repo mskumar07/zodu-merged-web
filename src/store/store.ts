@@ -2,7 +2,7 @@ import { configureStore } from "@reduxjs/toolkit";
 import { useDispatch, useSelector } from "react-redux";
 import type { TypedUseSelectorHook } from "react-redux";
 import POSReducer from "./slices/POSslice";
-import userReducer from "./slices/userSlice";
+import userReducer, { setInvoiceSettings, setPosSettings } from "./slices/userSlice";
 import { apiSlice } from "./services/apiSlice";
 import {
   CURRENT_USER_STATE_VERSION,
@@ -78,6 +78,34 @@ store.subscribe(() => {
     // Ignore storage write failures so the app keeps working.
   }
 });
+
+// Each tab holds its own copy of the branch settings, loaded when the tab
+// opened. Without this, a POS / Sales History tab left open while the Settings
+// tab saved (say) "Payment Details: off" kept printing and sharing invoices
+// with the old settings — and its next state write even put them back in
+// storage. Adopt the settings another tab saves for the same branch.
+// Comparing by value first keeps the tabs from echoing writes back and forth.
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (event) => {
+    if (event.key !== USER_STORAGE_KEY || !event.newValue) return;
+    let incoming: Partial<ReturnType<typeof toPersistedUserState>>;
+    try {
+      incoming = JSON.parse(event.newValue);
+    } catch {
+      return;
+    }
+    const current = store.getState().user;
+    if (!current.isAuthenticated || !incoming?.isAuthenticated) return;
+    if (incoming.zoduId !== current.zoduId || incoming.branchId !== current.branchId) return;
+
+    if (incoming.invoiceSettings && JSON.stringify(incoming.invoiceSettings) !== JSON.stringify(current.invoiceSettings)) {
+      store.dispatch(setInvoiceSettings(incoming.invoiceSettings));
+    }
+    if (incoming.posSettings && JSON.stringify(incoming.posSettings) !== JSON.stringify(current.posSettings)) {
+      store.dispatch(setPosSettings(incoming.posSettings));
+    }
+  });
+}
 
 // Types for TypeScript
 export type RootState = ReturnType<typeof store.getState>;

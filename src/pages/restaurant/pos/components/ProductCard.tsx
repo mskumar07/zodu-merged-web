@@ -11,6 +11,9 @@ interface Props {
   onIncrement: (item: RestaurantMenuItem) => void;
   onDecrement: (item: RestaurantMenuItem) => void;
   onSetQty?: (item: RestaurantMenuItem, qty: number) => void;
+  /** POS setting "Show Item Images". Off: no photo column — the price and the
+   *  Add / stepper share one row under the name. */
+  showImage?: boolean;
 }
 
 const FOOD_TYPE: Record<string, { dot: string; bg: string }> = {
@@ -32,7 +35,7 @@ if (typeof document !== "undefined" && !document.getElementById("qty-spin-qty-st
   document.head.appendChild(s);
 }
 
-const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecrement, onSetQty }) => {
+const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecrement, onSetQty, showImage = true }) => {
   const price         = getItemPrice(item);
   const foodKey       = item.food_type?.toLowerCase().replace(/[\s-]+/g, "_") ?? "veg";
   const { dot, bg }   = FOOD_TYPE[foodKey] ?? FOOD_TYPE.veg;
@@ -86,6 +89,7 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
       }}
     >
       {/* ── Left: image / placeholder ── */}
+      {showImage && (
       <Box
         sx={{
           width:      { xs: 80, sm: 90, md: 100 },
@@ -210,6 +214,7 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
           </Box>
         )}
       </Box>
+      )}
 
       {/* ── Right: content ── */}
       <Box
@@ -223,7 +228,26 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
           minWidth:      0,
         }}
       >
-        {/* Name */}
+        {/* Name — with the food-type mark in front when there is no photo column */}
+        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.6, flex: "1 1 auto", minWidth: 0 }}>
+        {!showImage && (
+          <Box
+            sx={{
+              mt:             "2px",
+              width:          13,
+              height:         13,
+              flexShrink:     0,
+              borderRadius:   "3px",
+              bgcolor:        bg,
+              border:         `1.5px solid ${dot}`,
+              display:        "flex",
+              alignItems:     "center",
+              justifyContent: "center",
+            }}
+          >
+            <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: dot }} />
+          </Box>
+        )}
         <Typography
           sx={{
             fontSize:        "0.77rem",
@@ -240,6 +264,18 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
         >
           {item.menu_name}
         </Typography>
+        </Box>
+
+        {/* Price + action — one row (price left) when there is no photo column */}
+        <Box
+          sx={showImage ? { display: "contents" } : {
+            display:        "flex",
+            alignItems:     "center",
+            justifyContent: "space-between",
+            gap:            1,
+            mt:             0.6,
+          }}
+        >
 
         {/* Price */}
         <Typography
@@ -256,7 +292,7 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
 
         {/* Action row — right-aligned, fixed width for both Add and stepper */}
         {!isUnavailable && (
-          <Box sx={{ mt: 0.65, display: "flex", justifyContent: "flex-end" }}>
+          <Box sx={{ mt: showImage ? 0.65 : 0, display: "flex", justifyContent: "flex-end" }}>
             {inCart && !hasVariant ? (
               /* Stepper — same width as Add button */
               <Box
@@ -367,6 +403,7 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
             )}
           </Box>
         )}
+        </Box>
       </Box>
     </Box>
   );

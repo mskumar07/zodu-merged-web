@@ -257,6 +257,8 @@ async function collectImageOverlays(
 ): Promise<Map<number, ImageOverlay>> {
   const overlays = new Map<number, ImageOverlay>();
   const jobs = Array.from(container.querySelectorAll("img"), (el, index) => {
+    // The watermark is stamped once per page instead (see collectWatermark).
+    if (el.hasAttribute("data-pdf-watermark")) return Promise.resolve();
     // Measured now, before any await, along with the rest of the layout.
     const rect = el.getBoundingClientRect();
     const fit = getComputedStyle(el).objectFit;
@@ -279,12 +281,48 @@ async function collectImageOverlays(
 }
 
 /** html2canvas onclone hook leaving the overlaid images out of the capture (their space kept). */
-function hideOverlaidImages(overlays: Map<number, ImageOverlay>) {
+function hideOverlaidImages(overlays: Map<number, ImageOverlay>, hideWatermark: boolean) {
   return (_doc: Document, clone: HTMLElement) => {
     clone.querySelectorAll("img").forEach((img, index) => {
-      if (overlays.has(index)) img.style.visibility = "hidden";
+      if (overlays.has(index) || (hideWatermark && img.hasAttribute("data-pdf-watermark"))) {
+        img.style.visibility = "hidden";
+      }
     });
   };
+}
+
+interface Watermark {
+  dataUrl: string;
+  /** On-screen size in CSS px — kept the same relative to the page in the PDF. */
+  width: number;
+  height: number;
+}
+
+/**
+ * An `img[data-pdf-watermark]` in the template, pre-faded to its CSS opacity.
+ * In the browser it sits once in the middle of the whole document; in the PDF
+ * it is left out of the capture and stamped centred on every page instead, so
+ * a multi-page invoice carries it on each sheet like letterhead. Null when
+ * there is none, or the image can't be read back (no CORS) — it then stays in
+ * the capture as-is.
+ */
+async function collectWatermark(container: HTMLElement): Promise<Watermark | null> {
+  const el = container.querySelector("img[data-pdf-watermark]") as HTMLImageElement | null;
+  if (!el || !el.complete) return null;
+  const rect = el.getBoundingClientRect();
+  const opacity = parseFloat(getComputedStyle(el).opacity);
+  if (rect.width < 1 || rect.height < 1) return null;
+
+  const box = await renderImageBox(el.currentSrc || el.src, "contain", rect.width, rect.height);
+  if (!box) return null;
+  const faded = document.createElement("canvas");
+  faded.width = box.width;
+  faded.height = box.height;
+  const context = faded.getContext("2d");
+  if (!context) return null;
+  context.globalAlpha = Number.isFinite(opacity) ? opacity : 1;
+  context.drawImage(box, 0, 0);
+  return { dataUrl: faded.toDataURL("image/png"), width: rect.width, height: rect.height };
 }
 
 /**
@@ -432,6 +470,8 @@ export async function renderPaginatedInvoicePdf(
   // Images go into the PDF on their own, sharp — measured here with the rest of
   // the layout, never split by a page break, and left out of the capture.
   const overlays = await collectImageOverlays(container, containerRect);
+  const watermark = await collectWatermark(container);
+  const watermarkAlias = `pdf-watermark-${++overlayAliasSeq}`;
   for (const o of overlays.values()) {
     keepTogetherRanges.push({ start: Math.round(o.top), end: Math.round(o.top + o.height) });
   }
@@ -443,7 +483,7 @@ export async function renderPaginatedInvoicePdf(
     useCORS: true,
     backgroundColor: "#ffffff",
     logging: false,
-    onclone: hideOverlaidImages(overlays),
+    onclone: hideOverlaidImages(overlays, !!watermark),
   });
   const footerBand = hasPageFooter ? cropCanvasBand(capturedCanvas, footerTopPx, footerBottomPx) : null;
   const contentCanvas = footerBand
@@ -509,6 +549,18 @@ export async function renderPaginatedInvoicePdf(
     pdf.addImage(footerImgData, "JPEG", 0, footerYMm, pageWidth, footerHeightMm, undefined, "MEDIUM");
     drawImageOverlays(pdf, overlays, footerTopPx, footerBottomPx, 0, footerYMm, 1 / pxPerMm);
   };
+  /** Stamps the watermark centred on the current page, over the content (it is pre-faded). */
+  const drawWatermark = () => {
+    if (!watermark) return;
+    const widthMm = toMm(watermark.width * PDF_CAPTURE_SCALE);
+    const heightMm = toMm(watermark.height * PDF_CAPTURE_SCALE);
+    pdf.addImage(
+      watermark.dataUrl, "PNG",
+      (pageWidth - widthMm) / 2, (pageHeight - heightMm) / 2,
+      widthMm, heightMm,
+      watermarkAlias, "FAST",
+    );
+  };
   const headerHeightMm = headerImgData ? toMm(headerHeightPx) : 0;
   const theadHeightMm = theadImgData ? toMm(theadHeightPx) : 0;
   const headerGapPx = headerImgData ? Math.max(0, Math.round(PDF_HEADER_GAP_MM * pxPerMm)) : 0;
@@ -545,6 +597,7 @@ export async function renderPaginatedInvoicePdf(
     );
     drawImageOverlays(pdf, overlays, 0, canvas.height, (pageWidth - imgWidthMm) / 2, 0, fitScale / pxPerMm);
     drawPageFooter();
+    drawWatermark();
     return pdf;
   }
 
@@ -651,6 +704,7 @@ export async function renderPaginatedInvoicePdf(
     );
     drawImageOverlays(pdf, overlays, sourceY, sourceY + sliceHeight, 0, cursorMm, 1 / pxPerMm);
     drawPageFooter();
+    drawWatermark();
 
     sourceY += sliceHeight;
   }
@@ -678,7 +732,7 @@ export async function renderThermalReceiptPdf(
     useCORS: true,
     backgroundColor: "#ffffff",
     logging: false,
-    onclone: hideOverlaidImages(overlays),
+    onclone: hideOverlaidImages(overlays, false),
   });
   const heightMm = (canvas.height / canvas.width) * printableMm;
   const format: [number, number] = [rollMm, heightMm];

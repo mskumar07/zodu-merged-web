@@ -23,6 +23,8 @@ import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalance
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import StickyNote2OutlinedIcon from "@mui/icons-material/StickyNote2Outlined";
 import BorderColorOutlinedIcon from "@mui/icons-material/BorderColorOutlined";
+import BrandingWatermarkOutlinedIcon from "@mui/icons-material/BrandingWatermarkOutlined";
+import DrawOutlinedIcon from "@mui/icons-material/DrawOutlined";
 import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
@@ -36,6 +38,8 @@ import {
   useUpdateInvoiceSettings,
   useUploadInvoiceSignature,
   useDeleteInvoiceSignature,
+  useUploadInvoiceImage,
+  useDeleteInvoiceImage,
   useCompanyLogoUrl,
   INVOICE_COPY_TYPE_LABELS,
   type InvoiceCopyTypeLabel,
@@ -133,9 +137,15 @@ interface InvoiceSettings {
   showPaymentDetails: boolean;
   showTermsConditions: boolean;
   termsConditionsText: string;
+  showQuotationTerms: boolean;
+  quotationTermsText: string;
+  showProformaTerms: boolean;
+  proformaTermsText: string;
   showNotes: boolean;
   notesText: string;
   showSignature: boolean;
+  showWatermark: boolean;
+  showReceiverSignature: boolean;
   showBankDetails: boolean;
   invoiceTemplate: string;
 }
@@ -472,7 +482,7 @@ function toUiSettings(api: InvoiceSettingsResponse): InvoiceSettings {
       : DEFAULT_INVOICE_COLOR,
     showCompanyLogo: api.show_company_logo,
     defaultPaymentMethod: PAYMENT_METHOD_TO_CODE[api.default_payment_method] ?? "cash",
-    printInch: api.printer_inch === "A4" ? "A4" : api.printer_inch.startsWith("2") ? "2" : api.printer_inch.startsWith("5") ? "5" : "3",
+    printInch: api.printer_inch === "A4" ? "A4" : (api.printer_inch ?? "").startsWith("2") ? "2" : (api.printer_inch ?? "").startsWith("5") ? "5" : "3",
     showItemDescription: api.show_description,
     showItemId: api.show_item_id,
     // Older rows predate this field — default to on, matching the prior
@@ -487,9 +497,15 @@ function toUiSettings(api: InvoiceSettingsResponse): InvoiceSettings {
     showPaymentDetails: api.show_payment_details ?? false,
     showTermsConditions: api.show_terms_conditions ?? false,
     termsConditionsText: api.terms_conditions ?? "",
+    showQuotationTerms: api.show_quotation_terms ?? false,
+    quotationTermsText: api.quotation_terms ?? "",
+    showProformaTerms: api.show_proforma_terms ?? false,
+    proformaTermsText: api.proforma_terms ?? "",
     showNotes: api.show_notes ?? false,
     notesText: api.notes ?? "",
     showSignature: api.show_signature ?? false,
+    showWatermark: api.show_watermark ?? false,
+    showReceiverSignature: api.show_receiver_signature ?? false,
     showBankDetails: api.show_bank_details ?? true,
     invoiceTemplate: INVOICE_TEMPLATE_OPTIONS.some(o => o.value === api.invoice_template)
       ? api.invoice_template
@@ -515,9 +531,15 @@ function toApiPayload(ui: InvoiceSettings): UpdateInvoiceSettingsPayload {
     show_payment_details: ui.showPaymentDetails,
     show_terms_conditions: ui.showTermsConditions,
     terms_conditions: ui.termsConditionsText,
+    show_quotation_terms: ui.showQuotationTerms,
+    quotation_terms: ui.quotationTermsText,
+    show_proforma_terms: ui.showProformaTerms,
+    proforma_terms: ui.proformaTermsText,
     show_notes: ui.showNotes,
     notes: ui.notesText,
     show_signature: ui.showSignature,
+    show_watermark: ui.showWatermark,
+    show_receiver_signature: ui.showReceiverSignature,
     show_bank_details: ui.showBankDetails,
     invoice_template: ui.invoiceTemplate,
   };
@@ -541,9 +563,15 @@ function getDefaultSettings(businessType: string): InvoiceSettings {
     showPaymentDetails: false,
     showTermsConditions: false,
     termsConditionsText: "",
+    showQuotationTerms: false,
+    quotationTermsText: "",
+    showProformaTerms: false,
+    proformaTermsText: "",
     showNotes: false,
     notesText: "",
     showSignature: false,
+    showWatermark: false,
+    showReceiverSignature: false,
     showBankDetails: true,
     invoiceTemplate: "classic",
   };
@@ -570,6 +598,8 @@ export default function InvoiceSetting() {
   const companyLogoUrl = useCompanyLogoUrl();
   const [headerImageUrl] = useState("");
   const [signatureUrl, setSignatureUrl] = useState("");
+  const [watermarkUrl, setWatermarkUrl] = useState("");
+  const [receiverSignatureUrl, setReceiverSignatureUrl] = useState("");
   const [saved, setSaved] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -603,6 +633,8 @@ export default function InvoiceSetting() {
       });
       baselineRef.current = ui;
       setSignatureUrl(data.signature_url ?? "");
+      setWatermarkUrl(data.watermark_url ?? "");
+      setReceiverSignatureUrl(data.receiver_signature_url ?? "");
     }
   }, [data]);
 
@@ -623,6 +655,37 @@ export default function InvoiceSetting() {
       dispatch(setInvoiceSettings(updated));
     },
     onError: () => setErrorMsg("Failed to remove signature. Please try again."),
+  });
+
+  // Watermark and receiver signature follow the same upload contract as the
+  // authorised signature above, including the Redux sync for real invoices.
+  const { mutate: uploadWatermark, isPending: watermarkUploading } = useUploadInvoiceImage("watermark", {
+    onSuccess: (updated) => {
+      setWatermarkUrl(updated.watermark_url ?? "");
+      dispatch(setInvoiceSettings(updated));
+    },
+    onError: setErrorMsg,
+  });
+  const { mutate: removeWatermark, isPending: watermarkDeleting } = useDeleteInvoiceImage("watermark", {
+    onSuccess: (updated) => {
+      setWatermarkUrl("");
+      dispatch(setInvoiceSettings(updated));
+    },
+    onError: setErrorMsg,
+  });
+  const { mutate: uploadReceiverSignature, isPending: receiverSignatureUploading } = useUploadInvoiceImage("receiver_signature", {
+    onSuccess: (updated) => {
+      setReceiverSignatureUrl(updated.receiver_signature_url ?? "");
+      dispatch(setInvoiceSettings(updated));
+    },
+    onError: setErrorMsg,
+  });
+  const { mutate: removeReceiverSignature, isPending: receiverSignatureDeleting } = useDeleteInvoiceImage("receiver_signature", {
+    onSuccess: (updated) => {
+      setReceiverSignatureUrl("");
+      dispatch(setInvoiceSettings(updated));
+    },
+    onError: setErrorMsg,
   });
 
   useEffect(() => {
@@ -718,9 +781,15 @@ export default function InvoiceSetting() {
     show_payment_details: settings.showPaymentDetails,
     show_terms_conditions: settings.showTermsConditions,
     terms_conditions: settings.termsConditionsText,
+    show_quotation_terms: settings.showQuotationTerms,
+    quotation_terms: settings.quotationTermsText,
+    show_proforma_terms: settings.showProformaTerms,
+    proforma_terms: settings.proformaTermsText,
     show_notes: settings.showNotes,
     notes: settings.notesText,
     show_signature: settings.showSignature,
+    show_watermark: settings.showWatermark,
+    show_receiver_signature: settings.showReceiverSignature,
     show_bank_details: settings.showBankDetails,
     invoice_template: settings.invoiceTemplate,
   };
@@ -1150,6 +1219,76 @@ export default function InvoiceSetting() {
 
             <Divider sx={{ borderColor: "#f4f5f8" }} />
 
+            <SettingRow
+              icon={<DrawOutlinedIcon fontSize="small" />}
+              iconBg="#f0fdf4"
+              iconColor="#16a34a"
+              label="Receiver Signature"
+              description="Show the receiver's signature on the left, opposite the authorized signature"
+            >
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Switch
+                  checked={settings.showReceiverSignature}
+                  onChange={(e) => update("showReceiverSignature", e.target.checked)}
+                  sx={{
+                    "& .MuiSwitch-switchBase.Mui-checked": { color: redTint },
+                    "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: redTint },
+                  }}
+                />
+              </Box>
+            </SettingRow>
+            {settings.showReceiverSignature && (
+              <Box sx={{ pb: 2 }}>
+                <ImageUploadSlot
+                  compact
+                  label="Receiver Signature Image"
+                  description="Optional — leave empty to print a blank line for the receiver to sign"
+                  imageUrl={receiverSignatureUrl}
+                  uploading={receiverSignatureUploading || receiverSignatureDeleting}
+                  shape="banner"
+                  onUpload={(file) => uploadReceiverSignature(file)}
+                  onRemove={() => removeReceiverSignature()}
+                />
+              </Box>
+            )}
+
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
+
+            <SettingRow
+              icon={<BrandingWatermarkOutlinedIcon fontSize="small" />}
+              iconBg="#fff7ed"
+              iconColor="#ea580c"
+              label="Watermark"
+              description="Print a faded image in the background of A4 invoices"
+            >
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Switch
+                  checked={settings.showWatermark}
+                  onChange={(e) => update("showWatermark", e.target.checked)}
+                  sx={{
+                    "& .MuiSwitch-switchBase.Mui-checked": { color: redTint },
+                    "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: redTint },
+                  }}
+                />
+              </Box>
+            </SettingRow>
+            {settings.showWatermark && (
+              <Box sx={{ pb: 2 }}>
+                <ImageUploadSlot
+                  compact
+                  label="Watermark Image"
+                  description="Optional — the company logo is used when no image is uploaded"
+                  imageUrl={watermarkUrl}
+                  uploading={watermarkUploading || watermarkDeleting}
+                  shape="banner"
+                  onUpload={(file) => uploadWatermark(file)}
+                  onRemove={() => removeWatermark()}
+                />
+              </Box>
+            )}
+
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
+
             {/* Bank details are read-only, sourced from Company settings —
                 only whether they print on the invoice is editable here. */}
             <SettingRow
@@ -1201,6 +1340,98 @@ export default function InvoiceSetting() {
                   value={settings.termsConditionsText}
                   onChange={(e) => e.target.value.length <= FREE_TEXT_MAX_LENGTH && update("termsConditionsText", e.target.value)}
                   helperText={`${settings.termsConditionsText.length}/${FREE_TEXT_MAX_LENGTH}`}
+                  FormHelperTextProps={{ sx: { textAlign: "right", fontSize: 10.5, mx: 0 } }}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      fontSize: 13,
+                      borderRadius: 1,
+                      bgcolor: "#fafbfc",
+                      "& fieldset": { borderColor: cardBorder },
+                      "&:hover fieldset": { borderColor: "#c5c8d2" },
+                      "&.Mui-focused fieldset": { borderColor: redTint },
+                    },
+                  }}
+                />
+              </Box>
+            )}
+
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
+
+            <SettingRow
+              icon={<DescriptionOutlinedIcon fontSize="small" />}
+              iconBg="#eff6ff"
+              iconColor="#2563eb"
+              label="Quotation Terms & Conditions"
+              description="Print separate terms on quotations instead of the invoice terms"
+            >
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Switch
+                  checked={settings.showQuotationTerms}
+                  onChange={(e) => update("showQuotationTerms", e.target.checked)}
+                  sx={{
+                    "& .MuiSwitch-switchBase.Mui-checked": { color: redTint },
+                    "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: redTint },
+                  }}
+                />
+              </Box>
+            </SettingRow>
+            {settings.showQuotationTerms && (
+              <Box sx={{ pb: 2 }}>
+                <TextField
+                  multiline
+                  minRows={3}
+                  maxRows={6}
+                  fullWidth
+                  placeholder="Enter Terms & Conditions for quotations"
+                  value={settings.quotationTermsText}
+                  onChange={(e) => e.target.value.length <= FREE_TEXT_MAX_LENGTH && update("quotationTermsText", e.target.value)}
+                  helperText={`${settings.quotationTermsText.length}/${FREE_TEXT_MAX_LENGTH}`}
+                  FormHelperTextProps={{ sx: { textAlign: "right", fontSize: 10.5, mx: 0 } }}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      fontSize: 13,
+                      borderRadius: 1,
+                      bgcolor: "#fafbfc",
+                      "& fieldset": { borderColor: cardBorder },
+                      "&:hover fieldset": { borderColor: "#c5c8d2" },
+                      "&.Mui-focused fieldset": { borderColor: redTint },
+                    },
+                  }}
+                />
+              </Box>
+            )}
+
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
+
+            <SettingRow
+              icon={<DescriptionOutlinedIcon fontSize="small" />}
+              iconBg="#eff6ff"
+              iconColor="#2563eb"
+              label="Proforma Terms & Conditions"
+              description="Print separate terms on proformas instead of the invoice terms"
+            >
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Switch
+                  checked={settings.showProformaTerms}
+                  onChange={(e) => update("showProformaTerms", e.target.checked)}
+                  sx={{
+                    "& .MuiSwitch-switchBase.Mui-checked": { color: redTint },
+                    "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: redTint },
+                  }}
+                />
+              </Box>
+            </SettingRow>
+            {settings.showProformaTerms && (
+              <Box sx={{ pb: 2 }}>
+                <TextField
+                  multiline
+                  minRows={3}
+                  maxRows={6}
+                  fullWidth
+                  placeholder="Enter Terms & Conditions for proformas"
+                  value={settings.proformaTermsText}
+                  onChange={(e) => e.target.value.length <= FREE_TEXT_MAX_LENGTH && update("proformaTermsText", e.target.value)}
+                  helperText={`${settings.proformaTermsText.length}/${FREE_TEXT_MAX_LENGTH}`}
                   FormHelperTextProps={{ sx: { textAlign: "right", fontSize: 10.5, mx: 0 } }}
                   sx={{
                     "& .MuiOutlinedInput-root": {
@@ -1440,6 +1671,8 @@ export default function InvoiceSetting() {
                     logoUrl={companyLogoUrl}
                     headerImageUrl={headerImageUrl}
                     signatureUrl={signatureUrl}
+                    watermarkUrl={watermarkUrl}
+                    receiverSignatureUrl={receiverSignatureUrl}
                   />
                 ) : settings.invoiceTemplate === "modern" ? (
                   <InvoicePDFTemplateModern
@@ -1450,6 +1683,8 @@ export default function InvoiceSetting() {
                     logoUrl={companyLogoUrl}
                     headerImageUrl={headerImageUrl}
                     signatureUrl={signatureUrl}
+                    watermarkUrl={watermarkUrl}
+                    receiverSignatureUrl={receiverSignatureUrl}
                   />
                 ) : (
                   <InvoicePDFTemplate
@@ -1461,6 +1696,8 @@ export default function InvoiceSetting() {
                     logoUrl={companyLogoUrl}
                     headerImageUrl={headerImageUrl}
                     signatureUrl={signatureUrl}
+                    watermarkUrl={watermarkUrl}
+                    receiverSignatureUrl={receiverSignatureUrl}
                   />
                 )
               ) : (

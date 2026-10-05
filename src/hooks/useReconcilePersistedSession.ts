@@ -91,14 +91,18 @@ export function useReconcilePersistedSession(): ReconciledSession {
     reconciledFor = tenantKey;
     inFlight.current = true;
 
-    let cancelled = false;
-
     const run = async () => {
       dispatch(permissionsRefreshStarted());
       // Dispatches whatever succeeded; never throws.
       const result = await loadBranchSession(dispatch, zoduId, branchId);
       inFlight.current = false;
-      if (cancelled) return;
+      // Drop the outcome only if it no longer describes the current tenant (a
+      // branch switch re-keyed reconciledFor, or sign-out reset it). Not tied to
+      // the effect's cleanup: StrictMode unmounts and re-runs this effect, the
+      // re-run bails on the guard above, and a cleanup-based "cancelled" flag
+      // then swallowed the failure — leaving status "refreshing" and the user
+      // stuck on "Updating your access…" forever instead of being signed out.
+      if (reconciledFor !== tenantKey) return;
 
       if (result.roleAccessOk && result.settingsOk) {
         dispatch(permissionsRefreshSucceeded());
@@ -120,10 +124,6 @@ export function useReconcilePersistedSession(): ReconciledSession {
     };
 
     void run();
-
-    return () => {
-      cancelled = true;
-    };
   }, [dispatch, isAuthenticated, zoduId, branchId, retryToken]);
 
   // With no branch chosen yet there is nothing to fetch and nothing to wait

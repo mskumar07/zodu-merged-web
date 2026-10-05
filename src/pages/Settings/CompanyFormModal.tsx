@@ -514,12 +514,15 @@ export default function BusinessFormModal({
 
             {/* CONTACT INFORMATION SECTION */}
             <Box>
-              <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#1F2937", mb: 2 }}>
+              <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#1F2937", mb: 0.25 }}>
                 Contact Information
+              </Typography>
+              <Typography sx={{ fontSize: 11, color: "#6B7280", mb: 2 }}>
+                Enter a mobile number or an email ID — at least one is required.
               </Typography>
               <Grid container spacing={2.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <FieldLabel>Phone Number *</FieldLabel>
+                  <FieldLabel>Mobile Number</FieldLabel>
                   <TextField
                     fullWidth
                     placeholder="9876543210"
@@ -549,7 +552,7 @@ export default function BusinessFormModal({
                 </Grid>
 
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <FieldLabel>Email ID *</FieldLabel>
+                  <FieldLabel>Email ID</FieldLabel>
                   <TextField
                     fullWidth
                     placeholder="business@zodu.com"

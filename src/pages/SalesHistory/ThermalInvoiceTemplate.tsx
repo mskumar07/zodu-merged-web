@@ -438,6 +438,7 @@ import { useTenantContext } from "@store/tenantContext";
 import { AllCompanies, InvoiceSettingsData } from "@store/slices/userSlice";
 import type { InvoiceSettings as ThermalInvoiceSettings } from "@pages/auth/Authapi";
 import { saleDocumentLabel } from "@utils/saleType";
+import { resolveTermsForSaleType } from "@utils/invoiceTerms";
 import { normalizeInvoiceCopyTypes } from "@utils/invoiceCopyTypes";
 import { toThermalTemplate, type ThermalTemplate } from "@utils/thermalTemplate";
 
@@ -692,8 +693,9 @@ export const ThermalInvoiceTemplate = React.forwardRef(
     const showTaxDetails = invoiceSettings?.show_tax_details ?? false;
     const showCustomerDetails = invoiceSettings?.show_customer_details ?? true;
     const showPaymentDetails = invoiceSettings?.show_payment_details ?? false;
-    const showTermsConditions = invoiceSettings?.show_terms_conditions ?? false;
-    const termsConditionsText = invoiceSettings?.terms_conditions ?? "";
+    // Quotations / proformas print their own terms when theirs are switched on.
+    const termsConditionsText = resolveTermsForSaleType(invoiceSettings, data?.sale_type);
+    const showTermsConditions = termsConditionsText !== "";
     const showNotes = invoiceSettings?.show_notes ?? false;
     const notesText = invoiceSettings?.notes ?? "";
     const showSignature = invoiceSettings?.show_signature ?? false;

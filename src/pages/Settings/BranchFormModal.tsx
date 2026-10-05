@@ -387,13 +387,16 @@ export default function BranchFormModal({
 
             {/* CONTACT INFORMATION SECTION */}
             <Box>
-              <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#1F2937", mb: 2 }}>
+              <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#1F2937", mb: 0.25 }}>
                 Contact Information
+              </Typography>
+              <Typography sx={{ fontSize: 11, color: "#6B7280", mb: 2 }}>
+                Enter a mobile number or an email ID — at least one is required.
               </Typography>
               <Grid container spacing={2.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
-                    <FieldLabel>Phone Number *</FieldLabel>
+                    <FieldLabel>Mobile Number</FieldLabel>
                     <SameAsCheckbox
                       label="Same as Company"
                       checked={sameMobile}
@@ -437,7 +440,7 @@ export default function BranchFormModal({
 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
-                    <FieldLabel>Email ID *</FieldLabel>
+                    <FieldLabel>Email ID</FieldLabel>
                     <SameAsCheckbox
                       label="Same as Company"
                       checked={sameEmail}

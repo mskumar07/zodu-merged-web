@@ -65,6 +65,9 @@ export interface PosSettingsResponse {
   // Restaurant-only: print a KOT together with the bill, on the billing PC's
   // printer. Absent on rows that predate the field — treat that as off.
   kot_print_enabled?: boolean;
+  // Restaurant-only: show menu item photos on the POS cards. Absent on rows
+  // that predate the field — treat that as on, how the cards always looked.
+  show_item_image?: boolean;
   active: boolean;
   created_at?: string;
   updated_at?: string;
@@ -95,6 +98,7 @@ export interface UpdatePosSettingsPayload {
   hold_enabled?: boolean;
   pos_screen_type?: PosScreenType;
   kot_print_enabled?: boolean;
+  show_item_image?: boolean;
 }
 
 // ─── Normalizing ──────────────────────────────────────────────
@@ -153,6 +157,8 @@ export function normalizePosSettings(raw: unknown): PosSettingsResponse {
     pos_screen_type: row.pos_screen_type === "Keyboard" ? "Keyboard" : "Touch",
     // Off unless the row says otherwise — no branch starts printing KOTs unasked.
     kot_print_enabled: row.kot_print_enabled === true,
+    // On unless the row says otherwise — cards showed photos before this existed.
+    show_item_image: row.show_item_image !== false,
   };
 }
 

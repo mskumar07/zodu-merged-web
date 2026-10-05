@@ -26,6 +26,7 @@ import GroupRoundedIcon from "@mui/icons-material/GroupRounded";
 import KeyboardRoundedIcon from "@mui/icons-material/KeyboardRounded";
 import TouchAppRoundedIcon from "@mui/icons-material/TouchAppRounded";
 import RestaurantMenuRoundedIcon from "@mui/icons-material/RestaurantMenuRounded";
+import ImageRoundedIcon from "@mui/icons-material/ImageRounded";
 import SuccessToast from "@components/Common/SuccessToast";
 import { useAppDispatch } from "@store/store";
 import { setInvoiceSettings, setPosSettings } from "@store/slices/userSlice";
@@ -255,6 +256,9 @@ export default function RestaurantPosSetting() {
   // Print a KOT with the bill — on the same /pos-settings row as the screen type.
   const [kotPrintEnabled, setKotPrintEnabled] = useState(false);
   const kotPrintBaselineRef = useRef<boolean | null>(null);
+  // Photos on the POS menu cards — same /pos-settings row again.
+  const [showItemImage, setShowItemImage] = useState(true);
+  const showItemImageBaselineRef = useRef<boolean | null>(null);
 
   const { data, isLoading, isError } = useInvoiceSettings();
   const { data: posData, isLoading: isPosLoading, isError: isPosError } = usePosSettings();
@@ -266,6 +270,8 @@ export default function RestaurantPosSetting() {
       posScreenTypeBaselineRef.current = screenType;
       setKotPrintEnabled(posData.kot_print_enabled === true);
       kotPrintBaselineRef.current = posData.kot_print_enabled === true;
+      setShowItemImage(posData.show_item_image !== false);
+      showItemImageBaselineRef.current = posData.show_item_image !== false;
     }
   }, [posData]);
 
@@ -324,6 +330,8 @@ export default function RestaurantPosSetting() {
       posScreenTypeBaselineRef.current = screenType;
       setKotPrintEnabled(updated.kot_print_enabled === true);
       kotPrintBaselineRef.current = updated.kot_print_enabled === true;
+      setShowItemImage(updated.show_item_image !== false);
+      showItemImageBaselineRef.current = updated.show_item_image !== false;
       // POS reads pos_screen_type straight from Redux (populated once at branch-select) —
       // without this the opening view would only pick up the change after the next
       // login/branch switch.
@@ -347,6 +355,11 @@ export default function RestaurantPosSetting() {
 
   const updateKotPrintEnabled = (value: boolean) => {
     setKotPrintEnabled(value);
+    setSaved(false);
+  };
+
+  const updateShowItemImage = (value: boolean) => {
+    setShowItemImage(value);
     setSaved(false);
   };
 
@@ -384,7 +397,9 @@ export default function RestaurantPosSetting() {
     // even though this screen doesn't manage them, so the currently-stored values
     // travel back unchanged.
     const posScreenTypeDirty =
-      posScreenTypeBaselineRef.current !== posScreenType || kotPrintBaselineRef.current !== kotPrintEnabled;
+      posScreenTypeBaselineRef.current !== posScreenType ||
+      kotPrintBaselineRef.current !== kotPrintEnabled ||
+      showItemImageBaselineRef.current !== showItemImage;
     if (posScreenTypeDirty && posData) {
       savePosScreenType({
         pos_types: posData.pos_types,
@@ -403,6 +418,7 @@ export default function RestaurantPosSetting() {
         hold_enabled: posData.hold_enabled,
         pos_screen_type: posScreenType,
         kot_print_enabled: kotPrintEnabled,
+        show_item_image: showItemImage,
       });
     }
 
@@ -643,6 +659,23 @@ export default function RestaurantPosSetting() {
                 <Switch
                   checked={kotPrintEnabled}
                   onChange={(e) => updateKotPrintEnabled(e.target.checked)}
+                />
+              </Box>
+            </SettingRow>
+
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
+
+            <SettingRow
+              icon={<ImageRoundedIcon fontSize="small" />}
+              iconBg="#f5f3ff"
+              iconColor="#7c3aed"
+              label="Show Item Images"
+              description="Show menu item photos on the POS cards"
+            >
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Switch
+                  checked={showItemImage}
+                  onChange={(e) => updateShowItemImage(e.target.checked)}
                 />
               </Box>
             </SettingRow>

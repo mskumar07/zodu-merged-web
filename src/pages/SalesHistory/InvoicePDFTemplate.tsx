@@ -3,8 +3,10 @@ import { useTenantContext } from "@store/tenantContext";
 import { AllCompanies, InvoiceSettingsData } from "@store/slices/userSlice";
 import React from "react";
 import { saleDocumentLabel } from "@utils/saleType";
+import { resolveTermsForSaleType } from "@utils/invoiceTerms";
 import { gstSummaryRows } from "@utils/gstSummary";
 import zoduLogo from "@assets/zlogo.png";
+import { InvoiceWatermark, resolveInvoiceExtras } from "./InvoiceWatermark";
 
 // ── Inline style constants ────────────────────────────────────
 const styles = {
@@ -293,6 +295,9 @@ const styles = {
   // Gap above the signature, whether it follows the bank box or starts the column.
   // footer: { marginTop: "58px" },
   signBox: { textAlign: "right" as const },
+  // Receiver's signature on the left, authorised signatory on the right.
+  signRow: { display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: "24px" },
+  receiverSignBox: { textAlign: "left" as const },
   // The blank band above the signature line — room to sign by hand, and where
   // an uploaded signature sits.
   signSpace: { height: "56px", display: "flex", alignItems: "flex-end", justifyContent: "flex-end", marginBottom: "4px" },
@@ -345,7 +350,7 @@ function hasValue(v: unknown): v is string {
 // `hideTaxBreakdown` is the "Classic 2" layout: the same page without the HSN and
 // Tax columns, any tax lines in the totals or the HSN-wise table, and with a
 // "Powered by zodu" line at the foot of the page.
-export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, theme = "classic", accentColor, logoUrl, headerImageUrl, signatureUrl, copyType, hideTaxBreakdown = false }: any, ref: any) => {
+export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, theme = "classic", accentColor, logoUrl, headerImageUrl, signatureUrl, watermarkUrl, receiverSignatureUrl, copyType, hideTaxBreakdown = false }: any, ref: any) => {
   const isCompact = theme === "compact";
   const {
     sale_id, date, due_date,
@@ -388,8 +393,9 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
   const showTaxDetails = !hideTaxBreakdown && (invoiceSettings?.show_tax_details ?? true);
   const showHsn = !hideTaxBreakdown;
   const showPaymentDetails = invoiceSettings?.show_payment_details ?? false;
-  const showTermsConditions = invoiceSettings?.show_terms_conditions ?? false;
-  const termsConditionsText = invoiceSettings?.terms_conditions ?? "";
+  // Quotations / proformas print their own terms when theirs are switched on.
+  const termsConditionsText = resolveTermsForSaleType(invoiceSettings, sale_type);
+  const showTermsConditions = termsConditionsText !== "";
   const showNotes = invoiceSettings?.show_notes ?? false;
   const notesText = invoiceSettings?.notes ?? "";
   const showSignature = invoiceSettings?.show_signature ?? false;
@@ -401,6 +407,8 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
   // company (Company Details), not on invoice settings — real invoice
   // rendering never passes `logoUrl` at all, it just reads the company row.
   const resolvedLogoUrl = logoUrl || selectedCompany?.company_logo_url || "";
+  const { watermarkSrc, showReceiverSignature, receiverSignatureSrc } =
+    resolveInvoiceExtras(invoiceSettings, { watermarkUrl, receiverSignatureUrl, logoUrl: resolvedLogoUrl });
   const showBankDetails = invoiceSettings?.show_bank_details ?? true;
   // Same prop-first-then-persisted-settings fallback as signature: the Settings
   // page's live preview passes an in-progress (unsaved) color as `accentColor`;
@@ -459,6 +467,7 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
 
   return (
     <div ref={ref} style={{ ...styles.page, padding: isCompact ? "20px 24px" : styles.page.padding }}>
+      <InvoiceWatermark src={watermarkSrc} />
 
       {headerImageUrl && (
         <img
@@ -790,8 +799,6 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
             )}
           </div>
 
-          {/* Bank details and the signature share the right column so the
-              signature sits beside the notes instead of on a row of its own. */}
           <div>
             {showBankDetails && (
               <div style={styles.bankBox}>
@@ -807,14 +814,31 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
                 ))}
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Signatures sit below the notes: the receiver's on the left, the
+            authorised signatory's opposite it on the right. */}
+        {(showSignature || showReceiverSignature) && (
+          <div style={{ ...styles.signRow, marginTop: isCompact ? 20 : "40px" }}>
+            {showReceiverSignature ? (
+              <div style={styles.receiverSignBox}>
+                <div style={{ ...styles.signSpace, justifyContent: "flex-start" }}>
+                  {receiverSignatureSrc && (
+                    <img
+                      src={receiverSignatureSrc}
+                      alt="Receiver signature"
+                      style={{ maxHeight: 46, maxWidth: 180, objectFit: "contain", display: "block" }}
+                    />
+                  )}
+                </div>
+                <div style={{ ...styles.signLine, marginLeft: 0 }} />
+                <p style={styles.signLabel}>Receiver&apos;s Signature</p>
+              </div>
+            ) : <div />}
 
             {showSignature && (
-              <div
-                style={{
-                  ...styles.signBox,
-                  marginTop: isCompact ? 20 : "58px",
-                }}
-              >
+              <div style={styles.signBox}>
                 <div style={styles.signSpace}>
                   {resolvedSignatureUrl && (
                     <img
@@ -829,7 +853,7 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
               </div>
             )}
           </div>
-        </div>
+        )}
 
 
         {/* data-pdf-page-footer: the PDF pins this to the bottom of every

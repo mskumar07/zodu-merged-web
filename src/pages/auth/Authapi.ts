@@ -306,6 +306,11 @@ export interface InvoiceSettings {
   show_payment_details: boolean;
   show_terms_conditions: boolean;
   terms_conditions: string;
+  // Printed instead of terms_conditions on that document type when on.
+  show_quotation_terms?: boolean;
+  quotation_terms?: string | null;
+  show_proforma_terms?: boolean;
+  proforma_terms?: string | null;
   show_notes: boolean;
   notes: string;
   show_signature: boolean;
@@ -347,6 +352,8 @@ export interface PosSettings {
   pos_screen_type?: string;
   // Restaurant-only: print a KOT with the bill. Treat a missing value as off.
   kot_print_enabled?: boolean;
+  /** Restaurant POS: show menu item photos on the cards (absent = on). */
+  show_item_image?: boolean;
   active?: boolean;
   created_at?: string;
   updated_at?: string;
