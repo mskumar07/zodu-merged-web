@@ -88,6 +88,8 @@ interface ReportEndpoints {
   expenseHistorical: string;
   expenseDatewiseSummary: string;
   expenseDatewiseBreakdown: string;
+  expenseCategorywiseSummary: string;
+  expenseCategorywiseBreakdown: string;
   restaurantDatewiseOrders: string;
   restaurantOrderCategory: string;
   profitActiveYears: string;
@@ -288,6 +290,8 @@ export const apiConfig: ApiConstants = {
     expenseHistorical: `${RETAIL_BASE}/api/report/expense/historical`,
     expenseDatewiseSummary: `${RETAIL_BASE}/api/report/expense/datewise/summary`,
     expenseDatewiseBreakdown: `${RETAIL_BASE}/api/report/expense/datewise`,
+    expenseCategorywiseSummary: `${RETAIL_BASE}/api/report/expense/category-wise/summary`,
+    expenseCategorywiseBreakdown: `${RETAIL_BASE}/api/report/expense/category-wise`,
     restaurantDatewiseOrders: `${RESTAURANT_BASE}/api/orders/api/report/orders`,
     restaurantOrderCategory: `${RESTAURANT_BASE}/api/orders/get/report/order-category`,
     profitActiveYears: `${RETAIL_BASE}/api/report/profit/active-years`,

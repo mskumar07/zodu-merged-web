@@ -95,6 +95,7 @@ import { Download } from "@mui/icons-material";
 import CheckCircleIcon        from "@mui/icons-material/CheckCircle";
 import CurrencyRupeeIcon      from "@mui/icons-material/CurrencyRupee";
 import { runIfSubscribed } from "@utils/subscriptionGuard";
+import { useModulePermission } from "@hooks/useModulePermission";
 
 const INR = (v: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(v);
@@ -566,6 +567,11 @@ function RetailPOSInner() {
   const [savedOrderSnapshot,      setSavedOrderSnapshot]      = useState<SavedOrderSnapshot | null>(null);
   const [flashRow,       setFlashRow]       = useState<string | null>(null);
   const [saleId,         setSaleId]         = useState<string | null>(null);
+  // Billing role access: creating a document needs create, re-saving a loaded one needs edit
+  const { canCreate: canCreateBill, canEdit: canEditBill } = useModulePermission("Billing");
+  const canSave = saleId ? canEditBill : canCreateBill;
+  // Adding/editing a customer from the billing screen follows the Customer Management role access
+  const { canCreate: canCreateCustomer, canEdit: canEditCustomer } = useModulePermission("Customer Management");
 
   const [discountModalOpen, setDiscountModalOpen] = useState(false);
   const [noteModalOpen,     setNoteModalOpen]     = useState(false);
@@ -1389,6 +1395,11 @@ console.log("test",serverHolds)
 
   const handleSave = useCallback(async () => {
     if (!runIfSubscribed()) return;
+    if (!canSave) {
+      setToastSeverity('error');
+      setScanMsg(`You don't have permission to ${saleId ? "edit" : "create"} invoices`);
+      return;
+    }
     if (items.length === 0 || saving) return;
     if (invoiceSettings?.customer_mandatory && !customer.id) {
       setSaveResult({ open: true, success: false, message: "Please select a customer before completing this sale." });
@@ -1443,7 +1454,7 @@ console.log("test",serverHolds)
       setSavedOrderSnapshot(null);
       setSaveResult({ open: true, success: false, message: result.message });
     }
-  }, [items, customer, invoiceDate, dueDate, hasBalanceDue, discountPct, discount, gstMode, roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo, invoiceNoOverride, displayInvoiceNo, overridePreview, poNumber, poDate, showPurchaseOrder, printEnabled, saving, saveOrder, updateOrder, handleClear, saleId, loadedSaleNo, invoiceSettings, queryClient]);
+  }, [items, customer, invoiceDate, dueDate, hasBalanceDue, discountPct, discount, gstMode, roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo, invoiceNoOverride, displayInvoiceNo, overridePreview, poNumber, poDate, showPurchaseOrder, printEnabled, saving, canSave, saveOrder, updateOrder, handleClear, saleId, loadedSaleNo, invoiceSettings, queryClient]);
 
   const handleThermalPrint = useCallback(async (copies: string[] = []) => {
     if (!thermalRef.current) return;
@@ -2508,7 +2519,7 @@ console.log("test",serverHolds)
                       }
                       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 1.5, py: 0.85, bgcolor: "#FCFCFD", borderTop: "1px solid #EEF2F7" }}>
                         <Typography sx={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700 }}>Type to search by name or mobile</Typography>
-                        <Button size="small" variant="contained" onClick={() => { setCustomerSuggestionsOpen(false); setSelectedApiCustomer(null); setAddCustomerOpen(true); }} sx={{ bgcolor: modeAccent, fontSize: 9, fontWeight: 800, borderRadius: 1.5, px: 1.1, py: 0.45, "&:hover": { bgcolor: modeTheme.accentHover } }}>+ Add New</Button>
+                        <Button size="small" variant="contained" disabled={!canCreateCustomer} onClick={() => { setCustomerSuggestionsOpen(false); setSelectedApiCustomer(null); setAddCustomerOpen(true); }} sx={{ bgcolor: modeAccent, fontSize: 9, fontWeight: 800, borderRadius: 1.5, px: 1.1, py: 0.45, "&:hover": { bgcolor: modeTheme.accentHover } }}>+ Add New</Button>
                       </Box>
                     </Paper>
                   )}
@@ -2549,7 +2560,7 @@ console.log("test",serverHolds)
                     inputProps={{ style: { padding: "7px 12px", fontWeight: 600, letterSpacing: "0.03em" }, maxLength: 20 }}
                   />
                 )}
-                <Button size="small" variant="contained" onClick={() => setAddCustomerOpen(true)} sx={{ bgcolor: modeAccent, fontSize: 11, fontWeight: 800, borderRadius: 1.5, px: 1.5, py: 0.85, whiteSpace: "nowrap", "&:hover": { bgcolor: modeTheme.accentHover } }}>{customer.id ? "Edit Customer" : "+ Add New"}</Button>
+                <Button size="small" variant="contained" disabled={customer.id ? !canEditCustomer : !canCreateCustomer} onClick={() => setAddCustomerOpen(true)} sx={{ bgcolor: modeAccent, fontSize: 11, fontWeight: 800, borderRadius: 1.5, px: 1.5, py: 0.85, whiteSpace: "nowrap", "&:hover": { bgcolor: modeTheme.accentHover } }}>{customer.id ? "Edit Customer" : "+ Add New"}</Button>
               </Box>
 
               {/* Bill To / Ship To visual cards (read-only summary of the same customer record) */}
@@ -2952,7 +2963,7 @@ console.log("test",serverHolds)
               </Tooltip>
               <Button variant="contained"
                 startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <SaveIcon sx={{ fontSize: 18 }} />}
-                onClick={handleSave} disabled={saving || items.length === 0 || received > grandTotal + 0.01}
+                onClick={handleSave} disabled={!canSave || saving || items.length === 0 || received > grandTotal + 0.01}
                 sx={{ ...footerOutline("SAVE"), flex: 1, minWidth: 0, bgcolor: modeAccent, color: "#fff", fontSize: 14, fontWeight: 800, py: 0.9, px: 2, borderRadius: 2, boxShadow: `0 4px 18px rgba(200,16,46,0.35)`, "&:hover": { bgcolor: "#A50D26" }, "&:active": { transform: "scale(0.98)" }, "&.Mui-disabled": { bgcolor: "#E5E7EB", color: "#9CA3AF", boxShadow: "none" }, transition: "all 0.15s" }}>
                 {saving ? "SAVING…" : isNonSaleDoc ? `SAVE ${posTypeLabel.toUpperCase()}` : "SAVE"}{" "}
                 <Box component="span" sx={{ fontSize: 11, opacity: 0.85, ml: 0.5 }}>[F8]</Box>

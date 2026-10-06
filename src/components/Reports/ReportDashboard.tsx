@@ -55,6 +55,7 @@ const reportCards: ReportCard[] = [
     icon: MoneyOff,
     path: "/reports/expenses/monthwise",
     datewise: "/reports/expenses/datewise",
+    category: "/reports/expenses/category",
     color: "#fbc02d",
   },
   // {
@@ -156,7 +157,7 @@ const ReportDashboard: React.FC = () => {
                     </Typography>
                     {card.category && (
                       <Typography onClick={() => navigate(card.category!)} fontSize={14} fontWeight={400} sx={{cursor:"pointer", "&:hover": { color:"#1976d2" }}} color="#000" mt={1}>
-                        • Category/Item-wise Report
+                        {card.title === "Expenses Report" ? "• Category-wise Report" : "• Category/Item-wise Report"}
                       </Typography>
                     )}
                     {card.yearwise && (
