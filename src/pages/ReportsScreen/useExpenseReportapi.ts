@@ -48,6 +48,24 @@ export interface DatewiseExpenseBreakdownPage {
   limit: number;
 }
 
+export type CategorywiseExpenseSummary = DatewiseExpenseSummary;
+
+export interface CategorywiseExpenseBreakdownRow {
+  expenseDate: string;
+  categoryId: string;
+  categoryName: string;
+  expenseCount: number;
+  totalAmount: number;
+}
+
+export interface CategorywiseExpenseBreakdownPage {
+  success: boolean;
+  data: CategorywiseExpenseBreakdownRow[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 interface ExpenseSummaryParams {
   zodu_id: string;
   branch_id: string;
@@ -153,6 +171,31 @@ const toDatewiseExpenseBreakdownPage = (payload: unknown): DatewiseExpenseBreakd
   };
 };
 
+const toCategorywiseExpenseBreakdownRow = (row: unknown): CategorywiseExpenseBreakdownRow => {
+  // API row: { date, category_id, category_name, total_entries, total_expense, total_paid, total_pending }
+  const source = asRecord(row);
+  return {
+    expenseDate: String(source?.date ?? source?.expense_date ?? source?.expenseDate ?? ""),
+    categoryId: String(source?.category_id ?? ""),
+    categoryName: String(source?.category_name ?? source?.categoryName ?? source?.category ?? "—"),
+    expenseCount: toNumber(source?.total_entries ?? source?.expense_count),
+    totalAmount: toNumber(source?.total_expense ?? source?.total_amount ?? source?.totalAmount),
+  };
+};
+
+const toCategorywiseExpenseBreakdownPage = (payload: unknown): CategorywiseExpenseBreakdownPage => {
+  const source = asRecord(payload) ?? {};
+  const pagination = asRecord(source.pagination);
+  const data = Array.isArray(source.data) ? source.data.map(toCategorywiseExpenseBreakdownRow) : [];
+  return {
+    success: source.success !== false,
+    data,
+    total: toNumber(source.total ?? pagination?.total),
+    page: toNumber(source.page ?? pagination?.page) || 1,
+    limit: toNumber(source.limit ?? pagination?.limit) || data.length || 1,
+  };
+};
+
 const swapBase = (url: string, isRestaurant: boolean) =>
   isRestaurant ? url.replace(/^\/retail/, "/restaurant") : url;
 
@@ -232,6 +275,51 @@ export const useDatewiseExpenseBreakdown = (params: DatewiseExpenseBreakdownPara
       const url = swapBase(apiConfig.report.expenseDatewiseBreakdown, !!params.isRestaurant);
       const res = await axiosInstance.get(`${url}?${p}`);
       return toDatewiseExpenseBreakdownPage(res.data);
+    },
+    getNextPageParam: (lastPage) => {
+      const { page, limit: currentLimit, total } = lastPage;
+      return page * currentLimit < total ? page + 1 : undefined;
+    },
+    initialPageParam: 1,
+    enabled: !!params.zodu_id && !!params.branch_id,
+    staleTime: 1000 * 60 * 2,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useCategorywiseExpenseSummary = (params: DatewiseExpenseParams) => {
+  return useQuery<CategorywiseExpenseSummary>({
+    queryKey: ["categorywise-expense-summary", params.zodu_id, params.branch_id, params.from_date, params.to_date, params.isRestaurant],
+    queryFn: async () => {
+      const p = new URLSearchParams({ zodu_id: params.zodu_id, branch_id: params.branch_id });
+      if (params.from_date) p.append("from_date", params.from_date);
+      if (params.to_date) p.append("to_date", params.to_date);
+      const url = swapBase(apiConfig.report.expenseCategorywiseSummary, !!params.isRestaurant);
+      const res = await axiosInstance.get(`${url}?${p}`);
+      return toDatewiseExpenseSummary(res.data);
+    },
+    enabled: !!params.zodu_id && !!params.branch_id,
+    staleTime: 1000 * 60 * 2,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useCategorywiseExpenseBreakdown = (params: DatewiseExpenseBreakdownParams) => {
+  const limit = params.limit ?? 15;
+  return useInfiniteQuery<CategorywiseExpenseBreakdownPage>({
+    queryKey: ["categorywise-expense-breakdown", params.zodu_id, params.branch_id, params.from_date, params.to_date, limit, params.isRestaurant],
+    queryFn: async ({ pageParam = 1 }) => {
+      const p = new URLSearchParams({
+        zodu_id: params.zodu_id,
+        branch_id: params.branch_id,
+        page: String(pageParam),
+        limit: String(limit),
+      });
+      if (params.from_date) p.append("from_date", params.from_date);
+      if (params.to_date) p.append("to_date", params.to_date);
+      const url = swapBase(apiConfig.report.expenseCategorywiseBreakdown, !!params.isRestaurant);
+      const res = await axiosInstance.get(`${url}?${p}`);
+      return toCategorywiseExpenseBreakdownPage(res.data);
     },
     getNextPageParam: (lastPage) => {
       const { page, limit: currentLimit, total } = lastPage;

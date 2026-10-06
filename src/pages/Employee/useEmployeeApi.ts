@@ -20,6 +20,8 @@ export interface EmployeeListItem {
   reporting_manager_name: string;
   branch_id: string;
   created_at: string;
+  has_password?: boolean;
+  has_role?: boolean;
 }
 
 export interface EmployeeDetail {
@@ -110,15 +112,18 @@ export interface CreateEmployeePayload {
   bank_account_number: string;
   bank_name: string;
   ifsc_code: string;
-  role_id: string;
   notes: string | null;
-  password?: string;
 }
+
 
 export interface EmployeePage {
   data: EmployeeListItem[];
   pagination: { total: number; page: number; limit: number; pages: number };
 }
+
+/** The default Admin (EMP001) is the super admin: it already has a login and no assignable role. */
+export const isSuperAdmin = (e: Pick<EmployeeListItem, "employee_code" | "name">) =>
+  e.employee_code === "EMP001" && e.name?.trim().toLowerCase() === "admin";
 
 // ─── Query keys ───────────────────────────────────────────────
 
@@ -265,6 +270,65 @@ export function useUpdateEmployee(options?: {
   });
 }
 
+// ─── Set user / login details ─────────────────────────────────
+
+export interface LoginDetailsPayload {
+  role_id?: string;
+  password?: string;
+  confirm_password?: string;
+}
+
+interface LoginDetailsResult {
+  success: boolean;
+  data: { employee_id: string; user_id: string; has_password: boolean | null; has_role: boolean | null };
+}
+
+/** Validation failures come back as `errors`, everything else as `error`. */
+const apiErrorMessage = (err: unknown, fallback: string) =>
+  axios.isAxiosError(err)
+    ? (err.response?.data?.errors ?? err.response?.data?.error ?? err.response?.data?.message ?? err.message)
+    : fallback;
+
+interface SetLoginDetailsArgs {
+  employeeId: string;
+  payload: LoginDetailsPayload;
+  /**
+   * Set only by the Add/Edit Employee form's "Set user / login" section (not the row shortcut):
+   * true = create/update the login, false = switch the login off (box unticked).
+   */
+  loginUser?: boolean;
+}
+
+async function setLoginDetails({ employeeId, payload, loginUser }: SetLoginDetailsArgs) {
+  const { zoduId, branchId } = getTenantContext();
+  const { data } = await axios.put<LoginDetailsResult>(
+    `${EMP_BASE}/${employeeId}/login-details`,
+    {
+      zodu_id: zoduId ?? "",
+      branch_id: branchId ?? "",
+      ...payload,
+      ...(loginUser !== undefined && { login_user: loginUser }),
+    },
+  );
+  return data;
+}
+
+export function useSetLoginDetails(options?: {
+  onSuccess?: () => void;
+  onError?: (msg: string) => void;
+}) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: setLoginDetails,
+    onSuccess: (_res, { employeeId }) => {
+      queryClient.invalidateQueries({ queryKey: empQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: empQueryKeys.detail(employeeId) });
+      options?.onSuccess?.();
+    },
+    onError: (err: unknown) => options?.onError?.(apiErrorMessage(err, "Failed to update login details")),
+  });
+}
+
 // ─── Upload employee document / profile photo ─────────────────
 
 export interface UploadedDocument {
@@ -401,9 +465,7 @@ export function buildEmployeePayload(
     bank_account_number: String(form.bank_account_number ?? ""),
     bank_name: String(form.bank_name ?? ""),
     ifsc_code: String(form.ifsc_code ?? ""),
-    role_id: String(form.role_id ?? ""),
     notes: form.notes ? String(form.notes) : null,
-    password: form.password ? String(form.password) : undefined,
   };
 }
 

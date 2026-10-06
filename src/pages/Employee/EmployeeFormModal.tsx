@@ -1,14 +1,12 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { closeFromControlsOnly } from "@utils/dialog";
 import {
   Box, Button, CircularProgress, Dialog, DialogActions,
-  DialogContent, DialogTitle, Divider, Grid, IconButton, InputAdornment,
+  DialogContent, DialogTitle, Divider, Grid, IconButton,
   ListSubheader, MenuItem, Select, TextField, Typography,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
-import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
-import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import WorkOutlineIcon from "@mui/icons-material/WorkOutline";
@@ -20,14 +18,17 @@ import AttachFileIcon from "@mui/icons-material/AttachFile";
 import SearchIcon from "@mui/icons-material/Search";
 import {
   useEmployeeDetail, useCreateEmployee, useUpdateEmployee,
-  useActiveEmployees,
+  useActiveEmployees, useSetLoginDetails,
   buildEmployeePayload, uploadEmployeeDocument, deleteEmployeeDocument,
   INDIA_STATES, EMPLOYMENT_TYPES,
   PAYMENT_TYPES, GENDERS,
 } from "./useEmployeeApi";
-import { useRoles } from "@pages/auth/Role/useRoleApi";
 import LottieLoader from "@components/LottieLoader";
 import SuccessToast from "@components/Common/SuccessToast";
+import { useRoles } from "@pages/auth/Role/useRoleApi";
+import LoginDetailsSection, {
+  EMPTY_LOGIN, buildLoginPayload, validateLogin, type LoginErrors, type LoginFormState,
+} from "./LoginDetailsSection";
 import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 // ─── Theme ───────────────────────────────────────────────────
@@ -111,10 +112,8 @@ const emptyDocRow = (): DocRow => ({
 // ─── Types ────────────────────────────────────────────────────
 type FormData = Record<string, string | number | null>;
 
-const PWD_RULES = /^(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,20}$/;
-
 const EMPTY: FormData = {
-  name: "", phone: "", email: "", password: "", status: "active",
+  name: "", phone: "", email: "", status: "active",
   date_of_birth: "", gender: "", address_line1: "", address_line2: "",
   city: "", state: "", pincode: "",
   employment_type: "", date_of_joining: "",
@@ -122,7 +121,7 @@ const EMPTY: FormData = {
   emergency_contact_name: "", emergency_relationship: "", emergency_mobile: "",
   basic_salary: "", payment_type: "",
   bank_account_number: "", bank_name: "", ifsc_code: "",
-  role_id: "", access_level: "", notes: "",
+  notes: "",
 };
 
 interface Props {
@@ -130,9 +129,13 @@ interface Props {
   onClose: () => void;
   mode: "add" | "edit";
   employeeId?: string | null;
+  /** Edit only: the employee already has a password on file. */
+  passwordSet?: boolean;
+  /** Edit only: the default Admin has no assignable role. */
+  hideRole?: boolean;
 }
 
-export default function EmployeeFormModal({ open, onClose, mode, employeeId }: Props) {
+export default function EmployeeFormModal({ open, onClose, mode, employeeId, passwordSet = false, hideRole = false }: Props) {
   useBlockWhenReadOnly(open, onClose);
   const isEdit   = mode === "edit";
   const readOnly = false;
@@ -156,7 +159,6 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
   const [avatarDocId, setAvatarDocId]         = useState<string | null>(null);
   const fileRef         = useRef<HTMLInputElement>(null);
   const pendingPhotoRef = useRef<File | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
   // snapshot of form when edit detail loads — used to diff changed fields
   const initialFormRef = useRef<FormData>({});
 
@@ -168,8 +170,19 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
   const { data: detail, isLoading: detailLoading } = useEmployeeDetail(
     isEdit && open ? (employeeId ?? null) : null
   );
-  const { data: roles = [] }           = useRoles();
   const { data: activeEmployees = [] } = useActiveEmployees(open);
+  const { data: roles = [] }           = useRoles();
+
+  // ── Login (set user) state ──
+  const [login, setLogin]             = useState<LoginFormState>(EMPTY_LOGIN);
+  const [loginErrors, setLoginErrors] = useState<LoginErrors>({});
+  const initialRoleIdRef = useRef("");
+  const initialLoginEnabledRef = useRef(false);
+  const loginCtx = useMemo(() => ({ passwordSet: isEdit && passwordSet, hideRole }), [isEdit, passwordSet, hideRole]);
+  const patchLogin = useCallback((patch: Partial<LoginFormState>) => {
+    setLogin((l) => ({ ...l, ...patch }));
+    setLoginErrors({});
+  }, []);
 
   // Auto-select Admin as Reporting Manager on add mode
   const adminAutoSetRef = useRef(false);
@@ -224,10 +237,14 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
       bank_account_number: sal?.bank_account_number ?? "",
       bank_name:           sal?.bank_name           ?? "",
       ifsc_code:           sal?.ifsc_code           ?? "",
-      role_id:      role?.role_id      ?? "",
-      access_level: role?.access_level ?? "",
       notes: detail.notes ?? "",
     });
+
+    // Existing login: tick the box and show the current role
+    const hadLogin = passwordSet || !!role?.role_id;
+    initialRoleIdRef.current = role?.role_id ?? "";
+    initialLoginEnabledRef.current = hadLogin;
+    setLogin({ ...EMPTY_LOGIN, enabled: hadLogin, roleId: role?.role_id ?? "" });
 
     // snapshot for dirty-field diffing on save
     initialFormRef.current = {
@@ -256,10 +273,7 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
       bank_account_number: sal?.bank_account_number ?? "",
       bank_name:           sal?.bank_name           ?? "",
       ifsc_code:           sal?.ifsc_code           ?? "",
-      role_id:      role?.role_id      ?? "",
-      access_level: role?.access_level ?? "",
       notes: detail.notes ?? "",
-      password: "",
     };
 
     // Profile Photo document → show in photo box, not in doc list
@@ -304,7 +318,10 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
       setDocRows([emptyDocRow()]);
       pendingPhotoRef.current = null;
       initialFormRef.current = {};
-      setShowPassword(false);
+      initialRoleIdRef.current = "";
+      initialLoginEnabledRef.current = false;
+      setLogin(EMPTY_LOGIN);
+      setLoginErrors({});
     }
   }, [open]);
 
@@ -318,24 +335,35 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
     const e: Record<string, string> = {};
     if (!String(form.name ?? "").trim())  e.name  = "Required";
     if (!String(form.phone ?? "").trim()) e.phone = "Required";
-    // password optional on both add and edit (only validate if filled)
-    const pwd = String(form.password ?? "").trim();
-    if (pwd && !PWD_RULES.test(pwd)) {
-      e.password = "8–20 chars, at least 1 uppercase, 1 number, 1 special character";
-    }
     setErrors(e);
-    if (Object.keys(e).length > 0) {
-      showToast("Please fill in all required fields marked with *", "error");
-    }
-    return Object.keys(e).length === 0;
+    const le = validateLogin(login, loginCtx);
+    setLoginErrors(le);
+    const valid = Object.keys(e).length === 0 && Object.keys(le).length === 0;
+    if (!valid) showToast("Please fill in all required fields marked with *", "error");
+    return valid;
   };
 
   const createEmp = useCreateEmployee({ onError: (msg) => showToast(msg, "error") });
-  const updateEmp = useUpdateEmployee({
-    onSuccess: () => { showToast(isEdit ? "Employee updated successfully!" : "Employee created successfully!"); onClose(); },
-    onError: (msg) => showToast(msg, "error"),
-  });
-  const isSaving  = createEmp.isPending || updateEmp.isPending;
+  const updateEmp = useUpdateEmployee({ onError: (msg) => showToast(msg, "error") });
+  const loginEmp  = useSetLoginDetails();
+  const isSaving  = createEmp.isPending || updateEmp.isPending || loginEmp.isPending;
+
+  /** Runs after the employee itself is saved. Returns false if the login step failed. */
+  const saveLogin = async (id: string): Promise<boolean> => {
+    // Box unticked on an employee who had a login → switch it off. Otherwise nothing to do.
+    const disable = !login.enabled && isEdit && initialLoginEnabledRef.current;
+    const payload = disable ? {} : buildLoginPayload(login, loginCtx, initialRoleIdRef.current);
+    if (!payload) return true;
+    try {
+      await loginEmp.mutateAsync({ employeeId: id, payload, loginUser: !disable });
+      return true;
+    } catch (err) {
+      const e = err as { response?: { data?: { errors?: string; error?: string } }; message?: string };
+      const msg = e.response?.data?.errors ?? e.response?.data?.error ?? e.message ?? "Failed to update login details";
+      showToast(`Employee saved, but login details failed: ${msg}`, "error");
+      return false;
+    }
+  };
 
   const handleSubmit = async () => {
     if (!validate()) return;
@@ -348,13 +376,19 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
       (Object.keys(form) as (keyof FormData)[]).forEach((k) => {
         const cur = String(form[k] ?? "");
         const ini = String(initial[k] ?? "");
-        if (cur !== ini && !(k === "password" && !cur)) {
+        if (cur !== ini) {
           (changed as any)[k] = (payload as any)[k] ?? cur;
         }
       });
-      // always include password if filled
-      if (String(form.password ?? "").trim()) changed.password = String(form.password);
-      updateEmp.mutate({ employeeId, payload: changed as any });
+      try {
+        await updateEmp.mutateAsync({ employeeId, payload: changed as any });
+      } catch {
+        return; // error already toasted by the hook
+      }
+      // On a login failure stay open so the values can be corrected and re-saved
+      if (!(await saveLogin(employeeId))) return;
+      showToast("Employee updated successfully!");
+      onClose();
     } else {
       try {
         const result = await createEmp.mutateAsync(payload);
@@ -376,7 +410,10 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
           });
           if (uploads.length) await Promise.all(uploads);
         }
-        showToast("Employee created successfully!");
+        // The employee exists now, so close either way (re-submitting would create a duplicate);
+        // a failed login can be retried from the Set User action on the row.
+        const loginOk = !newId || (await saveLogin(newId));
+        if (loginOk) showToast("Employee created successfully!");
         onClose();
       } catch {
         // error already handled by onError
@@ -552,67 +589,19 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId }: P
                         {tf("email", "Enter email address", "email")}
                       </Grid>
 
-                      {/* Row 3: Password | Role */}
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <FL>
-                          Password
-                          {isEdit && (
-                            <Box component="span" sx={{ fontWeight: 400, color: "#9CA3AF", ml: 0.5, fontSize: 11 }}>
-                            </Box>
-                          )}
-                        </FL>
-                        <TextField
-                          fullWidth size="small"
-                          type={showPassword ? "text" : "password"}
-                          placeholder={isEdit ? "Enter new password (optional)" : "Enter password"}
-                          value={String(form.password ?? "")}
-                          onChange={(e) => set("password", e.target.value)}
-                          error={!!errors.password}
-                          helperText={
-                            errors.password
-                              ? errors.password
-                              : <Box component="span" sx={{ fontSize: 10.5, color: "#9CA3AF", whiteSpace: "nowrap" }}>
-                                  8–20 chars, mixed case + number + symbol
-                                </Box>
-                          }
-                          slotProps={{
-                            input: {
-                              endAdornment: (
-                                <InputAdornment position="end">
-                                  <IconButton size="small" onClick={() => setShowPassword((v) => !v)} edge="end"
-                                    sx={{ color: "#9CA3AF", "&:hover": { color: "#374151" } }}>
-                                    {showPassword
-                                      ? <VisibilityOffOutlinedIcon sx={{ fontSize: 17 }} />
-                                      : <VisibilityOutlinedIcon sx={{ fontSize: 17 }} />}
-                                  </IconButton>
-                                </InputAdornment>
-                              ),
-                            },
-                          }}
-                          sx={inputSx}
-                        />
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <FL>Role</FL>
-                        <Select fullWidth size="small" displayEmpty
-                          value={String(form.role_id ?? "")}
-                          onChange={(e) => set("role_id", e.target.value)}
-                          inputProps={{ readOnly }} sx={selectSx}
-                          renderValue={(v) => {
-                            const r = roles.find((r) => r.role_id === v);
-                            return r ? r.role_name : <span style={{ color: "#9CA3AF" }}>Select role</span>;
-                          }}
-                        >
-                          {roles.map((r) => (
-                            <MenuItem key={r.role_id} value={r.role_id} sx={{ fontSize: 13 }}>{r.role_name}</MenuItem>
-                          ))}
-                        </Select>
-                      </Grid>
-
-                      {/* Row 4: Status */}
+                      {/* Row 3: Status */}
                       <Grid size={{ xs: 12, sm: 6 }}>
                         <FL>Status</FL>
                         {sel("status", ["active", "inactive"], "Select status")}
+                      </Grid>
+
+                      {/* Row 4: Set user / login */}
+                      <Grid size={12}>
+                        <LoginDetailsSection
+                          value={login} errors={loginErrors} roles={roles}
+                          passwordSet={loginCtx.passwordSet} hideRole={loginCtx.hideRole}
+                          onChange={patchLogin}
+                        />
                       </Grid>
                     </Grid>
                   </Box>

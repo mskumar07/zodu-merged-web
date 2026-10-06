@@ -9,13 +9,15 @@ import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import Circle from "@mui/icons-material/Circle";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
 import { closeFromControlsOnly } from "@utils/dialog";
-import { useInfiniteEmployees, useDeleteEmployee, type EmployeeListItem } from "./useEmployeeApi";
+import { useInfiniteEmployees, useDeleteEmployee, isSuperAdmin, type EmployeeListItem } from "./useEmployeeApi";
 import EmployeeFormModal from "./EmployeeFormModal";
 import EmployeeViewModal from "./EmployeeViewModal";
+import SetUserModal, { type SetUserTarget } from "./SetUserModal";
 import LottieLoader from "@components/LottieLoader";
 import { useModulePermission } from "@hooks/useModulePermission";
 import { useSubscriptionGuard } from "@hooks/useSubscriptionGuard";
@@ -93,7 +95,9 @@ export default function EmployeeManagement() {
   const [modalOpen, setModalOpen]   = useState(false);
   const [modalMode, setModalMode]   = useState<"add" | "edit" | "view">("add");
   const [activeId, setActiveId]     = useState<string | null>(null);
+  const [activeLogin, setActiveLogin] = useState({ passwordSet: false, hideRole: false });
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [setUserTarget, setSetUserTarget] = useState<SetUserTarget | null>(null);
   const [search, setSearch]         = useState("");
   const [tab, setTab]               = useState<0 | 1>(0);
 
@@ -124,7 +128,11 @@ export default function EmployeeManagement() {
   });
 
   const openAdd  = useCallback(() => { setModalMode("add");  setActiveId(null); setModalOpen(true); }, []);
-  const openEdit = useCallback((id: string) => { setModalMode("edit"); setActiveId(id); setModalOpen(true); }, []);
+  const openEdit = useCallback((row: EmployeeListItem) => {
+    setModalMode("edit"); setActiveId(row.employee_id);
+    setActiveLogin({ passwordSet: !!row.has_password, hideRole: isSuperAdmin(row) });
+    setModalOpen(true);
+  }, []);
   const openView = useCallback((id: string) => { setModalMode("view"); setActiveId(id); setModalOpen(true); }, []);
   const closeModal = useCallback(() => { setModalOpen(false); setActiveId(null); }, []);
 
@@ -204,9 +212,17 @@ export default function EmployeeManagement() {
           </Tooltip>
           <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"} placement="top">
             <span>
-              <IconButton size="small" disabled={!canEdit} onClick={guard((e) => { e.stopPropagation(); openEdit(row.employee_id); })}
+              <IconButton size="small" disabled={!canEdit} onClick={guard((e) => { e.stopPropagation(); openEdit(row); })}
                 sx={{ color: "#1976d2", p: 0.6, borderRadius: 1, "&:hover": { bgcolor: "#EFF6FF", color: "#1565C0" }, transition: "all 0.12s" }}>
                 <EditOutlinedIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <Tooltip title={canEdit ? "Set User" : "You don't have permission to set user"} placement="top">
+            <span>
+              <IconButton size="small" disabled={!canEdit} onClick={guard((e) => { e.stopPropagation(); setSetUserTarget({ id: row.employee_id, name: row.name, hasRole: !!row.has_role || isSuperAdmin(row), hasPassword: !!row.has_password }); })}
+                sx={{ color: "#E11D48", p: 0.6, borderRadius: 1, "&:hover": { bgcolor: "#FFF1F2", color: "#BE123C" }, transition: "all 0.12s" }}>
+                <ManageAccountsOutlinedIcon sx={{ fontSize: 16 }} />
               </IconButton>
             </span>
           </Tooltip>
@@ -240,8 +256,8 @@ export default function EmployeeManagement() {
               "& .MuiTab-root": { minHeight: 36, fontSize: 13, fontWeight: 600, textTransform: "none", color: "#6B7280" },
               "& .Mui-selected": { color: "#E11D48" },
               "& .MuiTabs-indicator": { bgcolor: "#E11D48" } }}>
-            <Tab label="Active Employees" />
-            <Tab label="Inactive Employees" />
+            <Tab label="Active-Users/Employees" />
+            <Tab label="Inactive-Users/Employees" />
           </Tabs>
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "nowrap" }}>
@@ -298,6 +314,8 @@ export default function EmployeeManagement() {
           onClose={closeModal}
           mode={modalMode as "add" | "edit"}
           employeeId={activeId}
+          passwordSet={activeLogin.passwordSet}
+          hideRole={activeLogin.hideRole}
         />
 
         {/* View modal */}
@@ -305,6 +323,13 @@ export default function EmployeeManagement() {
           open={modalOpen && modalMode === "view"}
           onClose={closeModal}
           employeeId={activeId}
+        />
+
+        {/* Set user / login credentials */}
+        <SetUserModal
+          open={!!setUserTarget}
+          employee={setUserTarget}
+          onClose={() => setSetUserTarget(null)}
         />
 
         {/* Delete confirmation */}
