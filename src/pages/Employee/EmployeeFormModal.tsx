@@ -131,11 +131,13 @@ interface Props {
   employeeId?: string | null;
   /** Edit only: the employee already has a password on file. */
   passwordSet?: boolean;
+  /** `login_user` from the list row — used until/unless the detail response carries it. */
+  loginUser?: boolean;
   /** Edit only: the default Admin has no assignable role. */
   hideRole?: boolean;
 }
 
-export default function EmployeeFormModal({ open, onClose, mode, employeeId, passwordSet = false, hideRole = false }: Props) {
+export default function EmployeeFormModal({ open, onClose, mode, employeeId, passwordSet = false, loginUser, hideRole = false }: Props) {
   useBlockWhenReadOnly(open, onClose);
   const isEdit   = mode === "edit";
   const readOnly = false;
@@ -241,7 +243,8 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId, pas
     });
 
     // Existing login: tick the box and show the current role
-    const hadLogin = passwordSet || !!role?.role_id;
+    // `login_user` is the source of truth for whether the login is on.
+    const hadLogin = detail.login_user ?? loginUser ?? (passwordSet || !!role?.role_id);
     initialRoleIdRef.current = role?.role_id ?? "";
     initialLoginEnabledRef.current = hadLogin;
     setLogin({ ...EMPTY_LOGIN, enabled: hadLogin, roleId: role?.role_id ?? "" });

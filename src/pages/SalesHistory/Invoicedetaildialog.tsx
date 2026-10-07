@@ -3,8 +3,7 @@
  */
 import { useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { useAppSelector } from "@store/store";
-import { InvoiceSettingsData } from "@store/slices/userSlice";
+import { useInvoiceSettingsForSale } from "@hooks/useInvoiceSettingsForSale";
 import {
   Dialog, DialogContent, DialogActions,
   Box, Typography, IconButton, Button, Chip, Divider,
@@ -250,12 +249,7 @@ export default function InvoiceDetailsModal({
   const navigate = useNavigate();
   const pdfRef     = useRef<HTMLDivElement | null>(null);
   const thermalRef = useRef<HTMLDivElement | null>(null);
-  const invoiceSettings = useAppSelector(InvoiceSettingsData);
-  const settingsPaperSize: ThermalPaperSize = toThermalPaperSize(invoiceSettings?.printer_inch);
-  // While printing, the receipt is drawn for the roll the chosen printer takes
-  // (see printThermalCopies) rather than the width Invoice Settings names.
   const [printPaperSize, setPrintPaperSize] = useState<ThermalPaperSize | null>(null);
-  const thermalPaperSize: ThermalPaperSize = printPaperSize ?? settingsPaperSize;
 
   const [printToast, setPrintToast] = useState<{ message: string; severity: "success" | "error" } | null>(null);
 
@@ -266,6 +260,13 @@ export default function InvoiceDetailsModal({
   });
 
   const sale = data?.sale;
+  // The settings of this document's own type — a quotation prints with the
+  // Quotation tab's settings, a proforma with Proforma's.
+  const invoiceSettings = useInvoiceSettingsForSale(sale?.sale_type);
+  const settingsPaperSize: ThermalPaperSize = toThermalPaperSize(invoiceSettings?.printer_inch);
+  // While printing, the receipt is drawn for the roll the chosen printer takes
+  // (see printThermalCopies) rather than the width Invoice Settings names.
+  const thermalPaperSize: ThermalPaperSize = printPaperSize ?? settingsPaperSize;
   const customer = data?.customer ?? null;
   const rawItems = data?.items ?? [];
   // Normalize restaurant item fields to match retail shape for display

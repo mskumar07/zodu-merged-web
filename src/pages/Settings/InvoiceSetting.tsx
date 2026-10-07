@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -32,7 +32,7 @@ import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlin
 import SuccessToast from "@components/Common/SuccessToast";
 import SelectableTypeCard from "@components/Common/SelectableTypeCard";
 import { useAppDispatch, useAppSelector } from "@store/store";
-import { BusinessType, setInvoiceSettings } from "@store/slices/userSlice";
+import { BusinessType, setDocumentSettings, setInvoiceSettings } from "@store/slices/userSlice";
 import {
   useInvoiceSettings,
   useUpdateInvoiceSettings,
@@ -42,6 +42,7 @@ import {
   useDeleteInvoiceImage,
   useCompanyLogoUrl,
   INVOICE_COPY_TYPE_LABELS,
+  type InvoiceDocumentType,
   type InvoiceCopyTypeLabel,
   type InvoiceSettingsResponse,
   type UpdateInvoiceSettingsPayload,
@@ -206,10 +207,15 @@ function SettingRow({ icon, iconBg = "#fdecef", iconColor = redTint, label, desc
 interface SectionProps {
   title: string;
   subtitle?: string;
+  // Control shown at the right of the header (e.g. a tab toggle).
+  action?: React.ReactNode;
+  // Keep the header pinned while the settings column scrolls, so `action`
+  // stays reachable beside the rows it controls.
+  stickyHeader?: boolean;
   children: React.ReactNode;
 }
 
-function Section({ title, subtitle, children }: SectionProps) {
+function Section({ title, subtitle, action, stickyHeader, children }: SectionProps) {
   return (
     <Paper
       elevation={0}
@@ -218,20 +224,37 @@ function Section({ title, subtitle, children }: SectionProps) {
         border: "1px solid",
         borderColor: cardBorder,
         bgcolor: "#fff",
-        overflow: "hidden",
+        // "clip" rounds the corners like "hidden" but doesn't make this a scroll
+        // container, which would stop the sticky header from pinning.
+        overflow: "clip",
       }}
     >
-      <Box sx={{ px: { xs: 2, md: 2.5 }, pt: 2, pb: 1 }}>
-        <Typography sx={{ fontSize: 13, fontWeight: 800, color: headingText, letterSpacing: 0.2 }}>
-          {title}
-        </Typography>
-        {subtitle && (
-          <Typography sx={{ fontSize: 12, color: subtleText, mt: 0.3 }}>
-            {subtitle}
+      <Box
+        sx={{
+          px: { xs: 2, md: 2.5 },
+          pt: 2,
+          pb: 1,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 1.5,
+          flexWrap: "wrap",
+          borderBottom: "1px solid #f4f5f8",
+          ...(stickyHeader && { position: "sticky", top: 0, zIndex: 2, bgcolor: "#fff" }),
+        }}
+      >
+        <Box>
+          <Typography sx={{ fontSize: 13, fontWeight: 800, color: headingText, letterSpacing: 0.2 }}>
+            {title}
           </Typography>
-        )}
+          {subtitle && (
+            <Typography sx={{ fontSize: 12, color: subtleText, mt: 0.3 }}>
+              {subtitle}
+            </Typography>
+          )}
+        </Box>
+        {action}
       </Box>
-      <Divider sx={{ borderColor: "#f4f5f8" }} />
       <Box sx={{ px: { xs: 2, md: 2.5 } }}>
         {children}
       </Box>
@@ -248,6 +271,50 @@ const TEMPLATE_TYPES = [
   { value: "3", label: "3 inch Thermal Printer", caption: "72 mm width", icon: <LocalPrintshopOutlinedIcon fontSize="small" /> },
   { value: "5", label: "5 inch Thermal Printer", caption: "120 mm width", icon: <LocalPrintshopOutlinedIcon fontSize="small" /> },
 ];
+
+const DOC_TYPES: ReadonlyArray<{ value: InvoiceDocumentType; label: string }> = [
+  { value: "invoice", label: "Invoice" },
+  { value: "quotation", label: "Quotation" },
+  { value: "proforma", label: "Proforma" },
+];
+
+// Memoised so ticking a switch (which re-renders the whole page) doesn't
+// rebuild the toggle; it only re-renders when the tab or disabled state changes.
+const DocTypeToggle = memo(function DocTypeToggle({
+  value, disabled, onChange,
+}: {
+  value: InvoiceDocumentType;
+  disabled: boolean;
+  onChange: (next: InvoiceDocumentType) => void;
+}) {
+  return (
+    <Stack
+      direction="row"
+      sx={{
+        border: "1px solid", borderColor: cardBorder, borderRadius: 999, p: 0.4, gap: 0.4, flexShrink: 0,
+        opacity: disabled ? 0.6 : 1, pointerEvents: disabled ? "none" : "auto",
+      }}
+    >
+      {DOC_TYPES.map(({ value: option, label }) => {
+        const selected = value === option;
+        return (
+          <Box
+            key={option}
+            onClick={() => onChange(option)}
+            sx={{
+              px: 1.5, py: 0.4, borderRadius: 999, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", cursor: "pointer",
+              color: selected ? "#fff" : subtleText,
+              bgcolor: selected ? redTint : "transparent",
+              transition: "background-color 0.15s, color 0.15s",
+            }}
+          >
+            {label}
+          </Box>
+        );
+      })}
+    </Stack>
+  );
+});
 
 function ThemeCard({
   label, description, variant, selected, onSelect,
@@ -600,11 +667,17 @@ export default function InvoiceSetting() {
   const [signatureUrl, setSignatureUrl] = useState("");
   const [watermarkUrl, setWatermarkUrl] = useState("");
   const [receiverSignatureUrl, setReceiverSignatureUrl] = useState("");
+  // Quotation and proforma settings exist for Retail only.
+  const supportsDocTypes = businessType !== "Restaurant";
+  const [docType, setDocType] = useState<InvoiceDocumentType>("invoice");
+  // The tab the form state was last populated for — tells the data effect
+  // whether an incoming row is a refresh (merge) or a tab switch (replace).
+  const appliedDocTypeRef = useRef<InvoiceDocumentType>("invoice");
   const [saved, setSaved] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const { data, isLoading, isError } = useInvoiceSettings();
+  const { data, isLoading, isError } = useInvoiceSettings(true, docType);
 
   useEffect(() => {
     if (data) {
@@ -613,7 +686,11 @@ export default function InvoiceSetting() {
       // setSettings updater runs after this effect returns, so reading
       // baselineRef.current from inside it would see the new value we're
       // about to assign, not the one it should be diffed against.
-      const previousBaseline = baselineRef.current;
+      // A different tab's row must replace the form outright — merging would
+      // carry this tab's unsaved edits over onto the other document type.
+      const isTabSwitch = appliedDocTypeRef.current !== docType;
+      appliedDocTypeRef.current = docType;
+      const previousBaseline = isTabSwitch ? null : baselineRef.current;
       // Merge rather than overwrite: uploading/removing a signature refreshes
       // this same query-cache entry mid-edit, and a blind overwrite here was
       // reverting any toggle the user had changed but not yet saved — e.g.
@@ -636,7 +713,14 @@ export default function InvoiceSetting() {
       setWatermarkUrl(data.watermark_url ?? "");
       setReceiverSignatureUrl(data.receiver_signature_url ?? "");
     }
-  }, [data]);
+  }, [data, docType]);
+
+  // POS and sale history read these rows from Redux: each tab updates its own,
+  // so a quotation edit never overwrites the invoice row.
+  const syncInvoiceRedux = (updated: InvoiceSettingsResponse) => {
+    if (docType === "invoice") dispatch(setInvoiceSettings(updated));
+    else dispatch(setDocumentSettings({ [docType]: updated }));
+  };
 
   const { mutate: uploadSignature, isPending: signatureUploading } = useUploadInvoiceSignature({
     onSuccess: (updated) => {
@@ -644,17 +728,19 @@ export default function InvoiceSetting() {
       // Real invoices (POS, sale history) read the signature from Redux, not
       // this page's query cache — without this dispatch the new image would
       // only show up after the next login/branch switch.
-      dispatch(setInvoiceSettings(updated));
+      syncInvoiceRedux(updated);
     },
     onError: () => setErrorMsg("Failed to upload signature. Please try again."),
+    documentType: docType,
   });
 
   const { mutate: removeSignature, isPending: signatureDeleting } = useDeleteInvoiceSignature({
     onSuccess: (updated) => {
       setSignatureUrl("");
-      dispatch(setInvoiceSettings(updated));
+      syncInvoiceRedux(updated);
     },
     onError: () => setErrorMsg("Failed to remove signature. Please try again."),
+    documentType: docType,
   });
 
   // Watermark and receiver signature follow the same upload contract as the
@@ -662,30 +748,34 @@ export default function InvoiceSetting() {
   const { mutate: uploadWatermark, isPending: watermarkUploading } = useUploadInvoiceImage("watermark", {
     onSuccess: (updated) => {
       setWatermarkUrl(updated.watermark_url ?? "");
-      dispatch(setInvoiceSettings(updated));
+      syncInvoiceRedux(updated);
     },
     onError: setErrorMsg,
+    documentType: docType,
   });
   const { mutate: removeWatermark, isPending: watermarkDeleting } = useDeleteInvoiceImage("watermark", {
     onSuccess: (updated) => {
       setWatermarkUrl("");
-      dispatch(setInvoiceSettings(updated));
+      syncInvoiceRedux(updated);
     },
     onError: setErrorMsg,
+    documentType: docType,
   });
   const { mutate: uploadReceiverSignature, isPending: receiverSignatureUploading } = useUploadInvoiceImage("receiver_signature", {
     onSuccess: (updated) => {
       setReceiverSignatureUrl(updated.receiver_signature_url ?? "");
-      dispatch(setInvoiceSettings(updated));
+      syncInvoiceRedux(updated);
     },
     onError: setErrorMsg,
+    documentType: docType,
   });
   const { mutate: removeReceiverSignature, isPending: receiverSignatureDeleting } = useDeleteInvoiceImage("receiver_signature", {
     onSuccess: (updated) => {
       setReceiverSignatureUrl("");
-      dispatch(setInvoiceSettings(updated));
+      syncInvoiceRedux(updated);
     },
     onError: setErrorMsg,
+    documentType: docType,
   });
 
   useEffect(() => {
@@ -705,7 +795,7 @@ export default function InvoiceSetting() {
       // POS reads printer_inch straight from Redux (populated once at branch-select)
       // to decide A4-vs-thermal print template — without this the change here would
       // only take effect after the next login/branch switch.
-      dispatch(setInvoiceSettings(updated));
+      syncInvoiceRedux(updated);
       setSaved(true);
       setSuccessMsg("Invoice settings updated successfully");
       setTimeout(() => setSaved(false), 2000);
@@ -729,18 +819,22 @@ export default function InvoiceSetting() {
     setSaved(false);
   };
 
-  const update = <K extends keyof InvoiceSettings>(key: K, value: InvoiceSettings[K]) => {
+  const update = useCallback(<K extends keyof InvoiceSettings>(key: K, value: InvoiceSettings[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
     setSaved(false);
-  };
+  }, []);
 
   const handleSave = () => {
     const fullPayload = toApiPayload(settings);
 
+    // quotation / proforma name their row in the body; invoice sends nothing.
+    const withDocType = <T extends UpdateInvoiceSettingsPayload>(payload: T): T =>
+      docType === "invoice" ? payload : { ...payload, document_type: docType };
+
     // No baseline yet (first-ever load failed, or this tenant has no row
     // yet) — nothing to diff against, so the upsert needs the full payload.
     if (!baselineRef.current) {
-      saveSettings(fullPayload);
+      saveSettings(withDocType(fullPayload));
       return;
     }
 
@@ -764,12 +858,12 @@ export default function InvoiceSetting() {
       return;
     }
 
-    saveSettings(diff);
+    saveSettings(withDocType(diff));
   };
 
   // Draft settings for the live receipt preview — reflects unsaved toggle
   // changes immediately instead of waiting on a save round-trip.
-  const previewSettingsOverride = {
+  const previewSettingsOverride = useMemo(() => ({
     show_company_logo: settings.showCompanyLogo,
     show_tax_details: settings.showTaxDetails,
     show_description: settings.showItemDescription,
@@ -792,7 +886,7 @@ export default function InvoiceSetting() {
     show_receiver_signature: settings.showReceiverSignature,
     show_bank_details: settings.showBankDetails,
     invoice_template: settings.invoiceTemplate,
-  };
+  }), [settings]);
 
   // A4 offers its four layouts, a thermal roll its two. Both read the one
   // stored `invoice_template`, so "modern2" shows as Modern on a roll.
@@ -807,7 +901,13 @@ export default function InvoiceSetting() {
   const previewContentRef = useRef<HTMLDivElement | null>(null);
   const previewZoomRef = useRef(1);
   const [previewZoom, setPreviewZoom] = useState(1);
+  // The refs above only exist once the first load's spinner is gone.
+  const showSpinner = isLoading && !baselineRef.current;
 
+  // Deliberately not run on every render: it sets state, and the zoom feeds
+  // back into the panel's width, so a per-render effect can flip-flop between
+  // two zoom values forever ("Maximum update depth exceeded"). The observers
+  // below already re-fit whenever the panel or the receipt changes size.
   useLayoutEffect(() => {
     const viewport = previewViewportRef.current;
     const content = previewContentRef.current;
@@ -835,9 +935,9 @@ export default function InvoiceSetting() {
     observer.observe(viewport);
     observer.observe(content);
     return () => observer.disconnect();
-  });
+  }, [showSpinner]);
 
-  if (isLoading) {
+  if (showSpinner) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
         <CircularProgress size={28} sx={{ color: redTint }} />
@@ -859,7 +959,13 @@ export default function InvoiceSetting() {
       >
         {/* Left Column — scrolls independently of the page; the Save bar
             sticks to the bottom of this scroll area only. */}
-        <Box sx={{ minHeight: 0, height: { lg: "calc(100vh - 150px)" }, overflowY: { lg: "auto" }, pr: { lg: 0.5 } }}>
+        <Box
+          sx={{
+            minHeight: 0, height: { lg: "calc(100vh - 150px)" }, overflowY: { lg: "auto" }, pr: { lg: 0.5 },
+            // Tab switch still fetching: keep the layout, block edits to stale values.
+            opacity: isLoading ? 0.5 : 1, pointerEvents: isLoading ? "none" : "auto", transition: "opacity 0.15s",
+          }}
+        >
         <Stack spacing={2}>
            {/* <Box sx={{ mb: 2.5 }}>
         <Typography sx={{ fontSize: { xs: 22, md: 26 }, fontWeight: 800, color: headingText, lineHeight: 1.2 }}>
@@ -952,7 +1058,16 @@ export default function InvoiceSetting() {
           </Section>
 
           {/* Print Layout */}
-          <Section title="Print Layout" subtitle="Customize what appears on printed invoices">
+          <Section
+            title="Print Layout"
+            subtitle={`Customize what appears on printed ${docType === "invoice" ? "invoices" : docType === "quotation" ? "quotations" : "proformas"}`}
+            stickyHeader
+            action={
+              supportsDocTypes ? (
+                <DocTypeToggle value={docType} disabled={isSaving} onChange={setDocType} />
+              ) : undefined
+            }
+          >
             <SettingRow
               icon={<ImageOutlinedIcon fontSize="small" />}
               iconBg="#fff7ed"
@@ -1183,7 +1298,6 @@ export default function InvoiceSetting() {
 
             <Divider sx={{ borderColor: "#f4f5f8" }} />
 
-
             <SettingRow
               icon={<BorderColorOutlinedIcon fontSize="small" />}
               iconBg="#eef4ff"
@@ -1358,98 +1472,6 @@ export default function InvoiceSetting() {
             <Divider sx={{ borderColor: "#f4f5f8" }} />
 
             <SettingRow
-              icon={<DescriptionOutlinedIcon fontSize="small" />}
-              iconBg="#eff6ff"
-              iconColor="#2563eb"
-              label="Quotation Terms & Conditions"
-              description="Print separate terms on quotations instead of the invoice terms"
-            >
-              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                <Switch
-                  checked={settings.showQuotationTerms}
-                  onChange={(e) => update("showQuotationTerms", e.target.checked)}
-                  sx={{
-                    "& .MuiSwitch-switchBase.Mui-checked": { color: redTint },
-                    "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: redTint },
-                  }}
-                />
-              </Box>
-            </SettingRow>
-            {settings.showQuotationTerms && (
-              <Box sx={{ pb: 2 }}>
-                <TextField
-                  multiline
-                  minRows={3}
-                  maxRows={6}
-                  fullWidth
-                  placeholder="Enter Terms & Conditions for quotations"
-                  value={settings.quotationTermsText}
-                  onChange={(e) => e.target.value.length <= FREE_TEXT_MAX_LENGTH && update("quotationTermsText", e.target.value)}
-                  helperText={`${settings.quotationTermsText.length}/${FREE_TEXT_MAX_LENGTH}`}
-                  FormHelperTextProps={{ sx: { textAlign: "right", fontSize: 10.5, mx: 0 } }}
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      fontSize: 13,
-                      borderRadius: 1,
-                      bgcolor: "#fafbfc",
-                      "& fieldset": { borderColor: cardBorder },
-                      "&:hover fieldset": { borderColor: "#c5c8d2" },
-                      "&.Mui-focused fieldset": { borderColor: redTint },
-                    },
-                  }}
-                />
-              </Box>
-            )}
-
-            <Divider sx={{ borderColor: "#f4f5f8" }} />
-
-            <SettingRow
-              icon={<DescriptionOutlinedIcon fontSize="small" />}
-              iconBg="#eff6ff"
-              iconColor="#2563eb"
-              label="Proforma Terms & Conditions"
-              description="Print separate terms on proformas instead of the invoice terms"
-            >
-              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                <Switch
-                  checked={settings.showProformaTerms}
-                  onChange={(e) => update("showProformaTerms", e.target.checked)}
-                  sx={{
-                    "& .MuiSwitch-switchBase.Mui-checked": { color: redTint },
-                    "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: redTint },
-                  }}
-                />
-              </Box>
-            </SettingRow>
-            {settings.showProformaTerms && (
-              <Box sx={{ pb: 2 }}>
-                <TextField
-                  multiline
-                  minRows={3}
-                  maxRows={6}
-                  fullWidth
-                  placeholder="Enter Terms & Conditions for proformas"
-                  value={settings.proformaTermsText}
-                  onChange={(e) => e.target.value.length <= FREE_TEXT_MAX_LENGTH && update("proformaTermsText", e.target.value)}
-                  helperText={`${settings.proformaTermsText.length}/${FREE_TEXT_MAX_LENGTH}`}
-                  FormHelperTextProps={{ sx: { textAlign: "right", fontSize: 10.5, mx: 0 } }}
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      fontSize: 13,
-                      borderRadius: 1,
-                      bgcolor: "#fafbfc",
-                      "& fieldset": { borderColor: cardBorder },
-                      "&:hover fieldset": { borderColor: "#c5c8d2" },
-                      "&.Mui-focused fieldset": { borderColor: redTint },
-                    },
-                  }}
-                />
-              </Box>
-            )}
-
-            <Divider sx={{ borderColor: "#f4f5f8" }} />
-
-            <SettingRow
               icon={<StickyNote2OutlinedIcon fontSize="small" />}
               iconBg="#f0fdf4"
               iconColor="#16a34a"
@@ -1592,6 +1614,9 @@ export default function InvoiceSetting() {
             overflow: "hidden",
             position: { lg: "sticky" },
             top: { lg: 16 },
+            // A grid item's min width is its content's by default, which let the
+            // zoomed receipt resize its own column.
+            minWidth: 0,
           }}
         >
           <Box sx={{ px: { xs: 2, md: 2.5 }, pt: 2, pb: 1, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 1.5, flexWrap: "wrap" }}>

@@ -54,8 +54,14 @@ export type PaymentTypeLabel = (typeof PAYMENT_TYPE_LABELS)[number];
 export const INVOICE_COPY_TYPE_LABELS = ["Original", "Duplicate", "Transport"] as const;
 export type InvoiceCopyTypeLabel = (typeof INVOICE_COPY_TYPE_LABELS)[number];
 
+// Invoice, quotation and proforma each keep their own settings row. Quotation
+// and proforma exist for Retail companies only. Invoice is the default and is
+// sent with no `document_type` at all, so existing callers are unchanged.
+export type InvoiceDocumentType = "invoice" | "quotation" | "proforma";
+
 export interface InvoiceSettingsResponse {
   id: number;
+  document_type?: InvoiceDocumentType;
   zodu_id: string;
   branch_id: string;
   invoice_prefix: string;
@@ -130,6 +136,7 @@ export interface InvoiceSettingsResponse {
 export type UpdateInvoiceSettingsPayload = Partial<
   Pick<
     InvoiceSettingsResponse,
+    | "document_type"
     | "invoice_prefix"
     | "invoice_prefix_enabled"
     | "invoice_start_number"
@@ -170,9 +177,18 @@ export type UpdateInvoiceSettingsPayload = Partial<
 // ─── Query keys ───────────────────────────────────────────────
 
 export const invoiceSettingsQueryKeys = {
-  detail: (zoduId: string, branchId: string) =>
-    ["invoice-settings", zoduId, branchId] as const,
+  // The invoice key is unchanged so every existing reader/writer of it keeps
+  // working; quotation and proforma get their own cache entries.
+  detail: (zoduId: string, branchId: string, documentType: InvoiceDocumentType = "invoice") =>
+    documentType === "invoice"
+      ? (["invoice-settings", zoduId, branchId] as const)
+      : (["invoice-settings", zoduId, branchId, documentType] as const),
 };
+
+// Query string selecting the document type on the read and image routes.
+function documentTypeParams(documentType: InvoiceDocumentType) {
+  return documentType === "invoice" ? undefined : { document_type: documentType };
+}
 
 // Signature files are served from GET /auth/file/:name. The signature
 // endpoints' exact response shape isn't nailed down, so this checks a few
@@ -243,19 +259,22 @@ function settingsFromImageResponse(data: any): InvoiceSettingsResponse {
 
 // ─── Fetch invoice settings ───────────────────────────────────
 
-async function fetchInvoiceSettings(
+export async function fetchInvoiceSettings(
   zoduId: string,
-  branchId: string
+  branchId: string,
+  documentType: InvoiceDocumentType = "invoice"
 ): Promise<InvoiceSettingsResponse> {
-  const { data } = await getApi().get(`/invoice-settings/${zoduId}/${branchId}`);
+  const { data } = await getApi().get(`/invoice-settings/${zoduId}/${branchId}`, {
+    params: documentTypeParams(documentType),
+  });
   return normalizeSettings(data.settings ?? data.data?.settings);
 }
 
-export function useInvoiceSettings(enabled = true) {
+export function useInvoiceSettings(enabled = true, documentType: InvoiceDocumentType = "invoice") {
   const { zoduId, branchId } = getTenantContext();
   return useQuery({
-    queryKey: invoiceSettingsQueryKeys.detail(zoduId ?? "", branchId ?? ""),
-    queryFn: () => fetchInvoiceSettings(zoduId!, branchId!),
+    queryKey: invoiceSettingsQueryKeys.detail(zoduId ?? "", branchId ?? "", documentType),
+    queryFn: () => fetchInvoiceSettings(zoduId!, branchId!, documentType),
     enabled: enabled && !!zoduId && !!branchId,
     staleTime: 30_000,
   });
@@ -283,9 +302,9 @@ export function useUpdateInvoiceSettings(options?: {
 
   return useMutation({
     mutationFn: updateInvoiceSettings,
-    onSuccess: (settings) => {
+    onSuccess: (settings, payload) => {
       queryClient.setQueryData(
-        invoiceSettingsQueryKeys.detail(zoduId ?? "", branchId ?? ""),
+        invoiceSettingsQueryKeys.detail(zoduId ?? "", branchId ?? "", payload.document_type ?? "invoice"),
         settings
       );
       options?.onSuccess?.(settings);
@@ -308,14 +327,17 @@ function extractErrorMessage(err: unknown, fallback: string): string {
 
 // ─── Signature upload / delete ─────────────────────────────────
 
-async function uploadInvoiceSignature(file: File): Promise<InvoiceSettingsResponse> {
+async function uploadInvoiceSignature(
+  file: File,
+  documentType: InvoiceDocumentType
+): Promise<InvoiceSettingsResponse> {
   const { zoduId, branchId } = getTenantContext();
   const formData = new FormData();
   formData.append("signature", file);
   const { data } = await getApi().post(
     `/invoice-settings/${zoduId}/${branchId}/signature`,
     formData,
-    { headers: { "Content-Type": "multipart/form-data" } }
+    { headers: { "Content-Type": "multipart/form-data" }, params: documentTypeParams(documentType) }
   );
   return settingsFromImageResponse(data);
 }
@@ -323,15 +345,17 @@ async function uploadInvoiceSignature(file: File): Promise<InvoiceSettingsRespon
 export function useUploadInvoiceSignature(options?: {
   onSuccess?: (settings: InvoiceSettingsResponse) => void;
   onError?: (msg: string) => void;
+  documentType?: InvoiceDocumentType;
 }) {
+  const documentType = options?.documentType ?? "invoice";
   const queryClient = useQueryClient();
   const { zoduId, branchId } = getTenantContext();
 
   return useMutation({
-    mutationFn: uploadInvoiceSignature,
+    mutationFn: (file: File) => uploadInvoiceSignature(file, documentType),
     onSuccess: (settings) => {
       queryClient.setQueryData(
-        invoiceSettingsQueryKeys.detail(zoduId ?? "", branchId ?? ""),
+        invoiceSettingsQueryKeys.detail(zoduId ?? "", branchId ?? "", documentType),
         settings
       );
       options?.onSuccess?.(settings);
@@ -342,10 +366,11 @@ export function useUploadInvoiceSignature(options?: {
   });
 }
 
-async function deleteInvoiceSignature(): Promise<InvoiceSettingsResponse> {
+async function deleteInvoiceSignature(documentType: InvoiceDocumentType): Promise<InvoiceSettingsResponse> {
   const { zoduId, branchId } = getTenantContext();
   const { data } = await getApi().delete(
-    `/invoice-settings/${zoduId}/${branchId}/signature`
+    `/invoice-settings/${zoduId}/${branchId}/signature`,
+    { params: documentTypeParams(documentType) }
   );
   return settingsFromImageResponse(data);
 }
@@ -353,15 +378,17 @@ async function deleteInvoiceSignature(): Promise<InvoiceSettingsResponse> {
 export function useDeleteInvoiceSignature(options?: {
   onSuccess?: (settings: InvoiceSettingsResponse) => void;
   onError?: (msg: string) => void;
+  documentType?: InvoiceDocumentType;
 }) {
+  const documentType = options?.documentType ?? "invoice";
   const queryClient = useQueryClient();
   const { zoduId, branchId } = getTenantContext();
 
   return useMutation({
-    mutationFn: deleteInvoiceSignature,
+    mutationFn: () => deleteInvoiceSignature(documentType),
     onSuccess: (settings) => {
       queryClient.setQueryData(
-        invoiceSettingsQueryKeys.detail(zoduId ?? "", branchId ?? ""),
+        invoiceSettingsQueryKeys.detail(zoduId ?? "", branchId ?? "", documentType),
         settings
       );
       options?.onSuccess?.(settings);
@@ -384,10 +411,11 @@ const INVOICE_IMAGE_ENDPOINT: Record<InvoiceImageKind, { path: string; field: st
 
 export function useUploadInvoiceImage(
   kind: InvoiceImageKind,
-  options?: { onSuccess?: (settings: InvoiceSettingsResponse) => void; onError?: (msg: string) => void }
+  options?: { onSuccess?: (settings: InvoiceSettingsResponse) => void; onError?: (msg: string) => void; documentType?: InvoiceDocumentType }
 ) {
   const queryClient = useQueryClient();
   const { zoduId, branchId } = getTenantContext();
+  const documentType = options?.documentType ?? "invoice";
   const { path, field, label } = INVOICE_IMAGE_ENDPOINT[kind];
 
   return useMutation({
@@ -397,12 +425,12 @@ export function useUploadInvoiceImage(
       const { data } = await getApi().post(
         `/invoice-settings/${zoduId}/${branchId}/${path}`,
         formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
+        { headers: { "Content-Type": "multipart/form-data" }, params: documentTypeParams(documentType) }
       );
       return settingsFromImageResponse(data);
     },
     onSuccess: (settings) => {
-      queryClient.setQueryData(invoiceSettingsQueryKeys.detail(zoduId ?? "", branchId ?? ""), settings);
+      queryClient.setQueryData(invoiceSettingsQueryKeys.detail(zoduId ?? "", branchId ?? "", documentType), settings);
       options?.onSuccess?.(settings);
     },
     onError: (err: unknown) => {
@@ -413,19 +441,22 @@ export function useUploadInvoiceImage(
 
 export function useDeleteInvoiceImage(
   kind: InvoiceImageKind,
-  options?: { onSuccess?: (settings: InvoiceSettingsResponse) => void; onError?: (msg: string) => void }
+  options?: { onSuccess?: (settings: InvoiceSettingsResponse) => void; onError?: (msg: string) => void; documentType?: InvoiceDocumentType }
 ) {
   const queryClient = useQueryClient();
   const { zoduId, branchId } = getTenantContext();
+  const documentType = options?.documentType ?? "invoice";
   const { path, label } = INVOICE_IMAGE_ENDPOINT[kind];
 
   return useMutation({
     mutationFn: async () => {
-      const { data } = await getApi().delete(`/invoice-settings/${zoduId}/${branchId}/${path}`);
+      const { data } = await getApi().delete(`/invoice-settings/${zoduId}/${branchId}/${path}`, {
+        params: documentTypeParams(documentType),
+      });
       return settingsFromImageResponse(data);
     },
     onSuccess: (settings) => {
-      queryClient.setQueryData(invoiceSettingsQueryKeys.detail(zoduId ?? "", branchId ?? ""), settings);
+      queryClient.setQueryData(invoiceSettingsQueryKeys.detail(zoduId ?? "", branchId ?? "", documentType), settings);
       options?.onSuccess?.(settings);
     },
     onError: (err: unknown) => {

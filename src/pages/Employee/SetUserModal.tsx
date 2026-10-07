@@ -135,6 +135,8 @@ function SetUserModal({ open, employee, onClose }: Props) {
         ...(needsRole && { role_id: form.roleId }),
         ...(needsPassword && { password: form.password, confirm_password: form.confirm }),
       },
+      // Saving here is what switches the login on.
+      loginUser: true,
     });
   };
 
@@ -166,7 +168,7 @@ function SetUserModal({ open, employee, onClose }: Props) {
         sx={{ px: 3, py: 2.5, display: "flex", flexDirection: "column", gap: 2 }}>
         {nothingToSet && (
           <Alert severity="info" sx={{ fontSize: 13 }}>
-            Role and password are already set for this employee. Use Edit to change them.
+            This employee already has a role and password. Enable the login to let them sign in. Use Edit to change the role or password.
           </Alert>
         )}
 
@@ -209,13 +211,13 @@ function SetUserModal({ open, employee, onClose }: Props) {
         <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1.5, pt: 1 }}>
           <Button variant="outlined" onClick={onClose} disabled={save.isPending}
             sx={{ borderColor: "#E5E7EB", color: "#374151", fontWeight: 600, "&:hover": { borderColor: "#9CA3AF" } }}>
-            {nothingToSet ? "Close" : "Cancel"}
+            Cancel
           </Button>
-          {!nothingToSet && <Button type="submit" variant="contained" disableElevation disabled={save.isPending}
+          <Button type="submit" variant="contained" disableElevation disabled={save.isPending}
             startIcon={save.isPending ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : <PersonAddAlt1OutlinedIcon sx={{ fontSize: 18 }} />}
             sx={{ bgcolor: "#E11D48", color: "#fff", fontWeight: 700, "&:hover": { bgcolor: "#BE123C" } }}>
-            Save &amp; Set User
-          </Button>}
+            {nothingToSet ? "Enable Login" : "Save & Set User"}
+          </Button>
         </Box>
       </Box>
     </Dialog>
