@@ -1,5 +1,5 @@
 import type { AppDispatch } from "@store/store";
-import { setCompanies, setInvoiceSettings, setPosSettings, setRoleAccess } from "@store/slices/userSlice";
+import { setCompanies, setDocumentSettings, setInvoiceSettings, setPosSettings, setRoleAccess } from "@store/slices/userSlice";
 import { markSessionReconciled } from "@hooks/useReconcilePersistedSession";
 import { authApis } from "@pages/auth/Authapi";
 
@@ -53,6 +53,11 @@ export async function loadBranchSession(
 
   if (settings.status === "fulfilled") {
     dispatch(setInvoiceSettings(settings.value.settings?.invoice ?? null));
+    // Overwritten even when absent, so another branch's rows never linger.
+    dispatch(setDocumentSettings({
+      quotation: settings.value.settings?.quotation ?? null,
+      proforma: settings.value.settings?.proforma ?? null,
+    }));
     // The same call carries the POS block — the POS screen reads its sale-type
     // tabs from here rather than making a second request on every open.
     dispatch(setPosSettings(settings.value.settings?.pos ?? null));

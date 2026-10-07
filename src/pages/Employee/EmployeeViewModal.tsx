@@ -122,7 +122,7 @@ export default function EmployeeViewModal({ open, onClose, employeeId }: Props) 
               <BadgeOutlinedIcon sx={{ color: "#E11D48", fontSize: 20 }} />
             </Box>
             <Box>
-              <Typography sx={{ fontSize: 17, fontWeight: 800, color: "#0F172A" }}>Employee Details</Typography>
+              <Typography sx={{ fontSize: 17, fontWeight: 800, color: "#0F172A" }}>User / Employee Details</Typography>
               <Typography sx={{ fontSize: 11, color: "#6B7280" }}>Employee information (read-only)</Typography>
             </Box>
           </Box>
@@ -155,7 +155,7 @@ export default function EmployeeViewModal({ open, onClose, employeeId }: Props) 
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Row>
                       <Field label="Full Name" value={detail.name} />
-                      <Field label="Employee ID" value={detail.employee_code} />
+                      <Field label="ID" value={detail.employee_code} />
                     </Row>
                     <Row>
                       <Field label="Mobile Number" value={detail.phone} />

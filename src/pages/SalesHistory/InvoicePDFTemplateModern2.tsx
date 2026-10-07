@@ -1,6 +1,7 @@
 import { useAppSelector } from "@store/store";
 import { useTenantContext } from "@store/tenantContext";
-import { AllCompanies, InvoiceSettingsData } from "@store/slices/userSlice";
+import { AllCompanies } from "@store/slices/userSlice";
+import { useInvoiceSettingsForSale } from "@hooks/useInvoiceSettingsForSale";
 import React from "react";
 import { saleDocumentLabel } from "@utils/saleType";
 import { resolveTermsForSaleType } from "@utils/invoiceTerms";
@@ -242,7 +243,7 @@ export const InvoicePDFTemplateModern2 = React.forwardRef(({ data, settingsOverr
   const companies = useAppSelector(AllCompanies);
   const selectedCompany = companies.find(c => c.zodu_id === zoduId);
   const selectedBranch = selectedCompany?.branches?.find(b => b.branch_id === branchId);
-  const reduxInvoiceSettings = useAppSelector(InvoiceSettingsData);
+  const reduxInvoiceSettings = useInvoiceSettingsForSale(sale_type);
   const invoiceSettings = settingsOverride ?? reduxInvoiceSettings;
   const showCompanyLogo = invoiceSettings?.show_company_logo ?? false;
   const showItemDescription = invoiceSettings?.show_description ?? false;

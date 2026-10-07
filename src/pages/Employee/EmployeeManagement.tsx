@@ -2,23 +2,24 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from "react"
 import {
   Box, Button, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, IconButton, InputAdornment,
-  Tab, Tabs, TextField, Tooltip, Typography, Avatar,
+  Switch, Tab, Tabs, TextField, Tooltip, Typography, Avatar,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
-import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
 import SearchIcon from "@mui/icons-material/Search";
-import Circle from "@mui/icons-material/Circle";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
 import { closeFromControlsOnly } from "@utils/dialog";
-import { useInfiniteEmployees, useDeleteEmployee, isSuperAdmin, type EmployeeListItem } from "./useEmployeeApi";
+import { useInfiniteEmployees, useDeleteEmployee, useActivateEmployee, useSetLoginDetails, isSuperAdmin, type EmployeeListItem } from "./useEmployeeApi";
 import EmployeeFormModal from "./EmployeeFormModal";
 import EmployeeViewModal from "./EmployeeViewModal";
+import EmployeeStats from "./EmployeeStats";
 import SetUserModal, { type SetUserTarget } from "./SetUserModal";
 import LottieLoader from "@components/LottieLoader";
+import SuccessToast from "@components/Common/SuccessToast";
 import { useModulePermission } from "@hooks/useModulePermission";
 import { useSubscriptionGuard } from "@hooks/useSubscriptionGuard";
 
@@ -32,32 +33,6 @@ const theme = createTheme({
     MuiButton: { styleOverrides: { root: { textTransform: "none", borderRadius: 8, fontWeight: 700 } } },
   },
 });
-
-function formatDate(iso: string): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-const EMPLOYMENT_TYPE_COLORS: Record<string, string> = {
-  "full time": "#2E7D32",
-  "part time": "#F57C00",
-  "contract":  "#6D28D9",
-  "intern":    "#2563EB",
-};
-
-function EmploymentTypeBadge({ type }: { type: string }) {
-  if (!type) return <Typography sx={{ fontSize: 13, color: "#9CA3AF" }}>—</Typography>;
-  const color = EMPLOYMENT_TYPE_COLORS[type.toLowerCase()] ?? "#6B7280";
-  return (
-    <Typography
-      variant="body2"
-      sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, color, fontWeight: 600, fontSize: 13 }}
-    >
-      <Circle sx={{ fontSize: 8 }} />
-      {type}
-    </Typography>
-  );
-}
 
 // ─── Delete confirm dialog ────────────────────────────────────
 function DeleteDialog({ open, name, isPending, onConfirm, onCancel }: {
@@ -88,6 +63,35 @@ function DeleteDialog({ open, name, isPending, onConfirm, onCancel }: {
   );
 }
 
+// ─── Switch-off-login confirm dialog ──────────────────────────
+function DisableLoginDialog({ open, name, isPending, onConfirm, onCancel }: {
+  open: boolean; name: string; isPending: boolean; onConfirm: () => void; onCancel: () => void;
+}) {
+  return (
+    <Dialog open={open} onClose={closeFromControlsOnly(onCancel)} maxWidth="xs" fullWidth
+      slotProps={{ paper: { sx: { borderRadius: 2 } } }}>
+      <DialogTitle sx={{ fontWeight: 700, fontSize: 16, pb: 1 }}>Disable User Login</DialogTitle>
+      <DialogContent>
+        <Typography sx={{ fontSize: 14, color: "#374151" }}>
+          <Box component="span" sx={{ fontWeight: 700 }}>{name}</Box> will no longer be able to sign in.
+          You can enable the login again later.
+        </Typography>
+      </DialogContent>
+      <DialogActions sx={{ px: 2.5, pb: 2, gap: 1 }}>
+        <Button variant="outlined" onClick={onCancel} disabled={isPending}
+          sx={{ borderColor: "#E5E7EB", color: "#374151", fontWeight: 600, "&:hover": { borderColor: "#9CA3AF" } }}>
+          Cancel
+        </Button>
+        <Button variant="contained" onClick={onConfirm} disabled={isPending} disableElevation
+          startIcon={isPending ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : undefined}
+          sx={{ bgcolor: "#E11D48", color: "#fff", fontWeight: 700, "&:hover": { bgcolor: "#BE123C" } }}>
+          Disable
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────
 export default function EmployeeManagement() {
   const { guard } = useSubscriptionGuard();
@@ -95,9 +99,11 @@ export default function EmployeeManagement() {
   const [modalOpen, setModalOpen]   = useState(false);
   const [modalMode, setModalMode]   = useState<"add" | "edit" | "view">("add");
   const [activeId, setActiveId]     = useState<string | null>(null);
-  const [activeLogin, setActiveLogin] = useState({ passwordSet: false, hideRole: false });
+  const [activeLogin, setActiveLogin] = useState<{ passwordSet: boolean; loginUser?: boolean; hideRole: boolean }>({ passwordSet: false, hideRole: false });
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [setUserTarget, setSetUserTarget] = useState<SetUserTarget | null>(null);
+  const [disableTarget, setDisableTarget] = useState<{ id: string; name: string } | null>(null);
+  const [toast, setToast]     = useState("");
   const [search, setSearch]         = useState("");
   const [tab, setTab]               = useState<0 | 1>(0);
 
@@ -111,6 +117,15 @@ export default function EmployeeManagement() {
 
   const employees = useMemo(() => data?.pages.flatMap((p) => p.data) ?? [], [data]);
 
+  // The unsearched Active list's pagination block already has the card totals.
+  const firstPagination = data?.pages[0]?.pagination;
+  const listStats = useMemo(
+    () => status === "active" && !search && firstPagination
+      ? { totalEmployees: firstPagination.total ?? 0, loginUsers: firstPagination.login_user_count ?? 0 }
+      : undefined,
+    [status, search, firstPagination],
+  );
+
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el) return;
@@ -123,14 +138,27 @@ export default function EmployeeManagement() {
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   const deleteEmp = useDeleteEmployee({
-    onSuccess: () => setDeleteTarget(null),
+    onSuccess: () => { setDeleteTarget(null); setToast("Employee deleted successfully"); },
     onError: (msg) => { setDeleteTarget(null); alert(msg); },
+  });
+
+  const activateEmp = useActivateEmployee({
+    onSuccess: () => setToast("Employee activated successfully"),
+    onError: (msg) => alert(msg),
+  });
+  // Only the row being activated shows as busy.
+  const activatingId = activateEmp.isPending ? activateEmp.variables : null;
+
+  // Switching a login off sends the same call the form's unticked box does.
+  const disableLogin = useSetLoginDetails({
+    onSuccess: () => setDisableTarget(null),
+    onError: (msg) => { setDisableTarget(null); alert(msg); },
   });
 
   const openAdd  = useCallback(() => { setModalMode("add");  setActiveId(null); setModalOpen(true); }, []);
   const openEdit = useCallback((row: EmployeeListItem) => {
     setModalMode("edit"); setActiveId(row.employee_id);
-    setActiveLogin({ passwordSet: !!row.has_password, hideRole: isSuperAdmin(row) });
+    setActiveLogin({ passwordSet: !!row.has_password, loginUser: row.login_user, hideRole: isSuperAdmin(row) });
     setModalOpen(true);
   }, []);
   const openView = useCallback((id: string) => { setModalMode("view"); setActiveId(id); setModalOpen(true); }, []);
@@ -139,7 +167,7 @@ export default function EmployeeManagement() {
   const columns = useMemo<ColumnDef<EmployeeListItem>[]>(() => [
     {
       key: "employee_code",
-      label: "Employee ID",
+      label: "ID",
       width: 140,
       render: (row) => (
         row.employee_code ? (
@@ -160,7 +188,7 @@ export default function EmployeeManagement() {
     },
     {
       key: "name",
-      label: "Employee",
+      label: "Name",
       width: 220,
       render: (row) => (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
@@ -174,34 +202,55 @@ export default function EmployeeManagement() {
       ),
     },
     {
-      key: "employment_type",
-      label: "Type",
-      width: 110,
-      render: (row) => <EmploymentTypeBadge type={row.employment_type} />,
-    },
-    {
       key: "phone",
       label: "Phone",
       width: 130,
       render: (row) => <Typography sx={{ fontSize: 13, color: "#374151" }}>{row.phone}</Typography>,
     },
     {
-      key: "reporting_manager_name",
-      label: "Reporting Manager",
-      width: 160,
-      render: (row) => <Typography sx={{ fontSize: 13, color: "#374151" }}>{row.reporting_manager_name || "—"}</Typography>,
-    },
-    {
-      key: "date_of_joining",
-      label: "Joined Date",
-      width: 120,
-      render: (row) => <Typography sx={{ fontSize: 13, color: "#6B7280" }}>{formatDate(row.date_of_joining)}</Typography>,
+      key: "user_login",
+      label: "User Login",
+      width: 150,
+      render: (row) => {
+        // The API's `login_user` says whether the login is on; the super admin can't lose theirs.
+        const locked = isSuperAdmin(row);
+        const enabled = row.login_user ?? (locked || (!!row.has_role && !!row.has_password));
+        const title = locked
+          ? "The admin login can't be switched off"
+          : status === "inactive" ? "Activate the employee to change the login"
+          : !canEdit ? "You don't have permission to set user" : "";
+        return (
+          <Tooltip title={title} placement="top">
+            <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}>
+              <Switch
+                size="small" checked={enabled} disabled={locked || !canEdit || status === "inactive"}
+                // Stops the row's own click handler, if it has one.
+                onClick={(e) => e.stopPropagation()}
+                onChange={guard((_e: React.ChangeEvent<HTMLInputElement>, checked: boolean) => {
+                  if (checked) {
+                    setSetUserTarget({ id: row.employee_id, name: row.name, hasRole: !!row.has_role, hasPassword: !!row.has_password });
+                  } else {
+                    setDisableTarget({ id: row.employee_id, name: row.name });
+                  }
+                })}
+                sx={{
+                  "& .MuiSwitch-switchBase.Mui-checked": { color: "#E11D48" },
+                  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: "#E11D48" },
+                }}
+              />
+              <Typography sx={{ fontSize: 13, color: enabled ? "#0F172A" : "#9CA3AF" }}>
+                {enabled ? "Enabled" : "Disabled"}
+              </Typography>
+            </Box>
+          </Tooltip>
+        );
+      },
     },
     {
       key: "actions",
       label: "Actions",
       align: "center",
-      width: 120,
+      width: 100,
       render: (row) => (
         <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
           <Tooltip title="View" placement="top">
@@ -210,23 +259,30 @@ export default function EmployeeManagement() {
               <VisibilityOutlinedIcon sx={{ fontSize: 16 }} />
             </IconButton>
           </Tooltip>
-          <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"} placement="top">
+          {row.employee_code !== "EMP001" && (
+          <Tooltip title={status === "inactive" ? "Activate the employee to edit" : canEdit ? "Edit" : "You don't have permission to edit"} placement="top">
             <span>
-              <IconButton size="small" disabled={!canEdit} onClick={guard((e) => { e.stopPropagation(); openEdit(row); })}
+              <IconButton size="small" disabled={!canEdit || status === "inactive"} onClick={guard((e) => { e.stopPropagation(); openEdit(row); })}
                 sx={{ color: "#1976d2", p: 0.6, borderRadius: 1, "&:hover": { bgcolor: "#EFF6FF", color: "#1565C0" }, transition: "all 0.12s" }}>
                 <EditOutlinedIcon sx={{ fontSize: 16 }} />
               </IconButton>
             </span>
           </Tooltip>
-          <Tooltip title={canEdit ? "Set User" : "You don't have permission to set user"} placement="top">
-            <span>
-              <IconButton size="small" disabled={!canEdit} onClick={guard((e) => { e.stopPropagation(); setSetUserTarget({ id: row.employee_id, name: row.name, hasRole: !!row.has_role || isSuperAdmin(row), hasPassword: !!row.has_password }); })}
-                sx={{ color: "#E11D48", p: 0.6, borderRadius: 1, "&:hover": { bgcolor: "#FFF1F2", color: "#BE123C" }, transition: "all 0.12s" }}>
-                <ManageAccountsOutlinedIcon sx={{ fontSize: 16 }} />
-              </IconButton>
-            </span>
-          </Tooltip>
-          {status === "active" && (
+          )}
+          {status === "inactive" && (
+            <Tooltip title={canEdit ? "Activate" : "You don't have permission to activate"} placement="top">
+              <span>
+                <IconButton size="small" disabled={!canEdit || activatingId === row.employee_id}
+                  onClick={guard((e) => { e.stopPropagation(); activateEmp.mutate(row.employee_id); })}
+                  sx={{ color: "#2E7D32", p: 0.6, borderRadius: 1.5, "&:hover": { bgcolor: "#E8F5E9" }, transition: "all 0.12s" }}>
+                  {activatingId === row.employee_id
+                    ? <CircularProgress size={14} sx={{ color: "#2E7D32" }} />
+                    : <CheckCircleOutlineIcon sx={{ fontSize: 16 }} />}
+                </IconButton>
+              </span>
+            </Tooltip>
+          )}
+          {status === "active" && row.employee_code !== "EMP001" && (
             <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"} placement="top">
               <span>
                 <IconButton size="small" disabled={!canDelete} onClick={guard((e) => { e.stopPropagation(); setDeleteTarget({ id: row.employee_id, name: row.name }); })}
@@ -239,11 +295,14 @@ export default function EmployeeManagement() {
         </Box>
       ),
     },
-  ], [openView, openEdit, status, canEdit, canDelete]);
+  ], [openView, openEdit, status, canEdit, canDelete, guard, activateEmp.mutate, activatingId]);
 
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ height: "100%", display: "flex", flexDirection: "column", bgcolor: "#ffffff", overflow: "hidden", minHeight: 0 }}>
+
+        {/* Summary cards */}
+        <EmployeeStats listStats={listStats} />
 
         {/* Tabs + Toolbar */}
         <Box sx={{
@@ -315,6 +374,7 @@ export default function EmployeeManagement() {
           mode={modalMode as "add" | "edit"}
           employeeId={activeId}
           passwordSet={activeLogin.passwordSet}
+          loginUser={activeLogin.loginUser}
           hideRole={activeLogin.hideRole}
         />
 
@@ -330,6 +390,17 @@ export default function EmployeeManagement() {
           open={!!setUserTarget}
           employee={setUserTarget}
           onClose={() => setSetUserTarget(null)}
+        />
+
+        <SuccessToast message={toast} severity="success" onClose={() => setToast("")} />
+
+        {/* Switch a login off */}
+        <DisableLoginDialog
+          open={!!disableTarget}
+          name={disableTarget?.name ?? ""}
+          isPending={disableLogin.isPending}
+          onConfirm={() => disableTarget && disableLogin.mutate({ employeeId: disableTarget.id, payload: {}, loginUser: false })}
+          onCancel={() => setDisableTarget(null)}
         />
 
         {/* Delete confirmation */}

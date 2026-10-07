@@ -1,7 +1,7 @@
 import { memo, useState } from "react";
 import {
-  Box, Button, Checkbox, FormControlLabel, IconButton, InputAdornment,
-  MenuItem, Select, TextField, Typography,
+  Box, Button, FormControlLabel, IconButton, InputAdornment,
+  MenuItem, Select, Switch, TextField, Typography,
 } from "@mui/material";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
@@ -142,10 +142,15 @@ function LoginDetailsSection({ value, errors, roles, passwordSet, hideRole, onCh
     <Box sx={{ gridColumn: "1 / -1" }}>
       <FormControlLabel
         label={<Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Set user / login</Typography>}
+        labelPlacement="start"
+        sx={{ ml: 0, gap: 1.5 }}
         control={
-          <Checkbox size="small" checked={value.enabled}
+          <Switch size="small" checked={value.enabled}
             onChange={(e) => onChange({ enabled: e.target.checked })}
-            sx={{ color: "#CBD5E1", "&.Mui-checked": { color: "#E11D48" } }} />
+            sx={{
+              "& .MuiSwitch-switchBase.Mui-checked": { color: "#E11D48" },
+              "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: "#E11D48" },
+            }} />
         }
       />
 

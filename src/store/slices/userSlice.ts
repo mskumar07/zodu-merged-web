@@ -1,5 +1,6 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { AuthUser, CompanyDetails, CompanyWithBranches, InvoiceSettings, PosSettings, RoleAccessItem } from "@pages/auth/Authapi";
+import { EMPTY_DOCUMENT_SETTINGS, type DocumentSettings } from "@utils/invoiceSettingsForSale";
 import {
   INITIAL_USER_STATE,
   type PermissionsSyncStatus,
@@ -69,6 +70,10 @@ const userSlice = createSlice({
     setInvoiceSettings: (state, action: PayloadAction<InvoiceSettings | null>) => {
       state.invoiceSettings = action.payload;
     },
+    /** Merges the quotation / proforma rows it is given; the other is left alone. */
+    setDocumentSettings: (state, action: PayloadAction<Partial<DocumentSettings>>) => {
+      state.documentSettings = { ...state.documentSettings, ...action.payload };
+    },
     setPosSettings: (state, action: PayloadAction<PosSettings | null>) => {
       state.posSettings = action.payload;
     },
@@ -103,6 +108,7 @@ const userSlice = createSlice({
       state.companies = [];
       state.roleAccess = [];
       state.invoiceSettings = null;
+      state.documentSettings = EMPTY_DOCUMENT_SETTINGS;
       state.posSettings = null;
       state.isAuthenticated = false;
       state.branchId = "";
@@ -121,6 +127,7 @@ export const {
   setCompanies,
   setRoleAccess,
   setInvoiceSettings,
+  setDocumentSettings,
   setPosSettings,
   permissionsRefreshStarted,
   permissionsRefreshSucceeded,
@@ -139,6 +146,7 @@ export const UserProfile = (state: UserRootState) => state.user.profile;
 export const UserCompany = (state: UserRootState) => state.user.company;
 export const RoleAccess = (state: UserRootState) => state.user.roleAccess;
 export const InvoiceSettingsData = (state: UserRootState) => state.user.invoiceSettings;
+export const DocumentSettingsData = (state: UserRootState) => state.user.documentSettings;
 export const PosSettingsData = (state: UserRootState) => state.user.posSettings;
 export const IsAuthenticated = (state: UserRootState) => state.user.isAuthenticated;
 export const PermissionsStatus = (state: UserRootState) => state.user.permissionsStatus;

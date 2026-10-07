@@ -6,6 +6,7 @@ import type {
   PosSettings,
   RoleAccessItem,
 } from "@pages/auth/Authapi";
+import { EMPTY_DOCUMENT_SETTINGS, type DocumentSettings } from "@utils/invoiceSettingsForSale";
 
 /**
  * The `user` slice's shape, the subset of it we persist, and the pure logic
@@ -59,6 +60,11 @@ export interface Userstate {
   invoiceSettings: InvoiceSettings | null;
   posSettings: PosSettings | null;
 
+  // Quotation / proforma rows. Not persisted: every restored session refetches
+  // them with the rest of the branch settings, and until that lands printing
+  // falls back to the invoice row.
+  documentSettings: DocumentSettings;
+
   // ── Transient sync bookkeeping — never persisted ──────────────────────
   permissionsStatus: PermissionsSyncStatus;
   /**
@@ -76,7 +82,7 @@ export interface Userstate {
 /** Exactly what goes into localStorage — the slice minus its transient fields. */
 export type PersistedUserState = Omit<
   Userstate,
-  "permissionsStatus" | "permissionsBlocking"
+  "permissionsStatus" | "permissionsBlocking" | "documentSettings"
 > & { _stateVersion: number };
 
 export const INITIAL_USER_STATE: Userstate = {
@@ -92,6 +98,7 @@ export const INITIAL_USER_STATE: Userstate = {
   roleAccess: [],
   invoiceSettings: null,
   posSettings: null,
+  documentSettings: EMPTY_DOCUMENT_SETTINGS,
   isAuthenticated: false,
   permissionsStatus: "ready",
   permissionsBlocking: false,
@@ -278,6 +285,7 @@ export function reconcilePersistedUserState(
       ? asRecordOrNull<InvoiceSettings>(cached.invoiceSettings)
       : null,
     posSettings: isCurrentVersion ? asRecordOrNull<PosSettings>(cached.posSettings) : null,
+    documentSettings: EMPTY_DOCUMENT_SETTINGS,
 
     // A current-version cache is an optimistic starting point and renders
     // immediately while it is refreshed in the background; a stale one has

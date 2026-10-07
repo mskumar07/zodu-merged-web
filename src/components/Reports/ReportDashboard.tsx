@@ -13,6 +13,7 @@ import {
   MoneyOff,
   Inventory2,
   TrendingUp,
+  AccountBalance,
   type SvgIconComponent,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
@@ -26,6 +27,9 @@ interface ReportCard {
   datewise?:   string;
   category?:   string;
   yearwise?:   string;
+  // A card with its own list of reports instead of the date/month/category trio.
+  // A "#" path is a placeholder: shown, but nothing happens on click yet.
+  links?:      { label: string; path: string }[];
 }
 
 const reportCards: ReportCard[] = [
@@ -73,6 +77,19 @@ const reportCards: ReportCard[] = [
     path:        "/reports/profit/monthwise",
     yearwise:    "/reports/profit/yearwise",
     color:       "#7b1fa2",
+  },
+  {
+    title:       "GST Report",
+    description: "GSTR-1 and GSTR-2 summaries, with HSN-wise sales and purchase reports.",
+    icon:        AccountBalance,
+    path:        "#",
+    color:       "#00897b",
+    links: [
+      { label: "GSTR-1 (Sales)",            path: "#" },
+      { label: "GSTR-2 (Purchase)",         path: "#" },
+      { label: "GSTR Purchase (With HSN)",  path: "#" },
+      { label: "GSTR Sales (With HSN)",     path: "#" },
+    ],
   },
 ];
 
@@ -147,6 +164,11 @@ const ReportDashboard: React.FC = () => {
                   </Box>
                     <Divider sx={{my:1.5}} />
                     <Box sx={{ml:2}}>
+                    {card.links ? card.links.map((link) => (
+                      <Typography key={link.label} onClick={() => link.path !== "#" && navigate(link.path)} fontSize={14} fontWeight={400} sx={{cursor:"pointer", "&:hover": { color:"#1976d2" }}} color="#000" mt={1}>
+                        • {link.label}
+                      </Typography>
+                    )) : (<>
                           {card.datewise && (
                       <Typography onClick={() => navigate(card.datewise!)} fontSize={14} fontWeight={400} sx={{cursor:"pointer", "&:hover": { color:"#1976d2" }}} color="#000" mt={1}>
                         • Date-wise Report
@@ -165,6 +187,7 @@ const ReportDashboard: React.FC = () => {
                         • Year-wise Report
                       </Typography>
                     )}
+                    </>)}
                     </Box>
 {/* 
                   <Typography

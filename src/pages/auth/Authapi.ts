@@ -362,6 +362,9 @@ export interface PosSettings {
 export interface BranchSettingsResponse {
   settings: {
     invoice: InvoiceSettings;
+    // Retail branches also get their own quotation and proforma rows.
+    quotation?: InvoiceSettings;
+    proforma?: InvoiceSettings;
     pos?: PosSettings;
   };
 }

@@ -82,6 +82,7 @@ import { InvoicePDFTemplateModern2 } from "../SalesHistory/InvoicePDFTemplateMod
 import InvoiceCopyActions from "@components/Common/InvoiceCopyActions";
 import InsufficientStockDialog, { type InsufficientStockInfo } from "@components/Common/InsufficientStockDialog";
 import { invoiceCopyTypesForSale, normalizeInvoiceCopyTypes } from "@utils/invoiceCopyTypes";
+import { useInvoiceSettingsForSale } from "@hooks/useInvoiceSettingsForSale";
 import { isProformaSaleType, isQuotationSaleType, saleDocumentLabel } from "@utils/saleType";
 import { printThermalCopies } from "@utils/thermalPrint";
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "../SalesHistory/ThermalInvoiceTemplate";
@@ -511,11 +512,9 @@ function RetailPOSInner() {
   const [receivedAmount, setReceivedAmount] = useState("");
   const [paymentType,    setPaymentType]    = useState<PaymentType>("Cash");
   const [printEnabled,   setPrintEnabled]   = useState(true);
-  const settingsPaperSize: ThermalPaperSize = toThermalPaperSize(invoiceSettings?.printer_inch);
   // While printing, the receipt is drawn for the roll the chosen printer takes
   // (see printThermalCopies) rather than the width Invoice Settings names.
   const [printPaperSize, setPrintPaperSize] = useState<ThermalPaperSize | null>(null);
-  const thermalPaperSize: ThermalPaperSize = printPaperSize ?? settingsPaperSize;
   // Copy markings offered in the success modal's Download/Print menus.
   const invoiceCopyTypes = normalizeInvoiceCopyTypes(invoiceSettings?.invoice_copy_types);
   // Only branches that sell against buyer purchase orders collect the PO
@@ -1832,7 +1831,13 @@ console.log("test",serverHolds)
   // quotation prints unmarked, an invoice or proforma gets the configured
   // copies. `invoiceCopyTypes` above still drives the Vehicle No field, which
   // follows the setting rather than the document.
-  const savedCopyTypes = invoiceCopyTypesForSale(invoiceSettings?.invoice_copy_types, savedPdfData?.sale_type);
+  // Layout, paper and copies come from the settings of the document's own type.
+  // The saved document wins over the active tab, which can change before Print.
+  const printSettings = useInvoiceSettingsForSale(savedPdfData?.sale_type);
+  const previewSettings = useInvoiceSettingsForSale(SALE_TYPE_BY_POS_MODE[posMode]);
+  const settingsPaperSize: ThermalPaperSize = toThermalPaperSize(printSettings?.printer_inch);
+  const thermalPaperSize: ThermalPaperSize = printPaperSize ?? settingsPaperSize;
+  const savedCopyTypes = invoiceCopyTypesForSale(printSettings?.invoice_copy_types, savedPdfData?.sale_type);
 
   const handleDownloadInvoice = useCallback(async (copies: string[] = []) => {
     if (!savedPdfData) return;
@@ -1898,7 +1903,7 @@ console.log("test",serverHolds)
   // navigating away; any thermal width (3"/5", "4" handled defensively) prints
   // the thermal receipt.
   const handlePrintInvoice = useCallback(async (copies: string[] = []) => {
-    if (invoiceSettings?.printer_inch !== "A4") {
+    if (printSettings?.printer_inch !== "A4") {
       handleThermalPrint(copies);
       return;
     }
@@ -1937,7 +1942,7 @@ console.log("test",serverHolds)
     } finally {
       setPrintLoading(false);
     }
-  }, [invoiceSettings?.printer_inch, savedPdfData, generatePdfForCopies, handleThermalPrint]);
+  }, [printSettings?.printer_inch, savedPdfData, generatePdfForCopies, handleThermalPrint]);
 
   // ── Shared qty/rate/discount editing controls ──────────────────
   // Used by both the desktop table row and the mobile/tablet card list so the
@@ -3135,7 +3140,7 @@ console.log("test",serverHolds)
                   </span>
                 </Tooltip>
                 {printEnabled && (
-                  <Tooltip title={invoiceSettings?.printer_inch === "A4" && !savedPdfData ? "Preparing invoice..." : "Print invoice"}>
+                  <Tooltip title={printSettings?.printer_inch === "A4" && !savedPdfData ? "Preparing invoice..." : "Print invoice"}>
                     <span style={{ flex: "1 1 0" }}>
                       <InvoiceCopyActions
                         fullWidth
@@ -3144,7 +3149,7 @@ console.log("test",serverHolds)
                         copyTypes={savedCopyTypes}
                         onRun={handlePrintInvoice}
                         busy={printLoading}
-                        disabled={invoiceSettings?.printer_inch === "A4" && !savedPdfData}
+                        disabled={printSettings?.printer_inch === "A4" && !savedPdfData}
                         buttonSx={{ borderRadius: 2, fontWeight: 600, whiteSpace: "nowrap", border: "1px solid #E5E7EB", color: "#374151", textTransform: "none" }}
                       />
                     </span>
@@ -3184,12 +3189,12 @@ console.log("test",serverHolds)
 
         {savedPdfData && (
           <Box sx={{ position: "fixed", left: -10000, top: 0, width: 794, pointerEvents: "none", opacity: 0 }}>
-            {invoiceSettings?.invoice_template === "modern2" ? (
+            {printSettings?.invoice_template === "modern2" ? (
               <InvoicePDFTemplateModern2 ref={pdfRef} data={savedPdfData} copyType={renderCopyType} />
-            ) : invoiceSettings?.invoice_template === "modern" ? (
+            ) : printSettings?.invoice_template === "modern" ? (
               <InvoicePDFTemplateModern ref={pdfRef} data={savedPdfData} copyType={renderCopyType} />
             ) : (
-              <InvoicePDFTemplate ref={pdfRef} data={savedPdfData} copyType={renderCopyType} hideTaxBreakdown={invoiceSettings?.invoice_template === "classic2"} />
+              <InvoicePDFTemplate ref={pdfRef} data={savedPdfData} copyType={renderCopyType} hideTaxBreakdown={printSettings?.invoice_template === "classic2"} />
             )}
           </Box>
         )}
@@ -3213,12 +3218,12 @@ console.log("test",serverHolds)
           <DialogContent sx={{ bgcolor: "#F1F5F9", p: 2, overflow: "auto" }}>
             {previewPdfData && (
               <Box sx={{ width: 794, mx: "auto", bgcolor: "#fff", boxShadow: "0 8px 30px rgba(15,23,42,0.12)" }}>
-                {invoiceSettings?.invoice_template === "modern2" ? (
+                {previewSettings?.invoice_template === "modern2" ? (
                   <InvoicePDFTemplateModern2 data={previewPdfData} />
-                ) : invoiceSettings?.invoice_template === "modern" ? (
+                ) : previewSettings?.invoice_template === "modern" ? (
                   <InvoicePDFTemplateModern data={previewPdfData} />
                 ) : (
-                  <InvoicePDFTemplate data={previewPdfData} hideTaxBreakdown={invoiceSettings?.invoice_template === "classic2"} />
+                  <InvoicePDFTemplate data={previewPdfData} hideTaxBreakdown={previewSettings?.invoice_template === "classic2"} />
                 )}
               </Box>
             )}

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import axios from "axios";
 import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { getTenantContext } from "@store/tenantContext";
@@ -22,10 +23,13 @@ export interface EmployeeListItem {
   created_at: string;
   has_password?: boolean;
   has_role?: boolean;
+  // Whether the employee's login is switched on — drives the list's User Login toggle.
+  login_user?: boolean;
 }
 
 export interface EmployeeDetail {
   employee_id: string;
+  login_user?: boolean;
   employee_code: string;
   user_id: string;
   name: string;
@@ -118,7 +122,8 @@ export interface CreateEmployeePayload {
 
 export interface EmployeePage {
   data: EmployeeListItem[];
-  pagination: { total: number; page: number; limit: number; pages: number };
+  // `login_user_count` is the number of employees whose login is switched on.
+  pagination: { total: number; page: number; limit: number; pages: number; login_user_count?: number };
 }
 
 /** The default Admin (EMP001) is the super admin: it already has a login and no assignable role. */
@@ -167,6 +172,54 @@ export function useInfiniteEmployees(status: "active" | "inactive", search: stri
         ? last.pagination.page + 1
         : undefined,
   });
+}
+
+// ─── Summary cards ────────────────────────────────────────────
+
+export interface EmployeeStats {
+  totalEmployees: number;
+  loginUsers: number;
+}
+
+// The totals ride on the list endpoint's pagination block, so one row is all
+// that's needed. Kept separate from the list query so the cards don't change
+// with the Active/Inactive tab or the search box, and under the "employees"
+// key so every save, delete or login change refreshes them.
+async function fetchEmployeeStats(): Promise<EmployeeStats> {
+  const { zoduId, branchId } = getTenantContext();
+  const { data } = await axios.get(EMP_BASE, {
+    params: { zodu_id: zoduId ?? "", branch_id: branchId ?? "", status: "active", page: 1, limit: 1 },
+  });
+  return {
+    totalEmployees: data?.pagination?.total ?? 0,
+    loginUsers: data?.pagination?.login_user_count ?? 0,
+  };
+}
+
+export function useEmployeeStatsKey() {
+  const { zoduId, branchId } = getTenantContext();
+  return [...empQueryKeys.all, zoduId ?? "", branchId ?? "", "stats"] as const;
+}
+
+// `listStats` are the totals carried by the unsearched Active list. They are
+// mirrored into this query's cache, so on the Inactive tab the cards reuse the
+// last known numbers instead of firing their own request. The request only runs
+// when nothing is known yet (e.g. the page was opened straight on Inactive).
+export function useEmployeeStats(listStats?: EmployeeStats) {
+  const queryClient = useQueryClient();
+  const key = useEmployeeStatsKey();
+  const keyStr = key.join("|");
+  useEffect(() => {
+    if (listStats) queryClient.setQueryData(key, listStats);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listStats, keyStr]);
+  const query = useQuery({
+    queryKey: key,
+    queryFn: fetchEmployeeStats,
+    staleTime: Infinity,
+    enabled: !listStats,
+  });
+  return listStats ? { data: listStats, isLoading: false } : query;
 }
 
 // ─── Fetch all active employees (for dropdowns) ──────────────
@@ -402,34 +455,56 @@ export async function deleteEmployeeDocument(
   if (!data.success) throw new Error(data.error ?? "Delete failed");
 }
 
-// ─── Delete employee ──────────────────────────────────────────
+// ─── Delete / re-activate employee ────────────────────────────
+// Neither removes the row: both are a PUT that flips the employee's status, so
+// "delete" moves them to the Inactive tab and "activate" brings them back.
 
-async function deleteEmployee(employeeId: string) {
+async function setEmployeeStatus(employeeId: string, status: "active" | "inactive") {
   const { zoduId, branchId } = getTenantContext();
-  const { data } = await axios.delete(`${EMP_BASE}/${employeeId}`, {
-    data: { zodu_id: zoduId, branch_id: branchId },
+  const { data } = await axios.put(`${EMP_BASE}/active-inactive/${employeeId}`, {
+    zodu_id: zoduId,
+    branch_id: branchId,
+    status,
   });
   return data;
 }
 
-export function useDeleteEmployee(options?: {
-  onSuccess?: () => void;
-  onError?: (msg: string) => void;
-}) {
+function useEmployeeStatusMutation(
+  status: "active" | "inactive",
+  failureMessage: string,
+  options?: { onSuccess?: () => void; onError?: (msg: string) => void },
+) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: deleteEmployee,
+    mutationFn: (employeeId: string) => setEmployeeStatus(employeeId, status),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: empQueryKeys.all });
+      // Refetch the lists only. The cards' cached totals (used on the Inactive
+      // tab) are nudged instead of refetched; the Active list refreshes them.
+      const { zoduId, branchId } = getTenantContext();
+      const statsKey = [...empQueryKeys.all, zoduId ?? "", branchId ?? "", "stats"];
+      queryClient.setQueryData<EmployeeStats>(statsKey, (old) =>
+        old && { ...old, totalEmployees: Math.max(0, old.totalEmployees + (status === "active" ? 1 : -1)) });
+      queryClient.invalidateQueries({
+        queryKey: empQueryKeys.all,
+        predicate: (q) => q.queryKey[3] !== "stats",
+      });
       options?.onSuccess?.();
     },
     onError: (err: unknown) => {
       const msg = axios.isAxiosError(err)
         ? (err.response?.data?.error ?? err.response?.data?.message ?? err.message)
-        : "Failed to delete employee";
+        : failureMessage;
       options?.onError?.(msg);
     },
   });
+}
+
+export function useDeleteEmployee(options?: { onSuccess?: () => void; onError?: (msg: string) => void }) {
+  return useEmployeeStatusMutation("inactive", "Failed to delete employee", options);
+}
+
+export function useActivateEmployee(options?: { onSuccess?: () => void; onError?: (msg: string) => void }) {
+  return useEmployeeStatusMutation("active", "Failed to activate employee", options);
 }
 
 // ─── Helpers ──────────────────────────────────────────────────
