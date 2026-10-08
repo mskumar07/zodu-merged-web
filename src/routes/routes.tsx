@@ -33,6 +33,7 @@ import CategorywiseExpenseReport from "@pages/ReportsScreen/ExpenseReport/Catego
 import MonthWiseExpenseReport from "@pages/ReportsScreen/ExpenseReport/MonthWiseExpenseReport";
 import MonthWiseProfitReport from "@pages/ReportsScreen/ProfitReport/MonthWiseProfitReport";
 import YearWiseProfitReport  from "@pages/ReportsScreen/ProfitReport/YearWiseProfitReport";
+import Gstr1Report from "@pages/ReportsScreen/GstReport/Gstr1Report";
 import ChecklistDashboard from "@pages/Checklist/ChecklistDashboard";
 import AttendanceDashboard from "@pages/Attendance/AttendanceDashboard";
 
@@ -76,6 +77,7 @@ export const routes = [
           { path: "expenses/category", element: <CategorywiseExpenseReport /> },
           { path: "profit/monthwise", element: <MonthWiseProfitReport /> },
           { path: "profit/yearwise",  element: <YearWiseProfitReport /> },
+          { path: "gst/gstr1",        element: <Gstr1Report /> },
           // { path: "inventory", element: <InventoryReport /> },
         ],
       },
