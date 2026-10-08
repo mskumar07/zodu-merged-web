@@ -61,6 +61,8 @@ import {
 import AddRestaurantMenuItemDialog from "./AddRestaurantMenuItemDialog";
 import CategoryTab from "@pages/MenuItemScreen/CategoryTab";
 import KotPrinterAssignModal from "@pages/MenuItemScreen/KotPrinterAssignModal";
+import LabelPrintButton from "@components/LabelPrint/LabelPrintButton";
+import { useRestaurantLabelSource } from "./useRestaurantLabelSource";
 import SuccessToast from "@components/Common/SuccessToast";
 import { BranchId, ZoduId } from "@store/slices/userSlice";
 import { useModulePermission } from "@hooks/useModulePermission";
@@ -1051,6 +1053,8 @@ const RestaurantMenuList: React.FC = () => {
                 </Tooltip>
               )}
             </Box>
+
+            <LabelPrintButton useDataSource={useRestaurantLabelSource} sx={isTablet ? { px: 1.25, minWidth: 0 } : undefined} />
 
             {/* KOT Settings */}
             <Button

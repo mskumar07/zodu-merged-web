@@ -17,6 +17,8 @@ import {
 import ProductTabs from './components_ProductTabs';
 import ProductTable from './components_ProductTable';
 import AddItemModal from './AddItemModal';
+import LabelPrintButton from '@components/LabelPrint/LabelPrintButton';
+import { useRetailLabelSource } from './useRetailLabelSource';
 import CategoryTab from './CategoryTab';
 import { useModulePermission } from '@hooks/useModulePermission';
 
@@ -313,6 +315,8 @@ function MenuItemScreen() {
           <FilterListOffIcon sx={{ fontSize: 20 }} />
         </Box>
       )}
+
+      <LabelPrintButton useDataSource={useRetailLabelSource} />
 
       <Button variant="contained" startIcon={<AddIcon />} disabled={!canCreate} onClick={guard(() => { setEditItem(null); setModalOpen(true); })}
         sx={{ borderRadius: 0.5, fontWeight: 700, px: 2.5, height: 40, textTransform: 'none', fontSize: 13, whiteSpace: 'nowrap', boxShadow: '0 4px 14px rgba(210,18,46,0.25)' }}>

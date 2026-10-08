@@ -27,6 +27,8 @@ export interface ColumnDef<T> {
   width?: number | string;
   minWidth?: number | string;
   align?: "left" | "center" | "right";
+  /** Adjacent columns sharing a group get one spanning heading above their own labels. */
+  group?: string;
   render: (row: T) => React.ReactNode;
 }
 
@@ -43,6 +45,10 @@ export interface DataTableProps<T> {
   maxHeight?: string | number;
   onRowClick?: (row: T) => void;
   emptyMessage?: string;
+  /** A pinned row (e.g. totals) under the scrolling body, aligned to the same columns. */
+  footerRow?: T;
+  /** Hides the "All N records loaded" line. */
+  hideEndNote?: boolean;
 }
 
 // ─── Shared cell sx ───────────────────────────────────────────────────────────
@@ -69,7 +75,7 @@ const bodyCellSx = {
 } as const;
 
 // Resolve a column's effective width (number → px, string → as-is, undefined → auto)
-function resolveColWidth(col: ColumnDef<unknown>): string | number | undefined {
+function resolveColWidth<T>(col: ColumnDef<T>): string | number | undefined {
   return col.width ?? col.minWidth;
 }
 
@@ -88,8 +94,11 @@ function DataTable<T>({
   maxHeight = "68vh",
   onRowClick,
   emptyMessage = "No records found.",
+  footerRow,
+  hideEndNote = false,
 }: DataTableProps<T>) {
   const headerContainerRef = useRef<HTMLDivElement>(null);
+  const footerContainerRef = useRef<HTMLDivElement>(null);
 
   const colSpan    = columns.length;
   const tableHeight = typeof maxHeight === "number" ? `${maxHeight}px` : maxHeight;
@@ -100,10 +109,34 @@ function DataTable<T>({
     return sum + (typeof w === "number" ? w : 100);
   }, 0);
 
+  // Two header rows when any column is grouped: ungrouped columns span both, groups span their columns.
+  const headerRows = (() => {
+    if (!columns.some((c) => c.group)) return { grouped: false as const, top: [], sub: [] };
+    const top: { key: string; label: React.ReactNode; align: "left" | "center" | "right"; colSpan: number; rowSpan: number; isGroup?: boolean }[] = [];
+    const sub: ColumnDef<T>[] = [];
+    for (let i = 0; i < columns.length; ) {
+      const c = columns[i];
+      if (!c.group) {
+        top.push({ key: c.key, label: c.label, align: c.align ?? "left", colSpan: 1, rowSpan: 2 });
+        i += 1;
+        continue;
+      }
+      let j = i;
+      while (j < columns.length && columns[j].group === c.group) j += 1;
+      top.push({ key: `group-${c.group}-${i}`, label: c.group, align: "center", colSpan: j - i, rowSpan: 1, isGroup: true });
+      for (let k = i; k < j; k += 1) sub.push(columns[k]);
+      i = j;
+    }
+    return { grouped: true as const, top, sub };
+  })();
+
   // Sync horizontal scroll from body → header
   const handleBodyScroll = (e: React.UIEvent<HTMLDivElement>) => {
     if (headerContainerRef.current) {
       headerContainerRef.current.scrollLeft = e.currentTarget.scrollLeft;
+    }
+    if (footerContainerRef.current) {
+      footerContainerRef.current.scrollLeft = e.currentTarget.scrollLeft;
     }
   };
 
@@ -169,17 +202,42 @@ function DataTable<T>({
         <Table size="small" sx={tableSx}>
           {colgroup}
           <TableHead>
-            <TableRow>
-              {columns.map((col) => (
-                <TableCell
-                  key={col.key}
-                  align={col.align ?? "left"}
-                  sx={headCellSx}
-                >
-                  {col.label}
-                </TableCell>
-              ))}
-            </TableRow>
+            {headerRows.grouped ? (
+              <>
+                <TableRow>
+                  {headerRows.top.map((c) => (
+                    <TableCell
+                      key={c.key}
+                      align={c.align}
+                      colSpan={c.colSpan}
+                      rowSpan={c.rowSpan}
+                      sx={c.isGroup ? { ...headCellSx, textAlign: "center", borderBottom: "1px solid #E5E7EB" } : headCellSx}
+                    >
+                      {c.label}
+                    </TableCell>
+                  ))}
+                </TableRow>
+                <TableRow>
+                  {headerRows.sub.map((col) => (
+                    <TableCell key={col.key} align={col.align ?? "left"} sx={headCellSx}>
+                      {col.label}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </>
+            ) : (
+              <TableRow>
+                {columns.map((col) => (
+                  <TableCell
+                    key={col.key}
+                    align={col.align ?? "left"}
+                    sx={headCellSx}
+                  >
+                    {col.label}
+                  </TableCell>
+                ))}
+              </TableRow>
+            )}
           </TableHead>
         </Table>
       </Box>
@@ -259,7 +317,7 @@ function DataTable<T>({
             )}
 
             {/* All records loaded footer */}
-            {!hasNextPage && rows.length > 0 && !isLoading && (
+            {!hideEndNote && !hasNextPage && rows.length > 0 && !isLoading && (
               <TableRow sx={{ height: ROW_HEIGHT }}>
                 <TableCell colSpan={colSpan} align="center" sx={bodyCellSx}>
                   <Typography variant="caption" color="text.secondary">
@@ -272,6 +330,31 @@ function DataTable<T>({
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* ── Pinned footer row ───────────────────────────────────────────── */}
+      {footerRow && !isLoading && rows.length > 0 && (
+        <Box
+          ref={footerContainerRef}
+          sx={{ overflowX: "hidden", overflowY: "hidden", flexShrink: 0, borderTop: "1px solid #CBD5E1", backgroundColor: "#F5F5F5" }}
+        >
+          <Table size="small" sx={tableSx}>
+            {colgroup}
+            <TableBody>
+              <TableRow sx={{ height: ROW_HEIGHT }}>
+                {columns.map((col) => (
+                  <TableCell
+                    key={col.key}
+                    align={col.align ?? "left"}
+                    sx={{ ...bodyCellSx, backgroundColor: "#F5F5F5", borderBottom: 0 }}
+                  >
+                    {col.render(footerRow)}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableBody>
+          </Table>
+        </Box>
+      )}
 
       <Divider />
     </Card>

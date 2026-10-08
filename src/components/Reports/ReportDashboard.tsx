@@ -85,8 +85,8 @@ const reportCards: ReportCard[] = [
     path:        "#",
     color:       "#00897b",
     links: [
-      { label: "GSTR-1 (Sales)",            path: "#" },
-      { label: "GSTR-2 (Purchase)",         path: "#" },
+      { label: "GSTR-1",            path: "/reports/gst/gstr1" },
+      { label: "GSTR-2",         path: "#" },
       { label: "GSTR Purchase (With HSN)",  path: "#" },
       { label: "GSTR Sales (With HSN)",     path: "#" },
     ],
