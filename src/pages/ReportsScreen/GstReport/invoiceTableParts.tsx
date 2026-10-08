@@ -27,15 +27,28 @@ export function snoColumn<T>(): ColumnDef<ListRow<T>> {
 /** A left-aligned text column. */
 export function textColumn<T>(
   key: keyof T & string, label: string, width: number,
-  opts: { grow?: boolean; bold?: boolean; wrap?: boolean; totalLabel?: boolean } = {},
+  opts: { grow?: boolean; bold?: boolean; totalLabel?: boolean; oneLine?: boolean } = {},
 ): ColumnDef<ListRow<T>> {
   return {
     key, label, ...(opts.grow ? { minWidth: width } : { width }),
-    render: (r) => (
-      <Typography sx={{ ...cellText(opts.bold || (opts.totalLabel && r.isTotal)), ...(opts.wrap && { whiteSpace: 'normal' }) }}>
-        {r.isTotal ? (opts.totalLabel ? 'Total' : '') : String(r[key] ?? '')}
-      </Typography>
-    ),
+    render: (r) => {
+      const value = r.isTotal ? (opts.totalLabel ? 'Total' : '') : String(r[key] ?? '');
+      return (
+        // `oneLine` keeps the value on one line (ellipsis + tooltip if it still can't fit); otherwise text
+        // wraps inside its own column instead of running under the next one (columns are fixed-width).
+        <Typography
+          title={opts.oneLine ? value : undefined}
+          sx={{
+            ...cellText(opts.bold || (opts.totalLabel && r.isTotal)),
+            ...(opts.oneLine
+              ? { overflow: 'hidden', textOverflow: 'ellipsis' }
+              : { whiteSpace: 'normal', overflowWrap: 'anywhere' }),
+          }}
+        >
+          {value}
+        </Typography>
+      );
+    },
   };
 }
 

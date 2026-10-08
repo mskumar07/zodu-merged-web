@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import axiosInstance from '@store/services/axiosInstance';
 
 // ─── Shared contract of the server-driven GSTR-1 tabs ─────────
@@ -64,7 +64,7 @@ const retryOnce = (failures: number, err: unknown) =>
 /**
  * One server-driven tab, 50 rows at a time (scrolling loads the next page).
  * `summary` on any page covers all matching rows. The previous result stays on
- * screen while a changed filter or search loads, so the table doesn't flash empty.
+ * screen while a changed filter or search loads (same tab only), so the table doesn't flash empty.
  * Pass `null` params (or no endpoint) to keep the query idle.
  */
 export function useRemoteReport<Row>(endpoint: RemoteEndpoint | undefined, params: RemoteReportParams | null) {
@@ -75,7 +75,9 @@ export function useRemoteReport<Row>(endpoint: RemoteEndpoint | undefined, param
     staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: retryOnce,
-    placeholderData: keepPreviousData,
+    // Keep the last result on screen while a filter/search reloads, but never carry one tab's rows
+    // over to another tab (they have different columns): only reuse data from the same endpoint.
+    placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[1] === endpoint ? previous : undefined),
     getNextPageParam: (last: RemotePage<Row>) => (last.meta.page < last.meta.totalPages ? last.meta.page + 1 : undefined),
     queryFn: async ({ pageParam }): Promise<RemotePage<Row>> => {
       const { isRestaurant, gstin, search, ...rest } = params!;

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { IconButton, Tooltip } from '@mui/material';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import LottieLoader from '@components/LottieLoader';
 import DataTable, { type ColumnDef } from '@utils/DataTable';
 import type { ListRow } from './invoiceTableParts';
 
@@ -90,6 +91,9 @@ export default function InvoiceListTable<T extends object>({
     return [...visible, actions];
   }, [allColumns, hiddenKeys, onViewRow]);
 
+  // First load of a tab: the app's loader instead of an empty table.
+  if (loading) return <LottieLoader />;
+
   return (
     <DataTable<ListRow<T>>
       columns={columns}
@@ -97,7 +101,6 @@ export default function InvoiceListTable<T extends object>({
       rowKey={rowKey}
       footerRow={footer}
       hideEndNote
-      isLoading={loading}
       skeletonRows={10}
       hasNextPage={!!hasNextPage}
       isFetchingNextPage={!!isFetchingNextPage}
