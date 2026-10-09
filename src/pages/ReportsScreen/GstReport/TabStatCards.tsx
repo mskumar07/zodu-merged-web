@@ -28,13 +28,14 @@ const LOOK: Record<CardDef['kind'], { icon: ReactNode; bg: string }> = {
 
 function TabStatCards({ cards, loading }: { cards: CardDef[]; loading: boolean }) {
   return (
-    <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+    <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', flexShrink: 0 }}>
       {cards.map((c) => (
         <StatCard
           key={c.id} label={c.label} loading={loading}
           valuePrefix={c.isMoney ? '₹' : ''}
           value={c.isMoney ? money(c.value) : c.value}
           icon={LOOK[c.kind].icon} iconBgColor={LOOK[c.kind].bg}
+          compact
         />
       ))}
     </Box>

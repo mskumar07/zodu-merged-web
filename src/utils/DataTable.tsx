@@ -45,6 +45,8 @@ export interface DataTableProps<T> {
   maxHeight?: string | number;
   onRowClick?: (row: T) => void;
   emptyMessage?: string;
+  /** Height of each table header row. */
+  headerHeight?: number;
   /** A pinned row (e.g. totals) under the scrolling body, aligned to the same columns. */
   footerRow?: T;
   /** Hides the "All N records loaded" line. */
@@ -52,19 +54,6 @@ export interface DataTableProps<T> {
 }
 
 // ─── Shared cell sx ───────────────────────────────────────────────────────────
-const headCellSx = {
-  height: ROW_HEIGHT,
-  padding: CELL_PX,
-  lineHeight: `${ROW_HEIGHT}px`,
-  whiteSpace: "nowrap" as const,
-  fontSize: "12.5px",
-  fontWeight: 700,
-  color: "#6B7280",
-  backgroundColor: "#F5F5F5",
-  borderBottom: "1px solid #CBD5E1",
-  letterSpacing: "0.02em",
-} as const;
-
 const bodyCellSx = {
   height: ROW_HEIGHT,
   padding: CELL_PX,
@@ -94,6 +83,7 @@ function DataTable<T>({
   maxHeight = "68vh",
   onRowClick,
   emptyMessage = "No records found.",
+  headerHeight = ROW_HEIGHT,
   footerRow,
   hideEndNote = false,
 }: DataTableProps<T>) {
@@ -102,6 +92,18 @@ function DataTable<T>({
 
   const colSpan    = columns.length;
   const tableHeight = typeof maxHeight === "number" ? `${maxHeight}px` : maxHeight;
+  const headCellSx = {
+    height: headerHeight,
+    padding: headerHeight < ROW_HEIGHT ? "1px 12px" : CELL_PX,
+    lineHeight: `${headerHeight < ROW_HEIGHT ? Math.max(headerHeight - 4, 18) : headerHeight}px`,
+    whiteSpace: "nowrap" as const,
+    fontSize: "12.5px",
+    fontWeight: 700,
+    color: "#6B7280",
+    backgroundColor: "#F5F5F5",
+    borderBottom: "1px solid #CBD5E1",
+    letterSpacing: "0.02em",
+  } as const;
 
   // Min width ensures horizontal scroll triggers at the same point for header + body
   const tableMinWidth = columns.reduce((sum, col) => {

@@ -101,6 +101,22 @@ import { useModulePermission } from "@hooks/useModulePermission";
 const INR = (v: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(v);
 
+type CustomerEditDetails = Pick<ApiCustomer,
+  | "cust_uuid"
+  | "cust_name"
+  | "cpy_name"
+  | "mobile_no"
+  | "email_id"
+  | "gst"
+  | "address_line1"
+  | "address_line2"
+  | "city"
+  | "state"
+  | "pincode"
+  | "shipping_address"
+  | "same_as_billing_address"
+>;
+
 /**
  * A formatted amount that may wrap, but only between digit groups. An ordinary
  * figure fits its cart column on one line; an extreme one such as
@@ -548,7 +564,7 @@ function RetailPOSInner() {
   const [loadedSaleNo,   setLoadedSaleNo]   = useState("");
   const [orderNote,      setOrderNote]      = useState("");
   const [customer,       setCustomer]       = useState<Customer>(EMPTY_CUSTOMER);
-  const [selectedApiCustomer, setSelectedApiCustomer] = useState<ApiCustomer | null>(null);
+  const [selectedApiCustomer, setSelectedApiCustomer] = useState<CustomerEditDetails | null>(null);
   const [customerSuggestionsOpen, setCustomerSuggestionsOpen] = useState(false);
   const [customerLedgerOpen,      setCustomerLedgerOpen]      = useState(false);
   const [addCustomerOpen,         setAddCustomerOpen]         = useState(false);
@@ -1086,9 +1102,29 @@ useLayoutEffect(() => {
         const c = data.customer;
         const displayName = c.cust_name && c.cpy_name ? `${c.cust_name} / ${c.cpy_name}` : c.cust_name || c.cpy_name || "";
         const billingAddress = [c.address_line1, c.address_line2, c.city, c.state, c.pincode].filter(Boolean).join(", ");
-        setCustomer({ id: c.cust_uuid, name: displayName, mobile: c.mobile || "", address: billingAddress, gstin: c.gst || "", shippingAddress: c.same_as_billing_address ? billingAddress : (c.shipping_address || ""), sameAsBillingAddress: !!c.same_as_billing_address });
-        setShipSameAsBilling(!!c.same_as_billing_address);
+        const sameAsBillingAddress = c.same_as_billing_address == null
+          ? !String(c.shipping_address || "").trim()
+          : c.same_as_billing_address === true || c.same_as_billing_address === "true";
+        setCustomer({ id: c.cust_uuid, name: displayName, mobile: c.mobile || c.all_mobiles?.[0] || "", address: billingAddress, gstin: c.gst || "", shippingAddress: sameAsBillingAddress ? billingAddress : (c.shipping_address || ""), sameAsBillingAddress });
+        setSelectedApiCustomer({
+          cust_uuid: c.cust_uuid,
+          cust_name: c.cust_name || null,
+          cpy_name: c.cpy_name || null,
+          mobile_no: c.all_mobiles ?? (c.mobile ? [c.mobile] : null),
+          email_id: c.email ? [c.email] : null,
+          gst: c.gst || null,
+          address_line1: c.address_line1 || null,
+          address_line2: c.address_line2 || null,
+          city: c.city || null,
+          state: c.state || null,
+          pincode: c.pincode || null,
+          shipping_address: c.shipping_address || null,
+          same_as_billing_address: sameAsBillingAddress,
+        });
+        setShipSameAsBilling(sameAsBillingAddress);
         setCustomerQuery(displayName);
+      } else {
+        setSelectedApiCustomer(null);
       }
       if (sale.discount_type === "percentage") { setDiscountPct(String(sale.discount_value || 0)); setDiscount("0"); }
       else { setDiscount(String(sale.discount_amount || 0)); setDiscountPct("0"); }
@@ -3265,4 +3301,3 @@ console.log("test",serverHolds)
     </ThemeProvider>
   );
 }
-
