@@ -23,6 +23,7 @@ export interface EmployeeListItem {
   created_at: string;
   has_password?: boolean;
   has_role?: boolean;
+  role_name?: string | null;
   // Whether the employee's login is switched on — drives the list's User Login toggle.
   login_user?: boolean;
 }

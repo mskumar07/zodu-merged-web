@@ -18,6 +18,8 @@ export interface RemoteSummary {
 }
 
 export interface RemotePage<Row> {
+  success?: boolean;
+  error?: string;
   period: { financial_year: string; month: number | null; from_date: string; to_date: string };
   summary: RemoteSummary;
   data: Row[];
@@ -25,7 +27,7 @@ export interface RemotePage<Row> {
 }
 
 /** Path segment under /api/report/gst/gstr1/ for each server-driven tab. */
-export type RemoteEndpoint = 'b2b' | 'b2c-large';
+export type RemoteEndpoint = 'b2b' | 'b2c-large' | 'b2c-small';
 
 interface TenantParams {
   zodu_id: string;
@@ -49,6 +51,8 @@ const PAGE_SIZE = 50;
 const gstr1Path = (endpoint: string, isRestaurant?: boolean) =>
   `${isRestaurant ? '/restaurant' : '/retail'}/api/report/gst/gstr1/${endpoint}`;
 
+class RemoteReportError extends Error {}
+
 /** The server's `{ success: false, error }` message, or a fallback. */
 export function apiErrorMessage(err: unknown, fallback: string): string {
   if (axios.isAxiosError(err)) return (err.response?.data as { error?: string } | undefined)?.error ?? err.message ?? fallback;
@@ -57,7 +61,9 @@ export function apiErrorMessage(err: unknown, fallback: string): string {
 
 /** 4xx means the request itself is wrong, so retrying can't help. */
 const retryOnce = (failures: number, err: unknown) =>
-  failures < 1 && !(axios.isAxiosError(err) && (err.response?.status ?? 500) < 500);
+  failures < 1
+  && !(err instanceof RemoteReportError)
+  && !(axios.isAxiosError(err) && (err.response?.status ?? 500) < 500);
 
 // ─── Summary cards + table ────────────────────────────────────
 
@@ -90,7 +96,9 @@ export function useRemoteReport<Row>(endpoint: RemoteEndpoint | undefined, param
           limit: PAGE_SIZE,
         },
       });
-      return res.data as RemotePage<Row>;
+      const page = res.data as RemotePage<Row>;
+      if (page.success === false) throw new RemoteReportError(page.error || `Failed to load the ${endpoint} report`);
+      return page;
     },
   });
 }

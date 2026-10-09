@@ -11,6 +11,7 @@ interface StatCardProps {
   sub?: ReactNode;
   radius?: number | string;
   loading?: boolean;
+  compact?: boolean;
 }
 
 const StatCard = ({
@@ -22,6 +23,7 @@ const StatCard = ({
   valuePrefix = "₹",
   sub,
   loading = false,
+  compact = false,
 }: StatCardProps) => {
   const displayValue =
     valuePrefix === ""
@@ -49,8 +51,8 @@ const StatCard = ({
         display: "flex",
         alignItems: "center",
         gap: 1.5,
-        minWidth: minW,
-        flex: `1 1 ${minW}px`,
+        minWidth: compact ? 150 : minW,
+        flex: compact ? "0 0 auto" : `1 1 ${minW}px`,
         width: "fit-content",
       }}
     >

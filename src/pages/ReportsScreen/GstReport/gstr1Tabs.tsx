@@ -1,6 +1,7 @@
 import type { ColumnDef } from '@utils/DataTable';
+import { Typography } from '@mui/material';
 import {
-  dateColumn, intColumn, moneyColumn, snoColumn, textColumn, type ListRow,
+  cellText, dateColumn, intColumn, money, moneyColumn, snoColumn, textColumn, type ListRow,
 } from './invoiceTableParts';
 import type {
   Gstr1B2bRow, Gstr1B2clRow, Gstr1CdnrRow, Gstr1CdnurRow, Gstr1DocRow, Gstr1HsnRow, Gstr1NilRow, Gstr1Response, Gstr1SectionRow,
@@ -24,7 +25,6 @@ export interface TabDef<T extends object = any> { // eslint-disable-line @typesc
   sumKeys: (keyof T & string)[];
   rowKey: (row: T) => string;
   searchText: (row: T) => string;
-  lockedKeys?: string[];
   /**
    * true when the tab loads its own data from the server (search, paging and totals
    * included) instead of reading the shared report response.
@@ -36,8 +36,6 @@ export interface TabDef<T extends object = any> { // eslint-disable-line @typesc
   };
   /** Picks this tab's rows out of the report response. */
   rows: (res: Gstr1Response) => T[];
-  /** Totals that replace the computed ones (the return's own figures). */
-  footer?: (res: Gstr1Response) => Record<string, number>;
   // Summary cards: [count][value][IGST][CGST][SGST][Cess] — only those the tab has.
   countLabel: string;
   /** Sum this field for the count card instead of counting rows. */
@@ -81,7 +79,6 @@ const b2b: TabDef<Gstr1B2bRow> = {
   sumKeys: ['taxable_value', ...TAX_KEYS, 'total_value'],
   rowKey: (r) => r.invoice_no,
   searchText: (r) => `${r.invoice_no} ${r.customer_name} ${r.gstin}`,
-  lockedKeys: ['invoice_no'],
   remote: { endpoint: 'b2b', gstin: true },
   rows: () => [],
   countLabel: 'Total Invoices', valueLabel: 'Total Taxable Value', valueKey: 'taxable_value',
@@ -105,9 +102,37 @@ const b2cl: TabDef<Gstr1B2clRow> = {
   sumKeys: ['invoice_value', 'taxable_value', ...TAX_KEYS, 'total_value'],
   rowKey: (r) => r.invoice_no,
   searchText: (r) => `${r.invoice_no} ${r.customer_name} ${r.place_of_supply}`,
-  lockedKeys: ['invoice_no'],
   remote: { endpoint: 'b2c-large' },
   rows: () => [],
+  countLabel: 'Total Invoices', valueLabel: 'Total Taxable Value', valueKey: 'taxable_value',
+};
+
+const b2cs: TabDef<Gstr1B2clRow> = {
+  id: 'b2cs', label: 'B2C Small (7)', exportName: 'B2C Small Invoices',
+  searchPlaceholder: 'Search by invoice no. or customer name...',
+  emptyMessage: 'No B2C Small invoices for this return period.',
+  columns: [
+    snoColumn<Gstr1B2clRow>(),
+    textColumn<Gstr1B2clRow>('invoice_no', 'Invoice No', 100),
+    dateColumn<Gstr1B2clRow>('invoice_date', 'Invoice Date', 120),
+    textColumn<Gstr1B2clRow>('customer_name', 'Customer Name', 180, { grow: true, oneLine: true }),
+    {
+      key: 'place_of_supply', label: 'Place of Supply (State)', width: 150,
+      render: (row) => <Typography sx={cellText()}>{row.place_of_supply || '—'}</Typography>,
+    },
+    {
+      key: 'invoice_value', label: 'Invoice Value (₹)', align: 'right', minWidth: 130,
+      render: (row) => <Typography sx={cellText()}>{money(Number(row.invoice_value ?? row.total_value ?? 0))}</Typography>,
+    },
+    moneyColumn<Gstr1B2clRow>('taxable_value', 'Taxable Value (₹)', 130),
+    ...taxColumns<Gstr1B2clRow>(),
+    moneyColumn<Gstr1B2clRow>('total_value', 'Total Value (₹)', 130, true),
+  ],
+  sumKeys: ['invoice_value', 'taxable_value', ...TAX_KEYS, 'total_value'],
+  rowKey: (r) => r.invoice_no,
+  searchText: (r) => `${r.invoice_no} ${r.customer_name} ${r.place_of_supply}`,
+  rows: () => [],
+  remote: { endpoint: 'b2c-small' },
   countLabel: 'Total Invoices', valueLabel: 'Total Taxable Value', valueKey: 'taxable_value',
 };
 
@@ -131,7 +156,6 @@ const cdnr: TabDef<Gstr1CdnrRow> = {
   sumKeys: ['taxable_value', ...TAX_KEYS, 'total_value'],
   rowKey: (r) => r.note_no,
   searchText: (r) => `${r.note_no} ${r.customer_name} ${r.gstin} ${r.original_invoice_no}`,
-  lockedKeys: ['note_no'],
   rows: (res) => res.cdnr,
   countLabel: 'Total Notes', valueLabel: 'Total Credit Note Value', valueKey: 'taxable_value',
 };
@@ -157,7 +181,6 @@ const cdnur: TabDef<Gstr1CdnurRow> = {
   sumKeys: ['note_value', 'taxable_value', ...TAX_KEYS, 'total_value'],
   rowKey: (r) => r.note_no,
   searchText: (r) => `${r.note_no} ${r.customer_name} ${r.place_of_supply} ${r.original_invoice_no}`,
-  lockedKeys: ['note_no'],
   rows: (res) => res.cdnur,
   countLabel: 'Total Notes', valueLabel: 'Total Credit Note Value', valueKey: 'note_value',
 };
@@ -179,7 +202,6 @@ const nil: TabDef<Gstr1NilRow> = {
   sumKeys: ['invoice_value'],
   rowKey: (r) => r.invoice_no,
   searchText: (r) => `${r.invoice_no} ${r.customer_name} ${r.place_of_supply} ${r.supply_type}`,
-  lockedKeys: ['invoice_no'],
   rows: (res) => res.nil,
   countLabel: 'Total Invoices', valueLabel: 'Total Invoice Value', valueKey: 'invoice_value',
 };
@@ -204,7 +226,6 @@ const docs: TabDef<Gstr1DocRow> = {
   sumKeys: ['document_value', 'taxable_value', ...TAX_KEYS],
   rowKey: (r) => r.document_no,
   searchText: (r) => `${r.document_no} ${r.reference_invoice_no} ${r.customer_name} ${r.gstin} ${r.document_type}`,
-  lockedKeys: ['document_no'],
   rows: (res) => res.docs,
   countLabel: 'Total Documents', valueLabel: 'Total Document Value', valueKey: 'document_value',
 };
@@ -232,19 +253,13 @@ const sectionTab = (
   sumKeys: ['invoices', 'invoice_value', 'taxable_value', 'tax_amount'],
   rowKey: (r) => `${r.section}-${r.description}`,
   searchText: (r) => `${r.section} ${r.description}`,
-  lockedKeys: ['section'],
+
   rows: (res) => res.sections.filter(match),
   countLabel: 'Total Invoices', countKey: 'invoices', valueLabel: 'Total Taxable Value', valueKey: 'taxable_value',
   ...extra,
 });
 
-const summary = sectionTab('summary', 'Summary', 'Summary', () => true, {
-  // The Summary total is the return's own figures, not a re-sum of the rows.
-  footer: (res) => ({
-    invoices: res.summary.total_invoices, invoice_value: res.summary.total_invoice_value,
-    taxable_value: res.summary.total_taxable_value, tax_amount: res.summary.total_tax,
-  }),
-});
+const summary = sectionTab('summary', 'Summary', 'Summary', () => true);
 // ─── HSN-wise ─────────────────────────────────────────────────
 
 const sumOfRows = (rows: object[], key: string) =>
@@ -270,7 +285,6 @@ const hsn: TabDef<Gstr1HsnRow> = {
   sumKeys: ['quantity', 'taxable_value', 'igst', 'cgst', 'sgst', 'cess', 'total_value'],
   rowKey: (r) => `${r.hsn_code}-${r.uqc}`,
   searchText: (r) => `${r.hsn_code} ${r.description} ${r.uqc}`,
-  lockedKeys: ['hsn_code'],
   rows: (res) => res.hsn,
   countLabel: 'Total HSN Items', valueKey: 'taxable_value',
   cards: (rows) => [
@@ -286,7 +300,7 @@ const hsn: TabDef<Gstr1HsnRow> = {
 };
 
 /** Tab order on screen. */
-export const TAB_DEFS: TabDef[] = [summary, b2b, b2cl, cdnr, cdnur, nil, docs, hsn];
+export const TAB_DEFS: TabDef[] = [summary, b2b, b2cl, b2cs, cdnr, cdnur, nil, docs, hsn];
 
 // ─── Derived from a tab's config ──────────────────────────────
 
@@ -339,12 +353,6 @@ export function remoteCards(s: RemoteSummary | undefined): CardDef[] {
     { id: 'cess', kind: 'cess', label: 'Total Cess', value: s?.total_cess ?? 0, isMoney: true },
   ];
 }
-
-/** The pinned total row of a server-driven table (a tab only shows the columns it has). */
-export const remoteFooter = (s: RemoteSummary): Record<string, number> => ({
-  taxable_value: s.total_taxable_value, igst: s.total_igst, cgst: s.total_cgst,
-  sgst: s.total_sgst, cess: s.total_cess, total_value: s.total_value, invoice_value: s.total_value,
-});
 
 /** The table's own columns and rows, so the export always matches what is on screen. */
 export function buildExport(def: TabDef, rows: object[]): ExportTable {

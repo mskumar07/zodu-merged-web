@@ -247,6 +247,16 @@ export default function EmployeeManagement() {
       },
     },
     {
+      key: "role_name",
+      label: "Role",
+      width: 160,
+      render: (row) => (
+        <Typography sx={{ fontSize: 13, color: row.role_name ? "#374151" : "#9CA3AF" }}>
+          {row.role_name || "—"}
+        </Typography>
+      ),
+    },
+    {
       key: "actions",
       label: "Actions",
       align: "center",

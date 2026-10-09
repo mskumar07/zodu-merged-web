@@ -4,7 +4,6 @@ import {
 } from '@mui/material';
 import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
 import TableViewOutlinedIcon from '@mui/icons-material/TableViewOutlined';
-import RefreshIcon from '@mui/icons-material/Refresh';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import LottieLoader from '@components/LottieLoader';
 import SuccessToast from '@components/Common/SuccessToast';
@@ -15,7 +14,7 @@ import {
   apiErrorMessage, useB2bGstins, useRemoteReport, type B2bGstinOption, type RemoteReportParams,
 } from './useGstr1RemoteApi';
 import { exportGstr1Excel, exportGstr1Pdf } from './exportGstr1';
-import { TAB_DEFS, remoteCards, remoteFooter, buildCards, buildExport } from './gstr1Tabs';
+import { TAB_DEFS, remoteCards, buildCards, buildExport } from './gstr1Tabs';
 import InvoiceListTable from './InvoiceListTable';
 import TableToolbar from './TableToolbar';
 import TabStatCards from './TabStatCards';
@@ -142,9 +141,8 @@ const Gstr1Report: React.FC = () => {
   }));
   const [tabId, setTabId] = useState(TAB_DEFS[0].id);
   const [viewRow, setViewRow] = useState<ListRow<object> | null>(null);
-  // Search text and hidden columns belong to the current tab; both reset when it changes.
+  // Search text belongs to the current tab and resets when it changes.
   const [search, setSearch] = useState('');
-  const [hidden, setHidden] = useState<Set<string>>(() => new Set());
   const [toast, setToast] = useState<Toast>(NO_TOAST);
   const [exporting, setExporting] = useState(false);
 
@@ -176,7 +174,7 @@ const Gstr1Report: React.FC = () => {
     }
   }, [gstinQuery.isSuccess, gstinOptions, filters.gstin]);
 
-  // ── Server-driven tabs (B2B, B2C Large): summary, search and paging come from the API ──
+  // ── Server-driven tabs: summary, search and paging come from the API ──
   const remoteParams = useMemo<RemoteReportParams | null>(() => (hasTenant && def.remote ? {
     zodu_id: zoduId!, branch_id: branchId!, financial_year: filters.fy, month: period.month,
     gstin: def.remote.gstin ? filters.gstin : undefined, search: serverSearch, isRestaurant,
@@ -206,14 +204,7 @@ const Gstr1Report: React.FC = () => {
     setTabId(id);
     setViewRow(null);
     setSearch('');
-    setHidden(new Set());
   }, []);
-
-  const toggleColumn = useCallback((key: string) => setHidden((prev) => {
-    const next = new Set(prev);
-    if (next.has(key)) next.delete(key); else next.add(key);
-    return next;
-  }), []);
 
   // Changing the year or month changes which GSTINs exist, so the GSTIN falls back to "All".
   const setField = useCallback((k: keyof Filters) => (e: SelectChangeEvent<string>) => {
@@ -225,11 +216,6 @@ const Gstr1Report: React.FC = () => {
     });
   }, []);
 
-  const generate = useCallback(async () => {
-    const res = await (isRemote ? remoteQuery.refetch() : report.refetch());
-    if (!res.isError) notify(`${def.exportName} report generated successfully`, 'success');
-  }, [isRemote, remoteQuery, report, def.exportName, notify]);
-
   // Everything below is driven by the selected tab's config (see gstr1Tabs.tsx).
   const rows = useMemo(
     () => (isRemote ? remoteRows : report.data ? def.rows(report.data) : []),
@@ -239,13 +225,8 @@ const Gstr1Report: React.FC = () => {
     () => (isRemote ? remoteCards(remoteSummary) : buildCards(def, rows, report.data)),
     [isRemote, remoteSummary, def, rows, report.data],
   );
-  const footerOverride = useMemo(() => {
-    if (isRemote) return remoteSummary ? remoteFooter(remoteSummary) : undefined;
-    return report.data && def.footer ? def.footer(report.data) : undefined;
-  }, [isRemote, remoteSummary, report.data, def]);
   const loading = isRemote ? remoteQuery.isLoading : report.isFetching && !report.data;
   const cardsLoading = isRemote ? remoteQuery.isLoading : report.isFetching;
-  const busy = isRemote ? remoteQuery.isFetching : report.isFetching;
 
   const title = `GSTR-1 ${def.exportName} (${period.label})`;
   const fileName = `GSTR1_${def.exportName.replace(/[^A-Za-z0-9]+/g, '_')}_${period.label.replace(' ', '_')}`;
@@ -282,14 +263,14 @@ const Gstr1Report: React.FC = () => {
   if (!isRemote && report.isLoading && !report.data) return <LottieLoader />;
 
   return (
-    <Box sx={{ height: '100%', overflowY: 'auto', p: 1.25, bgcolor: '#fff', display: 'flex', flexDirection: 'column', gap: 2 }}>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, flexWrap: 'wrap' }}>
-        <Box>
-          <Typography sx={{ fontSize: 24, fontWeight: 700, color: '#0F172A' }}>GSTR1 Report</Typography>
-          <Typography sx={{ fontSize: 13, color: '#64748B' }}>Summary and filing details of outward supplies of goods or services</Typography>
+    <Box sx={{ height: '100%', minHeight: 0, overflow: 'hidden', p: 1.25, bgcolor: '#fff', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+      <TabStatCards cards={cards} loading={cardsLoading} />
+
+      <Box sx={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+        <Box sx={{ flex: '1 1 570px', minWidth: 0 }}>
+          <FilterBar filters={filters} onChange={setField} financialYears={financialYears} gstins={gstinOptions} showGstin={!def.remote || !!def.remote.gstin} />
         </Box>
-        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap', ml: 'auto' }}>
           <Button variant="outlined" startIcon={<PictureAsPdfOutlinedIcon />} disabled={!hasExport}
             onClick={() => runExport('pdf')} sx={EXPORT_BTN_SX}>
             Export PDF
@@ -298,18 +279,10 @@ const Gstr1Report: React.FC = () => {
             onClick={() => runExport('excel')} sx={EXPORT_BTN_SX}>
             Export Excel
           </Button>
-          <Button variant="contained" startIcon={<RefreshIcon />} onClick={generate} disabled={busy}
-            sx={{ textTransform: 'none', fontWeight: 700, bgcolor: '#D2122E', height: 40, px: 2.5, '&:hover': { bgcolor: '#b00f26' } }}>
-            Generate Report
-          </Button>
         </Box>
       </Box>
 
-      <FilterBar filters={filters} onChange={setField} financialYears={financialYears} gstins={gstinOptions} showGstin={!def.remote || !!def.remote.gstin} />
-
-      <TabStatCards cards={cards} loading={cardsLoading} />
-
-      {/* Tabs on the left, the table's search and Columns menu on the right */}
+      {/* Tabs on the left and the table search on the right */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, borderBottom: '1px solid #E5E7EB' }}>
         <Tabs value={tabId} onChange={(_, v) => changeTab(v)} variant="scrollable" scrollButtons="auto"
           sx={{ ...TAB_SX, borderBottom: 0, flex: 1, minWidth: 0 }}>
@@ -317,30 +290,27 @@ const Gstr1Report: React.FC = () => {
         </Tabs>
         <TableToolbar
           search={search} onSearch={setSearch} placeholder={def.searchPlaceholder}
-          columns={def.columns.filter((c) => c.key !== 'sno')} hidden={hidden} onToggleColumn={toggleColumn}
-          lockedKeys={def.lockedKeys}
         />
       </Box>
 
-      <Box sx={{ flex: 1, minHeight: 420, display: 'flex' }}>
+      <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
         <Paper elevation={0} sx={{ flex: 1, minWidth: 0, border: '1px solid #E5E7EB', borderRadius: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          <InvoiceListTable
-            emptyMessage={def.emptyMessage}
-            columns={def.columns}
-            rows={rows}
-            sumKeys={def.sumKeys}
-            searchText={def.searchText}
-            rowKey={def.rowKey}
-            query={query}
-            hiddenKeys={hidden}
-            footerOverride={footerOverride}
-            onViewRow={def.viewable ? setViewRow : undefined}
-            loading={loading}
-            clientFilter={!isRemote}
-            hasNextPage={isRemote && !!remoteQuery.hasNextPage}
-            isFetchingNextPage={isRemote && remoteQuery.isFetchingNextPage}
-            onLoadMore={isRemote ? loadMore : undefined}
-          />
+          <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
+            <InvoiceListTable
+              emptyMessage={def.emptyMessage}
+              columns={def.columns}
+              rows={rows}
+              searchText={def.searchText}
+              rowKey={def.rowKey}
+              query={query}
+              onViewRow={def.viewable ? setViewRow : undefined}
+              loading={loading}
+              clientFilter={!isRemote}
+              hasNextPage={isRemote && !!remoteQuery.hasNextPage}
+              isFetchingNextPage={isRemote && remoteQuery.isFetchingNextPage}
+              onLoadMore={isRemote ? loadMore : undefined}
+            />
+          </Box>
         </Paper>
       </Box>
 
