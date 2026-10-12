@@ -207,9 +207,8 @@ export default function AttendanceDashboard() {
 
   // ── Team summary (top-left cards) ──
   const teamSummary = teamData?.data?.summary;
-  const presentDaysAvg = teamSummary ? round1(teamSummary.avg_present_days) : 0;
-  const attendancePct = teamSummary ? round1(teamSummary.avg_attendance_pct) : 0;
-  const absentPct = teamSummary ? round1(teamSummary.avg_absent_pct) : 0;
+  const totalPresentDays = teamSummary?.total_present_days ?? 0;
+  const totalAbsentDays = teamSummary?.total_absent_days ?? 0;
 
   // ── Team grid rows ──
   const teamEmployees: TeamAttendanceEmployee[] = teamData?.data?.employees ?? [];
@@ -285,24 +284,16 @@ export default function AttendanceDashboard() {
               <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
                 <StatCard
                   radius={2}
-                  label="Present Days (Avg.)"
-                  value={presentDaysAvg}
+                  label="Total Present"
+                  value={totalPresentDays}
                   valuePrefix=""
                   icon={<EventAvailableOutlinedIcon sx={{ color: "#0E7490" }} />}
                   iconBgColor="#CFEEF3"
                 />
                 <StatCard
                   radius={2}
-                  label="Attendance % (Avg.)"
-                  value={attendancePct}
-                  valuePrefix=""
-                  icon={<PercentOutlinedIcon sx={{ color: "#16A34A" }} />}
-                  iconBgColor="#D3F5DE"
-                />
-                <StatCard
-                  radius={2}
-                  label="Absent Days % (Avg.)"
-                  value={absentPct}
+                  label="Total Absent"
+                  value={totalAbsentDays}
                   valuePrefix=""
                   icon={<CancelIcon sx={{ color: "#DC2626" }} />}
                   iconBgColor="#FEE2E2"

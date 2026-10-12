@@ -95,9 +95,8 @@ export interface TeamAttendanceEmployee {
 }
 
 export interface TeamAttendanceSummary {
-  avg_present_days: number;
-  avg_attendance_pct: number;
-  avg_absent_pct: number;
+  total_present_days: number;
+  total_absent_days: number;
 }
 
 export interface TeamAttendanceResponse {
