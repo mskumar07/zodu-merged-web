@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { IconButton, Tooltip } from '@mui/material';
+import { Box, IconButton, Tooltip } from '@mui/material';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import LottieLoader from '@components/LottieLoader';
 import DataTable, { type ColumnDef } from '@utils/DataTable';
@@ -72,7 +72,7 @@ export default function InvoiceListTable<T extends object>({
   }, [columns, onViewRow]);
 
   // First load of a tab: the app's loader instead of an empty table.
-  if (loading) return <LottieLoader />;
+  if (loading) return <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}><LottieLoader /></Box>;
 
   return (
     <DataTable<ListRow<T>>

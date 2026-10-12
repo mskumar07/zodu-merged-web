@@ -5,7 +5,6 @@ import {
 import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
 import TableViewOutlinedIcon from '@mui/icons-material/TableViewOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import LottieLoader from '@components/LottieLoader';
 import SuccessToast from '@components/Common/SuccessToast';
 import useDebounce from '@hooks/useDebounce';
 import { useTenantContext } from '@store/tenantContext';
@@ -274,8 +273,6 @@ const Gstr1Report: React.FC = () => {
   // fetchNextPage is stable, so the table's scroll observer isn't rebuilt on every render.
   const { fetchNextPage: fetchMoreRemote } = remoteQuery;
   const loadMore = useCallback(() => { fetchMoreRemote(); }, [fetchMoreRemote]);
-
-  if (!isRemote && report.isLoading && !report.data) return <LottieLoader />;
 
   return (
     <Box sx={{ height: '100%', minHeight: 0, overflow: 'hidden', p: 1.25, bgcolor: '#fff', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
