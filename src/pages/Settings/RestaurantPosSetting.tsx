@@ -543,9 +543,9 @@ export default function RestaurantPosSetting() {
               />
             </SettingRow>
 
-            <Divider sx={{ borderColor: "#f4f5f8" }} />
+            {/* <Divider sx={{ borderColor: "#f4f5f8" }} /> */}
 
-            <SettingRow
+            {/* <SettingRow
               icon={<TagRoundedIcon fontSize="small" />}
               iconBg="#eef4ff"
               iconColor="#2563eb"
@@ -561,7 +561,7 @@ export default function RestaurantPosSetting() {
                 inputProps={{ min: 0 }}
                 sx={textFieldSx}
               />
-            </SettingRow>
+            </SettingRow> */}
           </Section>
 
           <Section

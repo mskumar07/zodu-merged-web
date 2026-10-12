@@ -19,7 +19,9 @@ import {
 const ROW_HEIGHT = 40;
 const CELL_PX    = "5px 12px";
 const FIT_CELL_PX = "5px 8px";
-const FIT_HEAD_PX = "4px 8px";
+const FIT_HEAD_PX = "1px 8px";
+// Approximate width of one header character (12.5px bold) — used to keep fitWidth headers on one line.
+const HEAD_CHAR_PX = 7.5;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -111,7 +113,7 @@ function DataTable<T>({
     backgroundColor: "#F5F5F5",
     borderBottom: "1px solid #CBD5E1",
     letterSpacing: "0.02em",
-    ...(fitWidth && { whiteSpace: "normal" as const, lineHeight: 1.25, padding: FIT_HEAD_PX }),
+    ...(fitWidth && { padding: FIT_HEAD_PX, overflow: "hidden", textOverflow: "ellipsis" }),
   };
   const cellSx = fitWidth ? { ...bodyCellSx, padding: FIT_CELL_PX, overflow: "hidden" } : bodyCellSx;
 
@@ -121,10 +123,20 @@ function DataTable<T>({
     return sum + (typeof w === "number" ? w : 100);
   }, 0);
 
-  // fitWidth: a numeric width is that column's share of the whole table
-  const colWidth = (w: string | number) => {
+  // fitWidth: a column never gets narrower than its one-line header…
+  const headerMinWidth = (col: ColumnDef<T>) =>
+    typeof col.label === "string" ? Math.ceil(col.label.length * HEAD_CHAR_PX) + 18 : 0;
+  const fitWeight = (col: ColumnDef<T>, w: number) => Math.max(w, headerMinWidth(col));
+  const fitTotal = columns.reduce((sum, col) => {
+    const w = resolveColWidth(col);
+    return sum + fitWeight(col, typeof w === "number" ? w : 100);
+  }, 0);
+  const fitMinWidth = columns.reduce((sum, col) => sum + headerMinWidth(col), 0);
+
+  // …and a numeric width is that column's share of the whole table
+  const colWidth = (col: ColumnDef<T>, w: string | number) => {
     if (typeof w !== "number") return w;
-    return fitWidth ? `${(w / tableMinWidth) * 100}%` : `${w}px`;
+    return fitWidth ? `${(fitWeight(col, w) / fitTotal) * 100}%` : `${w}px`;
   };
 
   // Two header rows when any column is grouped: ungrouped columns span both, groups span their columns.
@@ -166,7 +178,7 @@ function DataTable<T>({
         return (
           <col
             key={col.key}
-            style={w !== undefined ? { width: colWidth(w) } : undefined}
+            style={w !== undefined ? { width: colWidth(col, w) } : undefined}
           />
         );
       })}
@@ -174,7 +186,8 @@ function DataTable<T>({
   );
 
   const tableSx = {
-    ...(fitWidth ? { width: "100%" } : { minWidth: tableMinWidth }),
+    // fitWidth: fills the container; scrolls sideways only if the screen can't fit every header
+    ...(fitWidth ? { width: "100%", minWidth: fitMinWidth } : { minWidth: tableMinWidth }),
     tableLayout: "fixed" as const,
     borderCollapse: "separate" as const,
     borderSpacing: 0,
@@ -271,7 +284,7 @@ function DataTable<T>({
           flex: 1,
           minHeight: 0,
           overflow: "auto",
-          ...(fitWidth && { overflowX: "hidden", scrollbarGutter: "stable" }),
+          ...(fitWidth && { scrollbarGutter: "stable" }),
           backgroundColor: "#ffffff",
           ...bodyScrollbarSx,
         }}

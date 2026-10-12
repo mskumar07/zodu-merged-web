@@ -854,9 +854,9 @@ export default function PosSetting() {
               </Alert>
             )}
 
-            <Divider sx={{ borderColor: "#f4f5f8" }} />
+            {/* <Divider sx={{ borderColor: "#f4f5f8" }} /> */}
 
-            <SettingRow
+            {/* <SettingRow
               icon={<TagRoundedIcon fontSize="small" />}
               iconBg="#eef4ff"
               iconColor="#2563eb"
@@ -876,9 +876,7 @@ export default function PosSetting() {
 
             <Divider sx={{ borderColor: "#f4f5f8" }} />
 
-            {/* The live counter, not a setting: it is read and written on its
-                own endpoint and takes effect immediately, so it opens a dialog
-                with its own confirmation instead of riding on Save below. */}
+            
             <SettingRow
               icon={<TagRoundedIcon fontSize="small" />}
               iconBg="#fef2f2"
@@ -896,7 +894,7 @@ export default function PosSetting() {
                   Adjust numbering
                 </Button>
               </Box>
-            </SettingRow>
+            </SettingRow> */}
           </Section>
 
           <Section

@@ -239,9 +239,15 @@ const Gstr1Report: React.FC = () => {
     () => (isRemote ? remoteCards(remoteSummary) : buildCards(def, rows, report.data)),
     [isRemote, remoteSummary, def, rows, report.data],
   );
-  const loading = isRemote ? remoteQuery.isLoading : report.isFetching && !report.data;
-  // Skeletons only while a tab has nothing to show yet; background refreshes keep the current figures.
-  const cardsLoading = isRemote ? remoteQuery.isLoading : report.isLoading;
+  // Loaders/skeletons belong to the screen's first load only. Once anything has been shown, a tab
+  // switch (including to a tab with no data, whose request may fail and retry) never flashes them.
+  const [loadedOnce, setLoadedOnce] = useState(false);
+  const tabLoading = isRemote ? remoteQuery.isLoading : report.isLoading;
+  useEffect(() => {
+    if (!loadedOnce && !tabLoading) setLoadedOnce(true);
+  }, [loadedOnce, tabLoading]);
+  const loading = !loadedOnce && tabLoading;
+  const cardsLoading = loading;
 
   const title = `GSTR-1 ${def.exportName} (${period.label})`;
   const fileName = `GSTR1_${def.exportName.replace(/[^A-Za-z0-9]+/g, '_')}_${period.label.replace(' ', '_')}`;
