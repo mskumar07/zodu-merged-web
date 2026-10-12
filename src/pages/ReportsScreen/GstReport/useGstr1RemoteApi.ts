@@ -1,5 +1,6 @@
 import axios from 'axios';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { infiniteQueryOptions, useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '@store/services/axiosInstance';
 
 // ─── Shared contract of the server-driven GSTR-1 tabs ─────────
@@ -67,23 +68,16 @@ const retryOnce = (failures: number, err: unknown) =>
 
 // ─── Summary cards + table ────────────────────────────────────
 
-/**
- * One server-driven tab, 50 rows at a time (scrolling loads the next page).
- * `summary` on any page covers all matching rows. The previous result stays on
- * screen while a changed filter or search loads (same tab only), so the table doesn't flash empty.
- * Pass `null` params (or no endpoint) to keep the query idle.
- */
-export function useRemoteReport<Row>(endpoint: RemoteEndpoint | undefined, params: RemoteReportParams | null) {
-  return useInfiniteQuery({
+const REMOTE_ENDPOINTS: RemoteEndpoint[] = ['b2b', 'b2c-large', 'b2c-small'];
+
+const remoteReportOptions = <Row>(endpoint: RemoteEndpoint | undefined, params: RemoteReportParams | null) =>
+  infiniteQueryOptions({
     queryKey: ['gstr1', endpoint, 'report', params],
     enabled: !!endpoint && !!params?.zodu_id && !!params?.branch_id && !!params?.financial_year,
     initialPageParam: 1,
     staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: retryOnce,
-    // Keep the last result on screen while a filter/search reloads, but never carry one tab's rows
-    // over to another tab (they have different columns): only reuse data from the same endpoint.
-    placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[1] === endpoint ? previous : undefined),
     getNextPageParam: (last: RemotePage<Row>) => (last.meta.page < last.meta.totalPages ? last.meta.page + 1 : undefined),
     queryFn: async ({ pageParam }): Promise<RemotePage<Row>> => {
       const { isRestaurant, gstin, search, ...rest } = params!;
@@ -101,6 +95,35 @@ export function useRemoteReport<Row>(endpoint: RemoteEndpoint | undefined, param
       return page;
     },
   });
+
+/**
+ * One server-driven tab, 50 rows at a time (scrolling loads the next page).
+ * `summary` on any page covers all matching rows. The previous result stays on
+ * screen while a changed filter or search loads (same tab only), so the table doesn't flash empty.
+ * Pass `null` params (or no endpoint) to keep the query idle.
+ */
+export function useRemoteReport<Row>(endpoint: RemoteEndpoint | undefined, params: RemoteReportParams | null) {
+  return useInfiniteQuery({
+    ...remoteReportOptions<Row>(endpoint, params),
+    // Keep the last result on screen while a filter/search reloads, but never carry one tab's rows
+    // over to another tab (they have different columns): only reuse data from the same endpoint.
+    placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[1] === endpoint ? previous : undefined),
+  });
+}
+
+/**
+ * Loads the first page of every server-driven tab in the background for the current filters,
+ * so switching tabs shows data straight away instead of a loader.
+ * `paramsFor` returns the params each tab would use with an empty search.
+ */
+export function usePrefetchRemoteReports(paramsFor: (endpoint: RemoteEndpoint) => RemoteReportParams | null) {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    REMOTE_ENDPOINTS.forEach((endpoint) => {
+      const params = paramsFor(endpoint);
+      if (params) queryClient.prefetchInfiniteQuery(remoteReportOptions(endpoint, params));
+    });
+  }, [queryClient, paramsFor]);
 }
 
 // ─── B2B GSTIN dropdown ───────────────────────────────────────

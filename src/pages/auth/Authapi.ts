@@ -347,6 +347,9 @@ export interface PosSettings {
   purchase_order_enabled?: boolean;
   // Whether POS offers Hold/Recall. Treat a missing value as on.
   hold_enabled?: boolean;
+  // Whether POS shows the Item Description / Vehicle No fields. Missing = on.
+  item_description_enabled?: boolean;
+  vehicle_no_enabled?: boolean;
   // Restaurant-only: which billing layout the restaurant POS screen opens on
   // ("Touch" | "Keyboard"). Treat a missing value as "Touch".
   pos_screen_type?: string;

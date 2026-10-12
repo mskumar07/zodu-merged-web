@@ -18,6 +18,8 @@ import {
 // ─── Constants ────────────────────────────────────────────────────────────────
 const ROW_HEIGHT = 40;
 const CELL_PX    = "5px 12px";
+const FIT_CELL_PX = "5px 8px";
+const FIT_HEAD_PX = "4px 8px";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,6 +53,11 @@ export interface DataTableProps<T> {
   footerRow?: T;
   /** Hides the "All N records loaded" line. */
   hideEndNote?: boolean;
+  /**
+   * Fit every column inside the container (no horizontal scroll): column widths become
+   * proportions of the table width, long headers wrap and overflowing cell text is clipped.
+   */
+  fitWidth?: boolean;
 }
 
 // ─── Shared cell sx ───────────────────────────────────────────────────────────
@@ -86,6 +93,7 @@ function DataTable<T>({
   headerHeight = ROW_HEIGHT,
   footerRow,
   hideEndNote = false,
+  fitWidth = false,
 }: DataTableProps<T>) {
   const headerContainerRef = useRef<HTMLDivElement>(null);
   const footerContainerRef = useRef<HTMLDivElement>(null);
@@ -103,13 +111,21 @@ function DataTable<T>({
     backgroundColor: "#F5F5F5",
     borderBottom: "1px solid #CBD5E1",
     letterSpacing: "0.02em",
-  } as const;
+    ...(fitWidth && { whiteSpace: "normal" as const, lineHeight: 1.25, padding: FIT_HEAD_PX }),
+  };
+  const cellSx = fitWidth ? { ...bodyCellSx, padding: FIT_CELL_PX, overflow: "hidden" } : bodyCellSx;
 
   // Min width ensures horizontal scroll triggers at the same point for header + body
   const tableMinWidth = columns.reduce((sum, col) => {
     const w = resolveColWidth(col);
     return sum + (typeof w === "number" ? w : 100);
   }, 0);
+
+  // fitWidth: a numeric width is that column's share of the whole table
+  const colWidth = (w: string | number) => {
+    if (typeof w !== "number") return w;
+    return fitWidth ? `${(w / tableMinWidth) * 100}%` : `${w}px`;
+  };
 
   // Two header rows when any column is grouped: ungrouped columns span both, groups span their columns.
   const headerRows = (() => {
@@ -150,11 +166,7 @@ function DataTable<T>({
         return (
           <col
             key={col.key}
-            style={
-              w !== undefined
-                ? { width: typeof w === "number" ? `${w}px` : w }
-                : undefined
-            }
+            style={w !== undefined ? { width: colWidth(w) } : undefined}
           />
         );
       })}
@@ -162,7 +174,7 @@ function DataTable<T>({
   );
 
   const tableSx = {
-    minWidth: tableMinWidth,
+    ...(fitWidth ? { width: "100%" } : { minWidth: tableMinWidth }),
     tableLayout: "fixed" as const,
     borderCollapse: "separate" as const,
     borderSpacing: 0,
@@ -199,7 +211,12 @@ function DataTable<T>({
       {/* ── Fixed Header (no scrollbar) ─────────────────────────────────── */}
       <Box
         ref={headerContainerRef}
-        sx={{ overflowX: "hidden", overflowY: "hidden", flexShrink: 0 }}
+        sx={{
+          overflowX: "hidden",
+          overflowY: "hidden",
+          flexShrink: 0,
+          ...(fitWidth && { scrollbarGutter: "stable", ...bodyScrollbarSx }),
+        }}
       >
         <Table size="small" sx={tableSx}>
           {colgroup}
@@ -254,6 +271,7 @@ function DataTable<T>({
           flex: 1,
           minHeight: 0,
           overflow: "auto",
+          ...(fitWidth && { overflowX: "hidden", scrollbarGutter: "stable" }),
           backgroundColor: "#ffffff",
           ...bodyScrollbarSx,
         }}
@@ -267,7 +285,7 @@ function DataTable<T>({
               Array.from({ length: skeletonRows }).map((_, i) => (
                 <TableRow key={`skeleton-${i}`} sx={{ height: ROW_HEIGHT }}>
                   {columns.map((col) => (
-                    <TableCell key={col.key} sx={bodyCellSx}>
+                    <TableCell key={col.key} sx={cellSx}>
                       <Skeleton variant="text" width="80%" />
                     </TableCell>
                   ))}
@@ -295,7 +313,7 @@ function DataTable<T>({
                   sx={{ height: ROW_HEIGHT, cursor: onRowClick ? "pointer" : "default" }}
                 >
                   {columns.map((col) => (
-                    <TableCell key={col.key} align={col.align ?? "left"} sx={bodyCellSx}>
+                    <TableCell key={col.key} align={col.align ?? "left"} sx={cellSx}>
                       {col.render(row)}
                     </TableCell>
                   ))}
@@ -347,7 +365,7 @@ function DataTable<T>({
                   <TableCell
                     key={col.key}
                     align={col.align ?? "left"}
-                    sx={{ ...bodyCellSx, backgroundColor: "#F5F5F5", borderBottom: 0 }}
+                    sx={{ ...cellSx, backgroundColor: "#F5F5F5", borderBottom: 0 }}
                   >
                     {col.render(footerRow)}
                   </TableCell>

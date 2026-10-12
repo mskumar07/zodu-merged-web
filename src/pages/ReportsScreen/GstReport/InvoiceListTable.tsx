@@ -87,6 +87,7 @@ export default function InvoiceListTable<T extends object>({
       loadMoreRef={sentinelRef}
       tableContainerRef={tableContainerRef}
       maxHeight="100%"
+      fitWidth
       emptyMessage={query ? 'No records match your search.' : emptyMessage}
     />
   );

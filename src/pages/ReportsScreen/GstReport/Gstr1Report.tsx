@@ -11,7 +11,8 @@ import useDebounce from '@hooks/useDebounce';
 import { useTenantContext } from '@store/tenantContext';
 import { useGstr1Report, type Gstr1Params } from './useGstr1Api';
 import {
-  apiErrorMessage, useB2bGstins, useRemoteReport, type B2bGstinOption, type RemoteReportParams,
+  apiErrorMessage, useB2bGstins, usePrefetchRemoteReports, useRemoteReport,
+  type B2bGstinOption, type RemoteEndpoint, type RemoteReportParams,
 } from './useGstr1RemoteApi';
 import { exportGstr1Excel, exportGstr1Pdf } from './exportGstr1';
 import { TAB_DEFS, remoteCards, buildCards, buildExport } from './gstr1Tabs';
@@ -148,7 +149,9 @@ const Gstr1Report: React.FC = () => {
 
   // Client-side tabs filter on the deferred value; the server-driven B2B tab waits 400 ms.
   const query = useDeferredValue(search).trim().toLowerCase();
-  const serverSearch = useDebounce(search.trim(), 400);
+  const debouncedSearch = useDebounce(search.trim(), 400);
+  // A cleared box (e.g. after a tab change) applies at once, so the tab reads its cached unfiltered data.
+  const serverSearch = search.trim() ? debouncedSearch : '';
 
   const period = useMemo(
     () => periodsOf(filters.fy).find((p) => p.value === filters.period)!,
@@ -175,10 +178,20 @@ const Gstr1Report: React.FC = () => {
   }, [gstinQuery.isSuccess, gstinOptions, filters.gstin]);
 
   // ── Server-driven tabs: summary, search and paging come from the API ──
-  const remoteParams = useMemo<RemoteReportParams | null>(() => (hasTenant && def.remote ? {
-    zodu_id: zoduId!, branch_id: branchId!, financial_year: filters.fy, month: period.month,
-    gstin: def.remote.gstin ? filters.gstin : undefined, search: serverSearch, isRestaurant,
-  } : null), [hasTenant, def.remote, zoduId, branchId, filters.fy, period.month, filters.gstin, serverSearch, isRestaurant]);
+  const remoteParamsFor = useCallback((endpoint: RemoteEndpoint, searchText = ''): RemoteReportParams | null => {
+    if (!hasTenant) return null;
+    const takesGstin = TAB_DEFS.some((t) => t.remote?.endpoint === endpoint && t.remote.gstin);
+    return {
+      zodu_id: zoduId!, branch_id: branchId!, financial_year: filters.fy, month: period.month,
+      gstin: takesGstin ? filters.gstin : undefined, search: searchText, isRestaurant,
+    };
+  }, [hasTenant, zoduId, branchId, filters.fy, period.month, filters.gstin, isRestaurant]);
+  // Every server-driven tab loads in the background, so switching tabs never waits on a loader.
+  usePrefetchRemoteReports(remoteParamsFor);
+  const remoteParams = useMemo(
+    () => (def.remote ? remoteParamsFor(def.remote.endpoint, serverSearch) : null),
+    [def.remote, remoteParamsFor, serverSearch],
+  );
   const remoteQuery = useRemoteReport<object>(def.remote?.endpoint, remoteParams);
   const remoteRows = useMemo(() => remoteQuery.data?.pages.flatMap((p) => p.data) ?? [], [remoteQuery.data]);
   const remoteSummary = remoteQuery.data?.pages[0]?.summary;
@@ -190,7 +203,8 @@ const Gstr1Report: React.FC = () => {
     gstin: filters.gstin === 'all' ? undefined : filters.gstin,
     isRestaurant,
   } : null), [hasTenant, zoduId, branchId, filters.fy, period, filters.gstin, isRestaurant]);
-  const report = useGstr1Report(mockParams, !isRemote);
+  // Kept loaded on every tab, so coming back from a server-driven tab is instant.
+  const report = useGstr1Report(mockParams);
 
   // Errors go to the toast; a successful refresh does too (see `generate`).
   useEffect(() => {
@@ -226,7 +240,8 @@ const Gstr1Report: React.FC = () => {
     [isRemote, remoteSummary, def, rows, report.data],
   );
   const loading = isRemote ? remoteQuery.isLoading : report.isFetching && !report.data;
-  const cardsLoading = isRemote ? remoteQuery.isLoading : report.isFetching;
+  // Skeletons only while a tab has nothing to show yet; background refreshes keep the current figures.
+  const cardsLoading = isRemote ? remoteQuery.isLoading : report.isLoading;
 
   const title = `GSTR-1 ${def.exportName} (${period.label})`;
   const fileName = `GSTR1_${def.exportName.replace(/[^A-Za-z0-9]+/g, '_')}_${period.label.replace(' ', '_')}`;

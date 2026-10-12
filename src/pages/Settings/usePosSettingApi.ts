@@ -58,6 +58,10 @@ export interface PosSettingsResponse {
   // Whether POS offers Hold/Recall. Absent on rows that predate the toggle —
   // treat that as on, which is how POS behaved before it existed.
   hold_enabled?: boolean;
+  // Whether POS shows the per-line Item Description field, and the Vehicle No
+  // field. Absent on rows that predate the toggles — treat both as on.
+  item_description_enabled?: boolean;
+  vehicle_no_enabled?: boolean;
   // Restaurant-only: which billing layout the restaurant POS screen opens on.
   // Absent on rows that predate the field — treat that as "Touch", the
   // screen's original default.
@@ -96,6 +100,8 @@ export interface UpdatePosSettingsPayload {
   proforma_suffix_enabled?: boolean;
   purchase_order_enabled?: boolean;
   hold_enabled?: boolean;
+  item_description_enabled?: boolean;
+  vehicle_no_enabled?: boolean;
   pos_screen_type?: PosScreenType;
   kot_print_enabled?: boolean;
   show_item_image?: boolean;
@@ -152,6 +158,9 @@ export function normalizePosSettings(raw: unknown): PosSettingsResponse {
     // On unless the row says otherwise — Hold/Recall predates this toggle, so
     // a branch that never saw it must keep the buttons it already has.
     hold_enabled: row.hold_enabled !== false,
+    // On unless the row says otherwise, matching the server's column defaults.
+    item_description_enabled: row.item_description_enabled !== false,
+    vehicle_no_enabled: row.vehicle_no_enabled !== false,
     // "Touch" unless the row says otherwise — matches the restaurant POS
     // screen's own default before this setting existed.
     pos_screen_type: row.pos_screen_type === "Keyboard" ? "Keyboard" : "Touch",

@@ -265,7 +265,7 @@ export default function ExpenseScreen() {
                   onClick={() => setPaymentTarget(e)}
                   sx={{ fontSize: "0.65rem", py: 0.4, px: 1.5, height: 24, width: "100%", whiteSpace: "nowrap", bgcolor: "#D32F2F", "&:hover": { bgcolor: "#B71C1C" } }}
                 >
-                  Mark as Paid
+                  Mark Payment
                 </Button>
               )}
             </Box>

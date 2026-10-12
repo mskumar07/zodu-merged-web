@@ -411,7 +411,7 @@ export default function CustomerManagement({
                 whiteSpace: "nowrap",
               }}
             >
-              Mark as Paid
+              Mark Payment
             </Button>
           ) : null,
       },

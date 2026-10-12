@@ -416,6 +416,8 @@ export default function RestaurantPosSetting() {
         proforma_suffix_enabled: posData.proforma_suffix_enabled,
         purchase_order_enabled: posData.purchase_order_enabled,
         hold_enabled: posData.hold_enabled,
+        item_description_enabled: posData.item_description_enabled,
+        vehicle_no_enabled: posData.vehicle_no_enabled,
         pos_screen_type: posScreenType,
         kot_print_enabled: kotPrintEnabled,
         show_item_image: showItemImage,

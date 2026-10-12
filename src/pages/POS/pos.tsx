@@ -54,9 +54,9 @@ import PaymentsIcon           from "@mui/icons-material/Payments";
 import ReceiptIcon            from "@mui/icons-material/Receipt";
 import MoreHorizIcon          from "@mui/icons-material/MoreHoriz";
 import InfoOutlinedIcon       from "@mui/icons-material/InfoOutlined";
-import SwapHorizIcon          from "@mui/icons-material/SwapHoriz";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
+import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import jsPDF                  from "jspdf";
 import { renderPaginatedInvoicePdf } from "@utils/pdfPagination";
@@ -81,7 +81,7 @@ import { InvoicePDFTemplateModern } from "../SalesHistory/InvoicePDFTemplateMode
 import { InvoicePDFTemplateModern2 } from "../SalesHistory/InvoicePDFTemplateModern2";
 import InvoiceCopyActions from "@components/Common/InvoiceCopyActions";
 import InsufficientStockDialog, { type InsufficientStockInfo } from "@components/Common/InsufficientStockDialog";
-import { invoiceCopyTypesForSale, normalizeInvoiceCopyTypes } from "@utils/invoiceCopyTypes";
+import { invoiceCopyTypesForSale } from "@utils/invoiceCopyTypes";
 import { useInvoiceSettingsForSale } from "@hooks/useInvoiceSettingsForSale";
 import { isProformaSaleType, isQuotationSaleType, saleDocumentLabel } from "@utils/saleType";
 import { printThermalCopies } from "@utils/thermalPrint";
@@ -531,8 +531,6 @@ function RetailPOSInner() {
   // While printing, the receipt is drawn for the roll the chosen printer takes
   // (see printThermalCopies) rather than the width Invoice Settings names.
   const [printPaperSize, setPrintPaperSize] = useState<ThermalPaperSize | null>(null);
-  // Copy markings offered in the success modal's Download/Print menus.
-  const invoiceCopyTypes = normalizeInvoiceCopyTypes(invoiceSettings?.invoice_copy_types);
   // Only branches that sell against buyer purchase orders collect the PO
   // reference, so the two fields are off unless POS settings ask for them.
   // A PO answers an invoice, never a quotation or proforma — those are what the
@@ -542,10 +540,11 @@ function RetailPOSInner() {
   // all. Off hides the buttons, the F9 shortcut and the recall dialog alike —
   // a branch that has never saved the setting keeps them, as it always had.
   const holdEnabled = posSettings.hold_enabled !== false;
-  // The transport copy travels with the goods and prints a Vehicle No row, so
-  // the cashier only needs somewhere to type it when that copy is enabled.
-  // A quotation ships nothing, so it never asks for a vehicle number.
-  const showVehicleNo = invoiceCopyTypes.includes("Transport") && posMode !== "QUOTATION";
+  // Vehicle No and the per-line Item Description are each shown only when POS
+  // settings enable them; a branch that never saved either keeps both, as it
+  // always had. A quotation ships nothing, so it never asks for a vehicle number.
+  const showVehicleNo = posSettings.vehicle_no_enabled !== false && posMode !== "QUOTATION";
+  const showItemDescription = posSettings.item_description_enabled !== false;
   const [invoiceDate,    setInvoiceDate]    = useState(todayStr());
   const [dueDate,        setDueDate]        = useState("");
   // Buyer's purchase-order reference. B2B customers quote their own PO on the
@@ -1443,14 +1442,17 @@ console.log("test",serverHolds)
     const stockCheckEnabled = !!invoiceSettings?.stock_check_enabled;
     // Quotations hide the Vehicle No field, so drop anything typed before the
     // cashier switched to that tab rather than storing it on the quotation.
-    const savedVehicleNo = posMode === "QUOTATION" ? "" : vehicleNo;
+    const savedVehicleNo = showVehicleNo ? vehicleNo : "";
+    // With the description field hidden, the catalogue's default description
+    // (prefilled on each line) must not ride along onto the document unseen.
+    const savedItems = showItemDescription ? items : items.map(i => ({ ...i, itemDescription: "" }));
     // Same reasoning as the vehicle number above: with the PO fields hidden,
     // nothing typed before the toggle was turned off belongs on the document.
     const savedPoNumber  = showPurchaseOrder ? poNumber.trim() : "";
     const savedPoDate    = showPurchaseOrder ? poDate : "";
     const result = saleId
-      ? await updateOrder(saleId, { zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, dueDate: hasBalanceDue ? dueDate : "", discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo: savedVehicleNo, stockCheckEnabled, invoiceNo: invoiceNoOverride, poNumber: savedPoNumber, poDate: savedPoDate })
-      : await saveOrder({ zodu_id: zoduId, branch_id: branchId, items, customer, invoiceDate, dueDate: hasBalanceDue ? dueDate : "", discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo: savedVehicleNo, stockCheckEnabled, invoiceNo: invoiceNoOverride, poNumber: savedPoNumber, poDate: savedPoDate });
+      ? await updateOrder(saleId, { zodu_id: zoduId, branch_id: branchId, items: savedItems, customer, invoiceDate, dueDate: hasBalanceDue ? dueDate : "", discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo: savedVehicleNo, stockCheckEnabled, invoiceNo: invoiceNoOverride, poNumber: savedPoNumber, poDate: savedPoDate })
+      : await saveOrder({ zodu_id: zoduId, branch_id: branchId, items: savedItems, customer, invoiceDate, dueDate: hasBalanceDue ? dueDate : "", discountPct, discountFlat: discount, discountGstMode: gstMode, roundoff: roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo: savedVehicleNo, stockCheckEnabled, invoiceNo: invoiceNoOverride, poNumber: savedPoNumber, poDate: savedPoDate });
     if (result.success) {
       console.log("save Result",result)
       // The Dashboard and Sales History are now showing figures that predate
@@ -1480,7 +1482,7 @@ console.log("test",serverHolds)
         invoiceNo: overridePreview || displayInvoiceNo,
         poNumber: savedPoNumber,
         poDate: savedPoDate,
-        descriptions: Object.fromEntries(items.map(i => [i.code, i.itemDescription || ""])),
+        descriptions: Object.fromEntries(savedItems.map(i => [i.code, i.itemDescription || ""])),
       });
       setSaveResult({ open: true, success: true, message: result.message, grandTotal: totalAmt, change, saleId: savedSaleId });
       if (printEnabled) console.log("🖨 Printing invoice");
@@ -1489,7 +1491,7 @@ console.log("test",serverHolds)
       setSavedOrderSnapshot(null);
       setSaveResult({ open: true, success: false, message: result.message });
     }
-  }, [items, customer, invoiceDate, dueDate, hasBalanceDue, discountPct, discount, gstMode, roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo, invoiceNoOverride, displayInvoiceNo, overridePreview, poNumber, poDate, showPurchaseOrder, printEnabled, saving, canSave, saveOrder, updateOrder, handleClear, saleId, loadedSaleNo, invoiceSettings, queryClient]);
+  }, [items, customer, invoiceDate, dueDate, hasBalanceDue, discountPct, discount, gstMode, roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo, showVehicleNo, showItemDescription, invoiceNoOverride, displayInvoiceNo, overridePreview, poNumber, poDate, showPurchaseOrder, printEnabled, saving, canSave, saveOrder, updateOrder, handleClear, saleId, loadedSaleNo, invoiceSettings, queryClient]);
 
   const handleThermalPrint = useCallback(async (copies: string[] = []) => {
     if (!thermalRef.current) return;
@@ -1607,7 +1609,6 @@ console.log("test",serverHolds)
   // with a red button that turns green under the cursor.
   const modeAccent  = modeTheme.accent;
   const modeBg      = modeTheme.tint;
-  const modeBorder  = modeTheme.totalBorder;
 
   const hasDiscount   = parseFloat(discountPct) > 0 || parseFloat(discount) > 0;
   const hasNote       = orderNote.trim().length > 0;
@@ -1800,7 +1801,7 @@ console.log("test",serverHolds)
       // print templates show this where the document number goes.
       sale_id: overridePreview || displayInvoiceNo || "PREVIEW",
       sale_type: SALE_TYPE_BY_POS_MODE[posMode],
-      vehicle_no: posMode === "QUOTATION" ? "" : vehicleNo,
+      vehicle_no: showVehicleNo ? vehicleNo : "",
       po_number: showPurchaseOrder ? poNumber : "",
       po_date: showPurchaseOrder && poDate ? formatDateDisplay(poDate) : "",
       date: invoiceDate ? formatDateDisplay(invoiceDate) : "",
@@ -1816,7 +1817,7 @@ console.log("test",serverHolds)
         item_id: i.code,
         name: i.description,
         category: i.category ?? "",
-        description: i.itemDescription || "",
+        description: showItemDescription ? i.itemDescription || "" : "",
         hsn: i.hsn?.trim() || "-",
         qty: i.qty,
         mrp: i.mrp,
@@ -1839,7 +1840,7 @@ console.log("test",serverHolds)
     };
   }, [items, subtotal, gstMode, orderDiscountAmt, discountPctVal, roundoffValue, grandTotal,
       customer, invoiceDate, dueDate, hasBalanceDue, paymentType, posMode, vehicleNo,
-      displayInvoiceNo, overridePreview, poNumber, poDate, showPurchaseOrder]);
+      displayInvoiceNo, overridePreview, poNumber, poDate, showPurchaseOrder, showVehicleNo, showItemDescription]);
 
   /**
    * One PDF holding each requested copy in turn. An empty list means "no copy
@@ -1865,8 +1866,7 @@ console.log("test",serverHolds)
 
   // What the just-saved document offers in its Download/Print/Share menus — a
   // quotation prints unmarked, an invoice or proforma gets the configured
-  // copies. `invoiceCopyTypes` above still drives the Vehicle No field, which
-  // follows the setting rather than the document.
+  // copies.
   // Layout, paper and copies come from the settings of the document's own type.
   // The saved document wins over the active tab, which can change before Print.
   const printSettings = useInvoiceSettingsForSale(savedPdfData?.sale_type);
@@ -2273,7 +2273,7 @@ console.log("test",serverHolds)
                                   )}
                                 </Box>
                                 <Typography sx={{ fontSize: 14, fontWeight: isActive ? 800 : 700, color: "#1A1A2E", lineHeight: 1.3 }}>{item.description}</Typography>
-                                <TextField
+                                {showItemDescription && <TextField
                                   value={item.itemDescription ?? ""}
                                   onChange={e => updateItemDescription(item.code, e.target.value)}
                                   onKeyDown={e => e.stopPropagation()}
@@ -2288,7 +2288,7 @@ console.log("test",serverHolds)
                                     "& .MuiOutlinedInput-root": { fontSize: 12, bgcolor: "#FAFAFA", minHeight: 38, padding: "3px 6px", alignItems: "flex-start", "& fieldset": { borderColor: "#E5E7EB" } },
                                     "& .MuiOutlinedInput-input": { padding: 0 },
                                   }}
-                                />
+                                />}
                               </Box>
                               <IconButton size="small" onClick={e => { e.stopPropagation(); removeItem(item.code); }} sx={{ flexShrink: 0, color: "#D1D5DB", p: 0.4, "&:hover": { color: "#C8102E", bgcolor: "#FEE2E2" } }}><DeleteOutlineIcon sx={{ fontSize: 16 }} /></IconButton>
                             </Box>
@@ -2421,7 +2421,7 @@ console.log("test",serverHolds)
                               <TableCell>
                                 <Typography sx={{ fontSize: 13, fontWeight: isActive ? 800 : 700, color: "#1A1A2E", lineHeight: 1.3, overflowWrap: "anywhere" }}>{item.description}</Typography>
                                 {item.category && <Typography sx={{ fontSize: 10, fontWeight: 700, color: CAT_COLOR[item.category] ?? "#6B7280" }}>{item.category}</Typography>}
-                                <TextField
+                                {showItemDescription && <TextField
                                   value={item.itemDescription ?? ""}
                                   onChange={e => updateItemDescription(item.code, e.target.value)}
                                   onClick={e => e.stopPropagation()}
@@ -2439,7 +2439,7 @@ console.log("test",serverHolds)
                                     "& .MuiOutlinedInput-root": { fontSize: 12, bgcolor: "#FAFAFA", minHeight: 50, padding: "4px 6px", alignItems: "flex-start", "& fieldset": { borderColor: "#E5E7EB" } },
                                     "& .MuiOutlinedInput-input": { padding: 0.3 },
                                   }}
-                                />
+                                />}
                               </TableCell>
                               <TableCell align="right">
                                 <Typography sx={{ fontSize: 13, color: "#374151", fontWeight: 700, lineHeight: 1.2 }}><Amount value={INR(itemGst)} /></Typography>
@@ -2509,22 +2509,24 @@ console.log("test",serverHolds)
 
             {/* Customer panel — search row + Bill To / Ship To cards */}
             <Paper elevation={0} sx={{ flexShrink: 0, border: zone === "CUSTOMER" ? `2px solid ${modeAccent}` : "1px solid #E5E7EB", borderRadius: 2.5, p: { xs: 1.75, sm: 2.25 },  bgcolor: "#fff", transition: "border 0.2s, box-shadow 0.2s", position: "relative", boxShadow: zone === "CUSTOMER" ? `0 0 0 3px ${modeTheme.focusRing}` : "none" }}>
-              <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5, mb: 0.8 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.7 }}>
-                  <PersonSearchIcon sx={{ fontSize: 15, color: modeAccent }} />
-                  <Typography sx={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", color: "#374151" }}>CUSTOMER</Typography>
-                  {customer.id && <Chip label="Clear Customer" size="small" onDelete={() => { setCustomer(EMPTY_CUSTOMER); setSelectedApiCustomer(null); setCustomerQuery(""); clearCustomerResults(); }} sx={{ fontSize: 9, height: 18, bgcolor: "#FEE2E2", color: "#C8102E", fontWeight: 700 }} />}
+              {/* Header — title left, ledger + add/edit actions right */}
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5, mb: 1, flexWrap: "wrap" }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+                  <PersonSearchIcon sx={{ fontSize: 18, color: modeAccent }} />
+                  <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#1F2937" }}>Customer Details</Typography>
+                  {customer.id && <Chip label="Clear" size="small" onDelete={() => { setCustomer(EMPTY_CUSTOMER); setSelectedApiCustomer(null); setCustomerQuery(""); clearCustomerResults(); }} sx={{ fontSize: 9, height: 18, bgcolor: "#FEE2E2", color: "#C8102E", fontWeight: 700 }} />}
                 </Box>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Button disabled={!customer.id} size="small" variant="outlined" onClick={() => setCustomerLedgerOpen(true)} sx={{ borderColor: modeBorder, color: modeAccent, fontSize: 9, fontWeight: 800, px: 1.25, py: 0.55, borderRadius: 1.5, minWidth: 0, whiteSpace: "nowrap", "&:hover": { borderColor: modeAccent, bgcolor: modeBg } }}>View Ledger / History</Button>
+                  <Button disabled={!customer.id} size="small" variant="outlined" onClick={() => setCustomerLedgerOpen(true)} sx={{ borderColor: "#D1D5DB", color: "#374151", fontSize: 11, fontWeight: 600, px: 1.5, py: 0.6, borderRadius: 1.5, minWidth: 0, whiteSpace: "nowrap", textTransform: "none", "&:hover": { borderColor: modeAccent, color: modeAccent, bgcolor: modeBg } }}>View Ledger / History</Button>
+                  <Button size="small" variant="contained" disabled={customer.id ? !canEditCustomer : !canCreateCustomer} onClick={() => setAddCustomerOpen(true)} sx={{ bgcolor: modeAccent, fontSize: 11, fontWeight: 700, borderRadius: 1.5, px: 1.75, py: 0.6, whiteSpace: "nowrap", textTransform: "none", boxShadow: "none", "&:hover": { bgcolor: modeTheme.accentHover, boxShadow: "none" } }}>{customer.id ? "Edit Customer" : "+ Add Customer"}</Button>
                 </Box>
               </Box>
 
               {/* Search / autocomplete row — one field searches by name, company or mobile.
-                  Vehicle No only joins the row when the transport copy is enabled. */}
-              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: showVehicleNo ? "1.4fr 1fr 1fr auto" : "1fr 1fr auto" }, gap: 1, alignItems: "center" }}>
+                  Vehicle No only joins the row when POS settings enable it. */}
+              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: showVehicleNo ? "minmax(0,1.3fr) auto minmax(0,1fr) auto minmax(0,1fr)" : "minmax(0,1.3fr) auto minmax(0,1fr)" }, columnGap: 1.5, rowGap: 0.75, alignItems: "center" }}>
                 <Box sx={{ position: "relative" }}>
-                  <TextField inputRef={customerNameRef} value={customerQuery} onChange={e => handleCustomerQueryChange(e.target.value)} onFocus={() => { setZone("CUSTOMER"); if (customer.id) { setCustomerQuery(""); clearCustomerResults(); } else if (customerQuery.trim()) { setCustomerSuggestionsOpen(true); setCustomerSuggestionIdx(-1); } }} onBlur={() => setTimeout(() => setCustomerSuggestionsOpen(false), 180)} placeholder="Search by name, company or mobile" size="small" autoComplete="off" fullWidth sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.75, fontSize: 12, bgcolor: "#F8FAFC", "& fieldset": { borderColor: "#E2E8F0" }, "&:hover fieldset": { borderColor: modeAccent }, "&.Mui-focused fieldset": { borderColor: modeAccent } } }} inputProps={{ style: { padding: "7px 12px", fontWeight: 500 } }} />
+                  <TextField inputRef={customerNameRef} value={customerQuery} onChange={e => handleCustomerQueryChange(e.target.value)} onFocus={() => { setZone("CUSTOMER"); if (customer.id) { setCustomerQuery(""); clearCustomerResults(); } else if (customerQuery.trim()) { setCustomerSuggestionsOpen(true); setCustomerSuggestionIdx(-1); } }} onBlur={() => setTimeout(() => setCustomerSuggestionsOpen(false), 180)} placeholder="Search by name, company or mobile" size="small" autoComplete="off" fullWidth InputProps={{ endAdornment: <InputAdornment position="end"><SearchIcon sx={{ fontSize: 16, color: "#6B7280" }} /></InputAdornment> }} sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.75, fontSize: 12, bgcolor: "#F8FAFC", "& fieldset": { borderColor: "#E2E8F0" }, "&:hover fieldset": { borderColor: modeAccent }, "&.Mui-focused fieldset": { borderColor: modeAccent } } }} inputProps={{ style: { padding: "7px 12px", fontWeight: 600 } }} />
 
                   {customerSuggestionsOpen && customerQuery.trim() && (
                     <Paper elevation={8} sx={{ position: "absolute", bottom: "calc(100% + 4px)", left: 0, right: 0, zIndex: 9998, borderRadius: 2, border: "1px solid #E5E7EB", overflow: "hidden", boxShadow: "0 -16px 40px rgba(15,23,42,0.16)" }}>
@@ -2565,22 +2567,19 @@ console.log("test",serverHolds)
                     </Paper>
                   )}
                 </Box>
+                <Typography sx={{ fontSize: 11, fontWeight: 600, color: "#6B7280", whiteSpace: "nowrap", display: { xs: "none", sm: "block" } }}>GSTIN / UIN</Typography>
                 <TextField
                   value={customer.gstin}
-                  placeholder="GSTIN"
+                  placeholder="GSTIN / UIN"
                   size="small"
                   fullWidth
-                  InputProps={{
-                    readOnly: true,
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Typography sx={{ fontSize: 10, fontWeight: 800, color: "#9CA3AF", letterSpacing: "0.06em" }}>GSTIN</Typography>
-                      </InputAdornment>
-                    ),
-                  }}
+                  InputProps={{ readOnly: true }}
                   sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.75, fontSize: 12, bgcolor: "#F8FAFC", "& fieldset": { borderColor: "#E2E8F0" } } }}
                   inputProps={{ style: { padding: "7px 12px", fontWeight: 600, letterSpacing: "0.03em" } }}
                 />
+                {showVehicleNo && (
+                  <Typography sx={{ fontSize: 11, fontWeight: 600, color: "#6B7280", whiteSpace: "nowrap", display: { xs: "none", sm: "block" } }}>Vehicle No</Typography>
+                )}
                 {showVehicleNo && (
                   <TextField
                     value={vehicleNo}
@@ -2601,49 +2600,65 @@ console.log("test",serverHolds)
                     inputProps={{ style: { padding: "7px 12px", fontWeight: 600, letterSpacing: "0.03em" }, maxLength: 20 }}
                   />
                 )}
-                <Button size="small" variant="contained" disabled={customer.id ? !canEditCustomer : !canCreateCustomer} onClick={() => setAddCustomerOpen(true)} sx={{ bgcolor: modeAccent, fontSize: 11, fontWeight: 800, borderRadius: 1.5, px: 1.5, py: 0.85, whiteSpace: "nowrap", "&:hover": { bgcolor: modeTheme.accentHover } }}>{customer.id ? "Edit Customer" : "+ Add New"}</Button>
               </Box>
 
               {/* Bill To / Ship To visual cards (read-only summary of the same customer record) */}
-              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1, mt: 0.9, position: "relative" }}>
-                <Box sx={{ border: "1px solid #E5E7EB", borderRadius: 2, p: 0.85, bgcolor: "#F9FAFB" }}>
-                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.35 }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                      <DescriptionOutlinedIcon sx={{ fontSize: 12, color: "#C8102E" }} />
-                      <Typography sx={{ fontSize: 8.5, fontWeight: 800, letterSpacing: "0.08em", color: "#9CA3AF" }}>BILL TO</Typography>
-                    </Box>
-                    <IconButton size="small" onClick={() => { setCustomerQuery(""); clearCustomerResults(); customerNameRef.current?.focus(); }} sx={{ p: 0.2, color: "#9CA3AF", "&:hover": { color: modeAccent, bgcolor: modeBg } }}>
-                      <EditIcon sx={{ fontSize: 12 }} />
-                    </IconButton>
-                  </Box>
-                  {customer.name && <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#1F2937", lineHeight: 1.25 }}>{customer.name}</Typography>}
-                  {customer.mobile && <Typography sx={{ fontSize: 11, color: "#6B7280", mt: 0.1 }}>{customer.mobile}</Typography>}
-                  <Typography sx={{ fontSize: 10, color: "#9CA3AF", mt: 0.1 }}>{customer.address || "No address on file"}</Typography>
-                  {customer.gstin && <Typography sx={{ fontSize: 9, color: "#6B7280", mt: 0.1 }}>GSTIN: {customer.gstin}</Typography>}
-                </Box>
-
-                <Box sx={{ border: "1px solid #E5E7EB", borderRadius: 2, p: 0.85, bgcolor: "#F9FAFB", position: "relative" }}>
-                  <Box sx={{ position: "absolute", left: -15, top: "50%", transform: "translateY(-50%)", display: { xs: "none", sm: "flex" }, alignItems: "center", justifyContent: "center", width: 22, height: 22, bgcolor: "#fff", border: "1px solid #E5E7EB", borderRadius: "50%", color: "#9CA3AF" }}>
-                    <SwapHorizIcon sx={{ fontSize: 12 }} />
-                  </Box>
-                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.35 }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                      <LocalShippingOutlinedIcon sx={{ fontSize: 12, color: "#C8102E" }} />
-                      <Typography sx={{ fontSize: 8.5, fontWeight: 800, letterSpacing: "0.08em", color: "#9CA3AF" }}>SHIP TO</Typography>
-                    </Box>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.4 }}>
-                      <Box sx={{ width: 13, height: 13, borderRadius: 0.5, border: `1.5px solid ${shipSameAsBilling ? modeAccent : "#D1D5DB"}`, bgcolor: shipSameAsBilling ? modeAccent : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        {shipSameAsBilling && <Box sx={{ width: 6, height: 6, bgcolor: "#fff", borderRadius: 0.25 }} />}
+              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5, mt: 1.25 }}>
+                {[
+                  {
+                    key: "bill",
+                    title: "Bill To",
+                    icon: <DescriptionOutlinedIcon sx={{ fontSize: 15, color: modeAccent }} />,
+                    address: customer.address || "No address on file",
+                    // Billing comes from the selected customer — pick a different one.
+                    onEdit: () => { setCustomerQuery(""); clearCustomerResults(); customerNameRef.current?.focus(); },
+                    editDisabled: false,
+                  },
+                  {
+                    key: "ship",
+                    title: "Ship To",
+                    icon: <LocalShippingOutlinedIcon sx={{ fontSize: 15, color: modeAccent }} />,
+                    address: shipSameAsBilling ? (customer.address || "No address on file") : (customer.shippingAddress || "No shipping address on file"),
+                    // The shipping address lives on the customer record.
+                    onEdit: () => setAddCustomerOpen(true),
+                    editDisabled: !customer.id || !canEditCustomer,
+                  },
+                ].map(card => (
+                  <Box key={card.key} sx={{ border: "1px solid #E5E7EB", borderRadius: 2, bgcolor: "#fff", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, px: 1.25, py: 0.6, bgcolor: "#F9FAFB", borderBottom: "1px solid #EEF0F3" }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.7 }}>
+                        {card.icon}
+                        <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#1F2937" }}>
+                          {card.title}
+                          {card.key === "ship" && <Box component="span" sx={{ fontWeight: 500, color: "#9CA3AF" }}> (Optional)</Box>}
+                        </Typography>
                       </Box>
-                      <Typography sx={{ fontSize: 8.5, color: "#6B7280", fontWeight: 600 }}>Same as Billing</Typography>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        {card.key === "ship" && (
+                          // Mirrors the customer record's own flag — change it via Edit Customer.
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                            <Box sx={{ width: 13, height: 13, borderRadius: 0.5, border: `1.5px solid ${shipSameAsBilling ? modeAccent : "#D1D5DB"}`, bgcolor: shipSameAsBilling ? modeAccent : "#fff", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 9, fontWeight: 900, lineHeight: 1 }}>
+                              {shipSameAsBilling && "✓"}
+                            </Box>
+                            <Typography sx={{ fontSize: 11, color: "#374151", fontWeight: 500, whiteSpace: "nowrap" }}>Same as Billing</Typography>
+                          </Box>
+                        )}
+                        <IconButton size="small" disabled={card.editDisabled} onClick={card.onEdit} sx={{ p: 0.3, color: "#6B7280", "&:hover": { color: modeAccent, bgcolor: modeBg } }}>
+                          <EditIcon sx={{ fontSize: 14 }} />
+                        </IconButton>
+                      </Box>
+                    </Box>
+                    {/* No fixed height — the card grows with whatever the customer has on file */}
+                    <Box sx={{ px: 1.25, py: 0.9, minHeight: 90 }}>
+                      {customer.name && <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#1F2937", lineHeight: 1.3 }}>{customer.name}</Typography>}
+                      {customer.mobile && <Typography sx={{ fontSize: 11, color: "#6B7280", mt: 0.2 }}>{customer.mobile}</Typography>}
+                      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.5, mt: 0.4 }}>
+                        <LocationOnOutlinedIcon sx={{ fontSize: 14, color: "#9CA3AF", mt: "1px", flexShrink: 0 }} />
+                        <Typography sx={{ fontSize: 11, fontWeight: 600, color: customer.id ? "#374151" : "#9CA3AF", lineHeight: 1.35 }}>{card.address}</Typography>
+                      </Box>
                     </Box>
                   </Box>
-                  {customer.name && <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#1F2937", lineHeight: 1.25 }}>{customer.name}</Typography>}
-                  {customer.mobile && <Typography sx={{ fontSize: 11, color: "#6B7280", mt: 0.1 }}>{customer.mobile}</Typography>}
-                  <Typography sx={{ fontSize: 10, color: "#9CA3AF", mt: 0.1 }}>
-                    {shipSameAsBilling ? (customer.address || "No address on file") : (customer.shippingAddress || "No shipping address on file")}
-                  </Typography>
-                </Box>
+                ))}
               </Box>
             </Paper>
         </Box>

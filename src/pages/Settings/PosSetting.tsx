@@ -26,6 +26,8 @@ import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
 import GroupRoundedIcon from "@mui/icons-material/GroupRounded";
 import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
 import PauseCircleOutlineRoundedIcon from "@mui/icons-material/PauseCircleOutlineRounded";
+import NotesRoundedIcon from "@mui/icons-material/NotesRounded";
+import LocalShippingRoundedIcon from "@mui/icons-material/LocalShippingRounded";
 import RequestQuoteOutlinedIcon from "@mui/icons-material/RequestQuoteOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import SuccessToast from "@components/Common/SuccessToast";
@@ -422,6 +424,10 @@ export default function PosSetting() {
   // Whether POS offers Hold/Recall. Defaults on: the buttons existed before
   // this toggle did, so a branch that has never saved one keeps them.
   const [holdEnabled, setHoldEnabled] = useState(true);
+  // Whether POS shows the per-line Item Description and the Vehicle No fields.
+  // Both default on, matching the server's column defaults.
+  const [itemDescriptionEnabled, setItemDescriptionEnabled] = useState(true);
+  const [vehicleNoEnabled, setVehicleNoEnabled] = useState(true);
   const posBaselineRef = useRef<{
     posTypes: PosTypeLabel[];
     defaultPosType: PosTypeLabel;
@@ -430,6 +436,8 @@ export default function PosSetting() {
     invoiceSuffix: { suffix: string; enabled: boolean };
     purchaseOrderEnabled: boolean;
     holdEnabled: boolean;
+    itemDescriptionEnabled: boolean;
+    vehicleNoEnabled: boolean;
   } | null>(null);
   // The server's own wording for a rejected combination — shown next to the
   // checkboxes rather than as a toast, since it names the offending field.
@@ -477,11 +485,15 @@ export default function PosSetting() {
       const inv = { suffix: posData.invoice_suffix ?? "", enabled: posData.invoice_suffix_enabled === true };
       const po = posData.purchase_order_enabled === true;
       const hold = posData.hold_enabled !== false;
+      const itemDesc = posData.item_description_enabled !== false;
+      const vehicle = posData.vehicle_no_enabled !== false;
       setQuotationAffix(quo);
       setProformaAffix(pro);
       setInvoiceSuffix(inv);
       setPurchaseOrderEnabled(po);
       setHoldEnabled(hold);
+      setItemDescriptionEnabled(itemDesc);
+      setVehicleNoEnabled(vehicle);
       posBaselineRef.current = {
         posTypes: posData.pos_types,
         defaultPosType: posData.default_pos_type,
@@ -490,6 +502,8 @@ export default function PosSetting() {
         invoiceSuffix: inv,
         purchaseOrderEnabled: po,
         holdEnabled: hold,
+        itemDescriptionEnabled: itemDesc,
+        vehicleNoEnabled: vehicle,
       };
       setPosTypeError(null);
     }
@@ -536,11 +550,15 @@ export default function PosSetting() {
       const inv = { suffix: updated.invoice_suffix ?? "", enabled: updated.invoice_suffix_enabled === true };
       const po = updated.purchase_order_enabled === true;
       const hold = updated.hold_enabled !== false;
+      const itemDesc = updated.item_description_enabled !== false;
+      const vehicle = updated.vehicle_no_enabled !== false;
       setQuotationAffix(quo);
       setProformaAffix(pro);
       setInvoiceSuffix(inv);
       setPurchaseOrderEnabled(po);
       setHoldEnabled(hold);
+      setItemDescriptionEnabled(itemDesc);
+      setVehicleNoEnabled(vehicle);
       posBaselineRef.current = {
         posTypes: updated.pos_types,
         defaultPosType: updated.default_pos_type,
@@ -549,6 +567,8 @@ export default function PosSetting() {
         invoiceSuffix: inv,
         purchaseOrderEnabled: po,
         holdEnabled: hold,
+        itemDescriptionEnabled: itemDesc,
+        vehicleNoEnabled: vehicle,
       };
       setPosTypeError(null);
       // The POS screen renders its sale-type tabs from Redux (populated at
@@ -636,7 +656,9 @@ export default function PosSetting() {
       JSON.stringify(baseline.proformaAffix) !== JSON.stringify(proformaAffix) ||
       JSON.stringify(baseline.invoiceSuffix) !== JSON.stringify(invoiceSuffix) ||
       baseline.purchaseOrderEnabled !== purchaseOrderEnabled ||
-      baseline.holdEnabled !== holdEnabled
+      baseline.holdEnabled !== holdEnabled ||
+      baseline.itemDescriptionEnabled !== itemDescriptionEnabled ||
+      baseline.vehicleNoEnabled !== vehicleNoEnabled
     );
   };
 
@@ -663,6 +685,8 @@ export default function PosSetting() {
         proforma_suffix_enabled: proformaAffix.suffixEnabled,
         purchase_order_enabled: purchaseOrderEnabled,
         hold_enabled: holdEnabled,
+        item_description_enabled: itemDescriptionEnabled,
+        vehicle_no_enabled: vehicleNoEnabled,
       });
     }
 
@@ -971,6 +995,40 @@ export default function PosSetting() {
                 />
               </Box>
             </SettingRow>
+
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
+
+            <SettingRow
+              icon={<NotesRoundedIcon fontSize="small" />}
+              iconBg="#fef3c7"
+              iconColor="#d97706"
+              label="Item Description"
+              description="Show a description field under each item in POS"
+            >
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Switch
+                  checked={itemDescriptionEnabled}
+                  onChange={(e) => { setItemDescriptionEnabled(e.target.checked); setSaved(false); }}
+                />
+              </Box>
+            </SettingRow>
+
+            <Divider sx={{ borderColor: "#f4f5f8" }} />
+
+            <SettingRow
+              icon={<LocalShippingRoundedIcon fontSize="small" />}
+              iconBg="#f3e8ff"
+              iconColor="#7c3aed"
+              label="Vehicle No"
+              description="Show the Vehicle No field in POS"
+            >
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Switch
+                  checked={vehicleNoEnabled}
+                  onChange={(e) => { setVehicleNoEnabled(e.target.checked); setSaved(false); }}
+                />
+              </Box>
+            </SettingRow>
           </Section>
         </Stack>
 
@@ -1183,9 +1241,14 @@ export default function PosSetting() {
         </Stack>
       </Box>
 
-      {/* Bottom Save Bar */}
+      {/* Bottom Save Bar — pinned to the bottom of the scroll area, so Save is
+          always in reach however far down the settings the user is. */}
       <Box
         sx={{
+          position: "sticky",
+          bottom: 0,
+          zIndex: 5,
+          boxShadow: "0 -6px 16px rgba(15, 23, 42, 0.06)",
           mt: 3,
           py: 2,
           px: { xs: 2, md: 2.5 },

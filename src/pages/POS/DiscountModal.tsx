@@ -634,8 +634,12 @@ export default function DiscountModal({
     recalcFromAmt(cleaned);
   };
 
-  // Single discount amount — never add the two, they're the same value.
-  const totalDiscountAmount = hasPct ? (currentBase * (parseFloat(localPct) || 0)) / 100 : (parseFloat(localAmt) || 0);
+  // Single discount amount — never add the two, they're the same value. Read it
+  // from the field the user typed into: the other holds a rounded preview, so
+  // ₹500 on ₹3115 would come back as 16.05% → ₹499.96.
+  const totalDiscountAmount = activeField === "amt"
+    ? (parseFloat(localAmt) || 0)
+    : (currentBase * (parseFloat(localPct) || 0)) / 100;
   const finalTotalAmount = Math.max(0, currentBase - totalDiscountAmount);
 
   const handleApply = () => {

@@ -290,7 +290,7 @@ export default function PurchaseScreen() {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  Mark as Paid
+                  Mark Payment
                 </Button>
               )}
             </Box>

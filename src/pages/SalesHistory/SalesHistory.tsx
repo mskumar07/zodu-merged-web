@@ -125,7 +125,7 @@ function isProformaSale(sale: Sale): boolean {
 /**
  * Quotations and proformas carry no payment, so the Payment column shows the
  * document type in place of a payment status and the rest of the row hides
- * the balance, the Mark as Paid button and the return action.
+ * the balance, the Mark Payment button and the return action.
  */
 function nonBindingStatus(sale: Sale): UIStatus | null {
   if (isQuotationSale(sale)) return "Quotation";
@@ -451,7 +451,7 @@ export default function SalesHistoryPage() {
                     onClick={guard(() => setPaymentDialog(sale))}
                     sx={{ fontSize: "0.65rem", py: 0.4, px: 1.5, height: 24, width: "100%", whiteSpace: "nowrap" }}
                   >
-                    Mark as Paid
+                    Mark Payment
                   </Button>
                 )}
               </Box>

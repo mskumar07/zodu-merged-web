@@ -14,12 +14,14 @@ export const fmtDate = (iso: string) => {
 
 export const cellText = (bold = false, muted = false) => ({
   fontSize: 13, fontWeight: bold ? 700 : 400, whiteSpace: 'nowrap' as const,
+  // Columns share the screen width, so a value that can't fit ends in an ellipsis instead of spilling over.
+  overflow: 'hidden', textOverflow: 'ellipsis',
   color: muted ? '#94A3B8' : '#0F172A',
 });
 
 export function snoColumn<T>(): ColumnDef<ListRow<T>> {
   return {
-    key: 'sno', label: 'S.No', width: 80,
+    key: 'sno', label: 'S.No', width: 60,
     render: (r) => <Typography sx={cellText(r.isTotal)}>{r.isTotal ? 'Total' : r.sno}</Typography>,
   };
 }
@@ -40,9 +42,7 @@ export function textColumn<T>(
           title={opts.oneLine ? value : undefined}
           sx={{
             ...cellText(opts.bold || (opts.totalLabel && r.isTotal)),
-            ...(opts.oneLine
-              ? { overflow: 'hidden', textOverflow: 'ellipsis' }
-              : { whiteSpace: 'normal', overflowWrap: 'anywhere' }),
+            ...(!opts.oneLine && { whiteSpace: 'normal', overflowWrap: 'anywhere' }),
           }}
         >
           {value}
