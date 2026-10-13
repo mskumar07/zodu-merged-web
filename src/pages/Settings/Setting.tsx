@@ -650,34 +650,43 @@ export default function Setting() {
       branch_manager_or_admin: data.branch_manager_or_admin,
       branch_mobile_no: data.branch_mobile_no,
       branch_mail_id: data.branch_mail_id,
-      branch_city: data.branch_city,
-      branch_pincode: data.branch_pincode,
-      branch_district: data.branch_district,
-      branch_state: data.branch_state,
       branch_image: data.branch_image || undefined,
       same_as_address: data.use_same_address_as_company,
       same_as_bank_details: data.use_same_bank_as_company,
-      ...(data.use_same_address_as_company
+      // A ticked "Clear" box sends just the flag; the block's individual
+      // (empty) fields are left out of the request.
+      ...(isEdit && data.clear_address
+        ? { clear_address: true }
+        : {
+            branch_city: data.branch_city,
+            branch_pincode: data.branch_pincode,
+            branch_district: data.branch_district,
+            branch_state: data.branch_state,
+          }),
+      ...(isEdit && data.clear_bank_details ? { clear_bank_details: true } : {}),
+      ...(isEdit && data.clear_address
+        ? {}
+        : data.use_same_address_as_company
         ? {
             address_id: selectedAddressIdString,
           }
         : {
-            address_line_1:
-              data.branch_address_line_1 || data.branch_area_street_name || undefined,
-            address_line_2:
-              data.branch_address_line_2 || data.branch_floor_building_no || undefined,
+            address_line_1: data.branch_address_line_1 ?? "",
+            address_line_2: data.branch_address_line_2 ?? "",
           }),
-      ...(data.use_same_bank_as_company
+      ...(isEdit && data.clear_bank_details
+        ? {}
+        : data.use_same_bank_as_company
         ? {
             bank_details_id: selectedBankDetailsIdString,
           }
         : {
-            bank_name: data.bank_name || undefined,
-            bank_branch: data.bank_branch || undefined,
-            holder_name: data.holder_name || undefined,
-            account_number: data.branch_account_no || undefined,
-            account_type: data.branch_account_type || undefined,
-            ifsc_code: data.branch_ifsc || undefined,
+            bank_name: data.bank_name ?? "",
+            bank_branch: data.bank_branch ?? "",
+            holder_name: data.holder_name ?? "",
+            account_number: data.branch_account_no ?? "",
+            account_type: data.branch_account_type ?? "",
+            ifsc_code: data.branch_ifsc ?? "",
           }),
     };
 
@@ -719,18 +728,28 @@ export default function Setting() {
       gst_no: data.gst_no,
       phone_number: data.phone_number,
       email: data.email,
-      address_line_1: data.address_line_1,
-      address_line_2: data.address_line_2,
-      city: data.city,
-      district: data.district,
-      state: data.state,
-      pincode: data.pincode,
-      bank_name: data.bank_name,
-      bank_branch: data.bank_branch,
-      holder_name: data.holder_name,
-      account_number: data.account_number,
-      account_type: data.account_type,
-      ifsc_code: data.ifsc_code,
+      // A ticked "Clear" box sends just the flag; the block's individual
+      // (empty) fields are left out of the request.
+      ...(data.clear_address
+        ? { clear_address: true }
+        : {
+            address_line_1: data.address_line_1,
+            address_line_2: data.address_line_2,
+            city: data.city,
+            district: data.district,
+            state: data.state,
+            pincode: data.pincode,
+          }),
+      ...(data.clear_bank_details
+        ? { clear_bank_details: true }
+        : {
+            bank_name: data.bank_name,
+            bank_branch: data.bank_branch,
+            holder_name: data.holder_name,
+            account_number: data.account_number,
+            account_type: data.account_type,
+            ifsc_code: data.ifsc_code,
+          }),
       // A picked file goes as multipart; otherwise send the url only when it
       // actually changed — null clears the stored logo, and omitting the field
       // entirely is what leaves it alone.

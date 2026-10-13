@@ -472,18 +472,19 @@ export const salesQueryKeys = {
 /**
  * DELETE /{retail|restaurant}/api/sales/:id
  *
- * `id` is the `sale_uuid` for retail — unique across sale types, so there is no
- * wrong record to hit and no `sale_type` to send. Restaurant still addresses an
- * order by its own order id; that endpoint is unchanged.
+ * `id` is the `sale_uuid` for retail; `sale_type` is sent along as a query param.
+ * Restaurant still addresses an order by its own order id; that endpoint is unchanged.
  */
 export async function deleteSale(
   id: string,
   isRestaurant = false,
   items?: Array<{ item_id: string; qty: number }> | null,
+  saleType?: string | null,
 ): Promise<{ success: boolean; message: string }> {
   const { zoduId, branchId } = getTenantContext();
   const base = isRestaurant ? "restaurant" : "retail";
-  const params = { zodu_id: zoduId, branch_id: branchId };
+  const params: Record<string, string> = { zodu_id: zoduId, branch_id: branchId };
+  if (!isRestaurant && saleType) params.sale_type = saleType;
 
   const body = isRestaurant && items && items.length > 0 ? { items } : undefined;
 

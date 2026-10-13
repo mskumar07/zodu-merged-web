@@ -17,6 +17,7 @@ import {
   TrendingUp as TrendingUpIcon, Circle,
 } from "@mui/icons-material";
 import FilterListOffIcon from "@mui/icons-material/FilterListOff";
+import PublishedWithChangesIcon from "@mui/icons-material/PublishedWithChanges";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import {
   fetchHistory, fetchSummary, fetchRestaurantHistory, fetchRestaurantSummary,
@@ -112,6 +113,12 @@ function getPosEditUrl(sale: Sale): string {
   const params = new URLSearchParams({ saleUuid: sale.sale_uuid });
   if (sale.sale_type) params.set("saleType", sale.sale_type);
   return `/pos?${params.toString()}`;
+}
+
+// Same as the edit button, but opens on the Invoice tab — saving updates this
+// record, turning the quotation into an invoice.
+function getConvertToInvoiceUrl(sale: Sale): string {
+  return `${getPosEditUrl(sale)}&convertTo=invoice`;
 }
 
 function isQuotationSale(sale: Sale): boolean {
@@ -423,7 +430,7 @@ export default function SalesHistoryPage() {
     {
       key: "payment",
       label: "Payment",
-      minWidth: 210,
+      minWidth: 240,
       render: (sale: Sale) => {
         if (isRestaurant) {
           return (
@@ -439,11 +446,11 @@ export default function SalesHistoryPage() {
         const returnCount = Number(sale.return_count ?? 0);
         return (
           <Stack direction="column" alignItems="flex-start" gap={0.3}>
-            <Stack direction="row" alignItems="center" gap={1} sx={{ minWidth: 200 }}>
+            <Stack direction="row" alignItems="center" gap={1} sx={{ minWidth: 230 }}>
               <Box sx={{ minWidth: 70 }}>
                 <StatusBadge status={status} />
               </Box>
-              <Box sx={{ width: 110 }}>
+              <Box sx={{ width: isQuotationSale(sale) ? 140 : 110 }}>
                 {status !== "Paid" && !isReturned && !nonBinding && !isCancelledTab && (
                   <Button
                     size="small" variant="contained" color="primary" disableElevation
@@ -452,6 +459,20 @@ export default function SalesHistoryPage() {
                     sx={{ fontSize: "0.65rem", py: 0.4, px: 1.5, height: 24, width: "100%", whiteSpace: "nowrap" }}
                   >
                     Mark Payment
+                  </Button>
+                )}
+                {isQuotationSale(sale) && !isCancelledTab && (
+                  <Button
+                    size="small" variant="outlined" color="primary"
+                    startIcon={<PublishedWithChangesIcon sx={{ fontSize: "14px !important" }} />}
+                    onClick={guard(() => navigate(getConvertToInvoiceUrl(sale)))}
+                    sx={{
+                      fontSize: "0.65rem", fontWeight: 700, py: 0.2, px: 1, height: 24,
+                      width: "100%", whiteSpace: "nowrap", borderWidth: 1.5, bgcolor: alpha("#E53935", 0.06),
+                      "&:hover": { borderWidth: 1.5, bgcolor: alpha("#E53935", 0.14) },
+                    }}
+                  >
+                    Convert to Invoice
                   </Button>
                 )}
               </Box>
@@ -880,7 +901,7 @@ export default function SalesHistoryPage() {
                 const deleteId = isRestaurant
                   ? (deleteDialog.api_order_id ?? deleteDialog.sale_id)
                   : deleteDialog.sale_uuid;
-                await deleteSale(deleteId, isRestaurant, isRestaurant ? deleteDialog.items : undefined);
+                await deleteSale(deleteId, isRestaurant, isRestaurant ? deleteDialog.items : undefined, isRestaurant ? undefined : deleteDialog.sale_type);
                 setDeleteDialog(null);
                 refetch();
               } finally {

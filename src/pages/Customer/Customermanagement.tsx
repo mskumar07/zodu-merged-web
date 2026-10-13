@@ -23,6 +23,8 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import RestoreIcon from "@mui/icons-material/Restore";
 import SearchIcon from "@mui/icons-material/Search";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import CustomerViewModal from "./CustomerViewModal";
 import AddNewCustomerDialog from "./Addnewcustomerdialog";
 import CustomerLedgerDialog from "./CustomerLedgerDialog";
 import MarkPaymentDialog from "./MarkPaymentDialog";
@@ -166,6 +168,7 @@ export default function CustomerManagement({
   const [paymentTarget, setPaymentTarget] = useState<Customer | null>(null);
   const [toast, setToast] = useState<{ message: string; severity: "success" | "error" } | null>(null);
   const [statusTarget, setStatusTarget] = useState<{ customer: Customer; isDelete: boolean } | null>(null);
+  const [viewCustomer, setViewCustomer] = useState<Customer | null>(null);
 
   const sentinelRef       = useRef<HTMLTableRowElement>(null) as React.RefObject<HTMLTableRowElement>;
   const tableContainerRef = useRef<HTMLDivElement>(null)      as React.RefObject<HTMLDivElement>;
@@ -240,6 +243,10 @@ export default function CustomerManagement({
       placeOfSupply: c.state || "",
     }));
   }, [apiCustomers]);
+
+  const handleView = useCallback((customer: Customer) => {
+    setViewCustomer(customer);
+  }, []);
 
   const handleCustomerClick = useCallback((customer: Customer) => {
     setSelectedCustomer(customer);
@@ -419,9 +426,31 @@ export default function CustomerManagement({
         key: "actions",
         label: "Actions",
         align: "center",
-        width: 100,
-        render: (customer) =>
-          statusTab === "inactive" ? (
+        width: 130,
+        render: (customer) => {
+          const viewButton = (
+            <Tooltip title="View" placement="top">
+              <IconButton
+                size="small"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleView(customer);
+                }}
+                sx={{
+                  color: "#6B7280",
+                  p: 0.6,
+                  borderRadius: 1,
+                  "&:hover": { color: "#374151", bgcolor: "#F3F4F6" },
+                  transition: "all 0.12s",
+                }}
+              >
+                <VisibilityOutlinedIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          );
+          return statusTab === "inactive" ? (
+            <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
+            {viewButton}
             <Tooltip title={canDelete ? "Restore" : "You don't have permission to restore"} placement="top">
               <span>
                 <IconButton
@@ -443,8 +472,10 @@ export default function CustomerManagement({
                 </IconButton>
               </span>
             </Tooltip>
+            </Box>
           ) : (
             <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
+              {viewButton}
               <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"} placement="top">
                 <span>
                   <IconButton
@@ -494,10 +525,11 @@ export default function CustomerManagement({
                 </span>
               </Tooltip>
             </Box>
-          ),
+          );
+        },
       },
     ],
-    [onEditCustomer, apiCustomers, handleDelete, handleRestore, handleCustomerClick, canEdit, canDelete, statusTab]
+    [onEditCustomer, apiCustomers, handleDelete, handleRestore, handleView, handleCustomerClick, canEdit, canDelete, statusTab]
   );
 
   if (isLoading) return <LottieLoader />;
@@ -700,6 +732,17 @@ export default function CustomerManagement({
             setEditingCustomer(null);
           }}
           editingCustomer={editingCustomer}
+        />
+
+        <CustomerViewModal
+          open={!!viewCustomer}
+          onClose={() => setViewCustomer(null)}
+          custUuid={viewCustomer?.custUuid ?? null}
+          summary={viewCustomer && {
+            totalInvoice: viewCustomer.totalInvoice,
+            totalSale: viewCustomer.totalSale,
+            outstandingBalance: viewCustomer.outstandingBalance,
+          }}
         />
 
         <CustomerLedgerDialog

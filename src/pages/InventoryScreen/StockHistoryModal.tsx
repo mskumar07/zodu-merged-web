@@ -196,10 +196,11 @@ export default function StockHistoryModal({ open, onClose, item }: any) {
                   justifyContent: "center"
                 }}
               >
-                {item?.image ? (
+                {itemDetails?.item_img || item?.image ? (
                   <img
-                    src={item.image}
-                    style={{ width: "100%", height: "100%" }}
+                    src={itemDetails?.item_img || item?.image}
+                    alt={itemDetails?.item_name}
+                    style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 8 }}
                   />
                 ) : (
                   <Typography sx={{ fontSize: 20, fontWeight: 700 }}>

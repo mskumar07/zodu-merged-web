@@ -213,6 +213,8 @@ export interface CreateBranchPayload {
   // Company reference flags
   use_same_address_as_company?: boolean;
   use_same_bank_as_company?: boolean;
+  clear_address?: boolean;
+  clear_bank_details?: boolean;
 }
 
 export interface EditCompanyPayload {
@@ -243,6 +245,10 @@ export interface EditCompanyPayload {
   // file is attached.
   company_logo?: File | null;
   company_logo_url?: string | null;
+  // When true the server wipes the whole address / bank block; the individual
+  // address / bank keys are then left out of the request.
+  clear_address?: boolean;
+  clear_bank_details?: boolean;
 }
 
 export interface EditBranchPayload {
