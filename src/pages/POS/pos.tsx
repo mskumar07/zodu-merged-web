@@ -514,6 +514,8 @@ function RetailPOSInner() {
   // rather than sent to an endpoint that no longer accepts a display id.)
   const saleUuidFromUrl = query.get("saleUuid");
   const saleTypeFromUrl = query.get("saleType");
+  // "Convert Invoice" on a quotation: the normal edit flow, opened on the Invoice tab.
+  const convertToInvoice = query.get("convertTo") === "invoice";
 
   const [posMode,        setPosMode]        = useState<PosMode>(() => POS_MODE_BY_TYPE[defaultPosType]);
   // Set once the cashier picks a tab — their choice then outranks a default
@@ -1087,7 +1089,7 @@ useLayoutEffect(() => {
       // A uuid names exactly one record, so no sale type rides along.
       const data = await fetchSaleDetail(saleUuidFromUrl!);
       const sale = data.sale;
-      setPosMode(saleTypeToPosMode(sale.sale_type));
+      setPosMode(convertToInvoice ? "SALE" : saleTypeToPosMode(sale.sale_type));
       setSaleId(sale.sale_uuid);
       console.log("new",data)
       setItems(data.items.map((i: any) => {
@@ -2112,8 +2114,11 @@ console.log("test",serverHolds)
                   const mode = POS_MODE_BY_TYPE[type];
                   const active = posMode === mode;
                   const accent = POS_MODE_THEME[mode].accent;
+                  // Editing a saved document (opened from Sales History) keeps its
+                  // sale type — the other tabs are locked.
+                  const locked = !!saleUuidFromUrl && !active;
                   return (
-                    <Box key={type} onClick={() => { posModeTouchedRef.current = true; setPosMode(mode); }} sx={{ display: "flex", alignItems: "center", gap: { xs: 0.4, md: 0.7 }, px: { xs: 1, md: 1.75 }, py: { xs: 0.4, md: 0.6 }, borderRadius: 1.5, cursor: "pointer", bgcolor: active ? accent : "transparent", color: active ? "#fff" : "#6B7280", transition: "all 0.18s", "&:hover": { bgcolor: active ? accent : "#E5E7EB" } }}>
+                    <Box key={type} onClick={() => { if (locked) return; posModeTouchedRef.current = true; setPosMode(mode); }} sx={{ display: "flex", alignItems: "center", gap: { xs: 0.4, md: 0.7 }, px: { xs: 1, md: 1.75 }, py: { xs: 0.4, md: 0.6 }, borderRadius: 1.5, cursor: locked ? "not-allowed" : "pointer", opacity: locked ? 0.45 : 1, bgcolor: active ? accent : "transparent", color: active ? "#fff" : "#6B7280", transition: "all 0.18s", "&:hover": { bgcolor: active ? accent : locked ? "transparent" : "#E5E7EB" } }}>
                       {mode === "SALE"
                         ? <ReceiptLongIcon sx={{ fontSize: { xs: 13, md: 15 } }} />
                         : <RequestQuoteIcon sx={{ fontSize: { xs: 13, md: 15 } }} />}

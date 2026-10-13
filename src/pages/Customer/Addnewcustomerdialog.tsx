@@ -4,7 +4,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Box, Typography, TextField, Button, IconButton,
   Select, MenuItem, FormControl, InputAdornment,
-  Divider, CircularProgress, Alert, Checkbox,
+  Divider, CircularProgress, Checkbox,
 } from "@mui/material";
 import SuccessToast from "@components/Common/SuccessToast";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
@@ -12,7 +12,10 @@ import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import CloseIcon     from "@mui/icons-material/Close";
 import SaveIcon      from "@mui/icons-material/Save";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import { useAddCustomer, useUpdateCustomer, buildCustomerPayload, buildUpdateCustomerPayload } from "./useCustomerapi";
+import {
+  useAddCustomer, useUpdateCustomer, useCustomerDetail,
+  buildCustomerPayload, buildUpdateCustomerPayload, getCustomerApiError,
+} from "./useCustomerapi";
 import type { AddCustomerResponse } from "./useCustomerapi";
 import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
@@ -38,7 +41,7 @@ const STATES = [
 
 interface CustomerForm {
   custName: string; mobile: string; email: string;
-  gstin: string; openingBalance: string;
+  gstin: string;
   addressLine1: string; addressLine2: string; city: string; pincode: string; state: string;
   shipSameAsBilling: boolean;
   shippingAddressLine1: string; shippingAddressLine2: string; shippingCity: string; shippingPincode: string; shippingState: string;
@@ -46,7 +49,7 @@ interface CustomerForm {
 
 const EMPTY: CustomerForm = {
   custName: "", mobile: "", email: "", gstin: "",
-  openingBalance: "", addressLine1: "", addressLine2: "", city: "", pincode: "", state: "",
+  addressLine1: "", addressLine2: "", city: "", pincode: "", state: "",
   shipSameAsBilling: true,
   shippingAddressLine1: "", shippingAddressLine2: "", shippingCity: "", shippingPincode: "", shippingState: "",
 };
@@ -112,9 +115,24 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved, editingCu
   const [error, setError]     = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState("");
 
-  // Update form when editingCustomer changes
+  // Edit mode loads the customer fresh from the detail API (the list row is a
+  // summary). If that call fails the
+  // list row is used so the user can still edit.
+  const detailQuery = useCustomerDetail(open && isEditing ? editingCustomer!.cust_uuid : null);
+  const source = isEditing ? (detailQuery.data ?? (detailQuery.isError ? editingCustomer : null)) : null;
+  const isLoadingDetail = open && isEditing && !source;
+
   useEffect(() => {
-    if (isEditing && editingCustomer) {
+    if (detailQuery.isError) {
+      setError(getCustomerApiError(detailQuery.error, "Failed to load customer details"));
+    }
+  }, [detailQuery.isError, detailQuery.error]);
+
+  // Update form when the customer to edit (or its fetched detail) changes
+  useEffect(() => {
+    if (isEditing) {
+      if (!source) return;
+      const editingCustomer = source;
       const shippingJoined = (editingCustomer.shipping_address || "").trim();
       const sameAsBilling = editingCustomer.same_as_billing_address ?? !shippingJoined;
 
@@ -151,7 +169,6 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved, editingCu
         city: editingCustomer.city || "",
         pincode: editingCustomer.pincode || "",
         state: editingCustomer.state || "",
-        openingBalance: "",
         shipSameAsBilling: sameAsBilling,
         shippingAddressLine1: shipLine1,
         shippingAddressLine2: shipLine2,
@@ -161,9 +178,9 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved, editingCu
       });
     } else {
       setForm(EMPTY);
+      setError(null);
     }
-    setError(null);
-  }, [isEditing, editingCustomer, open]);
+  }, [isEditing, source, open]);
 
   const { mutate: mutateAdd, isPending: isPendingAdd } = useAddCustomer({
     onSuccess: (customer) => { setSuccessMsg("Customer added successfully!"); setForm(EMPTY); setError(null); onSaved?.(customer); onClose(); },
@@ -232,10 +249,10 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved, editingCu
         <DialogContent sx={{ px: 3, py: 3, overflowY: "auto", flex: 1 }}>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 1 }}>
 
-            {error && (
-              <Alert severity="error" onClose={() => setError(null)} sx={{ borderRadius: 2, fontSize: 13 }}>
-                {error}
-              </Alert>
+            {isLoadingDetail && (
+              <Box sx={{ display: "flex", justifyContent: "center", py: 1 }}>
+                <CircularProgress size={22} sx={{ color: "#C8102E" }} />
+              </Box>
             )}
 
             {/* ── Basic Information ── */}
@@ -287,21 +304,6 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved, editingCu
                     onChange={e => setForm(p => ({ ...p, gstin: e.target.value.toUpperCase().slice(0, 15) }))}
                     placeholder="22AAAAA0000A1Z5" size="small" fullWidth
                     inputProps={{ style: { fontFamily: "monospace", letterSpacing: "0.06em" } }}
-                    sx={sx}
-                  />
-                </Field>
-                <Field label="Opening Balance (₹)">
-                  <TextField
-                    value={form.openingBalance}
-                    onChange={e => setForm(p => ({ ...p, openingBalance: e.target.value.replace(/[^0-9.]/g, "") }))}
-                    placeholder="0.00" size="small" fullWidth
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#9CA3AF" }}>₹</Typography>
-                        </InputAdornment>
-                      ),
-                    }}
                     sx={sx}
                   />
                 </Field>
@@ -463,7 +465,7 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved, editingCu
             sx={{ borderColor: "#D1D5DB", color: "#374151", fontWeight: 700, px: 3, py: 1, fontSize: 13, borderRadius: 2, "&:hover": { borderColor: "#9CA3AF", bgcolor: "#F9FAFB" } }}>
             Cancel
           </Button>
-          <Button variant="contained" onClick={handleSave} disabled={isPending} disableElevation
+          <Button variant="contained" onClick={handleSave} disabled={isPending || isLoadingDetail} disableElevation
             startIcon={isPending ? <CircularProgress size={16} color="inherit" /> : <SaveIcon sx={{ fontSize: 18 }} />}
             sx={{
               bgcolor: "#C8102E", color: "#fff", fontWeight: 700, px: 4, py: 1, fontSize: 13, borderRadius: 2,
@@ -478,6 +480,7 @@ export default function AddNewCustomerDialog({ open, onClose, onSaved, editingCu
       </Dialog>
 
       <SuccessToast message={successMsg} onClose={() => setSuccessMsg("")} />
+      <SuccessToast message={error ?? ""} severity="error" onClose={() => setError(null)} />
     </ThemeProvider>
   );
 }

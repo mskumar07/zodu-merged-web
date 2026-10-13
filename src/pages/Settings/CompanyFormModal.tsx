@@ -120,7 +120,13 @@ export interface BusinessFormData {
   // The stored logo: a URL to keep it, or null to clear it. Left as the loaded
   // value when untouched so the submit handler can tell "unchanged" from "cleared".
   company_logo_url: string | null;
+  clear_address: boolean;
+  clear_bank_details: boolean;
 }
+
+// Dims and locks a section's fields while its "Clear" box is ticked.
+const clearedSx = (on: boolean) =>
+  on ? { "& .MuiGrid-container": { opacity: 0.5, pointerEvents: "none" } } : undefined;
 
 export type CompanyFormInitialData = Partial<
   CompanyWithBranches &
@@ -152,6 +158,8 @@ const EMPTY_FORM: BusinessFormData = {
   can_use_for_branch: true,
   company_logo: null,
   company_logo_url: null,
+  clear_address: false,
+  clear_bank_details: false,
 };
 
 interface Props {
@@ -236,6 +244,8 @@ export default function BusinessFormModal({
         can_use_for_branch: true,
         company_logo: null,
         company_logo_url: business.company_logo_url ?? null,
+        clear_address: false,
+        clear_bank_details: false,
       });
     } else {
       setForm(EMPTY_FORM);
@@ -575,10 +585,40 @@ export default function BusinessFormModal({
             <Divider sx={{ borderColor: "#F1F5F9" }} />
 
             {/* LOCATION DETAILS SECTION */}
-            <Box>
-              <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#1F2937", mb: 2 }}>
-                Location Details
-              </Typography>
+            <Box sx={clearedSx(form.clear_address)}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#1F2937" }}>
+                  Location Details
+                </Typography>
+                {isEdit && (
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={form.clear_address}
+                        onChange={(e) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            clear_address: e.target.checked,
+                            ...(e.target.checked ? { address_line_1: "", address_line_2: "", city: "", district: "", state: "", pincode: "" } : {}),
+                          }))
+                        }
+                        sx={{
+                          color: "#D1D5DB",
+                          "&.Mui-checked": { color: "#af101a" },
+                          p: 0.4,
+                        }}
+                      />
+                    }
+                    label={
+                      <Typography sx={{ fontSize: 11, fontWeight: 600, color: "#6B7280" }}>
+                        Clear Address
+                      </Typography>
+                    }
+                    sx={{ m: 0, gap: 0.5 }}
+                  />
+                )}
+              </Box>
               <Grid container spacing={2.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <FieldLabel>Address Line 1</FieldLabel>
@@ -722,10 +762,40 @@ export default function BusinessFormModal({
             <Divider sx={{ borderColor: "#F1F5F9" }} />
 
             {/* BANK DETAILS SECTION */}
-            <Box>
-              <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#1F2937", mb: 2 }}>
-                Bank Details
-              </Typography>
+            <Box sx={clearedSx(form.clear_bank_details)}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#1F2937" }}>
+                  Bank Details
+                </Typography>
+                {isEdit && (
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={form.clear_bank_details}
+                        onChange={(e) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            clear_bank_details: e.target.checked,
+                            ...(e.target.checked ? { bank_name: "", bank_branch: "", holder_name: "", account_number: "", account_type: "", ifsc_code: "" } : {}),
+                          }))
+                        }
+                        sx={{
+                          color: "#D1D5DB",
+                          "&.Mui-checked": { color: "#af101a" },
+                          p: 0.4,
+                        }}
+                      />
+                    }
+                    label={
+                      <Typography sx={{ fontSize: 11, fontWeight: 600, color: "#6B7280" }}>
+                        Clear Bank Details
+                      </Typography>
+                    }
+                    sx={{ m: 0, gap: 0.5 }}
+                  />
+                )}
+              </Box>
               <Grid container spacing={2.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <FieldLabel>Bank Name</FieldLabel>
@@ -779,6 +849,9 @@ export default function BusinessFormModal({
                         )
                       }
                     >
+                      <MenuItem value="" sx={{ fontSize: 13, color: "#6B7280" }}>
+                        None
+                      </MenuItem>
                       <MenuItem value="Savings Account" sx={{ fontSize: 13 }}>
                         Savings Account
                       </MenuItem>

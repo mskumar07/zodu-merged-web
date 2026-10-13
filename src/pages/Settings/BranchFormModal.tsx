@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
+  Autocomplete,
   Box,
   Button,
   Checkbox,
@@ -13,7 +14,6 @@ import {
   Grid,
   IconButton,
   InputAdornment,
-  ListSubheader,
   MenuItem,
   Select,
   TextField,
@@ -23,7 +23,6 @@ import { createTheme, ThemeProvider } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
-import SearchIcon from "@mui/icons-material/Search";
 import type { Branch } from "@pages/auth/Authapi";
 import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
@@ -120,6 +119,8 @@ export interface BranchFormData {
   holder_name: string;
   use_same_address_as_company: boolean;
   use_same_bank_as_company: boolean;
+  clear_address: boolean;
+  clear_bank_details: boolean;
 }
 
 const EMPTY_FORM: BranchFormData = {
@@ -145,7 +146,13 @@ const EMPTY_FORM: BranchFormData = {
   holder_name: "",
   use_same_address_as_company: false,
   use_same_bank_as_company: false,
+  clear_address: false,
+  clear_bank_details: false,
 };
+
+// Dims and locks a section's fields while its "Clear" box is ticked.
+const clearedSx = (on: boolean) =>
+  on ? { "& .MuiGrid-container": { opacity: 0.5, pointerEvents: "none" } } : undefined;
 
 interface CompanyRef {
   phone?: string;
@@ -224,7 +231,6 @@ export default function BranchFormModal({
   const [form, setForm] = useState<BranchFormData>(EMPTY_FORM);
   const [sameMobile, setSameMobile] = useState(false);
   const [sameEmail, setSameEmail] = useState(false);
-  const [stateSearch, setStateSearch] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -271,13 +277,14 @@ export default function BranchFormModal({
         holder_name: branch.holder_name ?? "",
         use_same_address_as_company: branch.same_as_address ?? false,
         use_same_bank_as_company: branch.same_as_bank_details ?? false,
+        clear_address: false,
+        clear_bank_details: false,
       });
     } else {
       setForm(EMPTY_FORM);
     }
     setSameMobile(false);
     setSameEmail(false);
-    setStateSearch("");
   }, [open, branch]);
 
   const set =
@@ -285,12 +292,7 @@ export default function BranchFormModal({
     (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm((prev) => ({ ...prev, [key]: e.target.value }));
 
-  const filteredStates = INDIAN_STATES.filter((s) =>
-    s.toLowerCase().includes(stateSearch.trim().toLowerCase())
-  );
-
   const handleClose = () => {
-    setStateSearch("");
     onClose();
   };
 
@@ -469,11 +471,35 @@ export default function BranchFormModal({
             <Divider sx={{ borderColor: "#F1F5F9" }} />
 
             {/* LOCATION DETAILS SECTION */}
-            <Box>
+            <Box sx={clearedSx(form.clear_address)}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
                 <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#1F2937" }}>
                   Location Details
                 </Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                {isEdit && !form.use_same_address_as_company && (
+                  <SameAsCheckbox
+                    label="Clear Address"
+                    checked={form.clear_address}
+                    onChange={(checked) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        clear_address: checked,
+                        ...(checked
+                          ? {
+                              use_same_address_as_company: false,
+                              branch_address_line_1: "",
+                              branch_address_line_2: "",
+                              branch_city: "",
+                              branch_district: "",
+                              branch_state: "",
+                              branch_pincode: "",
+                            }
+                          : {}),
+                      }))
+                    }
+                  />
+                )}
                 <SameAsCheckbox
                   label="Same as Company"
                   checked={form.use_same_address_as_company}
@@ -481,6 +507,7 @@ export default function BranchFormModal({
                     setForm((prev) => ({
                       ...prev,
                       use_same_address_as_company: checked,
+                      ...(checked ? { clear_address: false } : {}),
                       ...(checked
                         ? {
                             branch_address_line_1:
@@ -503,6 +530,7 @@ export default function BranchFormModal({
                     }));
                   }}
                 />
+                </Box>
               </Box>
               <Grid container spacing={2.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
@@ -556,82 +584,21 @@ export default function BranchFormModal({
 
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <FieldLabel>State</FieldLabel>
-                  <FormControl fullWidth size="small" sx={inputSx}>
-                    <Select
-                      value={form.branch_state}
-                      displayEmpty
-                      disabled={form.use_same_address_as_company}
-                      onChange={(e) =>
-                        setForm((prev) => ({ ...prev, branch_state: e.target.value }))
-                      }
-                      onOpen={() => setStateSearch("")}
-                      renderValue={(value) =>
-                        value ? (
-                          value
-                        ) : (
-                          <Typography sx={{ color: "#9CA3AF", fontSize: 13 }}>
-                            Select state
-                          </Typography>
-                        )
-                      }
-                      MenuProps={{
-                        PaperProps: {
-                          sx: {
-                            mt: 0.5,
-                            maxHeight: 320,
-                            borderRadius: 2,
-                            boxShadow: "0 18px 40px rgba(15,23,42,0.12)",
-                          },
-                        },
-                      }}
-                      sx={{ bgcolor: "#F8FAFC", fontSize: 13, borderRadius: "8px" }}
-                    >
-                      <ListSubheader
-                        sx={{
-                          bgcolor: "#fff",
-                          py: 1,
-                          px: 1,
-                          borderBottom: "1px solid #F1F5F9",
-                        }}
-                        onKeyDown={(e) => e.stopPropagation()}
-                      >
-                        <TextField
-                          autoFocus
-                          size="small"
-                          fullWidth
-                          placeholder="Search state..."
-                          value={stateSearch}
-                          onChange={(e) => setStateSearch(e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <SearchIcon sx={{ fontSize: 16, color: "#9CA3AF" }} />
-                              </InputAdornment>
-                            ),
-                          }}
-                          sx={{
-                            "& .MuiOutlinedInput-root": {
-                              bgcolor: "#F8FAFC",
-                              fontSize: 12.5,
-                              borderRadius: 1.5,
-                            },
-                          }}
-                        />
-                      </ListSubheader>
-                      {filteredStates.length === 0 ? (
-                        <MenuItem disabled sx={{ fontSize: 13 }}>
-                          No states found
-                        </MenuItem>
-                      ) : (
-                        filteredStates.map((state) => (
-                          <MenuItem key={state} value={state} sx={{ fontSize: 13 }}>
-                            {state}
-                          </MenuItem>
-                        ))
-                      )}
-                    </Select>
-                  </FormControl>
+                  <Autocomplete
+                    fullWidth
+                    size="small"
+                    options={INDIAN_STATES}
+                    value={form.branch_state || null}
+                    disabled={form.use_same_address_as_company}
+                    onChange={(_, value) =>
+                      setForm((prev) => ({ ...prev, branch_state: value ?? "" }))
+                    }
+                    noOptionsText="No states found"
+                    renderInput={(params) => (
+                      <TextField {...params} placeholder="Select state" sx={inputSx} />
+                    )}
+                    slotProps={{ listbox: { sx: { fontSize: 13 } } }}
+                  />
                 </Grid>
               </Grid>
 
@@ -653,11 +620,35 @@ export default function BranchFormModal({
             <Divider sx={{ borderColor: "#F1F5F9" }} />
 
             {/* BANK DETAILS SECTION */}
-            <Box>
+            <Box sx={clearedSx(form.clear_bank_details)}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
                 <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#1F2937" }}>
                   Bank Details
                 </Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                {isEdit && !form.use_same_bank_as_company && (
+                  <SameAsCheckbox
+                    label="Clear Bank Details"
+                    checked={form.clear_bank_details}
+                    onChange={(checked) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        clear_bank_details: checked,
+                        ...(checked
+                          ? {
+                              use_same_bank_as_company: false,
+                              bank_name: "",
+                              bank_branch: "",
+                              holder_name: "",
+                              branch_account_no: "",
+                              branch_account_type: "Current Account",
+                              branch_ifsc: "",
+                            }
+                          : {}),
+                      }))
+                    }
+                  />
+                )}
                 <SameAsCheckbox
                   label="Same as Company"
                   checked={form.use_same_bank_as_company}
@@ -665,6 +656,7 @@ export default function BranchFormModal({
                     setForm((prev) => ({
                       ...prev,
                       use_same_bank_as_company: checked,
+                      ...(checked ? { clear_bank_details: false } : {}),
                       ...(checked
                         ? {
                             bank_name: company.bank_name ?? "",
@@ -685,6 +677,7 @@ export default function BranchFormModal({
                     }));
                   }}
                 />
+                </Box>
               </Box>
               <Grid container spacing={2.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
@@ -728,6 +721,7 @@ export default function BranchFormModal({
                   <FormControl fullWidth size="small" sx={inputSx}>
                     <Select
                       value={form.branch_account_type}
+                      displayEmpty
                       disabled={form.use_same_bank_as_company}
                       onChange={(e) =>
                         setForm((prev) => ({
@@ -735,8 +729,20 @@ export default function BranchFormModal({
                           branch_account_type: e.target.value,
                         }))
                       }
+                      renderValue={(value) =>
+                        value ? (
+                          value
+                        ) : (
+                          <Typography sx={{ color: "#9CA3AF", fontSize: 13 }}>
+                            Select account type
+                          </Typography>
+                        )
+                      }
                       sx={{ bgcolor: "#F8FAFC", fontSize: 13, borderRadius: "8px" }}
                     >
+                      <MenuItem value="" sx={{ fontSize: 13, color: "#6B7280" }}>
+                        None
+                      </MenuItem>
                       <MenuItem value="Savings Account" sx={{ fontSize: 13 }}>
                         Savings Account
                       </MenuItem>

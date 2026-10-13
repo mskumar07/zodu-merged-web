@@ -15,6 +15,20 @@ function customersBasePath(businessType: string): string {
   return businessType === "Restaurant" ? "/restaurant/api/customers" : "/retail/api/customers";
 }
 
+/**
+ * Pulls a readable message out of any failure. The customer services answer
+ * with `{ errors: string[] }` (validation), `{ message }` (404 / DB error) or
+ * `{ error }` (500), so check each shape before falling back.
+ */
+export function getCustomerApiError(err: unknown, fallback: string): string {
+  if (!axios.isAxiosError(err)) return fallback;
+  const body = err.response?.data as
+    | { errors?: string[]; message?: string; error?: string }
+    | undefined;
+  if (body?.errors?.length) return body.errors.join(", ");
+  return body?.message ?? body?.error ?? err.message ?? fallback;
+}
+
 // ─── Payload ──────────────────────────────────────────────────
 export interface AddCustomerPayload {
   zodu_id:        string;
@@ -147,6 +161,52 @@ export const customerQueryKeys = {
             ["customer", cust_uuid]             as const,
 };
 
+// ─── Customer detail (GET /api/customers/:cust_uuid) ──────────
+export interface CustomerDetail {
+  cust_uuid:     string;
+  cust_id:       string;
+  zodu_id:       string;
+  branch_id:     string;
+  cust_name:     string | null;
+  cpy_name:      string | null;
+  mobile_no:     string[] | null;
+  email_id:      string[] | null;
+  gst:           string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  city:          string | null;
+  state:         string | null;
+  pincode:       string | null;
+  shipping_address:        string | null;
+  same_as_billing_address: boolean;
+  is_active:     boolean;
+  created_at:    string;
+  updated_at:    string;
+}
+
+async function getCustomerDetail(custUuid: string): Promise<CustomerDetail> {
+  const { zoduId, branchId, businessType } = getTenantContext();
+  const { data } = await axios.get<{ success: boolean; customer: CustomerDetail }>(
+    `${API_BASE}${customersBasePath(businessType)}/${custUuid}`,
+    { params: { zodu_id: zoduId, branch_id: branchId } }
+  );
+  if (!data?.success || !data.customer) throw new Error("Customer not found");
+  return data.customer;
+}
+
+/** Fetches one customer. Pass null/undefined to keep the query idle. */
+export function useCustomerDetail(custUuid: string | null | undefined) {
+  return useQuery({
+    queryKey: customerQueryKeys.detail(custUuid ?? ""),
+    queryFn:  () => getCustomerDetail(custUuid as string),
+    enabled:  !!custUuid,
+    retry:    false,
+    // Always show the latest saved values when a modal is (re)opened.
+    staleTime: 0,
+    gcTime:    0,
+  });
+}
+
 // ─── API call ─────────────────────────────────────────────────
 async function postAddCustomer(payload: AddCustomerPayload): Promise<AddCustomerResponse> {
   const { data } = await axios.post<AddCustomerResponse>(
@@ -187,10 +247,7 @@ export function useAddCustomer(options?: {
     },
 
     onError: (err: unknown) => {
-      const msg = axios.isAxiosError(err)
-        ? err.response?.data?.message ?? err.message
-        : "Failed to save customer";
-      options?.onError?.(msg);
+      options?.onError?.(getCustomerApiError(err, "Failed to save customer"));
     },
   });
 }
@@ -215,10 +272,7 @@ export function useUpdateCustomer(options?: {
     },
 
     onError: (err: unknown) => {
-      const msg = axios.isAxiosError(err)
-        ? err.response?.data?.message ?? err.message
-        : "Failed to update customer";
-      options?.onError?.(msg);
+      options?.onError?.(getCustomerApiError(err, "Failed to update customer"));
     },
   });
 }
@@ -405,7 +459,7 @@ export function buildUpdateCustomerPayload(
     city:         string;
     pincode:      string;
     state:        string;
-    shipSameAsBilling?: boolean;
+      shipSameAsBilling?: boolean;
     shippingAddressLine1?: string;
     shippingAddressLine2?: string;
     shippingCity?:         string;
