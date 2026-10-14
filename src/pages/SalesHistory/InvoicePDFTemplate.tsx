@@ -3,7 +3,7 @@ import { useTenantContext } from "@store/tenantContext";
 import { AllCompanies } from "@store/slices/userSlice";
 import { useInvoiceSettingsForSale } from "@hooks/useInvoiceSettingsForSale";
 import React from "react";
-import { saleDocumentLabel } from "@utils/saleType";
+import { isQuotationSaleType, saleDocumentLabel } from "@utils/saleType";
 import { resolveTermsForSaleType } from "@utils/invoiceTerms";
 import { gstSummaryRows } from "@utils/gstSummary";
 import zoduLogo from "@assets/zlogo.png";
@@ -310,7 +310,8 @@ const styles = {
   poweredByRule: { width: "1.5px", background: "#CBD5E1", alignSelf: "stretch" },
   poweredByText: { display: "flex", flexDirection: "column" as const, justifyContent: "center", gap: "4px" },
   poweredBy: { fontSize: "14px", fontWeight: 500, color: "#334155", lineHeight: 1.2 },
-  poweredByUrl: { fontSize: "11px", color: "#64748B", letterSpacing: "0.02em", lineHeight: 1.2 },
+  poweredByUrl: { fontSize: "11px", color: "#64748B", letterSpacing: "0.02em", lineHeight: 1.2, whiteSpace: "nowrap" as const },
+  poweredBySep: { margin: "0 6px", color: "#CBD5E1" },
 };
 
 // ── Helper components ─────────────────────────────────────────
@@ -393,7 +394,8 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
   const showShipToDetails = showCustomerDetails && showShippingAddress && hasValue(customer_shipping_address);
   const showTaxDetails = !hideTaxBreakdown && (invoiceSettings?.show_tax_details ?? true);
   const showHsn = !hideTaxBreakdown;
-  const showPaymentDetails = invoiceSettings?.show_payment_details ?? false;
+  // A quotation takes no payment, so it never shows payment details.
+  const showPaymentDetails = (invoiceSettings?.show_payment_details ?? false) && !isQuotationSaleType(sale_type);
   // Quotations / proformas print their own terms when theirs are switched on.
   const termsConditionsText = resolveTermsForSaleType(invoiceSettings, sale_type);
   const showTermsConditions = termsConditionsText !== "";
@@ -868,7 +870,9 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
               <div style={styles.poweredByRule} />
               <div style={styles.poweredByText}>
                 <span style={styles.poweredBy}>Try for your Business Today!</span>
-                <span style={styles.poweredByUrl}>www.zodu.in</span>
+                <span style={styles.poweredByUrl}>
+                  www.zodu.in<span style={styles.poweredBySep}>|</span>+91 93454 19602, +91 73052 81904
+                </span>
               </div>
             </div>
           </div>

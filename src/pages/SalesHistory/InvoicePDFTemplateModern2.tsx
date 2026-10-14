@@ -3,7 +3,7 @@ import { useTenantContext } from "@store/tenantContext";
 import { AllCompanies } from "@store/slices/userSlice";
 import { useInvoiceSettingsForSale } from "@hooks/useInvoiceSettingsForSale";
 import React from "react";
-import { saleDocumentLabel } from "@utils/saleType";
+import { isQuotationSaleType, saleDocumentLabel } from "@utils/saleType";
 import { resolveTermsForSaleType } from "@utils/invoiceTerms";
 import { gstSummaryRows } from "@utils/gstSummary";
 import { InvoiceWatermark, resolveInvoiceExtras } from "./InvoiceWatermark";
@@ -256,7 +256,8 @@ export const InvoicePDFTemplateModern2 = React.forwardRef(({ data, settingsOverr
   const showShippingAddress = invoiceSettings?.show_shipping_address ?? true;
   const showShipToDetails = showCustomerDetails && showShippingAddress && hasValue(customer_shipping_address);
   const showTaxDetails = invoiceSettings?.show_tax_details ?? true;
-  const showPaymentDetails = invoiceSettings?.show_payment_details ?? false;
+  // A quotation takes no payment, so it never shows payment details.
+  const showPaymentDetails = (invoiceSettings?.show_payment_details ?? false) && !isQuotationSaleType(sale_type);
   // Quotations / proformas print their own terms when theirs are switched on.
   const termsConditionsText = resolveTermsForSaleType(invoiceSettings, sale_type);
   const showTermsConditions = termsConditionsText !== "";

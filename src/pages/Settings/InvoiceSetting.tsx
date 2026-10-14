@@ -1197,64 +1197,69 @@ export default function InvoiceSetting() {
 
             <Divider sx={{ borderColor: "#f4f5f8" }} />
 
-            {/* Copy types are a multi-select, not a switch — the row's own
-                layout is used instead of SettingRow so the chips can run the
-                full width under the label rather than squeeze into its
-                right-hand control slot. */}
-            <Box sx={{ py: 2 }}>
-              <Stack direction="row" spacing={2} alignItems="flex-start">
-                <Box
-                  sx={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 1.5,
-                    bgcolor: "#eef4ff",
-                    color: "#2563eb",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
-                >
-                  <ContentCopyOutlinedIcon fontSize="small" />
-                </Box>
-                <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText }}>
-                    Invoice Copy Types
-                  </Typography>
-                  <Typography sx={{ fontSize: 12, color: subtleText, mt: 0.3, mb: 1.5 }}>
-                    Copies offered in the Download and Print menus. The first one prints on a direct click.
-                  </Typography>
+            {/* A quotation is never printed in copies (see invoiceCopyTypesForSale). */}
+            {docType !== "quotation" && (
+              <>
+              {/* Copy types are a multi-select, not a switch — the row's own
+                  layout is used instead of SettingRow so the chips can run the
+                  full width under the label rather than squeeze into its
+                  right-hand control slot. */}
+              <Box sx={{ py: 2 }}>
+                <Stack direction="row" spacing={2} alignItems="flex-start">
                   <Box
                     sx={{
-                      display: "grid",
-                      gridTemplateColumns: { xs: "1fr", sm: "repeat(auto-fit, minmax(190px, 1fr))" },
-                      gap: 1.5,
+                      width: 40,
+                      height: 40,
+                      borderRadius: 1.5,
+                      bgcolor: "#eef4ff",
+                      color: "#2563eb",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
                     }}
                   >
-                    {INVOICE_COPY_TYPE_LABELS.map((option) => {
-                      const selected = settings.invoiceCopyTypes.includes(option);
-                      return (
-                        <SelectableTypeCard
-                          key={option}
-                          label={option}
-                          caption={COPY_TYPE_CAPTIONS[option]}
-                          icon={COPY_TYPE_ICONS[option]}
-                          selected={selected}
-                          // The last remaining copy can't be turned off — the
-                          // Download/Print menus need something to offer, and
-                          // the server rejects an empty list.
-                          disabled={selected && settings.invoiceCopyTypes.length === 1}
-                          onSelect={() => toggleCopyType(option)}
-                        />
-                      );
-                    })}
+                    <ContentCopyOutlinedIcon fontSize="small" />
                   </Box>
-                </Box>
-              </Stack>
-            </Box>
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography sx={{ fontSize: 14, fontWeight: 700, color: headingText }}>
+                      Invoice Copy Types
+                    </Typography>
+                    <Typography sx={{ fontSize: 12, color: subtleText, mt: 0.3, mb: 1.5 }}>
+                      Copies offered in the Download and Print menus. The first one prints on a direct click.
+                    </Typography>
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: { xs: "1fr", sm: "repeat(auto-fit, minmax(190px, 1fr))" },
+                        gap: 1.5,
+                      }}
+                    >
+                      {INVOICE_COPY_TYPE_LABELS.map((option) => {
+                        const selected = settings.invoiceCopyTypes.includes(option);
+                        return (
+                          <SelectableTypeCard
+                            key={option}
+                            label={option}
+                            caption={COPY_TYPE_CAPTIONS[option]}
+                            icon={COPY_TYPE_ICONS[option]}
+                            selected={selected}
+                            // The last remaining copy can't be turned off — the
+                            // Download/Print menus need something to offer, and
+                            // the server rejects an empty list.
+                            disabled={selected && settings.invoiceCopyTypes.length === 1}
+                            onSelect={() => toggleCopyType(option)}
+                          />
+                        );
+                      })}
+                    </Box>
+                  </Box>
+                </Stack>
+              </Box>
 
-            <Divider sx={{ borderColor: "#f4f5f8" }} />
+              <Divider sx={{ borderColor: "#f4f5f8" }} />
+              </>
+            )}
 
             <SettingRow
               icon={<ReceiptLongOutlinedIcon fontSize="small" />}
@@ -1277,26 +1282,31 @@ export default function InvoiceSetting() {
 
             <Divider sx={{ borderColor: "#f4f5f8" }} />
 
-            <SettingRow
-              icon={<AccountBalanceWalletOutlinedIcon fontSize="small" />}
-              iconBg="#faf5ff"
-              iconColor="#7c3aed"
-              label="Payment Details"
-              description="Show payment mode and status on the invoice"
-            >
-              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                <Switch
-                  checked={settings.showPaymentDetails}
-                  onChange={(e) => update("showPaymentDetails", e.target.checked)}
-                  sx={{
-                    "& .MuiSwitch-switchBase.Mui-checked": { color: redTint },
-                    "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: redTint },
-                  }}
-                />
-              </Box>
-            </SettingRow>
+            {/* A quotation takes no payment, so its templates never show payment details. */}
+            {docType !== "quotation" && (
+              <>
+              <SettingRow
+                icon={<AccountBalanceWalletOutlinedIcon fontSize="small" />}
+                iconBg="#faf5ff"
+                iconColor="#7c3aed"
+                label="Payment Details"
+                description="Show payment mode and status on the invoice"
+              >
+                <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                  <Switch
+                    checked={settings.showPaymentDetails}
+                    onChange={(e) => update("showPaymentDetails", e.target.checked)}
+                    sx={{
+                      "& .MuiSwitch-switchBase.Mui-checked": { color: redTint },
+                      "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: redTint },
+                    }}
+                  />
+                </Box>
+              </SettingRow>
 
-            <Divider sx={{ borderColor: "#f4f5f8" }} />
+              <Divider sx={{ borderColor: "#f4f5f8" }} />
+              </>
+            )}
 
             <SettingRow
               icon={<BorderColorOutlinedIcon fontSize="small" />}

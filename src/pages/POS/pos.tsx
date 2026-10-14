@@ -35,6 +35,7 @@ import SaveIcon               from "@mui/icons-material/Save";
 import PrintOutlinedIcon      from "@mui/icons-material/PrintOutlined";
 import QrCodeScannerIcon      from "@mui/icons-material/QrCodeScanner";
 import AddIcon                from "@mui/icons-material/Add";
+import HistoryIcon            from "@mui/icons-material/History";
 import AddCircleOutlineIcon   from "@mui/icons-material/AddCircleOutline";
 import RemoveIcon             from "@mui/icons-material/Remove";
 import PlayArrowIcon          from "@mui/icons-material/PlayArrow";
@@ -63,7 +64,7 @@ import { renderPaginatedInvoicePdf } from "@utils/pdfPagination";
 import { setUnsavedWork } from "@utils/appUpdate";
 import { SALE_DEPENDENT_KEYS, publishSaleSaved } from "@utils/dataSync";
 import { numberToWords } from "@utils/numberToWords";
-import { useLocation }        from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import CustomerLedgerDialog   from "../Customer/CustomerLedgerDialog";
 import AddNewCustomerDialog   from "@pages/Customer/Addnewcustomerdialog";
 import AddItemModal           from "../MenuItemScreen/AddItemModal";
@@ -508,6 +509,7 @@ function RetailPOSInner() {
   const forceRefresh = useForceRefreshProducts(branchId, zoduId);
 
   const location        = useLocation();
+  const navigate        = useNavigate();
   const query           = new URLSearchParams(location.search);
   // Reopening a saved document: the list links here with its sale_uuid, which
   // is what the detail endpoint takes. (Old `?saleId=INV-228` links are ignored
@@ -563,6 +565,8 @@ function RetailPOSInner() {
   // The number an already-saved document carries, shown read-only when one is
   // reopened for editing — the update endpoint cannot renumber a sale.
   const [loadedSaleNo,   setLoadedSaleNo]   = useState("");
+  // The tab the reopened document was saved under, so converting it can be told apart from editing it.
+  const [loadedSaleMode, setLoadedSaleMode] = useState<PosMode | null>(null);
   const [orderNote,      setOrderNote]      = useState("");
   const [customer,       setCustomer]       = useState<Customer>(EMPTY_CUSTOMER);
   const [selectedApiCustomer, setSelectedApiCustomer] = useState<CustomerEditDetails | null>(null);
@@ -584,8 +588,10 @@ function RetailPOSInner() {
   const [flashRow,       setFlashRow]       = useState<string | null>(null);
   const [saleId,         setSaleId]         = useState<string | null>(null);
   // Billing role access: creating a document needs create, re-saving a loaded one needs edit
-  const { canCreate: canCreateBill, canEdit: canEditBill } = useModulePermission("Billing");
-  const canSave = saleId ? canEditBill : canCreateBill;
+  const { canCreate: canCreateBill } = useModulePermission("Billing");
+  // Editing a saved document is granted under Sales History (Roles offer Billing only
+  // Read/Create) — the same permission that shows the edit button that opens it here.
+  const { canEdit: canEditBill } = useModulePermission("Sales History");
   // Adding/editing a customer from the billing screen follows the Customer Management role access
   const { canCreate: canCreateCustomer, canEdit: canEditCustomer } = useModulePermission("Customer Management");
 
@@ -689,7 +695,14 @@ const {
   // advances the counter, so a sale abandoned mid-cart burns nothing, and
   // another till on the same branch may take this number first. That is why it
   // is labelled "Next", and why it is refetched after every save.
-  const { data: docSequence } = useDocSequence(DOC_TYPE_BY_POS_MODE[posMode], !saleId);
+  // Saving a reopened quotation as an invoice issues it a fresh invoice number
+  // (the update endpoint numbers it from the invoice counter), so for that case
+  // the row forecasts the next invoice number instead of showing the quotation's.
+  const isConvertingQuotation = !!saleId && loadedSaleMode === "QUOTATION" && posMode === "SALE";
+  // Re-saving a loaded document needs Sales History edit access — except converting a
+  // quotation, which issues a brand-new invoice and so needs create access.
+  const canSave = saleId && !isConvertingQuotation ? canEditBill : canCreateBill;
+  const { data: docSequence } = useDocSequence(DOC_TYPE_BY_POS_MODE[posMode], !saleId || isConvertingQuotation);
 
   /**
    * The prefix and suffix the active tab numbers under. Each sale type has its
@@ -790,7 +803,8 @@ const {
 
   /**
    * What the number row shows:
-   *   editing a saved sale → its own id, read-only
+   *   editing a saved sale → its own id, read-only (except a quotation being
+   *                          converted, which forecasts its new invoice id below)
    *   mid-edit             → the bare digits being typed, since the field only
    *                          accepts the running number
    *   edited, done         → those digits dressed in the tab's prefix and
@@ -798,7 +812,7 @@ const {
    *                          way as an auto-numbered one
    *   otherwise            → the counter's next id, e.g. "INV/228"
    */
-  const displayInvoiceNo = saleId
+  const displayInvoiceNo = saleId && !isConvertingQuotation
     ? loadedSaleNo
     : invoiceNoEditing ? invoiceNo
     : invoiceNoTouched ? (overridePreview || invoiceNo)
@@ -828,6 +842,8 @@ const {
   const [saveResult, setSaveResult] = useState<{
     open: boolean; success: boolean; message: string;
     invoiceNo?: string; grandTotal?: number; change?: number; saleId?: string;
+    /** Where closing the dialog goes — a quotation converted from Sales History returns there. */
+    returnTo?: string;
   } | null>(null);
 
   const codeRef           = useRef<HTMLInputElement>(null);
@@ -851,6 +867,23 @@ const {
   const customerSuggestionListRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => { forceRefresh(); }, []);
+
+  /** A catalogue item's uuid by its item_id ("" when the catalogue has no such item). */
+  const catalogueUuid = useCallback(
+    (code: string) => allProducts.find(p => p.item_id === code)?.item_uuid ?? "",
+    [allProducts],
+  );
+
+  // Lines loaded from a saved sale take their uuid from the detail endpoint's catalogue
+  // join, which can come back null; fill those in once the catalogue is available.
+  // Only updates when a missing uuid can actually be resolved, so it never loops.
+  const hasUnlinkedLine = items.some(i => !i.uuid);
+  useEffect(() => {
+    if (!hasUnlinkedLine || !allProducts.length) return;
+    setItems(prev => (prev.some(i => !i.uuid && catalogueUuid(i.code))
+      ? prev.map(i => (i.uuid ? i : { ...i, uuid: catalogueUuid(i.code) }))
+      : prev));
+  }, [hasUnlinkedLine, items.length, allProducts, catalogueUuid]);
   useEffect(() => { codeRef.current?.focus(); }, []);
   useEffect(() => {
     setSaleId(saleUuidFromUrl);
@@ -1097,7 +1130,7 @@ useLayoutEffect(() => {
         const gstPct       = Number(i.gst_percentage) || 0;
         const taxInclusive = Boolean(i.tax_inclusive);
         const unitPrice    = taxInclusive && gstPct > 0 ? grossPrice / (1 + gstPct / 100) : grossPrice;
-        return { code: i.item_id, description: i.item_name, qty: Number(i.quantity), unitPrice, sellPrice: grossPrice, gstPct, taxInclusive, uuid: i.item_uuid, hsn: i.hsn_code ?? "", mrp: Number(i.mrp || 0), unit: i.unit || "NOS", discount: Number(i.discount || 0), discountPct: Number(i.discount_percentage || 0), itemDescription: i.description ?? "" };
+        return { code: i.item_id, description: i.item_name, qty: Number(i.quantity), unitPrice, sellPrice: grossPrice, gstPct, taxInclusive, uuid: i.item_uuid || catalogueUuid(i.item_id), hsn: i.hsn_code ?? "", mrp: Number(i.mrp || 0), unit: i.unit || "NOS", discount: Number(i.discount || 0), discountPct: Number(i.discount_percentage || 0), itemDescription: i.description ?? "" };
       }));
       if (data.customer) {
         const c = data.customer;
@@ -1143,8 +1176,17 @@ useLayoutEffect(() => {
       // forecast of the next one. It is not an override: renumbering an
       // existing sale is not something the update endpoint supports.
       setLoadedSaleNo(sale.sale_id || "");
-      setInvoiceDate(formatDateForInput(sale.sale_date_fmt));
-      setDueDate(formatDateForInput(sale.due_date_fmt || sale.due_date || ""));
+      setLoadedSaleMode(saleTypeToPosMode(sale.sale_type));
+      if (convertToInvoice && isQuotationSaleType(sale.sale_type)) {
+        // The invoice is issued now, not on the quotation's date: start from
+        // today (the cashier can still pick another date) and run the due date from it.
+        const today = todayStr();
+        setInvoiceDate(today);
+        setDueDate(invoiceSettings ? addDaysToDate(today, invoiceSettings.invoice_due_days || 0) : "");
+      } else {
+        setInvoiceDate(formatDateForInput(sale.sale_date_fmt));
+        setDueDate(formatDateForInput(sale.due_date_fmt || sale.due_date || ""));
+      }
     };
     loadSale();
   }, [saleId]);
@@ -1173,7 +1215,7 @@ useLayoutEffect(() => {
   const handleClear = useCallback(() => {
     setItems([]); setDiscount("0"); setDiscountPct("0"); setReferenceNo(""); setVehicleNo("");
     setPoNumber(""); setPoDate("");
-    setInvoiceNo(""); setInvoiceNoTouched(false); setInvoiceNoEditing(false); setLoadedSaleNo("");
+    setInvoiceNo(""); setInvoiceNoTouched(false); setInvoiceNoEditing(false); setLoadedSaleNo(""); setLoadedSaleMode(null);
     setReceivedAmount(""); setCodeInput(""); setActiveRowIdx(-1); setOrderNote("");
     const freshInvoiceDate = todayStr();
     setInvoiceDate(freshInvoiceDate);
@@ -1204,7 +1246,7 @@ console.log("test",serverHolds)
         ? Number(i.price) / (1 + i.gst_percentage / 100)
         : Number(i.price),
       sellPrice:   Number(i.price),
-      uuid:        i.item_uuid ?? i.item_id,
+      uuid:        i.item_uuid ?? "",
       hsn:         i.hsn_code ?? "",
       mrp:         Number(i.mrp),
       gstPct:      Number(i.gst_percentage),
@@ -1425,15 +1467,17 @@ console.log("test",serverHolds)
   }, [clearCustomerResults]);
 
   const handleCloseSaveResult = useCallback(() => {
+    const returnTo = saveResult?.returnTo;
     setSaveResult(null);
     setSavedOrderSnapshot(null);
-  }, []);
+    if (returnTo) navigate(returnTo);
+  }, [saveResult?.returnTo, navigate]);
 
   const handleSave = useCallback(async () => {
     if (!runIfSubscribed()) return;
     if (!canSave) {
       setToastSeverity('error');
-      setScanMsg(`You don't have permission to ${saleId ? "edit" : "create"} invoices`);
+      setScanMsg(`You don't have permission to ${saleId && !isConvertingQuotation ? "edit" : "create"} invoices`);
       return;
     }
     if (items.length === 0 || saving) return;
@@ -1447,7 +1491,21 @@ console.log("test",serverHolds)
     const savedVehicleNo = showVehicleNo ? vehicleNo : "";
     // With the description field hidden, the catalogue's default description
     // (prefilled on each line) must not ride along onto the document unseen.
-    const savedItems = showItemDescription ? items : items.map(i => ({ ...i, itemDescription: "" }));
+    // Every line must name its catalogue item by uuid. A reopened sale's lines get it from
+    // the detail endpoint's catalogue join, so fill any gap from the cached catalogue.
+    const savedItems = items.map(i => ({
+      ...i,
+      uuid: i.uuid || catalogueUuid(i.code),
+      ...(!showItemDescription && { itemDescription: "" }),
+    }));
+    const unlinked = savedItems.filter(i => !i.uuid);
+    if (unlinked.length) {
+      setSaveResult({
+        open: true, success: false,
+        message: `${unlinked.map(i => i.description || i.code).join(", ")} ${unlinked.length > 1 ? "are" : "is"} no longer in your product list. Remove ${unlinked.length > 1 ? "them" : "it"} from the bill, or add the product back, before saving.`,
+      });
+      return;
+    }
     // Same reasoning as the vehicle number above: with the PO fields hidden,
     // nothing typed before the toggle was turned off belongs on the document.
     const savedPoNumber  = showPurchaseOrder ? poNumber.trim() : "";
@@ -1486,14 +1544,18 @@ console.log("test",serverHolds)
         poDate: savedPoDate,
         descriptions: Object.fromEntries(savedItems.map(i => [i.code, i.itemDescription || ""])),
       });
-      setSaveResult({ open: true, success: true, message: result.message, grandTotal: totalAmt, change, saleId: savedSaleId });
+      setSaveResult({
+        open: true, success: true, message: result.message, grandTotal: totalAmt, change, saleId: savedSaleId,
+        // Converting was started from Sales History, so once this dialog (and any print) is done, go back there.
+        ...(isConvertingQuotation && { returnTo: "/sales-history" }),
+      });
       if (printEnabled) console.log("🖨 Printing invoice");
       handleClear();
     } else {
       setSavedOrderSnapshot(null);
       setSaveResult({ open: true, success: false, message: result.message });
     }
-  }, [items, customer, invoiceDate, dueDate, hasBalanceDue, discountPct, discount, gstMode, roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo, showVehicleNo, showItemDescription, invoiceNoOverride, displayInvoiceNo, overridePreview, poNumber, poDate, showPurchaseOrder, printEnabled, saving, canSave, saveOrder, updateOrder, handleClear, saleId, loadedSaleNo, invoiceSettings, queryClient]);
+  }, [items, customer, invoiceDate, dueDate, hasBalanceDue, discountPct, discount, gstMode, roundoffValue, posMode, receivedAmount, paymentType, referenceNo, vehicleNo, showVehicleNo, showItemDescription, invoiceNoOverride, displayInvoiceNo, overridePreview, poNumber, poDate, showPurchaseOrder, printEnabled, saving, canSave, saveOrder, updateOrder, handleClear, saleId, loadedSaleNo, invoiceSettings, queryClient, catalogueUuid, isConvertingQuotation]);
 
   const handleThermalPrint = useCallback(async (copies: string[] = []) => {
     if (!thermalRef.current) return;
@@ -3211,9 +3273,9 @@ console.log("test",serverHolds)
                     </span>
                   </Tooltip>
                 )}
-                <Button variant="contained" onClick={handleCloseSaveResult} startIcon={<AddIcon />}
+                <Button variant="contained" onClick={handleCloseSaveResult} startIcon={saveResult?.returnTo ? <HistoryIcon /> : <AddIcon />}
                   sx={{ bgcolor: "#16A34A", "&:hover": { bgcolor: "#15803D" }, borderRadius: 2, fontWeight: 700, flex: "1.4 1 0", whiteSpace: "nowrap", textTransform: "none" }} autoFocus>
-                  New Sale
+                  {saveResult?.returnTo ? "Sales History" : "New Sale"}
                 </Button>
               </DialogActions>
             </>

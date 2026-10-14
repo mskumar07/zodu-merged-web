@@ -7,8 +7,23 @@ import jsPDF from "jspdf";
 // sliced across a page boundary with [data-pdf-keep-together], and an optional
 // page footer with [data-pdf-page-footer] — taken out of the content flow and
 // pinned to the bottom of every page instead of following the last line.
-export const PDF_CAPTURE_SCALE = 1.6;
-export const PDF_IMAGE_QUALITY = 0.72;
+// Pages are captured at ~3× (about 290 dpi on A4) and stored losslessly (PNG).
+// The old 1.6× JPEG (~150 dpi, quality 0.72) blurred and blocked up the edges
+// of regular-weight text, so printed copies looked pixelated — only bold text
+// was thick enough to stay legible.
+export const PDF_CAPTURE_SCALE = 3;
+// The pixel thresholds below were tuned on a 1.6× capture; they are scaled to
+// the actual capture so page breaks land exactly where they always did.
+const PDF_BASE_SCALE = 1.6;
+// Browsers refuse canvases much taller than ~32k px, so a very long invoice is
+// captured a little less sharply rather than not at all.
+const PDF_MAX_CANVAS_PX = 30000;
+
+/** The capture scale for `container`: PDF_CAPTURE_SCALE, unless that would exceed the canvas limit. */
+function captureScaleFor(container: HTMLElement): number {
+  const height = Math.max(container.scrollHeight, container.getBoundingClientRect().height, 1);
+  return Math.max(1, Math.min(PDF_CAPTURE_SCALE, PDF_MAX_CANVAS_PX / height));
+}
 const PDF_HEADER_GAP_MM = 4;
 // Gap between the repeated column header and the first continued table row.
 const PDF_THEAD_GAP_MM = 1.5;
@@ -173,7 +188,7 @@ function cropCanvasBand(
 }
 
 // ── Sharp images ─────────────────────────────────────────────────────
-// The page is captured as a 1.6× JPEG — fine for text, but an image such as a
+// The page is captured as a ~3× bitmap — fine for text, but an image such as a
 // logo is fine detail (small lettering, curved edges) and came out soft and
 // blotchy. So each <img> is left out of that capture and drawn into the PDF on
 // its own, from the uploaded file, as a PNG.
@@ -254,6 +269,7 @@ async function renderImageBox(
 async function collectImageOverlays(
   container: HTMLElement,
   containerRect: DOMRect,
+  scale: number,
 ): Promise<Map<number, ImageOverlay>> {
   const overlays = new Map<number, ImageOverlay>();
   const jobs = Array.from(container.querySelectorAll("img"), (el, index) => {
@@ -266,10 +282,10 @@ async function collectImageOverlays(
     return renderImageBox(el.currentSrc || el.src, fit, rect.width, rect.height).then((canvas) => {
       if (!canvas) return;
       overlays.set(index, {
-        left: (rect.left - containerRect.left) * PDF_CAPTURE_SCALE,
-        top: (rect.top - containerRect.top) * PDF_CAPTURE_SCALE,
-        width: rect.width * PDF_CAPTURE_SCALE,
-        height: rect.height * PDF_CAPTURE_SCALE,
+        left: (rect.left - containerRect.left) * scale,
+        top: (rect.top - containerRect.top) * scale,
+        width: rect.width * scale,
+        height: rect.height * scale,
         canvas,
         dataUrl: canvas.toDataURL("image/png"),
         alias: `pdf-image-${++overlayAliasSeq}`,
@@ -371,6 +387,7 @@ function findSafeSliceHeight(
   sourceY: number,
   targetHeight: number,
   minHeight: number,
+  searchPx: number,
 ): number {
   const context = canvas.getContext("2d");
   if (!context) {
@@ -395,7 +412,7 @@ function findSafeSliceHeight(
   // back a slice taller than the page can hold, and jsPDF clips that overflow
   // at the sheet edge — slicing whatever row straddles the boundary in half.
   const searchEnd = Math.min(idealEnd, canvas.height - 1);
-  const searchStart = Math.max(sourceY + minHeight, idealEnd - PDF_BREAK_SEARCH_PX);
+  const searchStart = Math.max(sourceY + minHeight, idealEnd - searchPx);
 
   for (let row = searchEnd; row >= searchStart; row -= 1) {
     if (isCanvasRowBlank(pixels, canvas.width, row)) {
@@ -432,8 +449,11 @@ export async function renderPaginatedInvoicePdf(
 
   // Measure positions BEFORE html2canvas — DOM layout must still be intact
   const containerRect = container.getBoundingClientRect();
+  const scale = captureScaleFor(container);
+  /** A threshold tuned at PDF_BASE_SCALE, in this capture's pixels. */
+  const atScale = (px: number) => Math.round((px * scale) / PDF_BASE_SCALE);
   const toCanvasY = (clientY: number) =>
-    Math.round((clientY - containerRect.top) * PDF_CAPTURE_SCALE);
+    Math.round((clientY - containerRect.top) * scale);
 
   const keepTogetherRanges = keepTogetherEls.map((el) => {
     const elRect = el.getBoundingClientRect();
@@ -469,7 +489,7 @@ export async function renderPaginatedInvoicePdf(
 
   // Images go into the PDF on their own, sharp — measured here with the rest of
   // the layout, never split by a page break, and left out of the capture.
-  const overlays = await collectImageOverlays(container, containerRect);
+  const overlays = await collectImageOverlays(container, containerRect, scale);
   const watermark = await collectWatermark(container);
   const watermarkAlias = `pdf-watermark-${++overlayAliasSeq}`;
   for (const o of overlays.values()) {
@@ -479,7 +499,7 @@ export async function renderPaginatedInvoicePdf(
     hasPageFooter && o.top >= footerTopPx ? 0 : Math.ceil(o.top + o.height)));
 
   const capturedCanvas = await html2canvas(container, {
-    scale: PDF_CAPTURE_SCALE,
+    scale,
     useCORS: true,
     backgroundColor: "#ffffff",
     logging: false,
@@ -505,7 +525,7 @@ export async function renderPaginatedInvoicePdf(
     const headerBand = cropCanvasBand(canvas, 0, Math.max(1, toCanvasY(dividerBottom)));
     if (headerBand) {
       headerHeightPx = headerBand.height;
-      headerImgData = headerBand.toDataURL("image/jpeg", PDF_IMAGE_QUALITY);
+      headerImgData = headerBand.toDataURL("image/png");
     }
   }
 
@@ -516,7 +536,7 @@ export async function renderPaginatedInvoicePdf(
     const theadBand = cropCanvasBand(canvas, theadTopPx, theadBottomPx);
     if (theadBand) {
       theadHeightPx = theadBand.height;
-      theadImgData = theadBand.toDataURL("image/jpeg", PDF_IMAGE_QUALITY);
+      theadImgData = theadBand.toDataURL("image/png");
     }
   }
 
@@ -534,7 +554,7 @@ export async function renderPaginatedInvoicePdf(
   const pageBottomGapPx = Math.max(0, Math.round(PDF_PAGE_BOTTOM_GAP_MM * pxPerMm));
   const footerHeightMm = footerBand ? toMm(footerBand.height) : 0;
   const footerYMm = pageHeight - PDF_FOOTER_BOTTOM_MARGIN_MM - footerHeightMm;
-  const footerImgData = footerBand ? footerBand.toDataURL("image/jpeg", PDF_IMAGE_QUALITY) : null;
+  const footerImgData = footerBand ? footerBand.toDataURL("image/png") : null;
   // Content stops short of the footer on every page (or the usual bottom gap
   // when there is no footer).
   const renderedPageHeightPx = Math.max(
@@ -546,14 +566,14 @@ export async function renderPaginatedInvoicePdf(
   /** Stamps the page footer (and its logo) at the bottom of the current page. */
   const drawPageFooter = () => {
     if (!footerBand || !footerImgData) return;
-    pdf.addImage(footerImgData, "JPEG", 0, footerYMm, pageWidth, footerHeightMm, undefined, "MEDIUM");
+    pdf.addImage(footerImgData, "PNG", 0, footerYMm, pageWidth, footerHeightMm, undefined, "FAST");
     drawImageOverlays(pdf, overlays, footerTopPx, footerBottomPx, 0, footerYMm, 1 / pxPerMm);
   };
   /** Stamps the watermark centred on the current page, over the content (it is pre-faded). */
   const drawWatermark = () => {
     if (!watermark) return;
-    const widthMm = toMm(watermark.width * PDF_CAPTURE_SCALE);
-    const heightMm = toMm(watermark.height * PDF_CAPTURE_SCALE);
+    const widthMm = toMm(watermark.width * scale);
+    const heightMm = toMm(watermark.height * scale);
     pdf.addImage(
       watermark.dataUrl, "PNG",
       (pageWidth - widthMm) / 2, (pageHeight - heightMm) / 2,
@@ -580,20 +600,20 @@ export async function renderPaginatedInvoicePdf(
     const fitScale = renderedPageHeightPx / canvas.height;
     const imgWidthMm = pageWidth * fitScale;
     const imgHeightMm = toMm(canvas.height) * fitScale;
-    const imgData = canvas.toDataURL("image/jpeg", PDF_IMAGE_QUALITY);
+    const imgData = canvas.toDataURL("image/png");
 
     if (appendTo) {
       pdf.addPage();
     }
     pdf.addImage(
       imgData,
-      "JPEG",
+      "PNG",
       (pageWidth - imgWidthMm) / 2,
       0,
       imgWidthMm,
       imgHeightMm,
       undefined,
-      "MEDIUM",
+      "FAST",
     );
     drawImageOverlays(pdf, overlays, 0, canvas.height, (pageWidth - imgWidthMm) / 2, 0, fitScale / pxPerMm);
     drawPageFooter();
@@ -622,7 +642,8 @@ export async function renderPaginatedInvoicePdf(
       canvas,
       sourceY,
       targetSliceHeight,
-      Math.min(PDF_MIN_SLICE_HEIGHT_PX, targetSliceHeight),
+      Math.min(atScale(PDF_MIN_SLICE_HEIGHT_PX), targetSliceHeight),
+      atScale(PDF_BREAK_SEARCH_PX),
     );
 
     // If a keep-together section (a table row, the summary block, or the
@@ -632,7 +653,7 @@ export async function renderPaginatedInvoicePdf(
     // Only trigger when the section does NOT fully fit in the space
     // remaining after its start point — if it fits, let it stay as-is.
     for (const range of keepTogetherRanges) {
-      if (range.start > sourceY + PDF_MIN_SLICE_HEIGHT_PX &&
+      if (range.start > sourceY + atScale(PDF_MIN_SLICE_HEIGHT_PX) &&
           range.start < sourceY + sliceHeight) {
         // Clamp to canvas.height — range.end was measured on the live DOM
         // before capture, but trimCanvasBottom may have since shaved a few
@@ -642,7 +663,7 @@ export async function renderPaginatedInvoicePdf(
         // the canvas it must fit inside, so it always fails the fit check.
         const sectionHeight = Math.min(range.end, canvas.height) - range.start;
         const spaceAfterStart = sourceY + sliceHeight - range.start;
-        if (sectionHeight > spaceAfterStart + PDF_KEEP_TOGETHER_TOLERANCE_PX) {
+        if (sectionHeight > spaceAfterStart + atScale(PDF_KEEP_TOGETHER_TOLERANCE_PX)) {
           sliceHeight = range.start - sourceY;
         }
       }
@@ -653,7 +674,7 @@ export async function renderPaginatedInvoicePdf(
     }
 
     const remainingHeight = canvas.height - sourceY;
-    if (pageIndex > 0 && remainingHeight <= PDF_MIN_SLICE_HEIGHT_PX) {
+    if (pageIndex > 0 && remainingHeight <= atScale(PDF_MIN_SLICE_HEIGHT_PX)) {
       break;
     }
 
@@ -671,7 +692,7 @@ export async function renderPaginatedInvoicePdf(
       break;
     }
 
-    const imgData = trimmedPageCanvas.toDataURL("image/jpeg", PDF_IMAGE_QUALITY);
+    const imgData = trimmedPageCanvas.toDataURL("image/png");
     const sliceHeightMm = toMm(trimmedPageCanvas.height);
 
     // Appending into an existing document needs a page break before its first
@@ -682,25 +703,25 @@ export async function renderPaginatedInvoicePdf(
 
     let cursorMm = 0;
     if (!isFirstPage && headerImgData) {
-      pdf.addImage(headerImgData, "JPEG", 0, 0, pageWidth, headerHeightMm, undefined, "MEDIUM");
+      pdf.addImage(headerImgData, "PNG", 0, 0, pageWidth, headerHeightMm, undefined, "FAST");
       drawImageOverlays(pdf, overlays, 0, headerHeightPx, 0, 0, 1 / pxPerMm);
       cursorMm = headerOverheadMm;
     }
 
     if (repeatThead && theadImgData) {
-      pdf.addImage(theadImgData, "JPEG", 0, cursorMm, pageWidth, theadHeightMm, undefined, "MEDIUM");
+      pdf.addImage(theadImgData, "PNG", 0, cursorMm, pageWidth, theadHeightMm, undefined, "FAST");
       cursorMm += theadOverheadMm;
     }
 
     pdf.addImage(
       imgData,
-      "JPEG",
+      "PNG",
       0,
       cursorMm,
       pageWidth,
       sliceHeightMm,
       undefined,
-      "MEDIUM",
+      "FAST",
     );
     drawImageOverlays(pdf, overlays, sourceY, sourceY + sliceHeight, 0, cursorMm, 1 / pxPerMm);
     drawPageFooter();
@@ -726,9 +747,10 @@ export async function renderThermalReceiptPdf(
   printableMm: number,
   appendTo?: jsPDF | null,
 ): Promise<jsPDF> {
-  const overlays = await collectImageOverlays(container, container.getBoundingClientRect());
+  const scale = captureScaleFor(container);
+  const overlays = await collectImageOverlays(container, container.getBoundingClientRect(), scale);
   const canvas = await html2canvas(container, {
-    scale: PDF_CAPTURE_SCALE,
+    scale,
     useCORS: true,
     backgroundColor: "#ffffff",
     logging: false,
@@ -745,14 +767,14 @@ export async function renderThermalReceiptPdf(
     pdf.addPage(format, orientation);
   }
   pdf.addImage(
-    canvas.toDataURL("image/jpeg", PDF_IMAGE_QUALITY),
-    "JPEG",
+    canvas.toDataURL("image/png"),
+    "PNG",
     (rollMm - printableMm) / 2,
     0,
     printableMm,
     heightMm,
     undefined,
-    "MEDIUM",
+    "FAST",
   );
   drawImageOverlays(pdf, overlays, 0, canvas.height, (rollMm - printableMm) / 2, 0, printableMm / canvas.width);
   return pdf;
