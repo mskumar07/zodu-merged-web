@@ -118,28 +118,51 @@ export interface AdjustStockResponse {
 }
 
 export interface StockHistoryItem {
-  ledger_id: string;
+  ledger_id: string | number;
   transaction_type: string;
+  reference_id: string | null;
   qty_change: string;
   stock_before: string;
   stock_after: string;
   notes: string | null;
+  /** Pre-formatted by the server, e.g. "01 May 2026, 10:03 AM". */
   created_at: string;
+  movement_type?: string;
+  label?: string;
+}
+
+export interface StockHistoryPagination {
+  page: number;
+  limit: number;
+  total: number;
+  total_pages: number;
 }
 
 export interface StockHistoryResponse {
   success: boolean;
+  /** null when the item is not in the inventory (the API still answers 200). */
   item: {
     item_uuid: string;
     item_id: string;
     item_name: string;
-  };
+    item_img?: string | null;
+  } | null;
   data: StockHistoryItem[];
+  pagination?: StockHistoryPagination;
   summary: {
-    current_stock: number;
-    low_stock_alert: number;
+    current_stock: number | string;
+    low_stock_alert: number | string;
     is_low: boolean;
-  };
+  } | null;
+}
+
+export interface StockHistoryParams {
+  page?: number;
+  limit?: number;
+  /** YYYY-MM-DD */
+  from_date?: string;
+  /** YYYY-MM-DD, inclusive of the whole day */
+  to_date?: string;
 }
 
 
@@ -384,24 +407,41 @@ export function useAdjustStock(options?: {
   });
 }
 
-async function fetchStockHistory(item_uuid: string): Promise<StockHistoryResponse> {
+async function fetchStockHistory(item_uuid: string, p: StockHistoryParams): Promise<StockHistoryResponse> {
   const { zoduId, branchId, businessType } = getTenantContext();
   const url = businessType === 'Restaurant'
     ? `/inventory/stock/history/${item_uuid}`
     : `/menu/stock/history/${item_uuid}`;
-  const { data } = await getApi().get<StockHistoryResponse | { success: boolean; data: StockHistoryResponse }>(url, {
-    params: { zodu_id: zoduId, branch_id: branchId },
+  // Retail and Restaurant now share one flat shape:
+  // { success, pagination, item, data: [...], summary }
+  const { data } = await getApi().get<StockHistoryResponse>(url, {
+    params: {
+      zodu_id: zoduId,
+      branch_id: branchId,
+      page: p.page,
+      limit: p.limit,
+      from_date: p.from_date || undefined,
+      to_date: p.to_date || undefined,
+    },
   });
-  // Restaurant returns the payload at the top level; Retail wraps it under { data: ... }
-  return ('item' in data ? data : (data as { data: StockHistoryResponse }).data) as StockHistoryResponse;
+  return data;
 }
 
 // ─── Hook ─────────────────────────────────────────
-export function useStockHistory(item_uuid: string | null) {
-  return useQuery({
-    queryKey: ['stock-history', item_uuid],
-    queryFn: () => fetchStockHistory(item_uuid!),
+/** Infinite-scroll stock ledger: each fetchNextPage() appends the next server page. */
+export function useStockHistory(item_uuid: string | null, params: Omit<StockHistoryParams, 'page'> = {}) {
+  const { limit = 30, from_date = '', to_date = '' } = params;
+  return useInfiniteQuery({
+    queryKey: ['stock-history', item_uuid, limit, from_date, to_date],
+    queryFn: ({ pageParam }) => fetchStockHistory(item_uuid!, { page: pageParam, limit, from_date, to_date }),
+    initialPageParam: 1,
+    getNextPageParam: (last) => {
+      const pg = last.pagination;
+      return pg && pg.page < pg.total_pages ? pg.page + 1 : undefined;
+    },
     enabled: !!item_uuid,
     staleTime: 60 * 1000,
+    // Keep the current rows on screen while a new date range loads.
+    placeholderData: keepPreviousData,
   });
 }

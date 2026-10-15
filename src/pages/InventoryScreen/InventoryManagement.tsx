@@ -219,7 +219,7 @@ const handleCloseHistory = () => {
   // ── Table columns ──────────────────────────────────────────
   const columns = useMemo<ColumnDef<InventoryItem & { _raw: InventoryItem }>[]>(() => [
     {
-      key: 'item_id', label: 'Item ID',
+      key: 'item_id', label: 'Item ID', width: 160,
       render: (r) => (
       <Typography
   variant="body2"
@@ -236,7 +236,7 @@ const handleCloseHistory = () => {
       ),
     },
     {
-      key: 'item_name', label: 'Item Name', minWidth: 220,
+      key: 'item_name', label: 'Item Name', width: 320,
       render: (r) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           {r.item_img ? (
@@ -259,7 +259,7 @@ const handleCloseHistory = () => {
       ),
     },
     {
-      key: 'available_qty', label: 'Stock', align: 'center',
+      key: 'available_qty', label: 'Stock', align: 'center', width: 80,
       render: (r) => {
         const qty = Number(r.available_qty);
         const isLow = r.stock_status === 'low_stock';
@@ -273,7 +273,7 @@ const handleCloseHistory = () => {
       },
     },
     {
-      key: 'reorder_level', label: 'Low Level', align: 'center',
+      key: 'reorder_level', label: 'Low Level', align: 'center', width: 80,
       render: (r) => (
         <Typography variant="body2" sx={{ fontSize: 13, color: TABLE_TEXT_COLOR }}>
           {Number(r?.reorder_level)} {r?.unit_short_name ?? ''}
@@ -281,11 +281,11 @@ const handleCloseHistory = () => {
       ),
     },
     {
-      key: 'stock_status', label: 'Status',
+      key: 'stock_status', label: 'Status', width: 100,
       render: (r) => <StatusBadge status={r.stock_status} />,
     },
     {
-      key: 'sell_price', label: 'Price', align: 'right',
+      key: 'sell_price', label: 'Price', align: 'right', width: 100,
       render: (r) => (
         <Typography variant="body2" sx={{ fontSize: 13, color: TABLE_TEXT_COLOR }}>
           {r?.purchase_price ? formatINR(Number(r?.purchase_price)) : '—'}
@@ -293,7 +293,7 @@ const handleCloseHistory = () => {
       ),
     },
     {
-      key: 'stock_value', label: 'Value', align: 'right',
+      key: 'stock_value', label: 'Value', align: 'right', width: 110,
       render: (r) => (
         <Typography variant="body2" fontWeight={600} sx={{ fontSize: 13, color: TABLE_TEXT_COLOR }}>
           {formatINR(Number(r?.stock_value))}
@@ -301,7 +301,7 @@ const handleCloseHistory = () => {
       ),
     },
     {
-      key: 'last_stock_update', label: 'Last Restock',
+      key: 'last_stock_update', label: 'Last Restock', width: 110,
       render: (r) => (
         <Typography variant="body2" sx={{ fontSize: 13, color: TABLE_TEXT_COLOR, whiteSpace: 'nowrap' }}>
           {r?.last_stock_update
@@ -311,7 +311,7 @@ const handleCloseHistory = () => {
       ),
     },
     {
-      key: 'actions', label: 'Actions', align: 'center',
+      key: 'actions', label: 'Actions', align: 'center', width: 120,
       render: (r) => (
         <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center', alignItems: 'center' }}>
           {/* <Tooltip title="Edit item">
@@ -522,6 +522,7 @@ const handleCloseHistory = () => {
             loadMoreRef={sentinelRef}
             tableContainerRef={tableContainerRef}
             maxHeight="100%"
+            fitWidth
             emptyMessage="No inventory items found."
           />
         )}

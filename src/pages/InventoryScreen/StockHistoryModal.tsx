@@ -2,13 +2,9 @@ import {
   Dialog,
   Box,
   Typography,
-  IconButton,
-  CircularProgress,
-  TextField,
-  Select,
-  MenuItem
+  IconButton
 } from "@mui/material";
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback, type ReactElement } from "react";
 import CloseIcon from "@mui/icons-material/Close";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
@@ -16,140 +12,180 @@ import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
 import DeleteIcon from "@mui/icons-material/Delete";
 import KeyboardReturnIcon from "@mui/icons-material/KeyboardReturn";
 import InventoryOutlinedIcon from "@mui/icons-material/InventoryOutlined";
-import { useStockHistory } from "./useInventoryApi";
-import DataTable from "@utils/DataTable";
+import { useStockHistory, type StockHistoryItem } from "./useInventoryapi";
+import DataTable, { type ColumnDef } from "@utils/DataTable";
 
+const PAGE_SIZE = 30;
+const MONTH_NAMES = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+
+// Static lookups live outside the component so they aren't rebuilt on every render.
+const TYPE_CONFIG: Record<string, { color: string; bg: string; icon: ReactElement | null }> = {
+  purchase: { color: "#16a34a", bg: "#ecfdf5", icon: <AddCircleIcon sx={{ fontSize: 14 }} /> },
+  sale: { color: "#dc2626", bg: "#fef2f2", icon: <RemoveCircleIcon sx={{ fontSize: 14 }} /> },
+  wastage: { color: "#ea580c", bg: "#fff7ed", icon: <DeleteIcon sx={{ fontSize: 14 }} /> },
+  return: { color: "#2563eb", bg: "#eff6ff", icon: <KeyboardReturnIcon sx={{ fontSize: 14 }} /> }
+};
+const DEFAULT_TYPE_CONFIG = { color: "#6b7280", bg: "#f3f4f6", icon: null };
+
+const getTypeConfig = (type?: string) => TYPE_CONFIG[type?.toLowerCase() ?? ""] ?? DEFAULT_TYPE_CONFIG;
+
+const getInitials = (name: string = "") =>
+  name.split(" ").slice(0, 2).map((word) => word[0]).join("").toUpperCase();
+
+// YYYY-MM-DD -> "29-JUL-2026"
+const formatDateDisplay = (dateString: string): string => {
+  if (!dateString) return "";
+  const [year, month, day] = dateString.split("-");
+  if (!year || !month || !day) return "";
+  return `${day}-${MONTH_NAMES[Number(month) - 1]}-${year}`;
+};
+
+// The API already sends "01 May 2026, 10:03 AM" — split it instead of re-parsing a Date per cell.
+const splitCreatedAt = (value?: string): [string, string] => {
+  if (!value) return ["-", ""];
+  const i = value.indexOf(",");
+  return i === -1 ? [value, ""] : [value.slice(0, i).trim(), value.slice(i + 1).trim()];
+};
+
+const COLUMNS: ColumnDef<StockHistoryItem>[] = [
+  {
+    label: "Date & Time",
+    key: "date",
+    width: "2.2fr",
+    render: (r) => {
+      const [date, time] = splitCreatedAt(r.created_at);
+      return (
+        <Box>
+          <Typography fontSize={13} fontWeight={600}>{date}</Typography>
+          <Typography fontSize={11} color="#9CA3AF">{time}</Typography>
+        </Box>
+      );
+    }
+  },
+  {
+    label: "Type",
+    key: "type",
+    width: "1.3fr",
+    align: "left",
+    render: (r) => {
+      const type = getTypeConfig(r.transaction_type);
+      return (
+        <Box
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.5,
+            px: 1,
+            py: "2px",
+            borderRadius: "999px",
+            fontSize: 10,
+            fontWeight: 700,
+            bgcolor: type.bg,
+            color: type.color,
+            width: "fit-content"
+          }}
+        >
+          {type.icon}
+          {r.transaction_type?.toUpperCase()}
+        </Box>
+      );
+    }
+  },
+  { label: "Reference ID", key: "reference", width: "2fr", render: (r) => r.reference_id || "-" },
+  {
+    label: "Qty Change",
+    key: "qty",
+    width: "1.3fr",
+    align: "right",
+    render: (r) => {
+      const qty = Number(r.qty_change);
+      return (
+        <Typography sx={{ color: qty > 0 ? "#16a34a" : "#dc2626", fontWeight: 600 }}>
+          {qty > 0 ? "+" : ""}
+          {qty.toFixed(2)}
+        </Typography>
+      );
+    }
+  },
+  { label: "Final Stock", key: "final", width: "1fr", align: "right", render: (r) => Number(r.stock_after).toFixed(2) }
+];
+
+const rowKey = (r: StockHistoryItem) => r.ledger_id;
+
+const dateBoxSx = {
+  position: "relative",
+  display: "flex",
+  alignItems: "center",
+  gap: 0.6,
+  minWidth: 130,
+  height: 33,
+  px: 1.25,
+  borderRadius: 1.5,
+  border: "1px solid #E5E7EB",
+  bgcolor: "#fff",
+  cursor: "pointer",
+  "&:hover": { borderColor: "#C8102E" }
+} as const;
+
+const hiddenDateInputStyle = { position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 } as const;
 
 export default function StockHistoryModal({ open, onClose, item }: any) {
-  const { data, isLoading } = useStockHistory(item?.item_uuid);
+  const itemUuid: string | null = item?.item_uuid ?? null;
 
-  const currentStock = data?.summary?.current_stock || 0;
-  const itemDetails = data?.item || item;
-
-  const [selectedType, setSelectedType] = useState<string>("");
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
   const fromDateInputRef = useRef<HTMLInputElement>(null);
   const toDateInputRef = useRef<HTMLInputElement>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLDivElement>;
+  const sentinelRef = useRef<HTMLTableRowElement>(null) as React.RefObject<HTMLTableRowElement>;
 
-  // Format YYYY-MM-DD -> "29-JUL-2026"
-  const formatDateDisplay = (dateString: string): string => {
-    if (!dateString) return "";
-    const [year, month, day] = dateString.split("-");
-    if (!year || !month || !day) return "";
-    const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
-    return `${day}-${monthNames[Number(month) - 1]}-${year}`;
-  };
-
-  const parseDate = (dateStr: string): Date | null => {
-    if (!dateStr) return null;
-    try {
-      const cleanedDate = dateStr.replace(",", "").trim();
-      const parsed = new Date(cleanedDate);
-      return isNaN(parsed.getTime()) ? null : parsed;
-    } catch {
-      return null;
-    }
-  };
-
-  const filteredRows = useMemo(() => {
-    const rows = Array.isArray(data?.data) ? data.data : [];
-
-    return rows.filter((row: any) => {
-      if (!row.created_at) return false;
-
-      if (
-        selectedType &&
-        row.transaction_type?.toLowerCase() !== selectedType.toLowerCase()
-      ) {
-        return false;
-      }
-
-      const rowDate = parseDate(row.created_at);
-      if (!rowDate) return false;
-
-      const from = fromDate ? new Date(fromDate) : null;
-      const to = toDate ? new Date(toDate) : null;
-
-      if (from && rowDate < from) return false;
-      if (to && rowDate > to) return false;
-
-      return true;
-    });
-  }, [data?.data, selectedType, fromDate, toDate]);
-
-  const getTypeConfig = (type: string) => {
-    const typeMap: Record<
-      string,
-      { color: string; bg: string; icon: JSX.Element }
-    > = {
-      purchase: {
-        color: "#16a34a",
-        bg: "#ecfdf5",
-        icon: <AddCircleIcon sx={{ fontSize: 14 }} />
-      },
-      sale: {
-        color: "#dc2626",
-        bg: "#fef2f2",
-        icon: <RemoveCircleIcon sx={{ fontSize: 14 }} />
-      },
-      wastage: {
-        color: "#ea580c",
-        bg: "#fff7ed",
-        icon: <DeleteIcon sx={{ fontSize: 14 }} />
-      },
-      return: {
-        color: "#2563eb",
-        bg: "#eff6ff",
-        icon: <KeyboardReturnIcon sx={{ fontSize: 14 }} />
-      }
-    };
-
-    return (
-      typeMap[type?.toLowerCase()] || {
-        color: "#6b7280",
-        bg: "#f3f4f6",
-        icon: null
-      }
-    );
-  };
-
-  const getInitials = (name: string = "") => {
-    return name
-      .split(" ")
-      .slice(0, 2)
-      .map((word) => word[0])
-      .join("")
-      .toUpperCase();
-  };
-
-  const formatDate = (date: string) => {
-    const parsed = parseDate(date);
-    if (!parsed) return "Invalid date";
-    return parsed.toLocaleDateString("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric"
-    });
-  };
-
-  const formatTime = (date: string) => {
-    const parsed = parseDate(date);
-    if (!parsed) return "Invalid time";
-    return parsed.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true
-    });
-  };
-
-  const handleResetFilters = () => {
-    setSelectedType("");
+  // The modal stays mounted between items — start each one with no filters.
+  useEffect(() => {
     setFromDate("");
     setToDate("");
-  };
+  }, [itemUuid]);
 
-  const hasActiveFilters = selectedType || fromDate || toDate;
+  // Filtering is done by the server; no request while the dialog is closed.
+  const { data, isLoading, isFetching, hasNextPage, isFetchingNextPage, fetchNextPage } = useStockHistory(
+    open ? itemUuid : null,
+    { limit: PAGE_SIZE, from_date: fromDate, to_date: toDate }
+  );
+
+  // Page 1 carries the item and summary; every page contributes its rows.
+  const firstPage = data?.pages[0];
+  const currentStock = firstPage?.summary?.current_stock ?? 0;
+  const itemDetails = firstPage?.item || item;
+  const rows = useMemo(() => data?.pages.flatMap((p) => (Array.isArray(p.data) ? p.data : [])) ?? [], [data]);
+  const total = firstPage?.pagination?.total ?? rows.length;
+  const hasActiveFilters = !!(fromDate || toDate);
+
+  // Load the next page when the sentinel under the last row scrolls into view.
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) fetchNextPage();
+      },
+      { root: tableContainerRef.current }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, rows.length]);
+
+  const handleFromChange = useCallback((val: string) => {
+    setFromDate(val);
+    setToDate((prev) => (prev && val > prev ? "" : prev));
+  }, []);
+
+  const handleToChange = useCallback((val: string) => {
+    setToDate(val);
+  }, []);
+
+  const handleResetFilters = useCallback(() => {
+    setFromDate("");
+    setToDate("");
+  }, []);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
@@ -210,7 +246,7 @@ export default function StockHistoryModal({ open, onClose, item }: any) {
               </Box>
 
               <Box>
-                <Typography sx={{ fontSize: 10, fontWeight: 700,color:"#b91c1c", bgcolor:"#fef2f2", px:1, py:"2px", borderRadius:"6px", display:"inline-block", mb:0.5 }}>
+                <Typography sx={{ fontSize: 10, fontWeight: 700, color: "#b91c1c", bgcolor: "#fef2f2", px: 1, py: "2px", borderRadius: "6px", display: "inline-block", mb: 0.5 }}>
                   SKU: {itemDetails?.item_id}
                 </Typography>
                 <Typography sx={{ fontSize: 22, fontWeight: 800 }}>
@@ -221,33 +257,9 @@ export default function StockHistoryModal({ open, onClose, item }: any) {
 
             <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
               <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
-                {/* <Select
-                  value={selectedType}
-                  onChange={(e) => setSelectedType(e.target.value)}
-                  displayEmpty
-                  size="small"
-                >
-                  <MenuItem value="">All Types</MenuItem>
-                  <MenuItem value="purchase">Purchase</MenuItem>
-                  <MenuItem value="sale">Sale</MenuItem>
-                  <MenuItem value="wastage">Wastage</MenuItem>
-                  <MenuItem value="return">Return</MenuItem>
-                </Select> */}
-
-                {/* <Typography>From</Typography> */}
                 <Box
                   onClick={() => { fromDateInputRef.current?.showPicker?.(); fromDateInputRef.current?.focus(); }}
-                  sx={{
-                    position: "relative",
-                    display: "flex", alignItems: "center", gap: 0.6,
-                    minWidth: 130, height: 33,
-                    px: 1.25,
-                    borderRadius: 1.5,
-                    border: "1px solid #E5E7EB",
-                    bgcolor: "#fff",
-                    cursor: "pointer",
-                    "&:hover": { borderColor: "#C8102E" },
-                  }}
+                  sx={dateBoxSx}
                 >
                   <CalendarTodayIcon sx={{ fontSize: 14, color: "#6B7280" }} />
                   <Typography sx={{ fontSize: 13, fontWeight: 600, color: fromDate ? "#111827" : "#94A3B8" }}>
@@ -258,29 +270,15 @@ export default function StockHistoryModal({ open, onClose, item }: any) {
                     type="date"
                     value={fromDate}
                     max={toDate || undefined}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (toDate && val > toDate) setToDate("");
-                      setFromDate(val);
-                    }}
-                    style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
+                    onChange={(e) => handleFromChange(e.target.value)}
+                    style={hiddenDateInputStyle}
                   />
                 </Box>
 
                 <Typography>to</Typography>
                 <Box
                   onClick={() => { toDateInputRef.current?.showPicker?.(); toDateInputRef.current?.focus(); }}
-                  sx={{
-                    position: "relative",
-                    display: "flex", alignItems: "center", gap: 0.6,
-                    minWidth: 130, height: 33,
-                    px: 1.25,
-                    borderRadius: 1.5,
-                    border: "1px solid #E5E7EB",
-                    bgcolor: "#fff",
-                    cursor: "pointer",
-                    "&:hover": { borderColor: "#C8102E" },
-                  }}
+                  sx={dateBoxSx}
                 >
                   <CalendarTodayIcon sx={{ fontSize: 14, color: "#6B7280" }} />
                   <Typography sx={{ fontSize: 13, fontWeight: 600, color: toDate ? "#111827" : "#94A3B8" }}>
@@ -291,18 +289,14 @@ export default function StockHistoryModal({ open, onClose, item }: any) {
                     type="date"
                     value={toDate}
                     min={fromDate || undefined}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (fromDate && val < fromDate) return;
-                      setToDate(val);
-                    }}
-                    style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
+                    onChange={(e) => handleToChange(e.target.value)}
+                    style={hiddenDateInputStyle}
                   />
                 </Box>
 
                 {hasActiveFilters && (
                   <Box onClick={handleResetFilters} sx={{ cursor: "pointer" }}>
-                  <CloseIcon fontSize="small"  color="primary"/>
+                    <CloseIcon fontSize="small" color="primary" />
                   </Box>
                 )}
               </Box>
@@ -327,88 +321,24 @@ export default function StockHistoryModal({ open, onClose, item }: any) {
 
           {/* TABLE */}
           <DataTable
-            columns={[
-              {
-                label: "Date & Time",
-                key: "date",
-                width: "2.2fr",
-                render: (r) => (
-                  <Box>
-                    <Typography fontSize={13} fontWeight={600}>
-                      {formatDate(r.created_at)}
-                    </Typography>
-                    <Typography fontSize={11} color="#9CA3AF">
-                      {formatTime(r.created_at)}
-                    </Typography>
-                  </Box>
-                )
-              },
-              {
-                label: "Type",
-                key: "type",
-                width: "1.3fr",
-                align: "left",
-                render: (r) => {
-                  const type = getTypeConfig(r.transaction_type);
-                  return (
-                    <Box
-                      sx={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 0.5,
-                        px: 1,
-                        py: "2px",
-                        borderRadius: "999px",
-                        fontSize: 10,
-                        fontWeight: 700,
-                        bgcolor: type.bg,
-                        color: type.color,
-                        width: "fit-content"
-                      }}
-                    >
-                      {type.icon}
-                      {r.transaction_type?.toUpperCase()}
-                    </Box>
-                  );
-                }
-              },
-              {
-                label: "Reference ID",
-                key: "reference",
-                width: "2fr",
-                render: (r) => r.reference_id || "-"
-              },
-              {
-                label: "Qty Change",
-                key: "qty",
-                width: "1.3fr",
-                align: "right",
-                render: (r) => (
-                  <Typography
-                    sx={{
-                      color: Number(r.qty_change) > 0 ? "#16a34a" : "#dc2626",
-                      fontWeight: 600
-                    }}
-                  >
-                    {Number(r.qty_change) > 0 ? "+" : ""}
-                    {Number(r.qty_change).toFixed(2)}
-                  </Typography>
-                )
-              },
-              {
-                label: "Final Stock",
-                key: "final",
-                width: "1fr",
-                align: "right",
-                render: (r) => Number(r.stock_after).toFixed(2)
-              }
-            ]}
-            rows={filteredRows}
-            rowKey={(r) => r.ledger_id}
+            columns={COLUMNS}
+            rows={rows}
+            rowKey={rowKey}
             isLoading={isLoading}
-            emptyMessage="No records match the selected filters"
+            emptyMessage={hasActiveFilters ? "No records match the selected dates" : "No stock movements yet"}
             maxHeight={400}
+            hasNextPage={hasNextPage}
+            isFetchingNextPage={isFetchingNextPage}
+            loadMoreRef={sentinelRef}
+            tableContainerRef={tableContainerRef}
+            hideEndNote
           />
+
+          {total > 0 && (
+            <Typography sx={{ fontSize: 12, color: "#6B7280", mt: 1.5, opacity: isFetching && !isFetchingNextPage ? 0.6 : 1 }}>
+              Showing {rows.length} of {total} record{total === 1 ? "" : "s"}
+            </Typography>
+          )}
         </Box>
       </Box>
     </Dialog>

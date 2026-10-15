@@ -2176,11 +2176,21 @@ console.log("test",serverHolds)
                   const mode = POS_MODE_BY_TYPE[type];
                   const active = posMode === mode;
                   const accent = POS_MODE_THEME[mode].accent;
-                  // Editing a saved document (opened from Sales History) keeps its
-                  // sale type — the other tabs are locked.
-                  const locked = !!saleUuidFromUrl && !active;
+                  // Tabs stay open while editing a saved document (from Sales
+                  // History) or converting a quotation; switching tab drops that
+                  // document's data and starts a fresh one of the chosen type.
+                  const locked = false;
                   return (
-                    <Box key={type} onClick={() => { if (locked) return; posModeTouchedRef.current = true; setPosMode(mode); }} sx={{ display: "flex", alignItems: "center", gap: { xs: 0.4, md: 0.7 }, px: { xs: 1, md: 1.75 }, py: { xs: 0.4, md: 0.6 }, borderRadius: 1.5, cursor: locked ? "not-allowed" : "pointer", opacity: locked ? 0.45 : 1, bgcolor: active ? accent : "transparent", color: active ? "#fff" : "#6B7280", transition: "all 0.18s", "&:hover": { bgcolor: active ? accent : locked ? "transparent" : "#E5E7EB" } }}>
+                    <Box key={type} onClick={() => {
+                      if (locked) return;
+                      posModeTouchedRef.current = true;
+                      if (saleUuidFromUrl && !active) {
+                        handleClear();
+                        setSaleId(null);
+                        navigate(location.pathname, { replace: true });
+                      }
+                      setPosMode(mode);
+                    }} sx={{ display: "flex", alignItems: "center", gap: { xs: 0.4, md: 0.7 }, px: { xs: 1, md: 1.75 }, py: { xs: 0.4, md: 0.6 }, borderRadius: 1.5, cursor: locked ? "not-allowed" : "pointer", opacity: locked ? 0.45 : 1, bgcolor: active ? accent : "transparent", color: active ? "#fff" : "#6B7280", transition: "all 0.18s", "&:hover": { bgcolor: active ? accent : locked ? "transparent" : "#E5E7EB" } }}>
                       {mode === "SALE"
                         ? <ReceiptLongIcon sx={{ fontSize: { xs: 13, md: 15 } }} />
                         : <RequestQuoteIcon sx={{ fontSize: { xs: 13, md: 15 } }} />}

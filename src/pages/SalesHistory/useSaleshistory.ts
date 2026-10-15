@@ -18,6 +18,7 @@
  */
 
 import axios from "axios";
+import { toast } from "react-toastify";
 import { getTenantContext } from "@store/tenantContext";
 
 // ─── Config ───────────────────────────────────────────────────
@@ -80,6 +81,9 @@ export interface Sale {
   // return aggregates (joined from return history)
   total_returned?:     string | null;
   return_count?:       number | null;
+  last_return_date?:   string | null;
+  /** Returns / credit notes against this invoice (list endpoint). */
+  returns?:            SaleListReturn[];
 
   // restaurant-specific fields
   api_order_id?:       string | null;
@@ -164,9 +168,47 @@ export interface SaleReturnHistoryItem {
   reason?: string | null;
 }
 
+/** A return as embedded in each row of the sales-history list. */
+export interface SaleListReturn {
+  return_uuid:      string;
+  return_id:        string;
+  return_type?:     ReturnType;
+  return_amount:    string | number;
+  total_items?:     number;
+  refund_type?:     string | null;
+  refund_status?:   RefundStatus | null;
+  adjusted_amount?: string | number | null;
+  refund_due?:      string | number | null;
+  refunded_amount?: string | number | null;
+  pending_refund?:  string | number | null;
+  return_reason?:   string | null;
+  return_date_fmt?: string | null;
+}
+
+export type ReturnType = "SALES_RETURN" | "CREDIT_NOTE";
+
+/** NA = the invoice was unpaid, so the return was adjusted against the balance. */
+export type RefundStatus = "PENDING" | "PARTIAL" | "REFUNDED" | "NA";
+
+/** One refund payment recorded against a return. */
+export interface ReturnRefundRow {
+  id:               number;
+  refund_amount:    string;
+  payment_mode:     string;
+  reference_no:     string | null;
+  refund_date_fmt:  string | null;
+}
+
 export interface SaleReturnHistoryRow {
   return_uuid:       string;
   return_id:         string;
+  return_type?:      ReturnType;
+  adjusted_amount?:  string | number | null;
+  refund_due?:       string | number | null;
+  refunded_amount?:  string | number | null;
+  pending_refund?:   string | number | null;
+  refund_status?:    RefundStatus | null;
+  refunds?:          ReturnRefundRow[];
   return_reason:     string | null;
   refund_type:       string | null;
   return_amount:     string;
@@ -267,26 +309,86 @@ export interface ReturnItem {
   return_qty:       number;
 }
 
+export const REFUND_MODES = ["Cash", "UPI", "Bank Transfer", "Others"] as const;
+
+/** Optional: pay the refund at the same time the return is created. */
+export interface RefundPaymentInput {
+  payment_mode:  string;           // "Cash" | "UPI" | "Bank Transfer" | "Others"
+  reference_no?: string;
+  refund_date?:  string;           // YYYY-MM-DD, defaults to today server-side
+  amount?:       number;           // defaults to the full refund_due
+}
+
 /** Payload for POST /api/retail/sale-returns */
 export interface CreateSaleReturnPayload {
   original_sale_uuid: string;
   zodu_id:            string;
   branch_id:          string;
+  return_type:        ReturnType;
   return_reason:      string | null;
-  refund_type:        string | null;   // "full" | "partial" — determines if refund_amount is full or prorated
+  refund_type:        string | null;
   notes:              string | null;
   created_by?:        string | null;
   items:              ReturnItem[];
+  /** Omit to leave the refund pending and pay it later (Mark Refund). */
+  refund_payment?:    RefundPaymentInput;
 }
 
-/** Response from creating a sales return */
+/** Payload for PUT /api/retail/sale-returns/:return_uuid — replaces the return's items and details. */
+export interface UpdateSaleReturnPayload {
+  zodu_id:       string;
+  branch_id:     string;
+  return_type:   ReturnType;
+  return_reason: string | null;
+  notes:         string | null;
+  items:         ReturnItem[];
+}
+
+/** Response from creating a sales return / credit note (HTTP 201) */
 export interface CreateSaleReturnResponse {
-  success:           boolean;
-  message:           string;
-  return_id:         string;
-  refund_amount:     number;
-  refund_type:       string;
-  created_at:        string;
+  success: boolean;
+  message: string;
+  data: {
+    return_uuid:     string;
+    return_id:       string;
+    return_type:     ReturnType;
+    return_amount:   string;
+    adjusted_amount: number;
+    refund_due:      number;
+    refunded_amount: number;
+    refund_status:   RefundStatus;
+    refund_type:     string;
+    return_date:     string;
+    items_returned:  number;
+    created_at:      string;
+    refund:          { id: number; refund_amount: string; payment_mode: string; reference_no: string | null } | null;
+  };
+}
+
+/** Payload for POST /api/retail/sale-returns/:return_uuid/refund */
+export interface MarkRefundPayload {
+  // Goes in the URL path only — never in the body.
+  return_uuid:   string;
+  zodu_id:       string;
+  branch_id:     string;
+  refund_amount: number;
+  payment_mode:  string;
+  reference_no?: string;
+  refund_date?:  string;           // YYYY-MM-DD, defaults to today server-side
+}
+
+export interface MarkRefundResponse {
+  success: boolean;
+  message: string;
+  data: {
+    return_uuid:     string;
+    return_id:       string;
+    refund_due:      number;
+    refunded_amount: number;
+    pending_refund:  number;
+    refund_status:   RefundStatus;
+    payment: { id: number; refund_amount: string; payment_mode: string; reference_no: string | null; refund_date: string };
+  };
 }
 
 // ─── API functions ────────────────────────────────────────────
@@ -369,6 +471,73 @@ export async function createSaleReturn(
     payload
   );
   return data;
+}
+
+/**
+ * PUT /api/retail/sale-returns/:return_uuid — edit an existing return / credit note
+ * (change its items and quantities, reason, notes).
+ */
+export async function updateSaleReturn(
+  return_uuid: string,
+  payload: UpdateSaleReturnPayload
+): Promise<{ success: boolean; message?: string }> {
+  const { data } = await axios.put<{ success: boolean; message?: string }>(
+    `${API_BASE}/retail/api/sale-returns/${return_uuid}`,
+    payload
+  );
+  return data;
+}
+
+/**
+ * POST /api/retail/sale-returns/:return_uuid/refund — record a (partial) refund payment
+ */
+export async function postMarkReturnRefund(
+  { return_uuid, ...body }: MarkRefundPayload
+): Promise<MarkRefundResponse> {
+  const { data } = await axios.post<MarkRefundResponse>(
+    `${API_BASE}/retail/api/sale-returns/${return_uuid}/refund`,
+    body
+  );
+  return data;
+}
+
+export interface DeleteSaleReturnResponse {
+  success: boolean;
+  message: string;
+  data: {
+    return_uuid:      string;
+    return_id:        string;
+    original_sale_id: string;
+    return_amount:    number;
+    /** Cash refund that was wiped along with the return. */
+    refund_reversed:  number;
+  };
+}
+
+/**
+ * DELETE /api/retail/sale-returns/:return_uuid — permanently removes a return / credit note:
+ * restores stock, deletes its refund payments and reopens the invoice balance.
+ */
+export async function deleteSaleReturn(return_uuid: string): Promise<DeleteSaleReturnResponse> {
+  const { zoduId, branchId } = getTenantContext();
+  const { data } = await axios.delete<DeleteSaleReturnResponse>(
+    `${API_BASE}/retail/api/sale-returns/${return_uuid}`,
+    { params: { zodu_id: zoduId, branch_id: branchId } }
+  );
+  return data;
+}
+
+/** Lets the screen that owns the dialog show the result in its SuccessToast (a dialog that closes can't). */
+export type Notify = (message: string, severity?: "success" | "error") => void;
+
+/** Falls back to react-toastify for callers that don't supply a notifier. */
+export const resolveNotify = (notify?: Notify): Notify =>
+  notify ?? ((message, severity = "success") => (severity === "error" ? toast.error(message) : toast.success(message)));
+
+/** The API sends `{ errors: [...] }` for validation failures and `{ message }` otherwise. */
+export function apiErrorMessage(err: any, fallback: string): string {
+  const d = err?.response?.data;
+  return d?.errors?.join?.(", ") ?? d?.message ?? err?.message ?? fallback;
 }
 
 export interface SalesSummary {
