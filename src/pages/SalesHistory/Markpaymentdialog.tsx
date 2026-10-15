@@ -21,15 +21,17 @@ import {
   salesQueryKeys,
   getZoduId,
   getBranchId,
+  resolveNotify,
+  type Notify,
   type Sale,
 } from "./useSaleshistory";
-import { toast } from "react-toastify";
 import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 interface Props {
   sale:      Sale;
   onClose:   () => void;
   onSuccess: () => void;
+  notify?:   Notify;
 }
 
 function FieldLabel({ children }: { children: string }) {
@@ -54,7 +56,8 @@ const inputSx = {
 // ✅ Payment types that match tbl_sale_payment.transaction_type
 const PAYMENT_TYPES = ["Cash", "UPI", "Bank Transfer","Others"] as const;
 
-export default function MarkPaymentDialog({ sale, onClose, onSuccess }: Props) {
+export default function MarkPaymentDialog({ sale, onClose, onSuccess, notify }: Props) {
+  const say = resolveNotify(notify);
   useBlockWhenReadOnly(true, onClose);
   const queryClient = useQueryClient();
   const balance     = Number(sale.balance_amount);
@@ -70,7 +73,7 @@ export default function MarkPaymentDialog({ sale, onClose, onSuccess }: Props) {
     mutationFn: postMarkPayment,
 
     onSuccess: (response) => {
-      toast.success(
+      say(
         `Payment of ₹${Number(response.new_paid_amount).toLocaleString("en-IN")} recorded. ` +
         (response.new_balance_amount > 0
           ? `Balance due: ₹${Number(response.new_balance_amount).toLocaleString("en-IN")}`
@@ -92,7 +95,7 @@ export default function MarkPaymentDialog({ sale, onClose, onSuccess }: Props) {
 
     onError: (err: any) => {
       const msg = err?.response?.data?.message ?? "Failed to record payment";
-      toast.error(msg);
+      say(msg, "error");
     },
   });
 
@@ -100,11 +103,11 @@ export default function MarkPaymentDialog({ sale, onClose, onSuccess }: Props) {
     const amount = parseFloat(form.amount);
 
     if (!amount || amount <= 0) {
-      toast.error("Enter a valid payment amount");
+      say("Enter a valid payment amount", "error");
       return;
     }
     if (amount > balance + 0.01) {
-      toast.error(`Payment cannot exceed outstanding balance of ₹${balance.toLocaleString("en-IN")}`);
+      say(`Payment cannot exceed outstanding balance of ₹${balance.toLocaleString("en-IN")}`, "error");
       return;
     }
 

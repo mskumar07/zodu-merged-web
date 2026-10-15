@@ -17,12 +17,13 @@ import {
   TrendingUp as TrendingUpIcon, Circle,
 } from "@mui/icons-material";
 import FilterListOffIcon from "@mui/icons-material/FilterListOff";
+import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import PublishedWithChangesIcon from "@mui/icons-material/PublishedWithChanges";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import {
   fetchHistory, fetchSummary, fetchRestaurantHistory, fetchRestaurantSummary,
   salesQueryKeys, deleteSale,
-  type Sale, type Filters,
+  type Sale, type Filters, type SaleListReturn, type Notify,
 } from "./useSaleshistory";
 import { useTenantContext } from "@store/tenantContext";
 import { DateRangeChip } from "@components/Reports/utils/DateRangeChip";
@@ -30,8 +31,12 @@ import { DateRangeChip } from "@components/Reports/utils/DateRangeChip";
 import InvoiceDetailDialog from "./Invoicedetaildialog";
 import MarkPaymentDialog   from "./MarkPaymentDialog";
 import SalesReturnDialog   from "./Salesreturndialog";
+import MarkRefundDialog    from "./MarkRefundDialog";
+import DeleteReturnDialog  from "./DeleteReturnDialog";
+import SaleReturnSubRows   from "./SaleReturnSubRows";
 import DataTable           from "@utils/DataTable";
 import StatCard            from "@components/StatCard";
+import SuccessToast        from "@components/Common/SuccessToast";
 import { useNavigate }     from "react-router-dom";
 import { useModulePermission } from "@hooks/useModulePermission";
 import { isProformaSaleType, isQuotationSaleType } from "@utils/saleType";
@@ -164,7 +169,7 @@ function ReturnChip({ count, amount }: { count: number; amount: string }) {
       size="small"
       sx={{
         mt: 0.4, height: 18, fontSize: "0.65rem", fontWeight: 600,
-        bgcolor: "#F3E8FF", color: "#6B21A8", borderRadius: "4px",
+        bgcolor: "#FEF2F2", color: "#B91C1C", borderRadius: "4px",
       }}
     />
   );
@@ -247,8 +252,22 @@ export default function SalesHistoryPage() {
   // display the same text, so the row's type rides along to the lookup.
   const [invoiceDialog, setInvoiceDialog] = useState<{ id: string } | null>(null);
   const [paymentDialog, setPaymentDialog] = useState<Sale   | null>(null);
-  const [returnDialog,  setReturnDialog]  = useState<Sale   | null>(null);
+  const [returnDialog,  setReturnDialog]  = useState<{ sale: Sale; ret?: SaleListReturn } | null>(null);
   const [deleteDialog,  setDeleteDialog]  = useState<Sale   | null>(null);
+  // Refund being paid from a return sub-row, plus which invoices have their returns expanded
+  const [refundDialog,  setRefundDialog]  = useState<{ saleUuid: string; ret: SaleListReturn } | null>(null);
+  // One toast for every dialog opened from this screen — it outlives the dialog that closes on success
+  const [toast, setToast] = useState<{ message: string; severity: "success" | "error" } | null>(null);
+  const notify = useCallback<Notify>((message, severity = "success") => setToast({ message, severity }), []);
+  const [deleteReturn,  setDeleteReturn]  = useState<{ sale: Sale; ret: SaleListReturn } | null>(null);
+  const [expanded,      setExpanded]      = useState<ReadonlySet<string>>(new Set());
+  const toggleExpanded = useCallback((id: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  }, []);
   const [isDeleting,    setIsDeleting]    = useState(false);
 
   const {
@@ -287,16 +306,32 @@ export default function SalesHistoryPage() {
     {
       key: "sale_id",
       label: isRestaurant ? "Order ID" : "Invoice ID",
-      width: 130,
-      render: (sale: Sale) => (
-        <Typography
-          fontWeight={600} color="#1976d2"
-          sx={{ cursor: "pointer", fontSize: BODY_FONT_SIZE }}
-          onClick={() => setInvoiceDialog({ id: isRestaurant ? sale.api_order_id! : sale.sale_uuid })}
-        >
-          {isRestaurant ? (sale.public_order_no ?? sale.sale_id) : sale.sale_id}
-        </Typography>
-      ),
+      width: 200,
+      render: (sale: Sale) => {
+        const hasReturns = !isRestaurant && (sale.returns?.length ?? 0) > 0;
+        const open       = expanded.has(sale.sale_uuid);
+        return (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
+            {/* Fixed-width slot keeps IDs aligned whether or not a row has returns */}
+            <Box sx={{ width: 26, flexShrink: 0 }}>
+              {hasReturns && (
+                <Tooltip title={open ? "Hide returns" : `Show ${sale.returns!.length} return${sale.returns!.length > 1 ? "s" : ""}`}>
+                  <IconButton size="small" onClick={() => toggleExpanded(sale.sale_uuid)} sx={{ p: 0.25, color: "#6B7280", "&:hover": { color: "#D32F2F" } }}>
+                    <KeyboardArrowRightIcon sx={{ fontSize: 20, transition: "transform 0.15s", transform: open ? "rotate(90deg)" : "none" }} />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Box>
+            <Typography
+              fontWeight={600} color="#1976d2"
+              sx={{ cursor: "pointer", fontSize: BODY_FONT_SIZE }}
+              onClick={() => setInvoiceDialog({ id: isRestaurant ? sale.api_order_id! : sale.sale_uuid })}
+            >
+              {isRestaurant ? (sale.public_order_no ?? sale.sale_id) : sale.sale_id}
+            </Typography>
+          </Box>
+        );
+      },
     },
     ...(!isRestaurant ? [{
       key: "customer",
@@ -363,7 +398,7 @@ export default function SalesHistoryPage() {
               {INR(adjustedTotal)}
             </Typography>
             {totalReturned > 0 && (
-              <Typography variant="caption" sx={{ fontSize: "11px", color: "#7C3AED" }}>
+              <Typography variant="caption" sx={{ fontSize: "11px", color: "#C62828" }}>
                 Returned: {INR(totalReturned)}
               </Typography>
             )}
@@ -478,7 +513,9 @@ export default function SalesHistoryPage() {
               </Box>
             </Stack>
             {returnCount > 0 && sale.total_returned && (
-              <ReturnChip count={returnCount} amount={sale.total_returned} />
+              <Box onClick={() => toggleExpanded(sale.sale_uuid)} sx={{ cursor: sale.returns?.length ? "pointer" : "default" }}>
+                <ReturnChip count={returnCount} amount={sale.total_returned} />
+              </Box>
             )}
           </Stack>
         );
@@ -525,15 +562,18 @@ export default function SalesHistoryPage() {
         const isNonBinding = nonBindingStatus(sale) !== null;
         const status = fullyReturned ? "Returned" : mapStatus(sale.payment_status);
         const isReturned = status === "Returned";
+        // One return / credit note per invoice: once it exists, the invoice itself can no
+        // longer be edited, deleted or returned again — those actions move to the return row.
+        const hasReturns = !isRestaurant && (Number(sale.return_count ?? 0) > 0 || (sale.returns?.length ?? 0) > 0);
         return (
           <Stack direction="row" justifyContent="flex-end" gap={0.3}>
-            {!isNonBinding && !isRestaurant && (
+            {!isNonBinding && !isRestaurant && !hasReturns && (
               <Tooltip title={isReturned ? "Fully returned" : !canEdit ? "You don't have permission to edit" : "Sales Return"}>
                 <span>
                   <IconButton
                     size="small"
                     disabled={isReturned || !canEdit}
-                    onClick={guard(() => setReturnDialog(sale))}
+                    onClick={guard(() => setReturnDialog({ sale }))}
                     sx={{
                       color: isReturned ? "text.disabled" : "text.secondary",
                       borderRadius: 1.5,
@@ -547,7 +587,7 @@ export default function SalesHistoryPage() {
                 </span>
               </Tooltip>
             )}
-            {!isRestaurant && (
+            {!isRestaurant && !hasReturns && (
             <Tooltip title={canEdit ? "Edit Invoice" : "You don't have permission to edit"}>
               <span>
                 <IconButton
@@ -563,6 +603,7 @@ export default function SalesHistoryPage() {
               </span>
             </Tooltip>
             )}
+            {!hasReturns && (
             <Tooltip title={canDelete ? "Delete Invoice" : "You don't have permission to delete"}>
               <span>
                 <IconButton
@@ -577,11 +618,13 @@ export default function SalesHistoryPage() {
                 </IconButton>
               </span>
             </Tooltip>
+            )}
           </Stack>
         );
       },
     },
   ];
+  const visibleColumns = isCancelledTab ? columns.filter(c => c.key !== "actions") : columns;
 
   if (isLoading && !hasLoadedOnceRef.current) {
     return (
@@ -808,7 +851,20 @@ export default function SalesHistoryPage() {
       {/* Transactions table */}
       <Box sx={{ flex: 1, minHeight: 0 }}>
         <DataTable<Sale>
-          columns={isCancelledTab ? columns.filter(c => c.key !== "actions") : columns}
+          columns={visibleColumns}
+          renderSubRows={(sale) =>
+            expanded.has(sale.sale_uuid) && sale.returns?.length ? (
+              <SaleReturnSubRows
+                sale={sale}
+                columnKeys={visibleColumns.map((c) => c.key)}
+                canEdit={canEdit}
+                onOpen={() => setInvoiceDialog({ id: sale.sale_uuid })}
+                onEditReturn={guard((ret: SaleListReturn) => setReturnDialog({ sale, ret }))}
+                onDeleteReturn={guard((ret: SaleListReturn) => setDeleteReturn({ sale, ret }))}
+                onMarkRefund={guard((ret: SaleListReturn) => setRefundDialog({ saleUuid: sale.sale_uuid, ret }))}
+              />
+            ) : null
+          }
           rows={allItems}
           rowKey={(sale) => sale.api_order_id ?? sale.sale_id}
           isLoading={isLoading}
@@ -829,6 +885,7 @@ export default function SalesHistoryPage() {
       {paymentDialog && (
         <MarkPaymentDialog
           sale={paymentDialog}
+          notify={notify}
           onClose={() => setPaymentDialog(null)}
           onSuccess={() => refetch()}
         />
@@ -837,9 +894,36 @@ export default function SalesHistoryPage() {
       {/* ✅ Pass onSuccess so the history list immediately reflects the new status */}
       {returnDialog && (
         <SalesReturnDialog
-          sale={returnDialog}
+          sale={returnDialog.sale}
+          editReturn={returnDialog.ret}
+          notify={notify}
           onClose={() => setReturnDialog(null)}
           onSuccess={() => refetch()}
+        />
+      )}
+
+      {refundDialog && (
+        <MarkRefundDialog
+          saleUuid={refundDialog.saleUuid}
+          ret={refundDialog.ret}
+          notify={notify}
+          onClose={() => setRefundDialog(null)}
+        />
+      )}
+
+      <SuccessToast
+        message={toast?.message ?? ""}
+        severity={toast?.severity ?? "success"}
+        onClose={() => setToast(null)}
+      />
+
+      {deleteReturn && (
+        <DeleteReturnDialog
+          invoiceId={deleteReturn.sale.sale_id}
+          saleUuid={deleteReturn.sale.sale_uuid}
+          ret={deleteReturn.ret}
+          notify={notify}
+          onClose={() => setDeleteReturn(null)}
         />
       )}
 

@@ -39,6 +39,7 @@ import { InvoicePDFTemplateModern2 } from "./InvoicePDFTemplateModern2";
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "./ThermalInvoiceTemplate";
 import { renderPaginatedInvoicePdf, renderThermalReceiptPdf } from "@utils/pdfPagination";
 import { THERMAL_PRINTABLE_MM, THERMAL_ROLL_MM, printThermalCopies } from "@utils/thermalPrint";
+import MarkRefundDialog from "./MarkRefundDialog";
 import InvoiceCopyActions from "@components/Common/InvoiceCopyActions";
 import SuccessToast from "@components/Common/SuccessToast";
 import { invoiceCopyTypesForSale } from "@utils/invoiceCopyTypes";
@@ -240,6 +241,18 @@ function getPosEditUrl(saleUuid: string | undefined, saleType: string | null | u
   return `/pos?${params.toString()}`;
 }
 
+// Badge styling for a return's refund status (NA = adjusted against the unpaid balance)
+const REFUND_STATUS_CHIP: Record<string, { label: string; bg: string; color: string }> = {
+  PENDING:  { label: "REFUND PENDING", bg: "#FEF3C7", color: "#B45309" },
+  PARTIAL:  { label: "PARTIALLY REFUNDED", bg: "#FFEDD5", color: "#C2410C" },
+  REFUNDED: { label: "REFUNDED", bg: "#DCFCE7", color: "#15803D" },
+  NA:       { label: "ADJUSTED", bg: "#E0F2FE", color: "#0369A1" },
+};
+
+function ReturnChip({ label, bg, color }: { label: string; bg: string; color: string }) {
+  return <Chip label={label} size="small" sx={{ fontSize: 9, fontWeight: 700, borderRadius: "999px", bgcolor: bg, color, height: 20 }} />;
+}
+
 // ─────────────────────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────────────────────
@@ -250,6 +263,9 @@ export default function InvoiceDetailsModal({
   const pdfRef     = useRef<HTMLDivElement | null>(null);
   const thermalRef = useRef<HTMLDivElement | null>(null);
   const [printPaperSize, setPrintPaperSize] = useState<ThermalPaperSize | null>(null);
+
+  // Return whose refund is being paid (opens MarkRefundDialog)
+  const [refundFor, setRefundFor] = useState<SaleReturnHistoryRow | null>(null);
 
   const [printToast, setPrintToast] = useState<{ message: string; severity: "success" | "error" } | null>(null);
 
@@ -1077,19 +1093,12 @@ export default function InvoiceDetailsModal({
                             </Typography>
                           </Box>
                           <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                            {r.return_type === "CREDIT_NOTE" && <ReturnChip label="CREDIT NOTE" bg="#EDE9FE" color="#6D28D9" />}
+                            {r.refund_status && REFUND_STATUS_CHIP[r.refund_status] && (
+                              <ReturnChip {...REFUND_STATUS_CHIP[r.refund_status]} />
+                            )}
                             {r.refund_type ? (
-                              <Chip
-                                label={r.refund_type.replace("_", " ").toUpperCase()}
-                                size="small"
-                                sx={{
-                                  fontSize: 9,
-                                  fontWeight: 700,
-                                  borderRadius: "999px",
-                                  bgcolor: "#FEE2E2",
-                                  color: "#B91C1C",
-                                  height: 20,
-                                }}
-                              />
+                              <ReturnChip label={r.refund_type.replace("_", " ").toUpperCase()} bg="#FEE2E2" color="#B91C1C" />
                             ) : null}
                             <Typography sx={{ fontSize: 15, fontWeight: 800, color: "#D0021B" }}>
                               {INR(r.return_amount)}
@@ -1159,6 +1168,34 @@ export default function InvoiceDetailsModal({
                             </TableBody>
                           </Table>
                         </TableContainer>
+
+                        {/* Refund tracker — only when money is (or was) owed back to the customer */}
+                        {(r.refund_status === "PENDING" || r.refund_status === "PARTIAL" || r.refund_status === "REFUNDED") && (
+                          <Box sx={{ px: 2, py: 1.25, borderTop: "1px solid #FEE2E2", bgcolor: "#FFF7F7", display: "flex", flexDirection: "column", gap: 0.75 }}>
+                            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
+                              <Typography sx={{ fontSize: 12, color: "#64748B" }}>
+                                Refunded <b style={{ color: "#16A34A" }}>{INR(r.refunded_amount ?? 0)}</b> of {INR(r.refund_due ?? 0)}
+                                {Number(r.pending_refund) > 0 && <> · Pending <b style={{ color: "#D0021B" }}>{INR(r.pending_refund ?? 0)}</b></>}
+                              </Typography>
+                              {(r.refund_status === "PENDING" || r.refund_status === "PARTIAL") && (
+                                <Button
+                                  size="small" variant="contained" disableElevation
+                                  onClick={() => runIfSubscribed(() => setRefundFor(r))}
+                                  sx={{ bgcolor: "#D0021B", textTransform: "none", fontWeight: 700, fontSize: 12, borderRadius: "8px", "&:hover": { bgcolor: "#B00218" } }}
+                                >
+                                  Mark Refund
+                                </Button>
+                              )}
+                            </Box>
+                            {r.refunds?.map((p) => (
+                              <Typography key={p.id} sx={{ fontSize: 11.5, color: "#94A3B8" }}>
+                                {INR(p.refund_amount)} · {p.payment_mode}
+                                {p.reference_no ? ` · ${p.reference_no}` : ""}
+                                {p.refund_date_fmt ? ` · ${p.refund_date_fmt}` : ""}
+                              </Typography>
+                            ))}
+                          </Box>
+                        )}
 
                         {/* <Box
                           sx={{
@@ -1399,6 +1436,14 @@ export default function InvoiceDetailsModal({
 
         </Box>
       </DialogActions>
+      {refundFor && sale && (
+        <MarkRefundDialog
+          saleUuid={saleId}
+          ret={refundFor}
+          onClose={() => setRefundFor(null)}
+          notify={(message, severity = "success") => setPrintToast({ message, severity })}
+        />
+      )}
       <SuccessToast
         message={printToast?.message ?? ""}
         severity={printToast?.severity ?? "success"}

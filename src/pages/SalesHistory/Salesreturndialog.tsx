@@ -16,18 +16,22 @@ import {
   MenuItem, CircularProgress, Divider,
   Dialog, DialogContent,
   Table, TableBody, TableCell, TableHead, TableRow,
-  Checkbox, alpha,
+  Checkbox, FormControlLabel, alpha,
 } from "@mui/material";
 import {
   Add as AddIcon,
+  SwapHoriz as SwapHorizIcon,
+  Description as DescriptionIcon,
+  ReceiptLongOutlined as ReceiptIcon,
+  PersonOutline as PersonIcon,
+  CalendarTodayOutlined as CalendarIcon,
   Close as CloseIcon,
   DeleteOutline as DeleteOutlineIcon,
   InfoOutlined as InfoIcon,
   Remove as RemoveIcon,
   AssignmentReturn as AssignmentReturnIcon,
 } from "@mui/icons-material";
-import { toast } from "react-toastify";
-import { API_BASE, fetchSaleDetail, salesQueryKeys, getBranchId, getZoduId, createSaleReturn, type CreateSaleReturnPayload, type Sale } from "./useSaleshistory";
+import { API_BASE, fetchSaleDetail, salesQueryKeys, getBranchId, getZoduId, createSaleReturn, updateSaleReturn, apiErrorMessage, REFUND_MODES, resolveNotify, type Notify, type SaleListReturn, type SaleReturnHistoryRow, type CreateSaleReturnPayload, type ReturnType, type Sale } from "./useSaleshistory";
 import { INR } from "./dialogHelpers";
 import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
@@ -35,9 +39,13 @@ interface Props {
   sale: Sale;
   onClose: () => void;
   onSuccess?: () => void;
+  notify?:    Notify;
+  /** Reopen an existing return: its items come back pre-selected, the rest of the invoice unselected. */
+  editReturn?: SaleListReturn;
 }
 
 const RESTOCK_FEE_PCT = 10;
+const todayStr = () => new Date().toISOString().slice(0, 10);
 const RETURN_REASONS  = [
   { value: "damaged",  label: "Damaged on arrival" },
   { value: "wrong",    label: "Wrong item sent" },
@@ -57,17 +65,18 @@ function TH({ children, align = "left" }: { children: React.ReactNode; align?: "
   return (
     <TableCell align={align} sx={{
       bgcolor: "#F8FAFC",
-      fontSize: "0.78rem", fontWeight: 700, letterSpacing: "0.02em",
+      fontSize: "0.78rem", fontWeight: 700, letterSpacing: "0.02em", whiteSpace: "nowrap",
       color: "#64748B",
       borderBottom: "1px solid #E2E8F0",
-      py: 1.75, px: 2,
+      py: 1.25, px: 2,
     }}>
       {children}
     </TableCell>
   );
 }
 
-export default function SalesReturnDialog({ sale, onClose, onSuccess }: Props) {
+export default function SalesReturnDialog({ sale, onClose, onSuccess, notify, editReturn }: Props) {
+  const say = resolveNotify(notify);
   useBlockWhenReadOnly(true, onClose);
   const queryClient = useQueryClient();
   // The detail endpoint (and its cache key) address a sale by uuid.
@@ -99,23 +108,53 @@ export default function SalesReturnDialog({ sale, onClose, onSuccess }: Props) {
   }));
   // ───────────────────────────────────────────────────────────────────────
 
+  // Edit mode: qty this very return holds per invoice line. Those units count as available
+  // again, because editing the return releases them before re-allocating.
+  const existingReturn = editReturn
+    ? (data?.return_history as SaleReturnHistoryRow[] | undefined)?.find((r) => r.return_uuid === editReturn.return_uuid)
+    : undefined;
+  const ownQty: Record<number, number> = {};
+  (existingReturn?.items ?? existingReturn?.return_items ?? []).forEach((ri) => {
+    const line = items.find((i: any) => (ri.sale_item_id != null && i.id === ri.sale_item_id) || (ri.item_uuid && i.item_uuid === ri.item_uuid));
+    if (line) ownQty[line.id] = (ownQty[line.id] ?? 0) + Number(ri.return_qty ?? ri.qty_returned ?? ri.returned_qty ?? 0);
+  });
+  // The detail response may omit the return's own lines. With one return per invoice, every
+  // previously returned unit on the invoice belongs to this return, so fall back to that.
+  if (editReturn && Object.keys(ownQty).length === 0) {
+    items.forEach((i: any) => { const r = Number(i.returned_qty ?? 0); if (r > 0) ownQty[i.id] = r; });
+  }
+  const availableOf = (item: any): number => getAvailableQty(item) + (ownQty[item.id] ?? 0);
+
   const [selected,  setSelected]  = useState<Record<number, boolean>>({});
   const [returnQty, setReturnQty] = useState<Record<number, number>>({});
   const [reason,    setReason]    = useState("");
   const [note,      setNote]      = useState("");
-  const [refundType, setRefundType] = useState("");
+  const [returnType, setReturnType] = useState<ReturnType>("SALES_RETURN");
+  // Optionally pay the refund as part of the same request; otherwise it stays pending (Mark Refund later).
+  const [payNow,      setPayNow]      = useState(false);
+  const [payMode,     setPayMode]     = useState<(typeof REFUND_MODES)[number]>("Cash");
+  const [payReference, setPayReference] = useState("");
+  const [payDate,      setPayDate]      = useState(todayStr);
+  // null = untouched -> follows the refundable amount as items/quantities change
+  const [payAmountInput, setPayAmountInput] = useState<string | null>(null);
+  const isCreditNote = returnType === "CREDIT_NOTE";
 
   useEffect(() => {
     if (items.length > 0) {
       const sel: Record<number, boolean> = {};
       const qty: Record<number, number>  = {};
       items.forEach((item: any) => {
-        sel[item.id] = false;
-        // Set initial return qty to available quantity (not already returned)
-        qty[item.id] = getAvailableQty(item);
+        const own = ownQty[item.id] ?? 0;
+        sel[item.id] = own > 0;                      // create: nothing ticked; edit: only this return's lines
+        qty[item.id] = own > 0 ? own : availableOf(item);
       });
       setSelected(sel);
       setReturnQty(qty);
+      if (editReturn) {
+        setReturnType(editReturn.return_type ?? "SALES_RETURN");
+        setReason(existingReturn?.return_reason ?? editReturn.return_reason ?? "");
+        setNote(existingReturn?.notes ?? "");
+      }
     }
   }, [items.length]);
 
@@ -139,8 +178,21 @@ export default function SalesReturnDialog({ sale, onClose, onSuccess }: Props) {
 
   const restockFee  = (totalReturnAmount * RESTOCK_FEE_PCT) / 100;
   // Restock fee row is hidden in UI — net refund equals the full return amount
-  const netRefund   = totalReturnAmount;
-const canConfirm = someSelected && !!reason && !!refundType;
+  // Dues on the invoice absorb the return first; only the excess is owed back to the customer.
+  // When editing, the stored balance already reflects this return's adjustment — add it back.
+  const invoiceBalance  = Number((normalizedSale as any)?.balance_amount ?? 0)
+    + (editReturn ? Number(editReturn.adjusted_amount ?? 0) : 0);
+  const refundable      = Math.max(0, totalReturnAmount - invoiceBalance);
+  const adjustedAmount  = totalReturnAmount - refundable;
+  const netRefund       = refundable;
+
+  const payAmountText   = payAmountInput ?? (refundable > 0 ? String(Number(refundable.toFixed(2))) : "");
+  const payAmount       = parseFloat(payAmountText);
+  const payAmountValid  = payAmount > 0 && payAmount <= refundable + 0.001;
+  const pendingAfter    = Math.max(0, refundable - (payAmountValid ? payAmount : 0));
+  const showPayNow      = refundable > 0.001 && !editReturn;   // the update call carries no refund payment
+// Refund type is only needed when the refund is paid now (the mode doubles as the type).
+const canConfirm = someSelected && !!reason && (!payNow || !showPayNow || payAmountValid);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -160,20 +212,47 @@ const canConfirm = someSelected && !!reason && !!refundType;
         throw new Error("Select at least one item with a return quantity greater than 0");
       }
 
+      if (editReturn) {
+        await updateSaleReturn(editReturn.return_uuid, {
+          zodu_id:       getZoduId()!,
+          branch_id:     getBranchId()!,
+          return_type:   returnType,
+          return_reason: reason || null,
+          notes:         note || null,
+          items:         returnItems,
+        });
+        return { return_id: editReturn.return_id, refund_status: undefined };
+      }
+
       const payload: CreateSaleReturnPayload = {
         original_sale_uuid: saleUuid,
         zodu_id:            getZoduId(),
         branch_id:          getBranchId(),
+        return_type:        returnType,
         return_reason:      reason || null,
-        refund_type:        refundType || null,
+        refund_type:        payNow && showPayNow ? payMode : null,
         notes:              note || null,
         items:              returnItems,
+        // amount omitted → backend refunds the full refund_due
+        ...(payNow && showPayNow && {
+          refund_payment: {
+            payment_mode: payMode,
+            amount:       Number(payAmount.toFixed(2)),
+            refund_date:  payDate,
+            ...(payReference.trim() && { reference_no: payReference.trim() }),
+          },
+        }),
       };
 
-      return await createSaleReturn(payload);
+      const res = await createSaleReturn(payload);
+      return { return_id: res.data.return_id, refund_status: res.data.refund_status };
     },
-    onSuccess: async () => {
-      toast.success("Sales return submitted successfully");
+    onSuccess: async (res) => {
+      const { return_id, refund_status } = res;
+      say(
+        `${isCreditNote ? "Credit note" : "Sales return"} ${return_id} ${editReturn ? "updated" : "created"}` +
+        (refund_status === "PENDING" ? " — refund pending" : refund_status === "REFUNDED" ? " — refunded" : "")
+      );
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: salesQueryKeys.detail(saleId) }),
         queryClient.invalidateQueries({ queryKey: ["sales-history"] }),
@@ -183,7 +262,7 @@ const canConfirm = someSelected && !!reason && !!refundType;
       onClose();
     },
     onError: (error: any) => {
-      toast.error(error?.response?.data?.message || error?.message || "Failed to submit sales return");
+      say(apiErrorMessage(error, "Failed to submit sales return"), "error");
     },
   });
 
@@ -225,7 +304,7 @@ const canConfirm = someSelected && !!reason && !!refundType;
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <Box sx={{
         display: "flex", alignItems: "flex-start", justifyContent: "space-between",
-        px: 4, py: 3,
+        px: 3, py: 2,
         borderBottom: "1px solid #E2E8F0",
         bgcolor: "#fff",
       }}>
@@ -234,14 +313,12 @@ const canConfirm = someSelected && !!reason && !!refundType;
             <AssignmentReturnIcon sx={{ color: "#D2042D", fontSize: 22 }} />
           </Box>
           <Box>
-            <Typography sx={{ fontSize: "1.5rem", fontWeight: 700, color: "#0F172A", letterSpacing: "-0.3px", lineHeight: 1.2 }}>
-              Process Sales Return
+            <Typography sx={{ fontSize: "1.25rem", fontWeight: 700, color: "#0F172A", letterSpacing: "-0.3px", lineHeight: 1.2 }}>
+              Process Return / Credit Note
             </Typography>
-            {normalizedSale && (
-              <Typography sx={{ fontSize: "0.875rem", fontWeight: 500, color: "#64748B", mt: 0.4 }}>
-                Invoice {normalizedSale.invoice_no} | Customer: {normalizedSale.customer_name || "Walk-In"}
-              </Typography>
-            )}
+            <Typography sx={{ fontSize: "0.875rem", fontWeight: 500, color: "#64748B", mt: 0.4 }}>
+              {editReturn ? `Editing ${editReturn.return_id} — its items are ticked; the rest of the invoice is not.` : "Select items and process as Sales Return or Credit Note."}
+            </Typography>
           </Box>
         </Box>
         <IconButton onClick={onClose} size="small"
@@ -251,13 +328,69 @@ const canConfirm = someSelected && !!reason && !!refundType;
       </Box>
 
       {/* ── Scrollable body ─────────────────────────────────────────────── */}
-      <DialogContent sx={{ p: 4, bgcolor: "#fff", flex: 1, overflowY: "auto" }}>
+      <DialogContent sx={{ p: 3, bgcolor: "#fff", flex: 1, overflowY: "auto" }}>
         {isLoading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}>
             <CircularProgress sx={{ color: "#D2042D" }} size={32} />
           </Box>
         ) : (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+
+            {/* ── Invoice / customer details + transaction type ─────────── */}
+            <Box sx={{
+              display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between",
+              gap: 2, px: 2.5, py: 1.75,
+              bgcolor: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: "14px",
+            }}>
+              <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: { xs: 2, md: 4 } }}>
+                {[
+                  { label: "Invoice No.",   value: (normalizedSale as any)?.invoice_no ?? "—",                    icon: <ReceiptIcon sx={{ fontSize: 18 }} /> },
+                  { label: "Customer",      value: (normalizedSale as any)?.customer_name || "Walk-In",           icon: <PersonIcon sx={{ fontSize: 18 }} /> },
+                  { label: "Invoice Date",  value: (normalizedSale as any)?.sale_date_fmt ?? "—",        icon: <CalendarIcon sx={{ fontSize: 17 }} /> },
+                ].map((f) => (
+                  <Box key={f.label} sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
+                    <Box sx={{ width: 34, height: 34, borderRadius: "10px", bgcolor: "#fff", border: "1px solid #E2E8F0", color: "#64748B", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {f.icon}
+                    </Box>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography sx={{ fontSize: "0.68rem", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#94A3B8", lineHeight: 1.2 }}>{f.label}</Typography>
+                      <Typography noWrap sx={{ fontSize: "0.95rem", fontWeight: 700, color: "#0F172A", lineHeight: 1.35, maxWidth: 220 }}>{f.value}</Typography>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+
+              {/* Transaction type — segmented control */}
+              <Box sx={{ display: "inline-flex", p: 0.5, gap: 0.5, bgcolor: "#E2E8F0", borderRadius: "11px" }}>
+                {([
+                  { value: "SALES_RETURN", label: "Sales Return", icon: <SwapHorizIcon sx={{ fontSize: 17 }} /> },
+                  { value: "CREDIT_NOTE",  label: "Credit Note",  icon: <DescriptionIcon sx={{ fontSize: 16 }} /> },
+                ] as const).map((t) => {
+                  const active = returnType === t.value;
+                  const seg = (
+                    <Box
+                      onClick={() => { if (!editReturn) setReturnType(t.value); }}
+                      sx={{
+                        display: "flex", alignItems: "center", gap: 0.75,
+                        px: 2, py: 0.75, borderRadius: "8px",
+                        fontSize: "0.85rem", fontWeight: 700,
+                        bgcolor: active ? "#fff" : "transparent",
+                        color: active ? "#D2042D" : "#64748B",
+                        boxShadow: active ? "0 1px 3px rgba(15,23,42,0.15)" : "none",
+                        cursor: editReturn ? (active ? "default" : "not-allowed") : "pointer",
+                        opacity: editReturn && !active ? 0.5 : 1,
+                        transition: "all 0.15s",
+                        userSelect: "none",
+                      }}
+                    >
+                      {t.icon}
+                      {t.label}
+                    </Box>
+                  );
+                  return <Box key={t.value}>{seg}</Box>;
+                })}
+              </Box>
+            </Box>
 
             {/* ── Items table ─────────────────────────────────────────────── */}
             <Box sx={{ border: "1px solid #E2E8F0", borderRadius: "12px", overflow: "hidden" }}>
@@ -273,13 +406,14 @@ const canConfirm = someSelected && !!reason && !!refundType;
                         sx={{ color: "#CBD5E1", "&.Mui-checked": { color: "#D2042D" }, "&.MuiCheckbox-indeterminate": { color: "#D2042D" }, py:0.2 }}
                       />
                     </TableCell>
+                    <TH align="center">#</TH>
                     <TH>Item Details</TH>
                     <TH align="center">Qty Original</TH>
-                    <TH align="center">Returned</TH>
+                    <TH align="center">Returned / Credited</TH>
                     <TH align="center">Available</TH>
-                    <TH align="center">Return Qty</TH>
+                    <TH align="center">Return/Credit Qty</TH>
                     <TH align="right">Unit Price</TH>
-                    <TH align="right">Total</TH>
+                    <TH align="right">Amount</TH>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -287,13 +421,12 @@ const canConfirm = someSelected && !!reason && !!refundType;
                     const isLast        = idx === items.length - 1;
                     const origQty       = Number(item.quantity);
                     const returnedQty   = Number(item.returned_qty ?? 0);
-                    const availableQty  = getAvailableQty(item);
+                    const availableQty  = availableOf(item);
                     const rQty          = returnQty[item.id] ?? availableQty;
                     const price         = Number(item.price);
                     const lineTotal     = selected[item.id] ? rQty * price : 0;
                     const rowBg         = selected[item.id] ? alpha("#D2042D", 0.03) : "transparent";
                     const borderB       = isLast ? 0 : "1px solid #F1F5F9";
-                    console.log(items)
 
                     return (
                       <TableRow key={item.id} sx={{ bgcolor: rowBg, transition: "background 0.15s" }}>
@@ -307,10 +440,17 @@ const canConfirm = someSelected && !!reason && !!refundType;
                           />
                         </TableCell>
 
-                        {/* Item name + sub-label */}
+                        {/* Row number */}
+                        <TableCell align="center" sx={{ borderBottom: borderB, py: 0.75, px: 2, fontSize: "0.875rem", color: "#334155" }}>
+                          {idx + 1}
+                        </TableCell>
+
+                        {/* Item code (GST %) - name + sub-label */}
                         <TableCell sx={{ borderBottom: borderB, py: 0.75, px: 2 }}>
                           <Typography sx={{ fontSize: "0.875rem", fontWeight: 700, color: "#0F172A" }}>
-                            {item.product_name}
+                            {item.product_id}
+                            {Number(item.gst_percentage) > 0 ? ` (${Number(item.gst_percentage)}%)` : ""}
+                            {" - "}{item.product_name}
                           </Typography>
                           {item.variant_name && (
                             <Typography sx={{ fontSize: "0.75rem", color: "#94A3B8", mt: 0.2 }}>
@@ -523,37 +663,62 @@ const canConfirm = someSelected && !!reason && !!refundType;
                     ))}
                   </Select>
                 </Box>
-                <Box>
-  <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#0F172A", mb: 1 }}>
-    Refund Type
-  </Typography>
-
-  <Select
-    size="small"
-    fullWidth
-    displayEmpty
-    value={refundType}
-    onChange={(e) => setRefundType(e.target.value)}
-    sx={{
-      borderRadius: "12px",
-      height: 44,
-      fontSize: "0.875rem",
-      bgcolor: "#fff",
-      "& fieldset": { borderColor: "#E2E8F0" },
-      "&:hover fieldset": { borderColor: "#CBD5E1" },
-      "&.Mui-focused fieldset": { borderColor: "#D2042D", borderWidth: 2 },
-    }}
-  >
-    <MenuItem value="" disabled sx={{ color: "#94A3B8" }}>
-      Select refund type...
-    </MenuItem>
-
-    <MenuItem value="cash">Cash</MenuItem>
-    <MenuItem value="upi">UPI</MenuItem>
-        <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
-    <MenuItem value="others">Others</MenuItem>
-  </Select>
-</Box>
+                {/* Pay the refund now (only meaningful when the customer has paid something) */}
+                {showPayNow && (
+                  <Box sx={{ border: "1px solid #E2E8F0", borderRadius: "12px", px: 2, py: 1 }}>
+                    <FormControlLabel
+                      control={<Checkbox checked={payNow} onChange={(e) => { setPayNow(e.target.checked); setPayAmountInput(null); }} sx={{ "&.Mui-checked": { color: "#D2042D" } }} />}
+                      label={<Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#0F172A" }}>Pay refund now</Typography>}
+                    />
+                    {payNow ? (
+                      <Box sx={{ pb: 1.5, display: "flex", flexDirection: "column", gap: 1.5 }}>
+                        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5 }}>
+                          <Box>
+                            <Typography sx={{ fontSize: "0.75rem", fontWeight: 600, color: "#475569", mb: 0.5 }}>
+                              {isCreditNote ? "Credit Type" : "Refund Type"}
+                            </Typography>
+                            <Select size="small" fullWidth value={payMode} onChange={(e) => setPayMode(e.target.value as typeof payMode)} sx={{ borderRadius: "10px", fontSize: "0.875rem" }}>
+                              {REFUND_MODES.map((m) => <MenuItem key={m} value={m} sx={{ fontSize: "0.875rem" }}>{m}</MenuItem>)}
+                            </Select>
+                          </Box>
+                          <Box>
+                            <Typography sx={{ fontSize: "0.75rem", fontWeight: 600, color: "#475569", mb: 0.5 }}>Amount to pay now</Typography>
+                            <TextField
+                              size="small" fullWidth type="number" value={payAmountText}
+                              error={!!payAmountText && !payAmountValid}
+                              onChange={(e) => setPayAmountInput(e.target.value)}
+                              inputProps={{ min: 0, max: refundable, step: "0.01", style: { fontWeight: 700 } }}
+                              InputProps={{ startAdornment: <Typography sx={{ mr: 0.5, fontWeight: 700, color: "#64748B" }}>₹</Typography> }}
+                              sx={inputSx}
+                            />
+                          </Box>
+                          <Box>
+                            <Typography sx={{ fontSize: "0.75rem", fontWeight: 600, color: "#475569", mb: 0.5 }}>Reference No.</Typography>
+                            <TextField size="small" fullWidth placeholder="Optional" value={payReference} onChange={(e) => setPayReference(e.target.value)} sx={inputSx} />
+                          </Box>
+                          <Box>
+                            <Typography sx={{ fontSize: "0.75rem", fontWeight: 600, color: "#475569", mb: 0.5 }}>Date</Typography>
+                            <TextField size="small" fullWidth type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} inputProps={{ max: todayStr() }} sx={inputSx} />
+                          </Box>
+                        </Box>
+                        {!!payAmountText && !payAmountValid ? (
+                          <Typography sx={{ fontSize: "0.75rem", color: "#D32F2F", fontWeight: 600 }}>
+                            Enter an amount above ₹0 and up to {INR(refundable)}.
+                          </Typography>
+                        ) : (
+                          <Typography sx={{ fontSize: "0.8rem", fontWeight: 600, color: pendingAfter > 0 ? "#B45309" : "#15803D" }}>
+                            Pending after this: {INR(pendingAfter)}
+                            {pendingAfter > 0 && <Box component="span" sx={{ fontWeight: 500, color: "#64748B" }}> - the rest stays pending; pay it later from the invoice.</Box>}
+                          </Typography>
+                        )}
+                      </Box>
+                    ) : (
+                      <Typography sx={{ fontSize: "0.75rem", color: "#94A3B8", pb: 1, pl: 0.5 }}>
+                        Leave unchecked to keep the whole refund pending — you can pay it later from the invoice.
+                      </Typography>
+                    )}
+                  </Box>
+                )}
                 <Box>
                   <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#0F172A", mb: 1 }}>
                     Internal Note (Optional)
@@ -584,10 +749,17 @@ const canConfirm = someSelected && !!reason && !!refundType;
                     Financial Summary
                   </Typography>
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <Typography sx={{ fontSize: "0.875rem", color: "#475569" }}>Total Return Amount</Typography>
-                      <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#0F172A" }}>{INR(totalReturnAmount)}</Typography>
-                    </Box>
+                    {[
+                      { label: "Total Return Amount", value: totalReturnAmount, show: true, color: undefined as string | undefined },
+                      { label: "Adjusted against dues", value: adjustedAmount, show: adjustedAmount > 0.001, color: "#0369A1" as string | undefined },
+                    ].filter((r) => r.show).map((r) => (
+                      <Box key={r.label} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <Typography sx={{ fontSize: "0.875rem", color: "#475569" }}>{r.label}</Typography>
+                        <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: r.color ?? "#0F172A" }}>
+                          {r.color ? "-" : ""}{INR(r.value)}
+                        </Typography>
+                      </Box>
+                    ))}
                   </Box>
                 </Box>
 
@@ -595,7 +767,7 @@ const canConfirm = someSelected && !!reason && !!refundType;
                 <Box sx={{ borderTop: "1px solid #E2E8F0", pt: 2.5 }}>
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
                     <Typography sx={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.12em", color: "#94A3B8", textTransform: "uppercase" }}>
-                      Net Refund Payable
+                      Refund Payable
                     </Typography>
                     <Typography sx={{ fontSize: "1.875rem", fontWeight: 900, color: "#D2042D", letterSpacing: "-1px", lineHeight: 1 }}>
                       {INR(netRefund)}
@@ -650,7 +822,7 @@ const canConfirm = someSelected && !!reason && !!refundType;
             transition: "all 0.15s",
           }}
         >
-          {mutation.isPending ? "Submitting..." : "Confirm Return"}
+          {mutation.isPending ? "Submitting..." : editReturn ? "Update Return" : isCreditNote ? "Issue Credit Note" : "Confirm Return"}
         </Button>
       </Box>
     </Dialog>

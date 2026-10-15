@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { Fragment, useRef } from "react";
 import {
   Box,
   Card,
@@ -60,6 +60,8 @@ export interface DataTableProps<T> {
    * proportions of the table width, long headers wrap and overflowing cell text is clipped.
    */
   fitWidth?: boolean;
+  /** Extra rows rendered directly under a data row (e.g. an invoice's returns). */
+  renderSubRows?: (row: T) => React.ReactNode;
 }
 
 // ─── Shared cell sx ───────────────────────────────────────────────────────────
@@ -96,6 +98,7 @@ function DataTable<T>({
   footerRow,
   hideEndNote = false,
   fitWidth = false,
+  renderSubRows,
 }: DataTableProps<T>) {
   const headerContainerRef = useRef<HTMLDivElement>(null);
   const footerContainerRef = useRef<HTMLDivElement>(null);
@@ -319,18 +322,20 @@ function DataTable<T>({
             {/* Data rows */}
             {!isLoading &&
               rows.map((row) => (
-                <TableRow
-                  key={rowKey(row)}
-                  hover
-                  onClick={onRowClick ? () => onRowClick(row) : undefined}
-                  sx={{ height: ROW_HEIGHT, cursor: onRowClick ? "pointer" : "default" }}
-                >
-                  {columns.map((col) => (
-                    <TableCell key={col.key} align={col.align ?? "left"} sx={cellSx}>
-                      {col.render(row)}
-                    </TableCell>
-                  ))}
-                </TableRow>
+                <Fragment key={rowKey(row)}>
+                  <TableRow
+                    hover
+                    onClick={onRowClick ? () => onRowClick(row) : undefined}
+                    sx={{ height: ROW_HEIGHT, cursor: onRowClick ? "pointer" : "default" }}
+                  >
+                    {columns.map((col) => (
+                      <TableCell key={col.key} align={col.align ?? "left"} sx={cellSx}>
+                        {col.render(row)}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  {renderSubRows?.(row)}
+                </Fragment>
               ))}
 
             {/* Infinite scroll sentinel */}
