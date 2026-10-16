@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import LottieLoader from "@components/LottieLoader";
 import {
   Box, Typography, TextField, Button, IconButton,
@@ -12,16 +12,26 @@ import AddIcon           from "@mui/icons-material/Add";
 import EditOutlinedIcon  from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import SearchIcon        from "@mui/icons-material/Search";
+import AssignmentReturnOutlinedIcon from "@mui/icons-material/AssignmentReturnOutlined";
+import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 
 import AddNewPurchaseDialog  from "./Addnewpuechasedialog";
 import PurchaseStats         from "./PurchaseStats";
 import PurchaseDetailDialog  from "./PurchaseDetailDialog";   // ← NEW
+import PurchaseReturnDialog, { type PurchaseReturnTarget } from "./PurchaseReturnDialog";
+import PurchaseReturnDetailDialog from "./PurchaseReturnDetailDialog";
+import PurchaseReturnSubRows from "./PurchaseReturnSubRows";
+import {
+  MarkPurchaseRefundDialog, DeletePurchaseReturnDialog, type RefundTarget,
+} from "./PurchaseReturnActionDialogs";
+import SuccessToast from "@components/Common/SuccessToast";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
 import {
   usePurchases,
   usePurchaseSummary,
   useDeletePurchase,
   type PurchaseRow,
+  type PurchaseReturnListRow,
 } from "./usePuchaseapi";
 import PurchasePaymentDialog from "./purchasePaymentDialog";
 import { useModulePermission } from "@hooks/useModulePermission";
@@ -97,6 +107,22 @@ export default function PurchaseScreen() {
   const [paymentTarget, setPayment]       = useState<PurchaseRow | null>(null);
   const [deleteTarget, setDeleteTarget]   = useState<PurchaseRow | null>(null);
   const [detailId, setDetailId]           = useState<string | null>(null); // ← NEW: UUID for detail dialog
+  // Purchase returns / debit notes
+  const [returnTarget, setReturnTarget]   = useState<PurchaseReturnTarget | null>(null);           // create / edit form
+  const [viewReturnId, setViewReturnId]   = useState<string | null>(null);                         // detail dialog
+  const [refundTarget, setRefundTarget]   = useState<RefundTarget | null>(null);                   // Mark Refund
+  const [deleteReturn, setDeleteReturn]   = useState<{ purchaseId: string; ret: PurchaseReturnListRow } | null>(null);
+  const [toast, setToast]                 = useState<{ message: string; severity: "success" | "error" } | null>(null);
+  const notify = useCallback((message: string, severity: "success" | "error" = "success") => setToast({ message, severity }), []);
+  // Returns are shown expanded; only the ones the user closed are tracked
+  const [collapsed, setCollapsed]         = useState<ReadonlySet<string>>(new Set());
+  const toggleReturns = useCallback((id: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  }, []);
   const [tab, setTab]                     = useState<"active" | "cancelled">("active");
 
   const {
@@ -135,8 +161,9 @@ export default function PurchaseScreen() {
       await deletePurchase(deleteTarget.purchase_id);
       setDeleteTarget(null);
       refetchStats();
+      notify("Purchase deleted");
     } catch (err: any) {
-      alert(err.message ?? "Delete failed");
+      notify(err.message ?? "Delete failed", "error");
     }
   };
 
@@ -146,23 +173,39 @@ export default function PurchaseScreen() {
       {
         key: "purchase_id",
         label: "Purchase ID",
-        width: 160,
-        render: (p) => (
-          /* ── Clickable ID ── */
-          <Typography
-            onClick={() => setDetailId(p.purchase_id)}   // ← p.id is the UUID
-            sx={{
-              fontSize: 13, fontWeight: 700, color: "#1976d2",
-              letterSpacing: "0.02em", whiteSpace: "nowrap",
-              overflow: "hidden", textOverflow: "ellipsis",
-              cursor: "pointer",
-              "&:hover": { textDecoration: "underline", color: "#1565C0" },
-              transition: "color 0.15s",
-            }}
-          >
-            {p.purchase_id}
-          </Typography>
-        ),
+        width: 190,
+        render: (p) => {
+          const hasReturns = (p.returns?.length ?? 0) > 0;
+          const open       = !collapsed.has(p.purchase_id);
+          return (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
+              {/* Fixed-width slot keeps IDs aligned whether or not a purchase has returns */}
+              <Box sx={{ width: 26, flexShrink: 0 }}>
+                {hasReturns && (
+                  <Tooltip title={open ? "Hide returns" : `Show ${p.returns!.length} return${p.returns!.length > 1 ? "s" : ""}`}>
+                    <IconButton size="small" onClick={() => toggleReturns(p.purchase_id)} sx={{ p: 0.25, color: "#6B7280", "&:hover": { color: "#D32F2F" } }}>
+                      <KeyboardArrowRightIcon sx={{ fontSize: 20, transition: "transform 0.15s", transform: open ? "rotate(90deg)" : "none" }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Box>
+              {/* ── Clickable ID ── */}
+              <Typography
+                onClick={() => setDetailId(p.purchase_id)}   // ← p.id is the UUID
+                sx={{
+                  fontSize: 13, fontWeight: 700, color: "#1976d2",
+                  letterSpacing: "0.02em", whiteSpace: "nowrap",
+                  overflow: "hidden", textOverflow: "ellipsis",
+                  cursor: "pointer",
+                  "&:hover": { textDecoration: "underline", color: "#1565C0" },
+                  transition: "color 0.15s",
+                }}
+              >
+                {p.purchase_id}
+              </Typography>
+            </Box>
+          );
+        },
       },
       {
         key: "purchase_date",
@@ -198,11 +241,21 @@ export default function PurchaseScreen() {
         label: "Total (INR)",
         align: "right",
         width: 120,
-        render: (p) => (
-          <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#1976d2", whiteSpace: "nowrap" }}>
-            {INR(p.total_amount)}
-          </Typography>
-        ),
+        render: (p) => {
+          const returned = Number(p.total_returned ?? 0);
+          return (
+            <Box>
+              <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#1976d2", whiteSpace: "nowrap" }}>
+                {INR(p.total_amount)}
+              </Typography>
+              {returned > 0 && (
+                <Typography sx={{ fontSize: 11, color: "#C62828", whiteSpace: "nowrap" }}>
+                  Returned: −{INR(returned)}
+                </Typography>
+              )}
+            </Box>
+          );
+        },
       },
       {
         key: "paid_amount",
@@ -301,9 +354,26 @@ export default function PurchaseScreen() {
         key: "actions",
         label: "Actions",
         align: "center" as const,
-        width: 90,
-        render: (p: PurchaseRow) => (
+        width: 120,
+        // Once a purchase has returns, its actions live on the return rows — the purchase itself is locked
+        render: (p: PurchaseRow) => (p.returns?.length ? null : (
           <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
+            <Tooltip title={canEdit ? "Purchase return / debit note" : "You don't have permission to edit"} placement="top">
+              <span>
+                <IconButton
+                  size="small"
+                  disabled={!canEdit}
+                  onClick={guard(() => setReturnTarget({ purchaseId: p.purchase_id }))}
+                  sx={{
+                    color: "#475569", p: 0.6, borderRadius: 1,
+                    "&:hover": { color: "#0F172A", bgcolor: "#F1F5F9" },
+                    transition: "all 0.12s",
+                  }}
+                >
+                  <AssignmentReturnOutlinedIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </span>
+            </Tooltip>
             <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"} placement="top">
               <span>
                 <IconButton
@@ -337,10 +407,10 @@ export default function PurchaseScreen() {
               </span>
             </Tooltip>
           </Box>
-        ),
+        )),
       }] as ColumnDef<PurchaseRow>[]),
     ],
-    [isDeleting, tab, canEdit, canDelete]
+    [isDeleting, tab, canEdit, canDelete, collapsed, toggleReturns]
   );
 
   if (listLoading && statsLoading) return <LottieLoader />;
@@ -425,6 +495,19 @@ export default function PurchaseScreen() {
                 columns={columns}
                 rows={purchases}
                 rowKey={(p) => p.id}
+                renderSubRows={(p) =>
+                  !collapsed.has(p.purchase_id) && p.returns?.length ? (
+                    <PurchaseReturnSubRows
+                      returns={p.returns}
+                      columnKeys={columns.map((c) => c.key)}
+                      canEdit={canEdit}
+                      onView={(ret) => setViewReturnId(ret.return_uuid)}
+                      onMarkRefund={guard((ret: PurchaseReturnListRow) => setRefundTarget(ret))}
+                      onEdit={guard((ret: PurchaseReturnListRow) => setReturnTarget({ purchaseId: p.purchase_id, editReturn: ret }))}
+                      onDelete={guard((ret: PurchaseReturnListRow) => setDeleteReturn({ purchaseId: p.purchase_id, ret }))}
+                    />
+                  ) : null
+                }
                 maxHeight="100%"
                 emptyMessage={search ? `No purchases found for "${search}"` : "No purchases found."}
               />
@@ -446,6 +529,25 @@ export default function PurchaseScreen() {
           onClose={() => setDetailId(null)}
         />
 
+        {/* ── Purchase Return / Debit Note: create or edit ── */}
+        <PurchaseReturnDialog target={returnTarget} onClose={() => setReturnTarget(null)} notify={notify} />
+
+        {/* ── Return detail (return ID click) ── */}
+        <PurchaseReturnDetailDialog
+          returnUuid={viewReturnId}
+          canEdit={canEdit}
+          onClose={() => setViewReturnId(null)}
+          onMarkRefund={(ret) => { setViewReturnId(null); guard(() => setRefundTarget(ret))(); }}
+        />
+
+        {refundTarget && <MarkPurchaseRefundDialog ret={refundTarget} notify={notify} onClose={() => setRefundTarget(null)} />}
+
+        {deleteReturn && (
+          <DeletePurchaseReturnDialog purchaseId={deleteReturn.purchaseId} ret={deleteReturn.ret} notify={notify} onClose={() => setDeleteReturn(null)} />
+        )}
+
+        <SuccessToast message={toast?.message ?? ""} severity={toast?.severity ?? "success"} onClose={() => setToast(null)} />
+
         {/* ── Add / Edit Dialog ── */}
         <AddNewPurchaseDialog
           open={addDialogOpen}
@@ -458,6 +560,7 @@ export default function PurchaseScreen() {
         {paymentTarget && (
           <PurchasePaymentDialog
             purchase={paymentTarget}
+            notify={notify}
             onClose={() => setPayment(null)}
             onSuccess={() => { setPayment(null); refetchAll(); }}
           />

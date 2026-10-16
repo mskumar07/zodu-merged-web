@@ -16,6 +16,7 @@ import PrintIcon from "@mui/icons-material/Print";
 import DownloadIcon from "@mui/icons-material/Download";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import ShoppingCartCheckoutIcon from "@mui/icons-material/ShoppingCartCheckout";
+import AssignmentReturnIcon from "@mui/icons-material/AssignmentReturn";
 import { useState } from "react";
 import { usePurchaseById, type PurchaseDetail } from "./usePuchaseapi";
 import AddNewPurchaseDialog from "./Addnewpuechasedialog";
@@ -110,6 +111,7 @@ function PurchaseDetailContent({ data }: { data: PurchaseDetail }) {
   const totalCgst = data.items.reduce((sum, item) => sum + Number(item.cgst ?? 0), 0);
   const totalSgst = data.items.reduce((sum, item) => sum + Number(item.sgst ?? 0), 0);
   const totalTax = data.items.reduce((sum, item) => sum + Number(item.tax_amount ?? 0), 0);
+  const totalReturned = Number(data.total_returned ?? 0);
   const dueDate = data.due_date_formatted ?? data.due_date_formated;
   const attachments = parseAttachments(data.attachment_url);
 
@@ -273,12 +275,32 @@ function PurchaseDetailContent({ data }: { data: PurchaseDetail }) {
             <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{INR(totalSgst)}</Typography>
           </Box>
           <Divider sx={{ borderStyle: "dashed", borderColor: "#CBD5E1", my: 0.6 }} />
+          {/* Return deduction — shown only when this purchase has returns / debit notes */}
+          {totalReturned > 0 && (
+            <>
+              <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                <Typography sx={{ fontSize: 13, color: "#64748B" }}>Purchase Total</Typography>
+                <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{INR(data.total_amount)}</Typography>
+              </Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#7C3AED" }}>Total Returned</Typography>
+                <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#7C3AED" }}>− {INR(totalReturned)}</Typography>
+              </Box>
+              <Divider sx={{ borderColor: "#E2E8F0", my: 0.3 }} />
+            </>
+          )}
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Typography sx={{ fontSize: 15, fontWeight: 800, color: "#0F172A" }}>Grand Total</Typography>
             <Typography sx={{ fontSize: 18, fontWeight: 900, color: "#0F172A", letterSpacing: "-0.03em" }}>
-              {INR(data.total_amount)}
+              {INR(Math.max(0, Number(data.total_amount) - totalReturned))}
             </Typography>
           </Box>
+          {Number(data.paid_amount) > 0 && (
+            <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+              <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#16A34A" }}>Paid Amount</Typography>
+              <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#16A34A" }}>{INR(data.paid_amount)}</Typography>
+            </Box>
+          )}
           <Box sx={{ display: "flex", justifyContent: "space-between" }}>
             <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#D97706" }}>Balance Due</Typography>
             <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#D97706" }}>
@@ -452,6 +474,14 @@ export default function PurchaseDetailDialog({ purchaseId, onClose }: Props) {
                     border: `1px solid ${st.border}`,
                     borderRadius: "999px",
                   }}
+                />
+              )}
+              {!!data.returns?.length && (
+                <Chip
+                  icon={<AssignmentReturnIcon sx={{ fontSize: "12px !important" }} />}
+                  label={`${data.returns.length} return${data.returns.length > 1 ? "s" : ""} · ${INR(data.total_returned ?? 0)}`}
+                  size="small"
+                  sx={{ bgcolor: "#F3E8FF", color: "#6B21A8", fontWeight: 700, fontSize: 11, height: 20, borderRadius: "999px" }}
                 />
               )}
             </>

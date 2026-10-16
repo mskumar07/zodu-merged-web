@@ -32,6 +32,7 @@ import InvoiceDetailDialog from "./Invoicedetaildialog";
 import MarkPaymentDialog   from "./MarkPaymentDialog";
 import SalesReturnDialog   from "./Salesreturndialog";
 import MarkRefundDialog    from "./MarkRefundDialog";
+import ReturnDetailDialog  from "./ReturnDetailDialog";
 import DeleteReturnDialog  from "./DeleteReturnDialog";
 import SaleReturnSubRows   from "./SaleReturnSubRows";
 import DataTable           from "@utils/DataTable";
@@ -260,9 +261,11 @@ export default function SalesHistoryPage() {
   const [toast, setToast] = useState<{ message: string; severity: "success" | "error" } | null>(null);
   const notify = useCallback<Notify>((message, severity = "success") => setToast({ message, severity }), []);
   const [deleteReturn,  setDeleteReturn]  = useState<{ sale: Sale; ret: SaleListReturn } | null>(null);
-  const [expanded,      setExpanded]      = useState<ReadonlySet<string>>(new Set());
+  const [viewReturn,    setViewReturn]    = useState<{ sale: Sale; ret: SaleListReturn } | null>(null);
+  // Return rows are expanded by default, so only the ones the user collapsed are tracked
+  const [collapsed,     setCollapsed]     = useState<ReadonlySet<string>>(new Set());
   const toggleExpanded = useCallback((id: string) => {
-    setExpanded((prev) => {
+    setCollapsed((prev) => {
       const next = new Set(prev);
       if (!next.delete(id)) next.add(id);
       return next;
@@ -309,7 +312,7 @@ export default function SalesHistoryPage() {
       width: 200,
       render: (sale: Sale) => {
         const hasReturns = !isRestaurant && (sale.returns?.length ?? 0) > 0;
-        const open       = expanded.has(sale.sale_uuid);
+        const open       = !collapsed.has(sale.sale_uuid);
         return (
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
             {/* Fixed-width slot keeps IDs aligned whether or not a row has returns */}
@@ -395,12 +398,17 @@ export default function SalesHistoryPage() {
         return (
           <Box textAlign="right">
             <Typography variant="body2" fontWeight={700} sx={{ fontSize: BODY_FONT_SIZE, color: "#1976d2" }}>
-              {INR(adjustedTotal)}
+              {INR(totalAmount)}
             </Typography>
             {totalReturned > 0 && (
-              <Typography variant="caption" sx={{ fontSize: "11px", color: "#C62828" }}>
-                Returned: {INR(totalReturned)}
-              </Typography>
+              <>
+                <Typography variant="caption" display="block" sx={{ fontSize: "11px", color: "#C62828" }}>
+                  Returned: −{INR(totalReturned)}
+                </Typography>
+                <Typography variant="caption" display="block" sx={{ fontSize: "11px", color: "#64748B", fontWeight: 600 }}>
+                  Net: {INR(adjustedTotal)}
+                </Typography>
+              </>
             )}
           </Box>
         );
@@ -853,12 +861,12 @@ export default function SalesHistoryPage() {
         <DataTable<Sale>
           columns={visibleColumns}
           renderSubRows={(sale) =>
-            expanded.has(sale.sale_uuid) && sale.returns?.length ? (
+            !collapsed.has(sale.sale_uuid) && sale.returns?.length ? (
               <SaleReturnSubRows
                 sale={sale}
                 columnKeys={visibleColumns.map((c) => c.key)}
                 canEdit={canEdit}
-                onOpen={() => setInvoiceDialog({ id: sale.sale_uuid })}
+                onViewReturn={(ret: SaleListReturn) => setViewReturn({ sale, ret })}
                 onEditReturn={guard((ret: SaleListReturn) => setReturnDialog({ sale, ret }))}
                 onDeleteReturn={guard((ret: SaleListReturn) => setDeleteReturn({ sale, ret }))}
                 onMarkRefund={guard((ret: SaleListReturn) => setRefundDialog({ saleUuid: sale.sale_uuid, ret }))}
@@ -899,6 +907,18 @@ export default function SalesHistoryPage() {
           notify={notify}
           onClose={() => setReturnDialog(null)}
           onSuccess={() => refetch()}
+        />
+      )}
+
+      {viewReturn && (
+        <ReturnDetailDialog
+          ret={viewReturn.ret}
+          canEdit={canEdit}
+          onClose={() => setViewReturn(null)}
+          onMarkRefund={(ret) => {
+            setViewReturn(null);
+            guard((r: SaleListReturn) => setRefundDialog({ saleUuid: viewReturn.sale.sale_uuid, ret: r }))(ret);
+          }}
         />
       )}
 

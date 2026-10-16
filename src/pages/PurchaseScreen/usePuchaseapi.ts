@@ -9,7 +9,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 export const getZoduId = () => getTenantContext().zoduId;
 export const getBranchId = () => getTenantContext().branchId;
 
-function getApi() {
+export function getApi() {
   const { businessType } = getTenantContext();
   const route = businessType === "Restaurant" ? "restaurant" : "retail";
   const token = getAccessToken();
@@ -113,6 +113,27 @@ export interface MarkPaymentPayload {
   status?: "completed" | "pending";
 }
 
+export type PurchaseReturnKind   = "PURCHASE_RETURN" | "DEBIT_NOTE";
+/** NA = the purchase was unpaid, so the return just lowers what is owed. */
+export type PurchaseRefundStatus = "NA" | "PENDING" | "PARTIAL" | "REFUNDED";
+
+/** A return as embedded in each purchase of the list / detail responses (amounts may arrive as strings). */
+export interface PurchaseReturnListRow {
+  return_uuid:      string;
+  return_id:        string;
+  return_type:      PurchaseReturnKind;
+  return_amount:    number | string;
+  refund_type:      string | null;
+  refund_status:    PurchaseRefundStatus;
+  adjusted_amount:  number | string;
+  refund_due:       number | string;
+  refunded_amount:  number | string;
+  pending_refund:   number | string;
+  excess_refund:    number | string;
+  return_reason:    string | null;
+  return_date_fmt:  string | null;
+}
+
 /** Row returned by GET /purchase (list) — includes joined vendor fields */
 export interface PurchaseRow {
   id: string;
@@ -136,6 +157,11 @@ export interface PurchaseRow {
   vendor_name: string | null;
   company_name: string | null;
   vendor_phone: string | null;
+  // returns — balance_amount is already net of them
+  original_balance_amount?: string;
+  return_count?: string;
+  total_returned?: string | number;
+  returns?: PurchaseReturnListRow[];
 }
 
 /** Item row returned by GET /purchase/:id */
@@ -147,6 +173,10 @@ export interface PurchaseItemRow {
   hsn_code?: string | null;
   hsn?: string | null;
   qty: string;
+  /** Already returned / debited — supplied once the purchase-return API exists. */
+  returned_qty?: string | null;
+  /** qty − returned_qty: the most that can still be returned */
+  returnable_qty?: string | null;
   unit: string | null;
   purchase_price: string;
   gst_percentage: string | null;
@@ -183,6 +213,8 @@ export interface PurchaseDetail extends PurchaseRow {
   // nested
   items: PurchaseItemRow[];
   payments: PurchasePaymentRow[];
+  total_returned?: number;
+  net_balance_amount?: number;
 }
 
 /* =========================================================

@@ -17,14 +17,16 @@ import {
   CheckCircle as CheckCircleIcon,
 } from "@mui/icons-material";
 import { useMarkPayment, getZoduId, getBranchId } from "./usePuchaseapi";
-import { toast } from "react-toastify";
 import { closeFromControlsOnly } from "@utils/dialog";
 import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
+import type { Notify } from "./PurchaseReturnDialog";
 
 interface Props {
   purchase: any;
   onClose: () => void;
   onSuccess: () => void;
+  /** Shows the result in the screen's SuccessToast — it outlives this dialog, which closes on success. */
+  notify: Notify;
 }
 
 function FieldLabel({ children }: { children: string }) {
@@ -49,7 +51,7 @@ const inputSx = {
 // ✅ Payment types that match tbl_sale_payment.transaction_type
 const PAYMENT_TYPES = ["Cash", "UPI","Bank Transfer", "Others"] as const;
 
-export default function PurchasePaymentDialog({ purchase, onClose, onSuccess }: Props) {
+export default function PurchasePaymentDialog({ purchase, onClose, onSuccess, notify }: Props) {
   useBlockWhenReadOnly(true, onClose);
   const queryClient = useQueryClient();
 const balance = Number(purchase.balance_amount);
@@ -67,14 +69,12 @@ const handleSubmit = () => {
   const amount = parseFloat(form.amount);
 
   if (!amount || amount <= 0) {
-    toast.error("Enter a valid payment amount");
+    notify("Enter a valid payment amount", "error");
     return;
   }
 
   if (amount > balance) {
-    toast.error(
-      `Payment cannot exceed ₹${balance.toLocaleString("en-IN")}`
-    );
+    notify(`Payment cannot exceed ₹${balance.toLocaleString("en-IN")}`, "error");
     return;
   }
 
@@ -92,12 +92,12 @@ const handleSubmit = () => {
     },
     {
       onSuccess: () => {
-        toast.success("Payment recorded successfully");
+        notify("Payment recorded successfully");
         onSuccess();
         onClose();
       },
       onError: (err: any) => {
-        toast.error(err?.message || "Failed to record payment");
+        notify(err?.message || "Failed to record payment", "error");
       },
     }
   );

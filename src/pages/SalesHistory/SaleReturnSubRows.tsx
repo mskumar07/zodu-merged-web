@@ -17,7 +17,7 @@ interface Props {
   sale:        Sale;
   columnKeys:  string[];
   canEdit:     boolean;
-  onOpen:      () => void;                       // open the invoice detail
+  onViewReturn: (ret: SaleListReturn) => void;   // open the return detail dialog
   onMarkRefund: (ret: SaleListReturn) => void;
   onEditReturn: (ret: SaleListReturn) => void;   // reopen the return dialog on this return
   onDeleteReturn?: (ret: SaleListReturn) => void; // not provided until the backend supports it
@@ -46,7 +46,7 @@ const iconBtnSx = { color: "text.secondary", borderRadius: 1.5, "&:hover": { col
 
 const cellSx = { py: 0.9, px: 1.5, bgcolor: "#F9FAFB", borderBottom: "1px solid #EEF0F3", fontSize: "13px" } as const;
 
-function SaleReturnSubRows({ sale, columnKeys, canEdit, onOpen, onMarkRefund, onEditReturn, onDeleteReturn }: Props) {
+function SaleReturnSubRows({ sale, columnKeys, canEdit, onViewReturn, onMarkRefund, onEditReturn, onDeleteReturn }: Props) {
   const returns = sale.returns ?? [];
 
   return (
@@ -66,7 +66,7 @@ function SaleReturnSubRows({ sale, columnKeys, canEdit, onOpen, onMarkRefund, on
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, pl: 2.5 }}>
                   <SubdirectoryArrowRightIcon sx={{ fontSize: 15, color: "#CBD5E1", flexShrink: 0 }} />
                   <Typography
-                    noWrap onClick={onOpen}
+                    noWrap onClick={() => onViewReturn(r)}
                     sx={{ fontSize: 12, fontWeight: 600, color: "#1976d2", cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
                   >
                     {r.return_id}

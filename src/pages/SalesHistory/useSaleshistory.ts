@@ -527,6 +527,64 @@ export async function deleteSaleReturn(return_uuid: string): Promise<DeleteSaleR
   return data;
 }
 
+/** One returned line, with its tax already worked out by the backend. */
+export interface SaleReturnDetailItem {
+  item_id:         string;
+  item_name:       string;
+  variant_name?:   string | null;
+  hsn_code?:       string | null;
+  unit?:           string | null;
+  return_qty:      string | number;
+  price:           string | number;
+  gst_percentage:  string | number;
+  taxable_amount:  string | number;
+  cgst:            string | number;
+  sgst:            string | number;
+  tax_amount:      string | number;
+  total_amount:    string | number;
+}
+
+/** GET /api/retail/sale-returns/:return_uuid — everything the return / credit-note dialog shows. */
+export interface SaleReturnDetail {
+  return: {
+    return_uuid:      string;
+    return_id:        string;
+    return_type:      ReturnType;
+    original_sale_id: string;
+    return_reason:    string | null;
+    notes:            string | null;
+    refund_type:      string | null;
+    refund_status:    RefundStatus | null;
+    return_date_fmt:  string | null;
+    return_time_fmt:  string | null;
+  };
+  /** null for a walk-in sale */
+  customer: Pick<SaleCustomer, "cust_name" | "cpy_name" | "mobile" | "gst" | "address_line1" | "address_line2" | "city" | "state" | "pincode"> | null;
+  items:    SaleReturnDetailItem[];
+  summary: {
+    subtotal:        string | number;
+    cgst:            string | number;
+    sgst:            string | number;
+    total_tax:       string | number;
+    return_total:    string | number;
+    adjusted_amount: string | number;
+    refund_due:      string | number;
+    refunded_amount: string | number;
+    pending_refund:  string | number;
+    excess_refund:   string | number;
+  };
+  refunds: ReturnRefundRow[];
+}
+
+export async function fetchSaleReturnDetail(return_uuid: string): Promise<SaleReturnDetail> {
+  const { zoduId, branchId } = getTenantContext();
+  const { data } = await axios.get<{ success: boolean; data: SaleReturnDetail }>(
+    `${API_BASE}/retail/api/sale-returns/${return_uuid}`,
+    { params: { zodu_id: zoduId, branch_id: branchId } }
+  );
+  return data.data;
+}
+
 /** Lets the screen that owns the dialog show the result in its SuccessToast (a dialog that closes can't). */
 export type Notify = (message: string, severity?: "success" | "error") => void;
 
@@ -633,6 +691,8 @@ export const salesQueryKeys = {
   // Retail: sale_uuid. Restaurant: the order id its detail endpoint takes.
   detail:  (id: string)       => ["sale", id]               as const,
   returns: () => ["sales-returns"] as const,
+  // Nested under `returns` so the existing refund / delete invalidations refresh an open dialog too.
+  returnDetail: (return_uuid: string) => ["sales-returns", "detail", return_uuid] as const,
 };
 
 
