@@ -28,8 +28,6 @@ import {
   fetchSaleDetail,
   fetchRestaurantSaleDetail,
   salesQueryKeys,
-  type SaleItem,
-  type SaleReturnHistoryItem,
   type SaleReturnHistoryRow,
   type HsnWiseTax,
 } from "./useSaleshistory";
@@ -39,7 +37,6 @@ import { InvoicePDFTemplateModern2 } from "./InvoicePDFTemplateModern2";
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "./ThermalInvoiceTemplate";
 import { renderPaginatedInvoicePdf, renderThermalReceiptPdf } from "@utils/pdfPagination";
 import { THERMAL_PRINTABLE_MM, THERMAL_ROLL_MM, printThermalCopies } from "@utils/thermalPrint";
-import MarkRefundDialog from "./MarkRefundDialog";
 import InvoiceCopyActions from "@components/Common/InvoiceCopyActions";
 import SuccessToast from "@components/Common/SuccessToast";
 import { invoiceCopyTypesForSale } from "@utils/invoiceCopyTypes";
@@ -123,57 +120,6 @@ function toThermalPaperSize(printerInch: string | undefined): ThermalPaperSize {
   return "3";
 }
 
-// ─────────────────────────────────────────────────────────────
-function getReturnLineItems(
-  returnEntry: SaleReturnHistoryRow,
-  saleItems: SaleItem[],
-  returnCount: number,
-): SaleReturnHistoryItem[] {
-  const apiItems = returnEntry.items ?? returnEntry.return_items ?? [];
-  if (apiItems.length > 0) {
-    return apiItems;
-  }
-
-  if (returnCount !== 1) {
-    return [];
-  }
-
-  return saleItems
-    .filter((item) => Number(item.returned_qty ?? 0) > 0)
-    .map((item) => ({
-      item_id: item.item_id,
-      item_uuid: item.item_uuid,
-      item_name: item.item_name,
-      variant_name: item.variant_name,
-      unit: item.unit,
-      return_qty: item.returned_qty,
-      price: item.price,
-      refund_amount: item.total_amount,
-      return_reason: returnEntry.return_reason,
-    }));
-}
-
-function getReturnQuantity(item: SaleReturnHistoryItem): number {
-  return Number(item.return_qty ?? item.qty_returned ?? item.returned_qty ?? 0);
-}
-
-function getReturnRate(item: SaleReturnHistoryItem): number {
-  return Number(item.price ?? item.rate ?? 0);
-}
-
-function getReturnRefund(item: SaleReturnHistoryItem): number {
-  const explicitRefund = Number(item.refund_amount ?? item.amount ?? 0);
-  if (explicitRefund > 0) {
-    return explicitRefund;
-  }
-
-  return getReturnQuantity(item) * getReturnRate(item);
-}
-
-function getReturnReason(item: SaleReturnHistoryItem, fallbackReason: string | null): string {
-  return item.return_reason ?? item.reason ?? fallbackReason ?? "—";
-}
-
 // Summary row
 // ─────────────────────────────────────────────────────────────
 function SRow({
@@ -241,18 +187,6 @@ function getPosEditUrl(saleUuid: string | undefined, saleType: string | null | u
   return `/pos?${params.toString()}`;
 }
 
-// Badge styling for a return's refund status (NA = adjusted against the unpaid balance)
-const REFUND_STATUS_CHIP: Record<string, { label: string; bg: string; color: string }> = {
-  PENDING:  { label: "REFUND PENDING", bg: "#FEF3C7", color: "#B45309" },
-  PARTIAL:  { label: "PARTIALLY REFUNDED", bg: "#FFEDD5", color: "#C2410C" },
-  REFUNDED: { label: "REFUNDED", bg: "#DCFCE7", color: "#15803D" },
-  NA:       { label: "ADJUSTED", bg: "#E0F2FE", color: "#0369A1" },
-};
-
-function ReturnChip({ label, bg, color }: { label: string; bg: string; color: string }) {
-  return <Chip label={label} size="small" sx={{ fontSize: 9, fontWeight: 700, borderRadius: "999px", bgcolor: bg, color, height: 20 }} />;
-}
-
 // ─────────────────────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────────────────────
@@ -263,9 +197,6 @@ export default function InvoiceDetailsModal({
   const pdfRef     = useRef<HTMLDivElement | null>(null);
   const thermalRef = useRef<HTMLDivElement | null>(null);
   const [printPaperSize, setPrintPaperSize] = useState<ThermalPaperSize | null>(null);
-
-  // Return whose refund is being paid (opens MarkRefundDialog)
-  const [refundFor, setRefundFor] = useState<SaleReturnHistoryRow | null>(null);
 
   const [printToast, setPrintToast] = useState<{ message: string; severity: "success" | "error" } | null>(null);
 
@@ -1041,255 +972,6 @@ export default function InvoiceDetailsModal({
               </Box>
             )}
 
-            {/* 5 ── Return history (retail only) ───────────── */}
-            {!isRestaurant && returnHistory.length > 0 && (
-              <Box>
-                <SectionTitle sx={{ color: "#D0021B !important" }}>
-                  Sales Returns
-                </SectionTitle>
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mb: 1.5 }}>
-                  {returnHistory.map((r) => {
-                    const returnItems = getReturnLineItems(r, items, returnHistory.length);
-
-                    return (
-                      <Paper
-                        key={`return-card-${r.return_uuid}`}
-                        elevation={0}
-                        sx={{
-                          border: "1px solid #FECACA",
-                          borderRadius: 1,
-                          overflow: "hidden",
-                          bgcolor: "#FFFFFF",
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: { xs: "flex-start", sm: "center" },
-                            justifyContent: "space-between",
-                            flexDirection: { xs: "column", sm: "row" },
-                            gap: 1,
-                            px: 2,
-                            py: 1.4,
-                            borderBottom: "1px solid #FEE2E2",
-                            bgcolor: "#FFF7F7",
-                          }}
-                        >
-                          <Box>
-                            <Typography
-                              sx={{
-                                fontSize: 13,
-                                fontWeight: 800,
-                                color: "#D0021B",
-                                letterSpacing: "0.04em",
-                                textTransform: "uppercase",
-                              }}
-                            >
-                              {r.return_id}
-                            </Typography>
-                            <Typography sx={{ fontSize: 12, color: "#64748B", mt: 0.35 }}>
-                              {r.return_date_fmt ?? "—"}
-                              {r.return_time_fmt ? `, ${r.return_time_fmt}` : ""}
-                            </Typography>
-                          </Box>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                            {r.return_type === "CREDIT_NOTE" && <ReturnChip label="CREDIT NOTE" bg="#EDE9FE" color="#6D28D9" />}
-                            {r.refund_status && REFUND_STATUS_CHIP[r.refund_status] && (
-                              <ReturnChip {...REFUND_STATUS_CHIP[r.refund_status]} />
-                            )}
-                            {r.refund_type ? (
-                              <ReturnChip label={r.refund_type.replace("_", " ").toUpperCase()} bg="#FEE2E2" color="#B91C1C" />
-                            ) : null}
-                            <Typography sx={{ fontSize: 15, fontWeight: 800, color: "#D0021B" }}>
-                              {INR(r.return_amount)}
-                            </Typography>
-                          </Box>
-                        </Box>
-
-                        <TableContainer>
-                          <Table size="small">
-                            <TableHead>
-                              <TableRow sx={{ bgcolor: "#FFF1F2" }}>
-                                <TH sx={{ bgcolor: "#FFF1F2", color: "#EF4444" }}>Item Name</TH>
-                                <TH sx={{ bgcolor: "#FFF1F2", color: "#EF4444" }}>Reason</TH>
-                                <TH align="center" sx={{ bgcolor: "#FFF1F2", color: "#EF4444" }}>Qty Ret.</TH>
-                                <TH align="right" sx={{ bgcolor: "#FFF1F2", color: "#EF4444" }}>Rate</TH>
-                                <TH align="right" sx={{ bgcolor: "#FFF1F2", color: "#EF4444" }}>Refund</TH>
-                              </TableRow>
-                            </TableHead>
-                            <TableBody>
-                              {returnItems.length > 0 ? (
-                                returnItems.map((item, index) => {
-                                  const isLast = index === returnItems.length - 1;
-                                  const qty = getReturnQuantity(item);
-                                  const rate = getReturnRate(item);
-                                  const refund = getReturnRefund(item);
-
-                                  return (
-                                    <TableRow key={item.return_item_uuid ?? item.item_uuid ?? `${r.return_uuid}-${index}`}>
-                                      <TD sx={{ borderBottom: isLast ? "none" : undefined }}>
-                                        <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>
-                                          {item.item_name ?? "—"}
-                                        </Typography>
-                                        {item.variant_name ? (
-                                          <Typography sx={{ fontSize: 11, color: "#94A3B8", mt: 0.2 }}>
-                                            {item.variant_name}
-                                          </Typography>
-                                        ) : null}
-                                      </TD>
-                                      <TD
-                                        sx={{
-                                          borderBottom: isLast ? "none" : undefined,
-                                          color: "#64748B",
-                                          fontStyle: "italic",
-                                        }}
-                                      >
-                                        {getReturnReason(item, r.return_reason)}
-                                      </TD>
-                                      <TD align="center" sx={{ borderBottom: isLast ? "none" : undefined, fontWeight: 700 }}>
-                                        {String(qty || 0).padStart(2, "0")}
-                                      </TD>
-                                      <TD align="right" sx={{ borderBottom: isLast ? "none" : undefined, fontWeight: 600 }}>
-                                        {INR(rate)}
-                                      </TD>
-                                      <TD align="right" sx={{ borderBottom: isLast ? "none" : undefined, fontWeight: 800, color: "#D0021B" }}>
-                                        {INR(refund)}
-                                      </TD>
-                                    </TableRow>
-                                  );
-                                })
-                              ) : (
-                                <TableRow>
-                                  <TD colSpan={5} sx={{ borderBottom: "none", color: "#64748B" }}>
-                                    Item-level return details are not available for this return.
-                                  </TD>
-                                </TableRow>
-                              )}
-                            </TableBody>
-                          </Table>
-                        </TableContainer>
-
-                        {/* Refund tracker — only when money is (or was) owed back to the customer */}
-                        {(r.refund_status === "PENDING" || r.refund_status === "PARTIAL" || r.refund_status === "REFUNDED") && (
-                          <Box sx={{ px: 2, py: 1.25, borderTop: "1px solid #FEE2E2", bgcolor: "#FFF7F7", display: "flex", flexDirection: "column", gap: 0.75 }}>
-                            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
-                              <Typography sx={{ fontSize: 12, color: "#64748B" }}>
-                                Refunded <b style={{ color: "#16A34A" }}>{INR(r.refunded_amount ?? 0)}</b> of {INR(r.refund_due ?? 0)}
-                                {Number(r.pending_refund) > 0 && <> · Pending <b style={{ color: "#D0021B" }}>{INR(r.pending_refund ?? 0)}</b></>}
-                              </Typography>
-                              {(r.refund_status === "PENDING" || r.refund_status === "PARTIAL") && (
-                                <Button
-                                  size="small" variant="contained" disableElevation
-                                  onClick={() => runIfSubscribed(() => setRefundFor(r))}
-                                  sx={{ bgcolor: "#D0021B", textTransform: "none", fontWeight: 700, fontSize: 12, borderRadius: "8px", "&:hover": { bgcolor: "#B00218" } }}
-                                >
-                                  Mark Refund
-                                </Button>
-                              )}
-                            </Box>
-                            {r.refunds?.map((p) => (
-                              <Typography key={p.id} sx={{ fontSize: 11.5, color: "#94A3B8" }}>
-                                {INR(p.refund_amount)} · {p.payment_mode}
-                                {p.reference_no ? ` · ${p.reference_no}` : ""}
-                                {p.refund_date_fmt ? ` · ${p.refund_date_fmt}` : ""}
-                              </Typography>
-                            ))}
-                          </Box>
-                        )}
-
-                        {/* <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: { xs: "flex-start", sm: "center" },
-                            flexDirection: { xs: "column", sm: "row" },
-                            gap: 1,
-                            px: 2,
-                            py: 1.2,
-                            borderTop: "1px solid #FEE2E2",
-                            bgcolor: "#FFF7F7",
-                          }}
-                        >
-                          <Typography sx={{ fontSize: 12, color: "#64748B" }}>
-                            {r.notes?.trim() ? `Notes: ${r.notes}` : `Items Returned: ${r.total_items}`}
-                          </Typography>
-                          <Typography sx={{ fontSize: 12, color: "#64748B" }}>
-                            Refund Mode: {r.refund_type?.replace("_", " ") ?? "—"}
-                          </Typography>
-                        </Box> */}
-                      </Paper>
-                    );
-                  })}
-                </Box>
-                <TableContainer component={Paper} elevation={0}
-                  sx={{ display: "none", border: "1px solid #EDE9FE", borderRadius: "12px", overflow: "hidden" }}>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow sx={{ bgcolor: "#FAF5FF" }}>
-                        <TH sx={{ bgcolor: "#FAF5FF" }}>Return ID</TH>
-                        <TH sx={{ bgcolor: "#FAF5FF" }}>Date</TH>
-                        <TH sx={{ bgcolor: "#FAF5FF" }}>Reason</TH>
-                        <TH sx={{ bgcolor: "#FAF5FF" }}>Refund Type</TH>
-                        <TH align="center" sx={{ bgcolor: "#FAF5FF" }}>Items</TH>
-                        <TH align="right" sx={{ bgcolor: "#FAF5FF" }}>Return Amount</TH>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {returnHistory.map((r: any, idx: number) => {
-                        const isLast = idx === returnHistory.length - 1;
-                        return (
-                          <TableRow key={r.return_uuid}
-                            sx={{ "&:hover": { bgcolor: "#FAF5FF" } }}>
-                            <TD sx={{ borderBottom: isLast ? "none" : undefined, fontWeight: 700, color: "#7C3AED" }}>
-                              {r.return_id}
-                            </TD>
-                            <TD sx={{ borderBottom: isLast ? "none" : undefined, color: "#334155" }}>
-                              {r.return_date_fmt}
-                              {r.return_time_fmt && (
-                                <Typography sx={{ fontSize: 11, color: "#94A3B8" }}>{r.return_time_fmt}</Typography>
-                              )}
-                            </TD>
-                            <TD sx={{ borderBottom: isLast ? "none" : undefined, color: "#475569" }}>
-                              {r.return_reason ?? "—"}
-                            </TD>
-                            <TD sx={{ borderBottom: isLast ? "none" : undefined }}>
-                              {r.refund_type ? (
-                                <Chip
-                                  label={r.refund_type.replace("_", " ").toUpperCase()}
-                                  size="small"
-                                  sx={{
-                                    fontSize: 9, fontWeight: 700, borderRadius: "999px",
-                                    bgcolor: "#EDE9FE", color: "#6D28D9", height: 20,
-                                  }}
-                                />
-                              ) : "—"}
-                            </TD>
-                            <TD align="center" sx={{ borderBottom: isLast ? "none" : undefined }}>
-                              {r.total_items}
-                            </TD>
-                            <TD align="right" sx={{ borderBottom: isLast ? "none" : undefined, fontWeight: 700, color: "#7C3AED" }}>
-                              {INR(r.return_amount)}
-                            </TD>
-                          </TableRow>
-                        );
-                      })}
-                      {/* Totals row */}
-                      <TableRow sx={{ bgcolor: "#FAF5FF" }}>
-                        <TableCell colSpan={5}
-                          sx={{ fontWeight: 700, fontSize: 13, color: "#6D28D9", borderBottom: "none", p: "10px 14px" }}>
-                          Total Returned
-                        </TableCell>
-                        <TableCell align="right"
-                          sx={{ fontWeight: 900, fontSize: 15, color: "#7C3AED", borderBottom: "none", p: "10px 14px" }}>
-                          {INR(totalReturned)}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Box>
-            )}
-
             {/* 6 ── HSN-wise tax breakdown ──────────────────── */}
             {hsnWiseTax.length > 0 && (
               <>
@@ -1436,14 +1118,6 @@ export default function InvoiceDetailsModal({
 
         </Box>
       </DialogActions>
-      {refundFor && sale && (
-        <MarkRefundDialog
-          saleUuid={saleId}
-          ret={refundFor}
-          onClose={() => setRefundFor(null)}
-          notify={(message, severity = "success") => setPrintToast({ message, severity })}
-        />
-      )}
       <SuccessToast
         message={printToast?.message ?? ""}
         severity={printToast?.severity ?? "success"}
