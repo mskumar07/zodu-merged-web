@@ -30,6 +30,10 @@ export const getBranchId = () => getTenantContext().branchId;
 
 /** tbl_sales row as returned by getSalesHistory */
 export interface Sale {
+  // Retail history is one list of invoices and the returns raised against them.
+  // A return entry is shaped like a Sale (see toSaleRow) so the table and its
+  // dialogs keep one row type; `sale_*` then point at the invoice it was raised against.
+  row_type?:       "invoice" | "return";
   // sale fields
   sale_uuid:       string;
   sale_id:         string;
@@ -182,7 +186,35 @@ export interface SaleListReturn {
   refunded_amount?: string | number | null;
   pending_refund?:  string | number | null;
   return_reason?:   string | null;
+  return_date?:     string | null;
+  return_time?:     string | null;
   return_date_fmt?: string | null;
+}
+
+/** A return entry exactly as GET /api/sales/history sends it (row_type "return"). */
+interface ReturnHistoryEntry extends SaleListReturn {
+  row_type:           "return";
+  original_sale_uuid: string;
+  original_sale_id:   string;
+  cust_uuid:          string | null;
+  cust_name:          string | null;
+  cpy_name:           string | null;
+  customer_mobile:    string | null;
+}
+
+/**
+ * Return entries become Sale-shaped rows: the invoice they were raised against
+ * supplies sale_uuid / sale_id / customer, and the return itself rides in `returns`.
+ * Invoice entries pass through untouched.
+ */
+function toSaleRow(raw: Sale | ReturnHistoryEntry): Sale {
+  if (!("original_sale_uuid" in raw)) return raw;
+  const { row_type, original_sale_uuid, original_sale_id, cust_uuid, cust_name, cpy_name, customer_mobile, ...ret } = raw;
+  return {
+    row_type, sale_uuid: original_sale_uuid, sale_id: original_sale_id,
+    cust_uuid, cust_name, cpy_name, customer_mobile,
+    returns: [ret],
+  } as unknown as Sale;
 }
 
 export type ReturnType = "SALES_RETURN" | "CREDIT_NOTE";
@@ -411,11 +443,11 @@ export async function fetchHistory(page: number, filters: Filters): Promise<Hist
   if (filters.search)         params.search   = filters.search;
   if (filters.cancelled_order !== undefined) params.cancelled_order = String(filters.cancelled_order);
 
-  const { data } = await axios.get<HistoryPage>(
+  const { data } = await axios.get<Omit<HistoryPage, "data"> & { data: Array<Sale | ReturnHistoryEntry> }>(
     `${API_BASE}/retail/api/sales/history`,
     { params }
   );
-  return data;
+  return { ...data, data: data.data.map(toSaleRow) };
 }
 
 /**

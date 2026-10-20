@@ -64,7 +64,7 @@ const fmtDate = (iso?: string | null) =>
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
-const GRID = "40px 40px minmax(220px, 1fr) 92px 104px 92px 148px 108px 118px";
+const GRID = "40px minmax(220px, 1fr) 92px 104px 92px 148px 108px 118px";
 const HEAD = { fontSize: 12, fontWeight: 700, color: "#64748B", letterSpacing: "0.02em" } as const;
 
 // ── Line model ────────────────────────────────────────────────
@@ -131,7 +131,6 @@ const ItemRow = memo(function ItemRow({ line, index, qty, onQty, onToggle }: {
   return (
     <Box sx={{ display: "grid", gridTemplateColumns: GRID, alignItems: "center", px: 1, py: 1, borderBottom: "1px solid #F1F5F9", bgcolor: selected ? alpha(ACCENT, 0.05) : "transparent", transition: "background-color .12s", opacity: exhausted ? 0.55 : 1 }}>
       <Checkbox size="small" checked={selected} disabled={exhausted} onChange={() => onToggle(line.id, line.available)} sx={{ color: "#CBD5E1", "&.Mui-checked": { color: ACCENT } }} inputProps={{ "aria-label": `Select ${line.name}` }} />
-      <Typography sx={{ ...cell, color: "#64748B" }}>{index + 1}</Typography>
       <Box sx={{ minWidth: 0, pr: 1 }}>
         <Typography noWrap sx={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>{line.itemId ? `${line.itemId} - ` : ""}{line.name}</Typography>
         <Typography noWrap sx={{ fontSize: 11.5, color: "#94A3B8" }}>HSN: {line.hsn}{line.gst > 0 ? ` | ${line.gst}%` : ""}</Typography>
@@ -362,7 +361,6 @@ function Form({ data, ret, editReturn, onClose, notify }: {
             <Box sx={{ minWidth: 860 }}>
               <Box sx={{ display: "grid", gridTemplateColumns: GRID, alignItems: "center", px: 1, py: 1.1, bgcolor: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>
                 <Checkbox size="small" checked={allSelected} indeterminate={someSelected && !allSelected} disabled={selectable.length === 0} onChange={toggleAll} sx={{ color: "#CBD5E1", "&.Mui-checked, &.MuiCheckbox-indeterminate": { color: ACCENT } }} inputProps={{ "aria-label": "Select all" }} />
-                <Typography sx={{ ...HEAD, textAlign: "center" }}>#</Typography>
                 <Typography sx={HEAD}>Item Details</Typography>
                 <Typography sx={{ ...HEAD, textAlign: "center" }}>Qty Original</Typography>
                 <Typography sx={{ ...HEAD, textAlign: "center" }}>Returned / Debited</Typography>

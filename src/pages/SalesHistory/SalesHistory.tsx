@@ -17,7 +17,6 @@ import {
   TrendingUp as TrendingUpIcon, Circle,
 } from "@mui/icons-material";
 import FilterListOffIcon from "@mui/icons-material/FilterListOff";
-import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import PublishedWithChangesIcon from "@mui/icons-material/PublishedWithChanges";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import {
@@ -255,22 +254,13 @@ export default function SalesHistoryPage() {
   const [paymentDialog, setPaymentDialog] = useState<Sale   | null>(null);
   const [returnDialog,  setReturnDialog]  = useState<{ sale: Sale; ret?: SaleListReturn } | null>(null);
   const [deleteDialog,  setDeleteDialog]  = useState<Sale   | null>(null);
-  // Refund being paid from a return sub-row, plus which invoices have their returns expanded
+  // Refund being paid from a return row
   const [refundDialog,  setRefundDialog]  = useState<{ saleUuid: string; ret: SaleListReturn } | null>(null);
   // One toast for every dialog opened from this screen — it outlives the dialog that closes on success
   const [toast, setToast] = useState<{ message: string; severity: "success" | "error" } | null>(null);
   const notify = useCallback<Notify>((message, severity = "success") => setToast({ message, severity }), []);
   const [deleteReturn,  setDeleteReturn]  = useState<{ sale: Sale; ret: SaleListReturn } | null>(null);
   const [viewReturn,    setViewReturn]    = useState<{ sale: Sale; ret: SaleListReturn } | null>(null);
-  // Return rows are expanded by default, so only the ones the user collapsed are tracked
-  const [collapsed,     setCollapsed]     = useState<ReadonlySet<string>>(new Set());
-  const toggleExpanded = useCallback((id: string) => {
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (!next.delete(id)) next.add(id);
-      return next;
-    });
-  }, []);
   const [isDeleting,    setIsDeleting]    = useState(false);
 
   const {
@@ -311,27 +301,25 @@ export default function SalesHistoryPage() {
       label: isRestaurant ? "Order ID" : "Invoice ID",
       width: 200,
       render: (sale: Sale) => {
-        const hasReturns = !isRestaurant && (sale.returns?.length ?? 0) > 0;
-        const open       = !collapsed.has(sale.sale_uuid);
+        const returns = !isRestaurant ? sale.returns ?? [] : [];
         return (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
-            {/* Fixed-width slot keeps IDs aligned whether or not a row has returns */}
-            <Box sx={{ width: 26, flexShrink: 0 }}>
-              {hasReturns && (
-                <Tooltip title={open ? "Hide returns" : `Show ${sale.returns!.length} return${sale.returns!.length > 1 ? "s" : ""}`}>
-                  <IconButton size="small" onClick={() => toggleExpanded(sale.sale_uuid)} sx={{ p: 0.25, color: "#6B7280", "&:hover": { color: "#D32F2F" } }}>
-                    <KeyboardArrowRightIcon sx={{ fontSize: 20, transition: "transform 0.15s", transform: open ? "rotate(90deg)" : "none" }} />
-                  </IconButton>
-                </Tooltip>
-              )}
-            </Box>
+          <Box>
             <Typography
               fontWeight={600} color="#1976d2"
-              sx={{ cursor: "pointer", fontSize: BODY_FONT_SIZE }}
+              sx={{ cursor: "pointer", fontSize: BODY_FONT_SIZE, lineHeight: 1.35 }}
               onClick={() => setInvoiceDialog({ id: isRestaurant ? sale.api_order_id! : sale.sale_uuid })}
             >
               {isRestaurant ? (sale.public_order_no ?? sale.sale_id) : sale.sale_id}
             </Typography>
+            {/* Cross-reference: the return / credit note ids raised against this invoice */}
+            {returns.map((r) => (
+              <Typography key={r.return_uuid} sx={{ fontSize: 12, fontWeight: 500, color: "#475569", lineHeight: 1.4 }}>
+                {r.return_type === "CREDIT_NOTE" ? "Credit note" : "Return"} -{" "}
+                <Box component="span" onClick={() => setViewReturn({ sale, ret: r })} sx={{ color: "#B91C1C", fontWeight: 600, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}>
+                  {r.return_id}
+                </Box>
+              </Typography>
+            ))}
           </Box>
         );
       },
@@ -521,9 +509,7 @@ export default function SalesHistoryPage() {
               </Box>
             </Stack>
             {returnCount > 0 && sale.total_returned && (
-              <Box onClick={() => toggleExpanded(sale.sale_uuid)} sx={{ cursor: sale.returns?.length ? "pointer" : "default" }}>
-                <ReturnChip count={returnCount} amount={sale.total_returned} />
-              </Box>
+              <ReturnChip count={returnCount} amount={sale.total_returned} />
             )}
           </Stack>
         );
@@ -860,13 +846,14 @@ export default function SalesHistoryPage() {
       <Box sx={{ flex: 1, minHeight: 0 }}>
         <DataTable<Sale>
           columns={visibleColumns}
-          renderSubRows={(sale) =>
-            !collapsed.has(sale.sale_uuid) && sale.returns?.length ? (
+          renderRow={(sale) =>
+            sale.row_type === "return" ? (
               <SaleReturnSubRows
                 sale={sale}
                 columnKeys={visibleColumns.map((c) => c.key)}
                 canEdit={canEdit}
                 onViewReturn={(ret: SaleListReturn) => setViewReturn({ sale, ret })}
+                onViewInvoice={() => setInvoiceDialog({ id: sale.sale_uuid })}
                 onEditReturn={guard((ret: SaleListReturn) => setReturnDialog({ sale, ret }))}
                 onDeleteReturn={guard((ret: SaleListReturn) => setDeleteReturn({ sale, ret }))}
                 onMarkRefund={guard((ret: SaleListReturn) => setRefundDialog({ saleUuid: sale.sale_uuid, ret }))}
@@ -874,7 +861,8 @@ export default function SalesHistoryPage() {
             ) : null
           }
           rows={allItems}
-          rowKey={(sale) => sale.api_order_id ?? sale.sale_id}
+          rowKey={(sale) =>
+            sale.row_type === "return" ? `return-${sale.returns?.[0]?.return_uuid}` : (sale.api_order_id ?? sale.sale_id)}
           isLoading={isLoading}
           hasNextPage={hasNextPage}
           isFetchingNextPage={isFetchingNextPage}

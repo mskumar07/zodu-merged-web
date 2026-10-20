@@ -235,7 +235,7 @@ const Gstr1Report: React.FC = () => {
     [isRemote, remoteRows, report.data, def],
   );
   const cards = useMemo(
-    () => (isRemote ? remoteCards(remoteSummary) : buildCards(def, rows, report.data)),
+    () => (isRemote ? remoteCards(def.remote?.endpoint, remoteSummary) : buildCards(def, rows, report.data)),
     [isRemote, remoteSummary, def, rows, report.data],
   );
   // Loaders/skeletons belong to the screen's first load only. Once anything has been shown, a tab

@@ -107,6 +107,7 @@ export interface SalesReturnRow {
   due_date?:       string | null;   // SALE only — formatted display date
   refund_type?:    string;          // RETURN only
   original_sale_id?: string;        // RETURN only
+  return_type?:    "SALES_RETURN" | "CREDIT_NOTE" | null;  // RETURN only
   row_category:    "sale" | "return";
 }
 

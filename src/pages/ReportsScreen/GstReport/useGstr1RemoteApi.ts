@@ -10,6 +10,9 @@ import axiosInstance from '@store/services/axiosInstance';
 /** Totals over every invoice the filters match, not just the loaded page. */
 export interface RemoteSummary {
   total_invoices: number;
+  /** CDNR only: it counts notes and reports the credit note value instead of invoices. */
+  total_notes?: number;
+  total_credit_note_value?: number;
   total_taxable_value: number;
   total_igst: number;
   total_cgst: number;
@@ -28,7 +31,7 @@ export interface RemotePage<Row> {
 }
 
 /** Path segment under /api/report/gst/gstr1/ for each server-driven tab. */
-export type RemoteEndpoint = 'b2b' | 'b2c-large' | 'b2c-small';
+export type RemoteEndpoint = 'b2b' | 'b2c-large' | 'b2c-small' | 'cdnr' | 'cdnur';
 
 interface TenantParams {
   zodu_id: string;
@@ -41,9 +44,9 @@ interface TenantParams {
 }
 
 export interface RemoteReportParams extends TenantParams {
-  /** A GSTIN ("all" or empty = every customer). Only the B2B endpoint takes it. */
+  /** A GSTIN ("all" or empty = every customer). Only the B2B and CDNR endpoints take it. */
   gstin?: string;
-  /** Matches invoice no or customer name (B2B: also GSTIN). */
+  /** Matches invoice/note no or customer name (B2B and CDNR: also GSTIN). */
   search?: string;
 }
 
@@ -68,7 +71,7 @@ const retryOnce = (failures: number, err: unknown) =>
 
 // ─── Summary cards + table ────────────────────────────────────
 
-const REMOTE_ENDPOINTS: RemoteEndpoint[] = ['b2b', 'b2c-large', 'b2c-small'];
+const REMOTE_ENDPOINTS: RemoteEndpoint[] = ['b2b', 'b2c-large', 'b2c-small', 'cdnr', 'cdnur'];
 
 const remoteReportOptions = <Row>(endpoint: RemoteEndpoint | undefined, params: RemoteReportParams | null) =>
   infiniteQueryOptions({

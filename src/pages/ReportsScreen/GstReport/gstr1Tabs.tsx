@@ -156,7 +156,8 @@ const cdnr: TabDef<Gstr1CdnrRow> = {
   sumKeys: ['taxable_value', ...TAX_KEYS, 'total_value'],
   rowKey: (r) => r.note_no,
   searchText: (r) => `${r.note_no} ${r.customer_name} ${r.gstin} ${r.original_invoice_no}`,
-  rows: (res) => res.cdnr,
+  rows: () => [],
+  remote: { endpoint: 'cdnr', gstin: true },
   countLabel: 'Total Notes', valueLabel: 'Total Credit Note Value', valueKey: 'taxable_value',
 };
 
@@ -181,7 +182,8 @@ const cdnur: TabDef<Gstr1CdnurRow> = {
   sumKeys: ['note_value', 'taxable_value', ...TAX_KEYS, 'total_value'],
   rowKey: (r) => r.note_no,
   searchText: (r) => `${r.note_no} ${r.customer_name} ${r.place_of_supply} ${r.original_invoice_no}`,
-  rows: (res) => res.cdnur,
+  rows: () => [],
+  remote: { endpoint: 'cdnur' },
   countLabel: 'Total Notes', valueLabel: 'Total Credit Note Value', valueKey: 'note_value',
 };
 
@@ -343,7 +345,18 @@ export function buildCards(def: TabDef, rows: object[], res: Gstr1Response | und
 const INTEGER_KEYS = new Set(['invoices', 'quantity']);
 
 /** The server-driven tabs' cards come straight from the server's summary, which covers every matching invoice. */
-export function remoteCards(s: RemoteSummary | undefined): CardDef[] {
+export function remoteCards(endpoint: RemoteEndpoint | undefined, s: RemoteSummary | undefined): CardDef[] {
+  if (endpoint === 'cdnr' || endpoint === 'cdnur') {
+    return [
+      { id: 'count', kind: 'count', label: 'Total Notes', value: s?.total_notes ?? 0, isMoney: false },
+      { id: 'value', kind: 'value', label: 'Total Credit Note Value', value: s?.total_credit_note_value ?? 0, isMoney: true },
+      { id: 'taxable', kind: 'taxable', label: 'Total Taxable Value', value: s?.total_taxable_value ?? 0, isMoney: true },
+      { id: 'igst', kind: 'igst', label: 'Total IGST', value: s?.total_igst ?? 0, isMoney: true },
+      { id: 'cgst', kind: 'cgst', label: 'Total CGST', value: s?.total_cgst ?? 0, isMoney: true },
+      { id: 'sgst', kind: 'sgst', label: 'Total SGST', value: s?.total_sgst ?? 0, isMoney: true },
+      { id: 'cess', kind: 'cess', label: 'Total Cess', value: s?.total_cess ?? 0, isMoney: true },
+    ];
+  }
   return [
     { id: 'count', kind: 'count', label: 'Total Invoices', value: s?.total_invoices ?? 0, isMoney: false },
     { id: 'value', kind: 'value', label: 'Total Taxable Value', value: s?.total_taxable_value ?? 0, isMoney: true },
