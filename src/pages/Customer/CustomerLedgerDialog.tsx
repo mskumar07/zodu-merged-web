@@ -631,6 +631,11 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                               >
                                 {row.doc_id}
                               </Link>
+                              {isReturn && row.return_type && (
+                                <Typography sx={{ fontSize: "0.7rem", fontWeight: 600, color: "#dc2626", lineHeight: 1.3 }}>
+                                  {row.return_type === "CREDIT_NOTE" ? "Credit Note" : row.return_type === "SALES_RETURN" ? "Sales Return" : row.return_type}
+                                </Typography>
+                              )}
                             </TableCell>
 
                             <TableCell

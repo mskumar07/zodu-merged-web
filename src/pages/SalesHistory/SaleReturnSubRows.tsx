@@ -1,12 +1,13 @@
 /**
  * SaleReturnSubRows.tsx
- * The returns / credit notes of one invoice, rendered as child rows directly
- * under it in the Sales History table. Cells follow the parent table's column
- * order (by key) so every value lines up under its own heading.
+ * The returns / credit notes of one invoice, rendered as regular table rows
+ * directly under it in the Sales History table (same look as a sale row). Each
+ * row cross-references its invoice in the ID cell, and the invoice lists its
+ * return ids the same way. Cells follow the parent table's column order (by
+ * key) so every value lines up under its own heading.
  */
 import { memo } from "react";
-import { Box, Button, IconButton, Tooltip, Typography, TableRow, TableCell, alpha } from "@mui/material";
-import SubdirectoryArrowRightIcon from "@mui/icons-material/SubdirectoryArrowRight";
+import { Avatar, Box, Button, IconButton, Stack, Tooltip, Typography, TableRow, TableCell, alpha } from "@mui/material";
 
 // Same whole-rupee format as the parent table, so amounts read consistently.
 const INR = (v: number) =>
@@ -18,6 +19,7 @@ interface Props {
   columnKeys:  string[];
   canEdit:     boolean;
   onViewReturn: (ret: SaleListReturn) => void;   // open the return detail dialog
+  onViewInvoice: () => void;                     // open the original invoice
   onMarkRefund: (ret: SaleListReturn) => void;
   onEditReturn: (ret: SaleListReturn) => void;   // reopen the return dialog on this return
   onDeleteReturn?: (ret: SaleListReturn) => void; // not provided until the backend supports it
@@ -35,18 +37,12 @@ const REFUND_LABEL: Record<RefundStatus, { label: string; color: string }> = {
   NA:       { label: "Adjusted to balance", color: "#0369A1" },
 };
 
-const REASON_LABEL: Record<string, string> = {
-  damaged: "Damaged on arrival",
-  wrong:   "Wrong item sent",
-  choice:  "Customer choice",
-  other:   "Other",
-};
-
 const iconBtnSx = { color: "text.secondary", borderRadius: 1.5, "&:hover": { color: "primary.main", bgcolor: alpha("#E53935", 0.06) } } as const;
 
-const cellSx = { py: 0.9, px: 1.5, bgcolor: "#F9FAFB", borderBottom: "1px solid #EEF0F3", fontSize: "13px" } as const;
+// Mirrors the DataTable body cell so a return row reads exactly like a sale row
+const cellSx = { height: 40, padding: "5px 12px", fontSize: "13px", color: "#374151", verticalAlign: "middle", bgcolor: "#fff" } as const;
 
-function SaleReturnSubRows({ sale, columnKeys, canEdit, onViewReturn, onMarkRefund, onEditReturn, onDeleteReturn }: Props) {
+function SaleReturnSubRows({ sale, columnKeys, canEdit, onViewReturn, onViewInvoice, onMarkRefund, onEditReturn, onDeleteReturn }: Props) {
   const returns = sale.returns ?? [];
 
   return (
@@ -56,32 +52,47 @@ function SaleReturnSubRows({ sale, columnKeys, canEdit, onViewReturn, onMarkRefu
         const refund  = r.refund_status ? REFUND_LABEL[r.refund_status] : null;
         const pending = Number(r.pending_refund ?? 0);
         const canPay  = r.refund_status === "PENDING" || r.refund_status === "PARTIAL";
-        const reason  = r.return_reason ? REASON_LABEL[r.return_reason] ?? r.return_reason : null;
-        const isLast  = i === returns.length - 1;
 
         const cell = (key: string) => {
           switch (key) {
             case "sale_id":
               return (
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, pl: 2.5 }}>
-                  <SubdirectoryArrowRightIcon sx={{ fontSize: 15, color: "#CBD5E1", flexShrink: 0 }} />
+                <Box>
+                  <Box component="span" sx={{ display: "inline-block", px: 0.6, borderRadius: "4px", fontSize: 9.5, fontWeight: 700, lineHeight: "14px", letterSpacing: "0.02em", bgcolor: badge.bg, color: badge.color, border: `1px solid ${badge.border}` }}>
+                    {badge.label}
+                  </Box>
                   <Typography
                     noWrap onClick={() => onViewReturn(r)}
-                    sx={{ fontSize: 12, fontWeight: 600, color: "#1976d2", cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+                    sx={{ fontSize: "13px", fontWeight: 600, color: "#1976d2", cursor: "pointer", lineHeight: 1.35, "&:hover": { textDecoration: "underline" } }}
                   >
                     {r.return_id}
                   </Typography>
+                  <Typography sx={{ fontSize: 12, fontWeight: 500, color: "#475569", lineHeight: 1.4 }}>
+                    Against -{" "}
+                    <Box component="span" onClick={onViewInvoice} sx={{ color: "#1976d2", fontWeight: 600, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}>
+                      {sale.sale_id}
+                    </Box>
+                  </Typography>
                 </Box>
               );
-            case "customer":
+            case "customer": {
+              const name = sale.cust_name || sale.cpy_name || "";
               return (
-                <Box>
-                  <Box component="span" sx={{ display: "inline-block", px: 1, py: "1px", borderRadius: "6px", fontSize: 11, fontWeight: 700, bgcolor: badge.bg, color: badge.color, border: `1px solid ${badge.border}` }}>
-                    {badge.label}
+                <Stack direction="row" alignItems="center" gap={1}>
+                  {name && (
+                    <Avatar sx={{ width: 24, height: 24, fontSize: "0.65rem", bgcolor: alpha("#10B981", 0.15), color: "#10B981", fontWeight: 700 }}>
+                      {name.charAt(0).toUpperCase()}
+                    </Avatar>
+                  )}
+                  <Box>
+                    {name
+                      ? <Typography fontWeight={600} sx={{ fontSize: "13px", color: "#374151" }}>{name}</Typography>
+                      : <Typography sx={{ fontSize: "13px", color: "#374151" }}>-</Typography>}
+                    {sale.customer_mobile && <Typography sx={{ fontSize: "13px", color: "#374151" }}>{sale.customer_mobile}</Typography>}
                   </Box>
-                  {reason && <Typography sx={{ fontSize: 11.5, color: "#6B7280", mt: 0.3 }}>{reason}</Typography>}
-                </Box>
+                </Stack>
               );
+            }
             case "created at":
               return <Typography sx={{ fontSize: 12, color: "#64748B" }}>{r.return_date_fmt ?? "—"}</Typography>;
             case "total":
@@ -149,12 +160,12 @@ function SaleReturnSubRows({ sale, columnKeys, canEdit, onViewReturn, onMarkRefu
         };
 
         return (
-          <TableRow key={r.return_uuid} sx={{ "& td:first-of-type": { boxShadow: "inset 3px 0 0 #FCA5A5" } }}>
+          <TableRow key={r.return_uuid} hover sx={{ height: 40 }}>
             {columnKeys.map((key) => (
               <TableCell
                 key={key}
                 align={key === "total" || key === "paid_amount" || key === "balance_amount" || key === "actions" ? "right" : "left"}
-                sx={{ ...cellSx, ...(isLast ? {} : { borderBottomStyle: "dashed" }) }}
+                sx={cellSx}
               >
                 {cell(key)}
               </TableCell>

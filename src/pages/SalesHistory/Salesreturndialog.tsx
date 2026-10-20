@@ -406,7 +406,6 @@ const canConfirm = someSelected && !!reason && (!payNow || !showPayNow || payAmo
                         sx={{ color: "#CBD5E1", "&.Mui-checked": { color: "#D2042D" }, "&.MuiCheckbox-indeterminate": { color: "#D2042D" }, py:0.2 }}
                       />
                     </TableCell>
-                    <TH align="center">#</TH>
                     <TH>Item Details</TH>
                     <TH align="center">Qty Original</TH>
                     <TH align="center">Returned / Credited</TH>
@@ -438,11 +437,6 @@ const canConfirm = someSelected && !!reason && (!payNow || !showPayNow || payAmo
                             onChange={() => toggleSelect(item.id)}
                             sx={{ color: "#CBD5E1", "&.Mui-checked": { color: "#D2042D" }, p: 0.5 }}
                           />
-                        </TableCell>
-
-                        {/* Row number */}
-                        <TableCell align="center" sx={{ borderBottom: borderB, py: 0.75, px: 2, fontSize: "0.875rem", color: "#334155" }}>
-                          {idx + 1}
                         </TableCell>
 
                         {/* Item code (GST %) - name + sub-label */}

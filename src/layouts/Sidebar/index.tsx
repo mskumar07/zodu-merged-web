@@ -1,11 +1,13 @@
 import useNavigation from "@hooks/UseNavigation.tsx";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import CategoryIcon from "@mui/icons-material/Category";
+import inventoryIcon from "../../assets/icons/inventory.png";
+import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlined";
+import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import LogoutIcon from "@mui/icons-material/Logout";
 import PaymentsIcon from "@mui/icons-material/Payments";
-import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
-import ReceiptIcon from "@mui/icons-material/Receipt";
+import SvgIcon from "@mui/material/SvgIcon";
 import RestaurantMenuIcon from "@mui/icons-material/RestaurantMenu";
 import ChecklistIcon from "@mui/icons-material/Checklist";
 import SoupKitchenIcon from "@mui/icons-material/SoupKitchen";
@@ -28,12 +30,54 @@ import {
 import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import React, { useState, useEffect } from "react";
-import { History, Person, Settings, Badge } from "@mui/icons-material";
+import { History, Settings } from "@mui/icons-material";
+import SupervisorAccountOutlinedIcon from "@mui/icons-material/SupervisorAccountOutlined";
 import { useAppSelector } from "@store/store";
 import { BusinessType, RoleAccess } from "@store/slices/userSlice";
 import { RestaurantBillingView } from "@store/slices/POSslice";
 import { useSignOut } from "@hooks/useSignOut";
 import { useLocation } from "react-router-dom";
+
+// Two overlapping bills with a rupee mark, drawn as strokes so it follows the icon colour
+const BillingIcon = () => (
+  <SvgIcon viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7.5 6V3h8l3.5 3.5V17" />
+      <path d="M3.5 6h7.5l4 4v12l-1.5-1.5L11.5 22 10 20.5 8.5 22 7 20.5 5.5 22 4 20.5 3.5 22Z" />
+      <path d="M11 6v4h4" />
+      <path d="M6.5 12.5h5" />
+      <path d="M6.5 15h3.5M6.5 16.5h3.5M6.5 15h1a1.5 1.5 0 0 1 0 3h-1l3 2" />
+    </g>
+  </SvgIcon>
+);
+
+// ID card: photo on the left, text lines on the right
+const IdCardIcon = () => (
+  <SvgIcon viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2.5" y="4.5" width="19" height="15" rx="2" />
+      <circle cx="8.5" cy="10.5" r="1.8" fill="currentColor" />
+      <path d="M5.5 16c.4-1.6 1.6-2.4 3-2.4s2.6.8 3 2.4" />
+      <path d="M14.5 9.5h4M14.5 13h4" />
+    </g>
+  </SvgIcon>
+);
+
+// PNG used as a mask so it picks up the surrounding icon colour (e.g. white when active)
+const InventoryIcon = () => (
+  <Box
+    component="span"
+    sx={{
+      width: 32,
+      height: 32,
+      m: "-4px",
+      display: "inline-block",
+      bgcolor: "currentColor",
+      WebkitMask: `url(${inventoryIcon}) center / contain no-repeat`,
+      mask: `url(${inventoryIcon}) center / contain no-repeat`,
+    }}
+  />
+);
 
 export const drawerWidth = 240;
 export const collapsedDrawerWidth = 68;
@@ -44,14 +88,15 @@ export const collapsedDrawerWidth = 68;
 // module by the backend) always render.
 const retailNavItems = [
   { label: "Dashboard", icon: <DashboardIcon />, path: "/dashboard", module: "Dashboard" },
-  { label: "Billing", icon: <PointOfSaleIcon />, path: "/pos", module: "Billing" },
+  { label: "Billing", icon: <BillingIcon />, path: "/pos", module: "Billing" },
   { label: "Sales History", icon: <History />, path: "/sales-history", module: "Sales History" },
   { label: "Menu Items", icon: <CategoryIcon />, path: "/menu", module: "Menu Items" },
-  { label: "Inventory", icon: <ReceiptIcon />, path: "/stock", module: "Inventory" },
-  { label: "Purchase", icon: <CategoryIcon />, path: "/purchase", module: "Purchase" },
+  { label: "Inventory", icon: <InventoryIcon />, path: "/stock", module: "Inventory" },
+  { label: "Purchase", icon: <ShoppingCartOutlinedIcon />, path: "/purchase", module: "Purchase" },
   { label: "Expense", icon: <PaymentsIcon />, path: "/expense", module: "Expense" },
-  { label: "Customer Management", icon: <Person />, path: "/customer-details", module: "Customer Management" },
-  { label: "Staff / User Management", icon: <Badge />, path: "/employee-management", module: "Staff / User Management" },
+  { label: "Accounting", icon: <AccountBalanceOutlinedIcon />, path: "/accounting" },
+  { label: "Customer Management", icon: <SupervisorAccountOutlinedIcon />, path: "/customer-details", module: "Customer Management" },
+  { label: "Staff / User Management", icon: <IdCardIcon />, path: "/employee-management", module: "Staff / User Management" },
   { label: "Attendance", icon: <EventAvailableIcon />, path: "/attendance", module: "Attendance" },
   { label: "Checklist / Tasklist", icon: <ChecklistIcon />, path: "/checklist", module: "Checklist / Tasklist" },
   { label: "Report", icon: <BarChartIcon />, path: "/reports", module: "Reports" },
@@ -60,15 +105,16 @@ const retailNavItems = [
 
 const restaurantNavItems = [
   { label: "Dashboard", icon: <DashboardIcon />, path: "/dashboard", module: "Dashboard" },
-  { label: "POS", icon: <PointOfSaleIcon />, path: "/restaurant-pos", module: "Billing" },
+  { label: "POS", icon: <BillingIcon />, path: "/restaurant-pos", module: "Billing" },
   { label: "Sales History", icon: <History />, path: "/sales-history", module: "Sales History" },
   { label: "KDS Screen", icon: <SoupKitchenIcon />, path: "/kds", module: "KDS Screen" },
   { label: "Menu Items", icon: <CategoryIcon />, path: "/restaurant-menu", module: "Menu Items" },
-  { label: "Inventory", icon: <ReceiptIcon />, path: "/stock", module: "Inventory" },
-  { label: "Purchase", icon: <CategoryIcon />, path: "/purchase", module: "Purchase" },
+  { label: "Inventory", icon: <InventoryIcon />, path: "/stock", module: "Inventory" },
+  { label: "Purchase", icon: <ShoppingCartOutlinedIcon />, path: "/purchase", module: "Purchase" },
   { label: "Expense", icon: <PaymentsIcon />, path: "/expense", module: "Expense" },
-  { label: "Customer Management", icon: <Person />, path: "/customer-details", module: "Customer Management" },
-  { label: "Staff / User Management", icon: <Badge />, path: "/employee-management", module: "Staff / User Management" },
+  { label: "Accounting", icon: <AccountBalanceOutlinedIcon />, path: "/accounting" },
+  { label: "Customer Management", icon: <SupervisorAccountOutlinedIcon />, path: "/customer-details", module: "Customer Management" },
+  { label: "Staff / User Management", icon: <IdCardIcon />, path: "/employee-management", module: "Staff / User Management" },
   { label: "Attendance", icon: <EventAvailableIcon />, path: "/attendance", module: "Attendance" },
   { label: "Checklist / Tasklist", icon: <ChecklistIcon />, path: "/checklist", module: "Checklist / Tasklist" },
   { label: "Report", icon: <BarChartIcon />, path: "/reports", module: "Reports" },

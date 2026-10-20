@@ -62,6 +62,8 @@ export interface DataTableProps<T> {
   fitWidth?: boolean;
   /** Extra rows rendered directly under a data row (e.g. an invoice's returns). */
   renderSubRows?: (row: T) => React.ReactNode;
+  /** Replaces the default row for a data row when it returns something (e.g. a return entry); null/undefined keeps the default. */
+  renderRow?: (row: T) => React.ReactNode;
 }
 
 // ─── Shared cell sx ───────────────────────────────────────────────────────────
@@ -99,6 +101,7 @@ function DataTable<T>({
   hideEndNote = false,
   fitWidth = false,
   renderSubRows,
+  renderRow,
 }: DataTableProps<T>) {
   const headerContainerRef = useRef<HTMLDivElement>(null);
   const footerContainerRef = useRef<HTMLDivElement>(null);
@@ -321,7 +324,10 @@ function DataTable<T>({
 
             {/* Data rows */}
             {!isLoading &&
-              rows.map((row) => (
+              rows.map((row) => {
+                const custom = renderRow?.(row);
+                if (custom != null) return <Fragment key={rowKey(row)}>{custom}</Fragment>;
+                return (
                 <Fragment key={rowKey(row)}>
                   <TableRow
                     hover
@@ -336,7 +342,8 @@ function DataTable<T>({
                   </TableRow>
                   {renderSubRows?.(row)}
                 </Fragment>
-              ))}
+                );
+              })}
 
             {/* Infinite scroll sentinel */}
             {hasNextPage && (

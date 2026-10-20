@@ -136,6 +136,10 @@ export interface PurchaseReturnListRow {
 
 /** Row returned by GET /purchase (list) — includes joined vendor fields */
 export interface PurchaseRow {
+  // The list holds purchases and the returns / debit notes raised against them. A return entry
+  // is shaped like a PurchaseRow (see toPurchaseRow) so the table keeps one row type; its
+  // `purchase_id` is then the purchase it was raised against.
+  row_type?: "purchase" | "return";
   id: string;
   purchase_id: string;
   purchase_date: string;
@@ -324,6 +328,30 @@ export const useCreatePurchase = () => {
   });
 };
 
+/** A return entry exactly as GET /purchase sends it (row_type "return"). */
+interface PurchaseReturnEntry extends PurchaseReturnListRow {
+  row_type:             "return";
+  original_purchase_id: string;
+  vendor_id:            string | null;
+  vendor_name:          string | null;
+  company_name:         string | null;
+  vendor_phone:         string | null;
+}
+
+/**
+ * Return entries become PurchaseRow-shaped: the purchase they were raised against supplies
+ * purchase_id and the vendor, and the return itself rides in `returns`. Purchases pass through.
+ */
+function toPurchaseRow(raw: PurchaseRow | PurchaseReturnEntry): PurchaseRow {
+  if (!("original_purchase_id" in raw)) return raw;
+  const { row_type, original_purchase_id, vendor_id, vendor_name, company_name, vendor_phone, ...ret } = raw;
+  return {
+    row_type, id: `return-${ret.return_uuid}`, purchase_id: original_purchase_id,
+    vendor_id, vendor_name, company_name, vendor_phone,
+    returns: [ret],
+  } as unknown as PurchaseRow;
+}
+
 export const usePurchases = (params: Record<string, string> = {}) => {
   const { zoduId, branchId, businessType } = getTenantContext();
   return useQuery({
@@ -332,7 +360,7 @@ export const usePurchases = (params: Record<string, string> = {}) => {
       const res = await getApi().get("/purchase", {
         params: { zodu_id: zoduId, branch_id: branchId, ...params },
       });
-      return (res.data?.data ?? res.data ?? []) as PurchaseRow[];
+      return ((res.data?.data ?? res.data ?? []) as Array<PurchaseRow | PurchaseReturnEntry>).map(toPurchaseRow);
     },
   });
 };

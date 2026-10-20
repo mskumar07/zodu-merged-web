@@ -13,7 +13,6 @@ import EditOutlinedIcon  from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import SearchIcon        from "@mui/icons-material/Search";
 import AssignmentReturnOutlinedIcon from "@mui/icons-material/AssignmentReturnOutlined";
-import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 
 import AddNewPurchaseDialog  from "./Addnewpuechasedialog";
 import PurchaseStats         from "./PurchaseStats";
@@ -114,15 +113,6 @@ export default function PurchaseScreen() {
   const [deleteReturn, setDeleteReturn]   = useState<{ purchaseId: string; ret: PurchaseReturnListRow } | null>(null);
   const [toast, setToast]                 = useState<{ message: string; severity: "success" | "error" } | null>(null);
   const notify = useCallback((message: string, severity: "success" | "error" = "success") => setToast({ message, severity }), []);
-  // Returns are shown expanded; only the ones the user closed are tracked
-  const [collapsed, setCollapsed]         = useState<ReadonlySet<string>>(new Set());
-  const toggleReturns = useCallback((id: string) => {
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (!next.delete(id)) next.add(id);
-      return next;
-    });
-  }, []);
   const [tab, setTab]                     = useState<"active" | "cancelled">("active");
 
   const {
@@ -175,20 +165,8 @@ export default function PurchaseScreen() {
         label: "Purchase ID",
         width: 190,
         render: (p) => {
-          const hasReturns = (p.returns?.length ?? 0) > 0;
-          const open       = !collapsed.has(p.purchase_id);
           return (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
-              {/* Fixed-width slot keeps IDs aligned whether or not a purchase has returns */}
-              <Box sx={{ width: 26, flexShrink: 0 }}>
-                {hasReturns && (
-                  <Tooltip title={open ? "Hide returns" : `Show ${p.returns!.length} return${p.returns!.length > 1 ? "s" : ""}`}>
-                    <IconButton size="small" onClick={() => toggleReturns(p.purchase_id)} sx={{ p: 0.25, color: "#6B7280", "&:hover": { color: "#D32F2F" } }}>
-                      <KeyboardArrowRightIcon sx={{ fontSize: 20, transition: "transform 0.15s", transform: open ? "rotate(90deg)" : "none" }} />
-                    </IconButton>
-                  </Tooltip>
-                )}
-              </Box>
+            <Box>
               {/* ── Clickable ID ── */}
               <Typography
                 onClick={() => setDetailId(p.purchase_id)}   // ← p.id is the UUID
@@ -196,13 +174,22 @@ export default function PurchaseScreen() {
                   fontSize: 13, fontWeight: 700, color: "#1976d2",
                   letterSpacing: "0.02em", whiteSpace: "nowrap",
                   overflow: "hidden", textOverflow: "ellipsis",
-                  cursor: "pointer",
+                  cursor: "pointer", lineHeight: 1.35,
                   "&:hover": { textDecoration: "underline", color: "#1565C0" },
                   transition: "color 0.15s",
                 }}
               >
                 {p.purchase_id}
               </Typography>
+              {/* Cross-reference: the return / debit note ids raised against this purchase */}
+              {(p.returns ?? []).map((r) => (
+                <Typography key={r.return_uuid} noWrap sx={{ fontSize: 12, fontWeight: 500, color: "#475569", lineHeight: 1.4 }}>
+                  {r.return_type === "DEBIT_NOTE" ? "Debit note" : "Return"} -{" "}
+                  <Box component="span" onClick={() => setViewReturnId(r.return_uuid)} sx={{ color: "#B91C1C", fontWeight: 600, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}>
+                    {r.return_id}
+                  </Box>
+                </Typography>
+              ))}
             </Box>
           );
         },
@@ -410,7 +397,7 @@ export default function PurchaseScreen() {
         )),
       }] as ColumnDef<PurchaseRow>[]),
     ],
-    [isDeleting, tab, canEdit, canDelete, collapsed, toggleReturns]
+    [isDeleting, tab, canEdit, canDelete]
   );
 
   if (listLoading && statsLoading) return <LottieLoader />;
@@ -495,13 +482,15 @@ export default function PurchaseScreen() {
                 columns={columns}
                 rows={purchases}
                 rowKey={(p) => p.id}
-                renderSubRows={(p) =>
-                  !collapsed.has(p.purchase_id) && p.returns?.length ? (
+                renderRow={(p) =>
+                  p.row_type === "return" && p.returns?.length ? (
                     <PurchaseReturnSubRows
+                      purchase={p}
                       returns={p.returns}
                       columnKeys={columns.map((c) => c.key)}
                       canEdit={canEdit}
                       onView={(ret) => setViewReturnId(ret.return_uuid)}
+                      onViewPurchase={() => setDetailId(p.purchase_id)}
                       onMarkRefund={guard((ret: PurchaseReturnListRow) => setRefundTarget(ret))}
                       onEdit={guard((ret: PurchaseReturnListRow) => setReturnTarget({ purchaseId: p.purchase_id, editReturn: ret }))}
                       onDelete={guard((ret: PurchaseReturnListRow) => setDeleteReturn({ purchaseId: p.purchase_id, ret }))}

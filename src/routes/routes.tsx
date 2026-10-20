@@ -5,6 +5,7 @@ import MenuItemsScreen from "@pages/MenuItemScreen/MenuItemScreen";
 import RportsScreen from "@pages/ReportsScreen/index.tsx";
 import PurchaseScreen from "@pages/PurchaseScreen";
 import ExpenseScreen from "@pages/ExpenseScreen";
+import AccountingScreen from "@pages/AccountingScreen";
 
 
 import ReportDashboard from "@components/Reports/ReportDashboard";
@@ -57,6 +58,7 @@ export const routes = [
       { path: "stock", element: <InventoryManagement /> },
       { path: "purchase", element: <PurchaseScreen /> },
       { path: "expense", element: <ExpenseScreen /> },
+      { path: "accounting", element: <AccountingScreen /> },
       {path: "customer-details", element: <CustomerManagement/>},
       {path: "employee-management", element: <EmployeeManagement/>},
       {path: "checklist", element: <ChecklistDashboard/>},
