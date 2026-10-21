@@ -40,7 +40,7 @@ const styles = {
     letterSpacing: "-0.5px",
     lineHeight: 1,
   },
-  headerMeta: { margin: "2px 0", fontSize: "11px", color: "#475569" },
+  headerMeta: { margin: "2px 0", fontSize: "11px", color: "#334155" },
 
   // Document meta — invoice no./date sit at the right margin of the Bill To row
   // rather than beside the company block, so they print once at the top of the
@@ -53,19 +53,19 @@ const styles = {
   copyTypeMark: { fontSize: "17px", fontWeight: 800, letterSpacing: "0.18em", color: "#374151", textTransform: "uppercase" as const, textAlign: "center" as const, margin: "0 0 16px 0" },
   // Blank rule for a vehicle number the sale does not carry — the transport
   // copy is filled in by hand at dispatch.
-  vehicleNoBlank: { display: "inline-block", minWidth: "88px", borderBottom: "1px solid #9CA3AF" },
+  vehicleNoBlank: { display: "inline-block", minWidth: "88px", borderBottom: "1px solid #6B7280" },
   invoiceMetaRow: {
     display: "flex",
     justifyContent: "flex-end",
     gap: "8px",
     marginBottom: "3px",
   },
-  invoiceMetaLabel: { fontSize: "11px", color: "#64748B", minWidth: "64px", textAlign: "right" as const },
+  invoiceMetaLabel: { fontSize: "11px", color: "#475569", minWidth: "64px", textAlign: "right" as const },
   invoiceMetaValue: { fontSize: "11px", color: "#0F172A", fontWeight: 600, minWidth: "110px", textAlign: "right" as const },
 
   // Divider
   redDivider: { borderTop: "2px solid #D0021B", margin: "16px 0" },
-  grayDivider: { borderTop: "1px solid #E5E7EB", margin: "10px 0" },
+  grayDivider: { borderTop: "1px solid #9CA3AF", margin: "10px 0" },
 
   // Bill-to box
   billBox: {
@@ -77,16 +77,16 @@ const styles = {
     alignItems: "flex-start",
     marginTop: "18px",
     marginBottom: "26px",
-    border: "1px solid #E2E8F0",
+    border: "1px solid #94A3B8",
   },
-  billLabel: { fontSize: "9px", fontWeight: 700, color: "#94A3B8", letterSpacing: "1px", marginBottom: "4px" },
+  billLabel: { fontSize: "9px", fontWeight: 700, color: "#475569", letterSpacing: "1px", marginBottom: "4px" },
   billName: { fontSize: "14px", fontWeight: 700, color: "#0F172A", margin: "0 0 4px 0" },
-  billMeta: { fontSize: "11px", color: "#475569", margin: "2px 0" },
+  billMeta: { fontSize: "11px", color: "#334155", margin: "2px 0" },
   billCol: { flex: "1 1 0%", minWidth: 0, paddingRight: "16px" },
   paymentCol: { flexShrink: 0, textAlign: "right" as const },
   paidBadge: {
     background: "#DCFCE7",
-    color: "#16A34A",
+    color: "#15803D",
     padding: "3px 12px",
     borderRadius: "20px",
     fontSize: "11px",
@@ -94,7 +94,7 @@ const styles = {
     display: "inline-block",
     marginBottom: "6px",
   },
-  paymentMode: { fontSize: "11px", color: "#64748B", textAlign: "right" as const },
+  paymentMode: { fontSize: "11px", color: "#475569", textAlign: "right" as const },
 
   // Items table
   table: { width: "100%", tableLayout: "fixed" as const, borderCollapse: "collapse" as const, marginBottom: "20px" },
@@ -130,7 +130,7 @@ const styles = {
     padding: "8px 8px",
     fontSize: "10px",
     color: "#0F172A",
-    borderBottom: "1px solid #E5E7EB",
+    borderBottom: "1px solid #9CA3AF",
     verticalAlign: "top" as const,
     overflowWrap: "anywhere" as const,
   },
@@ -138,7 +138,7 @@ const styles = {
     padding: "8px 8px",
     fontSize: "10px",
     color: "#0F172A",
-    borderBottom: "1px solid #E5E7EB",
+    borderBottom: "1px solid #9CA3AF",
     textAlign: "right" as const,
     verticalAlign: "top" as const,
     // Currency values must never wrap mid-number — unlike free-text cells,
@@ -149,7 +149,7 @@ const styles = {
     padding: "8px 8px",
     fontSize: "10px",
     color: "#0F172A",
-    borderBottom: "1px solid #E5E7EB",
+    borderBottom: "1px solid #9CA3AF",
     textAlign: "center" as const,
     verticalAlign: "top" as const,
     // HSN/Tax/Qty must stay on one line — wrapping (or overflowing) breaks
@@ -174,7 +174,7 @@ const styles = {
     textOverflow: "ellipsis" as const,
     fontSize: "9px",
   },
-  itemSub: { fontSize: "10px", color: "#6B7280", marginTop: "2px", lineHeight: 1.5, whiteSpace: "pre-line" as const },
+  itemSub: { fontSize: "10px", color: "#4B5563", marginTop: "2px", lineHeight: 1.5, whiteSpace: "pre-line" as const },
 
   // Summary
   summaryWrap: { display: "flex", justifyContent: "flex-end", marginTop: "16px", paddingTop: "12px" },
@@ -185,54 +185,54 @@ const styles = {
     alignItems: "center",
     marginBottom: "7px",
   },
-  summaryLabel: { fontSize: "12px", color: "#475569" },
+  summaryLabel: { fontSize: "12px", color: "#334155" },
   summaryValue: { fontSize: "12px", color: "#0F172A", fontWeight: 500 },
   summaryValueRed: { fontSize: "12px", color: "#000000", fontWeight: 600 },
   grandLabel: { fontSize: "14px", fontWeight: 800, color: "#0F172A" },
   grandValue: { fontSize: "18px", fontWeight: 900, color: "#000000" },
-  amountWords: { fontSize: "15px", fontWeight: 700, color: "#475569", marginTop: "8px", textAlign: "left" as const, fontStyle: "italic", width: "100%" },
+  amountWords: { fontSize: "15px", fontWeight: 700, color: "#334155", marginTop: "8px", textAlign: "left" as const, fontStyle: "italic", width: "100%" },
 
   // GST breakdown
   gstSection: { marginTop: "20px" },
   gstLabel: {
     fontSize: "9px",
     fontWeight: 700,
-    color: "#64748B",
+    color: "#475569",
     letterSpacing: "1.2px",
     textTransform: "uppercase" as const,
     marginBottom: "8px",
   },
-  gstThead: { background: "#F1F5F9" },
+  gstThead: { background: "#E2E8F0" },
   gstTh: {
     padding: "8px 10px",
     fontSize: "10px",
     fontWeight: 700,
-    color: "#475569",
+    color: "#334155",
     textTransform: "uppercase" as const,
     letterSpacing: "0.05em",
-    borderBottom: "1px solid #E5E7EB",
+    borderBottom: "1px solid #9CA3AF",
   },
   gstThRight: {
     padding: "8px 10px",
     fontSize: "10px",
     fontWeight: 700,
-    color: "#475569",
+    color: "#334155",
     textTransform: "uppercase" as const,
     letterSpacing: "0.05em",
-    borderBottom: "1px solid #E5E7EB",
+    borderBottom: "1px solid #9CA3AF",
     textAlign: "right" as const,
   },
   gstTd: {
     padding: "8px 10px",
     fontSize: "11px",
     color: "#0F172A",
-    borderBottom: "1px solid #F1F5F9",
+    borderBottom: "1px solid #CBD5E1",
   },
   gstTdRight: {
     padding: "8px 10px",
     fontSize: "11px",
     color: "#0F172A",
-    borderBottom: "1px solid #F1F5F9",
+    borderBottom: "1px solid #CBD5E1",
     textAlign: "right" as const,
     whiteSpace: "nowrap" as const,
   },
@@ -242,16 +242,16 @@ const styles = {
     fontSize: "11px",
     fontWeight: 700,
     color: "#0F172A",
-    borderTop: "1.5px solid #E5E7EB",
-    borderBottom: "1px solid #E5E7EB",
+    borderTop: "1.5px solid #9CA3AF",
+    borderBottom: "1px solid #9CA3AF",
   },
   gstTotalTdRight: {
     padding: "8px 10px",
     fontSize: "11px",
     fontWeight: 700,
     color: "#0F172A",
-    borderTop: "1.5px solid #E5E7EB",
-    borderBottom: "1px solid #E5E7EB",
+    borderTop: "1.5px solid #9CA3AF",
+    borderBottom: "1px solid #9CA3AF",
     textAlign: "right" as const,
     whiteSpace: "nowrap" as const,
   },
@@ -265,7 +265,7 @@ const styles = {
   noteLabel: {
     fontSize: "10px",
     fontWeight: 700,
-    color: "#475569",
+    color: "#334155",
     textTransform: "uppercase" as const,
     letterSpacing: "0.08em",
     marginBottom: "8px",
@@ -276,7 +276,7 @@ const styles = {
     lineHeight: 1.6,
   },
   bankBox: {
-    border: "1px solid #E5E7EB",
+    border: "1px solid #9CA3AF",
     borderRadius: "8px",
     padding: "12px 14px",
     background: "#FAFBFC",
@@ -289,7 +289,7 @@ const styles = {
     fontSize: "11px",
     color: "#334155",
   },
-  bankKey: { fontWeight: 700, color: "#475569", minWidth: "110px" },
+  bankKey: { fontWeight: 700, color: "#334155", minWidth: "110px" },
   bankValue: { fontWeight: 600, color: "#0F172A", textAlign: "right" as const, flex: 1 },
 
   // Footer
@@ -303,15 +303,15 @@ const styles = {
   // an uploaded signature sits.
   signSpace: { height: "56px", display: "flex", alignItems: "flex-end", justifyContent: "flex-end", marginBottom: "4px" },
   signLine: { borderTop: "1px solid #0F172A", width: "180px", marginLeft: "auto", marginBottom: "6px" },
-  signLabel: { fontSize: "10px", fontWeight: 700, color: "#475569", letterSpacing: "1px", textTransform: "uppercase" as const },
+  signLabel: { fontSize: "10px", fontWeight: 700, color: "#334155", letterSpacing: "1px", textTransform: "uppercase" as const },
   poweredByWrap: { marginTop: "14px", display: "flex", alignItems: "stretch", justifyContent: "center", gap: "12px" },
   // Logo as tall as the two text lines beside it.
   poweredByLogo: { height: "32px", width: "auto", display: "block", alignSelf: "center" },
-  poweredByRule: { width: "1.5px", background: "#CBD5E1", alignSelf: "stretch" },
+  poweredByRule: { width: "1.5px", background: "#94A3B8", alignSelf: "stretch" },
   poweredByText: { display: "flex", flexDirection: "column" as const, justifyContent: "center", gap: "4px" },
   poweredBy: { fontSize: "14px", fontWeight: 500, color: "#334155", lineHeight: 1.2 },
-  poweredByUrl: { fontSize: "11px", color: "#64748B", letterSpacing: "0.02em", lineHeight: 1.2, whiteSpace: "nowrap" as const },
-  poweredBySep: { margin: "0 6px", color: "#CBD5E1" },
+  poweredByUrl: { fontSize: "11px", color: "#475569", letterSpacing: "0.02em", lineHeight: 1.2, whiteSpace: "nowrap" as const },
+  poweredBySep: { margin: "0 6px", color: "#94A3B8" },
 };
 
 // ── Helper components ─────────────────────────────────────────
@@ -329,7 +329,7 @@ function SummaryRow({
       <span style={
         large ? styles.grandValue :
         red    ? styles.summaryValueRed :
-        green  ? { ...styles.summaryValue, color: "#16A34A" } :
+        green  ? { ...styles.summaryValue, color: "#15803D" } :
         bold   ? { ...styles.summaryValue, fontWeight: 700 } :
         styles.summaryValue
       }>
@@ -594,9 +594,9 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
               <span style={{
                 ...styles.paidBadge,
                 ...(payment_status === "unpaid" || payment_status === "pending" || payment_status === false
-                  ? { background: "#FEF3C7", color: "#D97706" }
+                  ? { background: "#FEF3C7", color: "#B45309" }
                   : payment_status === "partial"
-                  ? { background: "#FEF9C3", color: "#CA8A04" }
+                  ? { background: "#FEF9C3", color: "#A16207" }
                   : {}),
               }}>
                 {payment_status === false
@@ -716,7 +716,7 @@ export const InvoicePDFTemplate = React.forwardRef(({ data, settingsOverride, th
             />
           )}
 
-          <div style={{ borderTop: "2px solid #E5E7EB", margin: isCompact ? "6px 0" : "10px 0" }} />
+          <div style={{ borderTop: "2px solid #9CA3AF", margin: isCompact ? "6px 0" : "10px 0" }} />
 
           <SummaryRow label="Grand Total:" value={fmt(total)} large compact={isCompact} />
         </div>
