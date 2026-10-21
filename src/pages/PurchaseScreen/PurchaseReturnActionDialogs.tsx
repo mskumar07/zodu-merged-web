@@ -82,7 +82,7 @@ export function MarkPurchaseRefundDialog({ ret, onClose, notify }: { ret: Refund
           <Box sx={{ p: 1, borderRadius: "8px", bgcolor: "rgba(210,4,45,0.1)", display: "flex" }}>
             <PaymentsIcon sx={{ color: "#D2042D", fontSize: 22 }} />
           </Box>
-          <Typography sx={{ fontSize: "1.25rem", fontWeight: 700, color: "#0F172A" }}>Mark Refund</Typography>
+          <Typography sx={{ fontSize: "1.25rem", fontWeight: 700, color: "#0F172A" }}>Mark Payment</Typography>
         </Box>
         <IconButton onClick={onClose} size="small" sx={{ color: "#64748B" }}><CloseIcon sx={{ fontSize: 20 }} /></IconButton>
       </Box>

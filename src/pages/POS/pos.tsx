@@ -526,7 +526,7 @@ function RetailPOSInner() {
   const [items,          setItems]          = useState<LineItem[]>([]);
   const [discount,       setDiscount]       = useState("0");
   const [discountPct,    setDiscountPct]    = useState("0");
-  const [gstMode,        setGstMode]        = useState<"after" | "before">("after");
+  const [gstMode,        setGstMode]        = useState<"after" | "before">("before"); // retail discounts apply before GST
   const [referenceNo,    setReferenceNo]    = useState("");
   const [vehicleNo,      setVehicleNo]      = useState("");
   const [receivedAmount, setReceivedAmount] = useState("");
@@ -1162,7 +1162,8 @@ useLayoutEffect(() => {
       }
       if (sale.discount_type === "percentage") { setDiscountPct(String(sale.discount_value || 0)); setDiscount("0"); }
       else { setDiscount(String(sale.discount_amount || 0)); setDiscountPct("0"); }
-      setGstMode(sale.discount_gst_mode === "before" ? "before" : "after");
+      // Invoices saved before this change keep the mode they were saved with (a flat discount had none = after GST)
+      setGstMode(sale.discount_gst_mode ?? (Number(sale.discount_amount) > 0 ? "after" : "before"));
       setReceivedAmount(String(sale.paid_amount || 0));
       if (data.payment_history.length > 0) {
         const last = data.payment_history[data.payment_history.length - 1];
@@ -1228,7 +1229,7 @@ useLayoutEffect(() => {
       setPaymentType("Cash");
     }
     setZone("SEARCH"); setSearchFocus("CODE");
-    setCustomer(EMPTY_CUSTOMER); setSelectedApiCustomer(null); setCustomerQuery(""); clearCustomerResults(); setGstMode("after");
+    setCustomer(EMPTY_CUSTOMER); setSelectedApiCustomer(null); setCustomerQuery(""); clearCustomerResults(); setGstMode("before");
     setReceivedDirty(false);
 
   }, [clearCustomerResults, invoiceSettings]);
@@ -3114,7 +3115,10 @@ console.log("test",serverHolds)
   discount={discount}
   modeAccent={modeAccent}
   gstMode={gstMode}
-  baseAmount={grandTotalRaw + orderDiscountAmt}
+  // Before GST the discount is taken on the taxable value and the tax shrinks with it
+  baseAmount={gstMode === "before" ? subtotal : subtotal + grossGstAmount}
+  previousTotal={subtotal + grossGstAmount - itemDiscountTotal}
+  gstRatio={subtotal > 0 ? grossGstAmount / subtotal : 0}
   onApply={(pct, amt, mode) => { 
     setDiscountPct(pct); 
     setDiscount(amt); 

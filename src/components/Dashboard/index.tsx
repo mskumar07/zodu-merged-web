@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { SALE_DEPENDENT_KEYS, subscribeSaleSaved } from "@utils/dataSync";
 import LottieLoader from "@components/LottieLoader";
-import { createTheme, ThemeProvider, CssBaseline } from "@mui/material";
+import { createTheme, ThemeProvider } from "@mui/material";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Skeleton from "@mui/material/Skeleton";
@@ -666,12 +666,13 @@ const salesCols: ColDef<SaleRow>[] = [
 
   return (
     <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap'); *, *::before, *::after { font-family: 'Inter', sans-serif !important; box-sizing: border-box; }`}</style>
+      {/* Font file only — the Inter override below is scoped to this screen so it can't leak into the sidebar/header */}
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');`}</style>
 
       <Box sx={{
         bgcolor: "#ffffff", height: "100%", minHeight: 0, display: "flex", flexDirection: "column",
         overflow: { xs: "auto", md: "hidden" },
+        "&, & *, & *::before, & *::after": { fontFamily: "'Inter', sans-serif !important", boxSizing: "border-box" },
       }}>
         <Box component="main" sx={{
           flex: "1 1 auto", minHeight: { xs: "auto", md: 0 }, px: { xs: 1.25, sm: 1.5, md: 2 }, py: { xs: 1.25, sm: 1.5, md: 2 },

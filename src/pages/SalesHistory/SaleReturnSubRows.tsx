@@ -9,9 +9,9 @@
 import { memo } from "react";
 import { Avatar, Box, Button, IconButton, Stack, Tooltip, Typography, TableRow, TableCell, alpha } from "@mui/material";
 
-// Same whole-rupee format as the parent table, so amounts read consistently.
-const INR = (v: number) =>
-  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Math.round(v));
+// Returns show their exact amount (₹76.95, not ₹77); whole rupees show without decimals (₹299, not ₹299.00).
+const INR_FMT = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const INR = (v: number) => INR_FMT.format(v);
 import type { RefundStatus, Sale, SaleListReturn } from "./useSaleshistory";
 
 interface Props {
@@ -104,7 +104,7 @@ function SaleReturnSubRows({ sale, columnKeys, canEdit, onViewReturn, onViewInvo
             case "payment":
               return (
                 <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0.5 }}>
-                  {/* Row 1: status + the Mark Refund action */}
+                  {/* Row 1: status + the Mark Payment action */}
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, flexWrap: "wrap" }}>
                     {refund && (
                       <Typography sx={{ fontSize: 12, fontWeight: 600, color: refund.color, display: "inline-flex", alignItems: "center", gap: 0.6 }}>
@@ -118,7 +118,7 @@ function SaleReturnSubRows({ sale, columnKeys, canEdit, onViewReturn, onViewInvo
                         onClick={() => onMarkRefund(r)}
                         sx={{ fontSize: "0.65rem", py: 0.2, px: 1.25, height: 22, whiteSpace: "nowrap", textTransform: "none", fontWeight: 700 }}
                       >
-                        Mark Refund
+                        Mark Payment
                       </Button>
                     )}
                   </Box>

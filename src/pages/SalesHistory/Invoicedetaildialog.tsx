@@ -639,7 +639,8 @@ export default function InvoiceDetailsModal({
           )}
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          {!isRestaurant && !isCancelledTab && (
+          {/* Once a return / credit note exists the invoice is locked — same rule as the list's edit action */}
+          {!isRestaurant && !isCancelledTab && returnHistory.length === 0 && (
             <Tooltip title="Edit in POS">
               <IconButton size="small" onClick={() => runIfSubscribed(() => navigate(getPosEditUrl(sale?.sale_uuid, sale?.sale_type)))}
                 sx={{ color: "#2563EB", bgcolor: "#EFF6FF", "&:hover": { bgcolor: "#DBEAFE" }, borderRadius: "50%", width: 32, height: 32 }}>

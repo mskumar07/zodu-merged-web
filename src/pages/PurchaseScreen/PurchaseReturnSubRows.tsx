@@ -96,7 +96,7 @@ function PurchaseReturnSubRows({ purchase, returns, columnKeys, canEdit, onView,
                     {canPay && (
                       <Button size="small" variant="contained" disableElevation disabled={!canEdit} onClick={() => onMarkRefund(r)}
                         sx={{ fontSize: "0.65rem", py: 0.2, px: 1.25, height: 22, whiteSpace: "nowrap", textTransform: "none", fontWeight: 700 }}>
-                        Mark Refund
+                        Mark Payment
                       </Button>
                     )}
                   </Box>

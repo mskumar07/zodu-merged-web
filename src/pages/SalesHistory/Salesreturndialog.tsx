@@ -8,7 +8,7 @@
  * Process a sales return — pixel-matched to HTML design.
  * max-w-4xl modal, items table, reason+summary grid, slate-50 footer.
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import {
@@ -33,6 +33,7 @@ import {
 } from "@mui/icons-material";
 import { API_BASE, fetchSaleDetail, salesQueryKeys, getBranchId, getZoduId, createSaleReturn, updateSaleReturn, apiErrorMessage, REFUND_MODES, resolveNotify, type Notify, type SaleListReturn, type SaleReturnHistoryRow, type CreateSaleReturnPayload, type ReturnType, type Sale } from "./useSaleshistory";
 import { INR } from "./dialogHelpers";
+import { buildInvoiceContext, computeReturnBreakdown } from "./returnCredit";
 import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 
 interface Props {
@@ -92,20 +93,29 @@ export default function SalesReturnDialog({ sale, onClose, onSuccess, notify, ed
   // ── Normalize API response fields ──────────────────────────────────────
   // API returns: item_name, item_id, item_uuid, sale_id, customer (separate object)
   // Component expects: product_name, product_id, invoice_no, customer_name
-  const normalizedSale = data?.sale
-    ? {
-        ...data.sale,
-        invoice_no:    data.sale.invoice_no    ?? data.sale.sale_id,
-        customer_name: data.sale.customer_name ?? data?.customer?.cust_name ?? null,
-      }
-    : sale;
+  const normalizedSale = useMemo(
+    () => data?.sale
+      ? {
+          ...data.sale,
+          invoice_no:    data.sale.invoice_no    ?? data.sale.sale_id,
+          customer_name: data.sale.customer_name ?? data?.customer?.cust_name ?? null,
+        }
+      : sale,
+    [data, sale],
+  );
 
-  const items = (data?.items ?? []).map((item: any) => ({
-    ...item,
-    product_id:   item.product_id   ?? item.item_id,
-    product_name: item.product_name ?? item.item_name,
-    item_uuid:    item.item_uuid,  // Ensure item_uuid is preserved
-  }));
+  const items = useMemo(
+    () => (data?.items ?? []).map((item: any) => ({
+      ...item,
+      product_id:   item.product_id   ?? item.item_id,
+      product_name: item.product_name ?? item.item_name,
+      item_uuid:    item.item_uuid,  // Ensure item_uuid is preserved
+    })),
+    [data],
+  );
+
+  // Invoice-level discount / round-off maths, done once per loaded invoice.
+  const creditContext = useMemo(() => buildInvoiceContext(normalizedSale, items), [normalizedSale, items]);
   // ───────────────────────────────────────────────────────────────────────
 
   // Edit mode: qty this very return holds per invoice line. Those units count as available
@@ -130,7 +140,7 @@ export default function SalesReturnDialog({ sale, onClose, onSuccess, notify, ed
   const [reason,    setReason]    = useState("");
   const [note,      setNote]      = useState("");
   const [returnType, setReturnType] = useState<ReturnType>("SALES_RETURN");
-  // Optionally pay the refund as part of the same request; otherwise it stays pending (Mark Refund later).
+  // Optionally pay the refund as part of the same request; otherwise it stays pending (Mark Payment later).
   const [payNow,      setPayNow]      = useState(false);
   const [payMode,     setPayMode]     = useState<(typeof REFUND_MODES)[number]>("Cash");
   const [payReference, setPayReference] = useState("");
@@ -168,20 +178,35 @@ export default function SalesReturnDialog({ sale, onClose, onSuccess, notify, ed
   const allSelected  = items.length > 0 && items.every((i: any) => selected[i.id]);
   const someSelected = items.some((i: any) => selected[i.id]);
 
-  const totalReturnAmount = items.reduce((sum: number, item: any) => {
-    if (!selected[item.id]) return sum;
-    const qty   = returnQty[item.id] ?? 0;
-    // price is tax-inclusive — use it directly, no need to add tax_amount again
-    const price = Number(item.price);
-    return sum + qty * price;
-  }, 0);
+  // Credit after the invoice's discounts, same as what the backend saves.
+  const credit = useMemo(
+    () => computeReturnBreakdown(
+      creditContext,
+      items
+        .filter((item: any) => selected[item.id] && (returnQty[item.id] ?? 0) > 0)
+        .map((item: any) => ({ item, qty: returnQty[item.id] })),
+    ),
+    [creditContext, items, selected, returnQty],
+  );
+  const totalReturnAmount = credit.total;
+
+  // Names the discount so the cashier can see why the credit is below the item's price,
+  // e.g. "Invoice discount (2.5% · Before GST)".
+  const discountLabel = useMemo(() => {
+    const s: any = normalizedSale;
+    const pct = s?.discount_type === "percentage" ? Number(s.discount_value) : 0;
+    const when = s?.discount_gst_mode === "before" ? "Before GST" : s?.discount_gst_mode === "after" ? "After GST" : "";
+    const detail = [pct > 0 ? `${Number(pct.toFixed(2))}%` : "", when].filter(Boolean).join(" · ");
+    return detail ? `Invoice discount (${detail})` : "Invoice discount";
+  }, [normalizedSale]);
 
   const restockFee  = (totalReturnAmount * RESTOCK_FEE_PCT) / 100;
   // Restock fee row is hidden in UI — net refund equals the full return amount
   // Dues on the invoice absorb the return first; only the excess is owed back to the customer.
   // When editing, the stored balance already reflects this return's adjustment — add it back.
-  const invoiceBalance  = Number((normalizedSale as any)?.balance_amount ?? 0)
-    + (editReturn ? Number(editReturn.adjusted_amount ?? 0) : 0);
+  // An overpaid invoice (negative balance, e.g. round-off) has no dues to absorb a return.
+  const invoiceBalance  = Math.max(0, Number((normalizedSale as any)?.balance_amount ?? 0)
+    + (editReturn ? Number(editReturn.adjusted_amount ?? 0) : 0));
   const refundable      = Math.max(0, totalReturnAmount - invoiceBalance);
   const adjustedAmount  = totalReturnAmount - refundable;
   const netRefund       = refundable;
@@ -744,13 +769,23 @@ const canConfirm = someSelected && !!reason && (!payNow || !showPayNow || payAmo
                   </Typography>
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
                     {[
-                      { label: "Total Return Amount", value: totalReturnAmount, show: true, color: undefined as string | undefined },
-                      { label: "Adjusted against dues", value: adjustedAmount, show: adjustedAmount > 0.001, color: "#0369A1" as string | undefined },
+                      // Breakdown first, so the total never appears to differ from the item's price without a reason
+                      { label: "Item Value", value: credit.itemValue, show: credit.itemValue > 0, sign: "", color: undefined as string | undefined, bold: false },
+                      { label: discountLabel, value: credit.discount, show: Math.abs(credit.discount) >= 0.005, sign: "-", color: "#D2042D" as string | undefined, bold: false },
+                      { label: "Round Off", value: Math.abs(credit.roundOff), show: Math.abs(credit.roundOff) >= 0.005, sign: credit.roundOff < 0 ? "-" : "+", color: "#64748B" as string | undefined, bold: false },
+                      { label: "Total Return Amount", value: totalReturnAmount, show: true, sign: "", color: undefined as string | undefined, bold: true },
+                      { label: "Adjusted against dues", value: adjustedAmount, show: adjustedAmount > 0.001, sign: "-", color: "#0369A1" as string | undefined, bold: false },
                     ].filter((r) => r.show).map((r) => (
-                      <Box key={r.label} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <Typography sx={{ fontSize: "0.875rem", color: "#475569" }}>{r.label}</Typography>
-                        <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: r.color ?? "#0F172A" }}>
-                          {r.color ? "-" : ""}{INR(r.value)}
+                      <Box
+                        key={r.label}
+                        sx={{
+                          display: "flex", justifyContent: "space-between", alignItems: "center",
+                          ...(r.bold && { borderTop: "1px dashed #CBD5E1", pt: 1.25, mt: 0.25 }),
+                        }}
+                      >
+                        <Typography sx={{ fontSize: "0.875rem", color: r.bold ? "#0F172A" : "#475569", fontWeight: r.bold ? 700 : 400 }}>{r.label}</Typography>
+                        <Typography sx={{ fontSize: "0.875rem", fontWeight: r.bold ? 700 : 600, color: r.color ?? "#0F172A" }}>
+                          {r.sign}{INR(r.value)}
                         </Typography>
                       </Box>
                     ))}

@@ -1,16 +1,17 @@
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import {
-  Box, Button, FormControl, MenuItem, Paper, Select, Tab, Tabs, Typography, type SelectChangeEvent,
+  Box, Button, FormControl, MenuItem, Paper, Select, Tab, Tabs, Tooltip, Typography, type SelectChangeEvent,
 } from '@mui/material';
 import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
 import TableViewOutlinedIcon from '@mui/icons-material/TableViewOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import FilterListOffIcon from '@mui/icons-material/FilterListOff';
 import SuccessToast from '@components/Common/SuccessToast';
 import useDebounce from '@hooks/useDebounce';
 import { useTenantContext } from '@store/tenantContext';
 import { useGstr1Report, type Gstr1Params } from './useGstr1Api';
 import {
-  apiErrorMessage, useB2bGstins, usePrefetchRemoteReports, useRemoteReport,
+  apiErrorMessage, useB2bGstins, useRemoteReport,
   type B2bGstinOption, type RemoteEndpoint, type RemoteReportParams,
 } from './useGstr1RemoteApi';
 import { exportGstr1Excel, exportGstr1Pdf } from './exportGstr1';
@@ -65,9 +66,12 @@ const FilterField = ({ label, required, children }: { label: string; required?: 
 
 const OPTION_SX = { fontSize: 13 };
 
-const FilterBar = memo(function FilterBar({ filters, onChange, financialYears, gstins, showGstin }: {
+const FilterBar = memo(function FilterBar({ filters, onChange, onReset, canReset, financialYears, gstins, showGstin }: {
   filters: Filters;
   onChange: (k: keyof Filters) => (e: SelectChangeEvent<string>) => void;
+  onReset: () => void;
+  /** True once any filter differs from its default, so the button only shows when it has something to undo. */
+  canReset: boolean;
   financialYears: string[];
   gstins: B2bGstinOption[];
   /** Hidden on tabs whose invoices have no GSTIN (e.g. B2C Large). */
@@ -75,7 +79,7 @@ const FilterBar = memo(function FilterBar({ filters, onChange, financialYears, g
 }) {
   const periods = useMemo(() => periodsOf(filters.fy), [filters.fy]);
   return (
-    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+    <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 2, flexWrap: 'wrap' }}>
       <FilterField label="Financial Year" required>
         <Select value={filters.fy} onChange={onChange('fy')} sx={OPTION_SX}>
           {financialYears.map((y) => <MenuItem key={y} value={y} sx={OPTION_SX}>{y}</MenuItem>)}
@@ -97,6 +101,20 @@ const FilterBar = memo(function FilterBar({ filters, onChange, financialYears, g
             ))}
           </Select>
         </FilterField>
+      )}
+      {canReset && (
+        <Tooltip title="Reset Filters">
+          <Box
+            component="button" type="button" aria-label="Reset filters" onClick={onReset}
+            sx={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              width: 40, height: 40, border: 0, borderRadius: 1, cursor: 'pointer',
+              bgcolor: '#F97316', color: '#fff', '&:hover': { bgcolor: '#EA6C0A' },
+            }}
+          >
+            <FilterListOffIcon sx={{ fontSize: 20 }} />
+          </Box>
+        </Tooltip>
       )}
     </Box>
   );
@@ -136,9 +154,12 @@ const Gstr1Report: React.FC = () => {
 
   const financialYears = useMemo(() => buildFinancialYears(), []);
   // Filters apply as they change; Generate Report just reloads the current view.
-  const [filters, setFilters] = useState<Filters>(() => ({
+  const defaultFilters = useMemo<Filters>(() => ({
     fy: financialYears[0], period: defaultPeriod(financialYears[0]), gstin: 'all',
-  }));
+  }), [financialYears]);
+  const [filters, setFilters] = useState<Filters>(defaultFilters);
+  const canReset = filters.fy !== defaultFilters.fy || filters.period !== defaultFilters.period || filters.gstin !== defaultFilters.gstin;
+  const resetFilters = useCallback(() => setFilters(defaultFilters), [defaultFilters]);
   const [tabId, setTabId] = useState(TAB_DEFS[0].id);
   const [viewRow, setViewRow] = useState<ListRow<object> | null>(null);
   // Search text belongs to the current tab and resets when it changes.
@@ -185,8 +206,7 @@ const Gstr1Report: React.FC = () => {
       gstin: takesGstin ? filters.gstin : undefined, search: searchText, isRestaurant,
     };
   }, [hasTenant, zoduId, branchId, filters.fy, period.month, filters.gstin, isRestaurant]);
-  // Every server-driven tab loads in the background, so switching tabs never waits on a loader.
-  usePrefetchRemoteReports(remoteParamsFor);
+  // Each server-driven tab fetches only when it is opened (cached for 2 minutes after that).
   const remoteParams = useMemo(
     () => (def.remote ? remoteParamsFor(def.remote.endpoint, serverSearch) : null),
     [def.remote, remoteParamsFor, serverSearch],
@@ -202,8 +222,8 @@ const Gstr1Report: React.FC = () => {
     gstin: filters.gstin === 'all' ? undefined : filters.gstin,
     isRestaurant,
   } : null), [hasTenant, zoduId, branchId, filters.fy, period, filters.gstin, isRestaurant]);
-  // Kept loaded on every tab, so coming back from a server-driven tab is instant.
-  const report = useGstr1Report(mockParams);
+  // Only needed while a client-side tab is showing.
+  const report = useGstr1Report(mockParams, !isRemote);
 
   // Errors go to the toast; a successful refresh does too (see `generate`).
   useEffect(() => {
@@ -286,7 +306,7 @@ const Gstr1Report: React.FC = () => {
 
       <Box sx={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
         <Box sx={{ flex: '1 1 570px', minWidth: 0 }}>
-          <FilterBar filters={filters} onChange={setField} financialYears={financialYears} gstins={gstinOptions} showGstin={!def.remote || !!def.remote.gstin} />
+          <FilterBar filters={filters} onChange={setField} onReset={resetFilters} canReset={canReset} financialYears={financialYears} gstins={gstinOptions} showGstin={!def.remote || !!def.remote.gstin} />
         </Box>
         <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap', ml: 'auto' }}>
           <Button variant="outlined" startIcon={<PictureAsPdfOutlinedIcon />} disabled={!hasExport}

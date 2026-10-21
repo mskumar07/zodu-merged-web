@@ -570,12 +570,17 @@ interface Props {
   discount: string;
   modeAccent: string;
   gstMode: "after" | "before";
+  /** What % and amount are measured against: the taxable value before GST, or the GST-inclusive total after. */
   baseAmount?: number;
+  /** Total before any order discount, as shown to the cashier. */
+  previousTotal?: number;
+  /** GST ÷ taxable value; before GST, a discount also removes this share of tax. */
+  gstRatio?: number;
   onApply: (discountPct: string, discount: string, gstMode: "after" | "before") => void;
 }
 
 export default function DiscountModal({
-  open, onClose, discountPct, discount, modeAccent, gstMode: initialGstMode, baseAmount = 0, onApply,
+  open, onClose, discountPct, discount, modeAccent, gstMode: initialGstMode, baseAmount = 0, previousTotal, gstRatio = 0, onApply,
 }: Props) {
   const [localPct, setLocalPct] = useState(discountPct);
   const [localAmt, setLocalAmt] = useState(discount);
@@ -640,7 +645,9 @@ export default function DiscountModal({
   const totalDiscountAmount = activeField === "amt"
     ? (parseFloat(localAmt) || 0)
     : (currentBase * (parseFloat(localPct) || 0)) / 100;
-  const finalTotalAmount = Math.max(0, currentBase - totalDiscountAmount);
+  const shownPrevious = previousTotal ?? currentBase;
+  const taxFactor = gstMode === "before" ? 1 + gstRatio : 1;
+  const finalTotalAmount = Math.max(0, shownPrevious - totalDiscountAmount * taxFactor);
 
   const handleApply = () => {
     // Only the field the user actually typed into is the real discount —
@@ -816,7 +823,7 @@ export default function DiscountModal({
               Previous Total
             </Typography>
             <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>
-              Rs {currentBase.toFixed(2)}
+              Rs {shownPrevious.toFixed(2)}
             </Typography>
           </Box>
 
@@ -839,7 +846,7 @@ export default function DiscountModal({
                 <LocalOfferOutlinedIcon sx={{ fontSize: 18, color: "#059669" }} />
               </Box>
               <Typography sx={{ fontSize: 14, color: "#334155", fontWeight: 600 }}>
-                Discount Applied
+                Discount Applied{gstMode === "before" ? " (before GST)" : ""}
               </Typography>
             </Box>
             <Typography sx={{ fontSize: 15, fontWeight: 800, color: "#EF4444" }}>

@@ -269,7 +269,7 @@ export default function PurchaseReturnDetailDialog({ returnUuid, canEdit, onClos
           {canPay && (
             <Button variant="outlined" onClick={markRefund}
               sx={{ fontSize: 13, fontWeight: 700, textTransform: "none", color: "#D32F2F", borderColor: "#D32F2F", borderRadius: 1.5, px: 2.5, py: 1, "&:hover": { bgcolor: "#FEF2F2", borderColor: "#B71C1C" } }}>
-              Mark Refund
+              Mark Payment
             </Button>
           )}
           <Button variant="contained" disableElevation disabled={!data} startIcon={<PrintIcon sx={{ fontSize: 16 }} />} onClick={() => window.print()}

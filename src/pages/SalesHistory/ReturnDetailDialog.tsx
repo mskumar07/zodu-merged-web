@@ -370,7 +370,7 @@ function ReturnDetailDialog({ ret, canEdit, onClose, onMarkRefund }: Props) {
               variant="outlined" disabled={!canEdit} onClick={() => onMarkRefund(ret)}
               sx={{ ...actionBtn, color: "#D0021B", borderColor: "#D0021B", "&:hover": { borderColor: "#B00218", bgcolor: "rgba(208,2,27,0.04)" } }}
             >
-              Mark Refund · {INR(pending)}
+              Mark Payment · {INR(pending)}
             </Button>
           )}
           <InvoiceCopyActions

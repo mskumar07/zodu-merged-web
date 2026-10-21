@@ -489,7 +489,8 @@ export default function PurchaseDetailDialog({ purchaseId, onClose }: Props) {
         </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          {data && canEdit && (
+          {/* Once a return / debit note exists the purchase is locked — same rule as the list's edit action */}
+          {data && canEdit && !data.returns?.length && (
             <IconButton
               size="small"
               onClick={() => handleEdit(data.purchase_id)}
