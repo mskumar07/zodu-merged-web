@@ -128,6 +128,8 @@ export interface PurchaseReturnListRow {
   adjusted_amount:  number | string;
   refund_due:       number | string;
   refunded_amount:  number | string;
+  /** Amount paid out on this return so far; older responses only carry `refunded_amount`. */
+  paid_amount?:     number | string;
   pending_refund:   number | string;
   excess_refund:    number | string;
   return_reason:    string | null;

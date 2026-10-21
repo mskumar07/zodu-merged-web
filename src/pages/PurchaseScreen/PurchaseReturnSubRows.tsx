@@ -52,7 +52,9 @@ function PurchaseReturnSubRows({ purchase, returns, columnKeys, canEdit, onView,
         const badge   = TYPE_BADGE[r.return_type] ?? TYPE_BADGE.PURCHASE_RETURN;
         const refund  = REFUND_LABEL[r.refund_status];
         const pending = num(r.pending_refund);
+        const paid    = num(r.paid_amount ?? r.refunded_amount);
         const canPay  = (r.refund_status === "PENDING" || r.refund_status === "PARTIAL") && pending > 0;
+        const owed    = canPay ? pending : 0;
 
         const cell = (key: string) => {
           switch (key) {
@@ -91,7 +93,7 @@ function PurchaseReturnSubRows({ purchase, returns, columnKeys, canEdit, onView,
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, flexWrap: "wrap" }}>
                     <Typography sx={{ fontSize: 12, fontWeight: 600, color: refund.color, display: "inline-flex", alignItems: "center", gap: 0.6 }}>
                       <Box component="span" sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: refund.color }} />
-                      {r.refund_status === "PARTIAL" ? `Partly refunded ${INR(num(r.refunded_amount))}` : refund.label}
+                      {refund.label}
                     </Typography>
                     {canPay && (
                       <Button size="small" variant="contained" disableElevation disabled={!canEdit} onClick={() => onMarkRefund(r)}
@@ -100,16 +102,17 @@ function PurchaseReturnSubRows({ purchase, returns, columnKeys, canEdit, onView,
                       </Button>
                     )}
                   </Box>
-                  {canPay && (
-                    <Typography sx={{ ml: 1.75, px: 1, py: "1px", borderRadius: "6px", fontSize: 11.5, fontWeight: 700, color: "#92400E", bgcolor: "#FEF3C7", border: "1px solid #FDE68A" }}>
-                      {INR(pending)} pending
-                    </Typography>
-                  )}
                   {num(r.excess_refund) > 0 && (
                     <Typography sx={{ ml: 1.75, fontSize: 11.5, fontWeight: 700, color: "#B45309" }}>{INR(num(r.excess_refund))} refunded in excess</Typography>
                   )}
                 </Box>
               );
+            case "paid_amount":
+              // Paid out on this return so far (green, like an invoice's Paid column)
+              return <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#15803D", textAlign: "right" }}>{INR(paid)}</Typography>;
+            case "balance_amount":
+              // Still owed on this return (red while something is due, like an invoice's Balance)
+              return <Typography sx={{ fontSize: 13, fontWeight: 700, color: owed > 0 ? "#D32F2F" : "#374151", textAlign: "right" }}>{INR(owed)}</Typography>;
             case "actions":
               return (
                 <Box sx={{ display: "flex", justifyContent: "center", gap: 0.3 }}>

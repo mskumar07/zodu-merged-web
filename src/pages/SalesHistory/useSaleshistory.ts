@@ -184,6 +184,8 @@ export interface SaleListReturn {
   adjusted_amount?: string | number | null;
   refund_due?:      string | number | null;
   refunded_amount?: string | number | null;
+  /** Amount paid out on this return so far; older responses only carry `refunded_amount`. */
+  paid_amount?:     string | number | null;
   pending_refund?:  string | number | null;
   return_reason?:   string | null;
   return_date?:     string | null;
