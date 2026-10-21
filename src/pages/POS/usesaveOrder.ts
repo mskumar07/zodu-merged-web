@@ -238,7 +238,7 @@ function resolveDiscount(pct: string, flat: string, gstMode: "after" | "before")
   const p = parseFloat(pct)  || 0;
   const f = parseFloat(flat) || 0;
   if (p > 0) return { discount_type: "percentage" as const, discount_value: p, discount_gst_mode: gstMode };
-  if (f > 0) return { discount_type: "flat"       as const, discount_value: f, discount_gst_mode: null };
+  if (f > 0) return { discount_type: "flat"       as const, discount_value: f, discount_gst_mode: gstMode };
   return       { discount_type: null,              discount_value: 0, discount_gst_mode: null };
 }
 

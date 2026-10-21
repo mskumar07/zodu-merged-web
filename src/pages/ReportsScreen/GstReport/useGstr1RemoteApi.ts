@@ -1,6 +1,5 @@
 import axios from 'axios';
-import { useEffect } from 'react';
-import { infiniteQueryOptions, useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { infiniteQueryOptions, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import axiosInstance from '@store/services/axiosInstance';
 
 // ─── Shared contract of the server-driven GSTR-1 tabs ─────────
@@ -71,8 +70,6 @@ const retryOnce = (failures: number, err: unknown) =>
 
 // ─── Summary cards + table ────────────────────────────────────
 
-const REMOTE_ENDPOINTS: RemoteEndpoint[] = ['b2b', 'b2c-large', 'b2c-small', 'cdnr', 'cdnur'];
-
 const remoteReportOptions = <Row>(endpoint: RemoteEndpoint | undefined, params: RemoteReportParams | null) =>
   infiniteQueryOptions({
     queryKey: ['gstr1', endpoint, 'report', params],
@@ -112,21 +109,6 @@ export function useRemoteReport<Row>(endpoint: RemoteEndpoint | undefined, param
     // over to another tab (they have different columns): only reuse data from the same endpoint.
     placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[1] === endpoint ? previous : undefined),
   });
-}
-
-/**
- * Loads the first page of every server-driven tab in the background for the current filters,
- * so switching tabs shows data straight away instead of a loader.
- * `paramsFor` returns the params each tab would use with an empty search.
- */
-export function usePrefetchRemoteReports(paramsFor: (endpoint: RemoteEndpoint) => RemoteReportParams | null) {
-  const queryClient = useQueryClient();
-  useEffect(() => {
-    REMOTE_ENDPOINTS.forEach((endpoint) => {
-      const params = paramsFor(endpoint);
-      if (params) queryClient.prefetchInfiniteQuery(remoteReportOptions(endpoint, params));
-    });
-  }, [queryClient, paramsFor]);
 }
 
 // ─── B2B GSTIN dropdown ───────────────────────────────────────

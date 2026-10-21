@@ -9,9 +9,9 @@
 import { memo } from "react";
 import { Avatar, Box, Button, IconButton, Stack, Tooltip, Typography, TableRow, TableCell, alpha } from "@mui/material";
 
-// Same whole-rupee format as the parent table, so amounts read consistently.
-const INR = (v: number) =>
-  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Math.round(v));
+// Returns show their exact amount (₹76.95, not ₹77); whole rupees show without decimals (₹299, not ₹299.00).
+const INR_FMT = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const INR = (v: number) => INR_FMT.format(v);
 import type { RefundStatus, Sale, SaleListReturn } from "./useSaleshistory";
 
 interface Props {
@@ -51,7 +51,9 @@ function SaleReturnSubRows({ sale, columnKeys, canEdit, onViewReturn, onViewInvo
         const badge   = TYPE_BADGE[r.return_type ?? "SALES_RETURN"] ?? TYPE_BADGE.SALES_RETURN;
         const refund  = r.refund_status ? REFUND_LABEL[r.refund_status] : null;
         const pending = Number(r.pending_refund ?? 0);
+        const paid    = Number(r.paid_amount ?? r.refunded_amount ?? 0);
         const canPay  = r.refund_status === "PENDING" || r.refund_status === "PARTIAL";
+        const owed    = canPay ? pending : 0;
 
         const cell = (key: string) => {
           switch (key) {
@@ -104,12 +106,12 @@ function SaleReturnSubRows({ sale, columnKeys, canEdit, onViewReturn, onViewInvo
             case "payment":
               return (
                 <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0.5 }}>
-                  {/* Row 1: status + the Mark Refund action */}
+                  {/* Status + the Mark Payment action; paid / still owed have their own columns */}
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, flexWrap: "wrap" }}>
                     {refund && (
                       <Typography sx={{ fontSize: 12, fontWeight: 600, color: refund.color, display: "inline-flex", alignItems: "center", gap: 0.6 }}>
                         <Box component="span" sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: refund.color }} />
-                        {r.refund_status === "PARTIAL" ? `Partly refunded ${INR(Number(r.refunded_amount ?? 0))}` : refund.label}
+                        {refund.label}
                       </Typography>
                     )}
                     {canPay && (
@@ -118,18 +120,18 @@ function SaleReturnSubRows({ sale, columnKeys, canEdit, onViewReturn, onViewInvo
                         onClick={() => onMarkRefund(r)}
                         sx={{ fontSize: "0.65rem", py: 0.2, px: 1.25, height: 22, whiteSpace: "nowrap", textTransform: "none", fontWeight: 700 }}
                       >
-                        Mark Refund
+                        Mark Payment
                       </Button>
                     )}
                   </Box>
-                  {/* Row 2: what is still owed */}
-                  {canPay && pending > 0 && (
-                    <Typography sx={{ ml: 1.75, px: 1, py: "1px", borderRadius: "6px", fontSize: 11.5, fontWeight: 700, color: "#92400E", bgcolor: "#FEF3C7", border: "1px solid #FDE68A" }}>
-                      {INR(pending)} pending
-                    </Typography>
-                  )}
                 </Box>
               );
+            case "paid_amount":
+              // Paid out on this return so far (green, like an invoice's Paid column)
+              return <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#15803D", textAlign: "right" }}>{INR(paid)}</Typography>;
+            case "balance_amount":
+              // Still owed on this return (red while something is due, like an invoice's Balance)
+              return <Typography sx={{ fontSize: 13, fontWeight: 700, color: owed > 0 ? "#D32F2F" : "#374151", textAlign: "right" }}>{INR(owed)}</Typography>;
             case "actions":
               return (
                 <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.3 }}>
