@@ -41,9 +41,9 @@ const styles = {
   // Two full-width lines under the company name — the address parts joined into
   // one and the contact/GSTIN parts into the other, rather than one short
   // centred line per field leaving most of the 718px content width unused.
-  headerMeta: { margin: "3px 0", fontSize: "13px", color: "#6B7280", lineHeight: 1.5, width: "100%" },
+  headerMeta: { margin: "3px 0", fontSize: "13px", color: "#4B5563", lineHeight: 1.5, width: "100%" },
 
-  divider: { borderTop: "1px solid #E5E7EB", margin: "20px 0" },
+  divider: { borderTop: "1px solid #9CA3AF", margin: "20px 0" },
 
   // Document meta — invoice no., date and the company GSTIN as label/value
   // rows, sharing a row with Billed To at the right margin rather than the
@@ -59,15 +59,15 @@ const styles = {
   copyTypeMark: { fontSize: "17px", fontWeight: 800, letterSpacing: "0.18em", color: "#374151", textTransform: "uppercase" as const, textAlign: "center" as const, margin: "0 0 18px 0" },
   // Blank rule for a vehicle number the sale does not carry — the transport
   // copy is filled in by hand at dispatch.
-  vehicleNoBlank: { display: "inline-block", minWidth: "88px", borderBottom: "1px solid #9CA3AF" },
+  vehicleNoBlank: { display: "inline-block", minWidth: "88px", borderBottom: "1px solid #6B7280" },
   metaRow: { display: "flex", justifyContent: "flex-end", alignItems: "baseline", gap: "12px", marginBottom: "3px" },
-  metaLabel: { fontSize: "13px", color: "#6B7280", minWidth: "64px", textAlign: "right" as const },
+  metaLabel: { fontSize: "13px", color: "#4B5563", minWidth: "64px", textAlign: "right" as const },
   metaValue: { fontSize: "13px", color: "#111827", fontWeight: 700, minWidth: "112px", textAlign: "right" as const, overflowWrap: "anywhere" as const },
 
   infoGrid: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "24px" },
-  infoLabel: { fontSize: "10px", fontWeight: 700, color: "#6B7280", letterSpacing: "0.6px", textTransform: "uppercase" as const, margin: "0 0 6px 0" },
+  infoLabel: { fontSize: "10px", fontWeight: 700, color: "#4B5563", letterSpacing: "0.6px", textTransform: "uppercase" as const, margin: "0 0 6px 0" },
   billName: { fontSize: "13px", fontWeight: 700, color: "#111827", margin: "0 0 3px 0" },
-  billMeta: { fontSize: "11px", color: "#4B5563", margin: "2px 0" },
+  billMeta: { fontSize: "11px", color: "#374151", margin: "2px 0" },
   billCol: { flex: "1 1 0%", minWidth: 0 },
   dueBox: { flexShrink: 0, textAlign: "right" as const },
   dueValue: { fontSize: "17px", fontWeight: 800, color: "#111827", margin: "0 0 4px 0" },
@@ -80,7 +80,7 @@ const styles = {
     padding: "2px 10px",
     borderRadius: "20px",
     background: "#DCFCE7",
-    color: "#16A34A",
+    color: "#15803D",
     marginBottom: "4px",
   },
 
@@ -90,7 +90,7 @@ const styles = {
     padding: "0 8px 8px 0",
     fontSize: "10px",
     fontWeight: 700,
-    color: "#6B7280",
+    color: "#4B5563",
     textAlign: "left" as const,
     letterSpacing: "0.05em",
     textTransform: "uppercase" as const,
@@ -100,7 +100,7 @@ const styles = {
     padding: "0 0 8px 8px",
     fontSize: "10px",
     fontWeight: 700,
-    color: "#6B7280",
+    color: "#4B5563",
     textAlign: "right" as const,
     letterSpacing: "0.05em",
     textTransform: "uppercase" as const,
@@ -110,23 +110,23 @@ const styles = {
     padding: "0 8px 8px 8px",
     fontSize: "10px",
     fontWeight: 700,
-    color: "#6B7280",
+    color: "#4B5563",
     textAlign: "center" as const,
     letterSpacing: "0.05em",
     textTransform: "uppercase" as const,
     borderBottom: "1.5px solid #111827",
   },
-  td: { padding: "10px 8px 10px 0", fontSize: "11px", color: "#111827", verticalAlign: "top" as const, borderBottom: "1px solid #F1F3F5", overflowWrap: "anywhere" as const },
+  td: { padding: "10px 8px 10px 0", fontSize: "11px", color: "#111827", verticalAlign: "top" as const, borderBottom: "1px solid #D1D5DB", overflowWrap: "anywhere" as const },
   // Currency values must never wrap mid-number — force a single line.
-  tdRight: { padding: "10px 0 10px 8px", fontSize: "11px", color: "#111827", textAlign: "right" as const, verticalAlign: "top" as const, borderBottom: "1px solid #F1F3F5", whiteSpace: "nowrap" as const },
+  tdRight: { padding: "10px 0 10px 8px", fontSize: "11px", color: "#111827", textAlign: "right" as const, verticalAlign: "top" as const, borderBottom: "1px solid #D1D5DB", whiteSpace: "nowrap" as const },
   // HSN/Tax/Qty must stay on one line — truncate with an ellipsis rather
   // than wrap or overflow into the next cell.
-  tdCenter: { padding: "10px 8px", fontSize: "11px", color: "#111827", textAlign: "center" as const, verticalAlign: "top" as const, borderBottom: "1px solid #F1F3F5", whiteSpace: "nowrap" as const, overflow: "hidden" as const, textOverflow: "ellipsis" as const },
+  tdCenter: { padding: "10px 8px", fontSize: "11px", color: "#111827", textAlign: "center" as const, verticalAlign: "top" as const, borderBottom: "1px solid #D1D5DB", whiteSpace: "nowrap" as const, overflow: "hidden" as const, textOverflow: "ellipsis" as const },
   // Break only at word boundaries so the item title reads naturally — except
   // for a single unbroken token wider than the column, which falls back to
   // a mid-word break instead of overflowing into the HSN column next to it.
   itemName: { fontWeight: 600, fontSize: "11px", color: "#111827", overflowWrap: "break-word" as const, wordBreak: "normal" as const },
-  itemSub: { fontSize: "10px", color: "#9CA3AF", marginTop: "2px", whiteSpace: "pre-line" as const },
+  itemSub: { fontSize: "10px", color: "#4B5563", marginTop: "2px", whiteSpace: "pre-line" as const },
   // Item IDs/SKUs must stay on one line — truncate with an ellipsis rather
   // than wrap or overflow into the Item Name text next to it.
   tdItemId: { whiteSpace: "nowrap" as const, overflow: "hidden" as const, textOverflow: "ellipsis" as const, fontSize: "9px" },
@@ -135,21 +135,21 @@ const styles = {
   summaryWrap: { display: "flex", justifyContent: "flex-end" },
   summaryBox: { width: "260px" },
   summaryRow: { display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: "12px" },
-  summaryLabel: { color: "#6B7280" },
+  summaryLabel: { color: "#4B5563" },
   summaryValue: { color: "#111827", fontWeight: 500 },
   summaryValueRed: { color: "#111827", fontWeight: 600 },
   grandRow: { display: "flex", justifyContent: "space-between", padding: "10px 0 0 0", marginTop: "6px", borderTop: "1.5px solid #111827" },
   grandLabel: { fontSize: "13px", fontWeight: 800, color: "#111827", letterSpacing: "0.04em", textTransform: "uppercase" as const },
   grandValue: { fontSize: "15px", fontWeight: 800, color: "#111827" },
-  amountWords: { fontSize: "14px", fontWeight: 700, color: "#6B7280", marginTop: "8px", textAlign: "left" as const, fontStyle: "italic", width: "100%" },
+  amountWords: { fontSize: "14px", fontWeight: 700, color: "#4B5563", marginTop: "8px", textAlign: "left" as const, fontStyle: "italic", width: "100%" },
 
   // GST breakdown
   gstSection: { marginTop: "20px" },
-  gstLabel: { fontSize: "10px", fontWeight: 700, color: "#6B7280", letterSpacing: "0.6px", textTransform: "uppercase" as const, marginBottom: "8px" },
-  gstTh: { padding: "0 8px 6px 0", fontSize: "10px", fontWeight: 700, color: "#6B7280", textTransform: "uppercase" as const, borderBottom: "1px solid #E5E7EB" },
-  gstThRight: { padding: "0 0 6px 8px", fontSize: "10px", fontWeight: 700, color: "#6B7280", textTransform: "uppercase" as const, borderBottom: "1px solid #E5E7EB", textAlign: "right" as const },
-  gstTd: { padding: "6px 8px 6px 0", fontSize: "11px", color: "#111827", borderBottom: "1px solid #F1F3F5" },
-  gstTdRight: { padding: "6px 0 6px 8px", fontSize: "11px", color: "#111827", borderBottom: "1px solid #F1F3F5", textAlign: "right" as const, whiteSpace: "nowrap" as const },
+  gstLabel: { fontSize: "10px", fontWeight: 700, color: "#4B5563", letterSpacing: "0.6px", textTransform: "uppercase" as const, marginBottom: "8px" },
+  gstTh: { padding: "0 8px 6px 0", fontSize: "10px", fontWeight: 700, color: "#4B5563", textTransform: "uppercase" as const, borderBottom: "1px solid #9CA3AF" },
+  gstThRight: { padding: "0 0 6px 8px", fontSize: "10px", fontWeight: 700, color: "#4B5563", textTransform: "uppercase" as const, borderBottom: "1px solid #9CA3AF", textAlign: "right" as const },
+  gstTd: { padding: "6px 8px 6px 0", fontSize: "11px", color: "#111827", borderBottom: "1px solid #D1D5DB" },
+  gstTdRight: { padding: "6px 0 6px 8px", fontSize: "11px", color: "#111827", borderBottom: "1px solid #D1D5DB", textAlign: "right" as const, whiteSpace: "nowrap" as const },
   gstTotalTd: { padding: "6px 8px 6px 0", fontSize: "11px", fontWeight: 700, color: "#111827", borderTop: "1.5px solid #111827", borderBottom: "1px solid #111827" },
   gstTotalTdRight: { padding: "6px 0 6px 8px", fontSize: "11px", fontWeight: 700, color: "#111827", borderTop: "1.5px solid #111827", borderBottom: "1px solid #111827", textAlign: "right" as const, whiteSpace: "nowrap" as const },
 
@@ -159,11 +159,11 @@ const styles = {
   closingNotesTd: { width: "62%", padding: "0 12px 0 0", verticalAlign: "top" as const },
   closingSignTd: { width: "38%", padding: 0, verticalAlign: "bottom" as const },
 
-  noteLabel: { fontSize: "10px", fontWeight: 700, color: "#6B7280", letterSpacing: "0.6px", textTransform: "uppercase" as const, margin: "0 0 6px 0" },
+  noteLabel: { fontSize: "10px", fontWeight: 700, color: "#4B5563", letterSpacing: "0.6px", textTransform: "uppercase" as const, margin: "0 0 6px 0" },
   noteText: { fontSize: "11px", color: "#374151", lineHeight: 1.6, margin: "1px 0" },
   signBox: { textAlign: "right" as const, paddingTop: "12px" },
   signLabel: { fontSize: "12px", fontWeight: 700, color: "#111827", margin: "0" },
-  signRole: { fontSize: "10px", color: "#6B7280", margin: "1px 0 0 0" },
+  signRole: { fontSize: "10px", color: "#4B5563", margin: "1px 0 0 0" },
   // The blank band between "for <company>" and "Authorized Signatory" — room
   // to sign by hand, and where an uploaded signature sits.
   signSpace: { height: "56px", display: "flex", alignItems: "flex-end", justifyContent: "flex-end", margin: "4px 0" },
@@ -176,7 +176,7 @@ const styles = {
     tableLayout: "fixed" as const,
     borderCollapse: "collapse" as const,
     marginTop: "18px",
-    border: "1px solid #D1D5DB",
+    border: "1px solid #9CA3AF",
   },
   footerTh: {
     padding: "7px 10px",
@@ -186,15 +186,15 @@ const styles = {
     letterSpacing: "0.6px",
     textTransform: "uppercase" as const,
     textAlign: "left" as const,
-    background: "#F3F4F6",
-    border: "1px solid #D1D5DB",
+    background: "#E5E7EB",
+    border: "1px solid #9CA3AF",
   },
-  footerTd: { padding: "10px", verticalAlign: "top" as const, border: "1px solid #D1D5DB" },
+  footerTd: { padding: "10px", verticalAlign: "top" as const, border: "1px solid #9CA3AF" },
 
   // Label/value pairs inside the bank cell — a nested table keeps the values in a
   // straight column instead of the ragged "Account No.: 622214178" run-on lines.
   bankTable: { width: "100%", borderCollapse: "collapse" as const },
-  bankLabelTd: { padding: "3px 10px 3px 0", fontSize: "11px", color: "#6B7280", whiteSpace: "nowrap" as const, verticalAlign: "top" as const, width: "38%" },
+  bankLabelTd: { padding: "3px 10px 3px 0", fontSize: "11px", color: "#4B5563", whiteSpace: "nowrap" as const, verticalAlign: "top" as const, width: "38%" },
   bankValueTd: { padding: "3px 0", fontSize: "11px", color: "#111827", fontWeight: 600, verticalAlign: "top" as const, overflowWrap: "anywhere" as const },
 };
 
@@ -345,10 +345,10 @@ export const InvoicePDFTemplateModern2 = React.forwardRef(({ data, settingsOverr
     ? "PAID"
     : String(payment_status).toUpperCase();
   const statusColors = payment_status === "unpaid" || payment_status === "pending" || payment_status === false
-    ? { background: "#FEF3C7", color: "#D97706" }
+    ? { background: "#FEF3C7", color: "#B45309" }
     : payment_status === "partial"
-    ? { background: "#FEF9C3", color: "#CA8A04" }
-    : { background: "#DCFCE7", color: "#16A34A" };
+    ? { background: "#FEF9C3", color: "#A16207" }
+    : { background: "#DCFCE7", color: "#15803D" };
 
   return (
     <div ref={ref} style={{ ...styles.page, padding: isCompact ? "20px 24px" : styles.page.padding }}>
