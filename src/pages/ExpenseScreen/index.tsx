@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useCallback, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import LottieLoader from "@components/LottieLoader";
 import {
   Box, Typography, TextField, Button, IconButton,
@@ -47,7 +47,6 @@ const INR = (v: number | string) =>
 
 const TABLE_TEXT_COLOR = "#374151";
 const PAGE_LIMIT = 10;
-const SCROLL_THRESHOLD = 80;
 
 type ExpenseStatus = "paid" | "partial" | "pending";
 
@@ -94,7 +93,8 @@ export default function ExpenseScreen() {
   const [detailExpenseId, setDetailExpenseId] = useState<string | null>(null);
   const [categorySearch, setCategorySearch] = useState("");
   const requestAddCategoryRef = useRef<(() => void) | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLTableRowElement>(null) as React.RefObject<HTMLTableRowElement>;
+  const tableContainerRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLDivElement>;
 
   const { data: summary, isLoading: summaryLoading, refetch: refetchSummary } = useExpenseSummary();
 
@@ -118,26 +118,20 @@ export default function ExpenseScreen() {
   const handleSearchChange = (val: string) => setSearch(val);
   const handleStatusChange = (val: ExpenseStatus | "") => setStatusFilter(val);
 
-  const handleScroll = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el || !hasNextPage || isFetchingNextPage) return;
-    if (el.scrollHeight - el.scrollTop - el.clientHeight <= SCROLL_THRESHOLD) {
-      fetchNextPage();
-    }
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
-
-  // When a page finishes loading, check if the container still has no scrollbar.
-  // If content is shorter than the viewport the user can never scroll to trigger
-  // handleScroll, so we fetch the next page automatically.
+  // The table scrolls inside itself; the next page loads only when its last row (the sentinel) scrolls into view.
+  // `expenses.length` re-arms the observer after each page, so a sentinel still in view loads the following one.
   useEffect(() => {
-    if (!hasNextPage || isFetchingNextPage || expenses.length === 0) return;
-    const el = scrollRef.current;
+    const el = sentinelRef.current;
     if (!el) return;
-    // Only auto-fetch when there is truly no room to scroll
-    if (el.scrollHeight <= el.clientHeight + SCROLL_THRESHOLD) {
-      fetchNextPage();
-    }
-  }, [expenses.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) fetchNextPage();
+      },
+      { root: tableContainerRef.current },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, expenses.length]);
 
   const columns = useMemo<ColumnDef<ExpenseRow>[]>(
     () => [
@@ -315,7 +309,7 @@ export default function ExpenseScreen() {
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
-        <Box ref={scrollRef} onScroll={handleScroll} sx={{ flex: 1, overflow: "auto", px: 1, py: 1, display: "flex", flexDirection: "column", gap: 2.5 }}>
+        <Box sx={{ flex: 1, overflow: "auto", px: 1, py: 1, display: "flex", flexDirection: "column", gap: 2.5 }}>
 
           {/* Stats */}
           {summaryLoading || !summary ? <StatsSkeleton /> : <ExpenseStats data={summary} />}
@@ -420,7 +414,7 @@ export default function ExpenseScreen() {
           ) : (
             <>
               {/* Table */}
-              <Box sx={{ flex: 1, minHeight: 0 }}>
+              <Box sx={{ flex: 1, minHeight: 240 }}>
                 {isLoading ? (
                   <LottieLoader />
                 ) : (
@@ -428,18 +422,15 @@ export default function ExpenseScreen() {
                     columns={columns}
                     rows={expenses}
                     rowKey={(e) => String(e.id)}
+                    hasNextPage={!!hasNextPage}
+                    isFetchingNextPage={isFetchingNextPage}
+                    loadMoreRef={sentinelRef}
+                    tableContainerRef={tableContainerRef}
                     maxHeight="100%"
                     emptyMessage={search ? `No expenses found for "${search}"` : "No expenses found."}
                   />
                 )}
               </Box>
-
-              {/* Infinite scroll footer */}
-              {isFetchingNextPage && (
-                <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-                  <CircularProgress size={24} sx={{ color: "#D32F2F" }} />
-                </Box>
-              )}
             </>
           )}
         </Box>

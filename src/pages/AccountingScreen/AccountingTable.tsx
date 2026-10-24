@@ -63,15 +63,12 @@ function AccountingTable({
   }, [hasNextPage, isFetchingNextPage, onLoadMore, rows.length]);
 
   // "#" is the row's position in the list
-  const rowNo = useMemo(() => new Map(rows.map((e, i) => [e.id, i + 1])), [rows]);
-
   const closeMenu = useCallback(() => setMenu(null), []);
 
   const columns = useMemo<ColumnDef<AccountingEntry>[]>(() => {
     const text = (v: string) => <Typography sx={{ fontSize: BODY, color: TEXT, whiteSpace: "nowrap" }}>{v}</Typography>;
 
     return [
-      { key: "index", label: "#", width: 60, render: (e) => text(String(rowNo.get(e.id) ?? "")) },
       {
         key: "date_time", label: "Date & Time", width: 140,
         render: (e) => (
@@ -114,7 +111,7 @@ function AccountingTable({
         ),
       },
     ];
-  }, [onView, rowNo]);
+  }, [onView]);
 
   return (
     <>

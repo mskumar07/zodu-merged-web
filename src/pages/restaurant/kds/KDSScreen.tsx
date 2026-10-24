@@ -20,6 +20,9 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import TableRestaurantIcon from "@mui/icons-material/TableRestaurant";
 import ShoppingBagIcon from "@mui/icons-material/ShoppingBag";
 import TwoWheelerIcon from "@mui/icons-material/TwoWheeler";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import SoupKitchenOutlinedIcon from "@mui/icons-material/SoupKitchenOutlined";
+import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 import Lottie from "lottie-react";
 import loadingAnimation from "@assets/loading.json";
 import { useTenantContext } from "@store/tenantContext";
@@ -127,18 +130,41 @@ function urgencyStyle(minutes: number | null): { color: string; label: string } 
 // so the counts read as "the same Dine-In/Takeaway/Delivery" at a glance.
 function orderTypeVisual(orderType: string): { bg: string; fg: string; icon: React.ReactNode } {
   const t = (orderType || "").toLowerCase();
-  if (t.includes("dine")) return { bg: "#FDECEA", fg: "#C62828", icon: <TableRestaurantIcon sx={{ fontSize: 15 }} /> };
+  if (t.includes("dine")) return { bg: "#FDECEA", fg: "#C62828", icon: <TableRestaurantIcon sx={{ fontSize: 22 }} /> };
   if (t.includes("take") || t.includes("pickup") || t.includes("pick-up"))
-    return { bg: "#ECEFF1", fg: "#1C1C1E", icon: <ShoppingBagIcon sx={{ fontSize: 15 }} /> };
-  if (t.includes("deliver")) return { bg: "#FFF3E0", fg: "#B45309", icon: <TwoWheelerIcon sx={{ fontSize: 15 }} /> };
-  return { bg: "#ECEFF1", fg: "#455A64", icon: <RestaurantIcon sx={{ fontSize: 15 }} /> };
+    return { bg: "#E0F2F1", fg: "#00796B", icon: <ShoppingBagIcon sx={{ fontSize: 22 }} /> };
+  if (t.includes("deliver")) return { bg: "#FFF3E0", fg: "#E65100", icon: <TwoWheelerIcon sx={{ fontSize: 22 }} /> };
+  return { bg: "#ECEFF1", fg: "#455A64", icon: <RestaurantIcon sx={{ fontSize: 22 }} /> };
+}
+
+/** Order-type counts for the top bar: a tinted pill per type with its icon, name and a large count. */
+function OrderTypeCounts({ entries }: { entries: KdsOrderTypeSummaryEntry[] }) {
+  return (
+    <Stack direction="row" alignItems="center" spacing={1} sx={{ mr: 2 }}>
+      {entries.map((entry) => {
+        const visual = orderTypeVisual(entry.order_type);
+        return (
+          <Stack
+            key={entry.order_type}
+            direction="row"
+            alignItems="center"
+            spacing={1}
+            sx={{ px: 1.75, py: 0.6, borderRadius: 2.5, bgcolor: visual.bg, color: visual.fg, whiteSpace: "nowrap" }}
+          >
+            {visual.icon}
+            <Typography sx={{ fontSize: 14, fontWeight: 600, color: "#1A0004" }}>{entry.order_type}</Typography>
+            <Typography sx={{ fontSize: 20, fontWeight: 800, lineHeight: 1 }}>{entry.order_count}</Typography>
+          </Stack>
+        );
+      })}
+    </Stack>
+  );
 }
 
 const SUMMARY_PANEL_WIDTH = 268;
 
 interface SummaryPanelProps {
   itemSummary: KdsItemSummaryEntry[];
-  orderTypeSummary: KdsOrderTypeSummaryEntry[];
   open: boolean;
   onToggle: () => void;
   onItemClick: (itemName: string) => void;
@@ -152,12 +178,11 @@ interface SummaryPanelProps {
  * (a reload defaults back open), matching the rest of the board's
  * no-server-state-for-UI-prefs approach.
  */
-function SummaryPanel({ itemSummary, orderTypeSummary, open, onToggle, onItemClick }: SummaryPanelProps) {
+function SummaryPanel({ itemSummary, open, onToggle, onItemClick }: SummaryPanelProps) {
   const sortedItems = useMemo(
     () => [...itemSummary].sort((a, b) => b.qty - a.qty),
     [itemSummary]
   );
-  const totalOrders = orderTypeSummary.reduce((sum, e) => sum + e.order_count, 0);
 
   if (!open) {
     return (
@@ -212,44 +237,9 @@ function SummaryPanel({ itemSummary, orderTypeSummary, open, onToggle, onItemCli
       </Stack>
 
       <Box sx={{ flex: 1, overflowY: "auto", px: 1.75, py: 1.5 }}>
-        {/* Order-type counts */}
-        <Stack spacing={1}>
-          {orderTypeSummary.map((entry) => {
-            const visual = orderTypeVisual(entry.order_type);
-            return (
-              <Stack
-                key={entry.order_type}
-                direction="row"
-                alignItems="center"
-                spacing={1}
-                sx={{
-                  px: 1,
-                  py: 0.75,
-                  borderRadius: 1.25,
-                  bgcolor: visual.bg,
-                  color: visual.fg,
-                }}
-              >
-                {visual.icon}
-                <Typography sx={{ fontSize: 15, fontWeight: 700, flex: 1 }}>{entry.order_type}</Typography>
-                <Typography sx={{ fontSize: 15.5, fontWeight: 800 }}>{entry.order_count}</Typography>
-              </Stack>
-            );
-          })}
-          {orderTypeSummary.length === 0 && (
-            <Typography sx={{ fontSize: 12, color: "text.disabled" }}>No active orders</Typography>
-          )}
-        </Stack>
-
-        {totalOrders > 0 && (
-          <Typography sx={{ fontSize: 11, color: "text.disabled", mt: 0.75, textAlign: "right" }}>
-            {totalOrders} order{totalOrders === 1 ? "" : "s"} total
-          </Typography>
-        )}
-
-        {/* Item totals */}
+        {/* Item totals (the order-type counts live in the top bar) */}
         <Typography
-          sx={{ fontSize: 11.5, fontWeight: 800, color: "#8B97A7", letterSpacing: 0.4, mt: 2, mb: 1 }}
+          sx={{ fontSize: 11.5, fontWeight: 800, color: "#8B97A7", letterSpacing: 0.4, mb: 1 }}
         >
           ITEMS PENDING
         </Typography>
@@ -437,55 +427,94 @@ function ItemOrdersModal({ itemName, rows, onClose }: ItemOrdersModalProps) {
 
 interface KotBlockProps {
   ticket: KdsKotTicket;
+  /** Table or order number plus order type, printed under the KOT number. */
+  heading: string;
 }
 
-function KotBlock({ ticket }: KotBlockProps) {
-  return (
-    <Box
-      sx={{
-        borderRadius: 1.5,
-        border: "1.5px solid #ECEFF1",
-        bgcolor: "#fff",
-        p: 1.4,
-        mb: 1.1,
-        "&:last-of-type": { mb: 0 },
-      }}
-    >
-      <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#8B97A7", letterSpacing: 0.4, mb: 0.9 }}>
-        {ticket.kot_no.toUpperCase()}
-      </Typography>
+/**
+ * Prints one KOT slip through the browser's print dialog, so it goes to whichever printer the
+ * kitchen PC has set up. Rendered into a hidden iframe: no popup to get blocked, nothing left on the board.
+ */
+function printKotTicket(ticket: KdsKotTicket, heading: string) {
+  const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+  const rows = ticket.items.map((i) => `<tr><td class="q">${i.qty} x</td><td>${esc(i.item_name)}</td></tr>`).join("");
+  const frame = document.createElement("iframe");
+  frame.style.cssText = "position:fixed;width:0;height:0;border:0;visibility:hidden";
+  document.body.appendChild(frame);
+  const doc = frame.contentDocument;
+  const win = frame.contentWindow;
+  if (!doc || !win) { frame.remove(); return; }
+  doc.open();
+  doc.write(`<html><head><title>${esc(ticket.kot_no)}</title><style>
+    body{font:14px monospace;margin:8px;width:280px}h1{font-size:18px;margin:0}h2{font-size:15px;margin:4px 0 8px}
+    table{width:100%;border-top:1px dashed #000;border-collapse:collapse}td{padding:4px 0;border-bottom:1px dashed #000}.q{width:44px;font-weight:bold}
+  </style></head><body><h1>${esc(ticket.kot_no.toUpperCase())}</h1><h2>${esc(heading)}</h2>
+  <div>${esc(formatClockTime(ticket.created_at))}</div><table>${rows}</table></body></html>`);
+  doc.close();
+  win.onafterprint = () => frame.remove();
+  win.focus();
+  win.print();
+}
 
-      <Box>
+function KotBlock({ ticket, heading }: KotBlockProps) {
+  return (
+    <Box sx={{ mb: 1.25, "&:last-of-type": { mb: 0 } }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={1.25}
+        sx={{ px: 1.5, py: 1, borderRadius: 1.5, bgcolor: "#F4F6F9" }}
+      >
+        <SoupKitchenOutlinedIcon sx={{ fontSize: 22, color: "#1A0004" }} />
+        <Typography sx={{ fontSize: 16, fontWeight: 800, color: "#1A0004", flex: 1 }}>
+          {ticket.kot_no.toUpperCase()}
+        </Typography>
+        <Box
+          component="button"
+          type="button"
+          onClick={() => printKotTicket(ticket, heading)}
+          sx={{
+            display: "flex", alignItems: "center", gap: 0.75, px: 1.5, py: 0.6,
+            border: "none", borderRadius: 1.25, bgcolor: "#E8ECF1", color: "#1A0004",
+            fontSize: 14, fontWeight: 500, cursor: "pointer", "&:hover": { bgcolor: "#DCE2EA" },
+          }}
+        >
+          <PrintOutlinedIcon sx={{ fontSize: 18 }} />
+          Print
+        </Box>
+      </Stack>
+
+      <Box sx={{ px: 0.5 }}>
         {ticket.items.map((item, idx) => (
           <Stack
             key={`${item.item_id}-${idx}`}
             direction="row"
-            alignItems="flex-start"
-            spacing={1}
+            alignItems="center"
+            spacing={1.5}
             sx={{
-              py: 0.65,
-              borderBottom: idx < ticket.items.length - 1 ? "1px dashed #E3E7EB" : "none",
+              py: 1,
+              borderBottom: idx < ticket.items.length - 1 ? "1px solid #EEF1F4" : "none",
             }}
           >
             <Box
               sx={{
                 flexShrink: 0,
-                minWidth: 32,
-                height: 22,
-                px: 0.6,
-                borderRadius: 0.75,
+                minWidth: 40,
+                height: 30,
+                px: 0.75,
+                borderRadius: 1,
                 bgcolor: "#FDECEA",
-                color: "#C62828",
+                color: "#D32F2F",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: 12.5,
+                fontSize: 15,
                 fontWeight: 800,
               }}
             >
-              {item.qty} x
+              {item.qty} ×
             </Box>
-            <Typography sx={{ fontSize: 14.5, fontWeight: 600, color: "#1A0004", lineHeight: 1.35 }}>
+            <Typography sx={{ fontSize: 16, fontWeight: 500, color: "#1A0004", lineHeight: 1.35 }}>
               {item.item_name}
             </Typography>
           </Stack>
@@ -504,13 +533,10 @@ interface OrderCardProps {
 
 function OrderCard({ card, isBusy, onMarkReady, now }: OrderCardProps) {
   const style = cardHeaderStyle(card.orderType);
+  const visual = orderTypeVisual(card.orderType);
   const isDineIn = card.tableNo != null;
-  // Dine-In's headline is just its table — the order ref no longer rides
-  // along. Takeaway/Delivery have no table — the type name is already on the
-  // chip badge to the right, so the headline here is the customer-facing
-  // public order number instead of repeating the type.
-  const title = isDineIn ? `Table ${card.tableNo}` : null;
-  const orderRef = isDineIn ? null : (card.publicOrderNo ?? `#${card.apiOrderId.slice(0, 8)}`);
+  // Dine-In is identified by its table alone; Takeaway/Delivery by the customer-facing order number.
+  const title = isDineIn ? `Table ${card.tableNo}` : (card.publicOrderNo ?? `#${card.apiOrderId.slice(0, 8)}`);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- `now` is the tick that forces this to recompute every minute
   const minutes = useMemo(() => minutesSince(card.createdAt), [card.createdAt, now]);
@@ -520,82 +546,69 @@ function OrderCard({ card, isBusy, onMarkReady, now }: OrderCardProps) {
     <Box
       sx={{
         width: "100%",
-        borderRadius: 2,
+        borderRadius: 3,
         overflow: "hidden",
-        boxShadow: "0 2px 8px rgba(15,23,42,0.1)",
+        borderTop: `5px solid ${style.bg}`,
+        boxShadow: "0 2px 12px rgba(15,23,42,0.08)",
         bgcolor: "#fff",
         opacity: isBusy ? 0.6 : 1,
         pointerEvents: isBusy ? "none" : "auto",
         transition: "opacity 0.2s ease",
       }}
     >
-      {/* Header */}
-      <Box sx={{ bgcolor: style.bg, color: "#fff", px: 1.6, py: 1.1 }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Stack direction="row" alignItems="baseline" spacing={0.75} sx={{ minWidth: 0 }}>
-            {title && (
-              <Typography sx={{ fontWeight: 800, fontSize: 17, letterSpacing: 0.2, flexShrink: 0 }}>
-                {title}
-              </Typography>
-            )}
-            {orderRef && (
-              <Typography
-                sx={{
-                  fontWeight: 800,
-                  fontSize: title ? 14 : 17,
-                  letterSpacing: title ? "normal" : 0.2,
-                  opacity: title ? 0.92 : 1,
-                  minWidth: 0,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-                noWrap
-              >
-                {title ? `· ${orderRef}` : `Order ID - ${orderRef}`}
-              </Typography>
-            )}
-          </Stack>
-          <Stack direction="row" alignItems="center" spacing={0.6} sx={{ flexShrink: 0 }}>
-            <Chip
-              label={style.label}
-              size="small"
-              sx={{
-                height: 21,
-                fontSize: 10.5,
-                fontWeight: 800,
-                bgcolor: "rgba(255,255,255,0.22)",
-                color: "#fff",
-              }}
-            />
-          </Stack>
-        </Stack>
-        <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mt: 0.6 }}>
-          <AccessTimeIcon sx={{ fontSize: 13, opacity: 0.9 }} />
-          <Typography sx={{ fontSize: 11.5, opacity: 0.92, fontWeight: 500 }}>
-            {formatClockTime(card.createdAt)}
-          </Typography>
+      <Box sx={{ p: 2 }}>
+        {/* Header: type icon, order ref, type chip */}
+        <Stack direction="row" alignItems="center" spacing={1.5}>
           <Box
             sx={{
-              ml: "auto",
-              px: 0.9,
-              py: 0.15,
+              width: 48,
+              height: 48,
+              flexShrink: 0,
+              borderRadius: "50%",
+              bgcolor: style.bg,
+              color: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {React.cloneElement(visual.icon as React.ReactElement<{ sx?: object }>, { sx: { fontSize: 24 } })}
+          </Box>
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            {!isDineIn && <Typography sx={{ fontSize: 12.5, color: "text.secondary", lineHeight: 1.2 }}>Order ID</Typography>}
+            <Typography noWrap sx={{ fontSize: 20, fontWeight: 800, color: "#1A0004", lineHeight: 1.25 }}>
+              {title}
+            </Typography>
+          </Box>
+          <Chip
+            label={style.label}
+            sx={{ height: 30, fontSize: 13.5, fontWeight: 600, bgcolor: visual.bg, color: visual.fg, flexShrink: 0 }}
+          />
+        </Stack>
+
+        {/* Placed time + elapsed */}
+        <Stack direction="row" alignItems="center" spacing={1.25} sx={{ mt: 1.5, mb: 2 }}>
+          <AccessTimeIcon sx={{ fontSize: 20, color: "#586474" }} />
+          <Typography sx={{ fontSize: 15, color: "#333" }}>{formatClockTime(card.createdAt)}</Typography>
+          <Box sx={{ width: "1px", height: 22, bgcolor: "#E3E7EB" }} />
+          <Box
+            sx={{
+              px: 1.25,
+              py: 0.3,
               borderRadius: 5,
-              bgcolor: "rgba(255,255,255,0.9)",
+              bgcolor: `${urgency.color}1A`,
               color: urgency.color,
-              fontSize: 11.5,
-              fontWeight: 800,
-              lineHeight: 1.6,
+              fontSize: 14,
+              fontWeight: 700,
             }}
           >
             {urgency.label} ago
           </Box>
         </Stack>
-      </Box>
 
-      {/* Body: one block per KOT ticket sent for this order */}
-      <Box sx={{ p: 1.4, bgcolor: "#FAFBFC" }}>
+        {/* One block per KOT ticket sent for this order */}
         {card.kotTickets.map((ticket) => (
-          <KotBlock key={`${ticket.api_order_id}-${ticket.kot_no}`} ticket={ticket} />
+          <KotBlock key={`${ticket.api_order_id}-${ticket.kot_no}`} ticket={ticket} heading={`${title} (${style.label})`} />
         ))}
 
         <Box
@@ -605,23 +618,22 @@ function OrderCard({ card, isBusy, onMarkReady, now }: OrderCardProps) {
           sx={{
             width: "100%",
             border: "none",
-            borderRadius: 1,
-            py: 1,
-            mt: 1.1,
-            fontSize: 13.5,
-            fontWeight: 800,
-            letterSpacing: 0.2,
+            borderRadius: 1.5,
+            py: 1.5,
+            mt: 2,
+            fontSize: 16,
+            fontWeight: 700,
             cursor: isBusy ? "default" : "pointer",
             color: "#fff",
-            bgcolor: "#43A047",
+            bgcolor: "#388E3C",
             "&:hover": { bgcolor: "#2E7D32" },
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: 0.75,
+            gap: 1,
           }}
         >
-          {isBusy ? <CircularProgress size={15} sx={{ color: "#fff" }} /> : null}
+          {isBusy ? <CircularProgress size={18} sx={{ color: "#fff" }} /> : <CheckCircleIcon sx={{ fontSize: 24 }} />}
           {isBusy ? "Marking Ready…" : "Order Ready"}
         </Box>
       </Box>
@@ -629,7 +641,7 @@ function OrderCard({ card, isBusy, onMarkReady, now }: OrderCardProps) {
   );
 }
 
-const MASONRY_COLUMN_WIDTH = 260;
+const MASONRY_COLUMN_WIDTH = 320;
 const MASONRY_GAP = 12;
 
 /**
@@ -806,26 +818,28 @@ export default function KDSScreen() {
             }}
           />
         </Stack>
-        <Tooltip title="Refresh now">
-          <IconButton
-            size="small"
-            onClick={refreshNow}
-            sx={{
-              border: `1px solid ${theme.palette.divider}`,
-              animation: isFetching ? "kds-spin 0.9s linear infinite" : "none",
-              "@keyframes kds-spin": { to: { transform: "rotate(360deg)" } },
-            }}
-          >
-            <RefreshIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
+        <Stack direction="row" alignItems="center">
+          <OrderTypeCounts entries={orderTypeSummary} />
+          <Tooltip title="Refresh now">
+            <IconButton
+              size="small"
+              onClick={refreshNow}
+              sx={{
+                border: `1px solid ${theme.palette.divider}`,
+                animation: isFetching ? "kds-spin 0.9s linear infinite" : "none",
+                "@keyframes kds-spin": { to: { transform: "rotate(360deg)" } },
+              }}
+            >
+              <RefreshIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Stack>
       </Stack>
 
       {/* Summary rail + board */}
       <Box sx={{ flex: 1, display: "flex", overflow: "hidden" }}>
         <SummaryPanel
           itemSummary={itemSummary}
-          orderTypeSummary={orderTypeSummary}
           open={summaryOpen}
           onToggle={() => setSummaryOpen((v) => !v)}
           onItemClick={setSelectedItem}

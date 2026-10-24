@@ -114,6 +114,8 @@ export interface Gstr1HsnRow {
   description: string;
   /** Unit quantity code, e.g. "PCS". */
   uqc: string;
+  /** One row per HSN, unit and rate. */
+  gst_rate?: number;
   quantity: number;
   total_value: number;
   taxable_value: number;

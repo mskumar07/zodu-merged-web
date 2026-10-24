@@ -153,7 +153,7 @@ const AddMenuDrawer: React.FC<AddMenuDrawerProps> = ({
     isError: isGstListError,
     data: gstList,
     // error: gstListError,
-  } = useGetGstListQuery(branchId); //Z-T97 fetch GST list
+  } = useGetGstListQuery(); //Z-T97 fetch GST list
 
   const {
     isLoading: isUnitsListLoading,

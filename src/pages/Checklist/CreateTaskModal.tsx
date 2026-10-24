@@ -4,38 +4,39 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Box, Button, TextField, Typography, IconButton,
   CircularProgress, Divider, Switch, Select, MenuItem,
-  FormControl, Collapse,
+  FormControl,
+  // Collapse, // ITEM-WISE (disabled)
   FormControlLabel, Radio, RadioGroup,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import AddIcon from "@mui/icons-material/Add";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+// import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline"; // ITEM-WISE (disabled)
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import ChecklistIcon from "@mui/icons-material/Checklist";
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import RepeatIcon from "@mui/icons-material/Repeat";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
-import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
+// import DragIndicatorIcon from "@mui/icons-material/DragIndicator"; // ITEM-WISE (disabled)
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
 import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
 import TableChartOutlinedIcon from "@mui/icons-material/TableChartOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import ImageIcon from "@mui/icons-material/Image";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+// import ExpandMoreIcon from "@mui/icons-material/ExpandMore"; // ITEM-WISE (disabled)
+// import ExpandLessIcon from "@mui/icons-material/ExpandLess"; // ITEM-WISE (disabled)
 import { useAppSelector } from "@store/store";
 import { ZoduId, BranchId, UserProfile } from "@store/slices/userSlice";
 import {
   useCreateNewChecklistMutation,
   useUpdateNewChecklistMutation,
   useUploadChecklistAttachmentsMutation,
-  useUploadItemFileMutation,
-  useDeleteChecklistItemMutation,
+  // useUploadItemFileMutation,     // ITEM-WISE (disabled)
+  // useDeleteChecklistItemMutation, // ITEM-WISE (disabled)
   useGetEmployeesForAssignQuery,
   type ChecklistAssignee,
-  type ChecklistItemPayload,
+  // type ChecklistItemPayload, // ITEM-WISE (disabled)
   type CreateChecklistPayload,
   type ChecklistResponse,
 } from "./checklistNewApi";
@@ -62,17 +63,18 @@ const MAX_UPLOAD_FILES = 5;
 
 // ─── Types ───────────────────────────────────────────────────────────────────────
 
-interface ItemRow {
-  id: string;
-  /** Server-side item UUID — present when editing an existing item, undefined for new rows. */
-  serverId?: string;
-  item_title: string;
-  description: string;
-  /** Newly picked files queued for upload after the checklist is created (create mode). */
-  files: File[];
-  /** Already-uploaded files from the server, shown when editing an existing checklist item. */
-  existingFiles: { id: string; name: string; url: string; uploadedBy?: string; uploadedByName?: string }[];
-}
+// ITEM-WISE (disabled)
+// interface ItemRow {
+//   id: string;
+//   /** Server-side item UUID — present when editing an existing item, undefined for new rows. */
+//   serverId?: string;
+//   item_title: string;
+//   description: string;
+//   /** Newly picked files queued for upload after the checklist is created (create mode). */
+//   files: File[];
+//   /** Already-uploaded files from the server, shown when editing an existing checklist item. */
+//   existingFiles: { id: string; name: string; url: string; uploadedBy?: string; uploadedByName?: string }[];
+// }
 
 interface ExistingAttachment {
   id: string;
@@ -93,9 +95,10 @@ interface Props {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────────
 
-function initItem(): ItemRow {
-  return { id: crypto.randomUUID(), item_title: "", description: "", files: [], existingFiles: [] };
-}
+// ITEM-WISE (disabled)
+// function initItem(): ItemRow {
+//   return { id: crypto.randomUUID(), item_title: "", description: "", files: [], existingFiles: [] };
+// }
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
@@ -131,12 +134,13 @@ function SectionHeader({
   );
 }
 
-// table column header cell
-function ColHead({ children }: { children: React.ReactNode }) {
-  return (
-    <Typography sx={{ fontSize: 11, fontWeight: 600, color: "#6B7280" }}>{children}</Typography>
-  );
-}
+// ITEM-WISE (disabled)
+// // table column header cell
+// function ColHead({ children }: { children: React.ReactNode }) {
+//   return (
+//     <Typography sx={{ fontSize: 11, fontWeight: 600, color: "#6B7280" }}>{children}</Typography>
+//   );
+// }
 
 // ─── Attachment file helpers ──────────────────────────────────────────────────
 
@@ -166,11 +170,11 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
   const [createChecklist, { isLoading: isCreating }] = useCreateNewChecklistMutation();
   const [updateChecklist, { isLoading: isUpdating }] = useUpdateNewChecklistMutation();
   const [uploadAttachments] = useUploadChecklistAttachmentsMutation();
-  const [uploadItemFile] = useUploadItemFileMutation();
-  const [deleteChecklistItem] = useDeleteChecklistItemMutation();
+  // const [uploadItemFile] = useUploadItemFileMutation();          // ITEM-WISE (disabled)
+  // const [deleteChecklistItem] = useDeleteChecklistItemMutation(); // ITEM-WISE (disabled)
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
-  const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
+  // const [uploadingItemId, setUploadingItemId] = useState<string | null>(null); // ITEM-WISE (disabled)
+  // const [deletingItemId, setDeletingItemId] = useState<string | null>(null);   // ITEM-WISE (disabled)
   const [attachmentsUploading, setAttachmentsUploading] = useState(false);
   const { data: employeesData } = useGetEmployeesForAssignQuery(
     { zodu_id: zoduId, branch_id: branchId },
@@ -187,8 +191,8 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
   // Assign to
   const [selectedAssignees, setSelectedAssignees] = useState<ChecklistAssignee[]>([]);
 
-  // Checklist items — 1 row by default
-  const [items, setItems] = useState<ItemRow[]>([initItem()]);
+  // ITEM-WISE (disabled) — Checklist items, 1 row by default
+  // const [items, setItems] = useState<ItemRow[]>([initItem()]);
 
   // Recurring
   const [isRecurring, setIsRecurring] = useState(false);
@@ -207,8 +211,8 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
   // Attachment filter
   const [attachFilter, setAttachFilter] = useState<AttachFilter>("all");
 
-  // Expanded item for file panel
-  const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
+  // ITEM-WISE (disabled) — Expanded item for file panel
+  // const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
 
   // Errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -218,7 +222,7 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
     setTitle(""); setDescription(""); setStatus("Not Started");
     setDueDate(""); setStartDate("");
     setSelectedAssignees([]);
-    setItems([initItem()]);
+    // setItems([initItem()]); // ITEM-WISE (disabled)
     setIsRecurring(false); setRecurFrequency("Daily"); setRecurEvery(1);
     setRecurStart(""); setRecurEnds("Never"); setRecurEndDate("");
     setAttachments([]); setExistingAttachments([]); setRemovedAttachmentIds([]); setErrors({});
@@ -239,17 +243,18 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
     setSelectedAssignees(
       (editChecklist.assignees ?? []).map((a) => ({ id: a.id, employee_id: a.employee_id, employee_name: a.employee_name }))
     );
-    setItems(
-      (editChecklist.items ?? []).length > 0
-        ? editChecklist.items.map((i) => ({
-            id: i.id, serverId: i.id, item_title: i.item_title, description: i.description ?? "", files: [],
-            existingFiles: (i.file_url ?? []).map((f: any) => ({
-              id: f.id, name: f.file_name, url: f.file_url,
-              uploadedBy: f.uploaded_by, uploadedByName: f.uploaded_by_name,
-            })),
-          }))
-        : [initItem()]
-    );
+    // ITEM-WISE (disabled)
+    // setItems(
+    //   (editChecklist.items ?? []).length > 0
+    //     ? editChecklist.items.map((i) => ({
+    //         id: i.id, serverId: i.id, item_title: i.item_title, description: i.description ?? "", files: [],
+    //         existingFiles: (i.file_url ?? []).map((f: any) => ({
+    //           id: f.id, name: f.file_name, url: f.file_url,
+    //           uploadedBy: f.uploaded_by, uploadedByName: f.uploaded_by_name,
+    //         })),
+    //       }))
+    //     : [initItem()]
+    // );
     setIsRecurring(!!editChecklist.is_recurring);
     setRecurFrequency(editChecklist.recur_frequency ?? "Daily");
     setRecurEvery(editChecklist.recur_every ?? 1);
@@ -282,7 +287,7 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
     if (!startDate) e.startDate = "Start date is required";
     if (!dueDate) e.dueDate = "Due date is required";
     if (selectedAssignees.length === 0) e.assignees = "At least one employee must be selected";
-    if (!items.some((i) => i.item_title.trim())) e.items = "At least one checklist item is required";
+    // if (!items.some((i) => i.item_title.trim())) e.items = "At least one checklist item is required"; // ITEM-WISE (disabled)
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -291,18 +296,19 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
   const handleSubmit = async () => {
     if (!validate()) return;
 
-    const filledItemRows = items.filter((i) => i.item_title.trim());
-
-    const filledItems: ChecklistItemPayload[] = filledItemRows.map((i, idx) => ({
-      ...(i.serverId ? { id: i.serverId } : {}),
-      item_order: idx + 1,
-      item_title: i.item_title.trim(),
-      description: i.description.trim(),
-      file_url: i.existingFiles.map((f) => ({
-        id: f.id, file_url: f.url, file_name: f.name,
-        uploaded_by: f.uploadedBy, uploaded_by_name: f.uploadedByName,
-      })),
-    }));
+    // ITEM-WISE (disabled)
+    // const filledItemRows = items.filter((i) => i.item_title.trim());
+    //
+    // const filledItems: ChecklistItemPayload[] = filledItemRows.map((i, idx) => ({
+    //   ...(i.serverId ? { id: i.serverId } : {}),
+    //   item_order: idx + 1,
+    //   item_title: i.item_title.trim(),
+    //   description: i.description.trim(),
+    //   file_url: i.existingFiles.map((f) => ({
+    //     id: f.id, file_url: f.url, file_name: f.name,
+    //     uploaded_by: f.uploadedBy, uploaded_by_name: f.uploadedByName,
+    //   })),
+    // }));
 
     const payload: CreateChecklistPayload = {
       zodu_id: zoduId,
@@ -319,7 +325,7 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
       recur_end_date: isRecurring && recurEnds === "On Date" ? recurEndDate : null,
       recur_start_date: isRecurring ? recurStart : null,
       assignees: selectedAssignees,
-      items: filledItems,
+      // items: filledItems, // ITEM-WISE (disabled)
       created_by: loggedEmployeeId,
       created_by_name: loggedEmployeeName,
       // Only send the attachments key when the user removed one — listing what remains to keep.
@@ -339,23 +345,25 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
         : await createChecklist(payload).unwrap();
       if (!res.success) return;
 
-      const createdItems = res.data.items ?? [];
-      const itemsWithFiles = filledItemRows
-        .map((row, idx) => ({ files: row.files, created: createdItems[idx] }))
-        .filter((x) => x.files.length > 0 && x.created);
+      // ITEM-WISE (disabled)
+      // const createdItems = res.data.items ?? [];
+      // const itemsWithFiles = filledItemRows
+      //   .map((row, idx) => ({ files: row.files, created: createdItems[idx] }))
+      //   .filter((x) => x.files.length > 0 && x.created);
 
-      if (itemsWithFiles.length > 0 || attachments.length > 0) {
+      if (attachments.length > 0) {
         setIsUploading(true);
         try {
           await Promise.all([
-            ...itemsWithFiles.map(({ files, created }) => {
-              const formData = new FormData();
-              files.forEach((file) => formData.append("files", file));
-              return uploadItemFile({
-                item_id: created.id, formData, checklistId: res.data.id,
-                employee_id: loggedEmployeeId, employee_name: loggedEmployeeName,
-              }).unwrap();
-            }),
+            // ITEM-WISE (disabled)
+            // ...itemsWithFiles.map(({ files, created }) => {
+            //   const formData = new FormData();
+            //   files.forEach((file) => formData.append("files", file));
+            //   return uploadItemFile({
+            //     item_id: created.id, formData, checklistId: res.data.id,
+            //     employee_id: loggedEmployeeId, employee_name: loggedEmployeeName,
+            //   }).unwrap();
+            // }),
             attachments.length > 0
               ? (() => {
                   const formData = new FormData();
@@ -399,68 +407,69 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
   const removeAssignee = (empId: string) =>
     setSelectedAssignees((prev) => prev.filter((a) => a.employee_id !== empId));
 
-  // ─── Item helpers ────────────────────────────────────────────────────────────────
-  const addItem = () => setItems((prev) => [...prev, initItem()]);
-  const removeItem = async (id: string) => {
-    if (items.length <= 1) return;
-    const item = items.find((i) => i.id === id);
-    if (isEditMode && item?.serverId) {
-      setDeletingItemId(id);
-      try {
-        await deleteChecklistItem({ item_id: item.serverId }).unwrap();
-        setItems((prev) => prev.filter((i) => i.id !== id));
-      } catch { /* RTK Query handles error */ }
-      finally { setDeletingItemId(null); }
-    } else {
-      setItems((prev) => prev.filter((i) => i.id !== id));
-    }
-  };
-  const updateItem = (id: string, field: keyof ItemRow, val: string) =>
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, [field]: val } : i)));
-  const removeQueuedItemFile = (itemId: string, idx: number) =>
-    setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, files: i.files.filter((_, fi) => fi !== idx) } : i)));
-  const removeExistingItemFile = (itemId: string, fileId: string) =>
-    setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, existingFiles: i.existingFiles.filter((f) => f.id !== fileId) } : i)));
-
-  // In edit mode, an item already exists on the server — newly picked files upload immediately
-  // instead of waiting for "Update Task". In create mode the item has no id yet, so the picked
-  // files are queued and uploaded only after the checklist (and its items) are created.
-  const handleItemFilesPick = async (itemId: string, filesPicked: File[]) => {
-    if (filesPicked.length === 0) return;
-    const files = filesPicked.slice(0, MAX_UPLOAD_FILES);
-    const item = items.find((i) => i.id === itemId);
-    // Queue files if: create mode, OR edit mode but this is a newly-added row (no serverId yet)
-    if (!isEditMode || !item?.serverId) {
-      setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, files: [...i.files, ...files] } : i)));
-      return;
-    }
-    setUploadingItemId(itemId);
-    try {
-      const formData = new FormData();
-      files.forEach((file) => formData.append("files", file));
-      const res = await uploadItemFile({
-        item_id: item.serverId, formData,
-        employee_id: loggedEmployeeId, employee_name: loggedEmployeeName,
-      }).unwrap();
-      const rawData: any = res.data;
-      const uploaded: { id: string; file_name: string; file_url: string; uploaded_by?: string; uploaded_by_name?: string }[] =
-        Array.isArray(rawData) ? rawData : rawData?.file_url ?? [];
-      if (uploaded.length > 0) {
-        // API returns the full updated file list for the item — replace entirely to avoid duplicates
-        setItems((prev) => prev.map((i) => (i.id === itemId
-          ? {
-              ...i,
-              existingFiles: uploaded.map((f) => ({
-                id: f.id, name: f.file_name, url: f.file_url,
-                uploadedBy: f.uploaded_by ?? loggedEmployeeId,
-                uploadedByName: f.uploaded_by_name ?? loggedEmployeeName,
-              })),
-            }
-          : i)));
-      }
-    } catch { /* RTK Query handles error */ }
-    finally { setUploadingItemId(null); }
-  };
+  // ITEM-WISE (disabled)
+  // // ─── Item helpers ────────────────────────────────────────────────────────────────
+  // const addItem = () => setItems((prev) => [...prev, initItem()]);
+  // const removeItem = async (id: string) => {
+  //   if (items.length <= 1) return;
+  //   const item = items.find((i) => i.id === id);
+  //   if (isEditMode && item?.serverId) {
+  //     setDeletingItemId(id);
+  //     try {
+  //       await deleteChecklistItem({ item_id: item.serverId }).unwrap();
+  //       setItems((prev) => prev.filter((i) => i.id !== id));
+  //     } catch { /* RTK Query handles error */ }
+  //     finally { setDeletingItemId(null); }
+  //   } else {
+  //     setItems((prev) => prev.filter((i) => i.id !== id));
+  //   }
+  // };
+  // const updateItem = (id: string, field: keyof ItemRow, val: string) =>
+  //   setItems((prev) => prev.map((i) => (i.id === id ? { ...i, [field]: val } : i)));
+  // const removeQueuedItemFile = (itemId: string, idx: number) =>
+  //   setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, files: i.files.filter((_, fi) => fi !== idx) } : i)));
+  // const removeExistingItemFile = (itemId: string, fileId: string) =>
+  //   setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, existingFiles: i.existingFiles.filter((f) => f.id !== fileId) } : i)));
+  //
+  // // In edit mode, an item already exists on the server — newly picked files upload immediately
+  // // instead of waiting for "Update Task". In create mode the item has no id yet, so the picked
+  // // files are queued and uploaded only after the checklist (and its items) are created.
+  // const handleItemFilesPick = async (itemId: string, filesPicked: File[]) => {
+  //   if (filesPicked.length === 0) return;
+  //   const files = filesPicked.slice(0, MAX_UPLOAD_FILES);
+  //   const item = items.find((i) => i.id === itemId);
+  //   // Queue files if: create mode, OR edit mode but this is a newly-added row (no serverId yet)
+  //   if (!isEditMode || !item?.serverId) {
+  //     setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, files: [...i.files, ...files] } : i)));
+  //     return;
+  //   }
+  //   setUploadingItemId(itemId);
+  //   try {
+  //     const formData = new FormData();
+  //     files.forEach((file) => formData.append("files", file));
+  //     const res = await uploadItemFile({
+  //       item_id: item.serverId, formData,
+  //       employee_id: loggedEmployeeId, employee_name: loggedEmployeeName,
+  //     }).unwrap();
+  //     const rawData: any = res.data;
+  //     const uploaded: { id: string; file_name: string; file_url: string; uploaded_by?: string; uploaded_by_name?: string }[] =
+  //       Array.isArray(rawData) ? rawData : rawData?.file_url ?? [];
+  //     if (uploaded.length > 0) {
+  //       // API returns the full updated file list for the item — replace entirely to avoid duplicates
+  //       setItems((prev) => prev.map((i) => (i.id === itemId
+  //         ? {
+  //             ...i,
+  //             existingFiles: uploaded.map((f) => ({
+  //               id: f.id, name: f.file_name, url: f.file_url,
+  //               uploadedBy: f.uploaded_by ?? loggedEmployeeId,
+  //               uploadedByName: f.uploaded_by_name ?? loggedEmployeeName,
+  //             })),
+  //           }
+  //         : i)));
+  //     }
+  //   } catch { /* RTK Query handles error */ }
+  //   finally { setUploadingItemId(null); }
+  // };
 
   // ─── Attachment helpers ──────────────────────────────────────────────────────────
   const handleAttachmentPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -535,8 +544,8 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
                 </Typography>
                 <Typography sx={{ fontSize: 12, color: "#6B7280", mt: 0.25 }}>
                   {isEditMode
-                    ? "Update task details, checklist items and assignees."
-                    : "Create a new task, define checklist items and assign it to one or more employees."}
+                    ? "Update task details and assignees."
+                    : "Create a new task and assign it to one or more employees."}
                 </Typography>
               </Box>
             </Box>
@@ -799,7 +808,8 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
 
           <Divider sx={{ my: 2.5 }} />
 
-          {/* ── Section 4: Checklist Items ── */}
+          {/* ITEM-WISE (disabled) — Section 4: Checklist Items (inner JSX comments shown in parentheses)
+          (── Section 4: Checklist Items ──)
           <Box>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1.5 }}>
               <SectionHeader
@@ -823,9 +833,9 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
               <Typography sx={{ fontSize: 12, color: "#E11D48", mb: 1 }}>{errors.items}</Typography>
             )}
 
-            {/* Table */}
+            (Table)
             <Box sx={{ border: "1px solid #E5E7EB", borderRadius: 2, overflow: "hidden" }}>
-              {/* Grey header row */}
+              (Grey header row)
               <Box sx={{
                 display: "grid",
                 gridTemplateColumns: "32px 40px 1fr 1fr 150px 80px",
@@ -839,14 +849,14 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
                 <ColHead>Action</ColHead>
               </Box>
 
-              {/* Rows */}
+              (Rows)
               <Box sx={{ display: "flex", flexDirection: "column" }}>
                 {items.map((item, idx) => {
                   const totalFiles = item.existingFiles.length + item.files.length;
                   const isExpanded = expandedItemId === item.id;
                   return (
                     <Box key={item.id} sx={{ borderBottom: idx < items.length - 1 ? "1px solid #F3F4F6" : "none" }}>
-                      {/* Main row */}
+                      (Main row)
                       <Box sx={{
                         display: "grid",
                         gridTemplateColumns: "32px 40px 1fr 1fr 150px 80px",
@@ -880,7 +890,7 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
                           />
                         </Box>
 
-                        {/* File count badge + expand toggle */}
+                        (File count badge + expand toggle)
                         <Box
                           sx={{ display: "flex", alignItems: "center", gap: 0.75, cursor: "pointer" }}
                           onClick={() => setExpandedItemId(isExpanded ? null : item.id)}
@@ -905,7 +915,7 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
                             : <ExpandMoreIcon sx={{ fontSize: 15, color: "#6B7280" }} />}
                         </Box>
 
-                        {/* Actions */}
+                        (Actions)
                         <Box sx={{ display: "flex", alignItems: "center" }}>
                           {deletingItemId === item.id ? (
                             <CircularProgress size={14} sx={{ color: "#EF4444", m: "5px" }} />
@@ -917,7 +927,7 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
                         </Box>
                       </Box>
 
-                      {/* Expandable file panel */}
+                      (Expandable file panel)
                       <Collapse in={isExpanded}>
                         <Box sx={{ borderTop: "1px solid #F1F5F9", bgcolor: "#FAFAFA", px: 2, py: 1.5 }}>
                           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.25 }}>
@@ -980,12 +990,13 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
           </Box>
 
           <Divider sx={{ my: 2.5 }} />
+          */}
 
-          {/* ── Section 5: Attachments (full width) ── */}
+          {/* ── Section 4: Attachments (full width) — was section 5 before items were disabled ── */}
           <Box>
               <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 1.5 }}>
                 <SectionHeader
-                  num={5}
+                  num={4}
                   icon={<AttachFileIcon sx={{ fontSize: 18 }} />}
                   title="Attachments (Optional)"
                 />
@@ -1045,17 +1056,8 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
                 <Box>
                   {(() => {
                     const totalCount = existingAttachments.length + attachments.length;
-                    const catCount = (cat: Exclude<AttachFilter, "all">) => {
-                      const exCount = existingAttachments.filter((f) => getFileCategory(f.name) === cat).length;
-                      const newCount = attachments.filter((f) => getFileCategory(f.name) === cat).length;
-                      return exCount + newCount;
-                    };
                     const filterChips: { key: AttachFilter; label: string; icon: React.ReactNode }[] = [
                       { key: "all",   label: `All (${totalCount})`,           icon: <InsertDriveFileOutlinedIcon sx={{ fontSize: 11 }} /> },
-                      { key: "image", label: `Images (${catCount("image")})`, icon: <ImageIcon sx={{ fontSize: 11 }} /> },
-                      { key: "pdf",   label: `PDF (${catCount("pdf")})`,      icon: <PictureAsPdfOutlinedIcon sx={{ fontSize: 11 }} /> },
-                      { key: "excel", label: `Excel (${catCount("excel")})`,  icon: <TableChartOutlinedIcon sx={{ fontSize: 11 }} /> },
-                      { key: "word",  label: `Word (${catCount("word")})`,    icon: <DescriptionOutlinedIcon sx={{ fontSize: 11 }} /> },
                     ];
                     const filteredExisting = attachFilter === "all"
                       ? existingAttachments
@@ -1133,17 +1135,17 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
         {/* ── Footer ── */}
         <DialogActions sx={{ px: 3, py: 2, gap: 1.5 }}>
           <Button
-            variant="outlined" onClick={handleClose} disabled={isCreating || isUpdating || isUploading || !!uploadingItemId || attachmentsUploading}
+            variant="outlined" onClick={handleClose} disabled={isCreating || isUpdating || isUploading || attachmentsUploading}
             sx={{ borderColor: "#E5E7EB", color: "#374151", px: 3 }}
           >
             Cancel
           </Button>
           <Button
-            variant="contained" onClick={handleSubmit} disabled={isCreating || isUpdating || isUploading || !!uploadingItemId || attachmentsUploading} disableElevation
-            startIcon={(isCreating || isUpdating || isUploading || !!uploadingItemId || attachmentsUploading) ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : null}
+            variant="contained" onClick={handleSubmit} disabled={isCreating || isUpdating || isUploading || attachmentsUploading} disableElevation
+            startIcon={(isCreating || isUpdating || isUploading || attachmentsUploading) ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : null}
             sx={{ bgcolor: "#E11D48", color: "#fff", px: 3, "&:hover": { bgcolor: "#BE123C" } }}
           >
-            {isCreating ? "Creating..." : isUpdating ? "Updating..." : isUploading || !!uploadingItemId || attachmentsUploading ? "Uploading..." : isEditMode ? "Update Task" : "Create Task"}
+            {isCreating ? "Creating..." : isUpdating ? "Updating..." : isUploading || attachmentsUploading ? "Uploading..." : isEditMode ? "Update Task" : "Create Task"}
           </Button>
         </DialogActions>
       </Dialog>

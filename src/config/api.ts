@@ -29,7 +29,7 @@ interface MenuEndPoints {
   updateHoldMenu: () => string;
   deleteHoldMenu: (menuId: string) => string; //Z-T97
   getUnitsList: (branchId: string) => string; //Z-T97
-  getGstList: (branchId: string) => string; //Z-T97
+  getGstList: () => string; //Z-T97
   getHoldMenu: (branchId: string, zoduId: string) => string;
   getPosData: (branchId: string, zoduId: string, search?: string) => string; //Z-T97
   deleteMenuItem: (menuId: string) => string; //Z-T97
@@ -181,7 +181,7 @@ export const apiConfig: ApiConstants = {
     }, // Z-T97
     getUnitsList: (branchId: string) =>
       `${RESTAURANT_BASE}/get/units/${branchId}`, //Z-T97
-    getGstList: (branchId: string) => `${RESTAURANT_BASE}/get/gst/${branchId}`, //Z-T97,
+    getGstList: () => `${RESTAURANT_BASE}/get/gst`, //Z-T97,
     getPosData: (branchId: string, zoduId: string, search?: string) => {
       const url = `/restaurant/get/pos_data/${branchId}/${zoduId}`;
       return search?.trim() ? `${url}?search=${encodeURIComponent(search.trim())}` : url;

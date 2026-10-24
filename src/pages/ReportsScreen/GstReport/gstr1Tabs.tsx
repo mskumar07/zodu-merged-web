@@ -264,9 +264,6 @@ const sectionTab = (
 const summary = sectionTab('summary', 'Summary', 'Summary', () => true);
 // ─── HSN-wise ─────────────────────────────────────────────────
 
-const sumOfRows = (rows: object[], key: string) =>
-  rows.reduce((a, r) => a + Number((r as Record<string, unknown>)[key] ?? 0), 0);
-
 const hsn: TabDef<Gstr1HsnRow> = {
   id: 'hsn', label: 'HSN-wise Report', exportName: 'HSN-wise Summary',
   searchPlaceholder: 'Search by HSN code, description or UQC...',
@@ -285,19 +282,12 @@ const hsn: TabDef<Gstr1HsnRow> = {
     moneyColumn<Gstr1HsnRow>('total_value', 'Total Invoice Value (₹)', 170, true),
   ],
   sumKeys: ['quantity', 'taxable_value', 'igst', 'cgst', 'sgst', 'cess', 'total_value'],
-  rowKey: (r) => `${r.hsn_code}-${r.uqc}`,
+  // A row is one HSN, unit and rate.
+  rowKey: (r) => `${r.hsn_code}-${r.uqc}-${r.gst_rate ?? ''}`,
   searchText: (r) => `${r.hsn_code} ${r.description} ${r.uqc}`,
-  rows: (res) => res.hsn,
+  remote: { endpoint: 'hsn' },
+  rows: () => [],
   countLabel: 'Total HSN Items', valueKey: 'taxable_value',
-  cards: (rows) => [
-    { id: 'count', kind: 'count', label: 'Total HSN Items', value: rows.length, isMoney: false },
-    { id: 'taxable', kind: 'taxable', label: 'Total Taxable Value', value: sumOfRows(rows, 'taxable_value'), isMoney: true },
-    {
-      id: 'tax', kind: 'tax', label: 'Total Tax Amount', isMoney: true,
-      value: ['igst', 'cgst', 'sgst', 'cess'].reduce((a, k) => a + sumOfRows(rows, k), 0),
-    },
-    { id: 'value', kind: 'value', label: 'Total Invoice Value', value: sumOfRows(rows, 'total_value'), isMoney: true },
-  ],
   viewable: true,
 };
 
@@ -355,6 +345,14 @@ export function remoteCards(endpoint: RemoteEndpoint | undefined, s: RemoteSumma
       { id: 'cgst', kind: 'cgst', label: 'Total CGST', value: s?.total_cgst ?? 0, isMoney: true },
       { id: 'sgst', kind: 'sgst', label: 'Total SGST', value: s?.total_sgst ?? 0, isMoney: true },
       { id: 'cess', kind: 'cess', label: 'Total Cess', value: s?.total_cess ?? 0, isMoney: true },
+    ];
+  }
+  if (endpoint === 'hsn') {
+    return [
+      { id: 'count', kind: 'count', label: 'Total HSN Items', value: s?.total_hsn_items ?? 0, isMoney: false },
+      { id: 'taxable', kind: 'taxable', label: 'Total Taxable Value', value: s?.total_taxable_value ?? 0, isMoney: true },
+      { id: 'tax', kind: 'tax', label: 'Total Tax Amount', value: s?.total_tax ?? 0, isMoney: true },
+      { id: 'value', kind: 'value', label: 'Total Invoice Value', value: s?.total_value ?? 0, isMoney: true },
     ];
   }
   return [
