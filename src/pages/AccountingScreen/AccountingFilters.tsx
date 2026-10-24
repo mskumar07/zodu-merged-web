@@ -26,7 +26,7 @@ const SHRINK = { inputLabel: { shrink: true } };
 /** Memoised: table and scroll updates don't repaint the filter row. */
 function AccountingFilters({ values, onChange }: Props) {
   return (
-    <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", alignItems: "center", flexShrink: 0 }}>
+    <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", alignItems: "center", justifyContent: "flex-end" }}>
       <TextField
         size="small" placeholder="Search by reference no. or party..." value={values.search}
         onChange={(e) => onChange({ search: e.target.value })}

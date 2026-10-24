@@ -2984,31 +2984,31 @@ console.log("test",serverHolds)
               <Paper elevation={0} sx={{ border: "1px solid #E5E7EB", borderRadius: 2.5, p: 2.25, bgcolor: "#fff", flex: 1 }}>
                 <Typography sx={{ fontSize: 13, fontWeight: 800, letterSpacing: "0.06em", color: "#374151", mb: 2 }}>PAYMENT DETAILS</Typography>
 
-                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0.75, mb: 2 }}>
-                  {enabledPaymentTypes.map(val => {
-                    const selected = paymentType === val;
-                    const Icon = PAYMENT_TYPE_ICON[val];
-                    return (
-                      <Box key={val} onClick={() => { setPaymentType(val); setZone("FOOTER"); setFooterFocus("PAYMENT_TYPE"); }}
-                        sx={{
-                          display: "flex", alignItems: "center", justifyContent: "center", gap: 0.6,
-                          border: `1.5px solid ${selected ? modeAccent : "#E5E7EB"}`, borderRadius: 999, py: 0.85, px: 1, cursor: "pointer",
-                          bgcolor: selected ? `${modeAccent}0D` : "#FAFAFA", transition: "all 0.15s",
-                          "&:hover": { borderColor: modeAccent, bgcolor: `${modeAccent}0D` },
-                        }}>
-                        <Icon sx={{ fontSize: 18, color: selected ? modeAccent : "#6B7280" }} />
-                        <Typography sx={{ fontSize: 13, fontWeight: 700, color: selected ? modeAccent : "#6B7280", whiteSpace: "nowrap" }}>{val}</Typography>
-                      </Box>
-                    );
-                  })}
+                <Box sx={{ mb: 2 }}>
+                  <Typography sx={{ fontSize: 11.5, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.06em", mb: 1.5 }}>PAYMENT TYPE</Typography>
+                  <Select value={paymentType} onChange={e => setPaymentType(e.target.value as PaymentType)} onFocus={() => { setZone("FOOTER"); setFooterFocus("PAYMENT_TYPE"); }}
+                    size="small" fullWidth
+                    renderValue={(val) => {
+                      const Icon = PAYMENT_TYPE_ICON[val as PaymentType];
+                      return (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+                          <Icon sx={{ fontSize: 18, color: modeAccent }} />
+                          <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: "#111827" }}>{val}</Typography>
+                        </Box>
+                      );
+                    }}
+                    sx={{ borderRadius: 1.5, "& .MuiSelect-select": { py: "8px" }, "& fieldset": { borderColor: isFooterActive("PAYMENT_TYPE") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("PAYMENT_TYPE") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" } }}>
+                    {enabledPaymentTypes.map(val => {
+                      const Icon = PAYMENT_TYPE_ICON[val];
+                      return (
+                        <MenuItem key={val} value={val} sx={{ gap: 1, fontSize: 13.5, fontWeight: 600 }}>
+                          <Icon sx={{ fontSize: 18, color: "#6B7280" }} />
+                          {val}
+                        </MenuItem>
+                      );
+                    })}
+                  </Select>
                 </Box>
-                {/* Hidden select preserves existing FOOTER zone keyboard nav (arrow keys / Enter) for payment type.
-                    Must be "1px" not the bare number 1 — MUI's sx treats a 0-1 width/height number as a
-                    percentage (1 = 100%), which was silently stretching this to full container width. */}
-                <Select value={paymentType} onChange={e => setPaymentType(e.target.value as PaymentType)} onFocus={() => { setZone("FOOTER"); setFooterFocus("PAYMENT_TYPE"); }}
-                  sx={{ position: "absolute", width: "1px", height: "1px", opacity: 0, pointerEvents: "none" }} tabIndex={-1}>
-                  {enabledPaymentTypes.map(val => <MenuItem key={val} value={val}>{val}</MenuItem>)}
-                </Select>
 
                 <Box sx={{ mb: 2 }}>
                   <Typography sx={{ fontSize: 11.5, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.06em", mb: 1.5 }}>REFERENCE NO.</Typography>

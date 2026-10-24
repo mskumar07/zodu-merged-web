@@ -8,7 +8,10 @@ import axiosInstance from '@store/services/axiosInstance';
 
 /** Totals over every invoice the filters match, not just the loaded page. */
 export interface RemoteSummary {
-  total_invoices: number;
+  total_invoices?: number;
+  /** HSN only: distinct HSN rows, and the tax across them. */
+  total_hsn_items?: number;
+  total_tax?: number;
   /** CDNR only: it counts notes and reports the credit note value instead of invoices. */
   total_notes?: number;
   total_credit_note_value?: number;
@@ -30,7 +33,7 @@ export interface RemotePage<Row> {
 }
 
 /** Path segment under /api/report/gst/gstr1/ for each server-driven tab. */
-export type RemoteEndpoint = 'b2b' | 'b2c-large' | 'b2c-small' | 'cdnr' | 'cdnur';
+export type RemoteEndpoint = 'b2b' | 'b2c-large' | 'b2c-small' | 'cdnr' | 'cdnur' | 'hsn';
 
 interface TenantParams {
   zodu_id: string;

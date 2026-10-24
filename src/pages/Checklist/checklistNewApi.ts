@@ -31,7 +31,7 @@ export interface CreateChecklistPayload {
   recur_end_date?: string | null;
   recur_start_date?: string | null;
   assignees: ChecklistAssignee[];
-  items: ChecklistItemPayload[];
+  // items: ChecklistItemPayload[]; // ITEM-WISE (disabled)
   created_by?: string;
   created_by_name?: string;
   /** Only included on update when an existing checklist-level attachment was removed — the remaining files to keep. */
@@ -194,7 +194,9 @@ export interface TaskStatusItemPayload {
 export interface UpdateTaskStatusPayload {
   zodu_id: string;
   branch_id: string;
-  items: TaskStatusItemPayload[];
+  /** Task-wise: one status for the whole task. */
+  status: TaskStatusItemPayload["status"];
+  // items: TaskStatusItemPayload[]; // ITEM-WISE (disabled)
 }
 
 // ─── Injected API ──────────────────────────────────────────────────────────────
@@ -269,20 +271,21 @@ export const checklistNewApi = apiSlice.injectEndpoints({
       invalidatesTags: (_result, _error, { id, skipInvalidation }) => skipInvalidation ? [] : [{ type: "Checklist", id }],
     }),
 
-    // POST /checklist/api/checklists/items/:item_id/files
-    uploadItemFile: builder.mutation<{ success: boolean; data: any }, { item_id: string; formData: FormData; checklistId?: string; employee_id?: string; employee_name?: string; employee_checklist_upload?: boolean }>({
-      query: ({ item_id, formData, employee_id, employee_name, employee_checklist_upload }) => {
-        if (employee_id) formData.append("employee_id", employee_id);
-        if (employee_name) formData.append("employee_name", employee_name);
-        if (employee_checklist_upload) formData.append("employee_checklist_upload", "true");
-        return {
-          url: `checklist/api/checklists/items/${item_id}/files`,
-          method: "POST",
-          data: formData,
-        };
-      },
-      invalidatesTags: (_result, _error, { checklistId }) => (checklistId ? [{ type: "Checklist", id: checklistId }] : []),
-    }),
+    // ITEM-WISE (disabled)
+    // // POST /checklist/api/checklists/items/:item_id/files
+    // uploadItemFile: builder.mutation<{ success: boolean; data: any }, { item_id: string; formData: FormData; checklistId?: string; employee_id?: string; employee_name?: string; employee_checklist_upload?: boolean }>({
+    //   query: ({ item_id, formData, employee_id, employee_name, employee_checklist_upload }) => {
+    //     if (employee_id) formData.append("employee_id", employee_id);
+    //     if (employee_name) formData.append("employee_name", employee_name);
+    //     if (employee_checklist_upload) formData.append("employee_checklist_upload", "true");
+    //     return {
+    //       url: `checklist/api/checklists/items/${item_id}/files`,
+    //       method: "POST",
+    //       data: formData,
+    //     };
+    //   },
+    //   invalidatesTags: (_result, _error, { checklistId }) => (checklistId ? [{ type: "Checklist", id: checklistId }] : []),
+    // }),
 
     // DELETE /checklist/api/checklists/:id/attachments/:file_id
     deleteChecklistAttachment: builder.mutation<{ success: boolean; data: any[] }, { checklist_id: string; file_id: string }>({
@@ -293,24 +296,25 @@ export const checklistNewApi = apiSlice.injectEndpoints({
       invalidatesTags: () => [],
     }),
 
-    // DELETE /checklist/api/checklists/items/:item_id/files/:file_id
-    deleteItemFile: builder.mutation<{ success: boolean; data: any }, { item_id: string; file_id: string; checklistId?: string; employee_checklist_upload?: boolean }>({
-      query: ({ item_id, file_id, employee_checklist_upload }) => ({
-        url: `checklist/api/checklists/items/${item_id}/files/${file_id}`,
-        method: "DELETE",
-        data: { employee_checklist_upload: employee_checklist_upload ?? false },
-      }),
-      invalidatesTags: (_result, _error, { checklistId }) => (checklistId ? [{ type: "Checklist", id: checklistId }] : []),
-    }),
-
-    // DELETE /checklist/api/checklists/items/:item_id
-    deleteChecklistItem: builder.mutation<{ success: boolean }, { item_id: string; checklistId?: string }>({
-      query: ({ item_id }) => ({
-        url: `checklist/api/checklists/items/${item_id}`,
-        method: "DELETE",
-      }),
-      invalidatesTags: (_result, _error, { checklistId }) => (checklistId ? [{ type: "Checklist", id: checklistId }] : []),
-    }),
+    // ITEM-WISE (disabled)
+    // // DELETE /checklist/api/checklists/items/:item_id/files/:file_id
+    // deleteItemFile: builder.mutation<{ success: boolean; data: any }, { item_id: string; file_id: string; checklistId?: string; employee_checklist_upload?: boolean }>({
+    //   query: ({ item_id, file_id, employee_checklist_upload }) => ({
+    //     url: `checklist/api/checklists/items/${item_id}/files/${file_id}`,
+    //     method: "DELETE",
+    //     data: { employee_checklist_upload: employee_checklist_upload ?? false },
+    //   }),
+    //   invalidatesTags: (_result, _error, { checklistId }) => (checklistId ? [{ type: "Checklist", id: checklistId }] : []),
+    // }),
+    //
+    // // DELETE /checklist/api/checklists/items/:item_id
+    // deleteChecklistItem: builder.mutation<{ success: boolean }, { item_id: string; checklistId?: string }>({
+    //   query: ({ item_id }) => ({
+    //     url: `checklist/api/checklists/items/${item_id}`,
+    //     method: "DELETE",
+    //   }),
+    //   invalidatesTags: (_result, _error, { checklistId }) => (checklistId ? [{ type: "Checklist", id: checklistId }] : []),
+    // }),
 
     // GET /checklist/api/checklists/my-summary
     getMyChecklistSummary: builder.query<{ success: boolean; data: MySummaryResponse }, { zodu_id: string; branch_id: string; employee_id: string; search?: string; status?: string }>({
@@ -327,12 +331,13 @@ export const checklistNewApi = apiSlice.injectEndpoints({
     }),
 
     // GET /checklist/api/checklists/assigned-employees
-    getAssignedEmployees: builder.query<AssignedEmployeesResponse, { zodu_id: string; branch_id: string; employee_id: string; page?: number; limit?: number; search?: string; status?: string }>({
-      query: ({ zodu_id, branch_id, employee_id, page = 1, limit = 10, search, status }) => ({
+    getAssignedEmployees: builder.query<AssignedEmployeesResponse, { zodu_id: string; branch_id: string; employee_id: string; is_admin?: boolean; page?: number; limit?: number; search?: string; status?: string }>({
+      query: ({ zodu_id, branch_id, employee_id, is_admin, page = 1, limit = 10, search, status }) => ({
         url: "checklist/api/checklists/assigned-employees",
         method: "GET",
         params: {
           zodu_id, branch_id, created_by: employee_id, page, limit,
+          ...(is_admin ? { is_admin: true } : {}),
           ...(search ? { search } : {}),
           ...(status && status !== "All Status" ? { status } : {}),
         },
@@ -341,12 +346,13 @@ export const checklistNewApi = apiSlice.injectEndpoints({
     }),
 
     // GET /checklist/api/checklists/assigned-employees-summary
-    getAssignedEmployeesSummary: builder.query<{ success: boolean; data: AssignedEmployeesSummary }, { zodu_id: string; branch_id: string; employee_id: string; search?: string; status?: string }>({
-      query: ({ zodu_id, branch_id, employee_id, search, status }) => ({
+    getAssignedEmployeesSummary: builder.query<{ success: boolean; data: AssignedEmployeesSummary }, { zodu_id: string; branch_id: string; employee_id: string; is_admin?: boolean; search?: string; status?: string }>({
+      query: ({ zodu_id, branch_id, employee_id, is_admin, search, status }) => ({
         url: "checklist/api/checklists/assigned-employees-summary",
         method: "GET",
         params: {
           zodu_id, branch_id, created_by: employee_id,
+          ...(is_admin ? { is_admin: true } : {}),
           ...(search ? { search } : {}),
           ...(status && status !== "All Status" ? { status } : {}),
         },
@@ -386,10 +392,10 @@ export const {
   useUpdateTaskStatusMutation,
   useDeleteNewChecklistMutation,
   useUploadChecklistAttachmentsMutation,
-  useUploadItemFileMutation,
+  // useUploadItemFileMutation, // ITEM-WISE (disabled)
   useDeleteChecklistAttachmentMutation,
-  useDeleteItemFileMutation,
-  useDeleteChecklistItemMutation,
+  // useDeleteItemFileMutation,     // ITEM-WISE (disabled)
+  // useDeleteChecklistItemMutation, // ITEM-WISE (disabled)
   useGetMyChecklistSummaryQuery,
   useGetMyChecklistTasksQuery,
   useGetAssignedEmployeesQuery,

@@ -3,8 +3,9 @@ import { closeFromControlsOnly } from "@utils/dialog";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Box, Button, Typography, IconButton, Divider, Chip,
-  Select, MenuItem, FormControl, TextField, Avatar, Tooltip,
-  CircularProgress, Collapse,
+  Select, MenuItem, FormControl, Avatar, Tooltip,
+  CircularProgress,
+  // TextField, Collapse, // ITEM-WISE (disabled)
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
@@ -14,11 +15,11 @@ import ChecklistIcon from "@mui/icons-material/Checklist";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
-import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
+// import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined"; // ITEM-WISE (disabled)
 import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+// import ExpandMoreIcon from "@mui/icons-material/ExpandMore"; // ITEM-WISE (disabled)
+// import ExpandLessIcon from "@mui/icons-material/ExpandLess"; // ITEM-WISE (disabled)
 import AddIcon from "@mui/icons-material/Add";
 import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
 import TableChartOutlinedIcon from "@mui/icons-material/TableChartOutlined";
@@ -26,7 +27,8 @@ import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import ImageIcon from "@mui/icons-material/Image";
 import { useAppSelector } from "@store/store";
 import { ZoduId, BranchId, UserProfile } from "@store/slices/userSlice";
-import { useUpdateTaskStatusMutation, useUploadItemFileMutation, useDeleteChecklistItemMutation, useUploadChecklistAttachmentsMutation, useDeleteItemFileMutation, useDeleteChecklistAttachmentMutation, type TaskStatusItemPayload } from "./checklistNewApi";
+import { useUpdateTaskStatusMutation, useUploadChecklistAttachmentsMutation, useDeleteChecklistAttachmentMutation } from "./checklistNewApi";
+// ITEM-WISE (disabled): useUploadItemFileMutation, useDeleteChecklistItemMutation, useDeleteItemFileMutation, type TaskStatusItemPayload
 import ReadOnlyClickGuard from "@components/SubscriptionGuard/ReadOnlyClickGuard";
 
 // ─── Theme ──────────────────────────────────────────────────────────────────────
@@ -254,180 +256,186 @@ export function EvidenceThumb({
   );
 }
 
-// ─── Item Card ───────────────────────────────────────────────────────────────────
-
-function ItemCard({
-  item, onChangeStatus, onChangeRemarks, onPickFile, uploading, loggedEmployeeId, onRemoveFile, deletingEvidenceFileId, canEdit,
-}: {
-  item: TaskStatusItem;
-  onChangeStatus: (id: string, status: ItemStatus) => void;
-  onChangeRemarks: (id: string, remarks: string) => void;
-  onPickFile: (id: string, files: FileList) => void;
-  uploading: boolean;
-  loggedEmployeeId?: string;
-  onRemoveFile: (itemId: string, fileId: string) => void;
-  deletingEvidenceFileId: string | null;
-  canEdit: boolean;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const c = ITEM_STATUS_COLORS[item.status] ?? ITEM_STATUS_COLORS["Not Started"];
-  const referenceFiles = item.files.filter((f) => !f.isEmployeeUpload);
-  const evidenceFiles = item.files.filter((f) => f.isEmployeeUpload);
-
-  return (
-    <Box sx={{ border: "1px solid #E5E7EB", borderRadius: 2, mb: 1.5, overflow: "hidden", bgcolor: "#fff" }}>
-      {/* Main row */}
-      <Box sx={{
-        display: "grid",
-        gridTemplateColumns: "36px 1.8fr 2fr 170px 1.4fr 120px",
-        alignItems: "center", gap: 1.5, px: 2.5, py: 1.75,
-      }}>
-        {/* # */}
-        <Box sx={{
-          width: 26, height: 26, borderRadius: "50%", bgcolor: "#F1F5F9",
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#64748B" }}>{item.order}</Typography>
-        </Box>
-
-        {/* Title */}
-        <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: "#0F172A" }}>{item.title}</Typography>
-
-        {/* Description */}
-        <Typography sx={{ fontSize: 12, color: "#6B7280", lineHeight: 1.4 }}>{item.description}</Typography>
-
-        {/* Status */}
-        <FormControl size="small" fullWidth disabled={!canEdit}>
-          <Select
-            value={item.status}
-            onChange={(e) => onChangeStatus(item.id, e.target.value as ItemStatus)}
-            sx={{
-              fontSize: 12, fontWeight: 600, color: c.color, bgcolor: c.bg,
-              border: `1px solid ${c.border}`, borderRadius: 2,
-              "& .MuiOutlinedInput-notchedOutline": { border: "none" },
-            }}
-            renderValue={(v) => (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: c.dot }} />
-                {v}
-              </Box>
-            )}
-          >
-            {(Object.keys(ITEM_STATUS_COLORS) as ItemStatus[]).map((s) => (
-              <MenuItem key={s} value={s} sx={{ fontSize: 12 }}>{s}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        {/* Remarks */}
-        <TextField
-          size="small"
-          fullWidth
-          placeholder="Add remarks..."
-          value={item.remarks}
-          onChange={(e) => onChangeRemarks(item.id, e.target.value)}
-          disabled={!canEdit}
-          sx={{ "& .MuiOutlinedInput-root": { fontSize: 12 } }}
-        />
-
-        {/* Evidence count + expand */}
-        <Box
-          sx={{ display: "flex", alignItems: "center", gap: 0.75, cursor: "pointer" }}
-          onClick={() => setExpanded((p) => !p)}
-        >
-          <Box sx={{
-            display: "flex", alignItems: "center", gap: 0.5,
-            bgcolor: item.files.length > 0 ? "#EFF6FF" : "#F8FAFC",
-            border: `1px solid ${item.files.length > 0 ? "#BFDBFE" : "#E2E8F0"}`,
-            borderRadius: 1.5, px: 1.25, py: 0.5,
-          }}>
-            <AttachFileIcon sx={{ fontSize: 13, color: item.files.length > 0 ? "#2563EB" : "#94A3B8" }} />
-            <Typography sx={{ fontSize: 12, fontWeight: 600, color: item.files.length > 0 ? "#2563EB" : "#94A3B8" }}>
-              {item.files.length} {item.files.length === 1 ? "File" : "Files"}
-            </Typography>
-          </Box>
-          {expanded ? <ExpandLessIcon sx={{ fontSize: 16, color: "#6B7280" }} /> : <ExpandMoreIcon sx={{ fontSize: 16, color: "#6B7280" }} />}
-        </Box>
-
-      </Box>
-
-      {/* Reference Image / Evidence Attachments expandable panel */}
-      <Collapse in={expanded}>
-        <Box sx={{ borderTop: "1px solid #F1F5F9", bgcolor: "#FAFAFA" }}>
-          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
-            {/* Left: Reference Image(s) — from file_url */}
-            <Box sx={{ px: 2.5, py: 2, borderRight: "1px solid #E5E7EB" }}>
-              <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: "#374151", mb: 1.5 }}>
-                Reference Image ({referenceFiles.length})
-              </Typography>
-              {referenceFiles.length === 0 ? (
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "#9CA3AF", py: 1.5, justifyContent: "center" }}>
-                  <ImageOutlinedIcon sx={{ fontSize: 16 }} />
-                  <Typography sx={{ fontSize: 12 }}>No reference image</Typography>
-                </Box>
-              ) : (
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
-                  {referenceFiles.map((f) => (
-                    <EvidenceThumb key={f.id} file={f} />
-                  ))}
-                </Box>
-              )}
-            </Box>
-
-            {/* Right: Evidence files — from employee_checklist_upload */}
-            <Box sx={{ px: 2.5, py: 2 }}>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
-                <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: "#374151" }}>
-                  Evidence ({evidenceFiles.length})
-                </Typography>
-                <Button
-                  component="label"
-                  variant="outlined"
-                  size="small"
-                  startIcon={uploading ? <CircularProgress size={12} sx={{ color: "#E11D48" }} /> : <AddIcon sx={{ fontSize: 14 }} />}
-                  disabled={uploading || !canEdit}
-                  sx={{ fontSize: 11.5, borderColor: "#E11D48", color: "#E11D48", borderRadius: 1.5, py: 0.4, px: 1.5,
-                    "&:hover": { bgcolor: "#FFF1F2" } }}
-                >
-                  Upload Files
-                  <input type="file" hidden multiple disabled={uploading || !canEdit}
-                    onChange={(e) => { if (e.target.files?.length) onPickFile(item.id, e.target.files); e.target.value = ""; }}
-                  />
-                </Button>
-              </Box>
-
-              {evidenceFiles.length === 0 ? (
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "#9CA3AF", py: 1.5, justifyContent: "center" }}>
-                  <InsertDriveFileOutlinedIcon sx={{ fontSize: 16 }} />
-                  <Typography sx={{ fontSize: 12 }}>No evidence uploaded yet</Typography>
-                </Box>
-              ) : (
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
-                  {evidenceFiles.map((f) => {
-                    const canDelete = canEdit && !!loggedEmployeeId && !!f.uploadedById && f.uploadedById === loggedEmployeeId;
-                    return (
-                      <EvidenceThumb
-                        key={f.id}
-                        file={f}
-                        onRemove={canDelete ? () => onRemoveFile(item.id, f.id) : undefined}
-                        deleting={deletingEvidenceFileId === f.id}
-                        disabled={!!deletingEvidenceFileId}
-                      />
-                    );
-                  })}
-                </Box>
-              )}
-            </Box>
-          </Box>
-        </Box>
-      </Collapse>
-    </Box>
-  );
-}
+// ITEM-WISE (disabled) — per-item card, replaced by a single task-level status
+// // ─── Item Card ───────────────────────────────────────────────────────────────────
+//
+// function ItemCard({
+//   item, onChangeStatus, onChangeRemarks, onPickFile, uploading, loggedEmployeeId, onRemoveFile, deletingEvidenceFileId, canEdit,
+// }: {
+//   item: TaskStatusItem;
+//   onChangeStatus: (id: string, status: ItemStatus) => void;
+//   onChangeRemarks: (id: string, remarks: string) => void;
+//   onPickFile: (id: string, files: FileList) => void;
+//   uploading: boolean;
+//   loggedEmployeeId?: string;
+//   onRemoveFile: (itemId: string, fileId: string) => void;
+//   deletingEvidenceFileId: string | null;
+//   canEdit: boolean;
+// }) {
+//   const [expanded, setExpanded] = useState(false);
+//   const c = ITEM_STATUS_COLORS[item.status] ?? ITEM_STATUS_COLORS["Not Started"];
+//   const referenceFiles = item.files.filter((f) => !f.isEmployeeUpload);
+//   const evidenceFiles = item.files.filter((f) => f.isEmployeeUpload);
+//
+//   return (
+//     <Box sx={{ border: "1px solid #E5E7EB", borderRadius: 2, mb: 1.5, overflow: "hidden", bgcolor: "#fff" }}>
+//       (Main row)
+//       <Box sx={{
+//         display: "grid",
+//         gridTemplateColumns: "36px 1.8fr 2fr 170px 1.4fr 120px",
+//         alignItems: "center", gap: 1.5, px: 2.5, py: 1.75,
+//       }}>
+//         (#)
+//         <Box sx={{
+//           width: 26, height: 26, borderRadius: "50%", bgcolor: "#F1F5F9",
+//           display: "flex", alignItems: "center", justifyContent: "center",
+//         }}>
+//           <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#64748B" }}>{item.order}</Typography>
+//         </Box>
+//
+//         (Title)
+//         <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: "#0F172A" }}>{item.title}</Typography>
+//
+//         (Description)
+//         <Typography sx={{ fontSize: 12, color: "#6B7280", lineHeight: 1.4 }}>{item.description}</Typography>
+//
+//         (Status)
+//         <FormControl size="small" fullWidth disabled={!canEdit}>
+//           <Select
+//             value={item.status}
+//             onChange={(e) => onChangeStatus(item.id, e.target.value as ItemStatus)}
+//             sx={{
+//               fontSize: 12, fontWeight: 600, color: c.color, bgcolor: c.bg,
+//               border: `1px solid ${c.border}`, borderRadius: 2,
+//               "& .MuiOutlinedInput-notchedOutline": { border: "none" },
+//             }}
+//             renderValue={(v) => (
+//               <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+//                 <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: c.dot }} />
+//                 {v}
+//               </Box>
+//             )}
+//           >
+//             {(Object.keys(ITEM_STATUS_COLORS) as ItemStatus[]).map((s) => (
+//               <MenuItem key={s} value={s} sx={{ fontSize: 12 }}>{s}</MenuItem>
+//             ))}
+//           </Select>
+//         </FormControl>
+//
+//         (Remarks)
+//         <TextField
+//           size="small"
+//           fullWidth
+//           placeholder="Add remarks..."
+//           value={item.remarks}
+//           onChange={(e) => onChangeRemarks(item.id, e.target.value)}
+//           disabled={!canEdit}
+//           sx={{ "& .MuiOutlinedInput-root": { fontSize: 12 } }}
+//         />
+//
+//         (Evidence count + expand)
+//         <Box
+//           sx={{ display: "flex", alignItems: "center", gap: 0.75, cursor: "pointer" }}
+//           onClick={() => setExpanded((p) => !p)}
+//         >
+//           <Box sx={{
+//             display: "flex", alignItems: "center", gap: 0.5,
+//             bgcolor: item.files.length > 0 ? "#EFF6FF" : "#F8FAFC",
+//             border: `1px solid ${item.files.length > 0 ? "#BFDBFE" : "#E2E8F0"}`,
+//             borderRadius: 1.5, px: 1.25, py: 0.5,
+//           }}>
+//             <AttachFileIcon sx={{ fontSize: 13, color: item.files.length > 0 ? "#2563EB" : "#94A3B8" }} />
+//             <Typography sx={{ fontSize: 12, fontWeight: 600, color: item.files.length > 0 ? "#2563EB" : "#94A3B8" }}>
+//               {item.files.length} {item.files.length === 1 ? "File" : "Files"}
+//             </Typography>
+//           </Box>
+//           {expanded ? <ExpandLessIcon sx={{ fontSize: 16, color: "#6B7280" }} /> : <ExpandMoreIcon sx={{ fontSize: 16, color: "#6B7280" }} />}
+//         </Box>
+//
+//       </Box>
+//
+//       (Reference Image / Evidence Attachments expandable panel)
+//       <Collapse in={expanded}>
+//         <Box sx={{ borderTop: "1px solid #F1F5F9", bgcolor: "#FAFAFA" }}>
+//           <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+//             (Left: Reference Image(s) — from file_url)
+//             <Box sx={{ px: 2.5, py: 2, borderRight: "1px solid #E5E7EB" }}>
+//               <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: "#374151", mb: 1.5 }}>
+//                 Reference Image ({referenceFiles.length})
+//               </Typography>
+//               {referenceFiles.length === 0 ? (
+//                 <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "#9CA3AF", py: 1.5, justifyContent: "center" }}>
+//                   <ImageOutlinedIcon sx={{ fontSize: 16 }} />
+//                   <Typography sx={{ fontSize: 12 }}>No reference image</Typography>
+//                 </Box>
+//               ) : (
+//                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
+//                   {referenceFiles.map((f) => (
+//                     <EvidenceThumb key={f.id} file={f} />
+//                   ))}
+//                 </Box>
+//               )}
+//             </Box>
+//
+//             (Right: Evidence files — from employee_checklist_upload)
+//             <Box sx={{ px: 2.5, py: 2 }}>
+//               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+//                 <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: "#374151" }}>
+//                   Evidence ({evidenceFiles.length})
+//                 </Typography>
+//                 <Button
+//                   component="label"
+//                   variant="outlined"
+//                   size="small"
+//                   startIcon={uploading ? <CircularProgress size={12} sx={{ color: "#E11D48" }} /> : <AddIcon sx={{ fontSize: 14 }} />}
+//                   disabled={uploading || !canEdit}
+//                   sx={{ fontSize: 11.5, borderColor: "#E11D48", color: "#E11D48", borderRadius: 1.5, py: 0.4, px: 1.5,
+//                     "&:hover": { bgcolor: "#FFF1F2" } }}
+//                 >
+//                   Upload Files
+//                   <input type="file" hidden multiple disabled={uploading || !canEdit}
+//                     onChange={(e) => { if (e.target.files?.length) onPickFile(item.id, e.target.files); e.target.value = ""; }}
+//                   />
+//                 </Button>
+//               </Box>
+//
+//               {evidenceFiles.length === 0 ? (
+//                 <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "#9CA3AF", py: 1.5, justifyContent: "center" }}>
+//                   <InsertDriveFileOutlinedIcon sx={{ fontSize: 16 }} />
+//                   <Typography sx={{ fontSize: 12 }}>No evidence uploaded yet</Typography>
+//                 </Box>
+//               ) : (
+//                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
+//                   {evidenceFiles.map((f) => {
+//                     const canDelete = canEdit && !!loggedEmployeeId && !!f.uploadedById && f.uploadedById === loggedEmployeeId;
+//                     return (
+//                       <EvidenceThumb
+//                         key={f.id}
+//                         file={f}
+//                         onRemove={canDelete ? () => onRemoveFile(item.id, f.id) : undefined}
+//                         deleting={deletingEvidenceFileId === f.id}
+//                         disabled={!!deletingEvidenceFileId}
+//                       />
+//                     );
+//                   })}
+//                 </Box>
+//               )}
+//             </Box>
+//           </Box>
+//         </Box>
+//       </Collapse>
+//     </Box>
+//   );
+// }
 
 // ─── Main Component ───────────────────────────────────────────────────────────────
 
 type AttachFilter = "all" | "image" | "pdf" | "excel" | "word";
+
+// Task status coming from the backend may be a value the dropdown doesn't offer (e.g. "Overdue").
+function toItemStatus(status?: string): ItemStatus {
+  return status && status in ITEM_STATUS_COLORS ? (status as ItemStatus) : "Not Started";
+}
 
 export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmployeeId, onEdit, onSuccess, onError, canEdit = true }: Props) {
   const zoduId = useAppSelector(ZoduId);
@@ -435,12 +443,16 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
   const profile = useAppSelector(UserProfile);
   const loggedEmployeeName = (profile as any)?.name ?? (profile as any)?.employee_name ?? "";
 
-  const [items, setItems] = useState<TaskStatusItem[]>(task?.items ?? []);
-  const originalItemsRef = React.useRef<TaskStatusItem[]>(task?.items ?? []);
-  const changedItemIdsRef = React.useRef<Set<string>>(new Set());
-  const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
-  const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
-  const [deletingEvidenceFileId, setDeletingEvidenceFileId] = useState<string | null>(null);
+  // Task-wise: one status for the whole task
+  const [taskStatus, setTaskStatus] = useState<ItemStatus>(toItemStatus(task?.status));
+
+  // ITEM-WISE (disabled)
+  // const [items, setItems] = useState<TaskStatusItem[]>(task?.items ?? []);
+  // const originalItemsRef = React.useRef<TaskStatusItem[]>(task?.items ?? []);
+  // const changedItemIdsRef = React.useRef<Set<string>>(new Set());
+  // const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
+  // const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
+  // const [deletingEvidenceFileId, setDeletingEvidenceFileId] = useState<string | null>(null);
 
   const [attachFiles, setAttachFiles] = useState<TaskStatusFile[]>([]);
   const [attachUploading, setAttachUploading] = useState(false);
@@ -448,88 +460,91 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
   const [attachFilter, setAttachFilter] = useState<AttachFilter>("all");
 
   const [updateTaskStatus, { isLoading: isSubmitting }] = useUpdateTaskStatusMutation();
-  const [uploadItemFile] = useUploadItemFileMutation();
-  const [deleteChecklistItem] = useDeleteChecklistItemMutation();
+  // const [uploadItemFile] = useUploadItemFileMutation();          // ITEM-WISE (disabled)
+  // const [deleteChecklistItem] = useDeleteChecklistItemMutation(); // ITEM-WISE (disabled)
   const [uploadChecklistAttachments] = useUploadChecklistAttachmentsMutation();
-  const [deleteItemFile] = useDeleteItemFileMutation();
+  // const [deleteItemFile] = useDeleteItemFileMutation();           // ITEM-WISE (disabled)
   const [deleteChecklistAttachment] = useDeleteChecklistAttachmentMutation();
 
   React.useEffect(() => {
-    const freshItems = task?.items ?? [];
-    originalItemsRef.current = freshItems;
-    changedItemIdsRef.current = new Set();
-    setItems(freshItems);
+    // ITEM-WISE (disabled)
+    // const freshItems = task?.items ?? [];
+    // originalItemsRef.current = freshItems;
+    // changedItemIdsRef.current = new Set();
+    // setItems(freshItems);
+    setTaskStatus(toItemStatus(task?.status));
     setAttachFiles(task?.files ?? []);
   }, [task]);
 
   if (!task) return null;
 
-  const handleChangeStatus = (id: string, status: ItemStatus) => {
-    changedItemIdsRef.current.add(id);
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, status } : i)));
-  };
-
-  const handleChangeRemarks = (id: string, remarks: string) => {
-    changedItemIdsRef.current.add(id);
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, remarks } : i)));
-  };
-
-  const handleRemoveItemFile = async (itemId: string, fileId: string) => {
-    const item = items.find((i) => i.id === itemId);
-    const file = item?.files.find((f) => f.id === fileId);
-    if (!file) return;
-    if (!file.isNew) {
-      setDeletingEvidenceFileId(fileId);
-      try {
-        await deleteItemFile({
-          item_id: itemId,
-          file_id: fileId,
-          employee_checklist_upload: file.isEmployeeUpload ?? false,
-        }).unwrap();
-      } catch { setDeletingEvidenceFileId(null); return; }
-      setDeletingEvidenceFileId(null);
-    }
-    setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, files: i.files.filter((f) => f.id !== fileId) } : i)));
-  };
-
-  const handlePickFile = async (itemId: string, fileList: FileList) => {
-    if (!fileList || fileList.length === 0) return;
-    const files = Array.from(fileList).slice(0, MAX_UPLOAD_FILES);
-    changedItemIdsRef.current.add(itemId);
-    setUploadingItemId(itemId);
-    try {
-      const formData = new FormData();
-      files.forEach((f) => formData.append("files", f));
-      const res = await uploadItemFile({
-        item_id: itemId, formData,
-        employee_id: loggedEmployeeId, employee_name: loggedEmployeeName,
-        employee_checklist_upload: true,
-      }).unwrap();
-      const rawData: any = res.data;
-      const uploaded: { id: string; file_name: string; file_url: string }[] =
-        Array.isArray(rawData) ? rawData : (rawData?.employee_checklist_upload ?? rawData?.file_url ?? []);
-      if (uploaded.length > 0) {
-        // API returns the full updated evidence list for the item — replace that subset entirely to avoid duplicates
-        setItems((prev) => prev.map((i) => (i.id === itemId ? {
-          ...i,
-          files: [
-            ...i.files.filter((f) => !f.isEmployeeUpload),
-            ...uploaded.map((f) => ({ id: f.id, name: f.file_name, url: f.file_url, uploadedBy: f.uploaded_by_name ?? loggedEmployeeName, uploadedById: loggedEmployeeId, isNew: true, isEmployeeUpload: true })),
-          ],
-        } : i)));
-      }
-    } catch { /* RTK Query handles error */ }
-    finally { setUploadingItemId(null); }
-  };
-
-  const handleDeleteItem = async (itemId: string) => {
-    setDeletingItemId(itemId);
-    try {
-      await deleteChecklistItem({ item_id: itemId, checklistId: task.checklistDbId }).unwrap();
-      setItems((prev) => prev.filter((i) => i.id !== itemId));
-    } catch { /* RTK Query handles error */ }
-    finally { setDeletingItemId(null); }
-  };
+  // ITEM-WISE (disabled)
+  // const handleChangeStatus = (id: string, status: ItemStatus) => {
+  //   changedItemIdsRef.current.add(id);
+  //   setItems((prev) => prev.map((i) => (i.id === id ? { ...i, status } : i)));
+  // };
+  //
+  // const handleChangeRemarks = (id: string, remarks: string) => {
+  //   changedItemIdsRef.current.add(id);
+  //   setItems((prev) => prev.map((i) => (i.id === id ? { ...i, remarks } : i)));
+  // };
+  //
+  // const handleRemoveItemFile = async (itemId: string, fileId: string) => {
+  //   const item = items.find((i) => i.id === itemId);
+  //   const file = item?.files.find((f) => f.id === fileId);
+  //   if (!file) return;
+  //   if (!file.isNew) {
+  //     setDeletingEvidenceFileId(fileId);
+  //     try {
+  //       await deleteItemFile({
+  //         item_id: itemId,
+  //         file_id: fileId,
+  //         employee_checklist_upload: file.isEmployeeUpload ?? false,
+  //       }).unwrap();
+  //     } catch { setDeletingEvidenceFileId(null); return; }
+  //     setDeletingEvidenceFileId(null);
+  //   }
+  //   setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, files: i.files.filter((f) => f.id !== fileId) } : i)));
+  // };
+  //
+  // const handlePickFile = async (itemId: string, fileList: FileList) => {
+  //   if (!fileList || fileList.length === 0) return;
+  //   const files = Array.from(fileList).slice(0, MAX_UPLOAD_FILES);
+  //   changedItemIdsRef.current.add(itemId);
+  //   setUploadingItemId(itemId);
+  //   try {
+  //     const formData = new FormData();
+  //     files.forEach((f) => formData.append("files", f));
+  //     const res = await uploadItemFile({
+  //       item_id: itemId, formData,
+  //       employee_id: loggedEmployeeId, employee_name: loggedEmployeeName,
+  //       employee_checklist_upload: true,
+  //     }).unwrap();
+  //     const rawData: any = res.data;
+  //     const uploaded: { id: string; file_name: string; file_url: string }[] =
+  //       Array.isArray(rawData) ? rawData : (rawData?.employee_checklist_upload ?? rawData?.file_url ?? []);
+  //     if (uploaded.length > 0) {
+  //       // API returns the full updated evidence list for the item — replace that subset entirely to avoid duplicates
+  //       setItems((prev) => prev.map((i) => (i.id === itemId ? {
+  //         ...i,
+  //         files: [
+  //           ...i.files.filter((f) => !f.isEmployeeUpload),
+  //           ...uploaded.map((f) => ({ id: f.id, name: f.file_name, url: f.file_url, uploadedBy: f.uploaded_by_name ?? loggedEmployeeName, uploadedById: loggedEmployeeId, isNew: true, isEmployeeUpload: true })),
+  //         ],
+  //       } : i)));
+  //     }
+  //   } catch { /* RTK Query handles error */ }
+  //   finally { setUploadingItemId(null); }
+  // };
+  //
+  // const handleDeleteItem = async (itemId: string) => {
+  //   setDeletingItemId(itemId);
+  //   try {
+  //     await deleteChecklistItem({ item_id: itemId, checklistId: task.checklistDbId }).unwrap();
+  //     setItems((prev) => prev.filter((i) => i.id !== itemId));
+  //   } catch { /* RTK Query handles error */ }
+  //   finally { setDeletingItemId(null); }
+  // };
 
   const handleAttachmentPick = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -582,16 +597,17 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
   };
 
   const handleSubmit = async () => {
-    const payload: TaskStatusItemPayload[] = items.map((i) => ({
-      item_id: i.id,
-      status: i.status,
-      remarks: i.remarks,
-      employee_id: changedItemIdsRef.current.has(i.id) ? (loggedEmployeeId ?? null) : null,
-    }));
+    // ITEM-WISE (disabled)
+    // const payload: TaskStatusItemPayload[] = items.map((i) => ({
+    //   item_id: i.id,
+    //   status: i.status,
+    //   remarks: i.remarks,
+    //   employee_id: changedItemIdsRef.current.has(i.id) ? (loggedEmployeeId ?? null) : null,
+    // }));
     try {
       await updateTaskStatus({
         id: task.checklistDbId,
-        body: { zodu_id: zoduId, branch_id: branchId, items: payload },
+        body: { zodu_id: zoduId, branch_id: branchId, status: taskStatus },
       }).unwrap();
       onSuccess?.();
     } catch (err: any) {
@@ -602,19 +618,13 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
 
   const isOwner = !!loggedEmployeeId && !!task.assignedById && loggedEmployeeId === task.assignedById;
 
-  // Attachment filter counts
-  const catCount = (cat: Exclude<AttachFilter, "all">) =>
-    attachFiles.filter((f) => getFileCategory(f.name) === cat).length;
+  // Attachment count
   const filteredAttach = attachFilter === "all"
     ? attachFiles
     : attachFiles.filter((f) => getFileCategory(f.name) === attachFilter);
 
   const filterChips: { key: AttachFilter; label: string; icon: React.ReactNode }[] = [
     { key: "all",   label: `All (${attachFiles.length})`,      icon: <InsertDriveFileOutlinedIcon sx={{ fontSize: 12 }} /> },
-    { key: "image", label: `Images (${catCount("image")})`,    icon: <ImageIcon sx={{ fontSize: 12 }} /> },
-    { key: "pdf",   label: `PDF (${catCount("pdf")})`,         icon: <PictureAsPdfOutlinedIcon sx={{ fontSize: 12 }} /> },
-    { key: "excel", label: `Excel (${catCount("excel")})`,     icon: <TableChartOutlinedIcon sx={{ fontSize: 12 }} /> },
-    { key: "word",  label: `Word (${catCount("word")})`,       icon: <DescriptionOutlinedIcon sx={{ fontSize: 12 }} /> },
   ];
 
   return (
@@ -622,9 +632,9 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
       <Dialog
         open={open}
         onClose={closeFromControlsOnly(onClose)}
-        maxWidth="lg"
+        maxWidth="md"
         fullWidth
-        slotProps={{ paper: { sx: { borderRadius: 3, maxHeight: "94vh" } } }}
+        slotProps={{ paper: { sx: { borderRadius: 3, maxHeight: "94vh", maxWidth: 800 } } }}
       >
         {/* ── Header ── */}
         <DialogTitle sx={{ pb: 1.5, pt: 2.5, px: 3 }}>
@@ -640,7 +650,7 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
               <Box>
                 <Typography sx={{ fontWeight: 700, fontSize: 18, color: "#0F172A" }}>Update Task Status</Typography>
                 <Typography sx={{ fontSize: 12, color: "#6B7280", mt: 0.25 }}>
-                  Review checklist items, update status and upload supporting documents.
+                  Review the task, update its status and upload supporting documents.
                 </Typography>
               </Box>
             </Box>
@@ -724,9 +734,48 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
             </Box>
           </Box>
 
-          {/* ── Checklist Items ── */}
+          {/* ── Task Status ── */}
           <Box sx={{ bgcolor: "#fff", border: "1px solid #F1F5F9", borderRadius: 2.5, p: 2.5, mb: 2.5 }}>
-            {/* Section header */}
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                <Box sx={{ width: 30, height: 30, borderRadius: "8px", bgcolor: "#FEF2F2", display: "flex", alignItems: "center", justifyContent: "center", color: "#E11D48" }}>
+                  <ChecklistIcon sx={{ fontSize: 16 }} />
+                </Box>
+                <Box>
+                  <Typography sx={{ fontWeight: 700, fontSize: 14, color: "#0F172A" }}>TASK STATUS</Typography>
+                  <Typography sx={{ fontSize: 12, color: "#6B7280" }}>Update the status of this task.</Typography>
+                </Box>
+              </Box>
+
+              <FormControl size="small" disabled={!canEdit} sx={{ width: 220 }}>
+                <Select
+                  value={taskStatus}
+                  onChange={(e) => setTaskStatus(e.target.value as ItemStatus)}
+                  sx={{
+                    fontSize: 12, fontWeight: 600,
+                    color: ITEM_STATUS_COLORS[taskStatus].color, bgcolor: ITEM_STATUS_COLORS[taskStatus].bg,
+                    border: `1px solid ${ITEM_STATUS_COLORS[taskStatus].border}`, borderRadius: 2,
+                    "& .MuiOutlinedInput-notchedOutline": { border: "none" },
+                  }}
+                  renderValue={(v) => (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                      <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: ITEM_STATUS_COLORS[v].dot }} />
+                      {v}
+                    </Box>
+                  )}
+                >
+                  {(Object.keys(ITEM_STATUS_COLORS) as ItemStatus[]).map((st) => (
+                    <MenuItem key={st} value={st} sx={{ fontSize: 12 }}>{st}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+          </Box>
+
+          {/* ITEM-WISE (disabled) — Checklist Items section (inner JSX comments shown in parentheses)
+          (── Checklist Items ──)
+          <Box sx={{ bgcolor: "#fff", border: "1px solid #F1F5F9", borderRadius: 2.5, p: 2.5, mb: 2.5 }}>
+            (Section header)
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
                 <Box sx={{ width: 30, height: 30, borderRadius: "8px", bgcolor: "#FEF2F2", display: "flex", alignItems: "center", justifyContent: "center", color: "#E11D48" }}>
@@ -741,7 +790,7 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
               </Box>
             </Box>
 
-            {/* Column header */}
+            (Column header)
             <Box sx={{
               display: "grid",
               gridTemplateColumns: "36px 1.8fr 2fr 170px 1.4fr 120px",
@@ -753,7 +802,7 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
               ))}
             </Box>
 
-            {/* Item cards */}
+            (Item cards)
             {items.map((item) => (
               <ItemCard
                 key={item.id}
@@ -769,7 +818,7 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
               />
             ))}
 
-            {/* Legend */}
+            (Legend)
             <Box sx={{ display: "flex", gap: 2.5, mt: 1.5, flexWrap: "wrap" }}>
               {(Object.entries(ITEM_STATUS_COLORS) as [ItemStatus, typeof ITEM_STATUS_COLORS[ItemStatus]][]).map(([s, c]) => (
                 <Box key={s} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
@@ -779,6 +828,7 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
               ))}
             </Box>
           </Box>
+          */}
 
           {/* ── Task Attachments (General) ── */}
           <Box sx={{ bgcolor: "#fff", border: "1px solid #F1F5F9", borderRadius: 2.5, p: 2.5 }}>
@@ -926,8 +976,8 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
             <Button
               variant="contained" disableElevation
               onClick={handleSubmit}
-              disabled={!canEdit || isSubmitting || !!uploadingItemId || attachUploading}
-              startIcon={(isSubmitting || !!uploadingItemId || attachUploading) ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : undefined}
+              disabled={!canEdit || isSubmitting || attachUploading}
+              startIcon={(isSubmitting || attachUploading) ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : undefined}
               sx={{ bgcolor: "#E11D48", color: "#fff", px: 3, "&:hover": { bgcolor: "#BE123C" } }}
             >
               Submit & Update Status

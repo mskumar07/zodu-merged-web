@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Box, Button, Menu, MenuItem, Typography } from "@mui/material";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import LottieLoader from "@components/LottieLoader";
+import { Box, Button, Menu, MenuItem } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import AccountingStats from "./AccountingStats";
@@ -51,19 +52,22 @@ export default function AccountingScreen() {
   }, [error]);
   const loadMore = useCallback(() => { fetchNextPage(); }, [fetchNextPage]);
 
+  // The loader is for the first load only; later filter changes keep the screen (and the search box focus).
+  const loadedOnce = useRef(false);
+  if (!query.isLoading) loadedOnce.current = true;
+  if (query.isLoading && !loadedOnce.current) return <LottieLoader />;
+
   return (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", px: 1, py: 1, gap: 2.25 }}>
-      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, flexWrap: "wrap", flexShrink: 0 }}>
-        <Box>
-          <Typography component="h1" sx={{ fontSize: 28, fontWeight: 800, color: "#0F172A", lineHeight: 1.2, letterSpacing: "-0.02em" }}>
-            Accounting
-          </Typography>
-        </Box>
+      <Box sx={{ flexShrink: 0 }}><AccountingStats summary={summary} /></Box>
+
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 1.5, flexWrap: "wrap", flexShrink: 0 }}>
+        <AccountingFilters values={filters} onChange={patchFilters} />
         <Button
           variant="contained" disableElevation
           startIcon={<AddIcon />} endIcon={<KeyboardArrowDownIcon />}
           onClick={(e) => setAnchor(e.currentTarget)}
-          sx={{ bgcolor: "#D32F2F", fontWeight: 700, fontSize: 14, px: 2.5, py: 1.1, borderRadius: "8px", textTransform: "none", boxShadow: "0 4px 14px rgba(211,47,47,0.3)", "&:hover": { bgcolor: "#B71C1C" } }}
+          sx={{ bgcolor: "#D32F2F", fontWeight: 700, fontSize: 14, px: 2.5, height: 38, borderRadius: "8px", textTransform: "none", boxShadow: "0 4px 14px rgba(211,47,47,0.3)", "&:hover": { bgcolor: "#B71C1C" } }}
         >
           New Entry
         </Button>
@@ -72,12 +76,8 @@ export default function AccountingScreen() {
         </Menu>
       </Box>
 
-      <Box sx={{ flexShrink: 0 }}><AccountingStats summary={summary} /></Box>
-
-      <AccountingFilters values={filters} onChange={patchFilters} />
-
       <AccountingTable
-        rows={rows} loading={query.isLoading}
+        rows={rows} loading={query.isLoading && loadedOnce.current}
         hasNextPage={query.hasNextPage} isFetchingNextPage={query.isFetchingNextPage} onLoadMore={loadMore}
         emptyMessage={trimmed ? "No transactions match your search." : "No transactions found."}
       />
