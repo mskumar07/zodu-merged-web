@@ -81,8 +81,8 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
 
   // Trial / subscription of the branch in session (subscriptions are per branch).
   const subscription = getBranchSubscription(currentBranch);
-  // The end date always shows; the days-left tag only in the final 30 days
-  // (or once it has ended).
+  // The whole subscription chip (end date, days-left tag, Pay Now) shows only
+  // in the final 30 days (or once it has ended).
   const showDaysLeft =
     !!subscription &&
     (subscription.expired || (subscription.daysLeft !== null && subscription.daysLeft <= SUBSCRIPTION_NOTICE_DAYS));
@@ -214,7 +214,7 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
           </Tooltip>
         </Box>
 
-        {subscription && (
+        {subscription && showDaysLeft && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0, mx: { sm: 1 } }}>
             <Box
               sx={{

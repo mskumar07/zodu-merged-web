@@ -249,9 +249,9 @@ export const menuApi = apiSlice.injectEndpoints({
         method: "GET",
       }),
     }),
-    getGstList: builder.query({
-      query: (branchId) => ({
-        url: apiConfig.menu.getGstList(branchId),
+    getGstList: builder.query<any, void>({
+      query: () => ({
+        url: apiConfig.menu.getGstList(),
         method: "GET",
       }),
     }),

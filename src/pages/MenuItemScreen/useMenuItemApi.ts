@@ -152,7 +152,7 @@ export interface MenuItemListParams {
   limit?:         number;
 }
 
-// Raw shape from GET /get/gst/:branch_id
+// Raw shape from GET /get/gst
 export interface ApiGst {
   id:         number;    // ← actual field (not gst_id)
   gst_rate:   string;    // ← actual field, string e.g. "18" (not gst_percentage)
@@ -185,7 +185,7 @@ export interface UnitOption {
 export const menuQueryKeys = {
   categories:     (serviceType: "product" | "service" | "expense") =>
                     ["menu", "categories", serviceType, getTenantContext().branchId] as const,
-  gstList:        () => ["menu", "gst", getTenantContext().branchId]          as const,
+  gstList:        () => ["menu", "gst"]                                       as const,
   unitList:       () => ["menu", "units", getTenantContext().branchId]         as const,
   menuItems:      (params: MenuItemListParams) =>
                     ["menu", "items", getTenantContext().zoduId, getTenantContext().branchId, params]      as const,
@@ -259,13 +259,12 @@ async function fetchCategories(
 }
 
 /**
- * GET /retail/get/gst/:branch_id
+ * GET /retail/get/gst — one common rate list, no tenant params.
  */
 async function fetchGstList(): Promise<GstOption[]> {
-  const { branchId, zoduId } = getTenantContext();
   const token = getAccessToken();
   const { data } = await axios.get<{ data: ApiGst[] }>(
-    `${API_BASE}/${getRoute()}/get/gst/${branchId}/${zoduId}`,
+    `${API_BASE}/${getRoute()}/get/gst`,
     { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
   );
   return (data.data ?? []).map((g) => ({
@@ -648,7 +647,7 @@ export function useInfiniteCategories(serviceType: "product" | "service" | "expe
 }
 
 /**
- * Fetch GST options from GET /get/gst/:branch_id.
+ * Fetch GST options from GET /get/gst.
  * Always fetches on mount — no enabled flag.
  */
 export function useGstList(): UseQueryResult<GstOption[]> {

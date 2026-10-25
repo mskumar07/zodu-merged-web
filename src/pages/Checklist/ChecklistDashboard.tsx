@@ -38,7 +38,8 @@ import {
   type AssignedChecklistAssignee,
 } from "./checklistNewApi";
 import CreateTaskModal from "./CreateTaskModal";
-import UpdateTaskStatusModal, { type TaskStatusDetail, type ItemStatus } from "./UpdateTaskStatusModal";
+import UpdateTaskStatusModal, { type TaskStatusDetail } from "./UpdateTaskStatusModal";
+// ITEM-WISE (disabled): type ItemStatus
 import LottieLoader from "@components/LottieLoader";
 
 
@@ -93,6 +94,7 @@ function isOverdue(dt: string | null): boolean {
 const AVATAR_BG = "#FCE7F3";
 const AVATAR_COLOR = "#DB2777";
 
+/*
 function CountPill({ value, color }: { value: number; color: string }) {
   return (
     <Box sx={{
@@ -104,6 +106,7 @@ function CountPill({ value, color }: { value: number; color: string }) {
     </Box>
   );
 }
+*/
 
 // ─── Status Overview (compact icon+count, hides zero-value statuses) ───────
 
@@ -131,6 +134,7 @@ function StatusOverviewLegend() {
   );
 }
 
+/*
 function StatusOverview({ pending, in_progress, completed, cancelled }: {
   pending: number; in_progress: number; completed: number; cancelled: number;
 }) {
@@ -163,9 +167,11 @@ function StatusOverview({ pending, in_progress, completed, cancelled }: {
     </Box>
   );
 }
+*/
 
 // ─── Task Row cells ──────────────────────────────────────────────────────────
 
+/*
 function ProgressRing({ value, color }: { value: number; color: string }) {
   return (
     <Box sx={{ position: "relative", display: "inline-flex" }}>
@@ -183,6 +189,7 @@ function ProgressRing({ value, color }: { value: number; color: string }) {
     </Box>
   );
 }
+*/
 
 function buildTaskColumns(onView: (id: string) => void, canEdit: boolean): ColumnDef<MyTaskItem>[] {
   return [
@@ -248,7 +255,7 @@ function buildTaskColumns(onView: (id: string) => void, canEdit: boolean): Colum
       width: 120,
       render: (task) => <StatusChip status={task.status} />,
     },
-    {
+    /* {
       key: "progress",
       label: "Progress",
       width: 110,
@@ -265,7 +272,7 @@ function buildTaskColumns(onView: (id: string) => void, canEdit: boolean): Colum
           </Box>
         );
       },
-    },
+    }, */
     {
       key: "due_date",
       label: "Due Date",
@@ -383,7 +390,7 @@ function buildChecklistColumns(
         </Box>
       ),
     },
-    {
+    /* {
       key: "total_items",
       label: "Total",
       width: 70,
@@ -402,12 +409,18 @@ function buildChecklistColumns(
           cancelled={item.cancelled ?? 0}
         />
       ),
-    },
+    }, */
     {
       key: "assignees",
       label: "Assigned To",
       minWidth: 160,
       render: (item) => <AssigneesCell assignees={item.assignees} />,
+    },
+    {
+      key: "status",
+      label: "Status",
+      width: 120,
+      render: (item) => <StatusChip status={item.status ?? "—"} />,
     },
     {
       key: "created_by_name",
@@ -488,6 +501,11 @@ export default function ChecklistDashboard() {
     (profile as any)?.employee_code === "EMP001" ||
     (profile as any)?.user_type === "super_admin";
 
+  // Admin (EMP001 / super_admin) sees every task in the branch, not just the ones they created
+  const isAdmin =
+    (profile as any)?.employee_code === "EMP001" ||
+    (profile as any)?.user_type === "super_admin";
+
   const [createOpen, setCreateOpen] = useState(false);
   const [viewTaskId, setViewTaskId] = useState<string | null>(null);
   const [isEditingTask, setIsEditingTask] = useState(false);
@@ -516,7 +534,7 @@ export default function ChecklistDashboard() {
 
   const { data: assignedEmployeesSummaryData, isLoading: assignedEmployeesSummaryLoading, refetch: refetchAssignedEmployeesSummary } =
     useGetAssignedEmployeesSummaryQuery(
-      { ...commonParams, search: empSearch.trim() || undefined, status: empStatusFilter },
+      { ...commonParams, is_admin: isAdmin, search: empSearch.trim() || undefined, status: empStatusFilter },
       { skip: !zoduId || !branchId }
     );
 
@@ -528,7 +546,7 @@ export default function ChecklistDashboard() {
 
   const { data: assignedEmployeesData, isFetching: employeesFetching, isLoading: employeesLoading, refetch: refetchEmployees } =
     useGetAssignedEmployeesQuery(
-      { ...commonParams, page: empPage, limit: 10, search: empSearch.trim() || undefined, status: empStatusFilter },
+      { ...commonParams, is_admin: isAdmin, page: empPage, limit: 10, search: empSearch.trim() || undefined, status: empStatusFilter },
       { skip: !zoduId || !branchId }
     );
 
@@ -551,19 +569,21 @@ export default function ChecklistDashboard() {
       status: c.status,
       assignees: (c.assignees ?? []).map((a) => ({ id: a.employee_id, name: a.employee_name })),
       description: c.description ?? "",
-      items: (c.items ?? []).map((i) => ({
-        id: i.id,
-        order: i.item_order,
-        title: i.item_title,
-        description: i.description ?? "",
-        referenceImageUrl: i.file_url?.[0]?.file_url ?? null,
-        status: (i.status as ItemStatus) ?? "Not Started",
-        remarks: i.remarks ?? "",
-        files: [
-          ...(i.file_url ?? []).map((f) => ({ id: f.id, name: f.file_name, url: f.file_url, uploadedBy: f.uploaded_by_name ?? undefined, uploadedById: f.uploaded_by ?? undefined, isEmployeeUpload: false })),
-          ...(i.employee_checklist_upload ?? []).map((f) => ({ id: f.id, name: f.file_name, url: f.file_url, uploadedBy: f.uploaded_by_name ?? undefined, uploadedById: f.uploaded_by ?? undefined, isEmployeeUpload: true })),
-        ],
-      })),
+      // ITEM-WISE (disabled)
+      // items: (c.items ?? []).map((i) => ({
+      //   id: i.id,
+      //   order: i.item_order,
+      //   title: i.item_title,
+      //   description: i.description ?? "",
+      //   referenceImageUrl: i.file_url?.[0]?.file_url ?? null,
+      //   status: (i.status as ItemStatus) ?? "Not Started",
+      //   remarks: i.remarks ?? "",
+      //   files: [
+      //     ...(i.file_url ?? []).map((f) => ({ id: f.id, name: f.file_name, url: f.file_url, uploadedBy: f.uploaded_by_name ?? undefined, uploadedById: f.uploaded_by ?? undefined, isEmployeeUpload: false })),
+      //     ...(i.employee_checklist_upload ?? []).map((f) => ({ id: f.id, name: f.file_name, url: f.file_url, uploadedBy: f.uploaded_by_name ?? undefined, uploadedById: f.uploaded_by ?? undefined, isEmployeeUpload: true })),
+      //   ],
+      // })),
+      items: [],
       files: (c.attachments ?? []).flatMap((att: any) => {
         // The backend returns attachments either nested ({ file_url: FileEntry[] }) or
         // flat (the attachment row itself is a FileEntry with file_url as a URL string).
@@ -853,7 +873,7 @@ export default function ChecklistDashboard() {
               <Typography sx={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>
                 Assigned Checklists
               </Typography>
-              <StatusOverviewLegend />
+              {/* <StatusOverviewLegend /> */}
             </Box>
 
             {(employeesLoading || employeesFetching) && checklistRows.length === 0 ? (

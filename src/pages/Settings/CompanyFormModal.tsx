@@ -444,6 +444,7 @@ export default function BusinessFormModal({
                     </Box>
                   </Box>
                 </Grid>
+                {!isEdit && (
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <FieldLabel>Business Type *</FieldLabel>
                   <FormControl size="small" sx={{ ...inputSx, width: 220 }}>
@@ -479,6 +480,7 @@ export default function BusinessFormModal({
                     </Select>
                   </FormControl>
                 </Grid>
+                )}
                 <Grid size={{ xs: 12 }}>
                   <FieldLabel>Business / Company Name *</FieldLabel>
                   <TextField
