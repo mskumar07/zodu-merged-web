@@ -12,12 +12,23 @@ import { useAppSelector } from '@store/store';
 import { AllCompanies } from '@store/slices/userSlice';
 import { useTenantContext } from '@store/tenantContext';
 import {
-  LabelView, printLabels, LABEL_SIZES, DEFAULT_LABEL_OPTIONS,
+  LabelView, printLabels, printableLabelSize, LABEL_SIZES, DEFAULT_LABEL_OPTIONS, DEFAULT_LABEL_GAP_MM,
   type CodeType, type LabelType, type LabelOptions, type LabelItem,
 } from './labelRender';
 
 const RED = '#D2122E';
-const PREVIEW_SCALE = 2.4; // 1 mm ≈ 3.78 px, so a 40 mm label is magnified for the preview
+const PREVIEW_SCALE = 2.4; // 1 mm ≈ 3.78 px, so a 50 mm label is magnified for the preview
+// The roll's gap between stickers — a property of the roll loaded on this PC, so it is
+// remembered per browser.
+const GAP_KEY = 'zodu.labelPrint.gapMm';
+const readGap = () => {
+  try {
+    const raw = localStorage.getItem(GAP_KEY);
+    const v = Number(raw);
+    return raw !== null && Number.isFinite(v) && v >= 0 ? v : DEFAULT_LABEL_GAP_MM;
+  } catch { return DEFAULT_LABEL_GAP_MM; }
+};
+const saveGap = (mm: number) => { try { localStorage.setItem(GAP_KEY, String(mm)); } catch { /* storage unavailable */ } };
 
 /** One selectable row, in the shape the picker needs whatever business type it came from. */
 export interface PickerItem extends LabelItem {
@@ -91,6 +102,7 @@ function PrintLabelBody({ onClose, useDataSource }: { onClose: () => void; useDa
   const [labelType, setLabelType] = useState<LabelType>(2);
   const [selectingAll, setSelectingAll] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [gapMm, setGapMm] = useState(readGap);
 
   const { zoduId } = useTenantContext();
   const companies = useAppSelector(AllCompanies);
@@ -164,6 +176,8 @@ function PrintLabelBody({ onClose, useDataSource }: { onClose: () => void; useDa
   };
 
   const size = LABEL_SIZES.find((s) => s.id === sizeId) ?? LABEL_SIZES[0];
+  // What actually prints — a 50 mm label is drawn 48 mm wide, the most a 2-inch head prints.
+  const printSize = printableLabelSize(size);
   const previewItem = useMemo(() => {
     const first = selected.values().next().value ?? items[0];
     return first ? toLabelItem(first) : { code: 'ITEM-CODE', name: 'Item Name', price: 0, category: 'Category' };
@@ -175,7 +189,7 @@ function PrintLabelBody({ onClose, useDataSource }: { onClose: () => void; useDa
   const handlePrint = async () => {
     setPrinting(true);
     try {
-      await printLabels([...selected.values()].map(toLabelItem), { codeType, labelType, options, size, logoUrl });
+      await printLabels([...selected.values()].map(toLabelItem), { codeType, labelType, options, size, logoUrl }, gapMm);
     } finally {
       setPrinting(false);
     }
@@ -343,16 +357,28 @@ function PrintLabelBody({ onClose, useDataSource }: { onClose: () => void; useDa
                 <Box sx={{ display: 'flex', gap: 1 }}>{typeBtn(1)}{typeBtn(2)}</Box>
               </Box>
             </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', mb: 1 }}>
+              <TextField
+                size="small" type="number" label="Gap between labels (mm)" value={gapMm}
+                onChange={(e) => {
+                  const v = Math.max(0, Math.min(10, Number(e.target.value) || 0));
+                  setGapMm(v); saveGap(v);
+                }}
+                inputProps={{ step: 0.5, min: 0, max: 10 }}
+                helperText="Raise it if labels drift down the roll; lower it if they drift up."
+                sx={{ width: 230, '& input': { fontSize: 13 } }}
+              />
+            </Box>
 
             <Box sx={{
               bgcolor: '#F8FAFC', borderRadius: 1, p: 2,
               display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'auto',
             }}>
               {/* The label is laid out in real mm and magnified, so the preview matches the print. */}
-              <Box sx={{ width: `${size.w * 3.78 * PREVIEW_SCALE}px`, height: `${size.h * 3.78 * PREVIEW_SCALE}px`, flexShrink: 0, boxShadow: 1 }}>
+              <Box sx={{ width: `${printSize.w * 3.78 * PREVIEW_SCALE}px`, height: `${printSize.h * 3.78 * PREVIEW_SCALE}px`, flexShrink: 0, boxShadow: 1 }}>
                 <Box sx={{ transform: `scale(${PREVIEW_SCALE})`, transformOrigin: 'top left', width: 'max-content' }}>
                   <LabelView item={previewItem} codeType={codeType} labelType={labelType}
-                    options={options} size={size} logoUrl={logoUrl} />
+                    options={options} size={printSize} logoUrl={logoUrl} />
                 </Box>
               </Box>
             </Box>

@@ -29,13 +29,10 @@ export interface LabelItem {
   category?: string | null;
 }
 
+// Only the two label rolls the supported label printers take.
 export const LABEL_SIZES: LabelSize[] = [
-  { id: '40x30', label: '40 mm x 30 mm', w: 40, h: 30 },
-  { id: '50x30', label: '50 mm x 30 mm', w: 50, h: 30 },
   { id: '50x25', label: '50 mm x 25 mm', w: 50, h: 25 },
-  { id: '38x25', label: '38 mm x 25 mm', w: 38, h: 25 },
-  { id: '60x40', label: '60 mm x 40 mm', w: 60, h: 40 },
-  { id: '100x50', label: '100 mm x 50 mm', w: 100, h: 50 },
+  { id: '100x75', label: '100 mm x 75 mm', w: 100, h: 75 },
 ];
 
 export const DEFAULT_LABEL_OPTIONS: LabelOptions = {
@@ -120,7 +117,9 @@ export const LabelView = React.memo(function LabelView(
   { item, codeType, labelType, options, size, logoUrl }: LabelViewProps,
 ) {
   const { w, h } = size;
-  const pad = Math.max(1, h * 0.06);
+  // Label printers can't print right up to the edge (about 1.5–2 mm is lost on
+  // every side), so content keeps a 2 mm minimum margin instead of being clipped.
+  const pad = Math.max(2, h * 0.06);
   const innerW = w - pad * 2;
   const innerH = h - pad * 2;
   const horizontal = labelType === 2;
@@ -128,7 +127,8 @@ export const LabelView = React.memo(function LabelView(
   // Type 2: code on the left, text on the right. Type 1: code on top, text below.
   const codeW = horizontal ? Math.min(innerH, innerW * 0.45) : innerW;
   const codeH = horizontal ? innerH : innerH * 0.55;
-  const fs = Math.max(1.8, h * 0.08);
+  // Scales with the label, capped so the 100 x 75 label doesn't get poster-size text.
+  const fs = Math.min(4.2, Math.max(1.8, h * 0.08));
 
   const text: React.CSSProperties = {
     margin: 0, lineHeight: 1.15, overflow: 'hidden', color: '#000',
@@ -175,16 +175,47 @@ export const LabelView = React.memo(function LabelView(
 
 // ─── Print ────────────────────────────────────────────────────
 
-/** Prints one label per page through a hidden iframe, so no popup is needed. */
+/** Default gap between two labels on the roll, in mm (the backing showing between stickers). */
+export const DEFAULT_LABEL_GAP_MM = 2;
+
+// The band a thermal head can actually print: a 2-inch (58 mm) head prints 48 mm,
+// a 4-inch head 104 mm. A page wider than this gets shrunk to fit by the browser,
+// which also shrinks the label spacing so every label drifts further off its sticker.
+const PRINTABLE_2IN_MM = 48;
+const PRINTABLE_4IN_MM = 104;
+
+/** The label as it is drawn on the printer: never wider than the head's printable band. */
+export function printableLabelSize(size: LabelSize): LabelSize {
+  const maxW = size.w <= 58 ? PRINTABLE_2IN_MM : PRINTABLE_4IN_MM;
+  return size.w <= maxW ? size : { ...size, w: maxW };
+}
+
+/**
+ * Prints the labels through a hidden iframe (no popup needed) as ONE continuous
+ * portrait page, labels stacked at the roll's pitch (label height + gap).
+ *
+ * Not one page per label: a 50 x 25 mm page is wider than it is tall, so Chrome
+ * printed it landscape across the driver's 58 x 210 mm roll paper — the label came
+ * out sideways in a corner, and each page fed ~58 mm, i.e. a blank label after every
+ * printed one. A tall page is always portrait, exactly as receipts print.
+ */
 export async function printLabels(
   items: LabelItem[],
   props: Omit<LabelViewProps, 'item'>,
+  /** Backing between two stickers, in mm — sets the pitch labels are stacked at. */
+  gapMm = DEFAULT_LABEL_GAP_MM,
 ): Promise<void> {
   if (!items.length) return;
-  const { w, h } = props.size;
-  const body = items
-    .map((item) => `<div class="page">${renderToStaticMarkup(<LabelView {...props} item={item} />)}</div>`)
-    .join('');
+  const size = printableLabelSize(props.size);
+  const { w, h } = size;
+  const pitch = h + Math.max(0, gapMm);
+  // The page must stay taller than it is wide or Chrome turns it landscape again, so a
+  // short run (one 50 x 25 label) gets a trailing empty slot — it only feeds a blank label.
+  const slots = Math.max(items.length, Math.ceil((w + 1) / pitch));
+  const body = Array.from({ length: slots }, (_, i) => {
+    const item = items[i];
+    return `<div class="slot">${item ? renderToStaticMarkup(<LabelView {...props} size={size} item={item} />) : ''}</div>`;
+  }).join('');
 
   const iframe = document.createElement('iframe');
   iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
@@ -193,11 +224,10 @@ export async function printLabels(
   doc.open();
   doc.write(`<!doctype html><html><head><meta charset="utf-8"><title>Labels</title>
 <style>
-  @page { size: ${w}mm ${h}mm; margin: 0; }
+  @page { size: ${w}mm ${(slots * pitch).toFixed(2)}mm; margin: 0; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   html, body { margin: 0; padding: 0; }
-  .page { width: ${w}mm; height: ${h}mm; overflow: hidden; page-break-after: always; break-after: page; }
-  .page:last-child { page-break-after: auto; break-after: auto; }
+  .slot { width: ${w}mm; height: ${pitch}mm; overflow: hidden; }
 </style></head><body>${body}</body></html>`);
   doc.close();
 
