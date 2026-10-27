@@ -19,6 +19,7 @@ import {
   type MarkAttendanceRecord,
 } from "@store/services/attendanceApi";
 import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
+import { localDateStr } from "@utils/localDate";
 
 // ─── Theme ───────────────────────────────────────────────────
 
@@ -136,7 +137,7 @@ export default function MarkAttendanceModal({
   open, onClose, zoduId, branchId, markedById, markedByName, onSuccess, onError,
 }: MarkAttendanceModalProps) {
   useBlockWhenReadOnly(open, onClose);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateStr();
   const [date, setDate] = useState(today);
   const [page, setPage] = useState(1);
   const [markAttendance, { isLoading: isSaving }] = useMarkAttendanceMutation();

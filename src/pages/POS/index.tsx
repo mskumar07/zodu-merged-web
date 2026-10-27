@@ -120,6 +120,7 @@ import {
 } from "@store/services/menuApi.ts"; //z-t77 get table kot
 import { transformBackendOrderToOrder } from "@utils/orderTransform.ts"; //z-t77 transform kot data to order
 import OrderBar from "./OrderBar.tsx";
+import { localDateStr } from "@utils/localDate";
 
 /**
 /**
@@ -828,7 +829,7 @@ console.log("sss",item.product.menu_name)
       no_of_items: SelectedItems.length,
       total_amt: KOT.total,
       final_payment: true, // or true if needed
-      order_date: new Date().toISOString().split("T")[0],
+      order_date: localDateStr(),
       order_time: new Date().toLocaleTimeString("en-GB"),
       customer_name: KOT.customerName || "",
       customer_phone: KOT.customerPhone || "", // if you have it in order

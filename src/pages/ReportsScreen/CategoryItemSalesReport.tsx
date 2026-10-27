@@ -31,10 +31,11 @@ import {
   type RestaurantCategoryRow,
   type RestaurantCategoryItem,
 } from "./useReportapi";
+import { localDateStr } from "@utils/localDate";
 
 const today = new Date();
-const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
-const todayStr = today.toISOString().split("T")[0];
+const monthStart = localDateStr(new Date(today.getFullYear(), today.getMonth(), 1));
+const todayStr = localDateStr(today);
 
 const money = (val: number | undefined) =>
   val != null

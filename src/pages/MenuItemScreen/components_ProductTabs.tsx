@@ -27,7 +27,6 @@ const ProductTabs: React.FC<ProductTabsProps> = ({ value, onChange, rightSlot })
         alignItems: "center",
         justifyContent: "space-between",
         gap: 1.5,
-        flexWrap: "wrap",
       }}
     >
       <Tabs
@@ -36,6 +35,7 @@ const ProductTabs: React.FC<ProductTabsProps> = ({ value, onChange, rightSlot })
         textColor="primary"
         indicatorColor="primary"
         sx={{
+          flexShrink: 0,
           minHeight: 28,
           "& .MuiTab-root": {
             textTransform: "none",
@@ -65,7 +65,10 @@ const ProductTabs: React.FC<ProductTabsProps> = ({ value, onChange, rightSlot })
       </Tabs>
 
       {rightSlot && (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap", pb: 1 }}>
+        // One line on the tab row: no wrapping (a wrapping row breaks lines before it shrinks
+        // anything), so when a control appears (e.g. Reset Filters) the search / category
+        // fields shrink to make room instead of pushing buttons onto a second line.
+        <Box sx={{ flex: "1 1 auto", minWidth: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 1.5, flexWrap: "nowrap", pb: 1, "& > *": { flexShrink: 0 }, "& > .MuiFormControl-root, & > .MuiTextField-root": { flexShrink: 1 } }}>
           {rightSlot}
         </Box>
       )}
