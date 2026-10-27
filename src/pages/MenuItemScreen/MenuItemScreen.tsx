@@ -248,7 +248,7 @@ function MenuItemScreen() {
       <TextField
         size="small"
         placeholder="Search..."
-        sx={{ width: 220, bgcolor: '#fff' }}
+        sx={{ width: 220, minWidth: 130, flexShrink: 1, bgcolor: '#fff' }}
         value={searchInput}
         onChange={(e) => handleSearchChange(e.target.value)}
         InputProps={{
@@ -262,7 +262,7 @@ function MenuItemScreen() {
       />
 
       {/* Category multi-select */}
-      <FormControl size="small" sx={{ minWidth: 220 }}>
+      <FormControl size="small" sx={{ width: 220, minWidth: 140, flexShrink: 1 }}>
         <Select
           multiple
           displayEmpty

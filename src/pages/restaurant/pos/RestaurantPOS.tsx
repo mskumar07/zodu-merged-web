@@ -77,6 +77,7 @@ import DiscountModal        from "./components/modals/DiscountModal";
 import CustomerModal, { type CustomerFormData } from "./components/modals/CustomerModal";
 import { useNavigate } from "react-router-dom";
 import { runIfSubscribed } from "@utils/subscriptionGuard";
+import { localDateStr } from "@utils/localDate";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -1005,7 +1006,7 @@ const RestaurantPOS: React.FC = () => {
         discount_value:  order.discountValue,
         discount_amount: t.discount,
         final_payment:   false,
-        order_date:      new Date().toISOString().split("T")[0],
+        order_date:      localDateStr(),
         order_time:      new Date().toLocaleTimeString("en-GB"),
         items:           buildSummaryPayloadItems(runningOrderSummary),
       });
@@ -1045,7 +1046,7 @@ const RestaurantPOS: React.FC = () => {
         discount_value:  order.discountValue,
         payment_type:    "",
         final_payment:   false,
-        order_date:      new Date().toISOString().split("T")[0],
+        order_date:      localDateStr(),
         order_time:      new Date().toLocaleTimeString("en-GB"),
         customer_name:   order.customerName,
         customer_phone:  order.customerPhone,
@@ -1232,7 +1233,7 @@ const RestaurantPOS: React.FC = () => {
           discount_value:  order.discountValue,
           payment_type:    payMethod,
           final_payment:   true,
-          order_date:      new Date().toISOString().split("T")[0],
+          order_date:      localDateStr(),
           order_time:      new Date().toLocaleTimeString("en-GB"),
           customer_name:   order.customerName,
           customer_phone:  order.customerPhone,

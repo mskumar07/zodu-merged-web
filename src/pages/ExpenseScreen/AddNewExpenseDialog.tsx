@@ -45,6 +45,7 @@ import SuccessToast from "@components/Common/SuccessToast";
 import { getTenantContext, getAccessToken } from "@store/tenantContext";
 import { closeFromControlsOnly } from "@utils/dialog";
 import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
+import { localDateStr } from "@utils/localDate";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 
@@ -301,7 +302,7 @@ interface ExpenseForm {
   items: ExpenseItem[];
 }
 
-const todayStr = () => new Date().toISOString().split("T")[0];
+const todayStr = () => localDateStr();
 const INR = (v: number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(v);
 const itemSubtotal  = (i: ExpenseItem) => { const b = i.qty * i.unitPrice; return b + (b * i.taxPct) / 100; };
 const itemTaxAmount = (i: ExpenseItem) => (i.qty * i.unitPrice * i.taxPct) / 100;

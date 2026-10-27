@@ -1139,32 +1139,26 @@ export const ThermalInvoiceTemplate = React.forwardRef(
             {showDiscount && row(discountText, `-${fmt(discountVal)}`)}
             {showTaxDetails && row("Taxable Amount", fmt(taxableAmount))}
           </div>
-        ) : narrow ? (
-          <div style={{ marginBottom: 4 }}>
-            {row("T.Qty", fmtQty(totalQty))}
-            {row("Total", fmt(subtotal))}
-            {showDiscount && row(discountText, fmt(discountVal))}
-            {showTaxDetails ? row("Taxable Amount", fmt(taxableAmount)) : row("Bill Total", fmt(finalBillTotal))}
-          </div>
         ) : (
+          // T.Qty on the left, the totals stacked on the right — on every roll, 48 mm included.
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, fontSize: fs, lineHeight: 1.6, marginBottom: 4 }}>
             <span style={{ fontWeight: 500, whiteSpace: "nowrap" }}>T.Qty: {fmtQty(totalQty)}</span>
 
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                <span>Total :</span>
+                <span>Total</span>
                 <span style={{ fontWeight: 500, whiteSpace: "nowrap" }}>{fmt(subtotal)}</span>
               </div>
 
               {showDiscount && (
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                  <span>{discountText} :</span>
+                  <span>{discountText}</span>
                   <span style={{ fontWeight: 500, whiteSpace: "nowrap" }}>{fmt(discountVal)}</span>
                 </div>
               )}
 
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                <span>{showTaxDetails ? "Taxable Amount :" : "Bill Total :"}</span>
+                <span>{showTaxDetails ? "Taxable Amount" : "Bill Total"}</span>
                 <span style={{ fontWeight: 500, whiteSpace: "nowrap" }}>{fmt(showTaxDetails ? taxableAmount : finalBillTotal)}</span>
               </div>
             </div>

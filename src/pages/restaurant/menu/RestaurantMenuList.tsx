@@ -633,7 +633,16 @@ const RestaurantMenuList: React.FC = () => {
     [categoryPagesData]
   );
 
-  const allItems   = useMemo(() => data?.pages.flatMap((p) => p.data) ?? [], [data]);
+  // Pages can repeat an item (the server's paging overlaps). Rows are keyed by menu_id, and
+  // duplicate keys left old rows stuck on screen after a filter change — keep the first of each.
+  const allItems = useMemo(() => {
+    const seen = new Set<string>();
+    return (data?.pages.flatMap((p) => p.data) ?? []).filter((it) => {
+      if (seen.has(it.menu_id)) return false;
+      seen.add(it.menu_id);
+      return true;
+    });
+  }, [data]);
   const totalCount = data?.pages[0]?.pagination.total_count ?? 0;
 
   const handleTabChange = (_: React.SyntheticEvent, tab: MenuTab) => {
@@ -650,6 +659,12 @@ const RestaurantMenuList: React.FC = () => {
 
   const loadMoreRef  = useRef<HTMLTableRowElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // A new filter is a new list — start it from the top rather than where the old one was scrolled.
+  const filterKey = `${debouncedSearch}|${menuType ?? ""}|${selectedCategoryIds.join(",")}`;
+  useEffect(() => {
+    containerRef.current?.scrollTo({ top: 0 });
+  }, [filterKey]);
 
   const handleObserver = useCallback(
     (entries: IntersectionObserverEntry[]) => {
@@ -977,7 +992,8 @@ const RestaurantMenuList: React.FC = () => {
                   value={selectedCategoryIds}
                   onChange={(e) => {
                     const val = e.target.value;
-                    setSelectedCategoryIds(typeof val === "string" ? [] : (val as number[]));
+                    // "Clear selection" has no value — never let it land in the list as undefined.
+                    setSelectedCategoryIds(typeof val === "string" ? [] : (val as unknown[]).filter((v): v is number => typeof v === "number"));
                   }}
                   displayEmpty
                   renderValue={(selected) => {
@@ -1036,10 +1052,10 @@ const RestaurantMenuList: React.FC = () => {
                   )}
                 </Select>
               </FormControl>
-              {selectedCategoryIds.length > 0 && (
+              {(selectedCategoryIds.length > 0 || search !== "") && (
                 <Tooltip title="Reset Filters">
                   <Box
-                    onClick={() => setSelectedCategoryIds([])}
+                    onClick={() => { setSelectedCategoryIds([]); setSearch(""); }}
                     sx={{
                       display: "flex", alignItems: "center", justifyContent: "center",
                       width: 36, height: 36, borderRadius: 1, cursor: "pointer",

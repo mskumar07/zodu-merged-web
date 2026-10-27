@@ -22,6 +22,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs, { Dayjs } from "dayjs";
 import { useOutstandingBills, useMarkPayment } from "./useCustomerapi";
 import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
+import { localDateStr } from "@utils/localDate";
 
 const RED = "#D32F2F";
 
@@ -98,7 +99,7 @@ export default function MarkPaymentDialog({ customer, onClose, onSuccess }: Prop
     setSelected(new Set(bills.map((b) => b.invoiceNo)));
   }, [bills]);
 
-  const [paymentDate, setPaymentDate]   = useState(() => new Date().toISOString().split("T")[0]);
+  const [paymentDate, setPaymentDate]   = useState(() => localDateStr());
   const [paymentMode, setPaymentMode]   = useState<typeof PAYMENT_MODES[number]>("Cash");
   const [referenceNo, setReferenceNo]   = useState("");
   const [amountInput, setAmountInput]   = useState("");
