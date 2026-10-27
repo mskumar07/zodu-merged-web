@@ -35,6 +35,7 @@ import { API_BASE, fetchSaleDetail, salesQueryKeys, getBranchId, getZoduId, crea
 import { INR } from "./dialogHelpers";
 import { buildInvoiceContext, computeReturnBreakdown } from "./returnCredit";
 import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
+import { localDateStr } from "@utils/localDate";
 
 interface Props {
   sale: Sale;
@@ -46,7 +47,7 @@ interface Props {
 }
 
 const RESTOCK_FEE_PCT = 10;
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => localDateStr();
 const RETURN_REASONS  = [
   { value: "damaged",  label: "Damaged on arrival" },
   { value: "wrong",    label: "Wrong item sent" },

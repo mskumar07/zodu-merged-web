@@ -24,6 +24,7 @@ import {
   type DatewiseBreakdownRow,
   type RestaurantDatewiseSummaryRow,
 } from "./useReportapi";
+import { localDateStr } from "@utils/localDate";
 
 // ── Restaurant datewise sub-component ────────────────────────────────────────
 
@@ -187,10 +188,8 @@ const RestaurantDatewiseReport = ({
 };
 
 const today = new Date();
-const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-  .toISOString()
-  .split("T")[0];
-const todayStr = today.toISOString().split("T")[0];
+const monthStart = localDateStr(new Date(today.getFullYear(), today.getMonth(), 1));
+const todayStr = localDateStr(today);
 
 const fmt = (val: number | undefined) =>
   val != null

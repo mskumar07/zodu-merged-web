@@ -19,6 +19,7 @@ import { useMarkPayment, getZoduId, getBranchId } from "./usePuchaseapi";
 import { closeFromControlsOnly } from "@utils/dialog";
 import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 import type { Notify } from "./PurchaseReturnDialog";
+import { localDateStr } from "@utils/localDate";
 
 interface Props {
   purchase: any;
@@ -85,7 +86,7 @@ const handleSubmit = () => {
       data: {
         zodu_id: getZoduId() ?? "",
         branch_id: getBranchId() ?? "",
-        payment_date: form.payment_date || todayStr(),
+        payment_date: localDateStr(),
         paid_amount: amount,
         transaction_type: form.transaction_type,
         transaction_id: form.transaction_id || null,

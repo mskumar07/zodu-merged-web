@@ -15,6 +15,7 @@ import { toast } from "react-toastify";
 import type { ExpenseRow } from "./useExpenseApi";
 import { closeFromControlsOnly } from "@utils/dialog";
 import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
+import { localDateStr } from "@utils/localDate";
 
 interface Props {
   expense: ExpenseRow | null;
@@ -65,7 +66,7 @@ export default function ExpensePaymentDialog({ expense, onClose, onSuccess }: Pr
         data: {
           zodu_id:          zoduId ?? "",
           branch_id:        branchId ?? "",
-          payment_date:     new Date().toISOString().split("T")[0],
+          payment_date:     localDateStr(),
           paid_amount:      amount,
           transaction_type: form.transaction_type,
           transaction_id:   form.transaction_id || null,

@@ -22,10 +22,11 @@ import {
   PURCHASE_REFUND_MODES, purchaseApiError, useDeletePurchaseReturn, useMarkPurchaseReturnRefund,
 } from "./usePurchaseReturnApi";
 import type { Notify } from "./PurchaseReturnDialog";
+import { localDateStr } from "@utils/localDate";
 
 const num = (v: unknown) => Number(v ?? 0) || 0;
 const INR = (v: number) => `₹${v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => localDateStr();
 const kindLabel = (t: string) => (t === "DEBIT_NOTE" ? "Debit Note" : "Purchase Return");
 
 const paperSx = { borderRadius: "16px", overflow: "hidden", border: "1px solid #E2E8F0", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)" } as const;

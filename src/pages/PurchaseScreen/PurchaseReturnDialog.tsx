@@ -24,6 +24,7 @@ import {
   PURCHASE_REFUND_MODES, purchaseApiError, useCreatePurchaseReturn, usePurchaseReturnDetail,
   useUpdatePurchaseReturn, type PurchaseReturnDetail,
 } from "./usePurchaseReturnApi";
+import { localDateStr } from "@utils/localDate";
 
 export type Notify = (message: string, severity?: "success" | "error") => void;
 
@@ -61,7 +62,7 @@ const INR = (v: number) => v.toLocaleString("en-IN", { minimumFractionDigits: 2,
 const num = (v: unknown) => Number(v ?? 0) || 0;
 const fmtDate = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => localDateStr();
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
 const GRID = "40px minmax(220px, 1fr) 92px 104px 92px 148px 108px 118px";

@@ -98,6 +98,7 @@ import CheckCircleIcon        from "@mui/icons-material/CheckCircle";
 import CurrencyRupeeIcon      from "@mui/icons-material/CurrencyRupee";
 import { runIfSubscribed } from "@utils/subscriptionGuard";
 import { useModulePermission } from "@hooks/useModulePermission";
+import { localDateStr } from "@utils/localDate";
 
 const INR = (v: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(v);
@@ -141,7 +142,7 @@ function Amount({ value }: { value: string }) {
 // Round-half-up to 2 decimals — matches the value the user sees per row, so totals summed
 // from these match the sum of the displayed rows instead of drifting from unrounded sums.
 const round2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
-const todayStr = () => new Date().toISOString().split("T")[0];
+const todayStr = () => localDateStr();
 
 // Format YYYY-MM-DD -> "29-JUL-2026"
 const formatDateDisplay = (dateString: string | undefined): string => {
@@ -550,6 +551,8 @@ function RetailPOSInner() {
   const showVehicleNo = posSettings.vehicle_no_enabled !== false && posMode !== "QUOTATION";
   const showItemDescription = posSettings.item_description_enabled !== false;
   const [invoiceDate,    setInvoiceDate]    = useState(todayStr());
+  // True once the cashier picks a date by hand — the midnight rollover then leaves it be.
+  const invoiceDatePickedRef = useRef(false);
   const [dueDate,        setDueDate]        = useState("");
   // Buyer's purchase-order reference. B2B customers quote their own PO on the
   // invoice they pay against, so both are free-form and always optional.
@@ -986,6 +989,19 @@ useLayoutEffect(() => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoiceSettings, saleId]);
 
+  // The POS can stay open past midnight: once the day turns, move a fresh order still on
+  // the old default date to today. A loaded sale or a date the cashier picked is left alone.
+  useEffect(() => {
+    if (saleId) return;
+    const timer = setInterval(() => {
+      const today = localDateStr();
+      if (invoiceDatePickedRef.current || invoiceDate >= today) return;
+      setInvoiceDate(today);
+      if (invoiceSettings) setDueDate(addDaysToDate(today, invoiceSettings.invoice_due_days || 0));
+    }, 60_000);
+    return () => clearInterval(timer);
+  }, [saleId, invoiceDate, invoiceSettings]);
+
   // A sale restored from a saleId (or one open while the picker was edited in settings) can
   // hold a payment type that's since been disabled — it has no chip to render and no matching
   // <MenuItem>, which leaves the hidden Select blank and the keyboard nav with nothing to land
@@ -1219,6 +1235,7 @@ useLayoutEffect(() => {
     setInvoiceNo(""); setInvoiceNoTouched(false); setInvoiceNoEditing(false); setLoadedSaleNo(""); setLoadedSaleMode(null);
     setReceivedAmount(""); setCodeInput(""); setActiveRowIdx(-1); setOrderNote("");
     const freshInvoiceDate = todayStr();
+    invoiceDatePickedRef.current = false;
     setInvoiceDate(freshInvoiceDate);
     setDueDate(invoiceSettings ? addDaysToDate(freshInvoiceDate, invoiceSettings.invoice_due_days || 0) : "");
     if (invoiceSettings) {
@@ -2757,7 +2774,7 @@ console.log("test",serverHolds)
                   <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: modeTheme.accent, whiteSpace: "nowrap" }}>
                     {invoiceDate ? formatDateDisplay(invoiceDate) : "Select date"}
                   </Typography>
-                  <input ref={inputRef} type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} style={{ position: "absolute", opacity: 0, pointerEvents: "none" }} />
+                  <input ref={inputRef} type="date" value={invoiceDate} onChange={(e) => { invoiceDatePickedRef.current = true; setInvoiceDate(e.target.value); }} style={{ position: "absolute", opacity: 0, pointerEvents: "none" }} />
                 </Box>
               </Box>
 

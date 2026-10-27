@@ -16,6 +16,7 @@ import {
 } from "./useSaleshistory";
 import { INR } from "./dialogHelpers";
 import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
+import { localDateStr } from "@utils/localDate";
 
 interface Props {
   saleUuid: string;
@@ -25,7 +26,7 @@ interface Props {
   notify?:  Notify;
 }
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => localDateStr();
 
 const inputSx = {
   "& .MuiOutlinedInput-root": {
