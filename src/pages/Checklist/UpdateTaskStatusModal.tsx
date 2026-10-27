@@ -20,7 +20,6 @@ import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutl
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 // import ExpandMoreIcon from "@mui/icons-material/ExpandMore"; // ITEM-WISE (disabled)
 // import ExpandLessIcon from "@mui/icons-material/ExpandLess"; // ITEM-WISE (disabled)
-import AddIcon from "@mui/icons-material/Add";
 import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
 import TableChartOutlinedIcon from "@mui/icons-material/TableChartOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
@@ -86,6 +85,10 @@ export interface TaskStatusDetail {
   taskTitle: string;
   taskId: string;
   checklistDbId: string;
+  /** Set when updating one specific occurrence of the task (history / date filter). */
+  instanceId?: string;
+  /** Formatted date of that occurrence, shown so it is clear which day is being updated. */
+  occurrenceDate?: string;
   dueDate: string;
   assignedBy: string;
   assignedById?: string;
@@ -607,7 +610,7 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
     try {
       await updateTaskStatus({
         id: task.checklistDbId,
-        body: { zodu_id: zoduId, branch_id: branchId, status: taskStatus },
+        body: { zodu_id: zoduId, branch_id: branchId, status: taskStatus, ...(task.instanceId ? { instance_id: task.instanceId } : {}) },
       }).unwrap();
       onSuccess?.();
     } catch (err: any) {
@@ -696,6 +699,11 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
                 </Box>
               </Box>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                {task.occurrenceDate && (
+                  <Box><FieldLabel>Occurrence</FieldLabel>
+                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#E11D48" }}>{task.occurrenceDate}</Typography>
+                  </Box>
+                )}
                 <Box><FieldLabel>Due Date</FieldLabel>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                     <CalendarMonthOutlinedIcon sx={{ fontSize: 14, color: "#9CA3AF" }} />
@@ -844,20 +852,6 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
                   </Typography>
                 </Box>
               </Box>
-              <Button
-                component="label"
-                variant="outlined"
-                size="small"
-                startIcon={attachUploading ? <CircularProgress size={13} sx={{ color: "#E11D48" }} /> : <AddIcon sx={{ fontSize: 15 }} />}
-                disabled={attachUploading || !canEdit}
-                sx={{ fontSize: 12, borderColor: "#E11D48", color: "#E11D48", borderRadius: 1.5, px: 2, py: 0.6, whiteSpace: "nowrap",
-                  "&:hover": { bgcolor: "#FFF1F2" } }}
-              >
-                Upload Files
-                <input type="file" hidden multiple disabled={attachUploading || !canEdit}
-                  onChange={(e) => { handleAttachmentPick(e.target.files); e.target.value = ""; }}
-                />
-              </Button>
             </Box>
 
             <Box sx={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 2.5 }}>
@@ -962,12 +956,7 @@ export default function UpdateTaskStatusModal({ open, onClose, task, loggedEmplo
         <Divider />
 
         {/* ── Footer ── */}
-        <DialogActions sx={{ px: 3, py: 2, gap: 1.5, justifyContent: "space-between" }}>
-          <ReadOnlyClickGuard>
-            <Button variant="outlined" disabled={!canEdit} sx={{ borderColor: "#E5E7EB", color: "#374151", px: 3 }}>
-              Save as Draft
-            </Button>
-          </ReadOnlyClickGuard>
+        <DialogActions sx={{ px: 3, py: 2, gap: 1.5, justifyContent: "flex-end" }}>
           <Box sx={{ display: "flex", gap: 1.5 }}>
             <Button variant="outlined" onClick={onClose} sx={{ borderColor: "#E5E7EB", color: "#374151", px: 3 }}>
               Cancel

@@ -21,6 +21,7 @@ import TableRestaurantIcon from "@mui/icons-material/TableRestaurant";
 import ShoppingBagIcon from "@mui/icons-material/ShoppingBag";
 import TwoWheelerIcon from "@mui/icons-material/TwoWheeler";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import SoupKitchenOutlinedIcon from "@mui/icons-material/SoupKitchenOutlined";
 import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 import Lottie from "lottie-react";
@@ -28,6 +29,7 @@ import loadingAnimation from "@assets/loading.json";
 import { useTenantContext } from "@store/tenantContext";
 import {
   useKdsData,
+  KOT_ITEM_COMPLETED,
   type KdsOrderCard,
   type KdsKotTicket,
   type KdsItemSummaryEntry,
@@ -72,7 +74,7 @@ function buildItemOrderBreakdown(cards: KdsOrderCard[], itemName: string): ItemO
     let qty = 0;
     for (const ticket of card.kotTickets) {
       for (const item of ticket.items) {
-        if (item.item_name === itemName) qty += item.qty;
+        if (item.item_name === itemName && item.status !== KOT_ITEM_COMPLETED) qty += item.qty;
       }
     }
     if (qty > 0) {
@@ -297,6 +299,9 @@ function SummaryPanel({ itemSummary, open, onToggle, onItemClick }: SummaryPanel
 interface ItemOrdersModalProps {
   itemName: string | null;
   rows: ItemOrderBreakdownRow[];
+  /** In-flight "item::order" keys, so a row's button can show busy and not double-fire. */
+  pendingItemKeys: Set<string>;
+  onMarkReady: (apiOrderId: string, itemName: string) => void;
   onClose: () => void;
 }
 
@@ -304,16 +309,18 @@ interface ItemOrdersModalProps {
  * "Where is this item, and how much of it" for one item off the summary
  * rail — one row per order currently holding it, newest first, with the same
  * order-type color language as the board's own cards so a glance here maps
- * straight back to a card out on the floor.
+ * straight back to a card out on the floor. "Mark Ready" flags the item
+ * completed on that order's card (struck through there) and drops the row
+ * from here; the card itself stays until "Order Ready".
  */
-function ItemOrdersModal({ itemName, rows, onClose }: ItemOrdersModalProps) {
+function ItemOrdersModal({ itemName, rows, pendingItemKeys, onMarkReady, onClose }: ItemOrdersModalProps) {
   const totalQty = useMemo(() => rows.reduce((sum, r) => sum + r.qty, 0), [rows]);
 
   return (
     <Dialog
       open={itemName !== null}
       onClose={onClose}
-      maxWidth="xs"
+      maxWidth="sm"
       fullWidth
       PaperProps={{ sx: { borderRadius: "14px" } }}
     >
@@ -350,6 +357,7 @@ function ItemOrdersModal({ itemName, rows, onClose }: ItemOrdersModalProps) {
             // order ref no longer rides along. Takeaway/Delivery already show their
             // order number in the title above.
             const subtitle = null;
+            const isBusy = itemName !== null && pendingItemKeys.has(`${row.apiOrderId}::${itemName}`);
             return (
               <Stack
                 key={row.apiOrderId}
@@ -410,6 +418,25 @@ function ItemOrdersModal({ itemName, rows, onClose }: ItemOrdersModalProps) {
                   }}
                 >
                   {row.qty} x
+                </Box>
+
+                <Box
+                  component="button"
+                  type="button"
+                  disabled={isBusy}
+                  onClick={() => itemName && onMarkReady(row.apiOrderId, itemName)}
+                  sx={{
+                    flexShrink: 0, display: "flex", alignItems: "center", gap: 0.5,
+                    height: 30, px: 1.25, borderRadius: 1.5, cursor: "pointer",
+                    border: "1px solid #2E7D32", bgcolor: "#fff", color: "#2E7D32",
+                    fontFamily: "inherit", fontSize: 12.5, fontWeight: 800,
+                    transition: "all 0.15s",
+                    "&:hover": { bgcolor: "#2E7D32", color: "#fff" },
+                    "&:disabled": { opacity: 0.6, cursor: "default", pointerEvents: "none" },
+                  }}
+                >
+                  {isBusy ? <CircularProgress size={14} color="inherit" /> : <CheckCircleOutlineIcon sx={{ fontSize: 16 }} />}
+                  Mark Ready
                 </Box>
               </Stack>
             );
@@ -485,7 +512,9 @@ function KotBlock({ ticket, heading }: KotBlockProps) {
       </Stack>
 
       <Box sx={{ px: 0.5 }}>
-        {ticket.items.map((item, idx) => (
+        {ticket.items.map((item, idx) => {
+          const done = item.status === KOT_ITEM_COMPLETED;
+          return (
           <Stack
             key={`${item.item_id}-${idx}`}
             direction="row"
@@ -494,6 +523,7 @@ function KotBlock({ ticket, heading }: KotBlockProps) {
             sx={{
               py: 1,
               borderBottom: idx < ticket.items.length - 1 ? "1px solid #EEF1F4" : "none",
+              opacity: done ? 0.55 : 1,
             }}
           >
             <Box
@@ -503,8 +533,8 @@ function KotBlock({ ticket, heading }: KotBlockProps) {
                 height: 30,
                 px: 0.75,
                 borderRadius: 1,
-                bgcolor: "#FDECEA",
-                color: "#D32F2F",
+                bgcolor: done ? "#E8F5E9" : "#FDECEA",
+                color: done ? "#2E7D32" : "#D32F2F",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -514,11 +544,18 @@ function KotBlock({ ticket, heading }: KotBlockProps) {
             >
               {item.qty} ×
             </Box>
-            <Typography sx={{ fontSize: 16, fontWeight: 500, color: "#1A0004", lineHeight: 1.35 }}>
+            <Typography
+              sx={{
+                fontSize: 16, fontWeight: 500, color: "#1A0004", lineHeight: 1.35, flex: 1,
+                textDecoration: done ? "line-through" : "none",
+              }}
+            >
               {item.item_name}
             </Typography>
+            {done && <CheckCircleIcon sx={{ fontSize: 20, color: "#2E7D32", flexShrink: 0 }} />}
           </Stack>
-        ))}
+          );
+        })}
       </Box>
     </Box>
   );
@@ -656,7 +693,10 @@ function MasonryBoard({ children }: { children: React.ReactNode }) {
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const items = React.Children.toArray(children);
   const [columnCount, setColumnCount] = useState(1);
-  const [columns, setColumns] = useState<React.ReactNode[][]>([]);
+  // Which column each card sits in, by its React key. Only the placement is stored — the cards
+  // themselves are always rendered from the current `children`, so a card whose content changes
+  // (e.g. an item struck through) updates in place instead of showing a stale snapshot.
+  const [placement, setPlacement] = useState<Map<React.Key, number>>(new Map());
 
   const recompute = useCallback(() => {
     const container = containerRef.current;
@@ -667,13 +707,13 @@ function MasonryBoard({ children }: { children: React.ReactNode }) {
     setColumnCount(count);
 
     const heights = new Array(count).fill(0);
-    const buckets: React.ReactNode[][] = Array.from({ length: count }, () => []);
+    const next = new Map<React.Key, number>();
     items.forEach((item, i) => {
       const shortest = heights.indexOf(Math.min(...heights));
-      buckets[shortest].push(item);
+      if (React.isValidElement(item) && item.key != null) next.set(item.key, shortest);
       heights[shortest] += (itemRefs.current[i]?.offsetHeight ?? 0) + MASONRY_GAP;
     });
-    setColumns(buckets);
+    setPlacement(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- children identity changes every render; length + a resize/content trigger below is what actually matters
   }, [items.length]);
 
@@ -706,13 +746,11 @@ function MasonryBoard({ children }: { children: React.ReactNode }) {
       </Box>
 
       <Box sx={{ display: "flex", gap: `${MASONRY_GAP}px`, alignItems: "flex-start" }}>
-        {columns.map((col, i) => (
-          <Box key={i} sx={{ display: "flex", flexDirection: "column", gap: `${MASONRY_GAP}px`, flex: 1, minWidth: 0 }}>
-            {col}
+        {Array.from({ length: columnCount }).map((_, col) => (
+          <Box key={col} sx={{ display: "flex", flexDirection: "column", gap: `${MASONRY_GAP}px`, flex: 1, minWidth: 0 }}>
+            {items.filter((item) => React.isValidElement(item) && (placement.get(item.key as React.Key) ?? 0) === col)}
           </Box>
         ))}
-        {columns.length === 0 &&
-          Array.from({ length: columnCount }).map((_, i) => <Box key={i} sx={{ flex: 1 }} />)}
       </Box>
     </Box>
   );
@@ -729,6 +767,8 @@ export default function KDSScreen() {
     isFetching,
     pendingOrderIds,
     markOrderReady,
+    pendingItemKeys,
+    markItemReady,
     refreshNow,
   } = useKdsData(zoduId ?? "", branchId ?? "");
 
@@ -874,6 +914,8 @@ export default function KDSScreen() {
       <ItemOrdersModal
         itemName={selectedItem}
         rows={selectedItemRows}
+        pendingItemKeys={pendingItemKeys}
+        onMarkReady={markItemReady}
         onClose={() => setSelectedItem(null)}
       />
     </Box>

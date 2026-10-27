@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAppSelector } from "@store/store";
-import { RoleAccess } from "@store/slices/userSlice";
+import { BusinessType, RoleAccess } from "@store/slices/userSlice";
 
 // Maps a route's path prefix to the `module_name` returned in the login
 // response's `role_access` list. Only routes modelled as permission modules
@@ -24,11 +24,22 @@ const PATH_MODULE_MAP: { prefix: string; module: string }[] = [
   { prefix: "/settings", module: "Settings" },
 ];
 
+// Screens that only exist for retail businesses; a restaurant account typing the URL is sent home.
+const RETAIL_ONLY_PREFIXES = ["/accounting", "/reports/gst"];
+
 type Props = { children: ReactNode };
 
 export default function RouteAccessGuard({ children }: Props) {
   const location = useLocation();
   const roleAccess = useAppSelector(RoleAccess);
+  const businessType = useAppSelector(BusinessType);
+
+  const isRetailOnly = RETAIL_ONLY_PREFIXES.some(
+    (prefix) => location.pathname === prefix || location.pathname.startsWith(prefix + "/"),
+  );
+  if (isRetailOnly && businessType?.toLowerCase() === "restaurant") {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const match = PATH_MODULE_MAP.find((entry) =>
     location.pathname === entry.prefix || location.pathname.startsWith(entry.prefix + "/")

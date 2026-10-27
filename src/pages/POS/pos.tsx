@@ -1694,12 +1694,10 @@ console.log("test",serverHolds)
 
   const hasDiscount   = parseFloat(discountPct) > 0 || parseFloat(discount) > 0;
   const hasNote       = orderNote.trim().length > 0;
-  const discountBadge = (() => {
-    const parts: string[] = [];
-    if (parseFloat(discountPct) > 0) parts.push(`${discountPct}%`);
-    if (parseFloat(discount)    > 0) parts.push(`₹${discount}`);
-    return parts.join(" + ") || null;
-  })();
+  // Only a percentage discount is worth naming next to the label; a flat one
+  // is already fully described by the amount on the right.
+  const discountPctLabel = parseFloat(discountPct) > 0 ? `${discountPct}%` : null;
+  const discountTotalAmt = orderDiscountAmt + itemDiscountTotal;
 
   const totalGstRow = items.reduce((s, i) => s + round2((i.qty * i.unitPrice * i.gstPct) / 100), 0);
   // Built from unitPrice + rounded item GST (same basis as the sidebar's Sub Total/Tax), not sellPrice —
@@ -1767,7 +1765,7 @@ console.log("test",serverHolds)
     const itemDescriptions = savedOrderSnapshot?.descriptions ?? {};
     if (!order) return null;
 
-    const customerName = saleCustomer?.name?.trim() || "Walk-In";
+    const customerName = saleCustomer?.name?.trim() || "-";
     const customerAddress = saleCustomer?.address?.trim() || "-";
     const customerMobile = saleCustomer?.mobile?.trim() ? `+91 ${saleCustomer.mobile}` : "-";
     const customerGstin = saleCustomer?.gstin?.trim() || "-";
@@ -1888,7 +1886,7 @@ console.log("test",serverHolds)
       po_date: showPurchaseOrder && poDate ? formatDateDisplay(poDate) : "",
       date: invoiceDate ? formatDateDisplay(invoiceDate) : "",
       due_date: hasBalanceDue && dueDate ? formatDateDisplay(dueDate) : null,
-      customer_name: customer.name.trim() || "Walk-In",
+      customer_name: customer.name.trim() || "-",
       customer_address: customer.address.trim() || "-",
       customer_mobile: customer.mobile.trim() ? `+91 ${customer.mobile.trim()}` : "-",
       customer_gstin: customer.gstin.trim() || "-",
@@ -2920,12 +2918,21 @@ console.log("test",serverHolds)
               </Box>
 
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.6, gap: 1 }}>
-                <Typography sx={{ fontSize: 13.5, color: "#6B7280", whiteSpace: "nowrap" }}>Discount {gstMode === "before" && "(Before GST)"}</Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 0 }}>
+                  <Typography sx={{ fontSize: 13.5, color: "#6B7280", whiteSpace: "nowrap" }}>
+                    Discount{gstMode === "before" && " (Before GST)"}
+                  </Typography>
+                  {hasDiscount && discountPctLabel && (
+                    <Box component="span" sx={{ px: 0.75, py: 0.1, borderRadius: 999, bgcolor: "#FEE2E2", color: "#C8102E", fontSize: 11, fontWeight: 800, lineHeight: 1.5 }}>
+                      {discountPctLabel}
+                    </Box>
+                  )}
+                </Box>
                 {hasDiscount ? (
                   <Box onClick={() => setDiscountModalOpen(true)}
-                    sx={{ display: "flex", alignItems: "center", gap: 0.6, pl: 1, pr: 0.5, py: 0.3, borderRadius: 999, bgcolor: "#FEE2E2", cursor: "pointer", "&:hover": { bgcolor: "#FECACA" }, transition: "background 0.15s" }}>
+                    sx={{ display: "flex", alignItems: "center", gap: 0.4, pl: 1, pr: 0.5, py: 0.3, borderRadius: 999, bgcolor: "#FEE2E2", cursor: "pointer", "&:hover": { bgcolor: "#FECACA" }, transition: "background 0.15s" }}>
                     <Typography sx={{ fontSize: 12.5, fontWeight: 800, color: "#C8102E", whiteSpace: "nowrap" }}>
-                      {discountBadge} · - ₹{(orderDiscountAmt + itemDiscountTotal).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      - ₹{discountTotalAmt.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </Typography>
                     <IconButton size="small"
                       onClick={(e) => { e.stopPropagation(); setDiscountPct("0"); setDiscount("0"); }}
@@ -2992,93 +2999,88 @@ console.log("test",serverHolds)
                       </Typography>
                     </Box>
                   )}
+
+                  {/* Status and due date sit right under Balance Due — the date
+                      only exists when there is a balance, and it is that
+                      balance the status describes. */}
+                  <Box sx={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 1.5, mt: 1.75, pt: 1.75, borderTop: "1px dashed #E5E7EB" }}>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography sx={{ fontSize: 11.5, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.05em", mb: 0.75, whiteSpace: "nowrap" }}>PAYMENT STATUS</Typography>
+                      {/* Same height as the date box, so the two values line up. */}
+                      <Typography sx={{ height: 33, display: "flex", alignItems: "center", fontSize: 14, fontWeight: 800, color: status.color, letterSpacing: "0.03em" }}>{status.label}</Typography>
+                    </Box>
+
+                    {hasBalanceDue && (
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography sx={{ fontSize: 11.5, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.05em", mb: 0.75, whiteSpace: "nowrap" }}>DUE DATE</Typography>
+                        <Box
+                          onClick={() => { setZone("FOOTER"); handleOpenDueDatePicker(); }}
+                          sx={{
+                            position: "relative",
+                            display: "flex", alignItems: "center", gap: 0.6,
+                            minWidth: 140, height: 33,
+                            px: 1.25,
+                            borderRadius: 1.5,
+                            border: "1px solid #E5E7EB",
+                            bgcolor: "#fff",
+                            cursor: "pointer",
+                            "&:hover": { borderColor: "#C8102E" },
+                          }}
+                        >
+                          <CalendarTodayIcon sx={{ fontSize: 14, color: "#6B7280" }} />
+                          <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "#111827" }}>
+                            {dueDate ? formatDateDisplay(dueDate) : "Select date"}
+                          </Typography>
+                          <input
+                            ref={dueDateInputRef}
+                            type="date"
+                            value={dueDate}
+                            onChange={(e) => setDueDate(e.target.value)}
+                            min={invoiceDate}
+                            style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
+                          />
+                        </Box>
+                      </Box>
+                    )}
+                  </Box>
+
+                  {/* Payment type + reference, each under its own dashed divider
+                      so the card reads as one continuous settlement flow. */}
+                  <Box sx={{ mt: 1.75, pt: 1.75, borderTop: "1px dashed #E5E7EB" }}>
+                    <Typography sx={{ fontSize: 11.5, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.05em", mb: 0.75 }}>PAYMENT TYPE</Typography>
+                    <Select value={paymentType} onChange={e => setPaymentType(e.target.value as PaymentType)} onFocus={() => { setZone("FOOTER"); setFooterFocus("PAYMENT_TYPE"); }}
+                      size="small" fullWidth
+                      renderValue={(val) => {
+                        const Icon = PAYMENT_TYPE_ICON[val as PaymentType];
+                        return (
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+                            <Icon sx={{ fontSize: 18, color: modeAccent }} />
+                            <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: "#111827" }}>{val}</Typography>
+                          </Box>
+                        );
+                      }}
+                      sx={{ borderRadius: 1.5, "& .MuiSelect-select": { py: "8px" }, "& fieldset": { borderColor: isFooterActive("PAYMENT_TYPE") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("PAYMENT_TYPE") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" } }}>
+                      {enabledPaymentTypes.map(val => {
+                        const Icon = PAYMENT_TYPE_ICON[val];
+                        return (
+                          <MenuItem key={val} value={val} sx={{ gap: 1, fontSize: 13.5, fontWeight: 600 }}>
+                            <Icon sx={{ fontSize: 18, color: "#6B7280" }} />
+                            {val}
+                          </MenuItem>
+                        );
+                      })}
+                    </Select>
+                  </Box>
+
+                  <Box sx={{ mt: 1.75, pt: 1.75, borderTop: "1px dashed #E5E7EB" }}>
+                    <Typography sx={{ fontSize: 11.5, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.05em", mb: 0.75 }}>REFERENCE NO.</Typography>
+                    <TextField inputRef={refNoRef} value={referenceNo} onChange={e => setReferenceNo(e.target.value)} onFocus={() => { setZone("FOOTER"); setFooterFocus("REF_NO"); }} placeholder="Transaction ID" size="small" fullWidth
+                      inputProps={{ style: { padding: "8px 10px", fontSize: 13.5 } }}
+                      sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.5, "& fieldset": { borderColor: isFooterActive("REF_NO") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("REF_NO") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" } } }} />
+                  </Box>
                 </>
               )}
             </Paper>
-
-            {/* PAYMENT DETAILS card */}
-            {!isNonSaleDoc && (
-              <Paper elevation={0} sx={{ border: "1px solid #E5E7EB", borderRadius: 2.5, p: 2.25, bgcolor: "#fff", flex: 1 }}>
-                <Typography sx={{ fontSize: 13, fontWeight: 800, letterSpacing: "0.06em", color: "#374151", mb: 2 }}>PAYMENT DETAILS</Typography>
-
-                <Box sx={{ mb: 2 }}>
-                  <Typography sx={{ fontSize: 11.5, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.06em", mb: 1.5 }}>PAYMENT TYPE</Typography>
-                  <Select value={paymentType} onChange={e => setPaymentType(e.target.value as PaymentType)} onFocus={() => { setZone("FOOTER"); setFooterFocus("PAYMENT_TYPE"); }}
-                    size="small" fullWidth
-                    renderValue={(val) => {
-                      const Icon = PAYMENT_TYPE_ICON[val as PaymentType];
-                      return (
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
-                          <Icon sx={{ fontSize: 18, color: modeAccent }} />
-                          <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: "#111827" }}>{val}</Typography>
-                        </Box>
-                      );
-                    }}
-                    sx={{ borderRadius: 1.5, "& .MuiSelect-select": { py: "8px" }, "& fieldset": { borderColor: isFooterActive("PAYMENT_TYPE") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("PAYMENT_TYPE") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" } }}>
-                    {enabledPaymentTypes.map(val => {
-                      const Icon = PAYMENT_TYPE_ICON[val];
-                      return (
-                        <MenuItem key={val} value={val} sx={{ gap: 1, fontSize: 13.5, fontWeight: 600 }}>
-                          <Icon sx={{ fontSize: 18, color: "#6B7280" }} />
-                          {val}
-                        </MenuItem>
-                      );
-                    })}
-                  </Select>
-                </Box>
-
-                <Box sx={{ mb: 2 }}>
-                  <Typography sx={{ fontSize: 11.5, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.06em", mb: 1.5 }}>REFERENCE NO.</Typography>
-                  <TextField inputRef={refNoRef} value={referenceNo} onChange={e => setReferenceNo(e.target.value)} onFocus={() => { setZone("FOOTER"); setFooterFocus("REF_NO"); }} placeholder="Transaction ID" size="small" fullWidth
-                    inputProps={{ style: { padding: "8px 10px", fontSize: 13.5 } }}
-                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.5, "& fieldset": { borderColor: isFooterActive("REF_NO") ? "#C8102E" : "#E5E7EB", borderWidth: isFooterActive("REF_NO") ? 2 : 1 }, "&:hover fieldset": { borderColor: "#C8102E" } } }} />
-                </Box>
-
-                {/* Status and due date share one row — the date only exists
-                    when there is a balance, and it is that balance the status
-                    describes, so they read best side by side. */}
-                <Box sx={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 1.5, mb: 0.5 }}>
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography sx={{ fontSize: 11.5, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.05em", mb: 0.75, whiteSpace: "nowrap" }}>PAYMENT STATUS</Typography>
-                    {/* Same height as the date box, so the two values line up. */}
-                    <Typography sx={{ height: 33, display: "flex", alignItems: "center", fontSize: 14, fontWeight: 800, color: status.color, letterSpacing: "0.03em" }}>{status.label}</Typography>
-                  </Box>
-
-                  {hasBalanceDue && (
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography sx={{ fontSize: 11.5, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.05em", mb: 0.75, whiteSpace: "nowrap" }}>DUE DATE</Typography>
-                      <Box
-                        onClick={() => { setZone("FOOTER"); handleOpenDueDatePicker(); }}
-                        sx={{
-                          position: "relative",
-                          display: "flex", alignItems: "center", gap: 0.6,
-                          minWidth: 140, height: 33,
-                          px: 1.25,
-                          borderRadius: 1.5,
-                          border: "1px solid #E5E7EB",
-                          bgcolor: "#fff",
-                          cursor: "pointer",
-                          "&:hover": { borderColor: "#C8102E" },
-                        }}
-                      >
-                        <CalendarTodayIcon sx={{ fontSize: 14, color: "#6B7280" }} />
-                        <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "#111827" }}>
-                          {dueDate ? formatDateDisplay(dueDate) : "Select date"}
-                        </Typography>
-                        <input
-                          ref={dueDateInputRef}
-                          type="date"
-                          value={dueDate}
-                          onChange={(e) => setDueDate(e.target.value)}
-                          min={invoiceDate}
-                          style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
-                        />
-                      </Box>
-                    </Box>
-                  )}
-                </Box>
-              </Paper>
-            )}
 
           </Box>
 
@@ -3178,7 +3180,7 @@ console.log("test",serverHolds)
                     <Typography sx={{ fontSize: 12, color: "#374151" }}>
                       {order.time.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })} • {order.time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </Typography>
-                    <Typography sx={{ fontSize: 12, fontWeight: 500 }}>{order.customer?.name || "Walk-in"}</Typography>
+                    <Typography sx={{ fontSize: 12, fontWeight: 500 }}>{order.customer?.name || "—"}</Typography>
                     <Typography sx={{ fontSize: 12, color: "#6B7280" }}>{order.items.length} items</Typography>
                     <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>₹{totalAmount.toLocaleString("en-IN")}</Typography>
                     <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 1 }}>
@@ -3382,7 +3384,7 @@ console.log("test",serverHolds)
           </DialogActions>
         </Dialog>
 
-        <CustomerLedgerDialog open={customerLedgerOpen} onClose={() => setCustomerLedgerOpen(false)} custUuid={customer.id} customerName={customer.name || "Walk-in"} />
+        <CustomerLedgerDialog open={customerLedgerOpen} onClose={() => setCustomerLedgerOpen(false)} custUuid={customer.id} customerName={customer.name || "—"} />
         <AddNewCustomerDialog
           open={addCustomerOpen}
           onClose={() => setAddCustomerOpen(false)}

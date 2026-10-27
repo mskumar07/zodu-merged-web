@@ -1,7 +1,7 @@
+import PaymentModeSelect from "../../components/Common/PaymentModeSelect";
 import { useState } from "react";
 import {
-  Box, Typography, IconButton, Button, TextField, Select,
-  MenuItem, InputAdornment, CircularProgress,
+  Box, Typography, IconButton, Button, TextField, InputAdornment, CircularProgress,
   Dialog, DialogContent,
 } from "@mui/material";
 import {
@@ -25,7 +25,7 @@ interface Props {
 
 function FieldLabel({ children }: { children: string }) {
   return (
-    <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#334155", mb: 0.75 }}>
+    <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#334155", mb: 0.5 }}>
       {children}
     </Typography>
   );
@@ -64,8 +64,8 @@ export default function ExpensePaymentDialog({ expense, onClose, onSuccess }: Pr
       {
         expense_id: expense!.expense_id,
         data: {
-          zodu_id:          zoduId,
-          branch_id:        branchId,
+          zodu_id:          zoduId ?? "",
+          branch_id:        branchId ?? "",
           payment_date:     localDateStr(),
           paid_amount:      amount,
           transaction_type: form.transaction_type,
@@ -86,7 +86,7 @@ export default function ExpensePaymentDialog({ expense, onClose, onSuccess }: Pr
       PaperProps={{ sx: { borderRadius: "16px", overflow: "hidden", border: "1px solid #E2E8F0", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)", display: "flex", flexDirection: "column" } }}>
 
       {/* Header */}
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 3, py: 2.5, borderBottom: "1px solid #F1F5F9", bgcolor: "#fff" }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 3, py: 1.5, borderBottom: "1px solid #F1F5F9", bgcolor: "#fff" }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
           <Box sx={{ p: 1, borderRadius: "8px", bgcolor: "rgba(210,4,45,0.1)", display: "flex" }}>
             <PaymentsIcon sx={{ color: "#D2042D", fontSize: 22 }} />
@@ -99,11 +99,11 @@ export default function ExpensePaymentDialog({ expense, onClose, onSuccess }: Pr
       </Box>
 
       {/* Body */}
-      <DialogContent sx={{ px: 3, py: 3, bgcolor: "#fff" }}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+      <DialogContent sx={{ px: 3, py: 2, bgcolor: "#fff" }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
 
           {/* Summary */}
-          <Box sx={{ p: 2, bgcolor: "#F8FAFC", borderRadius: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Box sx={{ p: 1.5, bgcolor: "#F8FAFC", borderRadius: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Box>
               <Typography sx={{ fontSize: "0.65rem", fontWeight: 600, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", mb: 0.4 }}>Expense</Typography>
               <Typography sx={{ fontSize: "0.875rem", fontWeight: 700, color: "#0F172A" }}>{expense.expense_id}</Typography>
@@ -131,14 +131,13 @@ export default function ExpensePaymentDialog({ expense, onClose, onSuccess }: Pr
           </Box>
 
           {/* Payment Type + Reference */}
-          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5 }}>
             <Box>
               <FieldLabel>Payment Type</FieldLabel>
-              <Select size="small" fullWidth value={form.transaction_type}
+              <PaymentModeSelect options={PAYMENT_TYPES} size="small" fullWidth value={form.transaction_type}
                 onChange={e => setForm(f => ({ ...f, transaction_type: e.target.value }))}
-                sx={{ borderRadius: "6px", fontSize: "0.875rem", bgcolor: "#fff", "& fieldset": { borderColor: "#E2E8F0" }, "&:hover fieldset": { borderColor: "#CBD5E1" }, "&.Mui-focused fieldset": { borderColor: "#D2042D", borderWidth: 2 } }}>
-                {PAYMENT_TYPES.map(m => <MenuItem key={m} value={m} sx={{ fontSize: "0.875rem" }}>{m}</MenuItem>)}
-              </Select>
+                sx={{ borderRadius: "6px", fontSize: "0.875rem", bgcolor: "#fff", "& fieldset": { borderColor: "#E2E8F0" }, "&:hover fieldset": { borderColor: "#CBD5E1" }, "&.Mui-focused fieldset": { borderColor: "#D2042D", borderWidth: 2 } }}> 
+              </PaymentModeSelect>
             </Box>
             <Box>
               <FieldLabel>Reference No.</FieldLabel>
@@ -163,14 +162,14 @@ export default function ExpensePaymentDialog({ expense, onClose, onSuccess }: Pr
       </DialogContent>
 
       {/* Footer */}
-      <Box sx={{ px: 3, py: 3, bgcolor: "#F8FAFC", borderTop: "1px solid #F1F5F9", display: "flex", gap: 1.5 }}>
+      <Box sx={{ px: 3, py: 1.75, bgcolor: "#F8FAFC", borderTop: "1px solid #F1F5F9", display: "flex", gap: 1.5 }}>
         <Button variant="outlined" onClick={onClose} disabled={markPayment.isPending}
-          sx={{ flex: 1, py: 1.5, borderRadius: "12px", borderColor: "#E2E8F0", color: "#475569", bgcolor: "#fff", fontWeight: 700, fontSize: "0.875rem", "&:hover": { bgcolor: "#F8FAFC", borderColor: "#CBD5E1" } }}>
+          sx={{ flex: 1, py: 1, borderRadius: "12px", borderColor: "#E2E8F0", color: "#475569", bgcolor: "#fff", fontWeight: 700, fontSize: "0.875rem", "&:hover": { bgcolor: "#F8FAFC", borderColor: "#CBD5E1" } }}>
           Cancel
         </Button>
         <Button onClick={handleSubmit} disabled={markPayment.isPending} variant="contained" disableElevation
           startIcon={markPayment.isPending ? <CircularProgress size={18} color="inherit" /> : <CheckCircleIcon sx={{ fontSize: 20 }} />}
-          sx={{ flex: 2, py: 1.5, borderRadius: "12px", bgcolor: "#D2042D", color: "#fff", fontWeight: 700, fontSize: "0.875rem", boxShadow: "0 4px 14px rgba(210,4,45,0.25)", "&:hover": { bgcolor: "#B80028" }, "&:active": { transform: "scale(0.98)" }, "&.Mui-disabled": { bgcolor: "#E2E8F0", color: "#94A3B8", boxShadow: "none" }, transition: "all 0.15s" }}>
+          sx={{ flex: 2, py: 1, borderRadius: "12px", bgcolor: "#D2042D", color: "#fff", fontWeight: 700, fontSize: "0.875rem", boxShadow: "0 4px 14px rgba(210,4,45,0.25)", "&:hover": { bgcolor: "#B80028" }, "&:active": { transform: "scale(0.98)" }, "&.Mui-disabled": { bgcolor: "#E2E8F0", color: "#94A3B8", boxShadow: "none" }, transition: "all 0.15s" }}>
           {markPayment.isPending ? "Saving…" : "Save Payment"}
         </Button>
       </Box>

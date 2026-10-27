@@ -221,6 +221,7 @@ export default function PurchaseReturnDetailDialog({ returnUuid, canEdit, onClos
     onMarkRefund({
       return_uuid: r.return_uuid, return_id: r.return_id, return_type: r.return_type,
       refund_due: summary.refund_due, refunded_amount: summary.refunded_amount, pending_refund: summary.pending_refund,
+      vendorName: data.vendor?.vendor_name ?? data.vendor?.company_name,
     });
   };
 
@@ -240,7 +241,6 @@ export default function PurchaseReturnDetailDialog({ returnUuid, canEdit, onClos
           {data && (
             <>
               <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#D32F2F" }}>{data.return.return_id}</Typography>
-              <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>{data.return.created_at_fmt ?? data.return.return_date_fmt}</Typography>
               {st && <Chip label={st.label} size="small" sx={{ fontSize: 10, fontWeight: 700, height: 20, color: st.color, bgcolor: st.bgcolor, border: `1px solid ${st.border}`, borderRadius: "999px" }} />}
               {data.return.return_reason && (
                 <Chip label={`Reason: ${data.return.return_reason}`} size="small" sx={{ fontSize: 11, fontWeight: 600, height: 22, color: "#475569", bgcolor: "#F1F5F9", borderRadius: "999px" }} />
@@ -262,9 +262,13 @@ export default function PurchaseReturnDetailDialog({ returnUuid, canEdit, onClos
       </DialogContent>
 
       <DialogActions sx={{ px: 3.5, py: 2, borderTop: "1px solid #F1F5F9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Button onClick={onClose} sx={{ fontSize: 13, fontWeight: 600, textTransform: "none", color: "#64748B", "&:hover": { bgcolor: "#F8FAFC" } }}>
-          Close
-        </Button>
+        <Box>
+          {(data?.return.created_at_fmt ?? data?.return.return_date_fmt) && (
+            <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#334155" }}>
+              Created: {data?.return.created_at_fmt ?? data?.return.return_date_fmt}
+            </Typography>
+          )}
+        </Box>
         <Box sx={{ display: "flex", gap: 1.5 }}>
           {canPay && (
             <Button variant="outlined" onClick={markRefund}

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Box, Typography, TextField, Button, IconButton,
-  Select, MenuItem, FormControl, InputAdornment, ListSubheader,
+  Select, MenuItem, FormControl, InputAdornment,
   Table, TableHead, TableBody, TableRow, TableCell,
   Paper, Tooltip, Checkbox, Chip, CircularProgress,
   Autocomplete,
@@ -50,19 +50,6 @@ import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 import { localDateStr } from "@utils/localDate";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
-
-function getApi() {
-  const { businessType } = getTenantContext();
-  const route = businessType === "Restaurant" ? "restaurant" : "retail";
-  const token = getAccessToken();
-  return axios.create({
-    baseURL: `${API_BASE}/${route}/api`,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
-}
 
 function getUploadUrl() {
   const { businessType } = getTenantContext();

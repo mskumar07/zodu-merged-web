@@ -730,7 +730,7 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                   <TableHead>
                     <TableRow>
                       <TableCell sx={TH_SX}>Date</TableCell>
-                      <TableCell sx={TH_SX}>Invoice ID</TableCell>
+                      <TableCell sx={TH_SX}>ID</TableCell>
                       <TableCell sx={{ ...TH_SX, whiteSpace: "normal" }}>Reference No / Transaction Type</TableCell>
                       <TableCell align="right" sx={TH_SX}>Amount</TableCell>
                     </TableRow>

@@ -17,6 +17,8 @@ import {
   type SvgIconComponent,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
+import { useAppSelector } from "@store/store";
+import { BusinessType } from "@store/slices/userSlice";
 
 interface ReportCard {
   title:       string;
@@ -95,7 +97,9 @@ const reportCards: ReportCard[] = [
 
 const ReportDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const visibleCards = reportCards;
+  const isRestaurant = useAppSelector(BusinessType)?.toLowerCase() === "restaurant";
+  // GST reports are retail-only.
+  const visibleCards = isRestaurant ? reportCards.filter((c) => c.title !== "GST Report") : reportCards;
 
   return (
     <Box sx={{ width: "100%", p: 3 }}>

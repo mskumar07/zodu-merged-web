@@ -70,7 +70,7 @@ function SaleReturnSubRows({ sale, columnKeys, canEdit, onViewReturn, onViewInvo
                     {r.return_id}
                   </Typography>
                   <Typography sx={{ fontSize: 12, fontWeight: 500, color: "#475569", lineHeight: 1.4 }}>
-                    Against -{" "}
+                    For -{" "}
                     <Box component="span" onClick={onViewInvoice} sx={{ color: "#1976d2", fontWeight: 600, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}>
                       {sale.sale_id}
                     </Box>
@@ -135,7 +135,7 @@ function SaleReturnSubRows({ sale, columnKeys, canEdit, onViewReturn, onViewInvo
             case "actions":
               return (
                 <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.3 }}>
-                  <Tooltip title={canEdit ? "Edit return" : "You don't have permission to edit"}>
+                  <Tooltip title={canEdit ? "Edit Return" : "You don't have permission to edit"}>
                     <span>
                       <IconButton size="small" disabled={!canEdit} onClick={() => onEditReturn(r)} sx={iconBtnSx}>
                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -144,7 +144,7 @@ function SaleReturnSubRows({ sale, columnKeys, canEdit, onViewReturn, onViewInvo
                       </IconButton>
                     </span>
                   </Tooltip>
-                  <Tooltip title={onDeleteReturn ? "Delete return" : "Deleting a return is not available yet"}>
+                  <Tooltip title={onDeleteReturn ? "Delete Return" : "Deleting a return is not available yet"}>
                     <span>
                       <IconButton size="small" disabled={!canEdit || !onDeleteReturn} onClick={() => onDeleteReturn?.(r)}
                         sx={{ ...iconBtnSx, "&:hover": { color: "#C62828", bgcolor: alpha("#C62828", 0.06) } }}>

@@ -94,9 +94,10 @@ function ReturnDetailDialog({ ret, canEdit, onClose, onMarkRefund }: Props) {
   const invoiceId = header?.original_sale_id;
   const reasonKey = header?.return_reason ?? ret.return_reason;
   const reason    = reasonKey ? REASON_LABEL[reasonKey] ?? reasonKey : "—";
-  const dateText  = [header?.return_date_fmt ?? ret.return_date_fmt, header?.return_time_fmt].filter(Boolean).join(" · ");
+  const createdText = header?.created_at_fmt;
+  const dateText  =[header?.return_date_fmt ?? ret.return_date_fmt, header?.return_time_fmt].filter(Boolean).join(" · ");
 
-  const customerName    = customer?.cust_name ?? customer?.cpy_name ?? "Walk-In";
+  const customerName    = customer?.cust_name ?? customer?.cpy_name ?? "—";
   const customerMobile  = customer?.mobile ? `+91 ${customer.mobile}` : "—";
   const customerAddress = [customer?.address_line1, customer?.address_line2, customer?.city, customer?.state, customer?.pincode]
     .filter(Boolean).join(", ") || "—";
@@ -192,7 +193,6 @@ function ReturnDetailDialog({ ret, canEdit, onClose, onMarkRefund }: Props) {
           </Box>
           <Typography sx={{ fontSize: 18, fontWeight: 800, color: "#0F172A" }}>{docLabel} Details</Typography>
           <Chip label={ret.return_id} size="small" sx={{ bgcolor: "rgba(208,2,27,0.08)", color: "#D0021B", fontWeight: 700, fontSize: 11, height: 20, borderRadius: "999px" }} />
-          {dateText && <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>{dateText}</Typography>}
           {invoiceId && <Chip label={`Invoice ${invoiceId}`} size="small" sx={{ bgcolor: "#F3E8FF", color: "#6B21A8", fontWeight: 700, fontSize: 11, height: 20, borderRadius: "999px" }} />}
           {chip && <Chip label={chip.label} size="small" sx={{ bgcolor: chip.bg, color: chip.color, fontWeight: 700, fontSize: 10, height: 20, borderRadius: "999px" }} />}
         </Box>
@@ -361,9 +361,9 @@ function ReturnDetailDialog({ ret, canEdit, onClose, onMarkRefund }: Props) {
 
       {/* Footer */}
       <DialogActions sx={{ px: 3.5, py: 2, bgcolor: "#F8FAFC", borderTop: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1.5 }}>
-        <Button onClick={onClose} sx={{ fontWeight: 700, fontSize: 13, color: "#64748B", textTransform: "none", "&:hover": { color: "#0F172A", bgcolor: "transparent" } }}>
-          Close
-        </Button>
+        <Box>
+          {createdText && <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#334155" }}>Created: {createdText}</Typography>}
+        </Box>
         <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
           {canPay && (
             <Button

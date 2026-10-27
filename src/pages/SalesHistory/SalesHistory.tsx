@@ -28,7 +28,7 @@ import { useTenantContext } from "@store/tenantContext";
 import { DateRangeChip } from "@components/Reports/utils/DateRangeChip";
 
 import InvoiceDetailDialog from "./Invoicedetaildialog";
-import MarkPaymentDialog   from "./MarkPaymentDialog";
+import MarkPaymentDialog   from "./Markpaymentdialog";
 import SalesReturnDialog   from "./Salesreturndialog";
 import MarkRefundDialog    from "./MarkRefundDialog";
 import ReturnDetailDialog  from "./ReturnDetailDialog";
@@ -95,6 +95,9 @@ const STATUS_CONFIG: Record<
   "Quotation":      { color: "#475569", bg: "#F1F5F9", dot: "#64748B" },
   "Proforma":       { color: "#0F766E", bg: "#CCFBF1", dot: "#14B8A6" },
 };
+
+// The API sends fully_paid / partially_paid / unpaid, and the list also derives the two return states.
+type PaymentStatus = Sale["payment_status"] | "returned" | "partial_return";
 
 function mapStatus(s: PaymentStatus): UIStatus {
   switch (s) {
@@ -315,7 +318,7 @@ export default function SalesHistoryPage() {
             {/* Cross-reference: the return / credit note ids raised against this invoice */}
             {returns.map((r) => (
               <Typography key={r.return_uuid} sx={{ fontSize: 12, fontWeight: 500, color: "#475569", lineHeight: 1.4 }}>
-                {r.return_type === "CREDIT_NOTE" ? "Credit note" : "Return"} -{" "}
+                {r.return_type === "CREDIT_NOTE" ? "Credit Note" : "Sales Return"} -{" "}
                 <Box component="span" onClick={() => setViewReturn({ sale, ret: r })} sx={{ color: "#B91C1C", fontWeight: 600, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}>
                   {r.return_id}
                 </Box>
@@ -328,7 +331,7 @@ export default function SalesHistoryPage() {
     ...(!isRestaurant ? [{
       key: "customer",
       label: "Customer",
-      minWidth: 220,
+      minWidth: 340,
       render: (sale: Sale) => {
         const name = sale.cust_name || sale.cpy_name || "";
         if (!name) {
@@ -563,7 +566,7 @@ export default function SalesHistoryPage() {
         return (
           <Stack direction="row" justifyContent="flex-end" gap={0.3}>
             {!isNonBinding && !isRestaurant && !hasReturns && (
-              <Tooltip title={isReturned ? "Fully returned" : !canEdit ? "You don't have permission to edit" : "Sales Return"}>
+              <Tooltip title={isReturned ? "Fully Returned" : !canEdit ? "You don't have permission to edit" : "Sales Return"}>
                 <span>
                   <IconButton
                     size="small"

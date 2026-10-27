@@ -6,7 +6,7 @@ import { flushSync } from "react-dom";
 import { useInvoiceSettingsForSale } from "@hooks/useInvoiceSettingsForSale";
 import {
   Dialog, DialogContent, DialogActions,
-  Box, Typography, IconButton, Button, Chip, Divider,
+  Box, Typography, IconButton, Chip, Divider,
   Paper, CircularProgress, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Tooltip,
   styled,
@@ -288,7 +288,7 @@ export default function InvoiceDetailsModal({
   // Restaurant-specific: payment_status is boolean (true = paid, false = unpaid)
   const restaurantIsPaid = isRestaurant && sale?.payment_status === true;
 
-  const customerName    = customer?.cust_name ?? customer?.cpy_name ?? "Walk-In";
+  const customerName    = customer?.cust_name ?? customer?.cpy_name ?? "—";
   const customerMobile  = customer?.mobile ? `+91 ${customer.mobile}` : "—";
   const customerGstin   = customer?.gst ?? "—";
   const customerAddress = [
@@ -626,7 +626,7 @@ export default function InvoiceDetailsModal({
           />
           {sale && (
             <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>
-              {sale.sale_date_fmt}{sale.sale_time_fmt ? ` · ${sale.sale_time_fmt}` : ""}
+              {sale.sale_date_fmt}
             </Typography>
           )}
           {!isRestaurant && returnHistory.length > 0 && (
@@ -1048,13 +1048,13 @@ export default function InvoiceDetailsModal({
         flexWrap: "wrap",
         gap: 1.5,
       }}>
-        <Button onClick={onClose} sx={{
-          fontWeight: 700, fontSize: 13,
-          color: "#64748B", textTransform: "none",
-          "&:hover": { color: "#0F172A", bgcolor: "transparent" },
-        }}>
-          Close
-        </Button>
+        <Box>
+          {sale?.created_at_fmt && (
+            <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#334155" }}>
+              Created: {sale.created_at_fmt}
+            </Typography>
+          )}
+        </Box>
 
         <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
 

@@ -3,11 +3,11 @@
  * Record a (partial or full) refund payment against a sales return / credit note.
  * Calls POST /api/sale-returns/:return_uuid/refund via postMarkReturnRefund.
  */
+import PaymentModeSelect from "../../components/Common/PaymentModeSelect";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Box, Typography, IconButton, Button, TextField, Select, MenuItem,
-  InputAdornment, CircularProgress, Dialog, DialogContent,
+  Box, Typography, IconButton, Button, TextField, InputAdornment, CircularProgress, Dialog, DialogContent,
 } from "@mui/material";
 import { Close as CloseIcon, CheckCircle as CheckCircleIcon, Payments as PaymentsIcon } from "@mui/icons-material";
 import {
@@ -40,7 +40,7 @@ const inputSx = {
 const captionSx = { fontSize: "0.65rem", fontWeight: 600, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", mb: 0.4 } as const;
 
 function FieldLabel({ children }: { children: string }) {
-  return <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#334155", mb: 0.75 }}>{children}</Typography>;
+  return <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#334155", mb: 0.5 }}>{children}</Typography>;
 }
 
 export default function MarkRefundDialog({ saleUuid, ret, onClose, notify }: Props) {
@@ -93,7 +93,7 @@ export default function MarkRefundDialog({ saleUuid, ret, onClose, notify }: Pro
       open onClose={onClose} maxWidth="xs" fullWidth
       PaperProps={{ sx: { borderRadius: "16px", overflow: "hidden", border: "1px solid #E2E8F0", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)" } }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 3, py: 2, borderBottom: "1px solid #F1F5F9" }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 3, py: 1.5, borderBottom: "1px solid #F1F5F9" }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
           <Box sx={{ p: 1, borderRadius: "8px", bgcolor: "rgba(210,4,45,0.1)", display: "flex" }}>
             <PaymentsIcon sx={{ color: "#D2042D", fontSize: 22 }} />
@@ -103,9 +103,9 @@ export default function MarkRefundDialog({ saleUuid, ret, onClose, notify }: Pro
         <IconButton onClick={onClose} size="small" sx={{ color: "#64748B" }}><CloseIcon sx={{ fontSize: 20 }} /></IconButton>
       </Box>
 
-      <DialogContent sx={{ px: 3, py: 3 }}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-          <Box sx={{ p: 2, bgcolor: "#F8FAFC", borderRadius: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <DialogContent sx={{ px: 3, py: 2 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+          <Box sx={{ p: 1.5, bgcolor: "#F8FAFC", borderRadius: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Box>
               <Typography sx={captionSx}>{ret.return_type === "CREDIT_NOTE" ? "Credit Note" : "Sales Return"}</Typography>
               <Typography sx={{ fontSize: "0.875rem", fontWeight: 700, color: "#0F172A" }}>{ret.return_id}</Typography>
@@ -130,12 +130,10 @@ export default function MarkRefundDialog({ saleUuid, ret, onClose, notify }: Pro
             />
           </Box>
 
-          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5 }}>
             <Box>
               <FieldLabel>Payment Mode</FieldLabel>
-              <Select size="small" fullWidth value={mode} onChange={(e) => setMode(e.target.value as typeof mode)} sx={{ borderRadius: "12px", fontSize: "0.875rem" }}>
-                {REFUND_MODES.map((m) => <MenuItem key={m} value={m} sx={{ fontSize: "0.875rem" }}>{m}</MenuItem>)}
-              </Select>
+              <PaymentModeSelect options={REFUND_MODES} size="small" fullWidth value={mode} onChange={(e) => setMode(e.target.value as typeof mode)} sx={{ borderRadius: "12px", fontSize: "0.875rem" }} />
             </Box>
             <Box>
               <FieldLabel>Refund Date</FieldLabel>
@@ -157,15 +155,15 @@ export default function MarkRefundDialog({ saleUuid, ret, onClose, notify }: Pro
         </Box>
       </DialogContent>
 
-      <Box sx={{ px: 3, py: 2.5, bgcolor: "#F8FAFC", borderTop: "1px solid #F1F5F9", display: "flex", gap: 1.5 }}>
+      <Box sx={{ px: 3, py: 1.75, bgcolor: "#F8FAFC", borderTop: "1px solid #F1F5F9", display: "flex", gap: 1.5 }}>
         <Button variant="outlined" onClick={onClose} disabled={mutation.isPending}
-          sx={{ flex: 1, py: 1.25, borderRadius: "12px", borderColor: "#E2E8F0", color: "#475569", bgcolor: "#fff", fontWeight: 700 }}>
+          sx={{ flex: 1, py: 1, borderRadius: "12px", borderColor: "#E2E8F0", color: "#475569", bgcolor: "#fff", fontWeight: 700 }}>
           Cancel
         </Button>
         <Button variant="contained" disableElevation onClick={handleSubmit} disabled={!valid || mutation.isPending}
           startIcon={mutation.isPending ? <CircularProgress size={18} color="inherit" /> : <CheckCircleIcon sx={{ fontSize: 20 }} />}
           sx={{
-            flex: 2, py: 1.25, borderRadius: "12px", bgcolor: "#D2042D", color: "#fff", fontWeight: 700,
+            flex: 2, py: 1, borderRadius: "12px", bgcolor: "#D2042D", color: "#fff", fontWeight: 700,
             "&:hover": { bgcolor: "#B80028" }, "&.Mui-disabled": { bgcolor: "#E2E8F0", color: "#94A3B8" },
           }}>
           {mutation.isPending ? "Saving…" : "Save Refund"}

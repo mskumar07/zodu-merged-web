@@ -98,6 +98,7 @@ export interface PurchaseStatsData {
   total_purchase_count: string;
   total_paid_amount: string;
   total_unpaid_amount: string;
+  total_amount: string;
   this_month_spent: string;
   last_month_spent?: string;
 }
@@ -155,6 +156,7 @@ export interface PurchaseRow {
   zodu_id: string;
   branch_id: string;
   created_at: string;
+  created_at_formatted?: string | null;
   due_date_formated: string | null;
   due_date_formatted?: string | null;
   attachment_url: string | null;

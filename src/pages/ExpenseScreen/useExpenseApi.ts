@@ -127,6 +127,7 @@ export interface ExpenseDetail {
   vendor_pincode?: string | null;
   expense_date: string;
   expense_date_formatted?: string;
+  created_at_formatted?: string;
   category_id: number;
   category_name?: string | null;
   total_amount: string;

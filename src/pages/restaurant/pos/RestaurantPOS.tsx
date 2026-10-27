@@ -1109,7 +1109,7 @@ const RestaurantPOS: React.FC = () => {
     return {
       date:           now.toLocaleDateString("en-GB"),
       time:            now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
-      customer_name:   order.customerName.trim() || "Walk-In",
+      customer_name:   order.customerName.trim() || "-",
       customer_mobile: order.customerPhone.trim() || "-",
       customer_gstin:  "-",
       payment_mode:    payMethod,
