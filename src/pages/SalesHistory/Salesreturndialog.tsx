@@ -370,7 +370,7 @@ const canConfirm = someSelected && !!reason && (!payNow || !showPayNow || payAmo
               <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: { xs: 2, md: 4 } }}>
                 {[
                   { label: "Invoice No.",   value: (normalizedSale as any)?.invoice_no ?? "—",                    icon: <ReceiptIcon sx={{ fontSize: 18 }} /> },
-                  { label: "Customer",      value: (normalizedSale as any)?.customer_name || "Walk-In",           icon: <PersonIcon sx={{ fontSize: 18 }} /> },
+                  { label: "Customer",      value: (normalizedSale as any)?.customer_name || "—",           icon: <PersonIcon sx={{ fontSize: 18 }} /> },
                   { label: "Invoice Date",  value: (normalizedSale as any)?.sale_date_fmt ?? "—",        icon: <CalendarIcon sx={{ fontSize: 17 }} /> },
                 ].map((f) => (
                   <Box key={f.label} sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>

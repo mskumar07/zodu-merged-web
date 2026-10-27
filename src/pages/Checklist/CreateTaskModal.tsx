@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { closeFromControlsOnly } from "@utils/dialog";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
@@ -10,7 +10,6 @@ import {
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
-import AddIcon from "@mui/icons-material/Add";
 // import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline"; // ITEM-WISE (disabled)
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import ChecklistIcon from "@mui/icons-material/Checklist";
@@ -157,6 +156,14 @@ function getFileCategory(name: string): "image" | "pdf" | "excel" | "word" | "ot
 
 // ─── Main Component ───────────────────────────────────────────────────────────────
 
+/** What "Repeat Every N" counts, per frequency (Monthly + 10 means every 10 months). */
+const RECUR_UNIT: Record<string, string> = {
+  Daily: "Day(s)",
+  Weekly: "Week(s)",
+  Monthly: "Month(s)",
+  Yearly: "Year(s)",
+};
+
 export default function CreateTaskModal({ open, onClose, onSuccess, onError, editChecklist }: Props) {
   useBlockWhenReadOnly(open, onClose);
   const zoduId = useAppSelector(ZoduId);
@@ -198,7 +205,6 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurFrequency, setRecurFrequency] = useState("Daily");
   const [recurEvery, setRecurEvery] = useState(1);
-  const [recurStart, setRecurStart] = useState("");
   const [recurEnds, setRecurEnds] = useState<"Never" | "On Date">("Never");
   const [recurEndDate, setRecurEndDate] = useState("");
 
@@ -206,7 +212,6 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
   const [attachments, setAttachments] = useState<File[]>([]);
   const [existingAttachments, setExistingAttachments] = useState<ExistingAttachment[]>([]);
   const [removedAttachmentIds, setRemovedAttachmentIds] = useState<string[]>([]);
-  const attachInputRef = useRef<HTMLInputElement>(null);
 
   // Attachment filter
   const [attachFilter, setAttachFilter] = useState<AttachFilter>("all");
@@ -224,7 +229,7 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
     setSelectedAssignees([]);
     // setItems([initItem()]); // ITEM-WISE (disabled)
     setIsRecurring(false); setRecurFrequency("Daily"); setRecurEvery(1);
-    setRecurStart(""); setRecurEnds("Never"); setRecurEndDate("");
+    setRecurEnds("Never"); setRecurEndDate("");
     setAttachments([]); setExistingAttachments([]); setRemovedAttachmentIds([]); setErrors({});
   }, []);
 
@@ -258,7 +263,6 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
     setIsRecurring(!!editChecklist.is_recurring);
     setRecurFrequency(editChecklist.recur_frequency ?? "Daily");
     setRecurEvery(editChecklist.recur_every ?? 1);
-    setRecurStart(editChecklist.recur_start_date ? editChecklist.recur_start_date.slice(0, 10) : "");
     setRecurEnds(editChecklist.recur_end_date ? "On Date" : "Never");
     setRecurEndDate(editChecklist.recur_end_date ? editChecklist.recur_end_date.slice(0, 10) : "");
     setAttachments([]);
@@ -286,6 +290,11 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
     if (!title.trim()) e.title = "Task title is required";
     if (!startDate) e.startDate = "Start date is required";
     if (!dueDate) e.dueDate = "Due date is required";
+    else if (startDate && dueDate < startDate) e.dueDate = "Due date can't be before the start date";
+    if (isRecurring && recurEnds === "On Date") {
+      if (!recurEndDate) e.recurEndDate = "Select when the recurrence ends";
+      else if (startDate && recurEndDate < startDate) e.recurEndDate = "End date can't be before the start date";
+    }
     if (selectedAssignees.length === 0) e.assignees = "At least one employee must be selected";
     // if (!items.some((i) => i.item_title.trim())) e.items = "At least one checklist item is required"; // ITEM-WISE (disabled)
     setErrors(e);
@@ -323,7 +332,8 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
       recur_every: isRecurring ? recurEvery : null,
       recur_ends: isRecurring ? recurEnds : null,
       recur_end_date: isRecurring && recurEnds === "On Date" ? recurEndDate : null,
-      recur_start_date: isRecurring ? recurStart : null,
+      // A recurring task starts when the task itself does.
+      recur_start_date: isRecurring ? startDate || null : null,
       assignees: selectedAssignees,
       // items: filledItems, // ITEM-WISE (disabled)
       created_by: loggedEmployeeId,
@@ -592,8 +602,9 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
                 <Box>
                   <FieldLabel required>Status</FieldLabel>
                   <FormControl size="small" fullWidth>
-                    <Select value={status} onChange={(e) => setStatus(e.target.value)}>
-                      {["Not Started", "In Progress", "Completed"].map((s) => (
+                    {/* A new task always starts as Not Started; the other statuses only apply when editing. */}
+                    <Select value={status} onChange={(e) => setStatus(e.target.value)} disabled={!isEditMode}>
+                      {(isEditMode ? ["Not Started", "In Progress", "Completed"] : ["Not Started"]).map((s) => (
                         <MenuItem key={s} value={s}>{s}</MenuItem>
                       ))}
                     </Select>
@@ -604,7 +615,13 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
                   <TextField
                     type="date" size="small" fullWidth
                     value={startDate}
-                    onChange={(e) => { setStartDate(e.target.value); if (errors.startDate) setErrors((p) => ({ ...p, startDate: "" })); }}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setStartDate(next);
+                      // A due date that now falls before the start date is no longer valid — ask for it again.
+                      if (dueDate && next && dueDate < next) setDueDate("");
+                      if (errors.startDate) setErrors((p) => ({ ...p, startDate: "" }));
+                    }}
                     error={!!errors.startDate}
                     helperText={errors.startDate}
                     slotProps={{ inputLabel: { shrink: true } }}
@@ -620,7 +637,7 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
                   onChange={(e) => { setDueDate(e.target.value); if (errors.dueDate) setErrors((p) => ({ ...p, dueDate: "" })); }}
                   error={!!errors.dueDate}
                   helperText={errors.dueDate}
-                  slotProps={{ inputLabel: { shrink: true } }}
+                  slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: startDate || undefined } }}
                 />
               </Box>
             </Box>
@@ -764,41 +781,35 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
                         inputProps={{ min: 1, style: { width: 40, textAlign: "center", padding: "6px 4px" } }}
                         sx={{ width: 64, bgcolor: !isRecurring ? "#F3F4F6" : undefined }}
                       />
-                      <Typography sx={{ fontSize: 12, color: "#6B7280" }}>Day(s)</Typography>
+                      <Typography sx={{ fontSize: 12, color: "#6B7280" }}>{RECUR_UNIT[recurFrequency] ?? "Day(s)"}</Typography>
                     </Box>
                   </Box>
                 </Box>
 
-                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5 }}>
-                  <Box>
-                    <FieldLabel>Start Date</FieldLabel>
-                    <TextField
-                      type="date" size="small" fullWidth
-                      value={recurStart}
-                      onChange={(e) => setRecurStart(e.target.value)}
-                      disabled={!isRecurring}
-                      slotProps={{ inputLabel: { shrink: true } }}
-                      sx={{ bgcolor: !isRecurring ? "#F3F4F6" : undefined }}
-                    />
-                  </Box>
-                  <Box>
-                    <FieldLabel>Ends</FieldLabel>
-                    <RadioGroup row value={recurEnds} onChange={(e) => setRecurEnds(e.target.value as any)}>
-                      <FormControlLabel
-                        value="Never"
-                        control={<Radio size="small" disabled={!isRecurring} sx={{ color: isRecurring ? "#E11D48" : "#9CA3AF", "&.Mui-checked": { color: isRecurring ? "#E11D48" : "#9CA3AF" }, "&.Mui-disabled": { color: "#9CA3AF" }, p: 0.5 }} />}
-                        label={<Typography sx={{ fontSize: 12, color: isRecurring ? "#0F172A" : "#9CA3AF" }}>Never</Typography>}
-                      />
-                      <FormControlLabel
-                        value="On Date"
-                        control={<Radio size="small" disabled={!isRecurring} sx={{ color: isRecurring ? "#E11D48" : "#9CA3AF", "&.Mui-checked": { color: isRecurring ? "#E11D48" : "#9CA3AF" }, "&.Mui-disabled": { color: "#9CA3AF" }, p: 0.5 }} />}
-                        label={<Typography sx={{ fontSize: 12, color: isRecurring ? "#0F172A" : "#9CA3AF" }}>On Date</Typography>}
-                      />
+                <Box>
+                  <FieldLabel>Ends</FieldLabel>
+                  <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", columnGap: 2, rowGap: 1 }}>
+                    <RadioGroup row value={recurEnds} onChange={(e) => setRecurEnds(e.target.value as "Never" | "On Date")}>
+                      {(["Never", "On Date"] as const).map((opt) => (
+                        <FormControlLabel
+                          key={opt}
+                          value={opt}
+                          control={<Radio size="small" disabled={!isRecurring} sx={{ color: isRecurring ? "#E11D48" : "#9CA3AF", "&.Mui-checked": { color: isRecurring ? "#E11D48" : "#9CA3AF" }, "&.Mui-disabled": { color: "#9CA3AF" }, p: 0.5 }} />}
+                          label={<Typography sx={{ fontSize: 12, color: isRecurring ? "#0F172A" : "#9CA3AF" }}>{opt}</Typography>}
+                        />
+                      ))}
                     </RadioGroup>
-                    {recurEnds === "On Date" ? (
-                      <TextField type="date" size="small" fullWidth value={recurEndDate} onChange={(e) => setRecurEndDate(e.target.value)} disabled={!isRecurring} slotProps={{ inputLabel: { shrink: true } }} sx={{ mt: 0.5, bgcolor: !isRecurring ? "#F3F4F6" : undefined }} />
-                    ) : (
-                      <Button variant="outlined" size="small" disabled sx={{ mt: 0.5, fontSize: 11, borderColor: "#E5E7EB", color: "#9CA3AF", borderRadius: 1.5 }}>Select end date</Button>
+                    {recurEnds === "On Date" && (
+                      <TextField
+                        type="date" size="small"
+                        value={recurEndDate}
+                        onChange={(e) => { setRecurEndDate(e.target.value); if (errors.recurEndDate) setErrors((p) => ({ ...p, recurEndDate: "" })); }}
+                        disabled={!isRecurring}
+                        error={!!errors.recurEndDate}
+                        helperText={errors.recurEndDate}
+                        slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: startDate || undefined } }}
+                        sx={{ width: 170, bgcolor: !isRecurring ? "#F3F4F6" : undefined }}
+                      />
                     )}
                   </Box>
                 </Box>
@@ -1000,21 +1011,6 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
                   icon={<AttachFileIcon sx={{ fontSize: 18 }} />}
                   title="Attachments (Optional)"
                 />
-                <Button
-                  component="label"
-                  variant="outlined"
-                  size="small"
-                  startIcon={attachmentsUploading ? <CircularProgress size={12} sx={{ color: "#E11D48" }} /> : <AddIcon sx={{ fontSize: 14 }} />}
-                  disabled={attachmentsUploading}
-                  sx={{ fontSize: 11.5, borderColor: "#E11D48", color: "#E11D48", borderRadius: 1.5, py: 0.4, px: 1.5, whiteSpace: "nowrap", flexShrink: 0,
-                    "&:hover": { bgcolor: "#FFF1F2" } }}
-                >
-                  Upload Files
-                  <input type="file" hidden multiple disabled={attachmentsUploading}
-                    accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx"
-                    ref={attachInputRef} onChange={handleAttachmentPick}
-                  />
-                </Button>
               </Box>
 
               <Box sx={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 2.5 }}>

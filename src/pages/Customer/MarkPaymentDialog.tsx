@@ -2,11 +2,12 @@
  * MarkPaymentDialog.tsx
  * Records a customer payment against one or more outstanding bills.
  */
+import PaymentModeSelect from "../../components/Common/PaymentModeSelect";
 import React, { useEffect, useMemo, useState } from "react";
 import { closeFromControlsOnly } from "@utils/dialog";
 import {
   Dialog, DialogContent, Box, Typography, IconButton, Button,
-  TextField, Select, MenuItem, Checkbox, Table, TableHead, TableBody,
+  TextField, Checkbox, Table, TableHead, TableBody,
   TableRow, TableCell, InputAdornment, CircularProgress,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
@@ -341,7 +342,9 @@ export default function MarkPaymentDialog({ customer, onClose, onSuccess }: Prop
                   </Box>
                   <Box>
                     <FieldLabel required>Payment Mode</FieldLabel>
-                    <Select
+                    <PaymentModeSelect
+                      options={PAYMENT_MODES}
+                      optionFontSize={13}
                       size="small" fullWidth
                       value={paymentMode}
                       onChange={(e) => setPaymentMode(e.target.value as typeof paymentMode)}
@@ -352,10 +355,7 @@ export default function MarkPaymentDialog({ customer, onClose, onSuccess }: Prop
                         "&.Mui-focused fieldset": { borderColor: RED, borderWidth: 2 },
                       }}
                     >
-                      {PAYMENT_MODES.map((m) => (
-                        <MenuItem key={m} value={m} sx={{ fontSize: 13 }}>{m}</MenuItem>
-                      ))}
-                    </Select>
+                    </PaymentModeSelect>
                   </Box>
                 </Box>
 

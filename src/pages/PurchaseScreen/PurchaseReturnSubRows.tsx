@@ -69,7 +69,7 @@ function PurchaseReturnSubRows({ purchase, returns, columnKeys, canEdit, onView,
                     {r.return_id}
                   </Typography>
                   <Typography sx={{ fontSize: 12, fontWeight: 500, color: "#475569", lineHeight: 1.4 }}>
-                    Against -{" "}
+                    For -{" "}
                     <Box component="span" onClick={onViewPurchase} sx={{ color: "#1976d2", fontWeight: 600, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}>
                       {purchase.purchase_id}
                     </Box>
@@ -116,10 +116,10 @@ function PurchaseReturnSubRows({ purchase, returns, columnKeys, canEdit, onView,
             case "actions":
               return (
                 <Box sx={{ display: "flex", justifyContent: "center", gap: 0.3 }}>
-                  <Tooltip title={canEdit ? "Edit return" : "You don't have permission to edit"}>
+                  <Tooltip title={canEdit ? "Edit Return" : "You don't have permission to edit"}>
                     <span><IconButton size="small" disabled={!canEdit} onClick={() => onEdit(r)} sx={{ ...iconBtnSx, color: "#1976d2" }}><EditOutlinedIcon sx={{ fontSize: 16 }} /></IconButton></span>
                   </Tooltip>
-                  <Tooltip title={canEdit ? "Delete return" : "You don't have permission to delete"}>
+                  <Tooltip title={canEdit ? "Delete Return" : "You don't have permission to delete"}>
                     <span><IconButton size="small" disabled={!canEdit} onClick={() => onDelete(r)} sx={{ ...iconBtnSx, color: "#D2122E", "&:hover": { bgcolor: "#D2122E22" } }}><DeleteOutlineIcon sx={{ fontSize: 16 }} /></IconButton></span>
                   </Tooltip>
                 </Box>

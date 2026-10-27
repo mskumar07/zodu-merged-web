@@ -16,11 +16,13 @@ import HourglassBottomIcon from "@mui/icons-material/HourglassBottom";
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import FilterListIcon from "@mui/icons-material/FilterList";
+import FilterListOffIcon from "@mui/icons-material/FilterListOff";
 import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import ChecklistIcon from "@mui/icons-material/Checklist";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import HistoryIcon from "@mui/icons-material/History";
 import SuccessToast from "@components/Common/SuccessToast";
 import StatCard from "@components/StatCard";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
@@ -33,11 +35,16 @@ import {
   useGetAssignedEmployeesQuery,
   useGetAssignedEmployeesSummaryQuery,
   useGetChecklistByIdQuery,
+  useGetEmployeesForAssignQuery,
   type MyTaskItem,
   type AssignedChecklistSummary,
   type AssignedChecklistAssignee,
+  type TaskOccurrence,
 } from "./checklistNewApi";
+import { useOccurrenceRows } from "./useOccurrenceRows";
+import { DateRangeChip } from "@components/Reports/utils/DateRangeChip";
 import CreateTaskModal from "./CreateTaskModal";
+import OccurrenceHistoryDialog from "./OccurrenceHistoryDialog";
 import UpdateTaskStatusModal, { type TaskStatusDetail } from "./UpdateTaskStatusModal";
 // ITEM-WISE (disabled): type ItemStatus
 import LottieLoader from "@components/LottieLoader";
@@ -298,7 +305,7 @@ function buildTaskColumns(onView: (id: string) => void, canEdit: boolean): Colum
             "&:hover": { bgcolor: "#FFF1F2", borderColor: "#E11D48" },
           }}
         >
-          View Task
+          Update Task
         </Button>
       ),
     },
@@ -349,9 +356,116 @@ function AssigneesCell({ assignees }: { assignees?: AssignedChecklistAssignee[] 
 
 // ─── Checklist Assignment columns ───────────────────────────────────────────
 
+// ─── Recurrence badges ────────────────────────────────────────────────────────
+
+function RecurringBadge({ frequency }: { frequency?: string | null }) {
+  if (!frequency) return null;
+  return (
+    <Box component="span" sx={{
+      flexShrink: 0, px: 0.75, py: 0.1, borderRadius: 1, fontSize: 10.5, fontWeight: 700,
+      bgcolor: "#EEF2FF", color: "#4338CA", lineHeight: 1.5,
+    }}>
+      {frequency}
+    </Box>
+  );
+}
+
+// ─── Occurrence table columns (shown when a date / employee / history filter is on) ──
+
+function buildOccurrenceColumns(
+  onOpen: (occ: TaskOccurrence) => void,
+  canEdit: boolean,
+  // The history dialog already names the task in its header, so it drops the ID / name columns.
+  compact = false
+): ColumnDef<TaskOccurrence>[] {
+  const columns: ColumnDef<TaskOccurrence>[] = [
+    {
+      key: "checklist_code",
+      label: "Checklist ID",
+      width: 120,
+      render: (occ) => (
+        <Typography
+          onClick={() => onOpen(occ)}
+          sx={{
+            fontSize: 13, fontWeight: 700, color: "#2563EB", whiteSpace: "nowrap",
+            cursor: "pointer", "&:hover": { textDecoration: "underline" },
+          }}
+          noWrap
+        >
+          {occ.checklist_code ?? "—"}
+        </Typography>
+      ),
+    },
+    {
+      key: "title",
+      label: "Checklist Name",
+      minWidth: 200,
+      render: (occ) => (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+          <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }} noWrap>{occ.title}</Typography>
+          <RecurringBadge frequency={occ.is_recurring ? occ.recur_frequency : null} />
+        </Box>
+      ),
+    },
+    {
+      key: "assignees",
+      label: "Assigned To",
+      minWidth: 160,
+      render: (occ) => <AssigneesCell assignees={occ.assignees} />,
+    },
+    {
+      key: "scheduled_date",
+      label: "Date",
+      width: 130,
+      render: (occ) => (
+        <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }} noWrap>{formatDate(occ.scheduled_date)}</Typography>
+      ),
+    },
+    {
+      key: "status",
+      label: "Status",
+      width: 120,
+      render: (occ) => <StatusChip status={occ.status} />,
+    },
+    {
+      key: "due_date",
+      label: "Due Date",
+      width: 130,
+      render: (occ) => (
+        <Typography sx={{ fontSize: 13, color: occ.status === "Overdue" ? "#EF4444" : "#374151", fontWeight: occ.status === "Overdue" ? 700 : 400 }} noWrap>
+          {formatDate(occ.due_date)}
+        </Typography>
+      ),
+    },
+    {
+      key: "action",
+      label: "Action",
+      width: 120,
+      align: "center",
+      render: (occ) => (
+        <Button
+          variant="outlined"
+          size="small"
+          disabled={!canEdit}
+          onClick={() => onOpen(occ)}
+          sx={{
+            fontSize: 12, fontWeight: 700, py: 0.5, px: 1.75, borderColor: "#E11D48", color: "#E11D48",
+            borderRadius: 1.5, whiteSpace: "nowrap",
+            "&:hover": { bgcolor: "#FFF1F2", borderColor: "#E11D48" },
+          }}
+        >
+          Update
+        </Button>
+      ),
+    },
+  ];
+  return compact ? columns.filter((c) => c.key !== "checklist_code" && c.key !== "title") : columns;
+}
+
 function buildChecklistColumns(
   onView: (id: string) => void,
   onEdit: (id: string) => void,
+  onHistory: (item: AssignedChecklistSummary) => void,
   canEdit: boolean
 ): ColumnDef<AssignedChecklistSummary>[] {
   return [
@@ -387,6 +501,17 @@ function buildChecklistColumns(
             <DescriptionOutlinedIcon sx={{ fontSize: 14 }} />
           </Box>
           <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }} noWrap>{item.title ?? "—"}</Typography>
+          <RecurringBadge frequency={item.is_recurring ? item.recur_frequency : null} />
+          {(item.overdue_count ?? 0) > 0 && (
+            <Tooltip title="Past occurrences not completed — open History to update them">
+              <Box component="span" sx={{
+                flexShrink: 0, px: 0.75, py: 0.1, borderRadius: 1, fontSize: 10.5, fontWeight: 700,
+                bgcolor: "#FEE2E2", color: "#DC2626", lineHeight: 1.5,
+              }}>
+                {item.overdue_count} overdue
+              </Box>
+            </Tooltip>
+          )}
         </Box>
       ),
     },
@@ -453,10 +578,24 @@ function buildChecklistColumns(
     {
       key: "action",
       label: "Action",
-      width: 140,
+      width: 180,
       align: "center",
       render: (item) => (
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, py: 0.5 }}>
+          {/* The history slot is always reserved, so Edit and Update Task line up in every row. */}
+          <Box sx={{ width: 28, height: 28, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {item.is_recurring && (
+              <Tooltip title="Occurrence history">
+                <IconButton
+                  size="small"
+                  onClick={() => onHistory(item)}
+                  sx={{ color: "#6B7280", p: 0.6, borderRadius: 1, "&:hover": { color: "#E11D48", bgcolor: "#FFF1F2" }, transition: "all 0.12s" }}
+                >
+                  <HistoryIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Box>
           <IconButton
             size="small"
             disabled={!canEdit}
@@ -476,7 +615,7 @@ function buildChecklistColumns(
               "&:hover": { bgcolor: "#FFF1F2", borderColor: "#E11D48" },
             }}
           >
-            View Task
+            Update Task
           </Button>
         </Box>
       ),
@@ -524,7 +663,60 @@ export default function ChecklistDashboard() {
   const [checklistRows, setChecklistRows] = useState<AssignedChecklistSummary[]>([]);
   const scrollSentinelRef = useRef<HTMLTableRowElement | null>(null);
 
+  // Occurrence view: any of these switches the table from "one row per task" to
+  // "one row per occurrence" (newest first) so past days can be found and updated.
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [assigneeFilter, setAssigneeFilter] = useState("");
+  const [historyTask, setHistoryTask] = useState<{ id: string; code?: string; title: string } | null>(null);
+  // Which occurrence the Update Task Status modal is editing. Null = unknown, and
+  // the backend then updates the task's latest occurrence.
+  const [viewContext, setViewContext] = useState<{
+    checklistId: string;
+    instanceId?: string | null;
+    scheduledDate?: string;
+    dueDate?: string;
+    status?: string;
+  } | null>(null);
+
   const commonParams = { zodu_id: zoduId, branch_id: branchId, employee_id: employeeId };
+
+  const { data: employeesData } = useGetEmployeesForAssignQuery(
+    { zodu_id: zoduId, branch_id: branchId },
+    { skip: !zoduId || !branchId || !isReportingManager }
+  );
+
+  // One bound filled in means that single day (from = to), so picking just a date shows that day.
+  const occurrenceMode = !!(dateFrom || dateTo || assigneeFilter);
+  // The reset button only appears once there is something to reset.
+  const hasActiveEmpFilters = occurrenceMode || !!empSearch || empStatusFilter !== "All Status";
+  const occurrenceParams = useMemo(
+    () => (!occurrenceMode || !zoduId || !branchId ? null : {
+      ...commonParams,
+      is_admin: isAdmin,
+      from: dateFrom || dateTo || undefined,
+      to: dateTo || dateFrom || undefined,
+      assignee_id: assigneeFilter || undefined,
+      search: empSearch.trim() || undefined,
+      status: empStatusFilter,
+    }),
+    // commonParams is rebuilt each render from these same values
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [occurrenceMode, zoduId, branchId, employeeId, isAdmin, dateFrom, dateTo, assigneeFilter, empSearch, empStatusFilter]
+  );
+  const occurrences = useOccurrenceRows(occurrenceParams);
+
+  // History popup: every occurrence of the one task whose history icon was clicked.
+  const historyParams = useMemo(
+    () => (!historyTask || !zoduId || !branchId ? null : {
+      zodu_id: zoduId, branch_id: branchId, employee_id: employeeId,
+      is_admin: isAdmin,
+      checklist_id: historyTask.id,
+      status: "All Status",
+    }),
+    [historyTask, zoduId, branchId, employeeId, isAdmin]
+  );
+  const historyOccurrences = useOccurrenceRows(historyParams);
 
   const { data: summaryData, isLoading: summaryLoading, refetch: refetchSummary } =
     useGetMyChecklistSummaryQuery(
@@ -547,7 +739,8 @@ export default function ChecklistDashboard() {
   const { data: assignedEmployeesData, isFetching: employeesFetching, isLoading: employeesLoading, refetch: refetchEmployees } =
     useGetAssignedEmployeesQuery(
       { ...commonParams, is_admin: isAdmin, page: empPage, limit: 10, search: empSearch.trim() || undefined, status: empStatusFilter },
-      { skip: !zoduId || !branchId }
+      // The occurrence table replaces this one while a date / employee / history filter is on
+      { skip: !zoduId || !branchId || occurrenceMode }
     );
 
   const { data: checklistDetailData } = useGetChecklistByIdQuery(
@@ -558,15 +751,19 @@ export default function ChecklistDashboard() {
   const viewTask: TaskStatusDetail | null = useMemo(() => {
     const c = checklistDetailData?.data;
     if (!c) return null;
+    // A recurring task's own due date / status are the template's — show the occurrence being edited instead.
+    const ctx = viewContext?.checklistId === c.id ? viewContext : null;
     return {
       taskTitle: c.title,
       taskId: c.checklist_code ?? c.id,
       checklistDbId: c.id,
-      dueDate: formatDate(c.due_date),
+      instanceId: ctx?.instanceId ?? undefined,
+      occurrenceDate: ctx?.scheduledDate ? formatDate(ctx.scheduledDate) : undefined,
+      dueDate: formatDate(ctx?.dueDate ?? c.due_date),
       assignedBy: c.created_by_name ?? "—",
       assignedById: c.created_by,
       assignedOn: formatDate(c.created_at),
-      status: c.status,
+      status: ctx?.status ?? c.status,
       assignees: (c.assignees ?? []).map((a) => ({ id: a.employee_id, name: a.employee_name })),
       description: c.description ?? "",
       // ITEM-WISE (disabled)
@@ -601,7 +798,7 @@ export default function ChecklistDashboard() {
           }));
       }),
     };
-  }, [checklistDetailData]);
+  }, [checklistDetailData, viewContext]);
 
   // Only resets the page cursor — row state is left alone until fresh page-1 data
   // actually arrives (see the replace/append effects below). Clearing rows here
@@ -710,16 +907,43 @@ export default function ChecklistDashboard() {
     if (page === 1) refetchTasks();
   }, [refetchSummary, refetchAssignedEmployeesSummary, resetChecklistRows, resetTaskRows, refetchEmployees, refetchTasks, empPage, page]);
 
+  // From the task list: the occurrence being worked on is the task's latest one.
   const handleView = useCallback((id: string) => {
+    const row = checklistRows.find((r) => r.checklist_id === id);
+    setViewContext(row && row.latest_instance_id
+      ? { checklistId: id, instanceId: row.latest_instance_id, dueDate: row.due_date, status: row.status }
+      : null);
     setViewTaskId(id);
-  }, []);
+  }, [checklistRows]);
 
   const handleEdit = useCallback((id: string) => {
     setViewTaskId(id);
     setIsEditingTask(true);
   }, []);
 
-  const checklistColumns = useMemo(() => buildChecklistColumns(handleView, handleEdit, canEdit), [handleView, handleEdit, canEdit]);
+  // From the occurrence table: exactly the day that was clicked.
+  const handleOpenOccurrence = useCallback((occ: TaskOccurrence) => {
+    setViewContext({
+      checklistId: occ.checklist_id,
+      instanceId: occ.instance_id,
+      scheduledDate: occ.scheduled_date,
+      dueDate: occ.due_date,
+      status: occ.status,
+    });
+    setViewTaskId(occ.checklist_id);
+  }, []);
+
+  const handleHistory = useCallback((item: AssignedChecklistSummary) => {
+    setHistoryTask({ id: item.checklist_id, code: item.checklist_code, title: item.title });
+  }, []);
+
+  const resetOccurrenceFilters = useCallback(() => {
+    setDateFrom(""); setDateTo(""); setAssigneeFilter("");
+  }, []);
+
+  const checklistColumns = useMemo(() => buildChecklistColumns(handleView, handleEdit, handleHistory, canEdit), [handleView, handleEdit, handleHistory, canEdit]);
+  const occurrenceColumns = useMemo(() => buildOccurrenceColumns(handleOpenOccurrence, canEdit), [handleOpenOccurrence, canEdit]);
+  const historyColumns = useMemo(() => buildOccurrenceColumns(handleOpenOccurrence, canEdit, true), [handleOpenOccurrence, canEdit]);
   const taskColumns = useMemo(() => buildTaskColumns(handleView, canEdit), [handleView, canEdit]);
 
   // ─── Render ───────────────────────────────────────────────────────────────────
@@ -738,8 +962,8 @@ export default function ChecklistDashboard() {
             {isReportingManager && (
               <Box>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1.25 }}>
-                  <PeopleAltOutlinedIcon sx={{ fontSize: 16, color: "#4F46E5" }} />
-                  <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#4338CA", letterSpacing: 0.2 }}>
+                  <PeopleAltOutlinedIcon sx={{ fontSize: 16, color: "#2563EB" }} />
+                  <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#1D4ED8", letterSpacing: 0.2 }}>
                     Assigned to Employees
                   </Typography>
                 </Box>
@@ -749,24 +973,27 @@ export default function ChecklistDashboard() {
                     label="Total Assigned Tasks"
                     value={assignedEmployeesSummary?.total_assigned ?? 0}
                     valuePrefix=""
-                    icon={<AssignmentOutlinedIcon sx={{ color: "#4F46E5" }} />}
-                    iconBgColor="#E0E1FA"
+                    icon={<AssignmentOutlinedIcon sx={{ fontSize: 20 }} />}
+                    iconColor="#2563EB"
+                    iconBgColor="#DBEAFE"
                   />
                   <StatCard
                     radius={2}
                     label="Pending Tasks"
                     value={assignedEmployeesSummary?.pending ?? 0}
                     valuePrefix=""
-                    icon={<PendingOutlinedIcon sx={{ color: "#0E7490" }} />}
-                    iconBgColor="#CFEEF3"
+                    icon={<PendingOutlinedIcon sx={{ fontSize: 20 }} />}
+                    iconColor="#D97706"
+                    iconBgColor="#FEF3C7"
                   />
                   <StatCard
                     radius={2}
                     label="Completed"
                     value={assignedEmployeesSummary?.completed ?? 0}
                     valuePrefix=""
-                    icon={<CheckCircleOutlineIcon sx={{ color: "#16A34A" }} />}
-                    iconBgColor="#D3F5DE"
+                    icon={<CheckCircleOutlineIcon sx={{ fontSize: 20 }} />}
+                    iconColor="#16A34A"
+                    iconBgColor="#DCFCE7"
                   />
                 </Box>
               </Box>
@@ -786,24 +1013,27 @@ export default function ChecklistDashboard() {
                   label="Total Assigned Tasks"
                   value={summary?.tasks_assigned ?? 0}
                   valuePrefix=""
-                  icon={<AssignmentOutlinedIcon sx={{ color: "#4F46E5" }} />}
-                  iconBgColor="#E0E1FA"
+                  icon={<AssignmentOutlinedIcon sx={{ fontSize: 20 }} />}
+                  iconColor="#2563EB"
+                  iconBgColor="#DBEAFE"
                 />
                 <StatCard
                   radius={2}
                   label="Pending Tasks"
                   value={summary?.pending ?? 0}
                   valuePrefix=""
-                  icon={<PendingOutlinedIcon sx={{ color: "#0E7490" }} />}
-                  iconBgColor="#CFEEF3"
+                  icon={<PendingOutlinedIcon sx={{ fontSize: 20 }} />}
+                  iconColor="#D97706"
+                  iconBgColor="#FEF3C7"
                 />
                 <StatCard
                   radius={2}
                   label="Completed"
                   value={summary?.completed ?? 0}
                   valuePrefix=""
-                  icon={<CheckCircleOutlineIcon sx={{ color: "#16A34A" }} />}
-                  iconBgColor="#D3F5DE"
+                  icon={<CheckCircleOutlineIcon sx={{ fontSize: 20 }} />}
+                  iconColor="#16A34A"
+                  iconBgColor="#DCFCE7"
                 />
               </Box>
             </Box>
@@ -811,7 +1041,7 @@ export default function ChecklistDashboard() {
         )}
 
         {/* Employee filter row */}
-        <Box sx={{ display: "flex", gap: 1.5, mb: 2, flexWrap: "wrap", alignItems: "center" }}>
+        <Box sx={{ display: "flex", gap: 1.5, mb: 2, flexWrap: "wrap", alignItems: "center", justifyContent: "flex-end" }}>
           {isReportingManager && (
             <>
               <TextField
@@ -828,24 +1058,45 @@ export default function ChecklistDashboard() {
                     ),
                   },
                 }}
-                sx={{ flex: 1, minWidth: 280, maxWidth: 440, bgcolor: "#fff" }}
+                sx={{ flex: "0 1 340px", minWidth: 240, bgcolor: "#fff" }}
               />
               <FormControl size="small" sx={{ minWidth: 130, bgcolor: "#fff" }}>
                 <Select value={empStatusFilter} onChange={(e) => setEmpStatusFilter(e.target.value)}>
                   <MenuItem value="All Status">All Status</MenuItem>
-                  {["Pending", "In Progress", "Completed"].map((s) => (
+                  {["Pending", "In Progress", "Completed", ...(occurrenceMode ? ["Overdue"] : [])].map((s) => (
                     <MenuItem key={s} value={s}>{s}</MenuItem>
                   ))}
                 </Select>
               </FormControl>
-              <Button
-                variant="outlined"
-                startIcon={<FilterListIcon sx={{ fontSize: 16 }} />}
-                onClick={() => { setEmpSearch(""); setEmpStatusFilter("All Status"); }}
-                sx={{ borderColor: "#E5E7EB", color: "#374151", bgcolor: "#fff", ml: "auto" }}
-              >
-                Reset Filter
-              </Button>
+              <FormControl size="small" sx={{ minWidth: 170, bgcolor: "#fff" }}>
+                <Select
+                  displayEmpty
+                  value={assigneeFilter}
+                  onChange={(e) => setAssigneeFilter(e.target.value)}
+                  renderValue={(v) => (v ? employeesData?.data?.find((e) => e.employee_id === v)?.name ?? "Employee" : "All Employees")}
+                >
+                  <MenuItem value="">All Employees</MenuItem>
+                  {(employeesData?.data ?? []).map((e) => (
+                    <MenuItem key={e.employee_id} value={e.employee_id}>{e.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <DateRangeChip
+                fromDate={dateFrom}
+                toDate={dateTo}
+                onFromDateChange={setDateFrom}
+                onToDateChange={setDateTo}
+              />
+              {hasActiveEmpFilters && (
+                <Tooltip title="Reset Filters">
+                  <IconButton
+                    onClick={() => { setEmpSearch(""); setEmpStatusFilter("All Status"); resetOccurrenceFilters(); }}
+                    sx={{ width: 36, height: 36, borderRadius: 1, flexShrink: 0, bgcolor: "#F97316", color: "#fff", "&:hover": { bgcolor: "#EA6C0A" } }}
+                  >
+                    <FilterListOffIcon sx={{ fontSize: 20 }} />
+                  </IconButton>
+                </Tooltip>
+              )}
             </>
           )}
           {isReportingManager && (
@@ -855,7 +1106,7 @@ export default function ChecklistDashboard() {
               onClick={() => setCreateOpen(true)}
               disableElevation
               disabled={!canCreate}
-              sx={{ bgcolor: "#E11D48", color: "#fff", px: 3, "&:hover": { bgcolor: "#BE123C" } }}
+              sx={{ flexShrink: 0, whiteSpace: "nowrap", bgcolor: "#E11D48", color: "#fff", px: 3, "&:hover": { bgcolor: "#BE123C" } }}
             >
               Assign Task
             </Button>
@@ -870,13 +1121,34 @@ export default function ChecklistDashboard() {
               display: "flex", alignItems: "center", justifyContent: "space-between",
               px: 2.5, pb: 1.5,
             }}>
-              <Typography sx={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>
-                Assigned Checklists
-              </Typography>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, flexWrap: "wrap" }}>
+                <Typography sx={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>
+                  {occurrenceMode ? "Task Occurrences" : "Assigned Checklists"}
+                </Typography>
+                {occurrenceMode && (
+                  <Typography sx={{ fontSize: 12, color: "#9CA3AF" }}>
+                    {occurrences.total} occurrence{occurrences.total === 1 ? "" : "s"}
+                  </Typography>
+                )}
+              </Box>
               {/* <StatusOverviewLegend /> */}
             </Box>
 
-            {(employeesLoading || employeesFetching) && checklistRows.length === 0 ? (
+            {occurrenceMode ? (
+              occurrences.isLoading ? (
+                <LottieLoader />
+              ) : (
+                <DataTable<TaskOccurrence>
+                  columns={occurrenceColumns}
+                  rows={occurrences.rows}
+                  rowKey={(occ) => occ.instance_id}
+                  maxHeight={400}
+                  hasNextPage={occurrences.hasMore}
+                  loadMoreRef={occurrences.sentinelRef}
+                  emptyMessage="No occurrences found for these filters"
+                />
+              )
+            ) : (employeesLoading || employeesFetching) && checklistRows.length === 0 ? (
               <LottieLoader />
             ) : (
               <DataTable<AssignedChecklistSummary>
@@ -973,7 +1245,7 @@ export default function ChecklistDashboard() {
         {/* Update Task Status Modal */}
         <UpdateTaskStatusModal
           open={!!viewTaskId && !isEditingTask}
-          onClose={() => setViewTaskId(null)}
+          onClose={() => { setViewTaskId(null); setViewContext(null); }}
           task={viewTask}
           loggedEmployeeId={employeeId}
           canEdit={canEdit}
@@ -981,6 +1253,9 @@ export default function ChecklistDashboard() {
           onSuccess={() => {
             setSuccessMsg("Task status updated successfully!");
             setViewTaskId(null);
+            setViewContext(null);
+            occurrences.reset();
+            historyOccurrences.reset();
             refetchSummary();
             refetchAssignedEmployeesSummary();
             resetChecklistRows();
@@ -991,6 +1266,17 @@ export default function ChecklistDashboard() {
             if (page === 1) refetchTasks();
           }}
           onError={(msg) => setErrorMsg(msg)}
+        />
+
+        <OccurrenceHistoryDialog
+          task={historyTask}
+          rows={historyOccurrences.rows}
+          total={historyOccurrences.total}
+          isLoading={historyOccurrences.isLoading}
+          hasMore={historyOccurrences.hasMore}
+          sentinelRef={historyOccurrences.sentinelRef}
+          columns={historyColumns}
+          onClose={() => setHistoryTask(null)}
         />
 
         <SuccessToast message={successMsg} onClose={() => setSuccessMsg("")} />

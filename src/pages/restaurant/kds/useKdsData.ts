@@ -32,6 +32,9 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+/** tbl_kot_list.status: "P" = Pending, "C" = Completed (marked ready from the item modal). */
+export const KOT_ITEM_COMPLETED = "C";
+
 export interface KdsKotListItem {
   item_id: string;
   item_name: string;
@@ -70,7 +73,8 @@ interface KdsKotListResponse {
 async function fetchKotList(zoduId: string, branchId: string): Promise<KdsKotListResponse> {
   const { data } = await axios.get(
     `${API_BASE}${apiConfig.menu.getKdsKotList(zoduId, branchId)}`,
-    { headers: authHeaders() }
+    // `_t` keeps the browser from answering a poll with a cached / 304 copy that predates an item being marked ready.
+    { headers: authHeaders(), params: { _t: Date.now() } }
   );
   return {
     data: (data?.data ?? []) as KdsKotTicket[],
@@ -86,6 +90,21 @@ async function markOrderReady(zoduId: string, branchId: string, apiOrderId: stri
     { headers: authHeaders() }
   );
 }
+
+async function markItemReady(zoduId: string, branchId: string, apiOrderId: string, itemName: string): Promise<void> {
+  await axios.put(
+    `${API_BASE}${apiConfig.menu.markKdsItemReady()}`,
+    { zodu_id: zoduId, branch_id: branchId, api_order_id: apiOrderId, item_name: itemName },
+    { headers: authHeaders() }
+  );
+}
+
+interface ItemReadyVars {
+  apiOrderId: string;
+  itemName: string;
+}
+
+const itemKey = ({ apiOrderId, itemName }: ItemReadyVars) => `${apiOrderId}::${itemName}`;
 
 /** One kitchen-ready card: a table/order with all its KOT tickets, newest send first. */
 export interface KdsOrderCard {
@@ -135,9 +154,42 @@ export function useKdsData(zoduId: string, branchId: string, pollMs = 8000) {
     refetchInterval: pollMs,
   });
 
-  const rows = kotListQuery.data?.data ?? [];
+  // Items marked ready here. Applied over whatever the server last sent, so a poll that lands
+  // before the server reflects the change can't un-strike the item on the card.
+  const [completedItemKeys, setCompletedItemKeys] = useState<Set<string>>(new Set());
+
+  const rows = useMemo(() => {
+    const raw = kotListQuery.data?.data ?? [];
+    if (completedItemKeys.size === 0) return raw;
+    return raw.map((ticket) => ({
+      ...ticket,
+      items: ticket.items.map((item) =>
+        completedItemKeys.has(itemKey({ apiOrderId: ticket.api_order_id, itemName: item.item_name }))
+          ? { ...item, status: KOT_ITEM_COMPLETED }
+          : item
+      ),
+    }));
+  }, [kotListQuery.data, completedItemKeys]);
   const cards = useMemo(() => groupByOrder(rows), [rows]);
-  const itemSummary = kotListQuery.data?.item_summary ?? [];
+
+  // The server's summary counts pending items only; take off whatever it still counts
+  // for items completed here.
+  const itemSummary = useMemo(() => {
+    const summary = kotListQuery.data?.item_summary ?? [];
+    if (completedItemKeys.size === 0) return summary;
+    const stale = new Map<string, number>();
+    (kotListQuery.data?.data ?? []).forEach((ticket) =>
+      ticket.items.forEach((item) => {
+        if (item.status !== KOT_ITEM_COMPLETED && completedItemKeys.has(itemKey({ apiOrderId: ticket.api_order_id, itemName: item.item_name }))) {
+          stale.set(item.item_name, (stale.get(item.item_name) ?? 0) + item.qty);
+        }
+      })
+    );
+    if (stale.size === 0) return summary;
+    return summary
+      .map((entry) => ({ ...entry, qty: entry.qty - (stale.get(entry.item_name) ?? 0) }))
+      .filter((entry) => entry.qty > 0);
+  }, [kotListQuery.data, completedItemKeys]);
   const orderTypeSummary = kotListQuery.data?.order_type_summary ?? [];
 
   // Tracks in-flight "Order Ready" calls so a card can show a busy state and
@@ -181,6 +233,67 @@ export function useKdsData(zoduId: string, branchId: string, pollMs = 8000) {
     readyMutation.mutate(apiOrderId);
   };
 
+  // Item-level "Mark Ready" from the item modal. Unlike the order-level call it
+  // keeps the card on the board — the item is only flagged "C" so the card can
+  // strike it through; the card itself goes when "Order Ready" is clicked.
+  const [pendingItemKeys, setPendingItemKeys] = useState<Set<string>>(new Set());
+
+  const itemReadyMutation = useMutation({
+    mutationFn: ({ apiOrderId, itemName }: ItemReadyVars) => markItemReady(zoduId, branchId, apiOrderId, itemName),
+    onMutate: async (vars: ItemReadyVars) => {
+      setPendingItemKeys((prev) => new Set(prev).add(itemKey(vars)));
+      setCompletedItemKeys((prev) => new Set(prev).add(itemKey(vars)));
+
+      await queryClient.cancelQueries({ queryKey: KOT_LIST_KEY(zoduId, branchId) });
+      const previousData = queryClient.getQueryData<KdsKotListResponse>(KOT_LIST_KEY(zoduId, branchId));
+      queryClient.setQueryData<KdsKotListResponse>(KOT_LIST_KEY(zoduId, branchId), (old) => {
+        if (!old) return old;
+        let completedQty = 0;
+        const data = old.data.map((ticket) => {
+          if (ticket.api_order_id !== vars.apiOrderId) return ticket;
+          return {
+            ...ticket,
+            items: ticket.items.map((item) => {
+              if (item.item_name !== vars.itemName || item.status === KOT_ITEM_COMPLETED) return item;
+              completedQty += item.qty;
+              return { ...item, status: KOT_ITEM_COMPLETED };
+            }),
+          };
+        });
+        // Mirror the server's pending-only item_summary so the rail count drops at once.
+        const item_summary = (old.item_summary ?? [])
+          .map((entry) => (entry.item_name === vars.itemName ? { ...entry, qty: entry.qty - completedQty } : entry))
+          .filter((entry) => entry.qty > 0);
+        return { ...old, data, item_summary };
+      });
+      return { previousData };
+    },
+    onError: (_err, vars, context) => {
+      setCompletedItemKeys((prev) => {
+        const next = new Set(prev);
+        next.delete(itemKey(vars));
+        return next;
+      });
+      if (context?.previousData) {
+        queryClient.setQueryData(KOT_LIST_KEY(zoduId, branchId), context.previousData);
+      }
+    },
+    onSettled: (_data, _err, vars) => {
+      setPendingItemKeys((prev) => {
+        const next = new Set(prev);
+        next.delete(itemKey(vars));
+        return next;
+      });
+      queryClient.invalidateQueries({ queryKey: KOT_LIST_KEY(zoduId, branchId) });
+    },
+  });
+
+  const markItemReadyNow = (apiOrderId: string, itemName: string) => {
+    const vars = { apiOrderId, itemName };
+    if (pendingItemKeys.has(itemKey(vars))) return;
+    itemReadyMutation.mutate(vars);
+  };
+
   const refreshNow = () => {
     queryClient.invalidateQueries({ queryKey: KOT_LIST_KEY(zoduId, branchId) });
   };
@@ -193,6 +306,8 @@ export function useKdsData(zoduId: string, branchId: string, pollMs = 8000) {
     isFetching: kotListQuery.isFetching,
     pendingOrderIds,
     markOrderReady: markOrderReadyNow,
+    pendingItemKeys,
+    markItemReady: markItemReadyNow,
     refreshNow,
   };
 }

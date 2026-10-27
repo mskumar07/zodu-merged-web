@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import LottieLoader from "@components/LottieLoader";
 import {
   Box, Typography, TextField, Button, IconButton,
-  InputAdornment, Chip, Tooltip, Fab, Skeleton,
+  InputAdornment, Tooltip, Fab, Skeleton,
   Dialog, DialogTitle, DialogContent, DialogActions,
   FormControl, Select, MenuItem, Stack, Tabs, Tab,
 } from "@mui/material";
@@ -184,7 +184,7 @@ export default function PurchaseScreen() {
               {/* Cross-reference: the return / debit note ids raised against this purchase */}
               {(p.returns ?? []).map((r) => (
                 <Typography key={r.return_uuid} noWrap sx={{ fontSize: 12, fontWeight: 500, color: "#475569", lineHeight: 1.4 }}>
-                  {r.return_type === "DEBIT_NOTE" ? "Debit note" : "Return"} -{" "}
+                  {r.return_type === "DEBIT_NOTE" ? "Debit Note" : "Purchase Return"} -{" "}
                   <Box component="span" onClick={() => setViewReturnId(r.return_uuid)} sx={{ color: "#B91C1C", fontWeight: 600, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}>
                     {r.return_id}
                   </Box>
@@ -345,7 +345,7 @@ export default function PurchaseScreen() {
         // Once a purchase has returns, its actions live on the return rows — the purchase itself is locked
         render: (p: PurchaseRow) => (p.returns?.length ? null : (
           <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
-            <Tooltip title={canEdit ? "Purchase return / debit note" : "You don't have permission to edit"} placement="top">
+            <Tooltip title={canEdit ? "Purchase Return / Debit Note" : "You don't have permission to edit"} placement="top">
               <span>
                 <IconButton
                   size="small"
@@ -491,7 +491,7 @@ export default function PurchaseScreen() {
                       canEdit={canEdit}
                       onView={(ret) => setViewReturnId(ret.return_uuid)}
                       onViewPurchase={() => setDetailId(p.purchase_id)}
-                      onMarkRefund={guard((ret: PurchaseReturnListRow) => setRefundTarget(ret))}
+                      onMarkRefund={guard((ret: PurchaseReturnListRow) => setRefundTarget({ ...ret, vendorName: p.vendor_name ?? p.company_name }))}
                       onEdit={guard((ret: PurchaseReturnListRow) => setReturnTarget({ purchaseId: p.purchase_id, editReturn: ret }))}
                       onDelete={guard((ret: PurchaseReturnListRow) => setDeleteReturn({ purchaseId: p.purchase_id, ret }))}
                     />

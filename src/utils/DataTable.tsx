@@ -16,7 +16,10 @@ import {
 } from "@mui/material";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+const HEAD_BG = "#F5F5F5";
+const HEAD_BORDER = "#CBD5E1";
 const ROW_HEIGHT = 40;
+const HEADER_HEIGHT = 34; // a notch shorter than a body row so the header reads as a label strip
 const CELL_PX    = "5px 12px";
 const FIT_CELL_PX = "5px 8px";
 const FIT_HEAD_PX = "1px 8px";
@@ -96,7 +99,7 @@ function DataTable<T>({
   maxHeight = "68vh",
   onRowClick,
   emptyMessage = "No records found.",
-  headerHeight = ROW_HEIGHT,
+  headerHeight = HEADER_HEIGHT,
   footerRow,
   hideEndNote = false,
   fitWidth = false,
@@ -116,8 +119,8 @@ function DataTable<T>({
     fontSize: "12.5px",
     fontWeight: 700,
     color: "#6B7280",
-    backgroundColor: "#F5F5F5",
-    borderBottom: "1px solid #CBD5E1",
+    backgroundColor: HEAD_BG,
+    borderBottom: `1px solid ${HEAD_BORDER}`,
     letterSpacing: "0.02em",
     ...(fitWidth && { padding: FIT_HEAD_PX, overflow: "hidden", textOverflow: "ellipsis" }),
   };
@@ -234,6 +237,8 @@ function DataTable<T>({
           overflowX: "hidden",
           overflowY: "hidden",
           flexShrink: 0,
+          // The reserved scrollbar gutter would otherwise show white past the last header cell.
+          background: `linear-gradient(${HEAD_BORDER}, ${HEAD_BORDER}) bottom / 100% 1px no-repeat ${HEAD_BG}`,
           ...(fitWidth && { scrollbarGutter: "stable", ...bodyScrollbarSx }),
         }}
       >

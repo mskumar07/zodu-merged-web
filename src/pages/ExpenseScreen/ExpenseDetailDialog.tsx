@@ -42,18 +42,6 @@ const fmtDate = (iso: string) => {
   });
 };
 
-const fmtDateTime = (iso: string) => {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
-};
-
 type PayStatus = "paid" | "partial" | "pending";
 
 const STATUS_STYLES: Record<
@@ -341,9 +329,9 @@ export default function ExpenseDetailDialog({ expenseId, onClose, onEditSuccess 
               <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#D32F2F" }}>
                 {data.expense_id}
               </Typography>
-              {data.created_at && (
+              {data.expense_date_formatted && (
                 <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>
-                  {fmtDateTime(data.created_at)}
+                  {data.expense_date_formatted}
                 </Typography>
               )}
               {st && (
@@ -398,12 +386,13 @@ export default function ExpenseDetailDialog({ expenseId, onClose, onEditSuccess 
       </DialogContent>
 
       <DialogActions sx={{ px: 3.5, py: 2, borderTop: "1px solid #F1F5F9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Button
-          onClick={onClose}
-          sx={{ fontSize: 13, fontWeight: 600, textTransform: "none", color: "#64748B", "&:hover": { bgcolor: "#F8FAFC" } }}
-        >
-          Cancel
-        </Button>
+        <Box>
+          {data?.created_at_formatted && (
+            <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#334155" }}>
+              Created: {data.created_at_formatted}
+            </Typography>
+          )}
+        </Box>
 
         <Box sx={{ display: "flex", gap: 1.5 }}>
           <Button

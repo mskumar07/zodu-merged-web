@@ -25,6 +25,7 @@ interface MenuEndPoints {
   getTableKOT: (branchId: string, zoduId: string) => string; // Z-T77
   getKdsKotList: (zoduId: string, branchId: string) => string;
   markKdsOrderReady: () => string;
+  markKdsItemReady: () => string;
   holdMenu: () => string; //Z-T97
   updateHoldMenu: () => string;
   deleteHoldMenu: (menuId: string) => string; //Z-T97
@@ -153,6 +154,7 @@ export const apiConfig: ApiConstants = {
     getKdsKotList: (zoduId: string, branchId: string) =>
       `/restaurant/api/orders/get/kot-list/${zoduId}/${branchId}`,
     markKdsOrderReady: () => `/restaurant/api/orders/api/kot/order-ready`,
+    markKdsItemReady: () => `/restaurant/api/orders/api/kot/item-ready`,
     holdMenu: () => `/restaurant/api/hold/add/hold_menu`, //Z-T97
     updateHoldMenu: () => `/restaurant/api/hold/update/hold-menu`,
     getHoldMenu: (branchId: string, zoduId: string) =>

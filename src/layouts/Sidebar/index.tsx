@@ -112,7 +112,6 @@ const restaurantNavItems = [
   { label: "Inventory", icon: <InventoryIcon />, path: "/stock", module: "Inventory" },
   { label: "Purchase", icon: <ShoppingCartOutlinedIcon />, path: "/purchase", module: "Purchase" },
   { label: "Expense", icon: <PaymentsIcon />, path: "/expense", module: "Expense" },
-  { label: "Accounting", icon: <AccountBalanceOutlinedIcon />, path: "/accounting" },
   { label: "Customer Management", icon: <SupervisorAccountOutlinedIcon />, path: "/customer-details", module: "Customer Management" },
   { label: "Staff / User Management", icon: <IdCardIcon />, path: "/employee-management", module: "Staff / User Management" },
   { label: "Attendance", icon: <EventAvailableIcon />, path: "/attendance", module: "Attendance" },

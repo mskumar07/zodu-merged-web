@@ -7,14 +7,7 @@ import PaidIcon            from "@mui/icons-material/Paid";
 import MoneyOffIcon        from "@mui/icons-material/MoneyOff";
 import { fmtMoneyRaw } from "@utils/formatMoney";
 
-interface PurchaseStatsData {
-  total_purchase_count: string;
-  total_paid_amount: string;
-  total_unpaid_amount: string;
-  total_amount:         string;
-  this_month_spent?: string;
-  last_month_spent?: string;
-}
+import type { PurchaseStatsData } from "./usePuchaseapi";
 
 interface PurchaseStatsProps {
   data: PurchaseStatsData;

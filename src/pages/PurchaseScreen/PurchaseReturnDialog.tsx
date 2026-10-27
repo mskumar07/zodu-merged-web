@@ -120,8 +120,8 @@ const QtyStepper = memo(function QtyStepper({ value, max, onChange }: { value: n
 });
 
 // ── One item row ──────────────────────────────────────────────
-const ItemRow = memo(function ItemRow({ line, index, qty, onQty, onToggle }: {
-  line: Line; index: number; qty: number;
+const ItemRow = memo(function ItemRow({ line, qty, onQty, onToggle }: {
+  line: Line; qty: number;
   onQty: (id: number, qty: number) => void;
   onToggle: (id: number, available: number) => void;
 }) {
@@ -372,8 +372,8 @@ function Form({ data, ret, editReturn, onClose, notify }: {
               <Box sx={{ maxHeight: 300, overflowY: "auto" }}>
                 {lines.length === 0 ? (
                   <Typography sx={{ py: 5, textAlign: "center", fontSize: 13.5, color: "#94A3B8" }}>This purchase has no items to return.</Typography>
-                ) : lines.map((l, i) => (
-                  <ItemRow key={l.id} line={l} index={i} qty={qty[l.id] ?? 0} onQty={onQty} onToggle={onToggle} />
+                ) : lines.map((l) => (
+                  <ItemRow key={l.id} line={l} qty={qty[l.id] ?? 0} onQty={onQty} onToggle={onToggle} />
                 ))}
               </Box>
             </Box>

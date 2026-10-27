@@ -38,15 +38,6 @@ const fmtDate = (iso: string) =>
     year: "numeric",
   });
 
-const fmtDateTime = (iso: string) =>
-  new Date(iso).toLocaleString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
 
 type PayStatus = "paid" | "partial" | "pending";
 
@@ -110,7 +101,6 @@ function PurchaseDetailContent({ data }: { data: PurchaseDetail }) {
   const totalSubtotal = data.items.reduce((sum, item) => sum + Number(item.subtotal ?? 0), 0);
   const totalCgst = data.items.reduce((sum, item) => sum + Number(item.cgst ?? 0), 0);
   const totalSgst = data.items.reduce((sum, item) => sum + Number(item.sgst ?? 0), 0);
-  const totalTax = data.items.reduce((sum, item) => sum + Number(item.tax_amount ?? 0), 0);
   const totalReturned = Number(data.total_returned ?? 0);
   const dueDate = data.due_date_formatted ?? data.due_date_formated;
   const attachments = parseAttachments(data.attachment_url);
@@ -184,7 +174,7 @@ function PurchaseDetailContent({ data }: { data: PurchaseDetail }) {
           }}
         >
           {[
-            { label: "Supplier Name", value: data.vendor_name || "Walk-in" },
+            { label: "Supplier Name", value: data.vendor_name || "—" },
             { label: "Mobile No.", value: data.vendor_phone },
             { label: "GSTIN", value: data.vendor_gst },
             { label: "Address", value: vendorAddress },
@@ -459,7 +449,7 @@ export default function PurchaseDetailDialog({ purchaseId, onClose }: Props) {
                 {data.purchase_id}
               </Typography>
               <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>
-                {fmtDateTime(data.created_at)}
+                {data.purchase_date_formatted}
               </Typography>
               {st && (
                 <Chip
@@ -535,18 +525,13 @@ export default function PurchaseDetailDialog({ purchaseId, onClose }: Props) {
           alignItems: "center",
         }}
       >
-        <Button
-          onClick={onClose}
-          sx={{
-            fontSize: 13,
-            fontWeight: 600,
-            textTransform: "none",
-            color: "#64748B",
-            "&:hover": { bgcolor: "#F8FAFC" },
-          }}
-        >
-          Cancel
-        </Button>
+        <Box>
+          {data?.created_at_formatted && (
+            <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#334155" }}>
+              Created: {data.created_at_formatted}
+            </Typography>
+          )}
+        </Box>
 
         <Box sx={{ display: "flex", gap: 1.5 }}>
           <Button

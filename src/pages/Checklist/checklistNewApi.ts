@@ -160,6 +160,11 @@ export interface AssignedChecklistSummary {
   last_activity: string | null;
   total_items: number;
   assignees: AssignedChecklistAssignee[];
+  is_recurring?: boolean;
+  recur_frequency?: string | null;
+  latest_instance_id?: string | null;
+  /** Open occurrences already past their due date (recurring tasks only). */
+  overdue_count?: number;
   pending: number;
   in_progress: number;
   completed: number;
@@ -171,6 +176,48 @@ export interface AssignedEmployeesResponse {
   success: boolean;
   data: AssignedChecklistSummary[];
   pagination: { total: number; page: number; limit: number; pages: number };
+}
+
+/** One occurrence of a task on one date (a one-off task has exactly one). */
+export interface TaskOccurrence {
+  instance_id: string;
+  checklist_id: string;
+  checklist_code?: string;
+  title: string;
+  is_recurring: boolean;
+  recur_frequency: string | null;
+  created_by_name?: string;
+  /** YYYY-MM-DD — the day the work was scheduled for. */
+  scheduled_date: string;
+  due_date: string;
+  /** Open occurrences past their due date arrive as "Overdue". */
+  status: string;
+  completed_at: string | null;
+  assignees: AssignedChecklistAssignee[];
+}
+
+export interface OccurrencesResponse {
+  success: boolean;
+  data: TaskOccurrence[];
+  pagination: { total: number; page: number; limit: number; pages: number };
+}
+
+export interface OccurrenceQuery {
+  zodu_id: string;
+  branch_id: string;
+  /** Logged-in employee — non-admins only see tasks they created. */
+  employee_id: string;
+  is_admin?: boolean;
+  /** Inclusive YYYY-MM-DD bounds; a single day is from = to. */
+  from?: string;
+  to?: string;
+  /** Only occurrences assigned to this employee. */
+  assignee_id?: string;
+  checklist_id?: string;
+  status?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
 }
 
 export interface EmployeeForAssign {
@@ -196,6 +243,8 @@ export interface UpdateTaskStatusPayload {
   branch_id: string;
   /** Task-wise: one status for the whole task. */
   status: TaskStatusItemPayload["status"];
+  /** The occurrence being updated; omitted = the task's latest occurrence. */
+  instance_id?: string;
   // items: TaskStatusItemPayload[]; // ITEM-WISE (disabled)
 }
 
@@ -345,6 +394,27 @@ export const checklistNewApi = apiSlice.injectEndpoints({
       providesTags: [{ type: "Checklist", id: "LIST" }],
     }),
 
+    // GET /checklist/api/checklists/occurrences/list
+    // Task occurrences by date range / employee / task. `employee_id` is the
+    // logged-in user (created_by scoping); `assignee_id` is the filter.
+    getOccurrences: builder.query<OccurrencesResponse, OccurrenceQuery>({
+      query: ({ zodu_id, branch_id, employee_id, is_admin, from, to, assignee_id, checklist_id, status, search, page = 1, limit = 20 }) => ({
+        url: "checklist/api/checklists/occurrences/list",
+        method: "GET",
+        params: {
+          zodu_id, branch_id, created_by: employee_id, page, limit,
+          ...(is_admin ? { is_admin: true } : {}),
+          ...(from ? { from } : {}),
+          ...(to ? { to } : {}),
+          ...(assignee_id ? { employee_id: assignee_id } : {}),
+          ...(checklist_id ? { checklist_id } : {}),
+          ...(search ? { search } : {}),
+          ...(status && status !== "All Status" ? { status } : {}),
+        },
+      }),
+      providesTags: [{ type: "Checklist", id: "LIST" }],
+    }),
+
     // GET /checklist/api/checklists/assigned-employees-summary
     getAssignedEmployeesSummary: builder.query<{ success: boolean; data: AssignedEmployeesSummary }, { zodu_id: string; branch_id: string; employee_id: string; is_admin?: boolean; search?: string; status?: string }>({
       query: ({ zodu_id, branch_id, employee_id, is_admin, search, status }) => ({
@@ -400,5 +470,6 @@ export const {
   useGetMyChecklistTasksQuery,
   useGetAssignedEmployeesQuery,
   useGetAssignedEmployeesSummaryQuery,
+  useGetOccurrencesQuery,
   useGetEmployeesForAssignQuery,
 } = checklistNewApi;

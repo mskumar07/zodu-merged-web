@@ -323,6 +323,7 @@ export interface MarkPaymentPayload {
   paid_amount:      number;
   transaction_type: string;   // "Cash" | "Card" | "UPI" | "Credit"
   transaction_id?:  string | null;
+  payment_date?:    string;   // YYYY-MM-DD
 }
 
 export interface MarkPaymentResponse {
@@ -591,6 +592,7 @@ export interface SaleReturnDetail {
     refund_status:    RefundStatus | null;
     return_date_fmt:  string | null;
     return_time_fmt:  string | null;
+    created_at_fmt?:  string | null;
   };
   /** null for a walk-in sale */
   customer: Pick<SaleCustomer, "cust_name" | "cpy_name" | "mobile" | "gst" | "address_line1" | "address_line2" | "city" | "state" | "pincode"> | null;
