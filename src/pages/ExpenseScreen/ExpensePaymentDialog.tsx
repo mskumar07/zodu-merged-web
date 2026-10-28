@@ -50,6 +50,7 @@ export default function ExpensePaymentDialog({ expense, onClose, onSuccess }: Pr
     amount:           String(balance),
     transaction_type: "Cash",
     transaction_id:   "",
+    payment_date:     localDateStr(),
   });
 
   const markPayment = useMarkExpensePayment();
@@ -57,6 +58,7 @@ export default function ExpensePaymentDialog({ expense, onClose, onSuccess }: Pr
   const handleSubmit = () => {
     const amount = parseFloat(form.amount);
     if (!amount || amount <= 0) { toast.error("Enter a valid payment amount"); return; }
+    if (!form.payment_date) { toast.error("Select a payment date"); return; }
     if (amount > balance) { toast.error(`Payment cannot exceed ₹${balance.toLocaleString("en-IN")}`); return; }
 
     const { zoduId, branchId } = getTenantContext();
@@ -66,7 +68,7 @@ export default function ExpensePaymentDialog({ expense, onClose, onSuccess }: Pr
         data: {
           zodu_id:          zoduId ?? "",
           branch_id:        branchId ?? "",
-          payment_date:     localDateStr(),
+          payment_date:     form.payment_date,
           paid_amount:      amount,
           transaction_type: form.transaction_type,
           transaction_id:   form.transaction_id || null,
@@ -130,7 +132,7 @@ export default function ExpensePaymentDialog({ expense, onClose, onSuccess }: Pr
             />
           </Box>
 
-          {/* Payment Type + Reference */}
+          {/* Payment Type + Payment Date */}
           <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5 }}>
             <Box>
               <FieldLabel>Payment Type</FieldLabel>
@@ -140,13 +142,24 @@ export default function ExpensePaymentDialog({ expense, onClose, onSuccess }: Pr
               </PaymentModeSelect>
             </Box>
             <Box>
-              <FieldLabel>Reference No.</FieldLabel>
-              <TextField size="small" fullWidth placeholder="TXN-12345"
-                value={form.transaction_id}
-                onChange={e => setForm(f => ({ ...f, transaction_id: e.target.value }))}
+              <FieldLabel>Payment Date</FieldLabel>
+              <TextField
+                size="small" fullWidth type="date"
+                value={form.payment_date}
+                onChange={e => setForm(f => ({ ...f, payment_date: e.target.value }))}
                 sx={inputSx}
               />
             </Box>
+          </Box>
+
+          {/* Reference */}
+          <Box>
+            <FieldLabel>Reference No.</FieldLabel>
+            <TextField size="small" fullWidth placeholder="TXN-12345"
+              value={form.transaction_id}
+              onChange={e => setForm(f => ({ ...f, transaction_id: e.target.value }))}
+              sx={inputSx}
+            />
           </Box>
 
           {/* Balance preview */}

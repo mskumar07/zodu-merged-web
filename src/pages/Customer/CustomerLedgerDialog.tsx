@@ -384,6 +384,12 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
 
   const hasFilter = !!(fromDate || toDate || searchQuery);
 
+  // The modal stays mounted while closed, so wipe the filters on close — the next
+  // open (same or another customer) starts unfiltered.
+  useEffect(() => {
+    if (!open) clearFilters();
+  }, [open, clearFilters]);
+
   return (
     <ThemeProvider theme={theme}>
       <Dialog

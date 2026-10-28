@@ -86,7 +86,7 @@ const handleSubmit = () => {
       data: {
         zodu_id: getZoduId() ?? "",
         branch_id: getBranchId() ?? "",
-        payment_date: localDateStr(),
+        payment_date: form.payment_date || localDateStr(),
         paid_amount: amount,
         transaction_type: form.transaction_type,
         transaction_id: form.transaction_id || null,
@@ -213,7 +213,6 @@ const handleSubmit = () => {
                 size="small" fullWidth type="date"
                 value={form.payment_date}
                 onChange={e => setForm(f => ({ ...f, payment_date: e.target.value }))}
-                inputProps={{ max: todayStr() }}
                 sx={inputSx}
               />
             </Box>

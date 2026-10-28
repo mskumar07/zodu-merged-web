@@ -35,7 +35,8 @@ import { API_BASE, fetchSaleDetail, salesQueryKeys, getBranchId, getZoduId, crea
 import { INR } from "./dialogHelpers";
 import { buildInvoiceContext, computeReturnBreakdown } from "./returnCredit";
 import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
-import { localDateStr } from "@utils/localDate";
+import { localDateStr, toDateInputValue } from "@utils/localDate";
+import { ReturnDateInput, useReturnDate } from "@components/Common/ReturnDateInput";
 
 interface Props {
   sale: Sale;
@@ -150,6 +151,15 @@ export default function SalesReturnDialog({ sale, onClose, onSuccess, notify, ed
   const [payAmountInput, setPayAmountInput] = useState<string | null>(null);
   const isCreditNote = returnType === "CREDIT_NOTE";
 
+  // A return can't be dated before the invoice it was raised against.
+  const minReturnDate = useMemo(() => toDateInputValue((normalizedSale as any)?.sale_date_fmt), [normalizedSale]);
+  const { date: returnDate, setDate: setReturnDate, valid: returnDateValid } = useReturnDate(
+    minReturnDate,
+    toDateInputValue(editReturn?.return_date ?? editReturn?.return_date_fmt),
+  );
+  // The refund can't predate the return either.
+  const refundDate = payDate < returnDate ? returnDate : payDate;
+
   useEffect(() => {
     if (items.length > 0) {
       const sel: Record<number, boolean> = {};
@@ -218,7 +228,7 @@ export default function SalesReturnDialog({ sale, onClose, onSuccess, notify, ed
   const pendingAfter    = Math.max(0, refundable - (payAmountValid ? payAmount : 0));
   const showPayNow      = refundable > 0.001 && !editReturn;   // the update call carries no refund payment
 // Refund type is only needed when the refund is paid now (the mode doubles as the type).
-const canConfirm = someSelected && !!reason && (!payNow || !showPayNow || payAmountValid);
+const canConfirm = someSelected && !!reason && returnDateValid && (!payNow || !showPayNow || payAmountValid);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -244,6 +254,7 @@ const canConfirm = someSelected && !!reason && (!payNow || !showPayNow || payAmo
           branch_id:     getBranchId()!,
           return_type:   returnType,
           return_reason: reason || null,
+          return_date:   returnDate,
           notes:         note || null,
           items:         returnItems,
         });
@@ -256,6 +267,7 @@ const canConfirm = someSelected && !!reason && (!payNow || !showPayNow || payAmo
         branch_id:          getBranchId(),
         return_type:        returnType,
         return_reason:      reason || null,
+        return_date:        returnDate,
         refund_type:        payNow && showPayNow ? payMode : null,
         notes:              note || null,
         items:              returnItems,
@@ -264,7 +276,7 @@ const canConfirm = someSelected && !!reason && (!payNow || !showPayNow || payAmo
           refund_payment: {
             payment_mode: payMode,
             amount:       Number(payAmount.toFixed(2)),
-            refund_date:  payDate,
+            refund_date:  refundDate,
             ...(payReference.trim() && { reference_no: payReference.trim() }),
           },
         }),
@@ -653,6 +665,7 @@ const canConfirm = someSelected && !!reason && (!payNow || !showPayNow || payAmo
 
               {/* Left col (md:col-span-3) — reason + note */}
               <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "3fr 2fr" }, gap: 2, alignItems: "start" }}>
                 <Box>
                   <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#0F172A", mb: 1 }}>
                     Return Reason
@@ -682,6 +695,13 @@ const canConfirm = someSelected && !!reason && (!payNow || !showPayNow || payAmo
                       </MenuItem>
                     ))}
                   </Select>
+                </Box>
+                  <Box>
+                    <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#0F172A", mb: 1 }}>
+                      {isCreditNote ? "Credit Note Date" : "Return Date"}
+                    </Typography>
+                    <ReturnDateInput value={returnDate} onChange={setReturnDate} minDate={minReturnDate} sx={{ ...inputSx, "& .MuiOutlinedInput-root": { ...inputSx["& .MuiOutlinedInput-root"], height: 44 } }} />
+                  </Box>
                 </Box>
                 {/* Pay the refund now (only meaningful when the customer has paid something) */}
                 {showPayNow && (
@@ -718,7 +738,7 @@ const canConfirm = someSelected && !!reason && (!payNow || !showPayNow || payAmo
                           </Box>
                           <Box>
                             <Typography sx={{ fontSize: "0.75rem", fontWeight: 600, color: "#475569", mb: 0.5 }}>Date</Typography>
-                            <TextField size="small" fullWidth type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} inputProps={{ max: todayStr() }} sx={inputSx} />
+                            <TextField size="small" fullWidth type="date" value={refundDate} onChange={(e) => setPayDate(e.target.value)} inputProps={{ min: returnDate }} sx={inputSx} />
                           </Box>
                         </Box>
                         {!!payAmountText && !payAmountValid ? (

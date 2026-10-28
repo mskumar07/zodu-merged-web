@@ -230,7 +230,6 @@ export default function MarkPaymentDialog({ sale, onClose, onSuccess, notify }: 
                 size="small" fullWidth type="date"
                 value={form.payment_date}
                 onChange={e => setForm(f => ({ ...f, payment_date: e.target.value }))}
-                inputProps={{ max: todayStr() }}
                 sx={inputSx}
               />
             </Box>

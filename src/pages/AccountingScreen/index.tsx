@@ -8,6 +8,7 @@ import AccountingTable from "./AccountingTable";
 import AccountingFilters, { type FilterValues } from "./AccountingFilters";
 import SuccessToast from "@components/Common/SuccessToast";
 import useDebounce from "@hooks/useDebounce";
+import { useModulePermission } from "@hooks/useModulePermission";
 import { useTenantContext } from "@store/tenantContext";
 import { apiErrorMessage, useAccountingEntries, type AccountingFilters as ApiFilters } from "./useAccountingApi";
 import type { AccountingEntry, AccountingSummary } from "./types";
@@ -24,6 +25,7 @@ const INITIAL_FILTERS: FilterValues = { search: "", type: "", from_date: "", to_
 export default function AccountingScreen() {
   const { zoduId, branchId, businessType } = useTenantContext();
   const isRestaurant = businessType?.toLowerCase() === "restaurant";
+  const { canCreate } = useModulePermission("Accounting");
 
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const closeMenu = useCallback(() => setAnchor(null), []);
@@ -66,6 +68,7 @@ export default function AccountingScreen() {
         <Button
           variant="contained" disableElevation
           startIcon={<AddIcon />} endIcon={<KeyboardArrowDownIcon />}
+          disabled={!canCreate}
           onClick={(e) => setAnchor(e.currentTarget)}
           sx={{ bgcolor: "#D32F2F", fontWeight: 700, fontSize: 14, px: 2.5, height: 38, borderRadius: "8px", textTransform: "none", boxShadow: "0 4px 14px rgba(211,47,47,0.3)", "&:hover": { bgcolor: "#B71C1C" } }}
         >

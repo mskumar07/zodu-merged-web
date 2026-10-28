@@ -85,6 +85,8 @@ export interface CreatePurchaseReturnPayload {
   original_purchase_id: string;
   return_type:          PurchaseReturnKind;
   return_reason:        string | null;
+  /** YYYY-MM-DD; on or after the original purchase's date. */
+  return_date?:         string;
   refund_type:          string | null;
   notes:                string | null;
   items:                Array<{ original_item_id: number; return_qty: number }>;

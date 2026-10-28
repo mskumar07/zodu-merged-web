@@ -31,6 +31,7 @@ import InvoiceDetailDialog from "./Invoicedetaildialog";
 import MarkPaymentDialog   from "./Markpaymentdialog";
 import SalesReturnDialog   from "./Salesreturndialog";
 import MarkRefundDialog    from "./MarkRefundDialog";
+import { toDateInputValue } from "@utils/localDate";
 import ReturnDetailDialog  from "./ReturnDetailDialog";
 import DeleteReturnDialog  from "./DeleteReturnDialog";
 import SaleReturnSubRows   from "./SaleReturnSubRows";
@@ -259,7 +260,7 @@ export default function SalesHistoryPage() {
   const [returnDialog,  setReturnDialog]  = useState<{ sale: Sale; ret?: SaleListReturn } | null>(null);
   const [deleteDialog,  setDeleteDialog]  = useState<Sale   | null>(null);
   // Refund being paid from a return row
-  const [refundDialog,  setRefundDialog]  = useState<{ saleUuid: string; ret: SaleListReturn } | null>(null);
+  const [refundDialog,  setRefundDialog]  = useState<{ saleUuid: string; ret: SaleListReturn; minDate?: string } | null>(null);
   // One toast for every dialog opened from this screen — it outlives the dialog that closes on success
   const [toast, setToast] = useState<{ message: string; severity: "success" | "error" } | null>(null);
   const notify = useCallback<Notify>((message, severity = "success") => setToast({ message, severity }), []);
@@ -860,7 +861,7 @@ export default function SalesHistoryPage() {
                 onViewInvoice={() => setInvoiceDialog({ id: sale.sale_uuid })}
                 onEditReturn={guard((ret: SaleListReturn) => setReturnDialog({ sale, ret }))}
                 onDeleteReturn={guard((ret: SaleListReturn) => setDeleteReturn({ sale, ret }))}
-                onMarkRefund={guard((ret: SaleListReturn) => setRefundDialog({ saleUuid: sale.sale_uuid, ret }))}
+                onMarkRefund={guard((ret: SaleListReturn) => setRefundDialog({ saleUuid: sale.sale_uuid, ret, minDate: toDateInputValue(sale.sale_date_fmt ?? ret.return_date ?? ret.return_date_fmt) }))}
               />
             ) : null
           }
@@ -909,7 +910,7 @@ export default function SalesHistoryPage() {
           onClose={() => setViewReturn(null)}
           onMarkRefund={(ret) => {
             setViewReturn(null);
-            guard((r: SaleListReturn) => setRefundDialog({ saleUuid: viewReturn.sale.sale_uuid, ret: r }))(ret);
+            guard((r: SaleListReturn) => setRefundDialog({ saleUuid: viewReturn.sale.sale_uuid, ret: r, minDate: toDateInputValue(viewReturn.sale.sale_date_fmt ?? r.return_date ?? r.return_date_fmt) }))(ret);
           }}
         />
       )}
@@ -918,6 +919,7 @@ export default function SalesHistoryPage() {
         <MarkRefundDialog
           saleUuid={refundDialog.saleUuid}
           ret={refundDialog.ret}
+          minDate={refundDialog.minDate}
           notify={notify}
           onClose={() => setRefundDialog(null)}
         />

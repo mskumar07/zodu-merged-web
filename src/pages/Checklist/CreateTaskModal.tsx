@@ -1,3 +1,4 @@
+import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import React, { useState, useCallback, useEffect } from "react";
 import { closeFromControlsOnly } from "@utils/dialog";
 import {
@@ -405,12 +406,18 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
   // ─── Employee helpers ────────────────────────────────────────────────────────────
   const employees = ((employeesData?.data ?? []) as any[]).filter((e) => e.employee_id !== loggedEmployeeId);
 
-  const handleEmployeeSelect = (empId: string) => {
-    if (!empId) return;
-    if (selectedAssignees.some((a) => a.employee_id === empId)) return;
-    const emp = employees.find((e) => e.employee_id === empId);
-    if (!emp) return;
-    setSelectedAssignees((prev) => [...prev, { employee_id: emp.employee_id, employee_name: emp.name }]);
+  // Multi-select: the menu stays open so several employees can be ticked in one go.
+  const handleEmployeeSelect = (ids: string[]) => {
+    setSelectedAssignees((prev) =>
+      ids
+        .map((id) => {
+          const existing = prev.find((a) => a.employee_id === id);
+          if (existing) return existing;
+          const emp = employees.find((e) => e.employee_id === id);
+          return emp ? { employee_id: emp.employee_id, employee_name: emp.name } : null;
+        })
+        .filter(Boolean) as typeof prev
+    );
     if (errors.assignees) setErrors((e) => ({ ...e, assignees: "" }));
   };
 
@@ -651,33 +658,37 @@ export default function CreateTaskModal({ open, onClose, onSuccess, onError, edi
                 <FieldLabel required>Select Employees</FieldLabel>
                 <FormControl size="small" fullWidth error={!!errors.assignees}>
                   <Select
-                    value=""
-                    onChange={(e) => handleEmployeeSelect(e.target.value as string)}
+                    multiple
+                    value={selectedAssignees.map((a) => a.employee_id)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      handleEmployeeSelect(typeof v === "string" ? v.split(",") : (v as string[]));
+                    }}
                     displayEmpty
-                    renderValue={() => (
-                      <Typography sx={{ fontSize: 13, color: "#9CA3AF" }}>Select Employee</Typography>
+                    renderValue={(sel) => (
+                      <Typography sx={{ fontSize: 13, color: sel.length ? "#0F172A" : "#9CA3AF" }}>
+                        {sel.length ? `${sel.length} employee${sel.length === 1 ? "" : "s"} selected` : "Select Employee"}
+                      </Typography>
                     )}
                   >
                     {employees.length === 0 ? (
-                      <MenuItem disabled value="">
+                      <MenuItem disabled value="__none">
                         <Typography sx={{ fontSize: 12, color: "#9CA3AF" }}>No employees available</Typography>
                       </MenuItem>
                     ) : (
                       employees.map((emp: any) => {
                         const alreadySelected = selectedAssignees.some((a) => a.employee_id === emp.employee_id);
                         return (
-                          <MenuItem key={emp.employee_id} value={emp.employee_id} disabled={alreadySelected}>
+                          <MenuItem key={emp.employee_id} value={emp.employee_id} selected={alreadySelected} sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
                             <Box>
                               <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>
                                 {emp.name}
-                                {alreadySelected && (
-                                  <Box component="span" sx={{ fontSize: 11, color: "#9CA3AF", ml: 1 }}>(added)</Box>
-                                )}
                               </Typography>
                               {emp.email && (
                                 <Typography sx={{ fontSize: 11, color: "#9CA3AF" }}>{emp.email}</Typography>
                               )}
                             </Box>
+                            {alreadySelected && <CheckRoundedIcon sx={{ fontSize: 18, color: "#E11D48", flexShrink: 0 }} />}
                           </MenuItem>
                         );
                       })

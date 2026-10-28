@@ -949,25 +949,25 @@ export default function ChecklistDashboard() {
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
     <ThemeProvider theme={theme}>
-      <Box sx={{ bgcolor: "#ffffff", minHeight: "100vh" }}>
+      <Box sx={{ bgcolor: "#ffffff", height: "calc(100vh - 64px)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
         {/* Stat cards */}
-        <Box sx={{px:3, pt: 3}}>
+        <Box sx={{ px: 2, pt: 1.5, pb: 1, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
         {summaryLoading || assignedEmployeesSummaryLoading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
+          <Box sx={{ display: "flex", justifyContent: "center", py: 1 }}>
             <CircularProgress size={28} sx={{ color: "#E11D48" }} />
           </Box>
         ) : (
-          <Box sx={{ display: "flex", gap: 4, mb: 3, flexWrap: "wrap", alignItems: "flex-start", rowGap: 3 }}>
+          <Box sx={{ display: "flex", gap: 3, mb: 1, flexWrap: "wrap", alignItems: "flex-start", rowGap: 1.5, flexShrink: 0 }}>
             {/* Left: Assigned To Employees summary */}
             {isReportingManager && (
               <Box>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1.25 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.75 }}>
                   <PeopleAltOutlinedIcon sx={{ fontSize: 16, color: "#2563EB" }} />
                   <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#1D4ED8", letterSpacing: 0.2 }}>
                     Assigned to Employees
                   </Typography>
                 </Box>
-                <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
                   <StatCard
                     radius={2}
                     label="Total Assigned Tasks"
@@ -1001,13 +1001,13 @@ export default function ChecklistDashboard() {
 
             {/* Right: My Assigned Tasks summary */}
             <Box>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1.25 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.75 }}>
                 <ChecklistIcon sx={{ fontSize: 16, color: "#E11D48" }} />
                 <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#BE123C", letterSpacing: 0.2 }}>
                   My Assigned Tasks
                 </Typography>
               </Box>
-              <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+              <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
                 <StatCard
                   radius={2}
                   label="Total Assigned Tasks"
@@ -1041,7 +1041,7 @@ export default function ChecklistDashboard() {
         )}
 
         {/* Employee filter row */}
-        <Box sx={{ display: "flex", gap: 1.5, mb: 2, flexWrap: "wrap", alignItems: "center", justifyContent: "flex-end" }}>
+        <Box sx={{ display: "flex", gap: 1.5, mb: 1, flexWrap: "wrap", alignItems: "center", justifyContent: "flex-end", flexShrink: 0 }}>
           {isReportingManager && (
             <>
               <TextField
@@ -1115,11 +1115,11 @@ export default function ChecklistDashboard() {
 
         {/* Checklist assignment table */}
         {isReportingManager && (
-          <Box sx={{ mb: 3 }}>
+          <Box sx={{ mb: 1, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
             {/* Status legend */}
             <Box sx={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
-              px: 2.5, pb: 1.5,
+              px: 2.5, pb: 0.75, flexShrink: 0,
             }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, flexWrap: "wrap" }}>
                 <Typography sx={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>
@@ -1142,7 +1142,7 @@ export default function ChecklistDashboard() {
                   columns={occurrenceColumns}
                   rows={occurrences.rows}
                   rowKey={(occ) => occ.instance_id}
-                  maxHeight={400}
+                  maxHeight="100%"
                   hasNextPage={occurrences.hasMore}
                   loadMoreRef={occurrences.sentinelRef}
                   emptyMessage="No occurrences found for these filters"
@@ -1155,7 +1155,7 @@ export default function ChecklistDashboard() {
                 columns={checklistColumns}
                 rows={checklistRows}
                 rowKey={(item) => item.checklist_id}
-                maxHeight={400}
+                maxHeight="100%"
                 hasNextPage={hasMoreChecklistRows}
                 loadMoreRef={scrollSentinelRef}
                 emptyMessage="No checklists found"
@@ -1165,10 +1165,10 @@ export default function ChecklistDashboard() {
         )}
 
         {/* My Assigned Tasks */}
-        <Box sx={{ bgcolor: "#fff", borderRadius: 2.5, border: "1px solid #F1F5F9", overflow: "hidden" }}>
+        <Box sx={{ bgcolor: "#fff", borderRadius: 2.5, border: "1px solid #F1F5F9", overflow: "hidden", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           {/* Title + filters in a single row */}
           <Box sx={{
-            px: 2.5, py: 1.5,
+            px: 2.5, py: 1, flexShrink: 0,
             display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap",
             borderBottom: "1px solid #F1F5F9",
           }}>
@@ -1220,7 +1220,7 @@ export default function ChecklistDashboard() {
               columns={taskColumns}
               rows={taskRows}
               rowKey={(task) => task.id}
-              maxHeight={400}
+              maxHeight="100%"
               hasNextPage={hasMoreTaskRows}
               loadMoreRef={taskScrollSentinelRef}
               emptyMessage="No tasks found"

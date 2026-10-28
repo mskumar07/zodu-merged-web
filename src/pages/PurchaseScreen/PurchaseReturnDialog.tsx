@@ -24,7 +24,8 @@ import {
   PURCHASE_REFUND_MODES, purchaseApiError, useCreatePurchaseReturn, usePurchaseReturnDetail,
   useUpdatePurchaseReturn, type PurchaseReturnDetail,
 } from "./usePurchaseReturnApi";
-import { localDateStr } from "@utils/localDate";
+import { localDateStr, toDateInputValue } from "@utils/localDate";
+import { ReturnDateInput, useReturnDate } from "@components/Common/ReturnDateInput";
 
 export type Notify = (message: string, severity?: "success" | "error") => void;
 
@@ -223,6 +224,15 @@ function Form({ data, ret, editReturn, onClose, notify }: {
   const [rfRef, setRfRef]         = useState("");
   const [rfDate, setRfDate]       = useState(todayStr());
 
+  // A return can't be dated before the purchase it was raised against.
+  const minReturnDate = useMemo(() => toDateInputValue(data.purchase_date), [data.purchase_date]);
+  const { date: returnDate, setDate: setReturnDate, valid: returnDateValid } = useReturnDate(
+    minReturnDate,
+    toDateInputValue(ret?.return.return_date_fmt),
+  );
+  // The refund can't predate the return either.
+  const refundDate = rfDate < returnDate ? returnDate : rfDate;
+
   const createReturn = useCreatePurchaseReturn();
   const updateReturn = useUpdatePurchaseReturn(editReturn?.return_uuid ?? "");
   const submitting   = createReturn.isPending || updateReturn.isPending;
@@ -276,13 +286,14 @@ function Form({ data, ret, editReturn, onClose, notify }: {
   const refundValid = !refundNow || (refundValue > 0 && refundValue <= payment.refundable + 0.001);
   const showRefundNow = !isEdit && payment.refundable > 0 && someSelected;
 
-  const canSubmit = someSelected && !!reason && !!settlement && refundValid && !submitting;
+  const canSubmit = someSelected && !!reason && !!settlement && returnDateValid && refundValid && !submitting;
 
   const submit = async () => {
     if (!canSubmit) return;
     const body = {
       return_type:   kind,
       return_reason: reason,
+      return_date:   returnDate,
       refund_type:   settlement,
       notes:         notes.trim() || null,
       items:         selectedLines.map((l) => ({ original_item_id: l.id, return_qty: qty[l.id] })),
@@ -299,7 +310,7 @@ function Form({ data, ret, editReturn, onClose, notify }: {
             refund_payment: {
               amount: refundValue, payment_mode: rfMode,
               ...(rfRef.trim() && { reference_no: rfRef.trim() }),
-              ...(rfDate && { refund_date: rfDate }),
+              refund_date: refundDate,
             },
           }),
         });
@@ -381,8 +392,8 @@ function Form({ data, ret, editReturn, onClose, notify }: {
           </Box>
         </Box>
 
-        {/* Reason / type */}
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2.5 }}>
+        {/* Reason / type / date */}
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" }, gap: 2.5, alignItems: "start" }}>
           <Field label="Reason" required>
             <Select fullWidth displayEmpty value={reason} onChange={(e) => setReason(e.target.value)} sx={selectSx}
               renderValue={(v) => v || <Box component="span" sx={{ color: "#94A3B8" }}>Select a reason</Box>}>
@@ -393,6 +404,10 @@ function Form({ data, ret, editReturn, onClose, notify }: {
             <Select fullWidth value={settlement} onChange={(e) => setSettle(e.target.value)} sx={selectSx}>
               {withValue(SETTLEMENTS[kind], settlement).map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
             </Select>
+          </Field>
+          <Field label={kind === "DEBIT_NOTE" ? "Debit Note Date" : "Return Date"} required>
+            <ReturnDateInput value={returnDate} onChange={setReturnDate} minDate={minReturnDate}
+              sx={{ "& .MuiOutlinedInput-root": { height: 44, borderRadius: "10px", fontSize: 14, bgcolor: "#fff", "& fieldset": { borderColor: "#E2E8F0" } } }} />
           </Field>
         </Box>
 
@@ -438,8 +453,8 @@ function Form({ data, ret, editReturn, onClose, notify }: {
                   {PURCHASE_REFUND_MODES.map((m) => <MenuItem key={m} value={m}>{m}</MenuItem>)}
                 </Select>
                 <TextField size="small" label="Reference No." value={rfRef} onChange={(e) => setRfRef(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ bgcolor: "#fff" }} />
-                <TextField size="small" label="Refund Date" type="date" value={rfDate} onChange={(e) => setRfDate(e.target.value)}
-                  inputProps={{ max: todayStr() }} InputLabelProps={{ shrink: true }} sx={{ bgcolor: "#fff" }} />
+                <TextField size="small" label="Refund Date" type="date" value={refundDate} onChange={(e) => setRfDate(e.target.value)}
+                  inputProps={{ min: returnDate }} InputLabelProps={{ shrink: true }} sx={{ bgcolor: "#fff" }} />
               </Box>
             </Collapse>
           </Box>

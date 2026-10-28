@@ -16,6 +16,7 @@ const PATH_MODULE_MAP: { prefix: string; module: string }[] = [
   { prefix: "/stock", module: "Inventory" },
   { prefix: "/purchase", module: "Purchase" },
   { prefix: "/expense", module: "Expense" },
+  { prefix: "/accounting", module: "Accounting" },
   { prefix: "/customer-details", module: "Customer Management" },
   { prefix: "/employee-management", module: "Staff / User Management" },
   { prefix: "/attendance", module: "Attendance" },
