@@ -197,6 +197,7 @@ const RestaurantPOS: React.FC = () => {
         branchId:   found.branch_id,
         branchName: found.branch_name,
         zoduId:     selectedCompany.zodu_id,
+        businessType: selectedCompany.business_type ?? "",
       })
     );
     try {

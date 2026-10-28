@@ -95,6 +95,7 @@ function ReturnDetailDialog({ ret, canEdit, onClose, onMarkRefund }: Props) {
   const reasonKey = header?.return_reason ?? ret.return_reason;
   const reason    = reasonKey ? REASON_LABEL[reasonKey] ?? reasonKey : "—";
   const createdText = header?.created_at_fmt;
+  const returnDate  = header?.return_date_fmt ?? ret.return_date_fmt;
   const dateText  =[header?.return_date_fmt ?? ret.return_date_fmt, header?.return_time_fmt].filter(Boolean).join(" · ");
 
   const customerName    = customer?.cust_name ?? customer?.cpy_name ?? "—";
@@ -193,6 +194,7 @@ function ReturnDetailDialog({ ret, canEdit, onClose, onMarkRefund }: Props) {
           </Box>
           <Typography sx={{ fontSize: 18, fontWeight: 800, color: "#0F172A" }}>{docLabel} Details</Typography>
           <Chip label={ret.return_id} size="small" sx={{ bgcolor: "rgba(208,2,27,0.08)", color: "#D0021B", fontWeight: 700, fontSize: 11, height: 20, borderRadius: "999px" }} />
+          {returnDate && <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>{returnDate}</Typography>}
           {invoiceId && <Chip label={`Invoice ${invoiceId}`} size="small" sx={{ bgcolor: "#F3E8FF", color: "#6B21A8", fontWeight: 700, fontSize: 11, height: 20, borderRadius: "999px" }} />}
           {chip && <Chip label={chip.label} size="small" sx={{ bgcolor: chip.bg, color: chip.color, fontWeight: 700, fontSize: 10, height: 20, borderRadius: "999px" }} />}
         </Box>

@@ -1,6 +1,6 @@
 import axios from "axios";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getTenantContext } from "@store/tenantContext";
+import { getTenantContext, useTenantContext } from "@store/tenantContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 
@@ -66,23 +66,26 @@ export const roleQueryKeys = {
   list: (zoduId: string, branchId: string) =>
     ["roles", zoduId, branchId] as const,
   detail: (roleId: string) => ["roles", roleId] as const,
-  modules: ["auth-modules"] as const,
+  modules: (businessType: string) => ["auth-modules", businessType] as const,
 };
 
 // ─── Fetch modules ────────────────────────────────────────────
 
-async function fetchModules(): Promise<ModuleItem[]> {
+async function fetchModules(businessType: string): Promise<ModuleItem[]> {
   const { data } = await axios.get<ModulesResponse>(
-    `${API_BASE}/auth/api/modules`
+    `${API_BASE}/auth/api/modules`,
+    { params: { business_type: businessType } }
   );
   if (data.success) return data.data;
   return [];
 }
 
 export function useModules() {
+  const { businessType } = useTenantContext();
+  const type = businessType || "Retail";
   return useQuery({
-    queryKey: roleQueryKeys.modules,
-    queryFn: fetchModules,
+    queryKey: roleQueryKeys.modules(type),
+    queryFn: () => fetchModules(type),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });

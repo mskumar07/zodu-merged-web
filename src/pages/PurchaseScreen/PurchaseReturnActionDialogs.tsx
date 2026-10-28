@@ -49,6 +49,8 @@ function FieldLabel({ children }: { children: string }) {
 export type RefundTarget = Pick<PurchaseReturnListRow, "return_uuid" | "return_id" | "return_type" | "refund_due" | "refunded_amount" | "pending_refund"> & {
   /** Shown under the return ID so the cashier knows who the money is coming from. */
   vendorName?: string | null;
+  /** The original purchase's date (YYYY-MM-DD) — a refund can't be dated before it. */
+  minDate?: string;
 };
 
 // ── Mark Refund ───────────────────────────────────────────────
@@ -127,7 +129,7 @@ export function MarkPurchaseRefundDialog({ ret, onClose, notify }: { ret: Refund
             </Box>
             <Box>
               <FieldLabel>Refund Date</FieldLabel>
-              <TextField size="small" fullWidth type="date" value={date} onChange={(e) => setDate(e.target.value)} inputProps={{ max: todayStr() }} sx={inputSx} />
+              <TextField size="small" fullWidth type="date" value={date} onChange={(e) => setDate(e.target.value)} inputProps={{ min: ret.minDate }} sx={inputSx} />
             </Box>
           </Box>
 

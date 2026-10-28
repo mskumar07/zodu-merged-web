@@ -23,6 +23,7 @@ import PurchaseReturnSubRows from "./PurchaseReturnSubRows";
 import {
   MarkPurchaseRefundDialog, DeletePurchaseReturnDialog, type RefundTarget,
 } from "./PurchaseReturnActionDialogs";
+import { toDateInputValue } from "@utils/localDate";
 import SuccessToast from "@components/Common/SuccessToast";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
 import {
@@ -200,9 +201,7 @@ export default function PurchaseScreen() {
         width: 110,
         render: (p) => (
           <Typography sx={{ fontSize: 13, color: TABLE_TEXT_COLOR, whiteSpace: "nowrap" }}>
-            {new Date(p.purchase_date).toLocaleDateString("en-IN", {
-              day: "2-digit", month: "short", year: "numeric",
-            })}
+            {p.purchase_date_formatted ?? "—"}
           </Typography>
         ),
       },
@@ -491,7 +490,7 @@ export default function PurchaseScreen() {
                       canEdit={canEdit}
                       onView={(ret) => setViewReturnId(ret.return_uuid)}
                       onViewPurchase={() => setDetailId(p.purchase_id)}
-                      onMarkRefund={guard((ret: PurchaseReturnListRow) => setRefundTarget({ ...ret, vendorName: p.vendor_name ?? p.company_name }))}
+                      onMarkRefund={guard((ret: PurchaseReturnListRow) => setRefundTarget({ ...ret, vendorName: p.vendor_name ?? p.company_name, minDate: toDateInputValue(p.purchase_date ?? ret.return_date_fmt) }))}
                       onEdit={guard((ret: PurchaseReturnListRow) => setReturnTarget({ purchaseId: p.purchase_id, editReturn: ret }))}
                       onDelete={guard((ret: PurchaseReturnListRow) => setDeleteReturn({ purchaseId: p.purchase_id, ret }))}
                     />

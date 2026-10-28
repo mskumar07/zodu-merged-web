@@ -3,7 +3,7 @@
  * Records a customer payment against one or more outstanding bills.
  */
 import PaymentModeSelect from "../../components/Common/PaymentModeSelect";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { closeFromControlsOnly } from "@utils/dialog";
 import {
   Dialog, DialogContent, Box, Typography, IconButton, Button,
@@ -17,10 +17,7 @@ import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import dayjs, { Dayjs } from "dayjs";
+import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import { useOutstandingBills, useMarkPayment } from "./useCustomerapi";
 import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 import { localDateStr } from "@utils/localDate";
@@ -79,6 +76,13 @@ function fmtSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// YYYY-MM-DD -> "29-JUL-2026" (same display the billing screen uses)
+const formatDateDisplay = (value: string): string => {
+  const [year, month, day] = value.split("-");
+  if (!year || !month || !day) return "";
+  return `${day}-${["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"][Number(month) - 1]}-${year}`;
+};
+
 export default function MarkPaymentDialog({ customer, onClose, onSuccess }: Props) {
   useBlockWhenReadOnly(true, onClose);
   const { data, isLoading, isError, error } = useOutstandingBills(customer.custUuid);
@@ -101,6 +105,7 @@ export default function MarkPaymentDialog({ customer, onClose, onSuccess }: Prop
   }, [bills]);
 
   const [paymentDate, setPaymentDate]   = useState(() => localDateStr());
+  const paymentDateInputRef = useRef<HTMLInputElement>(null);
   const [paymentMode, setPaymentMode]   = useState<typeof PAYMENT_MODES[number]>("Cash");
   const [referenceNo, setReferenceNo]   = useState("");
   const [amountInput, setAmountInput]   = useState("");
@@ -327,19 +332,22 @@ export default function MarkPaymentDialog({ customer, onClose, onSuccess }: Prop
                 <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
                   <Box>
                     <FieldLabel required>Payment Date</FieldLabel>
-                    <LocalizationProvider dateAdapter={AdapterDayjs}>
-                      <DatePicker
-                        value={paymentDate ? dayjs(paymentDate) : null}
-                        format="DD-MMM-YYYY"
-                        onChange={(newValue: Dayjs | null) => setPaymentDate(newValue ? newValue.format("YYYY-MM-DD") : "")}
-                        slotProps={{
-                          textField: {
-                            size: "small", fullWidth: true,
-                            sx: { ...inputSx, "& .MuiOutlinedInput-root": { ...inputSx["& .MuiOutlinedInput-root"], bgcolor: "#fff" } },
-                          },
-                        }}
+                    <Box
+                      onClick={() => { try { paymentDateInputRef.current?.showPicker(); } catch { /* already open */ } paymentDateInputRef.current?.focus(); }}
+                      sx={{ position: "relative", display: "flex", alignItems: "center", gap: 0.6, height: 40, px: 1.25, borderRadius: 1.5, border: "1px solid #E5E7EB", bgcolor: "#fff", cursor: "pointer", "&:hover": { borderColor: "#C8102E" } }}
+                    >
+                      <CalendarTodayIcon sx={{ fontSize: 14, color: "#6B7280" }} />
+                      <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: paymentDate ? "#111827" : "#9CA3AF" }}>
+                        {paymentDate ? formatDateDisplay(paymentDate) : "Select date"}
+                      </Typography>
+                      <input
+                        ref={paymentDateInputRef}
+                        type="date"
+                        value={paymentDate}
+                        onChange={(e) => setPaymentDate(e.target.value)}
+                        style={{ position: "absolute", left: 0, bottom: 0, width: "100%", height: 0, opacity: 0, pointerEvents: "none" }}
                       />
-                    </LocalizationProvider>
+                    </Box>
                   </Box>
                   <Box>
                     <FieldLabel required>Payment Mode</FieldLabel>

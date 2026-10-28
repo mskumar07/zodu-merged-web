@@ -24,6 +24,8 @@ interface Props {
   ret:      Pick<SaleListReturn, "return_uuid" | "return_id" | "return_type" | "refund_due" | "refunded_amount" | "pending_refund">;
   onClose:  () => void;
   notify?:  Notify;
+  /** The original sale's date (YYYY-MM-DD) — a refund can't be dated before it. */
+  minDate?: string;
 }
 
 const todayStr = () => localDateStr();
@@ -43,7 +45,7 @@ function FieldLabel({ children }: { children: string }) {
   return <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#334155", mb: 0.5 }}>{children}</Typography>;
 }
 
-export default function MarkRefundDialog({ saleUuid, ret, onClose, notify }: Props) {
+export default function MarkRefundDialog({ saleUuid, ret, onClose, notify, minDate }: Props) {
   const say = resolveNotify(notify);
   useBlockWhenReadOnly(true, onClose);
   const queryClient = useQueryClient();
@@ -137,7 +139,7 @@ export default function MarkRefundDialog({ saleUuid, ret, onClose, notify }: Pro
             </Box>
             <Box>
               <FieldLabel>Refund Date</FieldLabel>
-              <TextField size="small" fullWidth type="date" value={date} onChange={(e) => setDate(e.target.value)} inputProps={{ max: todayStr() }} sx={inputSx} />
+              <TextField size="small" fullWidth type="date" value={date} onChange={(e) => setDate(e.target.value)} inputProps={{ min: minDate }} sx={inputSx} />
             </Box>
           </Box>
 

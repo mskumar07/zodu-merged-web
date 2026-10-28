@@ -31,7 +31,8 @@ const userSlice = createSlice({
       state.branchId = action.payload.branchId;
       state.branchName = action.payload.branchName;
       state.zoduId = action.payload.zoduId;
-      state.businessType = action.payload.businessType ?? "";
+      // Branch switches within a company omit it; keep the current type rather than blanking it.
+      state.businessType = action.payload.businessType ?? state.businessType;
     },
     setAuthData: (
       state,

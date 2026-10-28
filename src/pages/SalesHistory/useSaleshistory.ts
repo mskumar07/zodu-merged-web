@@ -361,6 +361,8 @@ export interface CreateSaleReturnPayload {
   branch_id:          string;
   return_type:        ReturnType;
   return_reason:      string | null;
+  /** YYYY-MM-DD; on or after the original sale's date. */
+  return_date?:       string;
   refund_type:        string | null;
   notes:              string | null;
   created_by?:        string | null;
@@ -375,6 +377,7 @@ export interface UpdateSaleReturnPayload {
   branch_id:     string;
   return_type:   ReturnType;
   return_reason: string | null;
+  return_date?:  string;
   notes:         string | null;
   items:         ReturnItem[];
 }

@@ -12,6 +12,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import PrintIcon from "@mui/icons-material/Print";
 import AssignmentReturnOutlinedIcon from "@mui/icons-material/AssignmentReturnOutlined";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
+import { toDateInputValue } from "@utils/localDate";
 import { closeFromControlsOnly } from "@utils/dialog";
 import type { PurchaseRefundStatus } from "./usePuchaseapi";
 import { usePurchaseReturnDetail, type PurchaseReturnDetail } from "./usePurchaseReturnApi";
@@ -222,6 +223,7 @@ export default function PurchaseReturnDetailDialog({ returnUuid, canEdit, onClos
       return_uuid: r.return_uuid, return_id: r.return_id, return_type: r.return_type,
       refund_due: summary.refund_due, refunded_amount: summary.refunded_amount, pending_refund: summary.pending_refund,
       vendorName: data.vendor?.vendor_name ?? data.vendor?.company_name,
+      minDate: toDateInputValue(r.purchase_date_fmt ?? r.return_date_fmt),
     });
   };
 
@@ -241,6 +243,7 @@ export default function PurchaseReturnDetailDialog({ returnUuid, canEdit, onClos
           {data && (
             <>
               <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#D32F2F" }}>{data.return.return_id}</Typography>
+              {data.return.return_date_fmt && <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>{data.return.return_date_fmt}</Typography>}
               {st && <Chip label={st.label} size="small" sx={{ fontSize: 10, fontWeight: 700, height: 20, color: st.color, bgcolor: st.bgcolor, border: `1px solid ${st.border}`, borderRadius: "999px" }} />}
               {data.return.return_reason && (
                 <Chip label={`Reason: ${data.return.return_reason}`} size="small" sx={{ fontSize: 11, fontWeight: 600, height: 22, color: "#475569", bgcolor: "#F1F5F9", borderRadius: "999px" }} />
