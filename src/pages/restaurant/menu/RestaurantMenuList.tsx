@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import LottieLoader from "@components/LottieLoader";
 import {
-  alpha,
-  Avatar,
   Box,
   Checkbox,
   Chip,
@@ -67,6 +65,7 @@ import SuccessToast from "@components/Common/SuccessToast";
 import { BranchId, ZoduId } from "@store/slices/userSlice";
 import { useModulePermission } from "@hooks/useModulePermission";
 import { useSubscriptionGuard } from "@hooks/useSubscriptionGuard";
+import ItemThumb from "@components/Common/ItemThumb";
 
 type MenuTab = "all" | "food" | "product" | "Category";
 
@@ -740,42 +739,14 @@ const RestaurantMenuList: React.FC = () => {
         label: "Item Name",
         width: 280,
         render: (row) => {
-          const initials = row.menu_name.slice(0, 2).toUpperCase();
           const ft = (row.food_type ?? "").toLowerCase();
           const isNonVeg = ft === "nonveg" || ft === "non_veg" || ft === "non-veg";
           const isEgg = ft === "egg";
           const dotColor = isNonVeg ? "#dc2626" : isEgg ? "#d97706" : "#16a34a";
           return (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              {row.menu_image ? (
-                <Avatar
-                  src={row.menu_image}
-                  alt={row.menu_name}
-                  variant="rounded"
-                  sx={{
-                    width: 34,
-                    height: 34,
-                    flexShrink: 0,
-                    border: `1px solid ${theme.palette.divider}`,
-                  }}
-                />
-              ) : (
-                // No photo: same soft green initial badge as the retail Menu Item table.
-                <Avatar
-                  variant="rounded"
-                  sx={{
-                    width: 34,
-                    height: 34,
-                    flexShrink: 0,
-                    bgcolor: alpha("#10B981", 0.15),
-                    color: "#10B981",
-                    fontSize: "0.9rem",
-                    fontWeight: 700,
-                  }}
-                >
-                  {row.menu_name.charAt(0).toUpperCase()}
-                </Avatar>
-              )}
+              {/* Same square photo / initial tile as the retail Menu Item and Inventory tables. */}
+              <ItemThumb src={row.menu_image} name={row.menu_name} size={40} />
               <Box>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                   <Box

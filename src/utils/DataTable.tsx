@@ -2,7 +2,6 @@ import React, { Fragment, useRef } from "react";
 import {
   Box,
   Card,
-  CircularProgress,
   Divider,
   Paper,
   Skeleton,
@@ -14,6 +13,7 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
+import InfiniteScrollStatus from "@components/Common/InfiniteScrollStatus";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const HEAD_BG = "#F5F5F5";
@@ -357,22 +357,11 @@ function DataTable<T>({
               </TableRow>
             )}
 
-            {/* Fetching next page spinner */}
-            {isFetchingNextPage && (
+            {/* Next page loading / end-of-list footer */}
+            {!isLoading && rows.length > 0 && (isFetchingNextPage || (!hideEndNote && !hasNextPage)) && (
               <TableRow sx={{ height: ROW_HEIGHT }}>
-                <TableCell colSpan={colSpan} align="center" sx={bodyCellSx}>
-                  <CircularProgress size={20} color="primary" />
-                </TableCell>
-              </TableRow>
-            )}
-
-            {/* All records loaded footer */}
-            {!hideEndNote && !hasNextPage && rows.length > 0 && !isLoading && (
-              <TableRow sx={{ height: ROW_HEIGHT }}>
-                <TableCell colSpan={colSpan} align="center" sx={bodyCellSx}>
-                  <Typography variant="caption" color="text.secondary">
-                    All {rows.length} records loaded
-                  </Typography>
+                <TableCell colSpan={colSpan} align="center" sx={{ ...bodyCellSx, py: 0 }}>
+                  <InfiniteScrollStatus loading={isFetchingNextPage} done={!hasNextPage} />
                 </TableCell>
               </TableRow>
             )}

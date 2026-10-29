@@ -8,6 +8,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import PrintOutlinedIcon from '@mui/icons-material/PrintOutlined';
 import { closeFromControlsOnly } from '@utils/dialog';
 import LottieLoader from '@components/LottieLoader';
+import InfiniteScrollStatus from '@components/Common/InfiniteScrollStatus';
 import { useAppSelector } from '@store/store';
 import { AllCompanies } from '@store/slices/userSlice';
 import { useTenantContext } from '@store/tenantContext';
@@ -309,9 +310,7 @@ function PrintLabelBody({ onClose, useDataSource }: { onClose: () => void; useDa
                   <ItemRow key={it.id} item={it} checked={selected.has(it.id)} onToggle={toggle} />
                 ))}
                 <Box ref={sentinelRef} sx={{ height: 1 }} />
-                {isFetchingNextPage && (
-                  <Box sx={{ p: 1, textAlign: 'center' }}><CircularProgress size={16} sx={{ color: RED }} /></Box>
-                )}
+                <InfiniteScrollStatus loading={isFetchingNextPage} done={!hasNextPage} />
               </>
             )}
           </Box>

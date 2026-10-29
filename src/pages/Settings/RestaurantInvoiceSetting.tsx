@@ -66,6 +66,7 @@ const PREVIEW_DATA = {
   due_date: null,
   customer_name: "Sample Customer",
   customer_address: "123 Sample Street, Sample City",
+  customer_shipping_address: "45 Delivery Lane, Sample Town",
   customer_mobile: "+91 98765 43210",
   customer_gstin: "22AAAAA0000A1Z5",
   payment_mode: "Cash",
