@@ -126,7 +126,6 @@ function AccountingTable({
         loadMoreRef={sentinelRef}
         tableContainerRef={tableContainerRef}
         maxHeight="100%"
-        hideEndNote
         emptyMessage={emptyMessage}
       />
 

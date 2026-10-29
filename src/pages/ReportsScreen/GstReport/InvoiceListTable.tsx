@@ -80,7 +80,6 @@ export default function InvoiceListTable<T extends object>({
       rows={tableRows}
       rowKey={rowKey}
       headerHeight={30}
-      hideEndNote
       skeletonRows={10}
       hasNextPage={!!hasNextPage}
       isFetchingNextPage={!!isFetchingNextPage}

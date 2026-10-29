@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { SALE_DEPENDENT_KEYS, subscribeSaleSaved } from "@utils/dataSync";
 import LottieLoader from "@components/LottieLoader";
+import InfiniteScrollStatus from "@components/Common/InfiniteScrollStatus";
 import { createTheme, ThemeProvider } from "@mui/material";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -203,6 +204,15 @@ function MiniTable<T>({
         {hasNextPage && (
           <Box component="tr" ref={sentinelRef}>
             <Box component="td" colSpan={columns.length} sx={{ p: 0, height: 1, border: "none" }} />
+          </Box>
+        )}
+
+        {/* Loading / end-of-list footer */}
+        {onLoadMore && rows.length > 0 && (isFetchingNextPage || !hasNextPage) && (
+          <Box component="tr">
+            <Box component="td" colSpan={columns.length} sx={{ p: 0, border: "none" }}>
+              <InfiniteScrollStatus loading={isFetchingNextPage} done={!hasNextPage} />
+            </Box>
           </Box>
         )}
       </Box>

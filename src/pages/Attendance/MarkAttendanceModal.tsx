@@ -19,6 +19,7 @@ import {
   type MarkAttendanceRecord,
 } from "@store/services/attendanceApi";
 import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
+import InfiniteScrollStatus from "@components/Common/InfiniteScrollStatus";
 import { localDateStr } from "@utils/localDate";
 
 // ─── Theme ───────────────────────────────────────────────────
@@ -362,8 +363,8 @@ export default function MarkAttendanceModal({
                     </Box>
                   )}
                   <Box component="tr" ref={sentinelRef}>
-                    <Box component="td" colSpan={4} sx={{ p: isFetchingNextPage ? 1.5 : 0, textAlign: "center", border: "none" }}>
-                      {isFetchingNextPage && <CircularProgress size={16} sx={{ color: "#E11D48" }} />}
+                    <Box component="td" colSpan={4} sx={{ p: 0, border: "none" }}>
+                      {rows.length > 0 && <InfiniteScrollStatus loading={isFetchingNextPage} done={!hasNextPage} />}
                     </Box>
                   </Box>
                 </Box>

@@ -236,6 +236,9 @@ export default function StockHistoryModal({ open, onClose, item }: any) {
                   <img
                     src={itemDetails?.item_img || item?.image}
                     alt={itemDetails?.item_name}
+                    width={70}
+                    height={70}
+                    decoding="async"
                     style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 8 }}
                   />
                 ) : (
@@ -331,7 +334,6 @@ export default function StockHistoryModal({ open, onClose, item }: any) {
             isFetchingNextPage={isFetchingNextPage}
             loadMoreRef={sentinelRef}
             tableContainerRef={tableContainerRef}
-            hideEndNote
           />
 
           {total > 0 && (

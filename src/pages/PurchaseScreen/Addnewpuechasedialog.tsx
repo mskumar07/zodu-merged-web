@@ -44,6 +44,7 @@ import { useVendorRowActions, vendorDisplayName } from "@pages/Vendor/useVendorR
 import { VendorRowActionIcons, VendorEditDeleteDialogs } from "@pages/Vendor/VendorRowControls";
 import axios from "axios";
 import SuccessToast from "@components/Common/SuccessToast";
+import InfiniteScrollStatus from "@components/Common/InfiniteScrollStatus";
 import { getTenantContext, getAccessToken } from "@store/tenantContext";
 import { closeFromControlsOnly } from "@utils/dialog";
 import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
@@ -361,7 +362,6 @@ function ItemPickerDialog({ open, onClose, alreadyAdded, addedDetails = {}, onCo
 
   const qp = useMemo(() => ({ search: debSearch || undefined, status: "active" as const, limit: 100 }), [debSearch]);
   const { data: res, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteMenuItems(qp);
-  const totalItems = res?.pages[0]?.total ?? 0;
   const catalogue  = useMemo(() => (res?.pages ?? []).flatMap(p => p.data).map(menuItemToCatalogue), [res]);
 
   const loadMore = useCallback((el?: HTMLDivElement | null) => {
@@ -474,10 +474,8 @@ function ItemPickerDialog({ open, onClose, alreadyAdded, addedDetails = {}, onCo
           </Table>
         )}
         {!isLoading && catalogue.length > 0 && (
-          <Box sx={{ py: 1.5, display: "flex", alignItems: "center", justifyContent: "center", borderTop: "1px solid #F1F5F9" }}>
-            <Typography sx={{ fontSize: 11, color: "#9CA3AF", fontWeight: 600 }}>
-              {isFetchingNextPage ? "Loading more…" : hasNextPage ? `Loaded ${catalogue.length} of ${totalItems || catalogue.length} items` : `All ${catalogue.length} items loaded`}
-            </Typography>
+          <Box sx={{ borderTop: "1px solid #F1F5F9" }}>
+            <InfiniteScrollStatus loading={isFetchingNextPage} done={!hasNextPage} />
           </Box>
         )}
       </DialogContent>

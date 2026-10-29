@@ -3,15 +3,14 @@ import {
   Box,
   Typography,
   IconButton,
-  Avatar,
   Tooltip,
   Switch,
   useTheme,
-  alpha,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
+import ItemThumb from "@components/Common/ItemThumb";
 import ProductDetailsDialog from "./ProductDetailsDialog";
 
 export interface Product {
@@ -118,25 +117,7 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
             // Sized by the column, not by fixed inner widths: a hard 260px on
             // the name overran the cell and ran into Purchase Price.
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
-              {product.imageUrl ? (
-                <Avatar
-                  src={product.imageUrl}
-                  variant="rounded"
-                  sx={{ width: 40, height: 40, border: `1px solid ${theme.palette.divider}`, flexShrink: 0 }}
-                >
-                  {product.name[0]}
-                </Avatar>
-              ) : (
-                // No photo: same soft green initial badge as the Sales History customer column.
-                <Avatar
-                  sx={{
-                    width: 24, height: 24, fontSize: "0.65rem", flexShrink: 0,
-                    bgcolor: alpha("#10B981", 0.15), color: "#10B981", fontWeight: 700,
-                  }}
-                >
-                  {product.name[0]?.toUpperCase()}
-                </Avatar>
-              )}
+              <ItemThumb src={product.imageUrl} name={product.name} size={40} />
               <Box sx={{ minWidth: 0 }}>
                 <Tooltip title={product.description || ""} disableHoverListener={!product.description}>
                   <Typography
