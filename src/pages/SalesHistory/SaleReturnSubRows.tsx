@@ -71,7 +71,7 @@ function SaleReturnSubRows({ sale, columnKeys, canEdit, onViewReturn, onViewInvo
                   </Typography>
                   <Typography sx={{ fontSize: 12, fontWeight: 500, color: "#475569", lineHeight: 1.4 }}>
                     For -{" "}
-                    <Box component="span" onClick={onViewInvoice} sx={{ color: "#1976d2", fontWeight: 600, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}>
+                    <Box component="span" onClick={onViewInvoice} sx={{ color: "#0F766E", fontWeight: 700, cursor: "pointer", "&:hover": { color: "#115E59", textDecoration: "underline" } }}>
                       {sale.sale_id}
                     </Box>
                   </Typography>

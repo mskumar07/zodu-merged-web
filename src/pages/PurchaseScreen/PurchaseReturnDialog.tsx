@@ -335,11 +335,11 @@ function Form({ data, ret, editReturn, onClose, notify }: {
       {/* Sections keep their natural height; without flexShrink:0 the overflow:hidden items box collapses to 0 in a short window */}
       <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", px: 3, py: 2.5, display: "flex", flexDirection: "column", gap: 2.5, "& > *": { flexShrink: 0 } }}>
         {/* Context strip */}
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr 1.4fr" }, gap: 2, alignItems: "end" }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 0.7fr 1.7fr 1.4fr" }, gap: 2, alignItems: "end" }}>
           {[
             { label: "Purchase Invoice No.", value: data.invoice_bill_no || data.purchase_id },
-            { label: "Supplier Name",        value: data.vendor_name ?? data.company_name ?? "—" },
             { label: "Invoice Date",         value: fmtDate(data.purchase_date) },
+            { label: "Supplier Name",        value: data.vendor_name ?? data.company_name ?? "—" },
           ].map(({ label, value }) => (
             <Box key={label} sx={{ pb: 1, borderBottom: "1px solid #EEF2F7" }}>
               <Typography sx={{ fontSize: 13, color: "#64748B", mb: 0.5 }}>{label}</Typography>
@@ -448,7 +448,7 @@ function Form({ data, ret, editReturn, onClose, notify }: {
               <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" }, gap: 1.5, mt: 1.5 }}>
                 <TextField size="small" label="Amount (₹)" type="number" value={rfAmount} placeholder={String(payment.refundable)}
                   error={refundNow && !refundValid} helperText={refundNow && !refundValid ? `Up to ₹${INR(payment.refundable)}` : undefined}
-                  onChange={(e) => setRfAmount(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ bgcolor: "#fff" }} />
+                  onChange={(e) => setRfAmount(e.target.value)} InputLabelProps={{ shrink: true }} inputProps={{ style: { textAlign: "right" } }} sx={{ bgcolor: "#fff" }} />
                 <Select size="small" value={rfMode} onChange={(e) => setRfMode(e.target.value)} sx={{ bgcolor: "#fff" }}>
                   {PURCHASE_REFUND_MODES.map((m) => <MenuItem key={m} value={m}>{m}</MenuItem>)}
                 </Select>
