@@ -693,6 +693,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
     const showCompanyLogo = invoiceSettings?.show_company_logo ?? false;
     const showTaxDetails = invoiceSettings?.show_tax_details ?? false;
     const showCustomerDetails = invoiceSettings?.show_customer_details ?? true;
+    const showShippingAddress = invoiceSettings?.show_shipping_address ?? true;
     // A quotation takes no payment, so it never shows payment details.
     const showPaymentDetails = (invoiceSettings?.show_payment_details ?? false) && !isQuotationSaleType(data?.sale_type);
     // Quotations / proformas print their own terms when theirs are switched on.
@@ -745,6 +746,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
       customer_name,
       customer_mobile,
       customer_gstin,
+      customer_shipping_address,
       payment_mode,
       items = [],
       subtotal,
@@ -825,7 +827,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
     const finalBillTotal = grand_total ?? total ?? final_amount ?? subtotal;
     const receiptItems: ReceiptItem[] = items;
     const totalQty = receiptItems.reduce((s, item) => s + Number(item.qty ?? 0), 0);
-    const showCustomer = showCustomerDetails && customer_name && customer_name !== "Walk-In" && customer_name !== "Walk-in";
+    const showCustomer = showCustomerDetails && customer_name && customer_name !== "Walk-In" && customer_name !== "Walk-in" && customer_name !== "-";
 
     // ── GST summary grouped by rate slab (only computed/shown when Tax
     // Details is enabled in Invoice Settings) ──
@@ -845,6 +847,8 @@ export const ThermalInvoiceTemplate = React.forwardRef(
       ? gstSlabList.reduce((s, r) => s + r.taxable, 0)
       : Math.max(0, Number(subtotal ?? 0) - discountVal);
     // Amounts print in whole rupees, so a sub-rupee round-off would read "+₹0" — only show one that rounds to ₹1+.
+    // The GST summary and taxable amount only print when the bill actually carries tax.
+    const hasTax = showTaxDetails && gstSlabList.some((slab) => slab.cgstAmount + slab.sgstAmount > 0);
     const showRoundOff = round_off !== undefined && round_off !== null && Math.round(Number(round_off)) !== 0;
     const roundOffText = Number(round_off) > 0 ? `+${fmt(round_off)}` : fmt(round_off);
 
@@ -1038,6 +1042,9 @@ export const ThermalInvoiceTemplate = React.forwardRef(
               {customer_gstin && customer_gstin !== "-" && (
                 <div>GSTIN: {customer_gstin}</div>
               )}
+              {showShippingAddress && customer_shipping_address && customer_shipping_address !== "-" && (
+                <div>Ship To: {customer_shipping_address}</div>
+              )}
             </div>
           </>
         )}
@@ -1131,13 +1138,14 @@ export const ThermalInvoiceTemplate = React.forwardRef(
           </>
         )}
 
-        {/* ── T.QTY / TOTAL, DISCOUNT & BILL TOTAL ── */}
+        {/* ── T.QTY / TOTAL, DISCOUNT & TAXABLE AMOUNT ── */}
         {modern ? (
           <div style={{ marginBottom: 4 }}>
             {row("Total Qty", fmtQty(totalQty))}
             {row("Subtotal", fmt(subtotal))}
             {showDiscount && row(discountText, `-${fmt(discountVal)}`)}
-            {showTaxDetails && row("Taxable Amount", fmt(taxableAmount))}
+            {hasTax && row("Taxable Amount", fmt(taxableAmount))}
+            {!hasTax && showRoundOff && row("Round Off", roundOffText)}
           </div>
         ) : (
           // T.Qty on the left, the totals stacked on the right — on every roll, 48 mm included.
@@ -1157,15 +1165,24 @@ export const ThermalInvoiceTemplate = React.forwardRef(
                 </div>
               )}
 
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                <span>{showTaxDetails ? "Taxable Amount" : "Bill Total"}</span>
-                <span style={{ fontWeight: 500, whiteSpace: "nowrap" }}>{fmt(showTaxDetails ? taxableAmount : finalBillTotal)}</span>
-              </div>
+              {hasTax && (
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                  <span>Taxable Amount</span>
+                  <span style={{ fontWeight: 500, whiteSpace: "nowrap" }}>{fmt(taxableAmount)}</span>
+                </div>
+              )}
+
+              {!hasTax && showRoundOff && (
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                  <span>Round Off</span>
+                  <span style={{ fontWeight: 500, whiteSpace: "nowrap" }}>{roundOffText}</span>
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {showTaxDetails && (
+        {hasTax && (
           <>
             {/* ── GST SUMMARY ── */}
             {modern ? (
@@ -1223,16 +1240,12 @@ export const ThermalInvoiceTemplate = React.forwardRef(
             {modern ? (
               showRoundOff && row("Round Off", roundOffText)
             ) : (
-              <>
-                {rule}
-                {row(narrow ? "Bill Total :" : "Bill Total (Tax Inclusive) :", fmt(finalBillTotal), { strong: true })}
-                {showRoundOff && row("Round Off :", roundOffText)}
-              </>
+              showRoundOff && row("Round Off :", roundOffText)
             )}
           </>
         )}
 
-        {/* ── BILL AMOUNT ── */}
+        {/* ── GRAND TOTAL ── */}
         {modern ? (
           <div
             style={{
@@ -1249,7 +1262,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
               margin: compact ? "4px 0" : "8px 0",
             }}
           >
-            <span>TOTAL</span>
+            <span>GRAND TOTAL</span>
             <span style={{ whiteSpace: "nowrap" }}>{fmt(finalBillTotal)}</span>
           </div>
         ) : (
@@ -1264,7 +1277,7 @@ export const ThermalInvoiceTemplate = React.forwardRef(
                 letterSpacing: 0.5,
               }}
             >
-              BILL AMOUNT : <span style={{ whiteSpace: "nowrap" }}>{fmt(finalBillTotal)}</span>
+              GRAND TOTAL : <span style={{ whiteSpace: "nowrap" }}>{fmt(finalBillTotal)}</span>
             </div>
             {rule}
           </>
