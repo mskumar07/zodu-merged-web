@@ -605,6 +605,7 @@ function CreateExpenseItemDialog({ open, onClose, onSave, initialValue = null }:
               <TextField size="small" fullWidth type="number" value={form.amount} onChange={e => setField("amount", e.target.value)}
                 placeholder="Enter amount"
                 InputProps={{ startAdornment: <InputAdornment position="start"><Typography sx={{ fontSize: 13, fontWeight: 700, color: "#D21F3C" }}>₹</Typography></InputAdornment> }}
+                inputProps={{ style: { textAlign: "right" } }}
                 sx={inputSx} />
               <Typography sx={{ fontSize: 11, color: "#9CA3AF", mt: 0.5 }}>Enter the amount for this item</Typography>
             </Box>

@@ -184,7 +184,7 @@ const handleSubmit = () => {
                     <Typography sx={{ fontSize: "0.9rem", fontWeight: 700, color: "#64748B" }}>₹</Typography>
                   </InputAdornment>
                 ),
-                inputProps: { style: { fontWeight: 700 }, min: 0, max: balance },
+                inputProps: { style: { fontWeight: 700, textAlign: "right" }, min: 0, max: balance },
               }}
               sx={inputSx}
             />

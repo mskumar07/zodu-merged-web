@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { closeFromControlsOnly } from "@utils/dialog";
 import {
   Box, Button, CircularProgress, Dialog, DialogActions,
-  DialogContent, DialogTitle, Divider, Grid, IconButton,
+  DialogContent, DialogTitle, Divider, Grid, IconButton, InputAdornment,
   ListSubheader, MenuItem, Select, TextField, Typography,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
@@ -520,7 +520,15 @@ export default function EmployeeFormModal({ open, onClose, mode, employeeId, pas
       onChange={(e) => set(key, e.target.value)}
       error={!!errors[key]}
       helperText={errors[key]}
-      slotProps={{ input: { readOnly } }}
+      slotProps={{
+        input: {
+          readOnly,
+          startAdornment: type === "number"
+            ? <InputAdornment position="start"><Typography sx={{ fontSize: 13, fontWeight: 700, color: "#64748B" }}>₹</Typography></InputAdornment>
+            : undefined,
+        },
+        htmlInput: type === "number" ? { style: { textAlign: "right" } } : undefined,
+      }}
       sx={inputSx}
     />
   );

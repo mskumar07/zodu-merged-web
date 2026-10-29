@@ -126,7 +126,7 @@ export default function MarkRefundDialog({ saleUuid, ret, onClose, notify, minDa
               onChange={(e) => setAmount(e.target.value)}
               InputProps={{
                 startAdornment: <InputAdornment position="start"><Typography sx={{ fontWeight: 700, color: "#64748B" }}>₹</Typography></InputAdornment>,
-                inputProps: { style: { fontWeight: 700 }, min: 0, max: pending, step: "0.01" },
+                inputProps: { style: { fontWeight: 700, textAlign: "right" }, min: 0, max: pending, step: "0.01" },
               }}
               sx={inputSx}
             />

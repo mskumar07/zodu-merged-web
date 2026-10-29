@@ -789,7 +789,7 @@ export default function DiscountModal({
                   </InputAdornment>
                 ),
               }}
-              inputProps={{ style: { fontSize: 15, fontWeight: 600, padding: "10px 8px" } }}
+              inputProps={{ style: { fontSize: 15, fontWeight: 600, padding: "10px 8px", textAlign: "right" } }}
               sx={{
                 "& .MuiOutlinedInput-root": {
                   borderRadius: 2,

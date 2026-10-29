@@ -98,7 +98,7 @@ const DiscountModal: React.FC<Props> = ({
           onChange={(e) => setValue(e.target.value)}
           placeholder={type === "Percent" ? "Enter discount %" : "Enter discount amount"}
           autoFocus
-          inputProps={{ min: 0, max: type === "Percent" ? 100 : undefined, step: "0.01" }}
+          inputProps={{ min: 0, max: type === "Percent" ? 100 : undefined, step: "0.01", style: { textAlign: "right" } }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">

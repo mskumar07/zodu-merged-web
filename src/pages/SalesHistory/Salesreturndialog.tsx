@@ -380,11 +380,11 @@ const canConfirm = someSelected && !!reason && returnDateValid && (!payNow || !s
               gap: 2, px: 2.5, py: 1.75,
               bgcolor: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: "14px",
             }}>
-              <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: { xs: 2, md: 4 } }}>
+              <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: { xs: 2, md: 4 }, flex: 1, minWidth: 0 }}>
                 {[
                   { label: "Invoice No.",   value: (normalizedSale as any)?.invoice_no ?? "—",                    icon: <ReceiptIcon sx={{ fontSize: 18 }} /> },
-                  { label: "Customer",      value: (normalizedSale as any)?.customer_name || "—",           icon: <PersonIcon sx={{ fontSize: 18 }} /> },
                   { label: "Invoice Date",  value: (normalizedSale as any)?.sale_date_fmt ?? "—",        icon: <CalendarIcon sx={{ fontSize: 17 }} /> },
+                  { label: "Customer",      value: (normalizedSale as any)?.customer_name || "—",           icon: <PersonIcon sx={{ fontSize: 18 }} /> },
                 ].map((f) => (
                   <Box key={f.label} sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
                     <Box sx={{ width: 34, height: 34, borderRadius: "10px", bgcolor: "#fff", border: "1px solid #E2E8F0", color: "#64748B", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -392,7 +392,7 @@ const canConfirm = someSelected && !!reason && returnDateValid && (!payNow || !s
                     </Box>
                     <Box sx={{ minWidth: 0 }}>
                       <Typography sx={{ fontSize: "0.68rem", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#94A3B8", lineHeight: 1.2 }}>{f.label}</Typography>
-                      <Typography noWrap sx={{ fontSize: "0.95rem", fontWeight: 700, color: "#0F172A", lineHeight: 1.35, maxWidth: 220 }}>{f.value}</Typography>
+                      <Typography sx={{ fontSize: "0.95rem", fontWeight: 700, color: "#0F172A", lineHeight: 1.35, wordBreak: "break-word" }}>{f.value}</Typography>
                     </Box>
                   </Box>
                 ))}
@@ -727,7 +727,7 @@ const canConfirm = someSelected && !!reason && returnDateValid && (!payNow || !s
                               size="small" fullWidth type="number" value={payAmountText}
                               error={!!payAmountText && !payAmountValid}
                               onChange={(e) => setPayAmountInput(e.target.value)}
-                              inputProps={{ min: 0, max: refundable, step: "0.01", style: { fontWeight: 700 } }}
+                              inputProps={{ min: 0, max: refundable, step: "0.01", style: { fontWeight: 700, textAlign: "right" } }}
                               InputProps={{ startAdornment: <Typography sx={{ mr: 0.5, fontWeight: 700, color: "#64748B" }}>₹</Typography> }}
                               sx={inputSx}
                             />

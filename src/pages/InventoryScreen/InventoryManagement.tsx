@@ -240,12 +240,12 @@ const handleCloseHistory = () => {
       render: (r) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           {r.item_img ? (
-            <Avatar src={r.item_img} variant="rounded" sx={{ width: 38, height: 38, border: '1px solid', borderColor: 'divider' }}>
+            <Avatar src={r.item_img} variant="rounded" sx={{ width: 34, height: 34, border: '1px solid', borderColor: 'divider' }}>
               {r?.item_name?.[0] ?? ''}
             </Avatar>
           ) : (
             // No photo: same soft green initial badge as the Menu Item table.
-            <Avatar sx={{ width: 24, height: 24, fontSize: '0.65rem', bgcolor: alpha('#10B981', 0.15), color: '#10B981', fontWeight: 700 }}>
+            <Avatar variant="rounded" sx={{ width: 34, height: 34, fontSize: '0.9rem', bgcolor: alpha('#10B981', 0.15), color: '#10B981', fontWeight: 700 }}>
               {r?.item_name?.[0]?.toUpperCase() ?? ''}
             </Avatar>
           )}

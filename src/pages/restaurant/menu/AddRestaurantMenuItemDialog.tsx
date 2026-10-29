@@ -907,7 +907,7 @@ const AddRestaurantMenuItemDialog: React.FC<
                 value={form.sellPrice} onChange={setAmount("sellPrice")}
                 onBlur={() => touch("sellPrice")} error={Boolean(fieldError("sellPrice"))}
                 helperText={fieldError("sellPrice")}
-                inputProps={{ inputMode: "decimal", maxLength: 17 }}
+                inputProps={{ inputMode: "decimal", maxLength: 17, style: { textAlign: "right" } }}
                 InputProps={{ sx: inputSx, startAdornment: <InputAdornment position="start"><Typography variant="body2" fontWeight={700} sx={{ color: PRIMARY }}>₹</Typography></InputAdornment> }} />
             </Box>
             <Box>
@@ -916,7 +916,7 @@ const AddRestaurantMenuItemDialog: React.FC<
                 value={form.purchasePrice} onChange={setAmount("purchasePrice")}
                 onBlur={() => touch("purchasePrice")} error={Boolean(fieldError("purchasePrice"))}
                 helperText={fieldError("purchasePrice")}
-                inputProps={{ inputMode: "decimal", maxLength: 17 }}
+                inputProps={{ inputMode: "decimal", maxLength: 17, style: { textAlign: "right" } }}
                 InputProps={{ sx: inputSx, startAdornment: <InputAdornment position="start"><Typography variant="body2" fontWeight={600} color="text.disabled">₹</Typography></InputAdornment> }} />
             </Box>
           </Box>
@@ -1331,6 +1331,7 @@ const AddRestaurantMenuItemDialog: React.FC<
                 size="small" placeholder="Price" type="number" value={v.price}
                 onChange={(e) => setVariantDraft(prev => prev.map((x, idx) => idx === i ? { ...x, price: e.target.value } : x))}
                 InputProps={{ startAdornment: <InputAdornment position="start"><Typography sx={{ fontSize: 13, color: PRIMARY, fontWeight: 700 }}>₹</Typography></InputAdornment> }}
+                inputProps={{ style: { textAlign: "right" } }}
                 sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1, fontSize: 13 } }}
               />
               <IconButton size="small" onClick={() => setVariantDraft(prev => prev.filter((_, idx) => idx !== i))}

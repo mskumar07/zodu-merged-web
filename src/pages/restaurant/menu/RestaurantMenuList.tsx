@@ -753,8 +753,8 @@ const RestaurantMenuList: React.FC = () => {
                   alt={row.menu_name}
                   variant="rounded"
                   sx={{
-                    width: 40,
-                    height: 40,
+                    width: 34,
+                    height: 34,
                     flexShrink: 0,
                     border: `1px solid ${theme.palette.divider}`,
                   }}
@@ -762,13 +762,14 @@ const RestaurantMenuList: React.FC = () => {
               ) : (
                 // No photo: same soft green initial badge as the retail Menu Item table.
                 <Avatar
+                  variant="rounded"
                   sx={{
-                    width: 24,
-                    height: 24,
+                    width: 34,
+                    height: 34,
                     flexShrink: 0,
                     bgcolor: alpha("#10B981", 0.15),
                     color: "#10B981",
-                    fontSize: "0.65rem",
+                    fontSize: "0.9rem",
                     fontWeight: 700,
                   }}
                 >

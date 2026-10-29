@@ -126,7 +126,7 @@ export default function ExpensePaymentDialog({ expense, onClose, onSuccess }: Pr
               onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
               InputProps={{
                 startAdornment: <InputAdornment position="start"><Typography sx={{ fontSize: "0.9rem", fontWeight: 700, color: "#64748B" }}>₹</Typography></InputAdornment>,
-                inputProps: { style: { fontWeight: 700 }, min: 0, max: balance },
+                inputProps: { style: { fontWeight: 700, textAlign: "right" }, min: 0, max: balance },
               }}
               sx={inputSx}
             />

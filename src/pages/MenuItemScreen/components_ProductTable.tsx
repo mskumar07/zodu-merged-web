@@ -122,15 +122,16 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
                 <Avatar
                   src={product.imageUrl}
                   variant="rounded"
-                  sx={{ width: 40, height: 40, border: `1px solid ${theme.palette.divider}`, flexShrink: 0 }}
+                  sx={{ width: 34, height: 34, border: `1px solid ${theme.palette.divider}`, flexShrink: 0 }}
                 >
                   {product.name[0]}
                 </Avatar>
               ) : (
                 // No photo: same soft green initial badge as the Sales History customer column.
                 <Avatar
+                  variant="rounded"
                   sx={{
-                    width: 24, height: 24, fontSize: "0.65rem", flexShrink: 0,
+                    width: 34, height: 34, fontSize: "0.9rem", flexShrink: 0,
                     bgcolor: alpha("#10B981", 0.15), color: "#10B981", fontWeight: 700,
                   }}
                 >

@@ -849,7 +849,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                     onChange={handleAmountChange('purchasePrice')}
                     error={touch.purchasePrice && Boolean(err.purchasePrice)}
                     helperText={touch.purchasePrice && err.purchasePrice}
-                    inputProps={{ inputMode: 'decimal', maxLength: 17 }}
+                    inputProps={{ inputMode: 'decimal', maxLength: 17, style: { textAlign: 'right' } }}
                     InputProps={{ startAdornment: <InputAdornment position="start"><Typography variant="body2" color="text.disabled" fontWeight={600}>₹</Typography></InputAdornment>, sx: inputSx }} />
                 </Box>
                 <Box>
@@ -859,7 +859,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                     onChange={handleAmountChange('mrp')}
                     error={touch.mrp && Boolean(err.mrp)}
                     helperText={touch.mrp && err.mrp}
-                    inputProps={{ inputMode: 'decimal', maxLength: 17 }}
+                    inputProps={{ inputMode: 'decimal', maxLength: 17, style: { textAlign: 'right' } }}
                     InputProps={{ startAdornment: <InputAdornment position="start"><Typography variant="body2" color="text.disabled" fontWeight={600}>₹</Typography></InputAdornment>, sx: inputSx }} />
                 </Box>
                 <Box>
@@ -869,7 +869,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ open, onClose, onSave, edit
                     onChange={handleAmountChange('rate')}
                     error={touch.rate && Boolean(err.rate)}
                     helperText={touch.rate && err.rate}
-                    inputProps={{ inputMode: 'decimal', maxLength: 17 }}
+                    inputProps={{ inputMode: 'decimal', maxLength: 17, style: { textAlign: 'right' } }}
                     InputProps={{ startAdornment: <InputAdornment position="start"><Typography variant="body2" color="primary.main" fontWeight={700}>₹</Typography></InputAdornment>, sx: { ...inputSx, fontWeight: 700 } }} />
                 </Box>
               </Box>
