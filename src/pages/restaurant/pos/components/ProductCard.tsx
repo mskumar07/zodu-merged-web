@@ -266,9 +266,10 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
           ₹{price.toFixed(2)}
         </Typography>
 
-        {/* Action row — right-aligned, fixed width for both Add and stepper */}
+        {/* Action row — right-aligned; Add and stepper share a width of up to 96px, and
+            shrink on a narrow card rather than pushing out over its border */}
         {!isUnavailable && (
-          <Box sx={{ display: "flex", justifyContent: "flex-end", flexShrink: 0 }}>
+          <Box sx={{ display: "flex", justifyContent: "flex-end", flex: "0 1 96px", minWidth: 0 }}>
             {inCart && !hasVariant ? (
               /* Stepper — same width as Add button */
               <Box
@@ -280,13 +281,13 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
                   border:       "1.5px solid #d32f2f",
                   overflow:     "hidden",
                   height:       28,
-                  width:        96,
+                  width:        "100%",
                 }}
               >
                 <Box
                   onClick={() => onDecrement(item)}
                   sx={{
-                    width:          30,
+                    width:          { xs: 24, md: 30 },
                     height:         "100%",
                     display:        "flex",
                     alignItems:     "center",
@@ -333,7 +334,7 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
                 <Box
                   onClick={() => onIncrement(item)}
                   sx={{
-                    width:          30,
+                    width:          { xs: 24, md: 30 },
                     height:         "100%",
                     display:        "flex",
                     alignItems:     "center",
@@ -360,7 +361,8 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
                   justifyContent: "center",
                   gap:            "4px",
                   height:         28,
-                  width:          96,
+                  width:          "100%",
+                  minWidth:       0,
                   border:         "1.5px solid #d32f2f",
                   borderRadius:   "7px",
                   color:          "#d32f2f",
