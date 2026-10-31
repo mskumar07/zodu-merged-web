@@ -39,7 +39,6 @@ import {
   TableRow,
   TableCell,
   Chip,
-  Tooltip,
   Container,
   useTheme,
 } from '@mui/material';
@@ -49,8 +48,7 @@ import NotificationsIcon from '@mui/icons-material/Notifications';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
+import TableActionButton from "@components/Common/TableActionButton";
 
 // ─────────────────────────────────────────────────────────────
 // TYPES  (types/index.ts)
@@ -254,7 +252,7 @@ const HEADERS = [
   { label: 'MRP', align: 'right' as const },
   { label: 'Rate', align: 'right' as const },
   { label: 'HSN', align: 'left' as const },
-  { label: 'Actions', align: 'center' as const },
+  { label: 'Actions', align: 'right' as const },
 ];
 
 interface ProductTableProps { products: Product[]; }
@@ -326,18 +324,10 @@ const ProductTable: React.FC<ProductTableProps> = ({ products }) => {
                 </TableCell>
 
                 {/* Actions */}
-                <TableCell align="center" sx={{ px: 2, bgcolor: 'background.paper', ...stickyR }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
-                    <Tooltip title="Edit">
-                      <IconButton size="small" sx={{ color: 'text.disabled', '&:hover': { color: 'primary.main', bgcolor: 'rgba(210,18,46,0.08)' }, borderRadius: 1.5 }}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Delete">
-                      <IconButton size="small" sx={{ color: 'primary.main', '&:hover': { bgcolor: 'rgba(210,18,46,0.08)' }, borderRadius: 1.5 }}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
+                <TableCell align="right" sx={{ px: 2, bgcolor: 'background.paper', ...stickyR }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.3 }}>
+                    <TableActionButton kind="edit" />
+                    <TableActionButton kind="delete" />
                   </Box>
                 </TableCell>
               </TableRow>

@@ -1,6 +1,7 @@
 /**
  * The KOT slip, laid out once as monospace lines.
  *
+ * Laid out like the KOT template the POS prints with the bill (ThermalKotTemplate).
  * Every renderer reads the same lines — ESC/POS text for the printer, a raster
  * image when the text has characters a printer's code page lacks (Tamil, Hindi
  * item names), and the on-screen preview — so what Settings previews is what
@@ -84,7 +85,7 @@ export interface SlipOptions {
   paper: PaperSize;
   /** When the slip is printed — shown as its date/time. */
   printedAt: Date;
-  /** Printed under the title: "BILLING COPY", "REPRINT", rerouting notes. */
+  /** Printed above the items: "BILLING COPY", "REPRINT", rerouting notes. */
   banner?: string | null;
   /** Consolidated billing copy: every ticket's items under its counter's heading. */
   consolidated?: boolean;
@@ -130,16 +131,15 @@ export function spread(left: string, right: string, cols: number): string[] {
 
 export const formatQty = (qty: number) => (Number.isInteger(qty) ? String(qty) : qty.toFixed(2).replace(/0+$/, "").replace(/\.$/, ""));
 
-function formatDateTime(d: Date): { date: string; time: string } {
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "28 Oct 26 06:41 PM" — as the KOT template (ThermalKotTemplate) prints it. */
+function formatDateTime(d: Date): string {
   let h = d.getHours();
   const ampm = h >= 12 ? "PM" : "AM";
   h = h % 12 || 12;
-  return {
-    date: `${dd}/${mm}/${d.getFullYear()}`,
-    time: `${String(h).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")} ${ampm}`,
-  };
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${String(d.getDate()).padStart(2, "0")} ${MONTHS[d.getMonth()]} ${yy} ${String(h).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")} ${ampm}`;
 }
 
 const TYPE_BANNER: Record<KotType, string> = {
@@ -158,8 +158,18 @@ export function itemLabel(item: Pick<KotTicketItem, "item_name" | "variant_name"
 // ─── Builder ────────────────────────────────────────────────────────────────
 
 /**
- * One slip. `tickets` is a single counter's ticket, or — with `consolidated` —
- * every ticket of a send, printed together at the billing counter.
+ * One slip, laid out like the KOT template (ThermalKotTemplate):
+ *
+ *   KOT #2                  TABLE 9
+ *   023          28 Oct 26 06:41 PM
+ *   --------------------------------
+ *   1 x Jeera Rice
+ *   2 x Kashmiri Pulao
+ *   --------------------------------
+ *   Items: 2             Total Qty: 3
+ *
+ * `tickets` is a single counter's ticket, or, with `consolidated`, every ticket of
+ * a send, each counter's items under its name.
  */
 export function buildKotSlip(batch: KotBatch, tickets: KotTicket[], opts: SlipOptions): Slip {
   const cols = PAPER_COLUMNS[opts.paper];
@@ -167,89 +177,52 @@ export function buildKotSlip(batch: KotBatch, tickets: KotTicket[], opts: SlipOp
   const kind = orderKind(batch.order_type);
   const lines: SlipLine[] = [];
   const push = (text: string, style: Omit<SlipLine, "text"> = {}) => lines.push({ text, ...style });
-  const rule = (ch = "-") => push(ch.repeat(cols));
+  const rule = () => push("-".repeat(cols));
 
-  // A consolidated slip can mix kinds (an edit that both adds and cancels);
-  // then the per-counter headings carry the kind instead of one banner.
+  // KOT number left; table (dine-in) or order type right — double size when it fits.
+  // Not bold, as in the template: emphasized text prints smudged on many rolls.
+  const right = kind === "dine_in" && batch.table_no ? `TABLE ${batch.table_no}` : ORDER_LABEL[kind];
+  const head = spread(`KOT #${batch.kot_no}`, right, big);
+  for (const l of head.length === 1 ? head : spread(`KOT #${batch.kot_no}`, right, cols)) {
+    push(l, { size: head.length === 1 ? 2 : 1 });
+  }
+  for (const l of spread(batch.order_no ?? "", formatDateTime(opts.printedAt), cols)) push(l);
+
+  const customer = batch.customer_name?.trim() && !/^walk-?in$/i.test(batch.customer_name.trim()) ? batch.customer_name.trim() : null;
+  const phone = kind !== "dine_in" ? batch.customer_phone?.trim() || null : null;
+  const who = [customer, phone].filter(Boolean).join(" - ");
+  if (who) for (const l of wrap(who, cols)) push(l);
+  if (kind === "delivery" && batch.delivery_address) for (const l of wrap(batch.delivery_address, cols)) push(l);
+
+  // What the kitchen must not miss: added or cancelled items, a reprint, a reroute.
   const mixedKinds = tickets.some((t) => t.kot_type !== tickets[0]?.kot_type);
   const kotType: KotType = tickets[0]?.kot_type ?? "NEW";
-  const title = opts.consolidated
-    ? "KOT - ALL COUNTERS"
-    : `${(tickets[0]?.counter_name || "Kitchen").toUpperCase()} KOT`;
+  const marks = [opts.banner, !mixedKinds && kotType !== "NEW" ? TYPE_BANNER[kotType] : null].filter(Boolean) as string[];
+  for (const mark of marks) for (const l of wrap(mark.toUpperCase(), cols)) push(center(l, cols), { bold: true });
 
-  // Header
-  for (const l of wrap(opts.restaurantName.toUpperCase(), cols)) push(center(l, cols), { bold: true });
-  for (const l of wrap(title, big)) push(center(l, big), { bold: true, size: 2 });
-  if (opts.banner) for (const l of wrap(opts.banner.toUpperCase(), cols)) push(center(l, cols), { bold: true });
-  rule("=");
-
-  // KOT number and the order type, big — the two things a kitchen scans first.
-  for (const l of spread(`KOT #${batch.kot_no}`, ORDER_LABEL[kind], big)) push(l, { bold: true, size: 2 });
-  if (!mixedKinds) push(center(TYPE_BANNER[kotType], cols), { bold: kotType !== "NEW" });
-
-  // Order identity: table for Dine-In, order number for Pick Up / Delivery.
-  if (kind === "dine_in") {
-    if (batch.table_no) push(`TABLE: ${batch.table_no}`, { bold: true, size: 2 });
-    if (batch.order_no) push(`Order No: ${batch.order_no}`);
-  } else if (batch.order_no) {
-    const label = `ORDER: ${batch.order_no}`;
-    if (width(label) <= big) {
-      push(label, { bold: true, size: 2 });
-    } else {
-      // Too long to share a big line with its label (an invoice number on 2" paper).
-      push("Order No:", { bold: true });
-      for (const l of wrap(batch.order_no, big)) push(l, { bold: true, size: 2 });
-    }
-  }
-
-  const { date, time } = formatDateTime(opts.printedAt);
-  push(spread(`Date: ${date}`, `Time: ${time}`, cols)[0]);
-
-  if (batch.customer_name) for (const l of wrap(`Customer: ${batch.customer_name}`, cols)) push(l);
-  if (kind !== "dine_in" && batch.customer_phone) push(`Phone: ${batch.customer_phone}`, { bold: kind === "delivery" });
-  if (kind === "delivery" && batch.delivery_address) {
-    for (const l of wrap(`Address: ${batch.delivery_address}`, cols)) push(l);
-  }
-  if (kind === "dine_in") {
-    const staff = [batch.waiter_name && `Captain: ${batch.waiter_name}`, batch.covers ? `Covers: ${batch.covers}` : null]
-      .filter(Boolean)
-      .join(" | ");
-    if (staff) for (const l of wrap(staff, cols)) push(l);
-  }
-
-  // Items
-  const SL = 4;
-  const QTY = 5;
-  const NAME = cols - SL - QTY;
+  // Items: "2 x Paneer Tikka (Half)", wrapped lines kept under the name.
   rule();
-  push(padEnd("Sl", SL) + padEnd("Item Name", NAME) + padStart("Qty", QTY), { bold: true });
-  rule();
-
-  let sl = 0;
+  let count = 0;
   let totalQty = 0;
   for (const ticket of tickets) {
-    if (opts.consolidated) {
+    // The counter's name heads its items, so slips sharing one printer can be told apart.
+    if (opts.consolidated || ticket.counter_name) {
       const counter = (ticket.counter_name || "Kitchen").toUpperCase();
-      push(ticket.kot_type === "NEW" ? `[${counter}]` : `[${counter}] ${ticket.kot_type}`, { bold: true });
+      push(ticket.kot_type === "NEW" || !mixedKinds ? `[${counter}]` : `[${counter}] ${ticket.kot_type}`);
     }
     for (const item of ticket.items) {
-      sl += 1;
+      count += 1;
       totalQty += item.qty;
-      const qty = ticket.kot_type === "CANCEL" ? `-${formatQty(item.qty)}` : formatQty(item.qty);
-      const nameLines = wrap(itemLabel(item), NAME - 1);
-      nameLines.forEach((name, i) => {
-        push(
-          padEnd(i === 0 ? String(sl) : "", SL) + padEnd(name, NAME) + (i === 0 ? padStart(qty, QTY) : ""),
-          { bold: true },
-        );
+      const qty = `${ticket.kot_type === "CANCEL" ? "-" : ""}${formatQty(item.qty)} x `;
+      const indent = width(qty);
+      wrap(itemLabel(item), cols - indent).forEach((name, i) => {
+        push((i === 0 ? qty : " ".repeat(indent)) + name);
       });
-      if (item.note) for (const l of wrap(`>> ${item.note}`, NAME)) push(" ".repeat(SL) + l);
+      if (item.note) for (const l of wrap(`Note: ${item.note}`, cols - indent)) push(" ".repeat(indent) + l);
     }
   }
-
   rule();
-  push(spread(`Total Items: ${sl}`, `Total Qty: ${formatQty(totalQty)}`, cols)[0], { bold: true });
-  rule();
+  for (const l of spread(`Items: ${count}`, `Total Qty: ${formatQty(totalQty)}`, cols)) push(l);
 
   return { paper: opts.paper, lines };
 }

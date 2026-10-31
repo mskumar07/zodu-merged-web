@@ -19,8 +19,6 @@ import {
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import { closeFromControlsOnly } from "@utils/dialog";
 import AddIcon from "@mui/icons-material/Add";
-import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import RestoreIcon from "@mui/icons-material/Restore";
 import SearchIcon from "@mui/icons-material/Search";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
@@ -33,6 +31,7 @@ import DataTable, { type ColumnDef } from "@utils/DataTable";
 import { useInfiniteCustomers, useSetCustomerActive } from "./useCustomerapi";
 import { useModulePermission } from "@hooks/useModulePermission";
 import { runIfSubscribed } from "@utils/subscriptionGuard";
+import TableActionButton from "@components/Common/TableActionButton";
 
 const theme = createTheme({
   palette: {
@@ -258,7 +257,7 @@ export default function CustomerManagement({
       {
         key: "customerId",
         label: "Customer ID",
-        width: 100,
+        width: 95,
         render: (customer) => (
           <Typography
             onClick={(event) => {
@@ -270,6 +269,8 @@ export default function CustomerManagement({
               fontWeight: 600,
               color: "#1976d2",
               whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
               cursor: "pointer",
               "&:hover": { textDecoration: "underline" },
             }}
@@ -281,9 +282,9 @@ export default function CustomerManagement({
       {
         key: "businessName",
         label: "Customer / Business Name",
-        width: 220,
+        width: 210,
         render: (customer) => (
-          <Box sx={{ overflow: "hidden", pl: 2 }}>
+          <Box sx={{ overflow: "hidden" }} title={[customer.contactName, customer.businessName].filter(Boolean).join(" · ")}>
             <Typography sx={{ fontSize: 13, fontWeight: 500, color: TABLE_TEXT_COLOR, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {customer.contactName}
             </Typography>
@@ -296,7 +297,7 @@ export default function CustomerManagement({
       {
         key: "mobile",
         label: "Mobile Number",
-        width: 130,
+        width: 115,
         render: (customer) => (
           <Typography sx={{ fontSize: 13, color: TABLE_TEXT_COLOR, whiteSpace: "nowrap" }}>
             {customer.mobile}
@@ -306,9 +307,9 @@ export default function CustomerManagement({
       {
         key: "email",
         label: "Email Address",
-        width: 240,
+        width: 180,
         render: (customer) => (
-          <Typography sx={{ fontSize: 13, color: TABLE_TEXT_COLOR, whiteSpace: "nowrap" }}>
+          <Typography title={customer.email} sx={{ fontSize: 13, color: TABLE_TEXT_COLOR, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {customer.email}
           </Typography>
         ),
@@ -320,16 +321,14 @@ export default function CustomerManagement({
         render: (customer) =>
           customer.gstin ? (
             <Typography
+              title={customer.gstin}
               sx={{
                 fontSize: 13,
                 color: TABLE_TEXT_COLOR,
-             
-                borderRadius: 1,
-                px: 0.7,
                 py: 0.2,
-                display: "inline-block",
                 whiteSpace: "nowrap",
-                letterSpacing: "0.04em",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
               }}
             >
               {customer.gstin}
@@ -342,7 +341,7 @@ export default function CustomerManagement({
         key: "totalInvoice",
         label: "Total Invoice",
         align: "right",
-        width: 110,
+        width: 100,
         render: (customer) => (
           <Typography
             sx={{
@@ -360,7 +359,7 @@ export default function CustomerManagement({
         key: "totalSale",
         label: "Total Sale",
         align: "right",
-        width: 130,
+        width: 120,
         render: (customer) => (
           <Typography
             sx={{
@@ -378,8 +377,12 @@ export default function CustomerManagement({
         key: "outstandingBalance",
         label: "Outstanding",
         align: "right",
-        width: 130,
+        width: 150,
+        // Gets just what the amount and Mark Payment need on one line; spare width goes to the other columns
+        fitMin: 205,
         render: (customer) => (
+          // Amount, with Mark Payment beside it while anything is owed
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 1, flexWrap: "nowrap" }}>
           <Typography
             sx={{
               fontSize: 13,
@@ -390,15 +393,7 @@ export default function CustomerManagement({
           >
             {INR(customer.outstandingBalance)}
           </Typography>
-        ),
-      },
-      {
-        key: "markPayment",
-        label: "",
-        align: "center",
-        width: 130,
-        render: (customer) =>
-          customer.outstandingBalance > 0 ? (
+          {customer.outstandingBalance > 0 && (
             <Button
               size="small"
               variant="contained"
@@ -412,21 +407,23 @@ export default function CustomerManagement({
               sx={{
                 fontSize: "0.65rem",
                 py: 0.4,
-                px: 1.5,
+                px: 1,
                 height: 24,
-                width: "100%",
                 whiteSpace: "nowrap",
               }}
             >
               Mark Payment
             </Button>
-          ) : null,
+          )}
+          </Box>
+        ),
       },
       {
         key: "actions",
         label: "Actions",
-        align: "center",
-        width: 130,
+        align: "right",
+        width: 115,
+        fitMin: 105,
         render: (customer) => {
           const viewButton = (
             <Tooltip title="View" placement="top">
@@ -449,7 +446,7 @@ export default function CustomerManagement({
             </Tooltip>
           );
           return statusTab === "inactive" ? (
-            <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
+            <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.3 }}>
             {viewButton}
             <Tooltip title={canDelete ? "Restore" : "You don't have permission to restore"} placement="top">
               <span>
@@ -474,56 +471,28 @@ export default function CustomerManagement({
             </Tooltip>
             </Box>
           ) : (
-            <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
+            <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.3 }}>
               {viewButton}
-              <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"} placement="top">
-                <span>
-                  <IconButton
-                    size="small"
-                    disabled={!canEdit}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      // Find the full customer data from apiCustomers
-                      const fullCustomer = (apiCustomers as unknown as ApiCustomer[]).find((c: ApiCustomer) => c.cust_id === customer.id);
-                      if (fullCustomer) {
-                        setEditingCustomer(fullCustomer);
-                        setAddCustomerOpen(true);
-                      }
-                      onEditCustomer?.(customer);
-                    }}
-                    sx={{
-                      color: "#1565C0",
-                      p: 0.6,
-                      borderRadius: 1,
-                      "&:hover": { color: "#1976d2", bgcolor: "#EFF6FF" },
-                      transition: "all 0.12s",
-                    }}
-                  >
-                    <EditOutlinedIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
-                </span>
-              </Tooltip>
-              <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"} placement="top">
-                <span>
-                  <IconButton
-                    size="small"
-                    disabled={!canDelete}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      handleDelete(customer);
-                    }}
-                    sx={{
-                      color: "#D2122E",
-                      p: 0.6,
-                      borderRadius: 1.5,
-                      "&:hover": { bgcolor: "#D2122E22" },
-                      transition: "all 0.12s",
-                    }}
-                  >
-                    <DeleteOutlineIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
-                </span>
-              </Tooltip>
+              <TableActionButton
+                kind="edit"
+                title={canEdit ? "Edit" : "You don't have permission to edit"}
+                disabled={!canEdit}
+                onClick={() => {
+                  // Find the full customer data from apiCustomers
+                  const fullCustomer = (apiCustomers as unknown as ApiCustomer[]).find((c: ApiCustomer) => c.cust_id === customer.id);
+                  if (fullCustomer) {
+                    setEditingCustomer(fullCustomer);
+                    setAddCustomerOpen(true);
+                  }
+                  onEditCustomer?.(customer);
+                }}
+              />
+              <TableActionButton
+                kind="delete"
+                title={canDelete ? "Delete" : "You don't have permission to delete"}
+                disabled={!canDelete}
+                onClick={() => handleDelete(customer)}
+              />
             </Box>
           );
         },
@@ -690,6 +659,8 @@ export default function CustomerManagement({
         <Box sx={{ flex: 1, minHeight: 0, px: 1, py: 1.5 }}>
           <Box sx={{ height: "100%", minHeight: 0 }}>
             <DataTable<Customer>
+              // Columns share the screen width, so the list doesn't scroll sideways on laptop screens.
+              fitWidth
               columns={columns}
               rows={filtered}
               rowKey={(customer) => customer.id}

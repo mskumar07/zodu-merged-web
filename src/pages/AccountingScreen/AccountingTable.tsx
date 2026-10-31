@@ -66,11 +66,12 @@ function AccountingTable({
   const closeMenu = useCallback(() => setMenu(null), []);
 
   const columns = useMemo<ColumnDef<AccountingEntry>[]>(() => {
-    const text = (v: string) => <Typography sx={{ fontSize: BODY, color: TEXT, whiteSpace: "nowrap" }}>{v}</Typography>;
+    // One line, cut with "…" when the column is narrow (full value on hover)
+    const text = (v: string) => <Typography title={v} sx={{ fontSize: BODY, color: TEXT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{v}</Typography>;
 
     return [
       {
-        key: "date_time", label: "Date & Time", width: 140,
+        key: "date_time", label: "Date & Time", width: 110,
         render: (e) => (
           <Box>
             <Typography sx={{ fontSize: BODY, color: TEXT, lineHeight: 1.3, whiteSpace: "nowrap" }}>{fmtDate(e.date_time)}</Typography>
@@ -79,7 +80,7 @@ function AccountingTable({
         ),
       },
       {
-        key: "type", label: "Transaction Type", width: 170,
+        key: "type", label: "Transaction Type", width: 150,
         render: (e) => {
           const t = TYPE_STYLE[e.type];
           return (
@@ -89,14 +90,14 @@ function AccountingTable({
           );
         },
       },
-      { key: "reference",    label: "Reference No.",    width: 190, render: (e) => text(e.reference) },
-      { key: "party",        label: "Account / Party",      width: 200, render: (e) => text(e.party) },
-      { key: "payment_type", label: "Payment Type",  width: 150, render: (e) => text(e.payment_type) },
-      { key: "debit",  label: "Debit (₹)",   align: "right", width: 130, render: (e) => (e.debit  != null ? text(fmtAmount(e.debit))  : dash) },
-      { key: "credit", label: "Credit (₹)", align: "right", width: 130, render: (e) => (e.credit != null ? text(fmtAmount(e.credit)) : dash) },
-      { key: "balance", label: "Balance (₹)", align: "right", width: 150, render: (e) => text(`${fmtAmount(e.balance)} ${e.balance_side}`) },
+      { key: "reference",    label: "Reference No.",    width: 150, render: (e) => text(e.reference) },
+      { key: "party",        label: "Account / Party",      width: 170, render: (e) => text(e.party) },
+      { key: "payment_type", label: "Payment Type",  width: 115, render: (e) => text(e.payment_type) },
+      { key: "debit",  label: "Debit (₹)",   align: "right", width: 110, render: (e) => (e.debit  != null ? text(fmtAmount(e.debit))  : dash) },
+      { key: "credit", label: "Credit (₹)", align: "right", width: 110, render: (e) => (e.credit != null ? text(fmtAmount(e.credit)) : dash) },
+      { key: "balance", label: "Balance (₹)", align: "right", width: 135, render: (e) => text(`${fmtAmount(e.balance)} ${e.balance_side}`) },
       {
-        key: "actions", label: "Actions", align: "center", width: 110,
+        key: "actions", label: "Actions", align: "center", width: 85,
         render: (e) => (
           <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}>
             <Tooltip title="View">
@@ -116,6 +117,8 @@ function AccountingTable({
   return (
     <>
       <DataTable<AccountingEntry>
+        // Columns share the screen width, so the list doesn't scroll sideways on laptop screens.
+        fitWidth
         columns={columns}
         rows={rows}
         rowKey={rowKey}

@@ -7,9 +7,8 @@
  * sales SaleReturnSubRows.
  */
 import { memo } from "react";
-import { Box, Button, IconButton, Tooltip, Typography, TableRow, TableCell, alpha } from "@mui/material";
-import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import { Box, Button, Typography, TableRow, TableCell } from "@mui/material";
+import TableActionButton from "@components/Common/TableActionButton";
 import type { PurchaseRefundStatus, PurchaseReturnListRow, PurchaseRow } from "./usePuchaseapi";
 
 interface Props {
@@ -40,9 +39,9 @@ const REFUND_LABEL: Record<PurchaseRefundStatus, { label: string; color: string 
   NA:       { label: "Adjusted to balance", color: "#0369A1" },
 };
 
-const iconBtnSx = { color: "text.secondary", borderRadius: 1.5, p: 0.6, "&:hover": { color: "primary.main", bgcolor: alpha("#E53935", 0.06) } } as const;
 // Mirrors the DataTable body cell so a return row reads exactly like a purchase row
-const cellSx   = { height: 40, padding: "5px 12px", fontSize: "13px", color: "#374151", verticalAlign: "middle", bgcolor: "#fff" } as const;
+// Same padding and clipping as the table's fitWidth cells, so return rows line up and never push the table wider.
+const cellSx   = { height: 40, padding: "5px 8px", overflow: "hidden", fontSize: "13px", color: "#374151", verticalAlign: "middle", bgcolor: "#fff" } as const;
 const RIGHT_KEYS = new Set(["total_amount", "paid_amount", "balance_amount"]);
 
 function PurchaseReturnSubRows({ purchase, returns, columnKeys, canEdit, onView, onViewPurchase, onMarkRefund, onEdit, onDelete }: Props) {
@@ -65,10 +64,10 @@ function PurchaseReturnSubRows({ purchase, returns, columnKeys, canEdit, onView,
                     {badge.label}
                   </Box>
                   <Typography noWrap onClick={() => onView(r)}
-                    sx={{ fontSize: 13, fontWeight: 700, color: "#1976d2", cursor: "pointer", lineHeight: 1.35, letterSpacing: "0.02em", "&:hover": { textDecoration: "underline" } }}>
+                    sx={{ fontSize: 13, fontWeight: 600, color: "#1976d2", cursor: "pointer", lineHeight: 1.35, "&:hover": { textDecoration: "underline" } }}>
                     {r.return_id}
                   </Typography>
-                  <Typography sx={{ fontSize: 12, fontWeight: 500, color: "#475569", lineHeight: 1.4 }}>
+                  <Typography sx={{ fontSize: 13, fontWeight: 500, color: "#475569", lineHeight: 1.4 }}>
                     For -{" "}
                     <Box component="span" onClick={onViewPurchase} sx={{ color: "#0F766E", fontWeight: 700, cursor: "pointer", "&:hover": { color: "#115E59", textDecoration: "underline" } }}>
                       {purchase.purchase_id}
@@ -90,8 +89,8 @@ function PurchaseReturnSubRows({ purchase, returns, columnKeys, canEdit, onView,
             case "payment_status":
               return (
                 <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0.5 }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, flexWrap: "wrap" }}>
-                    <Typography sx={{ fontSize: 12, fontWeight: 600, color: refund.color, display: "inline-flex", alignItems: "center", gap: 0.6 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "nowrap" }}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: refund.color, display: "inline-flex", alignItems: "center", gap: 0.6 }}>
                       <Box component="span" sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: refund.color }} />
                       {refund.label}
                     </Typography>
@@ -103,7 +102,7 @@ function PurchaseReturnSubRows({ purchase, returns, columnKeys, canEdit, onView,
                     )}
                   </Box>
                   {num(r.excess_refund) > 0 && (
-                    <Typography sx={{ ml: 1.75, fontSize: 11.5, fontWeight: 700, color: "#B45309" }}>{INR(num(r.excess_refund))} refunded in excess</Typography>
+                    <Typography sx={{ ml: 1.75, fontSize: 13, fontWeight: 600, color: "#B45309" }}>{INR(num(r.excess_refund))} refunded in excess</Typography>
                   )}
                 </Box>
               );
@@ -115,13 +114,9 @@ function PurchaseReturnSubRows({ purchase, returns, columnKeys, canEdit, onView,
               return <Typography sx={{ fontSize: 13, fontWeight: 700, color: owed > 0 ? "#D32F2F" : "#374151", textAlign: "right" }}>{INR(owed)}</Typography>;
             case "actions":
               return (
-                <Box sx={{ display: "flex", justifyContent: "center", gap: 0.3 }}>
-                  <Tooltip title={canEdit ? "Edit Return" : "You don't have permission to edit"}>
-                    <span><IconButton size="small" disabled={!canEdit} onClick={() => onEdit(r)} sx={{ ...iconBtnSx, color: "#1976d2" }}><EditOutlinedIcon sx={{ fontSize: 16 }} /></IconButton></span>
-                  </Tooltip>
-                  <Tooltip title={canEdit ? "Delete Return" : "You don't have permission to delete"}>
-                    <span><IconButton size="small" disabled={!canEdit} onClick={() => onDelete(r)} sx={{ ...iconBtnSx, color: "#D2122E", "&:hover": { bgcolor: "#D2122E22" } }}><DeleteOutlineIcon sx={{ fontSize: 16 }} /></IconButton></span>
-                  </Tooltip>
+                <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.3 }}>
+                  <TableActionButton kind="edit" title={canEdit ? "Edit Return" : "You don't have permission to edit"} disabled={!canEdit} onClick={() => onEdit(r)} />
+                  <TableActionButton kind="delete" title={canEdit ? "Delete Return" : "You don't have permission to delete"} disabled={!canEdit} onClick={() => onDelete(r)} />
                 </Box>
               );
             default:

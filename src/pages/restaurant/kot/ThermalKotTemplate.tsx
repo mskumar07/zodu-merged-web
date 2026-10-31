@@ -44,7 +44,7 @@ function Row({ label, value, fontSize }: { label: string; value: string; fontSiz
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, fontSize, lineHeight: 1.3 }}>
       <span style={{ fontWeight: 400, overflowWrap: "normal" }}>{label}</span>
-      <span style={{ fontWeight: 500, textAlign: "right", whiteSpace: "nowrap" }}>{value}</span>
+      <span style={{ fontWeight: 400, textAlign: "right", whiteSpace: "nowrap" }}>{value}</span>
     </div>
   );
 }
@@ -75,8 +75,9 @@ export const ThermalKotTemplate = React.forwardRef<HTMLDivElement, { data: KotPr
           overflowWrap: "break-word",
         }}
       >
-        {/* ── HEADER ── KOT number left; table (dine-in) or order type right */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, fontSize: fs + 4, fontWeight: 700, lineHeight: 1.2 }}>
+        {/* ── HEADER ── KOT number left; table (dine-in) or order type right. Size, not
+            weight, makes it stand out: heavy strokes smear on a thermal roll. */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, fontSize: fs + 4, fontWeight: 500, lineHeight: 1.2 }}>
           <span style={{ whiteSpace: "nowrap" }}>{kotLabel(data.kotNo)}</span>
           <span style={{ textAlign: "right" }}>{data.tableNo ? `TABLE ${data.tableNo}` : data.orderType.toUpperCase()}</span>
         </div>
@@ -91,10 +92,10 @@ export const ThermalKotTemplate = React.forwardRef<HTMLDivElement, { data: KotPr
         <Rule />
         {data.items.map((it, i) => (
           <div key={i} style={{ display: "flex", gap: "0.6em", lineHeight: 1.3, marginBottom: 1 }}>
-            <span style={{ fontWeight: 700, fontSize: fs + 1, whiteSpace: "nowrap" }}>{fmtQty(Number(it.qty) || 0)} x</span>
+            <span style={{ fontWeight: 400, fontSize: fs + 1, whiteSpace: "nowrap" }}>{fmtQty(Number(it.qty) || 0)} x</span>
             {/* Name, variant and note share one column, so wrapped lines stay aligned under the name */}
             <div style={{ flex: 1, minWidth: 0, wordBreak: "break-word" }}>
-              <div style={{ fontWeight: 700, fontSize: fs + 1 }}>{it.name}</div>
+              <div style={{ fontWeight: 400, fontSize: fs + 1 }}>{it.name}</div>
               {it.variant && it.variant.trim().toLowerCase() !== it.name.trim().toLowerCase() && (
                 <div style={{ fontSize: small, lineHeight: 1.2 }}>{it.variant}</div>
               )}

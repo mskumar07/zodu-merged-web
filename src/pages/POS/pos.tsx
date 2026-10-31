@@ -1369,6 +1369,8 @@ console.log("test",serverHolds)
     if (!runIfSubscribed()) return;
     try { await deleteHoldApi(id);
       await refetchHolds();
+      // Last hold gone — nothing left to pick, so close the list.
+      if (heldOrders.length <= 1) setHoldDialogOpen(false);
      }
     catch (err) { console.error("Delete failed", err); }
   };
@@ -3117,7 +3119,7 @@ console.log("test",serverHolds)
               <Button variant="contained"
                 startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <SaveIcon sx={{ fontSize: 18 }} />}
                 onClick={handleSave} disabled={!canSave || saving || items.length === 0 || received > grandTotal + 0.01}
-                sx={{ ...footerOutline("SAVE"), flex: 1, minWidth: 0, bgcolor: modeAccent, color: "#fff", fontSize: 14, fontWeight: 800, py: 0.9, px: 2, borderRadius: 2, boxShadow: `0 4px 18px rgba(200,16,46,0.35)`, "&:hover": { bgcolor: "#A50D26" }, "&:active": { transform: "scale(0.98)" }, "&.Mui-disabled": { bgcolor: "#E5E7EB", color: "#9CA3AF", boxShadow: "none" }, transition: "all 0.15s" }}>
+                sx={{ ...footerOutline("SAVE"), flex: 1, minWidth: 0, bgcolor: modeAccent, color: "#fff", fontSize: 14, fontWeight: 800, py: 0.9, px: 2, borderRadius: 2, boxShadow: `0 4px 18px rgba(200,16,46,0.35)`, "&:hover": { bgcolor: modeAccent }, "&:active": { transform: "scale(0.98)" }, "&.Mui-disabled": { bgcolor: "#E5E7EB", color: "#9CA3AF", boxShadow: "none" }, transition: "all 0.15s" }}>
                 {saving ? "SAVING…" : isNonSaleDoc ? `SAVE ${posTypeLabel.toUpperCase()}` : "SAVE"}{" "}
                 <Box component="span" sx={{ fontSize: 11, opacity: 0.85, ml: 0.5 }}>[F8]</Box>
               </Button>

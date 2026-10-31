@@ -107,7 +107,6 @@ describe("dispatchKotBatch", () => {
     await dispatchKotBatch(batch([ticket(1, 1, "Tandoor"), ticket(2, 2, "Chinese")]), config, opts, h.deps);
     expect(h.jobs.map((j) => j.printer)).toEqual(["Tandoor P", "Chinese P", "Billing P"]);
     expect(slipText(h.jobs[2].slip)).toContain("BILLING COPY");
-    expect(slipText(h.jobs[2].slip)).toContain("TANDOOR KOT");
   });
 
   it("master switch prints one consolidated copy, skipping tickets already printed at billing", async () => {
@@ -117,7 +116,6 @@ describe("dispatchKotBatch", () => {
     await dispatchKotBatch(batch([ticket(1, 1, "Tandoor"), ticket(2, 2, "Chinese"), ticket(3, null, null)]), config, opts, h.deps);
     expect(h.jobs.map((j) => j.printer)).toEqual(["Tandoor P", "Chinese P", "Billing P", "Billing P"]);
     const copy = slipText(h.jobs[3].slip);
-    expect(copy).toContain("KOT - ALL COUNTERS");
     expect(copy).toContain("[TANDOOR]");
     expect(copy).toContain("[CHINESE]");
     expect(copy).not.toContain("[KITCHEN]");

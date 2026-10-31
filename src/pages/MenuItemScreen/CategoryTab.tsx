@@ -13,13 +13,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import LottieLoader from "@components/LottieLoader";
 import {
   Box, TextField, Button, InputAdornment, Typography,
-  IconButton, Tooltip, Switch, Dialog, DialogTitle,
+  Switch, Dialog, DialogTitle,
   DialogContent, DialogActions, Chip,
 } from "@mui/material";
 import SearchIcon  from "@mui/icons-material/Search";
 import AddIcon     from "@mui/icons-material/Add";
-import EditIcon    from "@mui/icons-material/Edit";
-import DeleteIcon  from "@mui/icons-material/Delete";
 
 import DataTable, { type ColumnDef } from "@utils/DataTable";
 import {
@@ -31,6 +29,7 @@ import SuccessToast from "@components/Common/SuccessToast";
 import { useQueryClient } from "@tanstack/react-query";
 import { closeFromControlsOnly } from "@utils/dialog";
 import { useSubscriptionGuard } from "@hooks/useSubscriptionGuard";
+import TableActionButton from "@components/Common/TableActionButton";
 
 // ── Props ─────────────────────────────────────────────────────
 
@@ -221,25 +220,21 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
         ),
       },
       {
-        key: "actions", label: "Actions", align: "center", width: 100,
+        key: "actions", label: "Actions", align: "right", width: 100,
         render: (row) => (
-          <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
-            <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"}>
-              <span>
-                <IconButton size="small" onClick={guard(() => openEdit(row))} disabled={!canEdit}
-                  sx={{ color: "text.disabled", "&:hover": { color: "primary.main", bgcolor: "primary.light" + "22" }, borderRadius: 1.5 }}>
-                  <EditIcon fontSize="small" />
-                </IconButton>
-              </span>
-            </Tooltip>
-            <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"}>
-              <span>
-                <IconButton size="small" onClick={guard(() => setDeleteTarget(row))} disabled={!canDelete}
-                  sx={{ color: "#D2122E", "&:hover": { bgcolor: "#D2122E22" }, borderRadius: 1.5 }}>
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </span>
-            </Tooltip>
+          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.3 }}>
+            <TableActionButton
+              kind="edit"
+              title={canEdit ? "Edit" : "You don't have permission to edit"}
+              disabled={!canEdit}
+              onClick={guard(() => openEdit(row))}
+            />
+            <TableActionButton
+              kind="delete"
+              title={canDelete ? "Delete" : "You don't have permission to delete"}
+              disabled={!canDelete}
+              onClick={guard(() => setDeleteTarget(row))}
+            />
           </Box>
         ),
       },

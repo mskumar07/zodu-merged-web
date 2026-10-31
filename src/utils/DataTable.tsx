@@ -1,4 +1,4 @@
-import React, { Fragment, useRef } from "react";
+import React, { Fragment, useLayoutEffect, useRef, useState } from "react";
 import {
   Box,
   Card,
@@ -34,6 +34,12 @@ export interface ColumnDef<T> {
   width?: number | string;
   minWidth?: number | string;
   align?: "left" | "center" | "right";
+  /**
+   * fitWidth only: the narrowest this column may get, in px, for content that must stay on
+   * one line (e.g. a status badge with its button). The column gets this much and the other
+   * columns share what is left; below that the table scrolls sideways.
+   */
+  fitMin?: number;
   /** Adjacent columns sharing a group get one spanning heading above their own labels. */
   group?: string;
   render: (row: T) => React.ReactNode;
@@ -109,6 +115,18 @@ function DataTable<T>({
   const headerContainerRef = useRef<HTMLDivElement>(null);
   const footerContainerRef = useRef<HTMLDivElement>(null);
 
+  // fitWidth: the width the table has to fill, so fitMin columns can be held at their minimum
+  const [availWidth, setAvailWidth] = useState(0);
+  useLayoutEffect(() => {
+    const el = headerContainerRef.current;
+    if (!fitWidth || !el) return;
+    const measure = () => setAvailWidth(el.clientWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [fitWidth]);
+
   const colSpan    = columns.length;
   const tableHeight = typeof maxHeight === "number" ? `${maxHeight}px` : maxHeight;
   const headCellSx = {
@@ -140,12 +158,38 @@ function DataTable<T>({
     const w = resolveColWidth(col);
     return sum + fitWeight(col, typeof w === "number" ? w : 100);
   }, 0);
-  const fitMinWidth = columns.reduce((sum, col) => sum + headerMinWidth(col), 0);
+  // The table scrolls sideways only below its fitMin columns plus every other header.
+  const fitMinWidth = Math.ceil(
+    columns.reduce((sum, col) => sum + Math.max(col.fitMin ?? 0, headerMinWidth(col)), 0),
+  );
 
-  // …and a numeric width is that column's share of the whole table
+  // …and each column is its share of the table, except that a column whose share would
+  // fall below its fitMin is held there and the rest share what is left.
+  const fitShares = (() => {
+    const tableWidth = Math.max(availWidth, fitMinWidth);
+    const weights = columns.map((col) => {
+      const w = resolveColWidth(col);
+      return typeof w === "number" ? fitWeight(col, w) : 0;
+    });
+    const held = new Map<number, number>();
+    for (;;) {
+      const free = tableWidth - [...held.values()].reduce((a, b) => a + b, 0);
+      const freeWeight = weights.reduce((sum, w, i) => (held.has(i) ? sum : sum + w), 0);
+      const next = columns.findIndex((col, i) =>
+        !held.has(i) && !!col.fitMin && (free * weights[i]) / freeWeight < col.fitMin);
+      if (next === -1) {
+        return weights.map((w, i) => (held.has(i) ? held.get(i)! : (free * w) / freeWeight) / tableWidth);
+      }
+      held.set(next, columns[next].fitMin!);
+    }
+  })();
+
   const colWidth = (col: ColumnDef<T>, w: string | number) => {
     if (typeof w !== "number") return w;
-    return fitWidth ? `${(fitWeight(col, w) / fitTotal) * 100}%` : `${w}px`;
+    if (!fitWidth) return `${w}px`;
+    // Before the first measurement, plain proportional shares
+    if (!availWidth) return `${(fitWeight(col, w) / fitTotal) * 100}%`;
+    return `${fitShares[columns.indexOf(col)] * 100}%`;
   };
 
   // Two header rows when any column is grouped: ungrouped columns span both, groups span their columns.

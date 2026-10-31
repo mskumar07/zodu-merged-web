@@ -1,16 +1,13 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import LottieLoader from "@components/LottieLoader";
 import {
-  Box, Typography, TextField, Button, IconButton,
-  InputAdornment, Fab, CircularProgress,
+  Box, Typography, TextField, Button, InputAdornment, Fab, CircularProgress,
   FormControl, Select, MenuItem, Skeleton, Stack,
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Tabs, Tab, Tooltip,
-} from "@mui/material";
+  Tabs, Tab, } from "@mui/material";
 import { Circle } from "@mui/icons-material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AddIcon           from "@mui/icons-material/Add";
-import EditOutlinedIcon  from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import SearchIcon        from "@mui/icons-material/Search";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
@@ -23,6 +20,7 @@ import CategoryTab from "@pages/MenuItemScreen/CategoryTab";
 import { useModulePermission } from "@hooks/useModulePermission";
 import { closeFromControlsOnly } from "@utils/dialog";
 import { useSubscriptionGuard } from "@hooks/useSubscriptionGuard";
+import TableActionButton from "@components/Common/TableActionButton";
 
 const theme = createTheme({
   palette: {
@@ -138,7 +136,7 @@ export default function ExpenseScreen() {
       {
         key: "expense_id",
         label: "Expense ID",
-        width: 180,
+        width: 150,
         render: (e) => (
           <Typography
             onClick={() => setDetailExpenseId(e.expense_id)}
@@ -158,7 +156,7 @@ export default function ExpenseScreen() {
       {
         key: "expense_date",
         label: "Date",
-        width: 120,
+        width: 115,
         render: (e) => (
           <Typography sx={{ fontSize: 13, color: TABLE_TEXT_COLOR, whiteSpace: "nowrap" }}>
             {e.expense_date_formatted ||
@@ -173,7 +171,7 @@ export default function ExpenseScreen() {
         label: "Vendor",
         width: 200,
         render: (e) => (
-          <Box sx={{ maxWidth: 200 }}>
+          <Box sx={{ minWidth: 0 }} title={e.vendor_name ?? undefined}>
             <Typography sx={{ fontSize: 13, fontWeight: 600, color: TABLE_TEXT_COLOR, lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {e.vendor_name ?? "—"}
             </Typography>
@@ -188,9 +186,9 @@ export default function ExpenseScreen() {
       {
         key: "category_name",
         label: "Category",
-        width: 140,
+        width: 130,
         render: (e) => (
-          <Typography sx={{ fontSize: 13, color: TABLE_TEXT_COLOR, whiteSpace: "nowrap" }}>
+          <Typography title={e.category_name ?? undefined} sx={{ fontSize: 13, color: TABLE_TEXT_COLOR, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {e.category_name ?? "—"}
           </Typography>
         ),
@@ -210,7 +208,7 @@ export default function ExpenseScreen() {
         key: "paid_amount",
         label: "Paid (INR)",
         align: "right",
-        width: 120,
+        width: 115,
         render: (e) => (
           <Typography sx={{
             fontSize: 13, fontWeight: 600, whiteSpace: "nowrap",
@@ -224,7 +222,7 @@ export default function ExpenseScreen() {
         key: "balance_amount",
         label: "Balance (INR)",
         align: "right",
-        width: 130,
+        width: 125,
         render: (e) => {
           const hasBalance = Number(e.balance_amount) > 0;
           return (
@@ -244,14 +242,17 @@ export default function ExpenseScreen() {
       {
         key: "payment_status",
         label: "Status",
-        width: 200,
+        width: 150,
+        // Gets just what status and its button need on one line; spare width goes to the other columns
+        fitMin: 200,
         align: "left",
         render: (e) => (
-          <Stack direction="row" alignItems="center" gap={1} sx={{ minWidth: 200 }}>
+          // Status and button stay on one line; the column keeps room for both (fitMin)
+          <Stack direction="row" alignItems="center" gap={1} flexWrap="nowrap">
             <Box sx={{ minWidth: 70 }}>
               <StatusBadge status={e.payment_status} />
             </Box>
-            <Box sx={{ width: 110 }}>
+            <Box sx={{ width: 104 }}>
               {(e.payment_status === "pending" || e.payment_status === "partial") && (
                 <Button
                   size="small" variant="contained" disableElevation
@@ -269,34 +270,22 @@ export default function ExpenseScreen() {
       {
         key: "id",
         label: "Actions",
-        align: "center",
+        align: "right",
         width: 90,
         render: (e) => (
-          <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
-            <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"}>
-              <span>
-                <IconButton
-                  size="small"
-                  disabled={!canEdit}
-                  onClick={guard(() => { setEditExpenseId(e.expense_id); setAddDialogOpen(true); })}
-                  sx={{ color: "#1976d2", p: 0.6, borderRadius: 1, "&:hover": { color: "#1565C0", bgcolor: "#EFF6FF" }, transition: "all 0.12s" }}
-                >
-                  <EditOutlinedIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-              </span>
-            </Tooltip>
-            <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"}>
-              <span>
-                <IconButton
-                  size="small"
-                  disabled={!canDelete}
-                  onClick={guard(() => setDeleteTarget(e.expense_id))}
-                  sx={{ color: "#D2122E", p: 0.6, borderRadius: 1.5, "&:hover": { bgcolor: "#D2122E22" }, transition: "all 0.12s" }}
-                >
-                  <DeleteOutlineIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-              </span>
-            </Tooltip>
+          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.3 }}>
+            <TableActionButton
+              kind="edit"
+              title={canEdit ? "Edit" : "You don't have permission to edit"}
+              disabled={!canEdit}
+              onClick={guard(() => { setEditExpenseId(e.expense_id); setAddDialogOpen(true); })}
+            />
+            <TableActionButton
+              kind="delete"
+              title={canDelete ? "Delete" : "You don't have permission to delete"}
+              disabled={!canDelete}
+              onClick={guard(() => setDeleteTarget(e.expense_id))}
+            />
           </Box>
         ),
       },
@@ -419,6 +408,8 @@ export default function ExpenseScreen() {
                   <LottieLoader />
                 ) : (
                   <DataTable<ExpenseRow>
+                    // Columns share the screen width, so the list doesn't scroll sideways on laptop screens.
+                    fitWidth
                     columns={columns}
                     rows={expenses}
                     rowKey={(e) => String(e.id)}

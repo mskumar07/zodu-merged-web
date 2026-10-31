@@ -1,18 +1,14 @@
 import { useCallback, useMemo, useState } from "react";
 import LottieLoader from "@components/LottieLoader";
 import {
-  Box, Typography, TextField, Button, IconButton,
-  InputAdornment, Tooltip, Fab, Skeleton,
+  Box, Typography, TextField, Button, InputAdornment, Fab, Skeleton,
   Dialog, DialogTitle, DialogContent, DialogActions,
   FormControl, Select, MenuItem, Stack, Tabs, Tab,
 } from "@mui/material";
 import { Circle } from "@mui/icons-material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AddIcon           from "@mui/icons-material/Add";
-import EditOutlinedIcon  from "@mui/icons-material/EditOutlined";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import SearchIcon        from "@mui/icons-material/Search";
-import AssignmentReturnOutlinedIcon from "@mui/icons-material/AssignmentReturnOutlined";
 
 import AddNewPurchaseDialog  from "./Addnewpuechasedialog";
 import PurchaseStats         from "./PurchaseStats";
@@ -37,6 +33,7 @@ import PurchasePaymentDialog from "./purchasePaymentDialog";
 import { useModulePermission } from "@hooks/useModulePermission";
 import { closeFromControlsOnly } from "@utils/dialog";
 import { useSubscriptionGuard } from "@hooks/useSubscriptionGuard";
+import TableActionButton from "@components/Common/TableActionButton";
 
 const theme = createTheme({
   palette: {
@@ -164,7 +161,7 @@ export default function PurchaseScreen() {
       {
         key: "purchase_id",
         label: "Purchase ID",
-        width: 190,
+        width: 170,
         render: (p) => {
           return (
             <Box>
@@ -172,8 +169,8 @@ export default function PurchaseScreen() {
               <Typography
                 onClick={() => setDetailId(p.purchase_id)}   // ← p.id is the UUID
                 sx={{
-                  fontSize: 13, fontWeight: 700, color: "#1976d2",
-                  letterSpacing: "0.02em", whiteSpace: "nowrap",
+                  fontSize: 13, fontWeight: 600, color: "#1976d2",
+                  whiteSpace: "nowrap",
                   overflow: "hidden", textOverflow: "ellipsis",
                   cursor: "pointer", lineHeight: 1.35,
                   "&:hover": { textDecoration: "underline", color: "#1565C0" },
@@ -184,7 +181,7 @@ export default function PurchaseScreen() {
               </Typography>
               {/* Cross-reference: the return / debit note ids raised against this purchase */}
               {(p.returns ?? []).map((r) => (
-                <Typography key={r.return_uuid} noWrap sx={{ fontSize: 12, fontWeight: 500, color: "#475569", lineHeight: 1.4 }}>
+                <Typography key={r.return_uuid} noWrap sx={{ fontSize: 13, fontWeight: 500, color: "#475569", lineHeight: 1.4 }}>
                   {r.return_type === "DEBIT_NOTE" ? "Debit Note" : "Purchase Return"} -{" "}
                   <Box component="span" onClick={() => setViewReturnId(r.return_uuid)} sx={{ color: "#B91C1C", fontWeight: 600, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}>
                     {r.return_id}
@@ -208,9 +205,9 @@ export default function PurchaseScreen() {
       {
         key: "vendor_id",
         label: "Vendor",
-        width: 200,
+        width: 220,
         render: (p) => (
-          <Box sx={{ maxWidth: 200 }}>
+          <Box sx={{ minWidth: 0 }}>
             <Typography sx={{ fontSize: 13, fontWeight: 600, color: TABLE_TEXT_COLOR, lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {p.vendor_name ?? "—"}
             </Typography>
@@ -235,7 +232,7 @@ export default function PurchaseScreen() {
                 {INR(p.total_amount)}
               </Typography>
               {returned > 0 && (
-                <Typography sx={{ fontSize: 11, color: "#C62828", whiteSpace: "nowrap" }}>
+                <Typography sx={{ fontSize: 13, color: "#C62828" }}>
                   Returned: −{INR(returned)}
                 </Typography>
               )}
@@ -247,7 +244,7 @@ export default function PurchaseScreen() {
         key: "paid_amount",
         label: "Paid (INR)",
         align: "right",
-        width: 120,
+        width: 110,
         render: (p) => (
           <Typography sx={{
             fontSize: 13, fontWeight: 600, whiteSpace: "nowrap",
@@ -282,11 +279,10 @@ export default function PurchaseScreen() {
         {hasBalance && dueDate && (
           <Typography
             sx={{
-              fontSize: 11,
+              fontSize: 13,
               fontWeight: 600,
               color: TABLE_TEXT_COLOR,
               mt: 0.3,
-              whiteSpace: "nowrap",
             }}
           >
             Due: {dueDate}
@@ -299,7 +295,9 @@ export default function PurchaseScreen() {
       {
         key: "payment_status",
         label: "Status",
-        width: 220,
+        width: 150,
+        // Gets just what status and its button (or a return's refund status and button) need on one line; spare width goes to the other columns
+        fitMin: 250,
         align: "left",
         render: (p) => (
           <Stack
@@ -339,59 +337,30 @@ export default function PurchaseScreen() {
       ...(tab === "cancelled" ? [] : [{
         key: "actions",
         label: "Actions",
-        align: "center" as const,
-        width: 120,
+        align: "right" as const,
+        width: 105,
+        fitMin: 105,
         // Once a purchase has returns, its actions live on the return rows — the purchase itself is locked
         render: (p: PurchaseRow) => (p.returns?.length ? null : (
-          <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
-            <Tooltip title={canEdit ? "Purchase Return / Debit Note" : "You don't have permission to edit"} placement="top">
-              <span>
-                <IconButton
-                  size="small"
-                  disabled={!canEdit}
-                  onClick={guard(() => setReturnTarget({ purchaseId: p.purchase_id }))}
-                  sx={{
-                    color: "#475569", p: 0.6, borderRadius: 1,
-                    "&:hover": { color: "#0F172A", bgcolor: "#F1F5F9" },
-                    transition: "all 0.12s",
-                  }}
-                >
-                  <AssignmentReturnOutlinedIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-              </span>
-            </Tooltip>
-            <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"} placement="top">
-              <span>
-                <IconButton
-                  size="small"
-                  disabled={!canEdit}
-                  onClick={guard(() => handleEdit(p.purchase_id))}
-                  sx={{
-                    color: "#1976d2", p: 0.6, borderRadius: 1,
-                    "&:hover": { color: "#1565C0", bgcolor: "#EFF6FF" },
-                    transition: "all 0.12s",
-                  }}
-                >
-                  <EditOutlinedIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-              </span>
-            </Tooltip>
-            <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"} placement="top">
-              <span>
-                <IconButton
-                  size="small"
-                  onClick={guard(() => setDeleteTarget(p))}
-                  disabled={isDeleting || !canDelete}
-                  sx={{
-                    color: "#D2122E", p: 0.6, borderRadius: 1.5,
-                    "&:hover": { bgcolor: "#D2122E22" },
-                    transition: "all 0.12s",
-                  }}
-                >
-                  <DeleteOutlineIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-              </span>
-            </Tooltip>
+          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.3 }}>
+            <TableActionButton
+              kind="return"
+              title={canEdit ? "Purchase Return / Debit Note" : "You don't have permission to edit"}
+              disabled={!canEdit}
+              onClick={guard(() => setReturnTarget({ purchaseId: p.purchase_id }))}
+            />
+            <TableActionButton
+              kind="edit"
+              title={canEdit ? "Edit" : "You don't have permission to edit"}
+              disabled={!canEdit}
+              onClick={guard(() => handleEdit(p.purchase_id))}
+            />
+            <TableActionButton
+              kind="delete"
+              title={canDelete ? "Delete" : "You don't have permission to delete"}
+              disabled={isDeleting || !canDelete}
+              onClick={guard(() => setDeleteTarget(p))}
+            />
           </Box>
         )),
       }] as ColumnDef<PurchaseRow>[]),
@@ -478,6 +447,8 @@ export default function PurchaseScreen() {
               <LottieLoader />
             ) : (
               <DataTable<PurchaseRow>
+                // Columns share the screen width, so the list doesn't scroll sideways on laptop screens.
+                fitWidth
                 columns={columns}
                 rows={purchases}
                 rowKey={(p) => p.id}

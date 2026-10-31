@@ -8,7 +8,7 @@ import { useInfiniteQuery, useQuery, QueryClient, QueryClientProvider } from "@t
 import {
   Box, Typography, Button, Stack,
   Avatar, TextField, InputAdornment, Select, MenuItem,
-  FormControl, IconButton, Tooltip, alpha, Chip, Tabs, Tab,
+  FormControl, alpha, Chip, Tabs, Tab,
   Dialog, DialogTitle, DialogContent, DialogActions, CircularProgress,
   Grid,
 } from "@mui/material";
@@ -38,6 +38,7 @@ import SaleReturnSubRows   from "./SaleReturnSubRows";
 import DataTable           from "@utils/DataTable";
 import StatCard            from "@components/StatCard";
 import SuccessToast        from "@components/Common/SuccessToast";
+import TableActionButton   from "@components/Common/TableActionButton";
 import { useNavigate }     from "react-router-dom";
 import { useModulePermission } from "@hooks/useModulePermission";
 import { isProformaSaleType, isQuotationSaleType } from "@utils/saleType";
@@ -304,7 +305,7 @@ export default function SalesHistoryPage() {
     {
       key: "sale_id",
       label: isRestaurant ? "Order ID" : "Invoice ID",
-      width: 200,
+      width: 160,
       render: (sale: Sale) => {
         const returns = !isRestaurant ? sale.returns ?? [] : [];
         return (
@@ -318,7 +319,7 @@ export default function SalesHistoryPage() {
             </Typography>
             {/* Cross-reference: the return / credit note ids raised against this invoice */}
             {returns.map((r) => (
-              <Typography key={r.return_uuid} sx={{ fontSize: 12, fontWeight: 500, color: "#475569", lineHeight: 1.4 }}>
+              <Typography key={r.return_uuid} sx={{ fontSize: BODY_FONT_SIZE, fontWeight: 500, color: "#475569", lineHeight: 1.4, overflowWrap: "anywhere" }}>
                 {r.return_type === "CREDIT_NOTE" ? "Credit Note" : "Sales Return"} -{" "}
                 <Box component="span" onClick={() => setViewReturn({ sale, ret: r })} sx={{ color: "#B91C1C", fontWeight: 600, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}>
                   {r.return_id}
@@ -332,7 +333,7 @@ export default function SalesHistoryPage() {
     ...(!isRestaurant ? [{
       key: "customer",
       label: "Customer",
-      minWidth: 340,
+      width: 230,
       render: (sale: Sale) => {
         const name = sale.cust_name || sale.cpy_name || "";
         if (!name) {
@@ -341,17 +342,17 @@ export default function SalesHistoryPage() {
           );
         }
         return (
-          <Stack direction="row" alignItems="center" gap={1}>
+          <Stack direction="row" alignItems="center" gap={1} sx={{ minWidth: 0 }}>
             <Avatar sx={{
-              width: 24, height: 24, fontSize: "0.65rem",
+              width: 24, height: 24, fontSize: "0.65rem", flexShrink: 0,
               bgcolor: alpha("#10B981", 0.15), color: "#10B981", fontWeight: 700,
             }}>
               {name.charAt(0).toUpperCase()}
             </Avatar>
-            <Box>
-              <Typography fontWeight={600} sx={{ fontSize: BODY_FONT_SIZE, color: TABLE_TEXT_COLOR }}>{name}</Typography>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography fontWeight={600} noWrap title={name} sx={{ fontSize: BODY_FONT_SIZE, color: TABLE_TEXT_COLOR }}>{name}</Typography>
               {sale.customer_mobile && (
-                <Typography sx={{ fontSize: BODY_FONT_SIZE, color: TABLE_TEXT_COLOR }}>
+                <Typography noWrap sx={{ fontSize: BODY_FONT_SIZE, color: TABLE_TEXT_COLOR }}>
                   {sale.customer_mobile}
                 </Typography>
               )}
@@ -363,9 +364,9 @@ export default function SalesHistoryPage() {
     {
       key: "created at",
       label: "Date",
-      width: 170,
+      width: 120,
       render: (sale: Sale) => (
-        <Typography variant="body2" sx={{ fontSize: "12px", color: TABLE_TEXT_COLOR }}>
+        <Typography variant="body2" sx={{ fontSize: BODY_FONT_SIZE, color: TABLE_TEXT_COLOR }}>
           {isRestaurant ? sale.created_at_fmt : sale.sale_date_fmt}
         </Typography>
       ),
@@ -374,7 +375,7 @@ export default function SalesHistoryPage() {
       key: "total",
       label: "Total",
       align: "right" as const,
-      width: 110,
+      width: 125,
       render: (sale: Sale) => {
         if (isRestaurant) {
           return (
@@ -395,10 +396,10 @@ export default function SalesHistoryPage() {
             </Typography>
             {totalReturned > 0 && (
               <>
-                <Typography variant="caption" display="block" sx={{ fontSize: "11px", color: "#C62828" }}>
+                <Typography variant="caption" display="block" sx={{ fontSize: BODY_FONT_SIZE, color: "#C62828" }}>
                   Returned: −{INR(totalReturned)}
                 </Typography>
-                <Typography variant="caption" display="block" sx={{ fontSize: "11px", color: "#64748B", fontWeight: 600 }}>
+                <Typography variant="caption" display="block" sx={{ fontSize: BODY_FONT_SIZE, color: "#64748B", fontWeight: 600 }}>
                   Net: {INR(adjustedTotal)}
                 </Typography>
               </>
@@ -455,7 +456,7 @@ export default function SalesHistoryPage() {
               {INR(hasBalance ? balance : 0)}
             </Typography>
             {hasBalance && dueDate && (
-              <Typography sx={{ fontSize: 12, fontWeight: 700, color: TABLE_TEXT_COLOR, mt: 0.3, whiteSpace: "nowrap" }}>
+              <Typography sx={{ fontSize: BODY_FONT_SIZE, fontWeight: 600, color: TABLE_TEXT_COLOR, mt: 0.3 }}>
                 Due: {dueDate}
               </Typography>
             )}
@@ -466,7 +467,9 @@ export default function SalesHistoryPage() {
     {
       key: "payment",
       label: "Payment",
-      minWidth: 240,
+      width: isRestaurant ? 130 : 150,
+      // Gets just what status and its button need on one line; spare width goes to the other columns
+      fitMin: isRestaurant ? undefined : 250,
       render: (sale: Sale) => {
         if (isRestaurant) {
           return (
@@ -482,11 +485,12 @@ export default function SalesHistoryPage() {
         const returnCount = Number(sale.return_count ?? 0);
         return (
           <Stack direction="column" alignItems="flex-start" gap={0.3}>
-            <Stack direction="row" alignItems="center" gap={1} sx={{ minWidth: 230 }}>
+            {/* Status and button stay on one line; the column keeps room for both (fitMin) */}
+            <Stack direction="row" alignItems="center" gap={1} flexWrap="nowrap">
               <Box sx={{ minWidth: 70 }}>
                 <StatusBadge status={status} />
               </Box>
-              <Box sx={{ width: isQuotationSale(sale) ? 140 : 110 }}>
+              <Box sx={{ width: isQuotationSale(sale) ? 128 : 104 }}>
                 {status !== "Paid" && !isReturned && !nonBinding && !isCancelledTab && (
                   <Button
                     size="small" variant="contained" color="primary" disableElevation
@@ -555,7 +559,8 @@ export default function SalesHistoryPage() {
       key: "actions",
       label: "Actions",
       align: "right" as const,
-      width: 110,
+      width: 105,
+      fitMin: 105,
       render: (sale: Sale) => {
         const fullyReturned = isFullyReturnedSale(sale);
         const isNonBinding = nonBindingStatus(sale) !== null;
@@ -567,56 +572,28 @@ export default function SalesHistoryPage() {
         return (
           <Stack direction="row" justifyContent="flex-end" gap={0.3}>
             {!isNonBinding && !isRestaurant && !hasReturns && (
-              <Tooltip title={isReturned ? "Fully Returned" : !canEdit ? "You don't have permission to edit" : "Sales Return"}>
-                <span>
-                  <IconButton
-                    size="small"
-                    disabled={isReturned || !canEdit}
-                    onClick={guard(() => setReturnDialog({ sale }))}
-                    sx={{
-                      color: isReturned ? "text.disabled" : "text.secondary",
-                      borderRadius: 1.5,
-                      "&:hover": { color: "primary.main", bgcolor: alpha("#E53935", 0.06) },
-                    }}
-                  >
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4 2 4-2 4 2z" />
-                    </svg>
-                  </IconButton>
-                </span>
-              </Tooltip>
+              <TableActionButton
+                kind="return"
+                title={isReturned ? "Fully Returned" : !canEdit ? "You don't have permission to edit" : "Sales Return"}
+                disabled={isReturned || !canEdit}
+                onClick={guard(() => setReturnDialog({ sale }))}
+              />
             )}
             {!isRestaurant && !hasReturns && (
-            <Tooltip title={canEdit ? "Edit Invoice" : "You don't have permission to edit"}>
-              <span>
-                <IconButton
-                  size="small"
-                  disabled={!canEdit}
-                  onClick={guard(() => navigate(getPosEditUrl(sale)))}
-                  sx={{ color: "text.secondary", borderRadius: 1.5, "&:hover": { color: "primary.main", bgcolor: alpha("#E53935", 0.06) } }}
-                >
-                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
-                </IconButton>
-              </span>
-            </Tooltip>
+              <TableActionButton
+                kind="edit"
+                title={canEdit ? "Edit Invoice" : "You don't have permission to edit"}
+                disabled={!canEdit}
+                onClick={guard(() => navigate(getPosEditUrl(sale)))}
+              />
             )}
             {!hasReturns && (
-            <Tooltip title={canDelete ? "Delete Invoice" : "You don't have permission to delete"}>
-              <span>
-                <IconButton
-                  size="small"
-                  disabled={!canDelete}
-                  onClick={guard(() => setDeleteDialog(sale))}
-                  sx={{ color: "text.secondary", borderRadius: 1.5, "&:hover": { color: "#C62828", bgcolor: alpha("#C62828", 0.06) } }}
-                >
-                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </IconButton>
-              </span>
-            </Tooltip>
+              <TableActionButton
+                kind="delete"
+                title={canDelete ? "Delete Invoice" : "You don't have permission to delete"}
+                disabled={!canDelete}
+                onClick={guard(() => setDeleteDialog(sale))}
+              />
             )}
           </Stack>
         );
@@ -850,6 +827,8 @@ export default function SalesHistoryPage() {
       {/* Transactions table */}
       <Box sx={{ flex: 1, minHeight: 0 }}>
         <DataTable<Sale>
+          // Columns share the screen width, so the list doesn't scroll sideways on laptop screens.
+          fitWidth
           columns={visibleColumns}
           renderRow={(sale) =>
             sale.row_type === "return" ? (

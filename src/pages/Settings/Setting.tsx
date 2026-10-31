@@ -30,6 +30,7 @@ import {
 import ApartmentRoundedIcon from "@mui/icons-material/ApartmentRounded";
 import BusinessRoundedIcon from "@mui/icons-material/BusinessRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+import TableActionButton from "@components/Common/TableActionButton";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import ExpandLessRoundedIcon from "@mui/icons-material/ExpandLessRounded";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
@@ -1194,7 +1195,7 @@ export default function Setting() {
                                 <TableCell sx={branchHeadCellSx}>Contact Number</TableCell>
                                 <TableCell sx={branchHeadCellSx}>Subscription Expires</TableCell>
                                 <TableCell sx={branchHeadCellSx} align="center">Status</TableCell>
-                                <TableCell sx={branchHeadCellSx} align="center">Actions</TableCell>
+                                <TableCell sx={branchHeadCellSx} align="right">Actions</TableCell>
                               </TableRow>
                             </TableHead>
                             <TableBody>
@@ -1261,33 +1262,19 @@ export default function Setting() {
                                       <TableCell sx={branchCellSx} align="center">
                                         <StatusPill label={branch.active === false ? "Inactive" : "Active"} />
                                       </TableCell>
-                                      <TableCell sx={{ ...branchCellSx, py: 0.75, whiteSpace: "nowrap" }} align="center">
-                                        <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"}>
-                                          <span>
-                                            <IconButton
-                                              size="small"
-                                              disabled={!canEdit}
-                                              sx={{ color: "#1976d2", "&:hover": { color: "#1565C0", bgcolor: "#EFF6FF" } }}
-                                              onClick={() => openEditBranch(branch, company.zodu_id)}
-                                            >
-                                              <EditOutlinedIcon fontSize="small" />
-                                            </IconButton>
-                                          </span>
-                                        </Tooltip>
-                                        <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"}>
-                                          <span>
-                                            <IconButton
-                                              size="small"
-                                              disabled={!canDelete}
-                                              sx={{ color: "#D2122E", "&:hover": { bgcolor: "#D2122E22" } }}
-                                              onClick={() =>
-                                                openDeleteBranch(branch, company.zodu_id, company.company_name ?? "")
-                                              }
-                                            >
-                                              <DeleteOutlineRoundedIcon fontSize="small" />
-                                            </IconButton>
-                                          </span>
-                                        </Tooltip>
+                                      <TableCell sx={{ ...branchCellSx, py: 0.75, whiteSpace: "nowrap" }} align="right">
+                                        <TableActionButton
+                                          kind="edit"
+                                          title={canEdit ? "Edit" : "You don't have permission to edit"}
+                                          disabled={!canEdit}
+                                          onClick={() => openEditBranch(branch, company.zodu_id)}
+                                        />
+                                        <TableActionButton
+                                          kind="delete"
+                                          title={canDelete ? "Delete" : "You don't have permission to delete"}
+                                          disabled={!canDelete}
+                                          onClick={() => openDeleteBranch(branch, company.zodu_id, company.company_name ?? "")}
+                                        />
                                       </TableCell>
                                     </TableRow>
                                   );

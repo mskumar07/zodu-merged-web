@@ -2,16 +2,14 @@ import React, { useState } from "react";
 import {
   Box,
   Typography,
-  IconButton,
   Tooltip,
   Switch,
   useTheme,
 } from "@mui/material";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
 import ItemThumb from "@components/Common/ItemThumb";
 import ProductDetailsDialog from "./ProductDetailsDialog";
+import TableActionButton from "@components/Common/TableActionButton";
 
 export interface Product {
   id: string;
@@ -213,41 +211,21 @@ const ProductTable: React.FC<ProductTableProps> = React.memo(
           key: "actions",
           label: "Actions",
           width: 100,
-          align: "center",
+          align: "right",
           render: (product) => (
-            <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
-              <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"}>
-                <span>
-                  <IconButton
-                    size="small"
-                    onClick={() => onEdit?.(product)}
-                    disabled={!canEdit}
-                    sx={{
-                      color: "text.disabled",
-                      "&:hover": { color: "primary.main", bgcolor: "primary.light" + "22" },
-                      borderRadius: 1.5,
-                    }}
-                  >
-                    <EditIcon fontSize="small" />
-                  </IconButton>
-                </span>
-              </Tooltip>
-              <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"}>
-                <span>
-                  <IconButton
-                    size="small"
-                    onClick={() => onDelete?.(product)}
-                    disabled={!canDelete}
-                    sx={{
-                      color: "primary.main",
-                      "&:hover": { bgcolor: "primary.light" + "22" },
-                      borderRadius: 1.5,
-                    }}
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </span>
-              </Tooltip>
+            <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.3 }}>
+              <TableActionButton
+                kind="edit"
+                title={canEdit ? "Edit" : "You don't have permission to edit"}
+                disabled={!canEdit}
+                onClick={() => onEdit?.(product)}
+              />
+              <TableActionButton
+                kind="delete"
+                title={canDelete ? "Delete" : "You don't have permission to delete"}
+                disabled={!canDelete}
+                onClick={() => onDelete?.(product)}
+              />
             </Box>
           ),
         },

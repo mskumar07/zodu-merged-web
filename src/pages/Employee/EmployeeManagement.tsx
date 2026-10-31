@@ -8,7 +8,6 @@ import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
@@ -22,6 +21,7 @@ import LottieLoader from "@components/LottieLoader";
 import SuccessToast from "@components/Common/SuccessToast";
 import { useModulePermission } from "@hooks/useModulePermission";
 import { useSubscriptionGuard } from "@hooks/useSubscriptionGuard";
+import TableActionButton from "@components/Common/TableActionButton";
 
 const theme = createTheme({
   palette: {
@@ -259,10 +259,10 @@ export default function EmployeeManagement() {
     {
       key: "actions",
       label: "Actions",
-      align: "center",
+      align: "right",
       width: 100,
       render: (row) => (
-        <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
+        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.3 }}>
           <Tooltip title="View" placement="top">
             <IconButton size="small" onClick={(e) => { e.stopPropagation(); openView(row.employee_id); }}
               sx={{ color: "#6B7280", p: 0.6, borderRadius: 1, "&:hover": { bgcolor: "#F3F4F6", color: "#0F172A" }, transition: "all 0.12s" }}>
@@ -270,14 +270,12 @@ export default function EmployeeManagement() {
             </IconButton>
           </Tooltip>
           {row.employee_code !== "EMP001" && (
-          <Tooltip title={status === "inactive" ? "Activate the employee to edit" : canEdit ? "Edit" : "You don't have permission to edit"} placement="top">
-            <span>
-              <IconButton size="small" disabled={!canEdit || status === "inactive"} onClick={guard((e) => { e.stopPropagation(); openEdit(row); })}
-                sx={{ color: "#1976d2", p: 0.6, borderRadius: 1, "&:hover": { bgcolor: "#EFF6FF", color: "#1565C0" }, transition: "all 0.12s" }}>
-                <EditOutlinedIcon sx={{ fontSize: 16 }} />
-              </IconButton>
-            </span>
-          </Tooltip>
+          <TableActionButton
+            kind="edit"
+            title={status === "inactive" ? "Activate the employee to edit" : canEdit ? "Edit" : "You don't have permission to edit"}
+            disabled={!canEdit || status === "inactive"}
+            onClick={guard(() => openEdit(row))}
+          />
           )}
           {status === "inactive" && (
             <Tooltip title={canEdit ? "Activate" : "You don't have permission to activate"} placement="top">
@@ -293,14 +291,12 @@ export default function EmployeeManagement() {
             </Tooltip>
           )}
           {status === "active" && row.employee_code !== "EMP001" && (
-            <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"} placement="top">
-              <span>
-                <IconButton size="small" disabled={!canDelete} onClick={guard((e) => { e.stopPropagation(); setDeleteTarget({ id: row.employee_id, name: row.name }); })}
-                  sx={{ color: "#D2122E", p: 0.6, borderRadius: 1.5, "&:hover": { bgcolor: "#D2122E22" }, transition: "all 0.12s" }}>
-                  <DeleteOutlineIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-              </span>
-            </Tooltip>
+            <TableActionButton
+              kind="delete"
+              title={canDelete ? "Delete" : "You don't have permission to delete"}
+              disabled={!canDelete}
+              onClick={guard(() => setDeleteTarget({ id: row.employee_id, name: row.name }))}
+            />
           )}
         </Box>
       ),

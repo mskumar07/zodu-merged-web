@@ -15,7 +15,10 @@ export default function SuccessToast({ message, onClose, severity = "success" }:
   return (
     <Snackbar
       open={!!message}
-      autoHideDuration={isError ? 4000 : 3000}
+      autoHideDuration={isError ? 3000 : 1500}
+      // Keep the timer running when the window loses focus (e.g. a print dialog or
+      // the printer spooler) — otherwise the toast sits there until it is refocused.
+      disableWindowBlurListener
       onClose={onClose}
       anchorOrigin={{ vertical: "top", horizontal: "right" }}
     >

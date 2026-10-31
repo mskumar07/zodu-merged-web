@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
-  Box, Typography, Button, Chip, Divider, Tooltip, IconButton,
+  Box, Typography, Button, Chip, Divider, Tooltip, IconButton, Select, MenuItem,
 } from "@mui/material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import TableBarIcon from "@mui/icons-material/TableBar";
@@ -675,30 +675,37 @@ const OrderPanel: React.FC<Props> = ({
 
       {/* ── Payment method: non-DineIn always, DineIn only on Summary tab with KOT data (hidden while editing) ── */}
       {!isEditingSummary && (!isDineIn || (isDineIn && activeTab === "summary" && orderSummary.length > 0)) && (
-        <Box sx={{ px: 1.5, py: 1, borderTop: "1px solid #f3f4f6", display: "flex", flexWrap: "wrap", gap: 0.8, flexShrink: 0 }}>
-          {ALL_PAYMENT_METHODS
-            .filter((pm) => (enabledPaymentTypes ?? DEFAULT_PAYMENT_TYPES).includes(pm.key))
-            .map((pm) => {
-              const active = order.paymentMethod === pm.key;
+        <Box sx={{ px: 1.5, py: 1, borderTop: "1px solid #f3f4f6", display: "flex", alignItems: "center", gap: 1, flexShrink: 0 }}>
+          <Typography sx={{ fontSize: "0.7rem", fontWeight: 700, color: "#9ca3af", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>PAYMENT TYPE</Typography>
+          {/* A dropdown, as in retail POS, instead of one button per enabled type. */}
+          <Select
+            value={order.paymentMethod} size="small" fullWidth
+            onChange={(e) => onPaymentMethodChange(e.target.value as PaymentMethod)}
+            renderValue={(val) => {
+              const pm = ALL_PAYMENT_METHODS.find((m) => m.key === val);
               return (
-                <Box
-                  key={pm.key}
-                  onClick={() => onPaymentMethodChange(pm.key)}
-                  sx={{
-                    flex: "1 1 auto", minWidth: 84, display: "flex", alignItems: "center", justifyContent: "center",
-                    gap: 0.5, py: 0.7, px: 1, borderRadius: "8px",
-                    border:  active ? "1.5px solid #d32f2f" : "1.5px solid #e5e7eb",
-                    bgcolor: active ? "#fff5f5" : "#fff",
-                    color:   active ? "#d32f2f" : "#6b7280",
-                    cursor: "pointer", transition: "all 0.15s",
-                    "&:hover": { border: "1.5px solid #fca5a5", bgcolor: "#fef2f2" },
-                  }}
-                >
-                  {pm.icon}
-                  <Typography sx={{ fontSize: "0.68rem", fontWeight: active ? 700 : 400, whiteSpace: "nowrap" }}>{pm.label}</Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, color: RED }}>
+                  {pm?.icon}
+                  <Typography sx={{ fontSize: "0.8rem", fontWeight: 700, color: "#111827" }}>{pm?.label ?? val}</Typography>
                 </Box>
               );
-            })}
+            }}
+            sx={{
+              borderRadius: "8px", "& .MuiSelect-select": { py: "6px", px: "10px" },
+              "& fieldset": { borderColor: "#e5e7eb" },
+              "&:hover fieldset": { borderColor: "#fca5a5" },
+              "&.Mui-focused fieldset": { borderColor: RED },
+            }}
+          >
+            {ALL_PAYMENT_METHODS
+              .filter((pm) => (enabledPaymentTypes ?? DEFAULT_PAYMENT_TYPES).includes(pm.key))
+              .map((pm) => (
+                <MenuItem key={pm.key} value={pm.key} sx={{ gap: 1, fontSize: "0.8rem", fontWeight: 600, color: order.paymentMethod === pm.key ? RED : "#374151" }}>
+                  {pm.icon}
+                  {pm.label}
+                </MenuItem>
+              ))}
+          </Select>
         </Box>
       )}
 

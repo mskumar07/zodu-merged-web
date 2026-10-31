@@ -29,7 +29,8 @@ import CloseIcon from "@mui/icons-material/Close";
 import zoduLogo from "@assets/zlogo.png";
 
 import { useAppSelector } from "../../../store/store";
-import { BranchId, ZoduId, BranchName, AllCompanies, UserProfile, addUserData, setRoleAccess, InvoiceSettingsData, PosSettingsData } from "@store/slices/userSlice";
+import { BranchId, ZoduId, BranchName, AllCompanies, UserProfile, addUserData, setRoleAccess, InvoiceSettingsData, PosSettingsData, setPosSettings } from "@store/slices/userSlice";
+import { usePosSettings } from "@pages/Settings/usePosSettingApi";
 import { setRestaurantBillingView } from "@store/slices/POSslice";
 import { collapsedDrawerWidth } from "@layouts/Sidebar/index";
 import { authApis } from "@pages/auth/Authapi";
@@ -235,7 +236,18 @@ const RestaurantPOS: React.FC = () => {
   const isBusy = addingOrder || updatingOrder || completingOrder || holdingOrder;
 
   const invoiceSettings = useAppSelector(InvoiceSettingsData);
-  const posSettings     = useAppSelector(PosSettingsData);
+  // The Redux copy is only filled at login / branch select, so a setting changed since
+  // (e.g. Show Item Image saved on another device) would never reach this screen.
+  // Fetch on every open and window focus, keep Redux in step, and render the
+  // stored copy only while the fetch is in flight.
+  const storedPosSettings  = useAppSelector(PosSettingsData);
+  const { data: fetchedPosSettings } = usePosSettings();
+  const posSettings     = fetchedPosSettings ?? storedPosSettings;
+  useEffect(() => {
+    if (!fetchedPosSettings) return;
+    if (JSON.stringify(fetchedPosSettings) === JSON.stringify(storedPosSettings)) return;
+    dispatch(setPosSettings(fetchedPosSettings));
+  }, [fetchedPosSettings, storedPosSettings, dispatch]);
 
   // Which payment buttons the billing panel shows, driven by POS Settings' Payment
   // Types picker (payment_types) — same source retail POS reads from. Falls back to
@@ -1878,7 +1890,8 @@ const RestaurantPOS: React.FC = () => {
                   <Box
                     sx={{
                       display: "grid",
-                      gridTemplateColumns: "repeat(3, 1fr)",
+                      // As many columns as fit the available width — grows/shrinks with the window
+                      gridTemplateColumns: `repeat(auto-fill, minmax(${posSettings?.show_item_image !== false ? 230 : 200}px, 1fr))`,
                       gap: 1.5,
                     }}
                   >

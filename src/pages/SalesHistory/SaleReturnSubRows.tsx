@@ -7,12 +7,13 @@
  * key) so every value lines up under its own heading.
  */
 import { memo } from "react";
-import { Avatar, Box, Button, IconButton, Stack, Tooltip, Typography, TableRow, TableCell, alpha } from "@mui/material";
+import { Avatar, Box, Button, Stack, Typography, TableRow, TableCell, alpha } from "@mui/material";
 
 // Returns show their exact amount (₹76.95, not ₹77); whole rupees show without decimals (₹299, not ₹299.00).
 const INR_FMT = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 0, maximumFractionDigits: 2 });
 const INR = (v: number) => INR_FMT.format(v);
 import type { RefundStatus, Sale, SaleListReturn } from "./useSaleshistory";
+import TableActionButton from "@components/Common/TableActionButton";
 
 interface Props {
   sale:        Sale;
@@ -37,10 +38,10 @@ const REFUND_LABEL: Record<RefundStatus, { label: string; color: string }> = {
   NA:       { label: "Adjusted to balance", color: "#0369A1" },
 };
 
-const iconBtnSx = { color: "text.secondary", borderRadius: 1.5, "&:hover": { color: "primary.main", bgcolor: alpha("#E53935", 0.06) } } as const;
 
 // Mirrors the DataTable body cell so a return row reads exactly like a sale row
-const cellSx = { height: 40, padding: "5px 12px", fontSize: "13px", color: "#374151", verticalAlign: "middle", bgcolor: "#fff" } as const;
+// Same padding and clipping as the table's fitWidth cells, so return rows line up and never push the table wider.
+const cellSx = { height: 40, padding: "5px 8px", overflow: "hidden", fontSize: "13px", color: "#374151", verticalAlign: "middle", bgcolor: "#fff" } as const;
 
 function SaleReturnSubRows({ sale, columnKeys, canEdit, onViewReturn, onViewInvoice, onMarkRefund, onEditReturn, onDeleteReturn }: Props) {
   const returns = sale.returns ?? [];
@@ -69,7 +70,7 @@ function SaleReturnSubRows({ sale, columnKeys, canEdit, onViewReturn, onViewInvo
                   >
                     {r.return_id}
                   </Typography>
-                  <Typography sx={{ fontSize: 12, fontWeight: 500, color: "#475569", lineHeight: 1.4 }}>
+                  <Typography sx={{ fontSize: 13, fontWeight: 500, color: "#475569", lineHeight: 1.4 }}>
                     For -{" "}
                     <Box component="span" onClick={onViewInvoice} sx={{ color: "#0F766E", fontWeight: 700, cursor: "pointer", "&:hover": { color: "#115E59", textDecoration: "underline" } }}>
                       {sale.sale_id}
@@ -96,7 +97,7 @@ function SaleReturnSubRows({ sale, columnKeys, canEdit, onViewReturn, onViewInvo
               );
             }
             case "created at":
-              return <Typography sx={{ fontSize: 12, color: "#64748B" }}>{r.return_date_fmt ?? "—"}</Typography>;
+              return <Typography sx={{ fontSize: 13, color: "#374151" }}>{r.return_date_fmt ?? "—"}</Typography>;
             case "total":
               return (
                 <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#D32F2F", textAlign: "right" }}>
@@ -107,9 +108,9 @@ function SaleReturnSubRows({ sale, columnKeys, canEdit, onViewReturn, onViewInvo
               return (
                 <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0.5 }}>
                   {/* Status + the Mark Payment action; paid / still owed have their own columns */}
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, flexWrap: "wrap" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "nowrap" }}>
                     {refund && (
-                      <Typography sx={{ fontSize: 12, fontWeight: 600, color: refund.color, display: "inline-flex", alignItems: "center", gap: 0.6 }}>
+                      <Typography sx={{ fontSize: 13, fontWeight: 600, color: refund.color, display: "inline-flex", alignItems: "center", gap: 0.6 }}>
                         <Box component="span" sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: refund.color }} />
                         {refund.label}
                       </Typography>
@@ -135,25 +136,18 @@ function SaleReturnSubRows({ sale, columnKeys, canEdit, onViewReturn, onViewInvo
             case "actions":
               return (
                 <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.3 }}>
-                  <Tooltip title={canEdit ? "Edit Return" : "You don't have permission to edit"}>
-                    <span>
-                      <IconButton size="small" disabled={!canEdit} onClick={() => onEditReturn(r)} sx={iconBtnSx}>
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4 2 4-2 4 2z" />
-                        </svg>
-                      </IconButton>
-                    </span>
-                  </Tooltip>
-                  <Tooltip title={onDeleteReturn ? "Delete Return" : "Deleting a return is not available yet"}>
-                    <span>
-                      <IconButton size="small" disabled={!canEdit || !onDeleteReturn} onClick={() => onDeleteReturn?.(r)}
-                        sx={{ ...iconBtnSx, "&:hover": { color: "#C62828", bgcolor: alpha("#C62828", 0.06) } }}>
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </IconButton>
-                    </span>
-                  </Tooltip>
+                  <TableActionButton
+                    kind="edit"
+                    title={canEdit ? "Edit Return" : "You don't have permission to edit"}
+                    disabled={!canEdit}
+                    onClick={() => onEditReturn(r)}
+                  />
+                  <TableActionButton
+                    kind="delete"
+                    title={onDeleteReturn ? "Delete Return" : "Deleting a return is not available yet"}
+                    disabled={!canEdit || !onDeleteReturn}
+                    onClick={() => onDeleteReturn?.(r)}
+                  />
                 </Box>
               );
             default:

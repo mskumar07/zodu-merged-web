@@ -43,50 +43,43 @@ describe("orderKind", () => {
 });
 
 describe("buildKotSlip", () => {
-  it("dine-in shows table, secondary order no, captain/covers, and hides phone/address", () => {
+  it("dine-in: KOT number and table, order no and time, no title or phone", () => {
     const out = text(batch());
-    expect(out).toContain("SHRI VASANTHA BHAVAN");
-    expect(out).toContain("TANDOOR KOT");
-    expect(out).toMatch(/KOT #12\s+DINE-IN/);
-    expect(out).toContain("TABLE: T5");
-    expect(out).toContain("Order No: 023");
-    expect(out).toContain("Captain: Kumar | Covers: 4");
-    expect(out).toContain("Customer: Ravi");
-    expect(out).not.toContain("Phone:");
-    expect(out).not.toContain("Address:");
-    expect(out).toContain("Date: 16/09/2026");
-    expect(out).toContain("Time: 07:05 PM");
+    expect(out).not.toContain("SHRI VASANTHA BHAVAN");
+    expect(out).not.toContain("TANDOOR KOT");
+    expect(out).toMatch(/^KOT #12\s+TABLE T5$/m);
+    expect(out).toMatch(/^023\s+16 Sep 26 07:05 PM$/m);
+    expect(out).toContain("Ravi");
+    expect(out).not.toContain("9876543210");
   });
 
-  it("pickup leads with the order number and hides the table", () => {
+  it("pickup shows the order type, order number and phone", () => {
     const out = text(batch({ order_type: "Takeaway", order_no: "INV-B1-144", table_no: null }));
-    expect(out).toMatch(/KOT #12\s+PICK UP/);
-    expect(out).toContain("ORDER: INV-B1-144");
-    expect(out).not.toContain("TABLE:");
-    expect(out).toContain("Phone: 9876543210");
-    expect(out).not.toContain("Address:");
-    expect(out).not.toContain("Captain:");
+    expect(out).toMatch(/^KOT #12\s+PICK UP$/m);
+    expect(out).toMatch(/^INV-B1-144\s+/m);
+    expect(out).not.toContain("TABLE");
+    expect(out).toContain("Ravi - 9876543210");
   });
 
   it("delivery shows phone and wrapped address", () => {
     const out = text(batch({ order_type: "Delivery", order_no: "INV-B1-145", table_no: null }));
-    expect(out).toMatch(/KOT #12\s+DELIVERY/);
-    expect(out).toContain("Address: 12, Anna Salai, Chennai");
+    expect(out).toMatch(/^KOT #12\s+DELIVERY$/m);
+    expect(out).toContain("12, Anna Salai, Chennai");
   });
 
-  it("lists items with variants, notes and totals", () => {
+  it("lists items as qty x name with variants, notes and totals", () => {
     const out = text(batch());
-    expect(out).toMatch(/1\s+Paneer Tikka \(Half\)\s+2/);
-    expect(out).toContain(">> less spicy");
-    expect(out).toMatch(/Total Items: 2\s+Total Qty: 5/);
-    expect(out).toContain("NEW ORDER");
+    expect(out).toMatch(/^2 x Paneer Tikka \(Half\)$/m);
+    expect(out).toContain("Note: less spicy");
+    expect(out).toMatch(/Items: 2\s+Total Qty: 5/);
+    expect(out).not.toContain("NEW ORDER");
   });
 
   it("marks ADD and CANCEL tickets, with cancelled quantities negative", () => {
     expect(text(batch({ tickets: [ticket({ kot_type: "ADD" })] }))).toContain("** ADDITIONAL ITEMS **");
     const cancel = text(batch({ tickets: [ticket({ kot_type: "CANCEL" })] }));
     expect(cancel).toContain("** CANCEL ITEMS **");
-    expect(cancel).toMatch(/Butter Naan\s+-3/);
+    expect(cancel).toMatch(/^-3 x Butter Naan$/m);
   });
 
   it("consolidated copy groups items under each counter", () => {
@@ -97,7 +90,6 @@ describe("buildKotSlip", () => {
       ],
     });
     const out = buildKotSlip(b, b.tickets, { ...opts, consolidated: true, banner: "Billing copy" }).lines.map((l) => l.text).join("\n");
-    expect(out).toContain("KOT - ALL COUNTERS");
     expect(out).toContain("BILLING COPY");
     expect(out).toContain("[TANDOOR]");
     expect(out).toContain("[CHINESE] CANCEL");

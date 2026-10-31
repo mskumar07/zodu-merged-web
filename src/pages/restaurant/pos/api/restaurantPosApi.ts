@@ -490,7 +490,9 @@ export function useAddOrderMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: postAddOrder,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["restaurant", "tableOrders"] }),
+    // Refetch in the background: returning the promise made mutateAsync wait for it,
+    // a second round trip before the caller could print the bill or KOT.
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ["restaurant", "tableOrders"] }); },
   });
 }
 
@@ -498,7 +500,7 @@ export function useUpdateOrderMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: putUpdateOrder,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["restaurant", "tableOrders"] }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ["restaurant", "tableOrders"] }); },
   });
 }
 
@@ -532,7 +534,7 @@ export function useDeleteHoldOrderMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: deleteHoldOrder,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["restaurant", "holdOrders"] }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ["restaurant", "holdOrders"] }); },
   });
 }
 

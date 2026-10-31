@@ -66,6 +66,7 @@ import { BranchId, ZoduId } from "@store/slices/userSlice";
 import { useModulePermission } from "@hooks/useModulePermission";
 import { useSubscriptionGuard } from "@hooks/useSubscriptionGuard";
 import ItemThumb from "@components/Common/ItemThumb";
+import TableActionButton from "@components/Common/TableActionButton";
 
 type MenuTab = "all" | "food" | "product" | "Category";
 
@@ -582,6 +583,10 @@ const RestaurantMenuList: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isTablet = useMediaQuery(theme.breakpoints.down("md"));
+  // Laptop widths: tabs and toolbar stay on one row by turning Label Print / KOT
+  // Settings into icons (< 1800px) and tightening the tabs, title and filter (< 1500px).
+  const isCompact = useMediaQuery("(max-width:1799.95px)");
+  const isNarrow  = useMediaQuery("(max-width:1499.95px)");
 
   const branchId = useSelector(BranchId) ?? "";
   const zoduId   = useSelector(ZoduId)   ?? "";
@@ -830,11 +835,11 @@ const RestaurantMenuList: React.FC = () => {
         key: "actions",
         label: "Actions",
         width: isMobile ? 80 : 110,
-        align: "center" as const,
+        align: "right" as const,
         render: (row: RestaurantMenuListItem) => {
           const isFav = favOverrides[row.menu_id] ?? row.favorites;
           return (
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5 }}>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.3 }}>
               {!isMobile && (
                 <Tooltip title={isFav ? "Remove from favorites" : "Add to favorites"}>
                   <span>
@@ -849,30 +854,18 @@ const RestaurantMenuList: React.FC = () => {
                   </span>
                 </Tooltip>
               )}
-              <Tooltip title={canEdit ? "Edit" : "You don't have permission to edit"}>
-                <span>
-                  <IconButton
-                    size="small"
-                    disabled={!canEdit}
-                    onClick={guard((e) => { e.stopPropagation(); setEditItem(row); setAddMenuOpen(true); })}
-                    sx={{ color: "text.disabled", "&:hover": { color: "primary.main", bgcolor: "primary.light" + "22" }, borderRadius: 1.5 }}
-                  >
-                    <EditIcon fontSize="small" />
-                  </IconButton>
-                </span>
-              </Tooltip>
-              <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete"}>
-                <span>
-                  <IconButton
-                    size="small"
-                    disabled={!canDelete}
-                    onClick={guard((e) => { e.stopPropagation(); setDeleteItem(row); })}
-                    sx={{ color: "primary.main", "&:hover": { bgcolor: "primary.light" + "22" }, borderRadius: 1.5 }}
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </span>
-              </Tooltip>
+              <TableActionButton
+                kind="edit"
+                title={canEdit ? "Edit" : "You don't have permission to edit"}
+                disabled={!canEdit}
+                onClick={guard(() => { setEditItem(row); setAddMenuOpen(true); })}
+              />
+              <TableActionButton
+                kind="delete"
+                title={canDelete ? "Delete" : "You don't have permission to delete"}
+                disabled={!canDelete}
+                onClick={guard(() => setDeleteItem(row))}
+              />
             </Box>
           );
         },
@@ -903,7 +896,7 @@ const RestaurantMenuList: React.FC = () => {
               fontWeight: 600,
               fontSize: 14,
               minHeight: 30,
-              px: 3,
+              px: isNarrow ? 1.5 : 3,
               color: "text.secondary",
               "&.Mui-selected": { fontWeight: 700, color: "primary.main" },
             },
@@ -921,7 +914,7 @@ const RestaurantMenuList: React.FC = () => {
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: "0 0 auto", flexShrink: 0 }}>
               <RestaurantMenuIcon sx={{ color: "#d32f2f", fontSize: 20 }} />
               <Typography sx={{ fontWeight: 700, fontSize: 14, color: "#111827", whiteSpace: "nowrap" }}>
-                {isTablet ? "Menu" : "Menu Items"}
+                {isTablet || isNarrow ? "Menu" : "Menu Items"}
               </Typography>
               {totalCount > 0 && (
                 <Chip
@@ -957,7 +950,7 @@ const RestaurantMenuList: React.FC = () => {
             />
 
             {/* Category filter */}
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flex: isMobile ? "1 1 100%" : "0 1 220px" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flex: isMobile ? "1 1 100%" : `0 1 ${isNarrow ? 180 : 220}px` }}>
               <FormControl size="small" sx={{ minWidth: isMobile ? "100%" : 140, width: "100%" }}>
                 <Select
                   multiple
@@ -1042,17 +1035,19 @@ const RestaurantMenuList: React.FC = () => {
               )}
             </Box>
 
-            <LabelPrintButton useDataSource={useRestaurantLabelSource} sx={isTablet ? { px: 1.25, minWidth: 0 } : undefined} />
+            <LabelPrintButton useDataSource={useRestaurantLabelSource} iconOnly={isTablet || isCompact} />
 
             {/* KOT Settings */}
+            <Tooltip title={isTablet || isCompact ? "KOT Settings" : ""}>
             <Button
               variant="contained"
-              startIcon={!isTablet ? <PrintOutlinedIcon /> : undefined}
+              aria-label="KOT Settings"
+              startIcon={!(isTablet || isCompact) ? <PrintOutlinedIcon /> : undefined}
               onClick={() => setKotModalOpen(true)}
               sx={{
                 borderRadius: 0.5,
                 fontWeight: 700,
-                px: isTablet ? 1.25 : 2,
+                px: isTablet || isCompact ? 1.25 : 2,
                 minWidth: 0,
                 height: 40,
                 flexShrink: 0,
@@ -1065,8 +1060,9 @@ const RestaurantMenuList: React.FC = () => {
                 "&:hover": { bgcolor: "#155fa8", boxShadow: "0 4px 14px rgba(25,118,210,0.4)" },
               }}
             >
-              {isTablet ? <PrintOutlinedIcon sx={{ fontSize: 18 }} /> : "KOT Settings"}
+              {isTablet || isCompact ? <PrintOutlinedIcon sx={{ fontSize: 18 }} /> : "KOT Settings"}
             </Button>
+            </Tooltip>
 
             {/* Add button */}
             <Button

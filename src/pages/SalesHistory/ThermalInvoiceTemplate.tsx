@@ -611,22 +611,21 @@ function useTrimmedLogo(src: string): { src: string; ratio: number } | null {
             }
           }
         }
-        if (right >= left && bottom >= top) {
-          // Back to full-size pixels, one scan pixel of slack so antialiased edges survive.
-          const x0 = Math.max(0, Math.floor((left - 1) / s));
-          const y0 = Math.max(0, Math.floor((top - 1) / s));
-          const x1 = Math.min(w, Math.ceil((right + 2) / s));
-          const y1 = Math.min(h, Math.ceil((bottom + 2) / s));
-          const cw = x1 - x0;
-          const ch = y1 - y0;
-          if (cw < w || ch < h) {
-            const out = document.createElement("canvas");
-            out.width = cw;
-            out.height = ch;
-            out.getContext("2d")?.drawImage(img, x0, y0, cw, ch, 0, 0, cw, ch);
-            result = { src: out.toDataURL("image/png"), ratio: cw / ch };
-          }
-        }
+        // Back to full-size pixels, one scan pixel of slack so antialiased edges survive.
+        // Nothing to trim still yields a copy: the file as served can't be read back
+        // (cross-origin), and printing waited up to 3 s for its pixels on every first bill.
+        const found = right >= left && bottom >= top;
+        const x0 = found ? Math.max(0, Math.floor((left - 1) / s)) : 0;
+        const y0 = found ? Math.max(0, Math.floor((top - 1) / s)) : 0;
+        const x1 = found ? Math.min(w, Math.ceil((right + 2) / s)) : w;
+        const y1 = found ? Math.min(h, Math.ceil((bottom + 2) / s)) : h;
+        const cw = x1 - x0;
+        const ch = y1 - y0;
+        const out = document.createElement("canvas");
+        out.width = cw;
+        out.height = ch;
+        out.getContext("2d")?.drawImage(img, x0, y0, cw, ch, 0, 0, cw, ch);
+        result = { src: out.toDataURL("image/png"), ratio: cw / ch };
       } catch {
         // Unreadable pixels — print the file as it is.
       }
@@ -1108,14 +1107,14 @@ export const ThermalInvoiceTemplate = React.forwardRef(
                     ...itemCell("left", !showSerialNo),
                     whiteSpace: "normal",
                     wordBreak: "break-word",
-                    fontWeight: 500,
+                    // fontWeight: 500,
                     lineHeight: compact ? 1.15 : 1.3,
                   };
                   const figures = (
                     <>
                       <td style={itemCell("right")}>{fmtQty(item.qty)}</td>
                       <td style={itemCell("right")}>{fmt(item.rate)}</td>
-                      <td style={{ ...itemCell("right"), fontWeight: 500 }}>{fmt(item.total)}</td>
+                      <td style={{ ...itemCell("right") }}>{fmt(item.total)}</td>
                     </>
                   );
                   // The figures sit on the name's first line on every roll, so each item

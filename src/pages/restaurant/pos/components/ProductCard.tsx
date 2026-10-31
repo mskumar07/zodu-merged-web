@@ -44,11 +44,8 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
   const hasVariant    = !!(item.variants && item.variants.length > 0);
   const isKg          = isKgUnit(item.menu_unit);
   const inCart        = qty > 0;
-  const tracksStock   = item.stock_qty != null;
-  const remainingStock = tracksStock ? Math.max(0, (item.stock_qty as number) - qty) : null;
 
   const [inputVal, setInputVal] = useState(String(qty));
-  const [attemptedAdd, setAttemptedAdd] = useState(false);
 
   useEffect(() => {
     setInputVal(String(qty));
@@ -65,20 +62,24 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
 
   return (
     <Box
-      onClick={() => { if (!isUnavailable) { setAttemptedAdd(true); onAdd(item); } }}
+      onClick={() => { if (!isUnavailable) { onAdd(item); } }}
       sx={{
         bgcolor:       "#fff",
         borderRadius:  "12px",
-        border:        inCart ? "2px solid #d32f2f" : "1.5px solid #ede8e8",
+        // Same border width in and out of the cart — only the colour changes — so
+        // selecting a card never grows it or nudges its contents.
+        border:        `1.5px solid ${inCart ? "#d32f2f" : "#ede8e8"}`,
         overflow:      "hidden",
         cursor:        isUnavailable ? "not-allowed" : "pointer",
         opacity:       isUnavailable ? 0.5 : 1,
         transition:    "box-shadow 0.18s, border-color 0.18s",
         display:       "flex",
         flexDirection: "row",
-        height:        { xs: 96, sm: 100, md: 110 },
+        // No photo column → let the card shrink to its content instead of
+        // reserving the image height.
+        height:        showImage ? { xs: 84, sm: 88, md: 92 } : "auto",
         boxShadow:     inCart
-          ? "0 0 0 3px rgba(211,47,47,0.1), 0 2px 8px rgba(0,0,0,0.07)"
+          ? "0 2px 8px rgba(211,47,47,0.12)"
           : "0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
         "&:hover": isUnavailable ? {} : {
           boxShadow:   "0 4px 14px rgba(211,47,47,0.17)",
@@ -92,8 +93,8 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
       {showImage && (
       <Box
         sx={{
-          width:      { xs: 80, sm: 90, md: 100 },
-          minWidth:   { xs: 80, sm: 90, md: 100 },
+          width:      { xs: 76, sm: 84, md: 92 },
+          minWidth:   { xs: 76, sm: 84, md: 92 },
           flexShrink: 0,
           position:   "relative",
           overflow:   "hidden",
@@ -170,33 +171,6 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
           <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: dot }} />
         </Box>
 
-        {/* Remaining-stock badge — top-right. Only shown for items with a real stock_qty,
-            and only after the first add attempt on that item. */}
-        {tracksStock && attemptedAdd && (
-          <Box
-            sx={{
-              position:       "absolute",
-              top:            4,
-              right:          4,
-              minWidth:       17,
-              height:         17,
-              borderRadius:   "9px",
-              bgcolor:        "#d32f2f",
-              color:          "#fff",
-              fontSize:       "0.55rem",
-              fontWeight:     800,
-              display:        "flex",
-              alignItems:     "center",
-              justifyContent: "center",
-              px:             0.4,
-              boxShadow:      "0 1px 3px rgba(211,47,47,0.5)",
-              pointerEvents:  "none",
-            }}
-          >
-            {remainingStock}
-          </Box>
-        )}
-
         {isUnavailable && (
           <Box
             sx={{
@@ -229,7 +203,7 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
         }}
       >
         {/* Name — with the food-type mark in front when there is no photo column */}
-        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.6, flex: "1 1 auto", minWidth: 0 }}>
+        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.6, flex: "0 0 auto", minWidth: 0 }}>
         {!showImage && (
           <Box
             sx={{
@@ -251,9 +225,11 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
         <Typography
           sx={{
             fontSize:        "0.77rem",
-            fontWeight:      600,
+            fontWeight:      800,
             color:           "#111827",
             lineHeight:      1.3,
+            // Always reserve two lines so price + Add sit at the same height on every card
+            minHeight:       "2.6em",
             overflow:        "hidden",
             display:         "-webkit-box",
             WebkitLineClamp: 2,
@@ -266,14 +242,14 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
         </Typography>
         </Box>
 
-        {/* Price + action — one row (price left) when there is no photo column */}
+        {/* Price + action — one row, price left; pinned to the card's bottom when there is a photo column */}
         <Box
-          sx={showImage ? { display: "contents" } : {
+          sx={{
             display:        "flex",
             alignItems:     "center",
             justifyContent: "space-between",
             gap:            1,
-            mt:             0.6,
+            mt:             showImage ? "auto" : 0.8,
           }}
         >
 
@@ -281,10 +257,10 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
         <Typography
           sx={{
             fontSize:   "0.85rem",
-            fontWeight: 800,
+            fontWeight: 600,
             color:      "#111827",
             lineHeight: 1,
-            mt:         0.2,
+            whiteSpace: "nowrap",
           }}
         >
           ₹{price.toFixed(2)}
@@ -292,7 +268,7 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
 
         {/* Action row — right-aligned, fixed width for both Add and stepper */}
         {!isUnavailable && (
-          <Box sx={{ mt: showImage ? 0.65 : 0, display: "flex", justifyContent: "flex-end" }}>
+          <Box sx={{ display: "flex", justifyContent: "flex-end", flexShrink: 0 }}>
             {inCart && !hasVariant ? (
               /* Stepper — same width as Add button */
               <Box
@@ -377,7 +353,7 @@ const ProductCard: React.FC<Props> = ({ item, qty, onAdd, onIncrement, onDecreme
             ) : (
               /* Add button — same width as stepper */
               <Box
-                onClick={e => { e.stopPropagation(); setAttemptedAdd(true); onAdd(item); }}
+                onClick={e => { e.stopPropagation(); onAdd(item); }}
                 sx={{
                   display:        "flex",
                   alignItems:     "center",

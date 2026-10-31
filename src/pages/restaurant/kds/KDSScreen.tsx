@@ -9,6 +9,7 @@
  * of truth and a ready order simply drops out of the next GET.
  */
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { Box, Chip, CircularProgress, Dialog, DialogContent, DialogTitle, IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -27,6 +28,12 @@ import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 import Lottie from "lottie-react";
 import loadingAnimation from "@assets/loading.json";
 import { useTenantContext } from "@store/tenantContext";
+import { useAppSelector } from "@store/store";
+import { InvoiceSettingsData } from "@store/slices/userSlice";
+import SuccessToast from "@components/Common/SuccessToast";
+import { printThermalCopies } from "@utils/thermalPrint";
+import type { ThermalPaperSize } from "@pages/SalesHistory/ThermalInvoiceTemplate";
+import { ThermalKotTemplate, type KotPrintData } from "../kot/ThermalKotTemplate";
 import {
   useKdsData,
   KOT_ITEM_COMPLETED,
@@ -90,6 +97,14 @@ function buildItemOrderBreakdown(cards: KdsOrderCard[], itemName: string): ItemO
     }
   }
   return rows.sort((a, b) => (minutesSince(b.createdAt) ?? 0) - (minutesSince(a.createdAt) ?? 0));
+}
+
+// printer_inch is stored as "3 Inch" / "5 Inch"; anything unrecognised is the 3" roll (as on the POS).
+function toThermalPaperSize(printerInch: string | undefined): ThermalPaperSize {
+  if (printerInch?.startsWith("2")) return "2";
+  if (printerInch?.startsWith("4")) return "4";
+  if (printerInch?.startsWith("5")) return "5";
+  return "3";
 }
 
 function formatClockTime(iso: string): string {
@@ -454,36 +469,11 @@ function ItemOrdersModal({ itemName, rows, pendingItemKeys, onMarkReady, onClose
 
 interface KotBlockProps {
   ticket: KdsKotTicket;
-  /** Table or order number plus order type, printed under the KOT number. */
-  heading: string;
+  /** Prints this KOT on the KOT template, as the POS prints it. */
+  onPrint: () => void;
 }
 
-/**
- * Prints one KOT slip through the browser's print dialog, so it goes to whichever printer the
- * kitchen PC has set up. Rendered into a hidden iframe: no popup to get blocked, nothing left on the board.
- */
-function printKotTicket(ticket: KdsKotTicket, heading: string) {
-  const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
-  const rows = ticket.items.map((i) => `<tr><td class="q">${i.qty} x</td><td>${esc(i.item_name)}</td></tr>`).join("");
-  const frame = document.createElement("iframe");
-  frame.style.cssText = "position:fixed;width:0;height:0;border:0;visibility:hidden";
-  document.body.appendChild(frame);
-  const doc = frame.contentDocument;
-  const win = frame.contentWindow;
-  if (!doc || !win) { frame.remove(); return; }
-  doc.open();
-  doc.write(`<html><head><title>${esc(ticket.kot_no)}</title><style>
-    body{font:14px monospace;margin:8px;width:280px}h1{font-size:18px;margin:0}h2{font-size:15px;margin:4px 0 8px}
-    table{width:100%;border-top:1px dashed #000;border-collapse:collapse}td{padding:4px 0;border-bottom:1px dashed #000}.q{width:44px;font-weight:bold}
-  </style></head><body><h1>${esc(ticket.kot_no.toUpperCase())}</h1><h2>${esc(heading)}</h2>
-  <div>${esc(formatClockTime(ticket.created_at))}</div><table>${rows}</table></body></html>`);
-  doc.close();
-  win.onafterprint = () => frame.remove();
-  win.focus();
-  win.print();
-}
-
-function KotBlock({ ticket, heading }: KotBlockProps) {
+function KotBlock({ ticket, onPrint }: KotBlockProps) {
   return (
     <Box sx={{ mb: 1.25, "&:last-of-type": { mb: 0 } }}>
       <Stack
@@ -499,7 +489,7 @@ function KotBlock({ ticket, heading }: KotBlockProps) {
         <Box
           component="button"
           type="button"
-          onClick={() => printKotTicket(ticket, heading)}
+          onClick={onPrint}
           sx={{
             display: "flex", alignItems: "center", gap: 0.75, px: 1.5, py: 0.6,
             border: "none", borderRadius: 1.25, bgcolor: "#E8ECF1", color: "#1A0004",
@@ -565,10 +555,11 @@ interface OrderCardProps {
   card: KdsOrderCard;
   isBusy: boolean;
   onMarkReady: () => void;
+  onPrint: (ticket: KdsKotTicket) => void;
   now: number;
 }
 
-function OrderCard({ card, isBusy, onMarkReady, now }: OrderCardProps) {
+function OrderCard({ card, isBusy, onMarkReady, onPrint, now }: OrderCardProps) {
   const style = cardHeaderStyle(card.orderType);
   const visual = orderTypeVisual(card.orderType);
   const isDineIn = card.tableNo != null;
@@ -645,7 +636,7 @@ function OrderCard({ card, isBusy, onMarkReady, now }: OrderCardProps) {
 
         {/* One block per KOT ticket sent for this order */}
         {card.kotTickets.map((ticket) => (
-          <KotBlock key={`${ticket.api_order_id}-${ticket.kot_no}`} ticket={ticket} heading={`${title} (${style.label})`} />
+          <KotBlock key={`${ticket.api_order_id}-${ticket.kot_no}`} ticket={ticket} onPrint={() => onPrint(ticket)} />
         ))}
 
         <Box
@@ -773,6 +764,41 @@ export default function KDSScreen() {
   } = useKdsData(zoduId ?? "", branchId ?? "");
 
   const [summaryOpen, setSummaryOpen] = useState(true);
+  const [toast, setToast] = useState<{ message: string; severity: "success" | "error" }>({ message: "", severity: "success" });
+
+  // A KOT printed from the board, drawn off-screen on the POS's KOT template.
+  const invoiceSettings = useAppSelector(InvoiceSettingsData);
+  const settingsPaperSize = toThermalPaperSize(invoiceSettings?.printer_inch);
+  const [kotData, setKotData] = useState<KotPrintData | null>(null);
+  // While printing, drawn for the roll the chosen printer takes (see printThermalCopies).
+  const [printPaperSize, setPrintPaperSize] = useState<ThermalPaperSize | null>(null);
+  const kotRef = useRef<HTMLDivElement>(null);
+
+  const printKot = async (ticket: KdsKotTicket) => {
+    const placed = new Date(ticket.created_at);
+    flushSync(() => setKotData({
+      kotNo:         ticket.kot_no,
+      orderNo:       ticket.public_order_no,
+      orderType:     cardHeaderStyle(ticket.order_type).label,
+      tableNo:       ticket.table_no,
+      customerName:  null,
+      customerPhone: null,
+      items:         ticket.items.map((i) => ({ name: i.item_name, variant: null, qty: i.qty, note: null })),
+      printedAt:     Number.isNaN(placed.getTime()) ? new Date() : placed,
+    }));
+    if (!kotRef.current) return;
+    try {
+      const printed = await printThermalCopies(
+        kotRef.current,
+        [null],
+        (_copy, paper) => flushSync(() => setPrintPaperSize(paper)),
+        { onError: (message) => setToast({ message: `KOT not printed — ${message}`, severity: "error" }) },
+      );
+      if (printed) setToast({ message: `KOT sent to ${printed}`, severity: "success" });
+    } finally {
+      setKotData(null);
+    }
+  };
 
   // The item clicked in the summary rail, if any — drives the breakdown
   // modal below. Kept as just the name (not the rows) so the modal always
@@ -797,6 +823,15 @@ export default function KDSScreen() {
     () => (selectedItem ? buildItemOrderBreakdown(cards, selectedItem) : []),
     [cards, selectedItem]
   );
+
+  // Once every order for the selected item is marked ready the modal has
+  // nothing left to show — close it rather than leave an empty list open.
+  const hadSelectedRowsRef = useRef(false);
+  useEffect(() => {
+    if (!selectedItem) { hadSelectedRowsRef.current = false; return; }
+    if (selectedItemRows.length > 0) hadSelectedRowsRef.current = true;
+    else if (hadSelectedRowsRef.current) setSelectedItem(null);
+  }, [selectedItem, selectedItemRows.length]);
 
   if (isLoading) {
     return (
@@ -903,6 +938,7 @@ export default function KDSScreen() {
                   card={card}
                   isBusy={pendingOrderIds.has(card.apiOrderId)}
                   onMarkReady={() => markOrderReady(card.apiOrderId)}
+                  onPrint={printKot}
                   now={now}
                 />
               ))}
@@ -918,6 +954,14 @@ export default function KDSScreen() {
         onMarkReady={markItemReady}
         onClose={() => setSelectedItem(null)}
       />
+
+      {/* Off-screen KOT, captured by printKot() */}
+      {kotData && (
+        <Box sx={{ position: "fixed", left: -10000, top: 0, pointerEvents: "none", opacity: 0 }}>
+          <ThermalKotTemplate ref={kotRef} data={kotData} paperSize={printPaperSize ?? settingsPaperSize} />
+        </Box>
+      )}
+      <SuccessToast message={toast.message} severity={toast.severity} onClose={() => setToast((t) => ({ ...t, message: "" }))} />
     </Box>
   );
 }
