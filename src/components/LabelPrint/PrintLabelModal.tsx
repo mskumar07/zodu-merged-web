@@ -240,7 +240,7 @@ function PrintLabelBody({ onClose, useDataSource }: { onClose: () => void; useDa
         {/* ── Left: code type + item picker ── */}
         <Box sx={{ flex: 1.3, minWidth: 0, display: 'flex', flexDirection: 'column', border: '1px solid #E2E8F0', borderRadius: 1, p: 1.5 }}>
           <RadioGroup row value={codeType} onChange={(e) => setCodeType(e.target.value as CodeType)}>
-            {([['qr', 'QR Code'], ['code128', 'Barcode (CODE128)'], ['ean13', 'Barcode (EAN13)']] as const).map(([v, l]) => (
+            {([['qr', 'QR Code'], ['code128', 'Barcode (CODE128)']] as const).map(([v, l]) => (
               <FormControlLabel key={v} value={v} label={<Typography sx={{ fontSize: 13 }}>{l}</Typography>}
                 control={<Radio size="small" sx={{ '&.Mui-checked': { color: RED } }} />} />
             ))}

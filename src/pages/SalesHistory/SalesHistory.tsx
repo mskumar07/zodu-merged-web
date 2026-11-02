@@ -305,7 +305,9 @@ export default function SalesHistoryPage() {
     {
       key: "sale_id",
       label: isRestaurant ? "Order ID" : "Invoice ID",
-      width: 160,
+      width: 210,
+      // Room for a full "Sales Return - RET-…" line, so return ids never wrap
+      fitMin: isRestaurant ? undefined : 270,
       render: (sale: Sale) => {
         const returns = !isRestaurant ? sale.returns ?? [] : [];
         return (
@@ -319,7 +321,7 @@ export default function SalesHistoryPage() {
             </Typography>
             {/* Cross-reference: the return / credit note ids raised against this invoice */}
             {returns.map((r) => (
-              <Typography key={r.return_uuid} sx={{ fontSize: BODY_FONT_SIZE, fontWeight: 500, color: "#475569", lineHeight: 1.4, overflowWrap: "anywhere" }}>
+              <Typography key={r.return_uuid} sx={{ fontSize: BODY_FONT_SIZE, fontWeight: 500, color: "#475569", lineHeight: 1.4, whiteSpace: "nowrap" }}>
                 {r.return_type === "CREDIT_NOTE" ? "Credit Note" : "Sales Return"} -{" "}
                 <Box component="span" onClick={() => setViewReturn({ sale, ret: r })} sx={{ color: "#B91C1C", fontWeight: 600, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}>
                   {r.return_id}
@@ -333,7 +335,7 @@ export default function SalesHistoryPage() {
     ...(!isRestaurant ? [{
       key: "customer",
       label: "Customer",
-      width: 230,
+      width: 200,
       render: (sale: Sale) => {
         const name = sale.cust_name || sale.cpy_name || "";
         if (!name) {
@@ -364,7 +366,7 @@ export default function SalesHistoryPage() {
     {
       key: "created at",
       label: "Date",
-      width: 120,
+      width: 100,
       render: (sale: Sale) => (
         <Typography variant="body2" sx={{ fontSize: BODY_FONT_SIZE, color: TABLE_TEXT_COLOR }}>
           {isRestaurant ? sale.created_at_fmt : sale.sale_date_fmt}
