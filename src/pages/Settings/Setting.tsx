@@ -68,6 +68,8 @@ import RestaurantPosSetting from "./RestaurantPosSetting";
 import RoleManagement from "@pages/auth/Role/RoleManagement";
 import { useAppDispatch, useAppSelector } from "@store/store";
 import { useModulePermission } from "@hooks/useModulePermission";
+import { useCan, useSessionClaims } from "@hooks/usePermission";
+import LoggedInDevices from "./LoggedInDevices";
 import { setCompanies, BusinessType, BranchId, ZoduId } from "@store/slices/userSlice";
 import type { PendingSignup } from "@utils/pendingSignup";
 import { getBranchSubscription } from "@utils/subscription";
@@ -97,7 +99,7 @@ const subtleText = "#8e95a3";
 const headingText = "#1d2533";
 const redTint = "#ca0022";
 
-type SettingsTab = "company" | "invoice" | "pos" | "kot" | "user" | "role";
+type SettingsTab = "company" | "invoice" | "pos" | "kot" | "user" | "role" | "devices";
 
 const getCompanyAddressLine1 = (company?: CompanyWithBranches | null) => {
   if (!company) return "";
@@ -314,6 +316,14 @@ const getCompanyIcon = (index: number) => {
 
 export default function Setting() {
   const { canCreate, canEdit, canDelete } = useModulePermission("Settings");
+  // Company / branch changes, settings edits and roles: from the access token's
+  // perms (Admin has all). They act on the token's company only; the server
+  // answers 404 for any other, so those controls only show for that one.
+  const can = useCan();
+  const { zid: tokenZoduId } = useSessionClaims();
+  const canIn = (zoduId: string, perm: string) => zoduId === tokenZoduId && can(perm);
+  const canEditSettings = can("settings:edit");
+  const canManageRoles = can("role:read") || can("role:edit");
   const queryClient = useQueryClient();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -843,6 +853,7 @@ export default function Setting() {
                   fontWeight: 700,
                 }}
               />
+              {canEditSettings && (
               <Tab
                 label="Invoice settings"
                 value="invoice"
@@ -853,6 +864,8 @@ export default function Setting() {
                   fontWeight: 700,
                 }}
               />
+              )}
+              {canEditSettings && (
               <Tab
                 label="POS settings"
                 value="pos"
@@ -863,6 +876,7 @@ export default function Setting() {
                   fontWeight: 700,
                 }}
               />
+              )}
               {/* Printer settings is switched off for now: bills and KOTs print on the
                   printer connected to the billing PC (see @utils/kot/localPrinter).
               {businessType === "Restaurant" && (
@@ -887,9 +901,21 @@ export default function Setting() {
                   fontWeight: 700,
                 }}
               /> */}
+              {canManageRoles && (
               <Tab
                 label="Role Management"
                 value="role"
+                sx={{
+                  minHeight: 48,
+                  textTransform: "none",
+                  fontSize: 14,
+                  fontWeight: 700,
+                }}
+              />
+              )}
+              <Tab
+                label="Logged-in devices"
+                value="devices"
                 sx={{
                   minHeight: 48,
                   textTransform: "none",
@@ -1060,6 +1086,7 @@ export default function Setting() {
                             >
                               {company.restaurant_name}
                             </Typography>
+                            {canIn(company.zodu_id, "company:edit") && (
                             <Tooltip title={canEdit ? "Edit company" : "You don't have permission to edit"}>
                               <span>
                                 <IconButton
@@ -1075,6 +1102,7 @@ export default function Setting() {
                                 </IconButton>
                               </span>
                             </Tooltip>
+                            )}
                             <Tooltip title="View Details">
                               <IconButton
                                 size="small"
@@ -1118,6 +1146,7 @@ export default function Setting() {
                         </Box>
 
                         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                          {canIn(company.zodu_id, "company:delete") && (
                           <Tooltip title={canDelete ? "Delete company" : "You don't have permission to delete"}>
                             <span>
                               <IconButton
@@ -1133,6 +1162,7 @@ export default function Setting() {
                               </IconButton>
                             </span>
                           </Tooltip>
+                          )}
                           <IconButton
                             size="small"
                             sx={{ color: "#4b5563", bgcolor: "#fff", border: "1px solid", borderColor: cardBorder, "&:hover": { bgcolor: "#f3f4f7" } }}
@@ -1150,6 +1180,7 @@ export default function Setting() {
                           <Typography sx={{ fontSize: 15, fontWeight: 800, color: headingText }}>
                             Branches ({companyBranches.length})
                           </Typography>
+                          {canIn(company.zodu_id, "branch:create") && (
                           <Button
                             variant="contained"
                             size="small"
@@ -1167,6 +1198,7 @@ export default function Setting() {
                           >
                             Add New Branch
                           </Button>
+                          )}
                         </Box>
 
                         <TableContainer
@@ -1263,18 +1295,22 @@ export default function Setting() {
                                         <StatusPill label={branch.active === false ? "Inactive" : "Active"} />
                                       </TableCell>
                                       <TableCell sx={{ ...branchCellSx, py: 0.75, whiteSpace: "nowrap" }} align="right">
+                                        {canIn(company.zodu_id, "branch:edit") && (
                                         <TableActionButton
                                           kind="edit"
                                           title={canEdit ? "Edit" : "You don't have permission to edit"}
                                           disabled={!canEdit}
                                           onClick={() => openEditBranch(branch, company.zodu_id)}
                                         />
+                                        )}
+                                        {canIn(company.zodu_id, "branch:delete") && (
                                         <TableActionButton
                                           kind="delete"
                                           title={canDelete ? "Delete" : "You don't have permission to delete"}
                                           disabled={!canDelete}
                                           onClick={() => openDeleteBranch(branch, company.zodu_id, company.company_name ?? "")}
                                         />
+                                        )}
                                       </TableCell>
                                     </TableRow>
                                   );
@@ -1346,13 +1382,13 @@ export default function Setting() {
             </Stack>
           ))}
 
-          {activeTab === "invoice" && (
+          {activeTab === "invoice" && canEditSettings && (
             <ReadOnlyClickGuard>
               {businessType === "Restaurant" ? <RestaurantInvoiceSetting /> : <InvoiceSetting />}
             </ReadOnlyClickGuard>
           )}
 
-          {activeTab === "pos" && (
+          {activeTab === "pos" && canEditSettings && (
             <ReadOnlyClickGuard>
               {businessType === "Restaurant" ? <RestaurantPosSetting /> : <PosSetting />}
             </ReadOnlyClickGuard>
@@ -1387,11 +1423,13 @@ export default function Setting() {
             </Paper>
           )} */}
 
-          {activeTab === "role" && (
+          {activeTab === "role" && canManageRoles && (
             <Box sx={{ height: "calc(100vh - 220px)", minHeight: 550, mx: -3 }}>
               <RoleManagement />
             </Box>
           )}
+
+          {activeTab === "devices" && <LoggedInDevices />}
         </Stack>
       </Box>
 

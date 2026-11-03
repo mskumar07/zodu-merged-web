@@ -14,6 +14,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { useAppDispatch, useAppSelector } from "@store/store";
 import { addUserData, AllCompanies, UserProfile, setRoleAccess, setInvoiceSettings, setPosSettings } from "@store/slices/userSlice";
 import { type Branch, type CompanyWithBranches } from "@pages/auth/Authapi";
+import { useSwitchBranch } from "@hooks/useSwitchBranch";
 import { loadBranchSession } from "@pages/auth/loadBranchSession";
 import SuccessToast from "@components/Common/SuccessToast";
 import zlogo from "../../../assets/zlogo.png";
@@ -295,6 +296,7 @@ const SelectBranch: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAppDispatch();
+  const switchBranch = useSwitchBranch();
   const storedCompanies = useAppSelector(AllCompanies);
   const profile = useAppSelector(UserProfile);
   const loggedInName = profile?.employee_name || profile?.restaurant_name || "";
@@ -346,7 +348,8 @@ const SelectBranch: React.FC = () => {
     // An expired branch is still enterable — it opens view-only on the
     // dashboard, the expired modal shows once on arrival, and <SubscriptionGuard>
     // raises it again on any attempted change.
-    dispatch(addUserData({ branchId, branchName, zoduId: company.zodu_id, businessType: company.business_type ?? "" }));
+    // The token moves to that company/branch first (404: not one this user may use).
+    if (!(await switchBranch({ branchId, branchName, zoduId: company.zodu_id, businessType: company.business_type ?? "" }))) return;
     if (!(await loadSession(company.zodu_id, branchId))) return;
     navigate("/dashboard", { replace: true });
     notifyIfBranchExpired(company.branches.find((b) => b.branch_id === branchId));

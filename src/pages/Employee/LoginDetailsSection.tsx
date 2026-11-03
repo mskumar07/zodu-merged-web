@@ -9,8 +9,11 @@ import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined
 import type { RoleListItem } from "@pages/auth/Role/useRoleApi";
 import type { LoginDetailsPayload } from "./useEmployeeApi";
 
-export const PWD_RULES = /^(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,20}$/;
-export const PWD_HINT = "8–20 chars, at least 1 uppercase, 1 number, 1 special character";
+// Staff passwords: the server's policy (NIST SP 800-63B): 8–128 characters and
+// no composition rules. It also refuses common passwords; its message is shown.
+// Counted in characters (the `u` flag), so an emoji is one, as on the server.
+export const PWD_RULES = /^.{8,128}$/su;
+export const PWD_HINT = "Password must be 8–128 characters";
 
 // ─── State + pure helpers (kept out of the component so they're easy to reason about) ───
 

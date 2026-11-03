@@ -42,10 +42,10 @@ import {
 } from "./usePuchaseapi";
 import { useVendorRowActions, vendorDisplayName } from "@pages/Vendor/useVendorRowActions";
 import { VendorRowActionIcons, VendorEditDeleteDialogs } from "@pages/Vendor/VendorRowControls";
-import axios from "axios";
+import http from "@store/services/axiosInstance";
 import SuccessToast from "@components/Common/SuccessToast";
 import InfiniteScrollStatus from "@components/Common/InfiniteScrollStatus";
-import { getTenantContext, getAccessToken } from "@store/tenantContext";
+import { getTenantContext } from "@store/tenantContext";
 import { closeFromControlsOnly } from "@utils/dialog";
 import { useBlockWhenReadOnly } from "@hooks/useSubscriptionGuard";
 import { localDateStr } from "@utils/localDate";
@@ -627,8 +627,7 @@ export default function AddNewPurchaseDialog({
     try {
       const formData = new FormData();
       entries.forEach(e => formData.append("files", e.file));
-      const token = getAccessToken();
-      const res = await axios.post(getUploadUrl(), formData, { headers: { "Content-Type": "multipart/form-data", ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
+      const res = await http.post(getUploadUrl(), formData, { headers: { "Content-Type": "multipart/form-data", } });
       const uploaded: { id: string; url: string; filename: string; size: number; mimetype: string }[] = res.data.files || [];
       setAttachments(prev => prev.map(a => {
         const idx = ids.indexOf(a.id);

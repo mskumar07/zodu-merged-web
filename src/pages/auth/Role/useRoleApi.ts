@@ -1,4 +1,5 @@
 import axios from "axios";
+import http from "@store/services/axiosInstance";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getTenantContext, useTenantContext } from "@store/tenantContext";
 
@@ -72,7 +73,7 @@ export const roleQueryKeys = {
 // ─── Fetch modules ────────────────────────────────────────────
 
 async function fetchModules(businessType: string): Promise<ModuleItem[]> {
-  const { data } = await axios.get<ModulesResponse>(
+  const { data } = await http.get<ModulesResponse>(
     `${API_BASE}/auth/api/modules`,
     { params: { business_type: businessType } }
   );
@@ -95,7 +96,7 @@ export function useModules() {
 
 async function fetchRoles(): Promise<RoleListItem[]> {
   const { zoduId, branchId } = getTenantContext();
-  const { data } = await axios.get(`${API_BASE}/auth/api/roles`, {
+  const { data } = await http.get(`${API_BASE}/auth/api/roles`, {
     params: { zodu_id: zoduId, branch_id: branchId },
   });
   if (data.success) return data.data;
@@ -115,7 +116,7 @@ export function useRoles() {
 
 async function fetchRoleDetail(roleId: string): Promise<RoleDetail> {
   const { zoduId, branchId } = getTenantContext();
-  const { data } = await axios.get(`${API_BASE}/auth/api/roles/${roleId}`, {
+  const { data } = await http.get(`${API_BASE}/auth/api/roles/${roleId}`, {
     params: { zodu_id: zoduId, branch_id: branchId },
   });
   if (data.success) return data.data;
@@ -134,7 +135,7 @@ export function useRoleDetail(roleId: string | null) {
 // ─── Create role ──────────────────────────────────────────────
 
 async function createRole(payload: CreateRolePayload) {
-  const { data } = await axios.post(`${API_BASE}/auth/api/roles`, payload);
+  const { data } = await http.post(`${API_BASE}/auth/api/roles`, payload);
   return data;
 }
 
@@ -172,7 +173,7 @@ async function updateRole({
   roleId: string;
   payload: UpdateRolePayload;
 }) {
-  const { data } = await axios.put(`${API_BASE}/auth/api/roles/${roleId}`, payload);
+  const { data } = await http.put(`${API_BASE}/auth/api/roles/${roleId}`, payload);
   return data;
 }
 
@@ -200,7 +201,7 @@ export function useUpdateRole(options?: {
 
 async function deleteRole(roleId: string) {
   const { zoduId, branchId } = getTenantContext();
-  const { data } = await axios.delete(`${API_BASE}/auth/api/roles/${roleId}`, {
+  const { data } = await http.delete(`${API_BASE}/auth/api/roles/${roleId}`, {
     data: { zodu_id: zoduId, branch_id: branchId },
   });
   return data;

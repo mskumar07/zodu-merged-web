@@ -1,7 +1,7 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
+import { serviceClient } from "@store/services/axiosInstance";
 import { getTenantContext } from "@store/tenantContext";
-import { getAccessToken } from "@store/tenantContext";
 
 export interface ExpenseCatalogItem {
   item_uuid: string;
@@ -24,14 +24,7 @@ function getApi() {
   const { businessType } = getTenantContext();
   console.log("Creating API instance for business type:", businessType);
   const route = businessType === "Restaurant" ? "restaurant" : "retail";
-  const token = getAccessToken();
-  return axios.create({
-    baseURL: `${API_BASE}/${route}/api`,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
+  return serviceClient(`${API_BASE}/${route}/api`);
 }
 
 export interface ExpenseRow {

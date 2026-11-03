@@ -1,18 +1,12 @@
 import axios from "axios";
+import { serviceClient } from "@store/services/axiosInstance";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getTenantContext, getAccessToken } from "@store/tenantContext";
+import { getTenantContext } from "@store/tenantContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5001";
 
 function getApi() {
-  const token = getAccessToken();
-  return axios.create({
-    baseURL: `${API_BASE}/auth/api`,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
+  return serviceClient(`${API_BASE}/auth/api`);
 }
 
 // ─── Types ────────────────────────────────────────────────────

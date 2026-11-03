@@ -1,4 +1,5 @@
 import html2canvas from "html2canvas";
+import { loadReadableImage, settleImages } from "@utils/readableImage";
 import jsPDF from "jspdf";
 
 // Tuned for invoice templates that mark a repeating page header with
@@ -213,16 +214,6 @@ interface ImageOverlay {
   alias: string;
 }
 
-function loadCorsImage(src: string): Promise<HTMLImageElement | null> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
-    img.src = src;
-  });
-}
-
 /**
  * The image at `src` drawn into a canvas the size of its box, fitted the way
  * the browser fits it (object-fit fill / contain / cover). Null when the file
@@ -236,7 +227,7 @@ async function renderImageBox(
   boxHeight: number,
 ): Promise<HTMLCanvasElement | null> {
   if (!src) return null;
-  const img = await loadCorsImage(src);
+  const img = await loadReadableImage(src);
   if (!img || !img.naturalWidth || !img.naturalHeight) return null;
 
   const canvas = document.createElement("canvas");
@@ -443,6 +434,8 @@ export async function renderPaginatedInvoicePdf(
   const headerDividerEl = container.querySelector("[data-pdf-header-divider]") as HTMLElement | null;
   const theadEl = container.querySelector("[data-pdf-repeat-thead]") as HTMLElement | null;
   const pageFooterEl = container.querySelector("[data-pdf-page-footer]") as HTMLElement | null;
+  // A logo still loading has no size yet: it would be measured as nothing.
+  await settleImages(container);
   const keepTogetherEls = Array.from(
     container.querySelectorAll("[data-pdf-keep-together]"),
   ) as HTMLElement[];
@@ -747,6 +740,7 @@ export async function renderThermalReceiptPdf(
   printableMm: number,
   appendTo?: jsPDF | null,
 ): Promise<jsPDF> {
+  await settleImages(container);
   const scale = captureScaleFor(container);
   const overlays = await collectImageOverlays(container, container.getBoundingClientRect(), scale);
   const canvas = await html2canvas(container, {

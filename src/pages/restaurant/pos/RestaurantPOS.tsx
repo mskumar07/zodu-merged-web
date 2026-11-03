@@ -29,7 +29,8 @@ import CloseIcon from "@mui/icons-material/Close";
 import zoduLogo from "@assets/zlogo.png";
 
 import { useAppSelector } from "../../../store/store";
-import { BranchId, ZoduId, BranchName, AllCompanies, UserProfile, addUserData, setRoleAccess, InvoiceSettingsData, PosSettingsData, setPosSettings } from "@store/slices/userSlice";
+import { useSwitchBranch } from "@hooks/useSwitchBranch";
+import { BranchId, ZoduId, BranchName, AllCompanies, UserProfile, setRoleAccess, InvoiceSettingsData, PosSettingsData, setPosSettings } from "@store/slices/userSlice";
 import { usePosSettings } from "@pages/Settings/usePosSettingApi";
 import { setRestaurantBillingView } from "@store/slices/POSslice";
 import { collapsedDrawerWidth } from "@layouts/Sidebar/index";
@@ -177,6 +178,7 @@ function pickOrderNo(res: unknown): string {
 const RestaurantPOS: React.FC = () => {
   const navigate  = useNavigate();
   const dispatch  = useAppDispatch();
+  const switchBranch = useSwitchBranch();
   const branchId  = useAppSelector(BranchId) ?? "";
   const zoduId    = useAppSelector(ZoduId)   ?? "";
   // Camera scanning only makes sense on a phone/tablet's own camera — desktop/laptop
@@ -193,14 +195,14 @@ const RestaurantPOS: React.FC = () => {
   const handleBranchChange = async (selectedBranchId: string) => {
     const found = companyBranches.find((branch) => branch.branch_id === selectedBranchId);
     if (!found || !selectedCompany) return;
-    dispatch(
-      addUserData({
-        branchId:   found.branch_id,
-        branchName: found.branch_name,
-        zoduId:     selectedCompany.zodu_id,
-        businessType: selectedCompany.business_type ?? "",
-      })
-    );
+    // The token moves first; on a refusal the POS stays on the current branch.
+    const switched = await switchBranch({
+      branchId:   found.branch_id,
+      branchName: found.branch_name,
+      zoduId:     selectedCompany.zodu_id,
+      businessType: selectedCompany.business_type ?? "",
+    });
+    if (!switched) return;
     try {
       const roleAccess = await authApis.getRoleAccess(selectedCompany.zodu_id, found.branch_id);
       dispatch(setRoleAccess(roleAccess));

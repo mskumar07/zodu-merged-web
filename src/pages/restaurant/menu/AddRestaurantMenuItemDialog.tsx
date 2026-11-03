@@ -25,8 +25,9 @@ import AddAPhotoIcon from "@mui/icons-material/AddAPhoto";
 import QrCode2Icon from "@mui/icons-material/QrCode2";
 import SearchIcon from "@mui/icons-material/Search";
 import axios from "axios";
+import http from "@store/services/axiosInstance";
 import SuccessToast from "@components/Common/SuccessToast";
-import { getTenantContext, getAccessToken } from "@store/tenantContext";
+import { getTenantContext } from "@store/tenantContext";
 import {
   useGstList,
   useUnitList,
@@ -211,19 +212,15 @@ const AddRestaurantMenuItemDialog: React.FC<
   useEffect(() => {
     if (!open) return;
     const { zoduId, branchId } = getTenantContext();
-    const token = getAccessToken();
     if (!zoduId || !branchId) return;
 
     const typeParam = form.menuType === "Product" ? "P" : "F";
 
     setCategoriesLoading(true);
-    axios
+    http
       .get<{ Data?: RestaurantCategory[]; data?: RestaurantCategory[] }>(
         `${API_BASE}/restaurant/get/category/${zoduId}/${branchId}`,
-        {
-          params: { "type[]": [typeParam], page: 1, limit: 100 },
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }
+        { params: { "type[]": [typeParam], page: 1, limit: 100 } }
       )
       .then((res) => {
         const rows = res.data?.Data ?? res.data?.data ?? [];
@@ -319,18 +316,16 @@ const AddRestaurantMenuItemDialog: React.FC<
     if (isEditMode && editItem && editItem.menu_code === code) return;
 
     const { zoduId, branchId } = getTenantContext();
-    const token = getAccessToken();
     if (!zoduId || !branchId) return;
 
     setItemCodeChecking(true);
     setItemCodeExistsError(null);
     try {
-      const res = await axios.get<{ success: boolean; exists: boolean }>(
+      const res = await http.get<{ success: boolean; exists: boolean }>(
         `${API_BASE}/restaurant/api/menu/check/item_id`,
         {
           params: { zodu_id: zoduId, branch_id: branchId, item_id: code },
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }
+          }
       );
       if (res.data?.exists) {
         setItemCodeExistsError("Entered Item Code Already Exists");
@@ -366,15 +361,14 @@ const AddRestaurantMenuItemDialog: React.FC<
     reader.readAsDataURL(file);
 
     // Upload to server immediately
-    const token = getAccessToken();
     const formData = new FormData();
     formData.append("file", file);
     setImageUploading(true);
     try {
-      const res = await axios.post<{ data: { fileUrl: string } }>(
+      const res = await http.post<{ data: { fileUrl: string } }>(
         `${API_BASE}/restaurant/upload`,
         formData,
-        { headers: { "Content-Type": "multipart/form-data", ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
+        { headers: { "Content-Type": "multipart/form-data", } }
       );
       setImageUrl(res.data.data.fileUrl);
     } catch {
@@ -389,7 +383,6 @@ const AddRestaurantMenuItemDialog: React.FC<
     e.stopPropagation();
     if (!imageUrl || imageDeleting) return;
 
-    const token = getAccessToken();
     // Extract filename from URL (last path segment)
     const fileName = imageUrl.split("/").pop();
     if (!fileName) {
@@ -400,9 +393,8 @@ const AddRestaurantMenuItemDialog: React.FC<
 
     setImageDeleting(true);
     try {
-      await axios.delete(`${API_BASE}/restaurant/delete/file/${fileName}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      await http.delete(`${API_BASE}/restaurant/delete/file/${fileName}`, {
+        });
     } catch {
       // ignore delete errors — clear locally regardless
     } finally {
@@ -469,7 +461,6 @@ const AddRestaurantMenuItemDialog: React.FC<
     }
 
     const { zoduId, branchId } = getTenantContext();
-    const token = getAccessToken();
 
     // Use the unit id directly
     const menuUnitId = form.menuUnit;
@@ -515,17 +506,17 @@ const AddRestaurantMenuItemDialog: React.FC<
 
     setSubmitting(true);
     try {
-      const headers = { "Content-Type": "multipart/form-data", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+      const headers = { "Content-Type": "multipart/form-data", };
       let savedMenuId: string | undefined;
       if (isEditMode && editItem) {
-        await axios.put(
+        await http.put(
           `${API_BASE}/restaurant/api/menu/update/menu_item/${editItem.menu_id}`,
           formData,
           { headers }
         );
         savedMenuId = editItem.menu_id;
       } else {
-        const res = await axios.post(
+        const res = await http.post(
           `${API_BASE}/restaurant/api/menu/api/add/menu_item`,
           formData,
           { headers }

@@ -14,7 +14,7 @@ import {
   RestaurantMenu as RestaurantMenuIcon,
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { useSignupMutation } from './authApi';
+import { useSignupMutation } from './Authapi';
 import { setPendingSignup } from '@utils/pendingSignup';
 import AuthLayout from './AuthLayout';
 
@@ -69,6 +69,16 @@ const theme = createTheme({
   },
 });
 
+// ─── Password rules ───────────────────────────────────────────
+// The company owner's password: 8–128 characters (the server's policy, which
+// also refuses common passwords and has the final say; its message is shown).
+function ownerPasswordProblem(pw: string): string | undefined {
+  const length = [...pw].length;
+  if (length < 8) return 'Password must be at least 8 characters';
+  if (length > 128) return 'Password must be at most 128 characters';
+  return undefined;
+}
+
 // ─── Password strength ────────────────────────────────────────
 function getPasswordStrength(pw: string): { score: number; label: string; color: string } {
   if (!pw) return { score: 0, label: '', color: '#e5e7eb' };
@@ -114,8 +124,8 @@ const ZoduSignupPage: React.FC = () => {
     if (key === 'password') {
       if (!value) {
         setFieldErrors(p => ({ ...p, password: 'Password is required' }));
-      } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{8,30}$/.test(value)) {
-        setFieldErrors(p => ({ ...p, password: 'Password must be 8–30 characters and include uppercase, lowercase, a number, and a special character' }));
+      } else if (ownerPasswordProblem(value)) {
+        setFieldErrors(p => ({ ...p, password: ownerPasswordProblem(value) }));
       } else {
         setFieldErrors(p => ({ ...p, password: undefined }));
       }
@@ -132,8 +142,8 @@ const ZoduSignupPage: React.FC = () => {
     if (!form.phone_number.trim())      errs.phone_number    = 'Mobile number is required';
     else if (!/^[0-9]{10}$/.test(form.phone_number.replace(/\s/g, ''))) errs.phone_number = 'Enter a valid 10-digit mobile number';
     if (!form.password)                 errs.password = 'Password is required';
-    else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{8,30}$/.test(form.password))
-      errs.password = 'Password must be 8–30 characters and include uppercase, lowercase, a number, and a special character';
+    else if (ownerPasswordProblem(form.password))
+      errs.password = ownerPasswordProblem(form.password);
     if (!form.confirmPassword)          errs.confirmPassword = 'Please confirm your password';
     else if (form.password !== form.confirmPassword) errs.confirmPassword = 'Passwords do not match';
     setFieldErrors(errs);

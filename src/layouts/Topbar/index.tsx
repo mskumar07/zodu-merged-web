@@ -27,11 +27,11 @@ import {
   BranchName,
   UserProfile,
   ZoduId,
-  addUserData,
   setRoleAccess,
 } from "@store/slices/userSlice";
 import { RestaurantBillingView } from "@store/slices/POSslice";
 import { authApis } from "@pages/auth/Authapi";
+import { useSwitchBranch } from "@hooks/useSwitchBranch";
 import { useNavigate, useLocation } from "react-router-dom";
 
 interface TopBarProps {
@@ -45,6 +45,7 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const profile = useAppSelector(UserProfile);
+  const switchBranch = useSwitchBranch();
 
   const isReportSubPage =
     location.pathname.startsWith("/reports") &&
@@ -93,14 +94,14 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
     const found = companyBranches.find((branch) => branch.branch_id === selectedBranchId);
     if (!found || !selectedCompany) return;
 
-    dispatch(
-      addUserData({
-        branchId: found.branch_id,
-        branchName: found.branch_name,
-        zoduId: selectedCompany.zodu_id,
-        businessType: selectedCompany.business_type ?? "",
-      })
-    );
+    // The token moves first; on a refusal the UI stays on the current branch.
+    const switched = await switchBranch({
+      branchId: found.branch_id,
+      branchName: found.branch_name,
+      zoduId: selectedCompany.zodu_id,
+      businessType: selectedCompany.business_type ?? "",
+    });
+    if (!switched) return;
 
     try {
       const roleAccess = await authApis.getRoleAccess(selectedCompany.zodu_id, found.branch_id);

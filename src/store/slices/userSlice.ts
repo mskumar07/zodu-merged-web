@@ -38,25 +38,22 @@ const userSlice = createSlice({
       state,
       action: PayloadAction<{
         accessToken: string;
-        refreshToken: string;
         profile: AuthUser;
         company?: CompanyDetails | null;
         companies?: CompanyWithBranches[];
         roleAccess?: RoleAccessItem[];
       }>
     ) => {
-      state.accessToken = action.payload.accessToken;
-      state.refreshToken = action.payload.refreshToken;
+      // The tokens stay out of Redux (and so out of localStorage): the access
+      // token lives in utils/authSession, the refresh token in an HttpOnly cookie.
+      state.accessToken = null;
+      state.refreshToken = null;
       state.profile = action.payload.profile;
       state.company = action.payload.company ?? state.company;
       state.companies = action.payload.companies ?? state.companies;
       state.roleAccess = action.payload.roleAccess ?? state.roleAccess;
       // zoduId, branchId, branchName are set via addUserData after branch selection
-      state.isAuthenticated = Boolean(
-        action.payload.accessToken &&
-        action.payload.refreshToken &&
-        action.payload.profile
-      );
+      state.isAuthenticated = Boolean(action.payload.accessToken && action.payload.profile);
       // A fresh login is the one moment permissions are known to be current, so
       // nothing has to be reconciled behind it.
       state.permissionsStatus = "ready";

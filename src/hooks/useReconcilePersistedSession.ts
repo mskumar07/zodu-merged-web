@@ -11,7 +11,10 @@ import {
   permissionsRefreshStarted,
   permissionsRefreshSucceeded,
 } from "@store/slices/userSlice";
-import { loadBranchSession } from "@pages/auth/loadBranchSession";
+import { loadBranchSession, refreshBranchImageLinks } from "@pages/auth/loadBranchSession";
+
+/** Signed image links are valid for at least 15 minutes; refresh well before. */
+const IMAGE_LINK_REFRESH_MS = 10 * 60 * 1000;
 
 /**
  * Treats the persisted permission fields as an optimistic cache rather than
@@ -125,6 +128,24 @@ export function useReconcilePersistedSession(): ReconciledSession {
 
     void run();
   }, [dispatch, isAuthenticated, zoduId, branchId, retryToken]);
+
+  // Keep the stored logo / invoice image links fresh: every 10 minutes while
+  // the tab is visible, and as soon as it is shown again after a longer gap.
+  useEffect(() => {
+    if (!isAuthenticated || !zoduId || !branchId) return;
+    let last = Date.now();
+    const refresh = () => {
+      if (document.visibilityState !== "visible" || Date.now() - last < IMAGE_LINK_REFRESH_MS) return;
+      last = Date.now();
+      void refreshBranchImageLinks(dispatch, zoduId, branchId);
+    };
+    const timer = window.setInterval(refresh, 60 * 1000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [dispatch, isAuthenticated, zoduId, branchId]);
 
   // With no branch chosen yet there is nothing to fetch and nothing to wait
   // for — SelectBranch loads permissions as part of choosing one, so blocking

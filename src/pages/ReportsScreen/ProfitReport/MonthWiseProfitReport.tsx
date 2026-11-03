@@ -8,7 +8,7 @@ import ShoppingBagOutlinedIcon  from "@mui/icons-material/ShoppingBagOutlined";
 import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import MoneyOffOutlinedIcon     from "@mui/icons-material/MoneyOffOutlined";
 import { useQuery }             from "@tanstack/react-query";
-import axios                    from "axios";
+import http from "@store/services/axiosInstance";
 import { useTenantContext }     from "@store/tenantContext";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
 
@@ -59,7 +59,7 @@ function useActiveYears(zoduId: string, branchId: string, isRestaurant: boolean)
   return useQuery<number[]>({
     queryKey: ["profit-active-years", zoduId, branchId, isRestaurant],
     queryFn: async () => {
-      const { data } = await axios.get(
+      const { data } = await http.get(
         `${API_BASE}/${getBase(isRestaurant)}/api/report/profit/active-years`,
         { params: { zodu_id: zoduId, branch_id: branchId } },
       );
@@ -74,7 +74,7 @@ function useProfitReport(zoduId: string, branchId: string, year: number, isResta
   return useQuery<ProfitResponse>({
     queryKey: ["profit-report", zoduId, branchId, year, isRestaurant],
     queryFn: async () => {
-      const { data } = await axios.get(
+      const { data } = await http.get(
         `${API_BASE}/${getBase(isRestaurant)}/api/report/profit`,
         { params: { zodu_id: zoduId, branch_id: branchId, year } },
       );

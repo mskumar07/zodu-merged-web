@@ -16,6 +16,7 @@
  */
 
 import axios from "axios";
+import http from "@store/services/axiosInstance";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getTenantContext } from "@store/tenantContext";
 
@@ -51,7 +52,7 @@ export const docSequenceQueryKeys = {
 
 export async function fetchDocSequence(docType: DocType): Promise<DocSequence> {
   const { zoduId, branchId } = getTenantContext();
-  const { data } = await axios.get(
+  const { data } = await http.get(
     `${API_BASE}/retail/api/doc-sequence/${zoduId}/${branchId}/${docType}`,
   );
   return (data?.data ?? data) as DocSequence;
@@ -86,7 +87,7 @@ export interface UpdateDocSequenceParams {
 
 async function updateDocSequence({ docType, lastSeq }: UpdateDocSequenceParams): Promise<DocSequence> {
   const { zoduId, branchId } = getTenantContext();
-  const { data } = await axios.put(
+  const { data } = await http.put(
     `${API_BASE}/retail/api/doc-sequence/${zoduId}/${branchId}/${docType}`,
     { last_seq: lastSeq },
   );

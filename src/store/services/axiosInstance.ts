@@ -1,22 +1,30 @@
 // Z-T71
-import axios from "axios";
+import axios, { type AxiosInstance, type AxiosRequestConfig } from "axios";
+import { API_BASE } from "@utils/authSession";
 
-// const baseURL = import.meta.env.VITE_API_BASE_URL;
-   const baseURL = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
-      // const baseURL = " http://localhost:5000";
-// const baseURL = "http://192.168.0.117:5000/"; // For local testing
+// The one HTTP client for every API call in the app. The access token, the
+// platform header and the 401 → refresh → retry come from utils/authSession
+// (installed on it in main.tsx). Modules never set Authorization themselves.
 const axiosInstance = axios.create({
-  baseURL: baseURL, // your backend URL
+  baseURL: API_BASE,
 });
 
-// Example interceptor: attach token if exists
-axiosInstance.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+export type ServiceClient = Pick<AxiosInstance, "get" | "delete" | "post" | "put" | "patch">;
 
-  return config;
-});
+/**
+ * The same client with another base path (e.g. `${API_BASE}/retail/api`), for
+ * modules written against a service-relative URL. Every request still goes
+ * through axiosInstance and its session handling.
+ */
+export function serviceClient(baseURL: string, defaults: AxiosRequestConfig = {}): ServiceClient {
+  const withBase = (config?: AxiosRequestConfig): AxiosRequestConfig => ({ ...defaults, ...config, baseURL });
+  return {
+    get: (url, config) => axiosInstance.get(url, withBase(config)),
+    delete: (url, config) => axiosInstance.delete(url, withBase(config)),
+    post: (url, data, config) => axiosInstance.post(url, data, withBase(config)),
+    put: (url, data, config) => axiosInstance.put(url, data, withBase(config)),
+    patch: (url, data, config) => axiosInstance.patch(url, data, withBase(config)),
+  } as ServiceClient;
+}
 
 export default axiosInstance;

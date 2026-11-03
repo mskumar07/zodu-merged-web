@@ -6,7 +6,6 @@ import type { RootState } from "./store";
 type PersistedUserState = {
   zoduId?: string;
   branchId?: string;
-  accessToken?: string | null;
   businessType?: string;
 };
 
@@ -48,14 +47,7 @@ export function getTenantContext() {
 
 
 
-export function getAccessToken() {
-  const state = store.getState().user;
-  const persistedState = readPersistedUserState();
-
-  return (
-    state.accessToken ||
-    persistedState?.accessToken ||
-    localStorage.getItem("access_token") ||
-    localStorage.getItem("token")
-  );
-}
+// The access token is held in memory by utils/authSession (never in storage).
+// Callers that set Authorization themselves get the current one; the session
+// interceptor sets it on every API request anyway.
+export { getAccessToken } from "@utils/authSession";

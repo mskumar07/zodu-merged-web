@@ -8,6 +8,7 @@
  */
 
 import axios from "axios";
+import http, { serviceClient } from "@store/services/axiosInstance";
 import {
   useQuery,
   useMutation,
@@ -17,7 +18,7 @@ import {
   type UseMutationResult,
   type InfiniteData,
 } from "@tanstack/react-query";
-import { getTenantContext, getAccessToken, useTenantContext } from "@store/tenantContext";
+import { getTenantContext, useTenantContext } from "@store/tenantContext";
 import { clearSyncMeta } from "@pages/POS/db";
 import { posProductsKey } from "@pages/POS/useposproducts";
 
@@ -29,14 +30,7 @@ function getRoute() {
 }
 
 function getApi() {
-  const token = getAccessToken();
-  return axios.create({
-    baseURL: `${API_BASE}/${getRoute()}/api`,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
+  return serviceClient(`${API_BASE}/${getRoute()}/api`);
 }
 
 // ─── Types ────────────────────────────────────────────────────
@@ -217,18 +211,16 @@ async function fetchCategoriesPage(
   limit = 15
 ): Promise<{ categories: Category[]; currentPage: number; totalPages: number }> {
   const { branchId, zoduId, businessType } = getTenantContext();
-  const token = getAccessToken();
 
   if (businessType === "Restaurant") {
     const types = serviceType === "expense" ? ["E"]
       : serviceType === "product" ? ["F", "P"]
       : ["M"];
-    const { data } = await axios.get<CategoryFilterPage>(
+    const { data } = await http.get<CategoryFilterPage>(
       `${API_BASE}/${getRoute()}/get/category/${zoduId}/${branchId}`,
       {
         params: { type: types, page, limit },
-        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      }
+        }
     );
     const rows = data.Data ?? data.data ?? [];
     return {
@@ -239,9 +231,9 @@ async function fetchCategoriesPage(
   }
 
   const type = serviceType === "expense" ? "E" : serviceType === "product" ? "S" : "M";
-  const { data } = await axios.get<CategoryFilterPage>(
+  const { data } = await http.get<CategoryFilterPage>(
     `${API_BASE}/${getRoute()}/get/category/${type}/${branchId}/${zoduId}`,
-    { params: { page, limit }, headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
+    { params: { page, limit }, }
   );
   const rows = data.Data ?? data.data ?? [];
   return {
@@ -262,10 +254,8 @@ async function fetchCategories(
  * GET /retail/get/gst — one common rate list, no tenant params.
  */
 async function fetchGstList(): Promise<GstOption[]> {
-  const token = getAccessToken();
-  const { data } = await axios.get<{ data: ApiGst[] }>(
-    `${API_BASE}/${getRoute()}/get/gst`,
-    { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
+  const { data } = await http.get<{ data: ApiGst[] }>(
+    `${API_BASE}/${getRoute()}/get/gst`
   );
   return (data.data ?? []).map((g) => ({
     value:      g.id,                        // id → value (sent as gst_type to API)
@@ -280,10 +270,8 @@ async function fetchGstList(): Promise<GstOption[]> {
  */
 async function fetchUnitList(): Promise<UnitOption[]> {
   const { branchId,zoduId } = getTenantContext();
-  const token = getAccessToken();
-  const { data } = await axios.get<{ Data?: ApiUnit[]; data?: ApiUnit[] }>(
-    `${API_BASE}/${getRoute()}/get/units/${branchId}/${zoduId}`,
-    { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
+  const { data } = await http.get<{ Data?: ApiUnit[]; data?: ApiUnit[] }>(
+    `${API_BASE}/${getRoute()}/get/units/${branchId}/${zoduId}`
   );
   const rows = data.Data ?? data.data ?? [];
   return rows.map((u) => ({
@@ -409,11 +397,9 @@ async function postAddCategory(
   payload: AddCategoryPayload
 ): Promise<Category & { apiMessage: string }> {
   const { zoduId, branchId } = getTenantContext();
-  const token = getAccessToken();
-  const { data } = await axios.post<{ message: string; data: ApiCategory }>(
+  const { data } = await http.post<{ message: string; data: ApiCategory }>(
     `${API_BASE}/${getRoute()}/add/category`,
-    { zodu_id: zoduId, branch_id: branchId, name: payload.name.trim(), type: payload.type },
-    { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
+    { zodu_id: zoduId, branch_id: branchId, name: payload.name.trim(), type: payload.type }
   );
   const created = data.data;
   return {
@@ -456,18 +442,17 @@ export interface CheckCategoryNameParams {
 
 export async function checkCategoryName({ name, type }: CheckCategoryNameParams): Promise<CheckCategoryNameResponse> {
   const { zoduId, branchId } = getTenantContext();
-  const token = getAccessToken();
-  const headers = { ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const headers = { };
 
   if (getRoute() === "restaurant") {
-    const { data } = await axios.get<CheckCategoryNameResponse>(
+    const { data } = await http.get<CheckCategoryNameResponse>(
       `${API_BASE}/restaurant/category-name`,
       { params: { zodu_id: zoduId, branch_id: branchId, name: name.trim(), type }, headers }
     );
     return data;
   }
 
-  const { data } = await axios.post<CheckCategoryNameResponse>(
+  const { data } = await http.post<CheckCategoryNameResponse>(
     `${API_BASE}/retail/check/category-name`,
     { zodu_id: zoduId, branch_id: branchId, category_name: name.trim() },
     { headers }
@@ -545,7 +530,7 @@ export function useHardDeleteMenuItem(options?: {
       queryClient.invalidateQueries({ queryKey: ["menu", "items"] });
       const { branchId, zoduId } = getTenantContext();
       if (branchId && zoduId) {
-        await clearSyncMeta(branchId);
+        await clearSyncMeta(zoduId, branchId);
         queryClient.invalidateQueries({ queryKey: posProductsKey(branchId, zoduId) });
       }
       options?.onSuccess?.(data);
@@ -797,7 +782,7 @@ export function useAddMenuItem(options?: {
     onSuccess: async (data) => {
       const { branchId, zoduId } = getTenantContext();
       if (branchId && zoduId) {
-        await clearSyncMeta(branchId);
+        await clearSyncMeta(zoduId, branchId);
         queryClient.invalidateQueries({ queryKey: posProductsKey(branchId, zoduId) });
       }
       options?.onSuccess?.(data);
@@ -837,13 +822,11 @@ async function fetchCategoryPage(
 ): Promise<CategoryListPage> {
   const { zoduId, branchId } = getTenantContext();
   const types = type.split(",").map((t) => t.trim()).filter(Boolean);
-  const token = getAccessToken();
-  const { data } = await axios.get<CategoryListPage>(
+  const { data } = await http.get<CategoryListPage>(
     `${API_BASE}/${getRoute()}/get/category/${zoduId}/${branchId}`,
     {
       params:  { type: types, page, limit, ...(activeOnly ? { active: true } : {}), ...(categoryName ? { category_name: categoryName } : {}) },
-      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    }
+      }
   );
   return data;
 }
@@ -885,11 +868,9 @@ async function patchUpdateCategory(
   payload: UpdateCategoryPayload
 ): Promise<{ message: string }> {
   const { zoduId, branchId } = getTenantContext();
-  const token = getAccessToken();
-  const { data } = await axios.put<{ message: string }>(
+  const { data } = await http.put<{ message: string }>(
     `${API_BASE}/${getRoute()}/update/category/${payload.id}`,
-    { zodu_id: zoduId, branch_id: branchId, name: payload.name.trim(), type: payload.type },
-    { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
+    { zodu_id: zoduId, branch_id: branchId, name: payload.name.trim(), type: payload.type }
   );
   return data;
 }
@@ -928,11 +909,9 @@ async function putToggleCategoryStatus(payload: {
   pageExpense: boolean;
 }): Promise<{ message: string }> {
   const { zoduId, branchId } = getTenantContext();
-  const token = getAccessToken();
-  const { data } = await axios.put<{ message: string }>(
+  const { data } = await http.put<{ message: string }>(
     `${API_BASE}/${getRoute()}/inactivate/category/${payload.id}`,
-    { zodu_id: zoduId, branch_id: branchId, active: payload.active, page_expense: payload.pageExpense },
-    { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
+    { zodu_id: zoduId, branch_id: branchId, active: payload.active, page_expense: payload.pageExpense }
   );
   return data;
 }
@@ -967,10 +946,8 @@ export function useToggleCategoryStatus(options?: {
  */
 async function deleteCategory(payload: { id: number; pageExpense: boolean }): Promise<{ success: boolean; message: string }> {
   const { zoduId, branchId } = getTenantContext();
-  const token = getAccessToken();
-  const { data } = await axios.delete<{ success: boolean; message: string }>(
-    `${API_BASE}/${getRoute()}/delete/category/${payload.id}/${branchId}/${zoduId}/${payload.pageExpense}`,
-    { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
+  const { data } = await http.delete<{ success: boolean; message: string }>(
+    `${API_BASE}/${getRoute()}/delete/category/${payload.id}/${branchId}/${zoduId}/${payload.pageExpense}`
   );
   return data;
 }
@@ -1034,7 +1011,7 @@ export function useEditMenuItem(options?: {
       queryClient.invalidateQueries({ queryKey: ["menu", "items"] });
       const { branchId, zoduId } = getTenantContext();
       if (branchId && zoduId) {
-        await clearSyncMeta(branchId);
+        await clearSyncMeta(zoduId, branchId);
         queryClient.invalidateQueries({ queryKey: posProductsKey(branchId, zoduId) });
       }
       options?.onSuccess?.(data);

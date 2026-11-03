@@ -14,10 +14,10 @@
  * All under /restaurant, all scoped by zodu_id + branch_id.
  */
 
-import axios, { AxiosError } from "axios";
+import { AxiosError } from "axios";
+import http from "@store/services/axiosInstance";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiConfig } from "@config/api";
-import { getAccessToken } from "@store/tenantContext";
 import type { KotBatch } from "@utils/kot/kotTicket";
 import type {
   BillingCopyMode,
@@ -30,10 +30,6 @@ import type {
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
-function authHeaders() {
-  const token = getAccessToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -96,9 +92,8 @@ export function useKotCounters(zoduId: string, branchId: string) {
   return useQuery({
     queryKey: KOT_COUNTERS_KEY(zoduId, branchId),
     queryFn: async (): Promise<KotCounter[]> => {
-      const { data } = await axios.get(
-        `${API_BASE}${apiConfig.menu.getKotCounters(zoduId, branchId)}`,
-        { headers: authHeaders() }
+      const { data } = await http.get(
+        `${API_BASE}${apiConfig.menu.getKotCounters(zoduId, branchId)}`
       );
       return data?.data ?? [];
     },
@@ -126,10 +121,9 @@ export function useAddKotCounter(zoduId: string, branchId: string, opts?: {
     // A bare name is what the bulk-assign modal sends; Settings sends the full counter.
     mutationFn: async (input: string | KotCounterInput): Promise<KotCounter> => {
       const body = typeof input === "string" ? { counter_name: input } : input;
-      const { data } = await axios.post(
+      const { data } = await http.post(
         `${API_BASE}${apiConfig.menu.addKotCounter()}`,
-        { zodu_id: zoduId, branch_id: branchId, ...body },
-        { headers: authHeaders() }
+        { zodu_id: zoduId, branch_id: branchId, ...body }
       );
       return data?.data;
     },
@@ -149,9 +143,8 @@ export function useKotAssignment(zoduId: string, branchId: string) {
   return useQuery({
     queryKey: KOT_ASSIGNMENT_KEY(zoduId, branchId),
     queryFn: async (): Promise<KotAssignmentCategory[]> => {
-      const { data } = await axios.get(
-        `${API_BASE}${apiConfig.menu.getKotAssignment(zoduId, branchId)}`,
-        { headers: authHeaders() }
+      const { data } = await http.get(
+        `${API_BASE}${apiConfig.menu.getKotAssignment(zoduId, branchId)}`
       );
       return data?.data ?? [];
     },
@@ -174,15 +167,14 @@ export function useAssignKotCounterItems(zoduId: string, branchId: string, opts?
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ kotCounterId, menuItemIds }: AssignPayload) => {
-      const { data } = await axios.post(
+      const { data } = await http.post(
         `${API_BASE}${apiConfig.menu.assignKotCounterItems()}`,
         {
           zodu_id: zoduId,
           branch_id: branchId,
           kot_counter_id: kotCounterId,
           menu_item_ids: menuItemIds,
-        },
-        { headers: authHeaders() }
+        }
       );
       return data;
     },
@@ -202,10 +194,9 @@ export function useUpdateKotCounter(zoduId: string, branchId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...input }: Required<KotCounterInput> & { id: number }): Promise<KotCounter> => {
-      const { data } = await axios.put(
+      const { data } = await http.put(
         `${API_BASE}${apiConfig.menu.updateKotCounter(id)}`,
-        { zodu_id: zoduId, branch_id: branchId, ...input },
-        { headers: authHeaders() }
+        { zodu_id: zoduId, branch_id: branchId, ...input }
       );
       return data?.data;
     },
@@ -217,7 +208,7 @@ export function useDeleteKotCounter(zoduId: string, branchId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: number) => {
-      await axios.delete(`${API_BASE}${apiConfig.menu.deleteKotCounter(id, zoduId, branchId)}`, { headers: authHeaders() });
+      await http.delete(`${API_BASE}${apiConfig.menu.deleteKotCounter(id, zoduId, branchId)}`);
     },
     onSuccess: () => invalidateKot(qc),
   });
@@ -229,7 +220,7 @@ export function useKotPrinters(zoduId: string, branchId: string) {
   return useQuery({
     queryKey: KOT_PRINTERS_KEY(zoduId, branchId),
     queryFn: async (): Promise<KotPrinter[]> => {
-      const { data } = await axios.get(`${API_BASE}${apiConfig.menu.getKotPrinters(zoduId, branchId)}`, { headers: authHeaders() });
+      const { data } = await http.get(`${API_BASE}${apiConfig.menu.getKotPrinters(zoduId, branchId)}`);
       return data?.data ?? [];
     },
     enabled: !!zoduId && !!branchId,
@@ -260,8 +251,8 @@ export function useSaveKotPrinter(zoduId: string, branchId: string) {
         active:          input.active,
       };
       const { data } = id
-        ? await axios.put(`${API_BASE}${apiConfig.menu.updateKotPrinter(id)}`, body, { headers: authHeaders() })
-        : await axios.post(`${API_BASE}${apiConfig.menu.addKotPrinter()}`, body, { headers: authHeaders() });
+        ? await http.put(`${API_BASE}${apiConfig.menu.updateKotPrinter(id)}`, body)
+        : await http.post(`${API_BASE}${apiConfig.menu.addKotPrinter()}`, body);
       return data?.data;
     },
     onSuccess: () => invalidateKot(qc),
@@ -272,7 +263,7 @@ export function useDeleteKotPrinter(zoduId: string, branchId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: number) => {
-      await axios.delete(`${API_BASE}${apiConfig.menu.deleteKotPrinter(id, zoduId, branchId)}`, { headers: authHeaders() });
+      await http.delete(`${API_BASE}${apiConfig.menu.deleteKotPrinter(id, zoduId, branchId)}`);
     },
     onSuccess: () => invalidateKot(qc),
   });
@@ -284,7 +275,7 @@ export function useKotSettings(zoduId: string, branchId: string) {
   return useQuery({
     queryKey: KOT_SETTINGS_KEY(zoduId, branchId),
     queryFn: async (): Promise<KotSettings> => {
-      const { data } = await axios.get(`${API_BASE}${apiConfig.menu.getKotSettings(zoduId, branchId)}`, { headers: authHeaders() });
+      const { data } = await http.get(`${API_BASE}${apiConfig.menu.getKotSettings(zoduId, branchId)}`);
       return data?.data;
     },
     enabled: !!zoduId && !!branchId,
@@ -296,10 +287,9 @@ export function useUpdateKotSettings(zoduId: string, branchId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (settings: KotSettings): Promise<KotSettings> => {
-      const { data } = await axios.put(
+      const { data } = await http.put(
         `${API_BASE}${apiConfig.menu.updateKotSettings()}`,
-        { zodu_id: zoduId, branch_id: branchId, ...settings },
-        { headers: authHeaders() }
+        { zodu_id: zoduId, branch_id: branchId, ...settings }
       );
       return data?.data;
     },
@@ -312,7 +302,7 @@ export function useUpdateKotSettings(zoduId: string, branchId: string) {
 export const kotConfigQuery = (zoduId: string, branchId: string) => ({
   queryKey: KOT_CONFIG_KEY(zoduId, branchId),
   queryFn: async (): Promise<KotConfig> => {
-    const { data } = await axios.get(`${API_BASE}${apiConfig.menu.getKotConfig(zoduId, branchId)}`, { headers: authHeaders() });
+    const { data } = await http.get(`${API_BASE}${apiConfig.menu.getKotConfig(zoduId, branchId)}`);
     return data?.data;
   },
 });
@@ -338,7 +328,7 @@ export function useKotItemRouting(zoduId: string, branchId: string, menuId: stri
   return useQuery({
     queryKey: KOT_ROUTING_KEY(zoduId, branchId, menuId ?? ""),
     queryFn: async (): Promise<KotItemRouting> => {
-      const { data } = await axios.get(`${API_BASE}${apiConfig.menu.getKotItemRouting(zoduId, branchId, menuId!)}`, { headers: authHeaders() });
+      const { data } = await http.get(`${API_BASE}${apiConfig.menu.getKotItemRouting(zoduId, branchId, menuId!)}`);
       return data?.data;
     },
     enabled: !!zoduId && !!branchId && !!menuId,
@@ -347,23 +337,21 @@ export function useKotItemRouting(zoduId: string, branchId: string, menuId: stri
 }
 
 export async function updateKotItemRouting(zoduId: string, branchId: string, routing: KotItemRouting): Promise<KotItemRouting> {
-  const { data } = await axios.put(
+  const { data } = await http.put(
     `${API_BASE}${apiConfig.menu.updateKotItemRouting()}`,
-    { zodu_id: zoduId, branch_id: branchId, ...routing },
-    { headers: authHeaders() }
+    { zodu_id: zoduId, branch_id: branchId, ...routing }
   );
   return data?.data;
 }
 
 export async function fetchKotTickets(zoduId: string, branchId: string, apiOrderId: string): Promise<KotBatch[]> {
-  const { data } = await axios.get(`${API_BASE}${apiConfig.menu.getKotTickets(zoduId, branchId, apiOrderId)}`, { headers: authHeaders() });
+  const { data } = await http.get(`${API_BASE}${apiConfig.menu.getKotTickets(zoduId, branchId, apiOrderId)}`);
   return data?.data ?? [];
 }
 
 export async function postKotPrintLog(zoduId: string, branchId: string, entries: PrintLogEntry[]): Promise<void> {
-  await axios.post(
+  await http.post(
     `${API_BASE}${apiConfig.menu.addKotPrintLog()}`,
-    { zodu_id: zoduId, branch_id: branchId, entries },
-    { headers: authHeaders() }
+    { zodu_id: zoduId, branch_id: branchId, entries }
   );
 }

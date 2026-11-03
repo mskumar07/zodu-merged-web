@@ -80,3 +80,31 @@ export async function loadBranchSession(
 
   return result;
 }
+
+/**
+ * Re-reads the settings and companies only, for their image links: the logo,
+ * signature, watermark and receiver-signature URLs are signed and expire
+ * (15–30 minutes), so a long-open tab would otherwise print invoices with
+ * broken images. Leaves what Redux has on failure.
+ */
+export async function refreshBranchImageLinks(
+  dispatch: AppDispatch,
+  zoduId: string,
+  branchId: string
+): Promise<void> {
+  const [settings, companies] = await Promise.allSettled([
+    authApis.getSettings(zoduId, branchId),
+    authApis.getMyCompanies(),
+  ]);
+  if (settings.status === "fulfilled") {
+    dispatch(setInvoiceSettings(settings.value.settings?.invoice ?? null));
+    dispatch(setDocumentSettings({
+      quotation: settings.value.settings?.quotation ?? null,
+      proforma: settings.value.settings?.proforma ?? null,
+    }));
+    dispatch(setPosSettings(settings.value.settings?.pos ?? null));
+  }
+  if (companies.status === "fulfilled" && companies.value.length > 0) {
+    dispatch(setCompanies(companies.value));
+  }
+}

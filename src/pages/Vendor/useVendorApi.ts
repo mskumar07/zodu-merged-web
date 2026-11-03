@@ -1,20 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
-import { getTenantContext, getAccessToken } from "@store/tenantContext";
+import { serviceClient } from "@store/services/axiosInstance";
+import { getTenantContext } from "@store/tenantContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 
 function getApi() {
   const { businessType } = getTenantContext();
   const route = businessType === "Restaurant" ? "restaurant" : "retail";
-  const token = getAccessToken();
-  return axios.create({
-    baseURL: `${API_BASE}/${route}/api`,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
+  return serviceClient(`${API_BASE}/${route}/api`);
 }
 
 export interface CreateVendorPayload {

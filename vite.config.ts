@@ -53,7 +53,9 @@ export default defineConfig({
       '/auth':       { target: 'http://localhost:5001', changeOrigin: true },
       '/retail':     { target: 'http://localhost:5001', changeOrigin: true },
       '^/restaurant/': { target: 'http://localhost:5001', changeOrigin: true },
-      '/employee':   { target: 'http://localhost:5001', changeOrigin: true },
+      // Anchored like /restaurant/: a bare '/employee' prefix also caught the
+      // /employee-management page and sent it to the API (404).
+      '^/employee/': { target: 'http://localhost:5001', changeOrigin: true },
     },
   },
   resolve: {

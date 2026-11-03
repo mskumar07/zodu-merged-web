@@ -9,7 +9,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
+import http from "@store/services/axiosInstance";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 
@@ -112,7 +112,7 @@ export interface ApiHold {
 
 // ── Fetch holds ───────────────────────────────────────────────
 async function fetchHolds(zoduId: string, branchId: string): Promise<ApiHold[]> {
-  const { data } = await axios.get(
+  const { data } = await http.get(
     `${API_BASE}/retail/get/hold_menu/${zoduId}/${branchId}`
   );
   return data.data ?? [];
@@ -120,7 +120,7 @@ async function fetchHolds(zoduId: string, branchId: string): Promise<ApiHold[]> 
 
 // ── Save hold ─────────────────────────────────────────────────
 async function saveHold(payload: SaveHoldPayload): Promise<{ hold_uuid: string }> {
-  const { data } = await axios.post(
+  const { data } = await http.post(
     `${API_BASE}/retail/add/hold_menu`,
     payload
   );
@@ -129,7 +129,7 @@ async function saveHold(payload: SaveHoldPayload): Promise<{ hold_uuid: string }
 
 // ── Delete hold ───────────────────────────────────────────────
 async function deleteHold(holdUuid: string): Promise<void> {
-  await axios.delete(
+  await http.delete(
     `${API_BASE}/retail/delete/hold-menu/${holdUuid}`
   );
 }

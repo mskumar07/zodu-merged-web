@@ -1,14 +1,10 @@
-import axios from "axios";
+import http from "@store/services/axiosInstance";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { apiConfig } from "@config/api";
-import { getTenantContext, getAccessToken } from "@store/tenantContext";
+import { getTenantContext } from "@store/tenantContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
-function authHeaders() {
-  const token = getAccessToken() ?? localStorage.getItem("token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
 
 function getRoute() {
   const { businessType } = getTenantContext();
@@ -90,9 +86,9 @@ async function fetchMenuList(
   if (search)   params.search = search;
   if (categoryIds?.length) params.category_ids = categoryIds.join(",");
 
-  const { data } = await axios.get(
+  const { data } = await http.get(
     `${API_BASE}/${route}/api/menu/get/menu_item/${zoduId}/${branchId}`,
-    { params, headers: authHeaders() }
+    { params }
   );
   return {
     data: (data?.data ?? []) as RestaurantMenuListItem[],
@@ -128,27 +124,24 @@ export function useInfiniteRestaurantMenu(
 
 export async function updateMenuFav(menuId: string, fav: boolean): Promise<void> {
   const route = getRoute();
-  await axios.put(
+  await http.put(
     `${API_BASE}/${route}/api/menu/update/menusfav/${fav}/${menuId}`,
-    {},
-    { headers: authHeaders() }
+    {}
   );
 }
 
 export async function updateMenuStatus(menuId: string, active: boolean): Promise<void> {
   const route = getRoute();
-  await axios.put(
+  await http.put(
     `${API_BASE}/${route}/api/menu/update/menustatus/${active}/${menuId}`,
-    {},
-    { headers: authHeaders() }
+    {}
   );
 }
 
 export async function deleteMenuItem(menuId: string): Promise<void> {
   const route = getRoute();
-  await axios.delete(
-    `${API_BASE}/${route}/api/menu/delete/menu_item/${menuId}`,
-    { headers: authHeaders() }
+  await http.delete(
+    `${API_BASE}/${route}/api/menu/delete/menu_item/${menuId}`
   );
 }
 
@@ -165,7 +158,7 @@ async function fetchCategories(
     page,
     CATEGORY_PAGE_SIZE
   )}`;
-  const { data } = await axios.get(url, { headers: authHeaders() });
+  const { data } = await http.get(url);
   return {
     data: (data?.Data ?? []) as RestaurantCategory[],
     pagination: data?.pagination ?? {

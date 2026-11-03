@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import axios from "axios";
+import http from "@store/services/axiosInstance";
 import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { getTenantContext } from "@store/tenantContext";
 
@@ -156,7 +157,7 @@ async function fetchEmployeePage(
     limit: "10",
   };
   if (search) params.search = search;
-  const { data } = await axios.get(EMP_BASE, { params });
+  const { data } = await http.get(EMP_BASE, { params });
   if (data.success) return { data: data.data ?? [], pagination: data.pagination };
   return { data: [], pagination: { total: 0, page, limit: 10, pages: 1 } };
 }
@@ -188,7 +189,7 @@ export interface EmployeeStats {
 // key so every save, delete or login change refreshes them.
 async function fetchEmployeeStats(): Promise<EmployeeStats> {
   const { zoduId, branchId } = getTenantContext();
-  const { data } = await axios.get(EMP_BASE, {
+  const { data } = await http.get(EMP_BASE, {
     params: { zodu_id: zoduId ?? "", branch_id: branchId ?? "", status: "active", page: 1, limit: 1 },
   });
   return {
@@ -227,7 +228,7 @@ export function useEmployeeStats(listStats?: EmployeeStats) {
 
 async function fetchAllActiveEmployees(): Promise<EmployeeListItem[]> {
   const { zoduId, branchId } = getTenantContext();
-  const { data } = await axios.get(EMP_BASE, {
+  const { data } = await http.get(EMP_BASE, {
     params: { zodu_id: zoduId ?? "", branch_id: branchId ?? "", status: "active", page: 1, limit: 200 },
   });
   if (data.success) return data.data ?? [];
@@ -248,7 +249,7 @@ export function useActiveEmployees(enabled = true) {
 
 async function fetchEmployee(employeeId: string): Promise<EmployeeDetail> {
   const { zoduId, branchId } = getTenantContext();
-  const { data } = await axios.get(`${EMP_BASE}/${employeeId}`, {
+  const { data } = await http.get(`${EMP_BASE}/${employeeId}`, {
     params: { zodu_id: zoduId, branch_id: branchId },
   });
   if (data.success) return data.data;
@@ -267,7 +268,7 @@ export function useEmployeeDetail(employeeId: string | null) {
 // ─── Create employee ──────────────────────────────────────────
 
 async function createEmployee(payload: CreateEmployeePayload) {
-  const { data } = await axios.post(EMP_BASE, payload);
+  const { data } = await http.post(EMP_BASE, payload);
   return data;
 }
 
@@ -300,7 +301,7 @@ async function updateEmployee({
   employeeId: string;
   payload: Partial<CreateEmployeePayload>;
 }) {
-  const { data } = await axios.put(`${EMP_BASE}/${employeeId}`, payload);
+  const { data } = await http.put(`${EMP_BASE}/${employeeId}`, payload);
   return data;
 }
 
@@ -355,7 +356,7 @@ interface SetLoginDetailsArgs {
 
 async function setLoginDetails({ employeeId, payload, loginUser }: SetLoginDetailsArgs) {
   const { zoduId, branchId } = getTenantContext();
-  const { data } = await axios.put<LoginDetailsResult>(
+  const { data } = await http.put<LoginDetailsResult>(
     `${EMP_BASE}/${employeeId}/login-details`,
     {
       zodu_id: zoduId ?? "",
@@ -408,7 +409,7 @@ export async function uploadEmployeeDocument(
   fd.append("zodu_id", zoduId ?? "");
   fd.append("branch_id", branchId ?? "");
   fd.append("document_type", documentType);
-  const { data } = await axios.post(`${EMP_BASE}/${employeeId}/documents`, fd, {
+  const { data } = await http.post(`${EMP_BASE}/${employeeId}/documents`, fd, {
     headers: { "Content-Type": "multipart/form-data" },
   });
   if (data.success) return data.data as UploadedDocument;
@@ -450,7 +451,7 @@ export async function deleteEmployeeDocument(
   docId: string
 ): Promise<void> {
   const { zoduId, branchId } = getTenantContext();
-  const { data } = await axios.delete(`${EMP_BASE}/${employeeId}/documents/${docId}`, {
+  const { data } = await http.delete(`${EMP_BASE}/${employeeId}/documents/${docId}`, {
     data: { zodu_id: zoduId, branch_id: branchId },
   });
   if (!data.success) throw new Error(data.error ?? "Delete failed");
@@ -462,7 +463,7 @@ export async function deleteEmployeeDocument(
 
 async function setEmployeeStatus(employeeId: string, status: "active" | "inactive") {
   const { zoduId, branchId } = getTenantContext();
-  const { data } = await axios.put(`${EMP_BASE}/active-inactive/${employeeId}`, {
+  const { data } = await http.put(`${EMP_BASE}/active-inactive/${employeeId}`, {
     zodu_id: zoduId,
     branch_id: branchId,
     status,

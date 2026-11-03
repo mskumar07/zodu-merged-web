@@ -441,6 +441,7 @@ import type { InvoiceSettings as ThermalInvoiceSettings } from "@pages/auth/Auth
 import { isQuotationSaleType, saleDocumentLabel } from "@utils/saleType";
 import { resolveTermsForSaleType } from "@utils/invoiceTerms";
 import { normalizeInvoiceCopyTypes } from "@utils/invoiceCopyTypes";
+import { loadReadableImage } from "@utils/readableImage";
 import { toThermalTemplate, type ThermalTemplate } from "@utils/thermalTemplate";
 
 // ── Paper sizes ────────────────────────────────────────────────────────────
@@ -580,10 +581,10 @@ function useTrimmedLogo(src: string): { src: string; ratio: number } | null {
     setLogo(cached ?? null);
     if (!src || cached) return;
     let cancelled = false;
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      if (cancelled) return;
+    // Not a crossOrigin <img>: that one is served the copy a plain <img> cached
+    // without CORS headers, fails, and the logo printed blank (see loadReadableImage).
+    void loadReadableImage(src).then((img) => {
+      if (cancelled || !img) return;
       const { naturalWidth: w, naturalHeight: h } = img;
       if (!w || !h) return;
       let result = { src, ratio: w / h };
@@ -631,8 +632,7 @@ function useTrimmedLogo(src: string): { src: string; ratio: number } | null {
       }
       trimmedLogos.set(src, result);
       setLogo(result);
-    };
-    img.src = src;
+    });
     return () => {
       cancelled = true;
     };
