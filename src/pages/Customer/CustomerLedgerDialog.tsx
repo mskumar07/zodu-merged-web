@@ -6,7 +6,7 @@
  *  ✅ Real API data via useCustomerLedger hook
  *  ✅ Server-side date filtering (fromDate / toDate)
  *  ✅ Server-side payment method filtering
- *  ✅ Client-side invoice search (debounced)
+ *  ✅ Server-side invoice search (debounced)
  *  ✅ Skeleton loading states
  *  ✅ Error + empty states
  *  ✅ Fixed date filter visual style (consistent height, brand focus ring,
@@ -179,7 +179,7 @@ function PaymentSkeletonRows() {
 
 // ─── Whole-rupee formatting for stat cards (no decimals) ──────
 function formatCurrencyWhole(amount: number): string {
-  return Math.round(Math.abs(amount)).toLocaleString("en-IN");
+  return Math.round(amount).toLocaleString("en-IN");
 }
 
 // ─── Compact stat card — same visual language as the shared StatCard,
@@ -328,12 +328,12 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
   const [fromDate, setFromDate] = useState("");
   const [toDate,   setToDate]   = useState("");
 
-  // ── Client-side search (debounced) ───────────────────────
+  // ── Server-side search (debounced so we don't call the API on every keystroke) ──
   const [searchRaw,   setSearchRaw]   = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    const t = setTimeout(() => setSearchQuery(searchRaw.trim().toLowerCase()), 250);
+    const t = setTimeout(() => setSearchQuery(searchRaw.trim()), 400);
     return () => clearTimeout(t);
   }, [searchRaw]);
 
@@ -341,8 +341,9 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
   const ledgerFilters = useMemo<LedgerFilters>(() => ({
     fromDate: fromDate || undefined,
     toDate:   toDate   || undefined,
+    search:   searchQuery || undefined,
     limit:    100,
-  }), [fromDate, toDate]);
+  }), [fromDate, toDate, searchQuery]);
 
   const salesQuery   = useCustomerLedger(open ? custUuid : null, ledgerFilters);
   const paymentQuery = useCustomerLedger(open ? custUuid : null, ledgerFilters);
@@ -358,16 +359,6 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
     salesQuery.data?.customer?.cust_name  ||
     customerName;
   const displayCustId = salesQuery.data?.customer?.cust_id;
-
-  // ── Client-side invoice search filter ────────────────────
-  const filteredSales = useMemo(() => {
-    if (!searchQuery) return salesAndReturns;
-    return salesAndReturns.filter(
-      (r) =>
-        r.doc_id.toLowerCase().includes(searchQuery) ||
-        r.description.toLowerCase().includes(searchQuery)
-    );
-  }, [salesAndReturns, searchQuery]);
 
   // ── Payment history total ─────────────────────────────────
   const totalPaymentAmount = useMemo(
@@ -602,7 +593,7 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
 
                     {/* Rows */}
                     {!salesQuery.isLoading &&
-                      filteredSales.map((row) => {
+                      salesAndReturns.map((row) => {
                         const isReturn   = row.doc_type === "RETURN";
                         const total      = toNum(row.total_amount);
                         const paid       = toNum(row.paid_amount);
@@ -695,7 +686,7 @@ const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                       })}
 
                     {/* Empty */}
-                    {!salesQuery.isLoading && filteredSales.length === 0 && (
+                    {!salesQuery.isLoading && salesAndReturns.length === 0 && (
                       <TableRow sx={{ height: 300 }}>
                         <TableCell
                           colSpan={6}
