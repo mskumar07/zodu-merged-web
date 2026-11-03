@@ -664,7 +664,6 @@ export default function CustomerManagement({
               columns={columns}
               rows={filtered}
               rowKey={(customer) => customer.id}
-              onRowClick={handleCustomerClick}
               isLoading={isLoading}
               hasNextPage={hasNextPage}
               isFetchingNextPage={isFetchingNextPage}

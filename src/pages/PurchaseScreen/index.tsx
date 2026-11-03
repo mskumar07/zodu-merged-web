@@ -9,6 +9,7 @@ import { Circle } from "@mui/icons-material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AddIcon           from "@mui/icons-material/Add";
 import SearchIcon        from "@mui/icons-material/Search";
+import FilterListOffIcon from "@mui/icons-material/FilterListOff";
 
 import AddNewPurchaseDialog  from "./Addnewpuechasedialog";
 import PurchaseStats         from "./PurchaseStats";
@@ -34,6 +35,7 @@ import { useModulePermission } from "@hooks/useModulePermission";
 import { closeFromControlsOnly } from "@utils/dialog";
 import { useSubscriptionGuard } from "@hooks/useSubscriptionGuard";
 import TableActionButton from "@components/Common/TableActionButton";
+import { DateRangeChip } from "@components/Reports/utils/DateRangeChip";
 
 const theme = createTheme({
   palette: {
@@ -99,6 +101,8 @@ export default function PurchaseScreen() {
   const { canCreate, canEdit, canDelete } = useModulePermission("Purchase");
   const [search, setSearch]               = useState("");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<PurchaseStatus | "">("");
+  const [fromDate, setFromDate]           = useState("");
+  const [toDate, setToDate]               = useState("");
   const [addDialogOpen, setAddDialog]     = useState(false);
   const [editPurchaseId, setEditPurchaseId] = useState<string | null>(null);
   const [paymentTarget, setPayment]       = useState<PurchaseRow | null>(null);
@@ -120,6 +124,8 @@ export default function PurchaseScreen() {
   } = usePurchases({
     ...(search ? { search } : {}),
     ...(paymentStatusFilter ? { payment_status: paymentStatusFilter } : {}),
+    ...(fromDate ? { from_date: fromDate } : {}),
+    ...(toDate ? { to_date: toDate } : {}),
     cancelled_purchase: tab === "cancelled" ? "true" : "false",
   });
 
@@ -402,9 +408,10 @@ export default function PurchaseScreen() {
               <TextField
                 value={search} onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search invoices, vendors..." size="small"
-                sx={{ width: 260, "& .MuiOutlinedInput-root": { bgcolor: "white", height: 38, fontSize: "0.875rem", borderRadius: 1.5 } }}
+                sx={{ width: 200, flexShrink: 1, "& .MuiOutlinedInput-root": { bgcolor: "white", height: 38, fontSize: "0.875rem", borderRadius: 1.5 } }}
                 InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 17, color: "#9CA3AF" }} /></InputAdornment> }}
               />
+              <DateRangeChip fromDate={fromDate} toDate={toDate} onFromDateChange={setFromDate} onToDateChange={setToDate} />
               <FormControl size="small" sx={{ minWidth: 140, flexShrink: 0 }}>
                 <Select
                   value={paymentStatusFilter}
@@ -428,15 +435,30 @@ export default function PurchaseScreen() {
                   <MenuItem value="pending">Pending</MenuItem>
                 </Select>
               </FormControl>
+              {(search || paymentStatusFilter || fromDate || toDate) && (
+                <Box
+                  onClick={() => { setSearch(""); setPaymentStatusFilter(""); setFromDate(""); setToDate(""); }}
+                  title="Reset Filters"
+                  sx={{
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    width: 36, height: 36, borderRadius: 1, cursor: "pointer",
+                    bgcolor: "#F97316", color: "#fff",
+                    "&:hover": { bgcolor: "#ea6c0a" },
+                    flexShrink: 0,
+                  }}
+                >
+                  <FilterListOffIcon sx={{ fontSize: 20 }} />
+                </Box>
+              )}
               <Button
                 variant="contained" size="small"
                 startIcon={<AddIcon sx={{ fontSize: 16 }} />}
                 onClick={guard(() => { setEditPurchaseId(null); setAddDialog(true); })}
                 disableElevation
                 disabled={!canCreate}
-                sx={{ flexShrink: 0, fontSize: 14, fontWeight: 700, bgcolor: "#D32F2F", color: "#fff", px: 2, py: 0.9, borderRadius: 1.5, boxShadow: "0 4px 14px rgba(211,47,47,0.3)", "&:hover": { bgcolor: "#B71C1C" }, "&:active": { transform: "scale(0.97)" }, transition: "all 0.15s", whiteSpace: "nowrap", display: { xs: "none", md: "inline-flex" } }}
+                sx={{ flexShrink: 0, fontSize: 13, fontWeight: 700, bgcolor: "#D32F2F", color: "#fff", px: 1.5, py: 0.7, borderRadius: 1.5, boxShadow: "0 4px 14px rgba(211,47,47,0.3)", "&:hover": { bgcolor: "#B71C1C" }, "&:active": { transform: "scale(0.97)" }, transition: "all 0.15s", whiteSpace: "nowrap", display: { xs: "none", md: "inline-flex" } }}
               >
-                Add New Purchase
+                New Purchase
               </Button>
             </Box>
           </Box>

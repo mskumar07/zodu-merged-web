@@ -265,6 +265,8 @@ export const useInfiniteExpenses = (params: {
   limit?: number;
   search?: string;
   payment_status?: string;
+  from_date?: string;
+  to_date?: string;
 }) => {
   const { zoduId, branchId, businessType } = getTenantContext();
   return useInfiniteQuery({
@@ -280,6 +282,8 @@ export const useInfiniteExpenses = (params: {
           limit: params.limit ?? 10,
           ...(params.search ? { search: params.search } : {}),
           ...(params.payment_status ? { payment_status: params.payment_status } : {}),
+          ...(params.from_date ? { from_date: params.from_date } : {}),
+          ...(params.to_date ? { to_date: params.to_date } : {}),
         },
       });
       const raw = res.data;
