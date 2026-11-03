@@ -10,6 +10,7 @@ import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AddIcon           from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import SearchIcon        from "@mui/icons-material/Search";
+import FilterListOffIcon from "@mui/icons-material/FilterListOff";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
 import { useInfiniteExpenses, useExpenseSummary, useDeleteExpense, type ExpenseRow } from "./useExpenseApi";
 import AddNewExpenseDialog from "./AddNewExpenseDialog";
@@ -21,6 +22,7 @@ import { useModulePermission } from "@hooks/useModulePermission";
 import { closeFromControlsOnly } from "@utils/dialog";
 import { useSubscriptionGuard } from "@hooks/useSubscriptionGuard";
 import TableActionButton from "@components/Common/TableActionButton";
+import { DateRangeChip } from "@components/Reports/utils/DateRangeChip";
 
 const theme = createTheme({
   palette: {
@@ -84,6 +86,8 @@ export default function ExpenseScreen() {
   const [activeTab, setActiveTab] = useState(0);
   const [search, setSearch]             = useState("");
   const [statusFilter, setStatusFilter] = useState<ExpenseStatus | "">("");
+  const [fromDate, setFromDate]         = useState("");
+  const [toDate, setToDate]             = useState("");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editExpenseId, setEditExpenseId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget]     = useState<string | null>(null);
@@ -102,6 +106,8 @@ export default function ExpenseScreen() {
     limit: PAGE_LIMIT,
     ...(search ? { search } : {}),
     ...(statusFilter ? { payment_status: statusFilter } : {}),
+    ...(fromDate ? { from_date: fromDate } : {}),
+    ...(toDate ? { to_date: toDate } : {}),
   });
 
   const expenses = useMemo(
@@ -330,9 +336,10 @@ export default function ExpenseScreen() {
                   onChange={(e) => handleSearchChange(e.target.value)}
                   placeholder="Search expenses, vendors..."
                   size="small"
-                  sx={{ width: 260, "& .MuiOutlinedInput-root": { bgcolor: "white", height: 38, fontSize: "0.875rem", borderRadius: 1.5 } }}
+                  sx={{ width: 200, flexShrink: 1, "& .MuiOutlinedInput-root": { bgcolor: "white", height: 38, fontSize: "0.875rem", borderRadius: 1.5 } }}
                   slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 17, color: "#9CA3AF" }} /></InputAdornment> } }}
                 />
+                <DateRangeChip fromDate={fromDate} toDate={toDate} onFromDateChange={setFromDate} onToDateChange={setToDate} />
                 <FormControl size="small" sx={{ minWidth: 140, flexShrink: 0 }}>
                   <Select
                     value={statusFilter}
@@ -349,6 +356,21 @@ export default function ExpenseScreen() {
                     <MenuItem value="pending">Pending</MenuItem>
                   </Select>
                 </FormControl>
+                {(search || statusFilter || fromDate || toDate) && (
+                  <Box
+                    onClick={() => { setSearch(""); setStatusFilter(""); setFromDate(""); setToDate(""); }}
+                    title="Reset Filters"
+                    sx={{
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      width: 36, height: 36, borderRadius: 1, cursor: "pointer",
+                      bgcolor: "#F97316", color: "#fff",
+                      "&:hover": { bgcolor: "#ea6c0a" },
+                      flexShrink: 0,
+                    }}
+                  >
+                    <FilterListOffIcon sx={{ fontSize: 20 }} />
+                  </Box>
+                )}
                 <Button
                   variant="contained"
                   size="small"
@@ -356,9 +378,9 @@ export default function ExpenseScreen() {
                   onClick={guard(() => { setEditExpenseId(null); setAddDialogOpen(true); })}
                   disableElevation
                   disabled={!canCreate}
-                  sx={{ flexShrink: 0, fontSize: 14, fontWeight: 700, bgcolor: "#D32F2F", color: "#fff", px: 2, py: 0.9, borderRadius: 1.5, boxShadow: "0 4px 14px rgba(211,47,47,0.3)", "&:hover": { bgcolor: "#B71C1C" }, whiteSpace: "nowrap" }}
+                  sx={{ flexShrink: 0, fontSize: 13, fontWeight: 700, bgcolor: "#D32F2F", color: "#fff", px: 1.5, py: 0.7, borderRadius: 1.5, boxShadow: "0 4px 14px rgba(211,47,47,0.3)", "&:hover": { bgcolor: "#B71C1C" }, whiteSpace: "nowrap" }}
                 >
-                  Add New Expense
+                  New Expense
                 </Button>
               </Box>
             )}

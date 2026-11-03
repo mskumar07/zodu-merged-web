@@ -79,6 +79,7 @@ export interface LedgerFilters {
   fromDate?: string;        // YYYY-MM-DD
   toDate?:   string;        // YYYY-MM-DD
   method?:   string;        // "cash" | "upi" | "card" | "all"
+  search?:   string;        // invoice id / description, matched server-side
   page?:     number;
   limit?:    number;
 }
@@ -504,6 +505,7 @@ console.log(custUuid,filters)
         method:    filters.method && filters.method !== "all"
                      ? filters.method
                      : undefined,
+        search:    filters.search || undefined,
         page:      filters.page  ?? 1,
         limit:     filters.limit ?? 50,
       },
