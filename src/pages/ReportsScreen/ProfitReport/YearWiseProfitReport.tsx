@@ -8,7 +8,7 @@ import ShoppingBagOutlinedIcon  from "@mui/icons-material/ShoppingBagOutlined";
 import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import MoneyOffOutlinedIcon     from "@mui/icons-material/MoneyOffOutlined";
 import { useInfiniteQuery }     from "@tanstack/react-query";
-import axios                    from "axios";
+import http from "@store/services/axiosInstance";
 import { useTenantContext }     from "@store/tenantContext";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
 
@@ -59,7 +59,7 @@ function useYearWiseProfitReport(zoduId: string, branchId: string, isRestaurant:
   return useInfiniteQuery<YearWisePageResponse>({
     queryKey: ["profit-yearwise", zoduId, branchId, isRestaurant],
     queryFn: async ({ pageParam = 1 }) => {
-      const { data } = await axios.get(
+      const { data } = await http.get(
         `${API_BASE}/${getBase(isRestaurant)}/api/report/profit/yearwise`,
         { params: { zodu_id: zoduId, branch_id: branchId, page: pageParam, limit: PAGE_LIMIT } },
       );

@@ -39,7 +39,7 @@ import { renderPaginatedInvoicePdf, renderThermalReceiptPdf } from "@utils/pdfPa
 import { THERMAL_PRINTABLE_MM, THERMAL_ROLL_MM, printThermalCopies } from "@utils/thermalPrint";
 import InvoiceCopyActions from "@components/Common/InvoiceCopyActions";
 import SuccessToast from "@components/Common/SuccessToast";
-import { invoiceCopyTypesForSale } from "@utils/invoiceCopyTypes";
+import { invoiceCopyMark, invoiceCopyTypesForSale } from "@utils/invoiceCopyTypes";
 import { isNonBindingSaleType, saleDocumentLabel } from "@utils/saleType";
 import { gstSummaryRows, gstBreakdownFromLines } from "@utils/gstSummary";
 
@@ -308,15 +308,19 @@ export default function InvoiceDetailsModal({
   // html2canvas reads it.
   const [renderCopyType, setRenderCopyType] = useState<string | null>(null);
   const copyTypes = invoiceCopyTypesForSale(invoiceSettings?.invoice_copy_types, sale?.sale_type);
+  const copyMark = invoiceCopyMark(renderCopyType, copyTypes);
 
   /**
    * Renders one PDF containing each requested copy in turn. An empty list means
    * "no copy marking at all" — the pre-copy-types behavior.
    */
-  // A restaurant bill is a thermal receipt — Restaurant Invoice Settings offers
-  // no A4 — so its Download/Share PDF is that receipt at the configured roll
-  // width, the same document Print puts on paper, not the A4 template.
-  const pdfIsThermal = isRestaurant && invoiceSettings?.printer_inch !== "A4";
+  // A thermal width in Invoice Settings makes Download/Share produce the
+  // thermal receipt at that roll width — the same document Print puts on paper
+  // — instead of the A4 template. A restaurant bill is always a receipt
+  // (Restaurant Invoice Settings offers no A4).
+  const pdfIsThermal = isRestaurant
+    ? invoiceSettings?.printer_inch !== "A4"
+    : !!invoiceSettings?.printer_inch && invoiceSettings.printer_inch !== "A4";
 
   const generatePdfForCopies = async (copies: string[]): Promise<jsPDF | null> => {
     const target = pdfIsThermal ? thermalRef : pdfRef;
@@ -1028,13 +1032,13 @@ export default function InvoiceDetailsModal({
       {/* Hidden PDF / thermal render targets */}
       <div style={{ position: "fixed", left: "-9999px", top: "-9999px", overflow: "hidden", pointerEvents: "none" }}>
         {invoiceSettings?.invoice_template === "modern2" ? (
-          <InvoicePDFTemplateModern2 ref={pdfRef} data={pdfData} copyType={renderCopyType} />
+          <InvoicePDFTemplateModern2 ref={pdfRef} data={pdfData} copyType={copyMark} />
         ) : invoiceSettings?.invoice_template === "modern" ? (
-          <InvoicePDFTemplateModern ref={pdfRef} data={pdfData} copyType={renderCopyType} />
+          <InvoicePDFTemplateModern ref={pdfRef} data={pdfData} copyType={copyMark} />
         ) : (
-          <InvoicePDFTemplate ref={pdfRef} data={pdfData} copyType={renderCopyType} hideTaxBreakdown={invoiceSettings?.invoice_template === "classic2"} />
+          <InvoicePDFTemplate ref={pdfRef} data={pdfData} copyType={copyMark} hideTaxBreakdown={invoiceSettings?.invoice_template === "classic2"} />
         )}
-        <ThermalInvoiceTemplate ref={thermalRef} data={pdfData} paperSize={thermalPaperSize} copyType={renderCopyType} />
+        <ThermalInvoiceTemplate ref={thermalRef} data={pdfData} paperSize={thermalPaperSize} copyType={copyMark} />
       </div>
 
       {/* ── Footer actions ─────────────────────────────────── */}

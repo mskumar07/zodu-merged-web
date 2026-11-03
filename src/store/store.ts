@@ -2,8 +2,11 @@ import { configureStore } from "@reduxjs/toolkit";
 import { useDispatch, useSelector } from "react-redux";
 import type { TypedUseSelectorHook } from "react-redux";
 import POSReducer from "./slices/POSslice";
-import userReducer, { setInvoiceSettings, setPosSettings } from "./slices/userSlice";
+import { toast } from "react-toastify";
+import userReducer, { addUserData, clearAuthData, setInvoiceSettings, setPosSettings } from "./slices/userSlice";
 import { apiSlice } from "./services/apiSlice";
+import { bindSessionStore, getSessionClaims } from "@utils/authSession";
+import { clearCatalogue } from "@pages/POS/db";
 import {
   CURRENT_USER_STATE_VERSION,
   INITIAL_USER_STATE,
@@ -29,13 +32,9 @@ function readStorage(key: string): string | null {
  * unit tested); this only supplies the strings and reports what happened.
  */
 export function loadUserState(): LoadUserStateResult {
-  const result = reconcilePersistedUserState(readStorage(USER_STORAGE_KEY), {
-    // Tokens have always also been written under these standalone keys by
-    // tokenStore, and are the only thing left for sessions whose blob predates
-    // the combined format.
-    accessToken: readStorage("access_token"),
-    refreshToken: readStorage("refresh_token"),
-  });
+  // No tokens are read here: utils/authSession takes the ones older builds left
+  // in storage (to move them into the cookie once) and deletes them.
+  const result = reconcilePersistedUserState(readStorage(USER_STORAGE_KEY));
 
   // Rollout health: how many sessions come back stale after a deploy, and
   // whether anyone is hitting corrupt storage.
@@ -64,6 +63,36 @@ export const store = configureStore({
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(apiSlice.middleware),
+});
+
+// What the session layer reads, and how it signs the user out when the server
+// ends the session (ProtectedRoute then sends them to /login).
+bindSessionStore({
+  isAuthenticated: () => store.getState().user.isAuthenticated,
+  tenant: () => {
+    const { zoduId, branchId } = store.getState().user;
+    return { zoduId, branchId };
+  },
+  expire: () => {
+    // The signed-out user's menu must not stay in this browser's POS cache.
+    void clearCatalogue().catch(() => {});
+    if (store.getState().user.isAuthenticated) store.dispatch(clearAuthData());
+  },
+  refused: (zoduId, branchId) => {
+    const { zid, bid } = getSessionClaims();
+    const { user } = store.getState();
+    // Only if the UI is still on the refused branch and the token names another.
+    if (!zid || !bid || user.zoduId !== zoduId || user.branchId !== branchId) return;
+    const company = user.companies.find((c) => c.zodu_id === zid);
+    const branch = company?.branches?.find((b) => b.branch_id === bid);
+    store.dispatch(addUserData({
+      zoduId: zid,
+      branchId: bid,
+      branchName: branch?.branch_name ?? "",
+      businessType: company?.business_type ?? undefined,
+    }));
+    toast.error("You no longer have access to that branch.", { toastId: "branch-refused" });
+  },
 });
 
 store.subscribe(() => {

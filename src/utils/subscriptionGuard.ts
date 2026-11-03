@@ -1,4 +1,4 @@
-import axios, { type InternalAxiosRequestConfig } from "axios";
+import { type InternalAxiosRequestConfig } from "axios";
 import axiosInstance from "@store/services/axiosInstance";
 import type { Branch } from "@pages/auth/Authapi";
 import { getBranchSubscription } from "@utils/subscription";
@@ -93,20 +93,11 @@ const blockWritesWhenReadOnly = (config: InternalAxiosRequestConfig) => {
 
 let installed = false;
 
-/** Attaches the write-blocking interceptor to every axios client the app uses. */
+/** Attaches the write-blocking interceptor to the app's HTTP client. */
 export function installSubscriptionGuard() {
   if (installed) return;
   installed = true;
-  // Many features call the default axios directly; the rest go through axiosInstance.
-  // Login / refresh / logout are exempt (SESSION_URL) so sign-in still works.
-  axios.interceptors.request.use(blockWritesWhenReadOnly);
+  // Every API call goes through axiosInstance. Login / refresh / logout are
+  // exempt (SESSION_URL) so sign-in still works.
   axiosInstance.interceptors.request.use(blockWritesWhenReadOnly);
-  // Several modules build their own client with axios.create(); make every one
-  // created from here on carry the guard too (see utils/installSubscriptionGuard).
-  const create = axios.create.bind(axios);
-  axios.create = (config) => {
-    const instance = create(config);
-    instance.interceptors.request.use(blockWritesWhenReadOnly);
-    return instance;
-  };
 }

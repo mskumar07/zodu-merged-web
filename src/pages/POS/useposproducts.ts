@@ -1,12 +1,14 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef } from "react";
 import Fuse from "fuse.js";
-import axios from "axios";
+import http from "@store/services/axiosInstance";
+import { getSessionClaims } from "@utils/authSession";
 
 import {
   db,
+  claimCatalogue,
   isCatalogueStale,
-  bulkUpsertProducts,
+  replaceProducts,
   markSynced,
   getAllProducts,
   clearSyncMeta,
@@ -20,7 +22,7 @@ export const posProductsKey = (branchId: string, zoduId: string) =>
 
 // ── API fetch + cache ─────────────────────────────────────────
 async function fetchAndCacheProducts(branchId: string, zoduId: string): Promise<PosProduct[]> {
-  const { data } = await axios.get<{
+  const { data } = await http.get<{
     message: string;
     Data?: PosProduct[];
     data?: PosProduct[];
@@ -35,19 +37,21 @@ async function fetchAndCacheProducts(branchId: string, zoduId: string): Promise<
     return [];
   }
 
-  // bulkUpsertProducts deduplicates by item_id before writing
-  await bulkUpsertProducts(products);
-  await markSynced(branchId);
+  // replaceProducts deduplicates by item_id before writing
+  await replaceProducts(zoduId, branchId, products);
+  await markSynced(zoduId, branchId);
 
   // Return deduped list from IDB (source of truth after write)
-  return getAllProducts(branchId);
+  return getAllProducts(zoduId, branchId);
 }
 
 async function loadProducts(branchId: string, zoduId: string): Promise<PosProduct[]> {
-  const stale = await isCatalogueStale(branchId);
+  // Another user's catalogue left in this browser is wiped before anything is served.
+  await claimCatalogue(getSessionClaims().sub);
+  const stale = await isCatalogueStale(zoduId, branchId);
 
   // Not stale → serve from IDB directly (works fully offline)
-  if (!stale) return getAllProducts(branchId);
+  if (!stale) return getAllProducts(zoduId, branchId);
 
   // Stale → try to refresh from API
   try {
@@ -56,7 +60,7 @@ async function loadProducts(branchId: string, zoduId: string): Promise<PosProduc
     // Offline fallback: API unreachable → serve whatever is in IDB
     // Cashier can still work; catalogue will sync next time they're online
     console.warn("[POS] API unreachable, serving cached catalogue:", err);
-    const cached = await getAllProducts(branchId);
+    const cached = await getAllProducts(zoduId, branchId);
     if (cached.length > 0) return cached;
     throw err; // IDB also empty (first load, never synced) → surface the error
   }
@@ -158,7 +162,7 @@ export function usePosSearch(branchId: string, query: string, zoduId: string) {
 export function useForceRefreshProducts(branchId: string, zoduId: string) {
   const queryClient = useQueryClient();
   return async () => {
-    await clearSyncMeta(branchId);
+    await clearSyncMeta(zoduId, branchId);
     await queryClient.invalidateQueries({ queryKey: posProductsKey(branchId, zoduId) });
   };
 }

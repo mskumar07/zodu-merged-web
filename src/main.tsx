@@ -1,3 +1,4 @@
+import "@utils/installAuth";
 import "@utils/installSubscriptionGuard";
 import React from "react";
 import ReactDOM from "react-dom/client";
@@ -22,7 +23,13 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 0,
       gcTime: 0,
-      retry: 1,
+      // 401 is retried once by the session layer after a refresh; 403 / 404 / 429
+      // won't change on a retry (and 429 would only extend the wait).
+      retry: (failureCount, error) => {
+        const status = (error as { response?: { status?: number } })?.response?.status;
+        if (status === 401 || status === 403 || status === 404 || status === 429) return false;
+        return failureCount < 1;
+      },
     },
   },
 });

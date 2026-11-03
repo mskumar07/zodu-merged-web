@@ -1,22 +1,17 @@
 /**
  * restaurantPosApi.ts
  * All API hooks and types for the Restaurant POS screen.
- * Uses axios + TanStack React Query for data fetching.
+ * Uses the app HTTP client + TanStack React Query for data fetching.
  */
 
 import { useState, useCallback, useRef } from "react";
-import axios from "axios";
+import http from "@store/services/axiosInstance";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiConfig } from "@config/api";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 const RETAIL_BASE = "/retail";
 
-// ─── Auth helper ────────────────────────────────────────────────
-function authHeaders() {
-  const token = localStorage.getItem("token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -350,9 +345,8 @@ function normalizeItem(raw: any, categoryName: string): RestaurantMenuItem {
 // ─── API functions ────────────────────────────────────────────────
 
 async function fetchMenuData(branchId: string, zoduId: string, search?: string): Promise<RestaurantCategory[]> {
-  const { data } = await axios.get(
-    `${API_BASE}${apiConfig.menu.getPosData(branchId, zoduId, search)}`,
-    { headers: authHeaders() }
+  const { data } = await http.get(
+    `${API_BASE}${apiConfig.menu.getPosData(branchId, zoduId, search)}`
   );
   const raw: any[] = data?.Data ?? [];
 
@@ -372,87 +366,77 @@ async function fetchMenuData(branchId: string, zoduId: string, search?: string):
 }
 
 async function fetchTableOrders(branchId: string, zoduId: string): Promise<RunningOrder[]> {
-  const { data } = await axios.get(
-    `${API_BASE}${apiConfig.menu.getTableKOT(branchId, zoduId)}`,
-    { headers: authHeaders() }
+  const { data } = await http.get(
+    `${API_BASE}${apiConfig.menu.getTableKOT(branchId, zoduId)}`
   );
   return (data?.data ?? []) as RunningOrder[];
 }
 
 async function fetchHoldOrders(branchId: string, zoduId: string) {
-  const { data } = await axios.get(
-    `${API_BASE}${apiConfig.menu.getHoldMenu(branchId, zoduId)}`,
-    { headers: authHeaders() }
+  const { data } = await http.get(
+    `${API_BASE}${apiConfig.menu.getHoldMenu(branchId, zoduId)}`
   );
   return (data?.Data?.data ?? []) as HoldOrder[];
 }
 
 async function postAddOrder(payload: AddOrderPayload) {
-  const { data } = await axios.post(
+  const { data } = await http.post(
     `${API_BASE}${apiConfig.menu.addTableKOT()}`,
-    payload,
-    { headers: authHeaders() }
+    payload
   );
   return data;
 }
 
 async function putUpdateOrder(payload: UpdateOrderPayload) {
-  const { data } = await axios.put(
+  const { data } = await http.put(
     `${API_BASE}${apiConfig.menu.updateTableKOT()}`,
-    payload,
-    { headers: authHeaders() }
+    payload
   );
   return data;
 }
 
 async function postCompleteOrder(payload: CompleteOrderPayload) {
-  const { data } = await axios.post(
+  const { data } = await http.post(
     `${API_BASE}${apiConfig.menu.completeKOT()}`,
-    payload,
-    { headers: authHeaders() }
+    payload
   );
   return data;
 }
 
 async function postHoldOrder(payload: HoldOrderPayload) {
-  const { data } = await axios.post(
+  const { data } = await http.post(
     `${API_BASE}${apiConfig.menu.holdMenu()}`,
-    payload,
-    { headers: authHeaders() }
+    payload
   );
   return data;
 }
 
 async function putUpdateHoldOrder(payload: UpdateHoldOrderPayload) {
-  const { data } = await axios.put(
+  const { data } = await http.put(
     `${API_BASE}${apiConfig.menu.updateHoldMenu()}`,
-    payload,
-    { headers: authHeaders() }
+    payload
   );
   return data;
 }
 
 async function deleteHoldOrder(holdUuid: string) {
-  const { data } = await axios.delete(
-    `${API_BASE}${apiConfig.menu.deleteHoldMenu(holdUuid)}`,
-    { headers: authHeaders() }
+  const { data } = await http.delete(
+    `${API_BASE}${apiConfig.menu.deleteHoldMenu(holdUuid)}`
   );
   return data;
 }
 
 async function postCreateCustomer(payload: CreateCustomerPayload) {
-  const { data } = await axios.post(
+  const { data } = await http.post(
     `${API_BASE}${RETAIL_BASE}/api/add/customer`,
-    payload,
-    { headers: authHeaders() }
+    payload
   );
   return data;
 }
 
 async function searchCustomers(zoduId: string, branchId: string, query: string) {
-  const { data } = await axios.get(`${API_BASE}${RETAIL_BASE}/api/customers`, {
+  const { data } = await http.get(`${API_BASE}${RETAIL_BASE}/api/customers`, {
     params: { zodu_id: zoduId, branch_id: branchId, search: query.trim(), limit: 10, page: 1 },
-    headers: authHeaders(),
   });
   return data?.customers ?? [];
 }

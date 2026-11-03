@@ -42,24 +42,38 @@ export const DEFAULT_LABEL_OPTIONS: LabelOptions = {
 
 // ─── Barcode SVG (cached) ─────────────────────────────────────
 
-const barcodeCache = new Map<string, string | null>();
+// The bars only, as numbers: rendered by React below, never injected as HTML,
+// so nothing in an item's code or barcode can reach the page as markup.
+interface BarcodeShape {
+  width: number;
+  height: number;
+  bars: { x: number; y: number; w: number; h: number }[];
+}
 
-/** Returns a stretchable SVG string, or null when the value is invalid for the format. */
-function barcodeSvg(value: string, format: 'CODE128' | 'EAN13'): string | null {
+const barcodeCache = new Map<string, BarcodeShape | null>();
+
+/** The bars of the barcode, or null when the value is invalid for the format. */
+function barcodeShape(value: string, format: 'CODE128' | 'EAN13'): BarcodeShape | null {
   const key = `${format}|${value}`;
   if (barcodeCache.has(key)) return barcodeCache.get(key)!;
-  let out: string | null = null;
+  let out: BarcodeShape | null = null;
   try {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    JsBarcode(svg, value, { format, displayValue: false, margin: 0, width: 2, height: 60 });
-    const w = svg.getAttribute('width')?.replace('px', '');
-    const h = svg.getAttribute('height')?.replace('px', '');
-    if (w && h && !svg.getAttribute('viewBox')) svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
-    svg.removeAttribute('width');
-    svg.removeAttribute('height');
-    svg.setAttribute('preserveAspectRatio', 'none');
-    svg.setAttribute('style', 'width:100%;height:100%;display:block');
-    out = svg.outerHTML;
+    JsBarcode(svg, value, { format, displayValue: false, margin: 0, width: 2, height: 60, background: 'transparent' });
+    const num = (el: Element, name: string) => Number.parseFloat(el.getAttribute(name) ?? '') || 0;
+    const width = num(svg, 'width');
+    const height = num(svg, 'height');
+    // Bars are <rect>s inside <g transform="translate(x, y)"> groups.
+    const bars = Array.from(svg.querySelectorAll('g rect')).map((rect) => {
+      const shift = /translate\(\s*([\d.]+)[ ,]+([\d.]+)/.exec(rect.parentElement?.getAttribute('transform') ?? '');
+      return {
+        x: num(rect, 'x') + (shift ? Number(shift[1]) : 0),
+        y: num(rect, 'y') + (shift ? Number(shift[2]) : 0),
+        w: num(rect, 'width'),
+        h: num(rect, 'height'),
+      };
+    });
+    out = width > 0 && height > 0 && bars.length > 0 ? { width, height, bars } : null;
   } catch {
     out = null;
   }
@@ -102,15 +116,19 @@ function CodeGraphic({ item, codeType, boxW, boxH }: {
   const value = codeType === 'ean13'
     ? (isEan13Value(item.barcode) ? item.barcode! : isEan13Value(item.code) ? item.code : '')
     : (item.barcode || item.code);
-  const svg = value ? barcodeSvg(value, codeType === 'ean13' ? 'EAN13' : 'CODE128') : null;
-  if (!svg) {
+  const shape = value ? barcodeShape(value, codeType === 'ean13' ? 'EAN13' : 'CODE128') : null;
+  if (!shape) {
     return <div style={{ ...box, fontSize: '2mm', color: '#b91c1c', textAlign: 'center' }}>
       {codeType === 'ean13' ? 'No valid EAN-13' : 'Invalid code'}
     </div>;
   }
   // Barcodes are wide and flat, so they take 70% of the box height.
-  return <div style={{ ...box, height: `${boxH * 0.7}mm` }}
-    dangerouslySetInnerHTML={{ __html: svg }} />;
+  return <div style={{ ...box, height: `${boxH * 0.7}mm` }}>
+    <svg viewBox={`0 0 ${shape.width} ${shape.height}`} preserveAspectRatio="none"
+      style={{ width: '100%', height: '100%', display: 'block' }}>
+      {shape.bars.map((b, i) => <rect key={i} x={b.x} y={b.y} width={b.w} height={b.h} fill="#000" />)}
+    </svg>
+  </div>;
 }
 
 export const LabelView = React.memo(function LabelView(

@@ -135,7 +135,9 @@ describe("reconcilePersistedUserState — stale version", () => {
     expect(result.outcome).toBe("restored-stale");
     expect(result.state).toMatchObject({
       isAuthenticated: true,
-      accessToken: expect.any(String),
+      // Tokens are never restored from storage (cookie + in-memory token now).
+      accessToken: null,
+      refreshToken: null,
       profile: PROFILE,
       branchId: "B1",
       // Permission/config data is not trusted across a schema change.
@@ -225,9 +227,23 @@ describe("reconcilePersistedUserState — token validity", () => {
     expect(result.state?.isAuthenticated).toBe(true);
   });
 
-  it("logs out when a token is missing or blank", () => {
-    expect(reconcilePersistedUserState(cachedBlob({ accessToken: null }), {}, NOW).state).toBeUndefined();
-    expect(reconcilePersistedUserState(cachedBlob({ refreshToken: "  " }), {}, NOW).state).toBeUndefined();
+  it("restores a signed-in session without tokens: the refresh cookie decides on the first request", () => {
+    const state = reconcilePersistedUserState(cachedBlob({ accessToken: null, refreshToken: null }), {}, NOW).state;
+    expect(state?.isAuthenticated).toBe(true);
+    expect(state?.accessToken).toBeNull();
+    expect(state?.refreshToken).toBeNull();
+  });
+
+  it("stays logged out when the blob was signed out or has no token from an older build", () => {
+    const signedOut = cachedBlob({ accessToken: null, refreshToken: null, isAuthenticated: false });
+    expect(reconcilePersistedUserState(signedOut, {}, NOW).state).toBeUndefined();
+  });
+
+  it("never writes tokens to storage", () => {
+    const state = reconcilePersistedUserState(cachedBlob(), {}, NOW).state!;
+    const persisted = toPersistedUserState({ ...state, accessToken: "a.b.c", refreshToken: "r" });
+    expect(persisted.accessToken).toBeNull();
+    expect(persisted.refreshToken).toBeNull();
   });
 
   it("accepts opaque (non-JWT) tokens it cannot judge", () => {

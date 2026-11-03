@@ -212,7 +212,7 @@ function deriveBusinessType(
  * Every field is named explicitly — nothing is spread in blind — and they fall
  * into two groups:
  *
- *   trusted from cache : tokens, profile, branchId, branchName, zoduId,
+ *   trusted from cache : profile, branchId, branchName, zoduId,
  *                        businessType. Session identity, not permissions.
  *   version-gated      : roleAccess, invoiceSettings, posSettings, company,
  *                        companies. Kept only when the blob was written by the
@@ -251,10 +251,13 @@ export function reconcilePersistedUserState(
     asNonEmptyStringOrNull(fallbackTokens.refreshToken);
   const profile = asProfile(cached.profile);
 
-  // The refresh token is what keeps a session alive: an expired *access* token
-  // is refreshed transparently by the axios interceptor, but an expired or
-  // missing refresh token means there is nothing left to restore.
-  if (!accessToken || !profile || !isTokenUsable(refreshToken, now)) {
+  // Tokens are no longer stored: the refresh token is an HttpOnly cookie, and
+  // whether it is still good is only known once utils/authSession asks the
+  // server (it signs the user out if not). A session is restored from its
+  // profile; blobs written before then count if they still held a token, unless
+  // that token is a JWT that has already expired.
+  const hadSession = cached.isAuthenticated === true || Boolean(accessToken);
+  if (!profile || !hadSession || (refreshToken && !isTokenUsable(refreshToken, now))) {
     return {
       state: undefined,
       outcome: raw ? "no-session" : "no-cache",
@@ -267,9 +270,9 @@ export function reconcilePersistedUserState(
   const isCurrentVersion = storedVersion === CURRENT_USER_STATE_VERSION;
 
   const state: Userstate = {
-    // Session identity — trusted from cache.
-    accessToken,
-    refreshToken,
+    // Session identity — trusted from cache. Never the tokens.
+    accessToken: null,
+    refreshToken: null,
     profile,
     zoduId,
     branchId: asString(cached.branchId) || asString(profile.branch_id),
@@ -317,8 +320,9 @@ export function toPersistedUserState(state: Userstate): PersistedUserState {
     branchName: state.branchName,
     zoduId: state.zoduId,
     businessType: state.businessType,
-    accessToken: state.accessToken,
-    refreshToken: state.refreshToken,
+    // Tokens are never written to storage.
+    accessToken: null,
+    refreshToken: null,
     profile: state.profile,
     isAuthenticated: state.isAuthenticated,
     companies: state.companies,

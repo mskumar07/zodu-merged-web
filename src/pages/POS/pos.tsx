@@ -60,7 +60,7 @@ import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import jsPDF                  from "jspdf";
-import { renderPaginatedInvoicePdf } from "@utils/pdfPagination";
+import { renderPaginatedInvoicePdf, renderThermalReceiptPdf } from "@utils/pdfPagination";
 import { setUnsavedWork } from "@utils/appUpdate";
 import { SALE_DEPENDENT_KEYS, publishSaleSaved } from "@utils/dataSync";
 import { numberToWords } from "@utils/numberToWords";
@@ -82,10 +82,10 @@ import { InvoicePDFTemplateModern } from "../SalesHistory/InvoicePDFTemplateMode
 import { InvoicePDFTemplateModern2 } from "../SalesHistory/InvoicePDFTemplateModern2";
 import InvoiceCopyActions from "@components/Common/InvoiceCopyActions";
 import InsufficientStockDialog, { type InsufficientStockInfo } from "@components/Common/InsufficientStockDialog";
-import { invoiceCopyTypesForSale } from "@utils/invoiceCopyTypes";
+import { invoiceCopyMark, invoiceCopyTypesForSale } from "@utils/invoiceCopyTypes";
 import { useInvoiceSettingsForSale } from "@hooks/useInvoiceSettingsForSale";
 import { isProformaSaleType, isQuotationSaleType, saleDocumentLabel } from "@utils/saleType";
-import { printThermalCopies } from "@utils/thermalPrint";
+import { THERMAL_PRINTABLE_MM, THERMAL_ROLL_MM, printThermalCopies } from "@utils/thermalPrint";
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "../SalesHistory/ThermalInvoiceTemplate";
 import { toPaymentTypeLabels } from "@pages/Settings/useInvoiceSettingApi";
 import { normalizePosSettings, usePosSettings, type PosTypeLabel } from "@pages/Settings/usePosSettingApi";
@@ -1924,28 +1924,6 @@ console.log("test",serverHolds)
       customer, invoiceDate, dueDate, hasBalanceDue, paymentType, posMode, vehicleNo,
       displayInvoiceNo, overridePreview, poNumber, poDate, showPurchaseOrder, showVehicleNo, showItemDescription]);
 
-  /**
-   * One PDF holding each requested copy in turn. An empty list means "no copy
-   * marking" — the behavior from before copy types existed.
-   */
-  const generatePdfForCopies = useCallback(async (copies: string[]): Promise<jsPDF | null> => {
-    if (!pdfRef.current) return null;
-    const list: Array<string | null> = copies.length > 0 ? copies : [null];
-    let doc: jsPDF | null = null;
-    try {
-      for (const copy of list) {
-        // flushSync, not a plain setState: the marking has to be in the DOM
-        // before the capture below reads it.
-        flushSync(() => setRenderCopyType(copy));
-        doc = await renderPaginatedInvoicePdf(pdfRef.current, doc);
-        if (!doc) return null;
-      }
-    } finally {
-      flushSync(() => setRenderCopyType(null));
-    }
-    return doc;
-  }, []);
-
   // What the just-saved document offers in its Download/Print/Share menus — a
   // quotation prints unmarked, an invoice or proforma gets the configured
   // copies.
@@ -1956,6 +1934,42 @@ console.log("test",serverHolds)
   const settingsPaperSize: ThermalPaperSize = toThermalPaperSize(printSettings?.printer_inch);
   const thermalPaperSize: ThermalPaperSize = printPaperSize ?? settingsPaperSize;
   const savedCopyTypes = invoiceCopyTypesForSale(printSettings?.invoice_copy_types, savedPdfData?.sale_type);
+  const copyMark = invoiceCopyMark(renderCopyType, savedCopyTypes);
+
+  // A thermal width in Invoice Settings makes Download/Share produce the
+  // thermal receipt at that roll width — the same document Print puts on paper
+  // — instead of the A4 template.
+  const pdfIsThermal = !!printSettings?.printer_inch && printSettings.printer_inch !== "A4";
+
+  /**
+   * One PDF holding each requested copy in turn. An empty list means "no copy
+   * marking" — the behavior from before copy types existed.
+   */
+  const generatePdfForCopies = useCallback(async (copies: string[]): Promise<jsPDF | null> => {
+    const target = pdfIsThermal ? thermalRef : pdfRef;
+    if (!target.current) return null;
+    const list: Array<string | null> = copies.length > 0 ? copies : [null];
+    let doc: jsPDF | null = null;
+    try {
+      for (const copy of list) {
+        // flushSync, not a plain setState: the marking has to be in the DOM
+        // before the capture below reads it.
+        flushSync(() => setRenderCopyType(copy));
+        doc = pdfIsThermal
+          ? await renderThermalReceiptPdf(
+              target.current,
+              THERMAL_ROLL_MM[thermalPaperSize],
+              THERMAL_PRINTABLE_MM[thermalPaperSize],
+              doc,
+            )
+          : await renderPaginatedInvoicePdf(target.current, doc);
+        if (!doc) return null;
+      }
+    } finally {
+      flushSync(() => setRenderCopyType(null));
+    }
+    return doc;
+  }, [pdfIsThermal, thermalPaperSize]);
 
   const handleDownloadInvoice = useCallback(async (copies: string[] = []) => {
     if (!savedPdfData) return;
@@ -3343,17 +3357,17 @@ console.log("test",serverHolds)
         {savedPdfData && (
           <Box sx={{ position: "fixed", left: -10000, top: 0, width: 794, pointerEvents: "none", opacity: 0 }}>
             {printSettings?.invoice_template === "modern2" ? (
-              <InvoicePDFTemplateModern2 ref={pdfRef} data={savedPdfData} copyType={renderCopyType} />
+              <InvoicePDFTemplateModern2 ref={pdfRef} data={savedPdfData} copyType={copyMark} />
             ) : printSettings?.invoice_template === "modern" ? (
-              <InvoicePDFTemplateModern ref={pdfRef} data={savedPdfData} copyType={renderCopyType} />
+              <InvoicePDFTemplateModern ref={pdfRef} data={savedPdfData} copyType={copyMark} />
             ) : (
-              <InvoicePDFTemplate ref={pdfRef} data={savedPdfData} copyType={renderCopyType} hideTaxBreakdown={printSettings?.invoice_template === "classic2"} />
+              <InvoicePDFTemplate ref={pdfRef} data={savedPdfData} copyType={copyMark} hideTaxBreakdown={printSettings?.invoice_template === "classic2"} />
             )}
           </Box>
         )}
         {savedPdfData && (
           <Box sx={{ position: "fixed", left: -10000, top: 0, pointerEvents: "none", opacity: 0 }}>
-            <ThermalInvoiceTemplate ref={thermalRef} data={savedPdfData} paperSize={thermalPaperSize} copyType={renderCopyType} />
+            <ThermalInvoiceTemplate ref={thermalRef} data={savedPdfData} paperSize={thermalPaperSize} copyType={copyMark} />
           </Box>
         )}
 

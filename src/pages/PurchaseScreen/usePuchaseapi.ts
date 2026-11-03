@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
-import { getTenantContext, getAccessToken } from "@store/tenantContext";
+import { serviceClient } from "@store/services/axiosInstance";
+import { getTenantContext } from "@store/tenantContext";
 
 /* =========================================================
    🔹 AXIOS INSTANCE
@@ -12,14 +12,7 @@ export const getBranchId = () => getTenantContext().branchId;
 export function getApi() {
   const { businessType } = getTenantContext();
   const route = businessType === "Restaurant" ? "restaurant" : "retail";
-  const token = getAccessToken();
-  return axios.create({
-    baseURL: `${API_BASE}/${route}/api`,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
+  return serviceClient(`${API_BASE}/${route}/api`);
 }
 
 /* =========================================================

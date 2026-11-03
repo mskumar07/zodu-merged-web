@@ -9,7 +9,8 @@
  */
 
 import axios from 'axios';
-import { getTenantContext, getAccessToken, useTenantContext } from '@store/tenantContext';
+import { serviceClient } from "@store/services/axiosInstance";
+import { getTenantContext, useTenantContext } from '@store/tenantContext';
 import {
   useQuery,
   useInfiniteQuery,
@@ -28,14 +29,7 @@ function getRoute() {
 }
 
 function getApi() {
-  const token = getAccessToken();
-  return axios.create({
-    baseURL: `${API_BASE}/${getRoute()}/api`,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
+  return serviceClient(`${API_BASE}/${getRoute()}/api`);
 }
 
 // ─── Types ────────────────────────────────────────────────────

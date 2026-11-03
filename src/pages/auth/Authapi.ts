@@ -1,16 +1,11 @@
-import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosError } from 'axios';
 import { useMutation } from '@tanstack/react-query';
+import { API_BASE, getAccessToken, logout as endServerSession, setAccessToken } from '@utils/authSession';
+import { serviceClient } from '@store/services/axiosInstance';
 
-// ── axios instance ────────────────────────────────────────────────────────────
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001',
-  headers: { 'Content-Type': 'application/json' },
-  timeout: 10_000,
-});
-
-type RetryableRequestConfig = InternalAxiosRequestConfig & {
-  _retry?: boolean;
-};
+// ── HTTP client ───────────────────────────────────────────────────────────────
+// The app's one client (token, platform header, 401 → refresh: utils/authSession).
+const api = serviceClient(API_BASE, { timeout: 10_000 });
 
 // ── types ─────────────────────────────────────────────────────────────────────
 
@@ -394,11 +389,25 @@ export interface RoleAccessItem {
 export interface LoginResponse {
   message: string;
   access_token: string;
-  refresh_token: string;
+  expires_in?: number;
+  // Web: never in the body. The server keeps it in an HttpOnly cookie.
+  refresh_token?: string;
+  // The company / branch / role the access token acts on.
+  context?: { zodu_id: string; branch_id?: string | null; role?: string | null };
   user: AuthUser;
   company?: CompanyDetails;
   companies?: CompanyWithBranches[];
   role_access?: RoleAccessItem[];
+}
+
+export interface UserSession {
+  session_id: string;
+  platform: string;
+  user_agent?: string | null;
+  ip_address?: string | null;
+  created_at: string;
+  last_used_at?: string | null;
+  current: boolean;
 }
 
 export interface SignupResponse {
@@ -416,7 +425,21 @@ export interface SignupResponse {
 // Backend wraps everything in { data: { ... } } via FormateData()
 // This unwraps the inner payload and surfaces errors correctly.
 async function unwrap<T>(promise: Promise<{ data: T }>): Promise<T> {
-  const res = await promise;
+  let res: { data: T };
+  try {
+    res = await promise;
+  } catch (err) {
+    // Errors (400 password rules, 409 account exists, ...) keep the server's own
+    // text as the message; `response` stays on the error for status checks.
+    if (axios.isAxiosError(err)) {
+      const body = err.response?.data as any;
+      // Validation errors arrive as one string: { errors: "a, b" }.
+      const fieldErrors = typeof body?.errors === 'string' ? body.errors : null;
+      const text = body?.data?.error ?? body?.error ?? body?.message ?? fieldErrors;
+      if (typeof text === 'string' && text) err.message = text;
+    }
+    throw err;
+  }
   const payload = res.data as any;
   // FormateData error shape: { data: { error: "..." } }
   if (payload?.data?.error) throw new Error(payload.data.error);
@@ -463,14 +486,25 @@ export const authApis = {
       api.post('/auth/api/login', payload)
     ),
 
-  logout: (refresh_token: string) =>
-    unwrap<{ message: string }>(
-      api.post('/auth/api/logout', { refresh_token })
+  // Revokes this session on the server and clears the refresh cookie.
+  logout: () => endServerSession(),
+
+  // POST /auth/api/logout-all — ends every session of the user, on every device.
+  logoutAll: () =>
+    unwrap<{ message?: string }>(
+      api.post('/auth/api/logout-all')
     ),
 
-  refreshToken: (refresh_token: string) =>
-    unwrap<{ access_token: string; refresh_token: string }>(
-      api.post('/auth/api/refresh-token', { refresh_token })
+  // GET /auth/api/sessions — the user's signed-in devices; `current` is this one.
+  getSessions: () =>
+    unwrap<{ sessions: UserSession[] }>(
+      api.get('/auth/api/sessions')
+    ).then((res) => res.sessions ?? []),
+
+  // DELETE /auth/api/sessions/:session_id — signs that device out.
+  revokeSession: (sessionId: string) =>
+    unwrap<{ message?: string }>(
+      api.delete(`/auth/api/sessions/${encodeURIComponent(sessionId)}`)
     ),
 
   // GET /retail/get/branches/:zodu_id — branches for a specific company
@@ -484,10 +518,7 @@ export const authApis = {
   getMyCompanies: () =>
     unwrap<{ companies: CompanyWithBranches[] }>(
       api.get('/auth/api/my-companies')
-    ).then((res) => {
-      console.log(res);
-      return res.companies ?? [];
-    }),
+    ).then((res) => res.companies ?? []),
 
   createCompany: ({ company_logo, ...payload }: CreateCompanyPayload) =>
     unwrap<any>(
@@ -571,86 +602,13 @@ export const authApis = {
 
 // ── token helpers ─────────────────────────────────────────────────────────────
 
+// The access token is held in memory by utils/authSession and the refresh token
+// is an HttpOnly cookie, so nothing here touches localStorage any more.
 export const tokenStore = {
-  save: (access_token: string, refresh_token: string) => {
-    localStorage.setItem('access_token', access_token);
-    localStorage.setItem('refresh_token', refresh_token);
-    try {
-      const raw = localStorage.getItem('zodu_user_state');
-      const parsed = raw ? JSON.parse(raw) : {};
-      localStorage.setItem(
-        'zodu_user_state',
-        JSON.stringify({
-          ...parsed,
-          accessToken: access_token,
-          refreshToken: refresh_token,
-        })
-      );
-    } catch {
-      // Ignore persistence issues and keep auth flow working.
-    }
-  },
-  clear: () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    try {
-      const raw = localStorage.getItem('zodu_user_state');
-      const parsed = raw ? JSON.parse(raw) : null;
-      if (parsed) {
-        delete parsed.accessToken;
-        delete parsed.refreshToken;
-        localStorage.setItem('zodu_user_state', JSON.stringify(parsed));
-      }
-    } catch {
-      // Ignore persistence issues and keep auth flow working.
-    }
-  },
-  getRefresh: () => localStorage.getItem('refresh_token'),
-  getAccess:  () => localStorage.getItem('access_token'),
+  save: (access_token: string) => setAccessToken(access_token),
+  clear: () => setAccessToken(null),
+  getAccess: () => getAccessToken(),
 };
-
-api.interceptors.request.use((config) => {
-  const token = tokenStore.getAccess();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const status = error.response?.status;
-    const originalRequest = error.config as RetryableRequestConfig | undefined;
-    const refreshToken = tokenStore.getRefresh();
-
-    if (
-      status === 401 &&
-      originalRequest &&
-      !originalRequest._retry &&
-      refreshToken &&
-      !String(originalRequest.url || '').includes('/auth/api/refresh-token')
-    ) {
-      originalRequest._retry = true;
-
-      try {
-        const refreshed = await authApis.refreshToken(refreshToken);
-        if (!refreshed?.access_token || !refreshed?.refresh_token) {
-          throw new Error('Invalid refresh response');
-        }
-
-        tokenStore.save(refreshed.access_token, refreshed.refresh_token);
-        originalRequest.headers.Authorization = `Bearer ${refreshed.access_token}`;
-        return api(originalRequest);
-      } catch (refreshError) {
-        tokenStore.clear();
-        return Promise.reject(refreshError);
-      }
-    }
-
-    return Promise.reject(error);
-  }
-);
 
 // ── TanStack Query mutations ──────────────────────────────────────────────────
 
@@ -668,25 +626,18 @@ export function useLoginMutation() {
   return useMutation({
     mutationFn: (payload: LoginPayload) => authApis.login(payload),
     onSuccess: (data) => {
-      console.log(data)
-      // Persist tokens on successful login
-      tokenStore.save(data.access_token, data.refresh_token);
+      tokenStore.save(data.access_token);
     },
     onError: (err: AxiosError<any>) => {
-      console.error('[login error]', err.response?.data || err.message);
+      // Never the request body: it holds the password.
+      console.error('[login error]', err.response?.status, err.response?.data?.data?.error ?? err.message);
     },
   });
 }
 
 export function useLogoutMutation() {
   return useMutation({
-    mutationFn: () => {
-      const token = tokenStore.getRefresh() || '';
-      return authApis.logout(token);
-    },
-    onSettled: () => {
-      tokenStore.clear();
-    },
+    mutationFn: () => authApis.logout(),
   });
 }
 

@@ -4,8 +4,9 @@
  */
 
 import axios from "axios";
+import http from "@store/services/axiosInstance";
 import { useMutation, useQuery, useQueryClient, useInfiniteQuery, keepPreviousData } from "@tanstack/react-query";
-import { getTenantContext, useTenantContext, getAccessToken } from "@store/tenantContext";
+import { getTenantContext, useTenantContext } from "@store/tenantContext";
 
 const API_BASE  = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 
@@ -187,7 +188,7 @@ export interface CustomerDetail {
 
 async function getCustomerDetail(custUuid: string): Promise<CustomerDetail> {
   const { zoduId, branchId, businessType } = getTenantContext();
-  const { data } = await axios.get<{ success: boolean; customer: CustomerDetail }>(
+  const { data } = await http.get<{ success: boolean; customer: CustomerDetail }>(
     `${API_BASE}${customersBasePath(businessType)}/${custUuid}`,
     { params: { zodu_id: zoduId, branch_id: branchId } }
   );
@@ -210,7 +211,7 @@ export function useCustomerDetail(custUuid: string | null | undefined) {
 
 // ─── API call ─────────────────────────────────────────────────
 async function postAddCustomer(payload: AddCustomerPayload): Promise<AddCustomerResponse> {
-  const { data } = await axios.post<AddCustomerResponse>(
+  const { data } = await http.post<AddCustomerResponse>(
     `${API_BASE}/retail/api/customers`,
     payload
   );
@@ -224,7 +225,7 @@ interface UpdateCustomerPayload extends AddCustomerPayload {
 
 async function putUpdateCustomer(payload: UpdateCustomerPayload): Promise<AddCustomerResponse> {
   const { cust_uuid, ...updatePayload } = payload;
-  const { data } = await axios.put<AddCustomerResponse>(
+  const { data } = await http.put<AddCustomerResponse>(
     `${API_BASE}/retail/api/customers/${cust_uuid}`,
     updatePayload
   );
@@ -291,7 +292,7 @@ async function setCustomerActive(payload: {
   isActive: boolean;
 }): Promise<SetCustomerActiveResponse> {
   const { businessType } = getTenantContext();
-  const { data } = await axios.delete<SetCustomerActiveResponse>(
+  const { data } = await http.delete<SetCustomerActiveResponse>(
     `${API_BASE}${customersBasePath(businessType)}/${payload.custUuid}`,
     { data: { is_active: payload.isActive } }
   );
@@ -325,7 +326,7 @@ export function useSetCustomerActive(options?: {
 
 async function getCustomers(): Promise<Record<string, unknown>[]> {
   const { zoduId, branchId } = getTenantContext();
-  const { data } = await axios.get(
+  const { data } = await http.get(
     `${API_BASE}/retail/api/customers`,
     {
       params: {
@@ -370,7 +371,7 @@ async function getCustomersPage(page: number, search: string, isActive: boolean)
   };
   if (search) params.search = search;
 
-  const { data } = await axios.get(`${API_BASE}${customersBasePath(businessType)}`, { params });
+  const { data } = await http.get(`${API_BASE}${customersBasePath(businessType)}`, { params });
 
   if (data?.success) {
     return {
@@ -490,15 +491,11 @@ async function fetchCustomerLedger(
   custUuid: string,
   filters:  LedgerFilters
 ): Promise<CustomerLedgerData> {
-  const token = getAccessToken();
   const { zoduId, branchId } = getTenantContext();
 console.log(custUuid,filters)
-  const { data } = await axios.get<CustomerLedgerResponse>(
+  const { data } = await http.get<CustomerLedgerResponse>(
     `${API_BASE}/retail/api/customers/${custUuid}/ledger`,
     {
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
       params: {
         zodu_id:   zoduId,
         branch_id: branchId,
@@ -574,13 +571,11 @@ export interface OutstandingBillsData {
 }
 
 async function getOutstandingBills(custUuid: string): Promise<OutstandingBillsData> {
-  const token = getAccessToken();
   const { zoduId, branchId } = getTenantContext();
 
-  const { data } = await axios.get(
+  const { data } = await http.get(
     `${API_BASE}/retail/api/customers/${custUuid}/outstanding-bills`,
     {
-      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       params: { zodu_id: zoduId, branch_id: branchId },
     }
   );
@@ -620,7 +615,6 @@ export interface MarkPaymentResponse {
 }
 
 async function postMarkPayment(payload: MarkPaymentPayload): Promise<MarkPaymentResponse> {
-  const token = getAccessToken();
   const { zoduId, branchId } = getTenantContext();
 
   const formData = new FormData();
@@ -633,14 +627,13 @@ async function postMarkPayment(payload: MarkPaymentPayload): Promise<MarkPayment
   formData.append("branch_id", branchId);
   (payload.attachments ?? []).forEach((file) => formData.append("attachments", file));
 
-  const { data } = await axios.post<MarkPaymentResponse>(
+  const { data } = await http.post<MarkPaymentResponse>(
     `${API_BASE}/retail/api/customers/${payload.custUuid}/mark-payment`,
     formData,
     {
       headers: {
         "Content-Type": "multipart/form-data",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+        },
     }
   );
 

@@ -8,6 +8,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import axios from "axios";
+import http from "@store/services/axiosInstance";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://api.myzodu.com";
 
@@ -87,7 +88,7 @@ export function useCustomerSearch(zodu_id: string, branch_id: string) {
         setLoading(true);
         setError(null);
         try {
-          const { data } = await axios.get<CustomerSearchResult>(
+          const { data } = await http.get<CustomerSearchResult>(
             `${API_BASE}/retail/api/customers`,
             { params: { zodu_id, branch_id, search: query.trim(), limit: 10, page: 1 } }
           );

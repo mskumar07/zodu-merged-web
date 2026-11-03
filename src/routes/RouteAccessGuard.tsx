@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAppSelector } from "@store/store";
 import { BusinessType, RoleAccess } from "@store/slices/userSlice";
+import { resolveModuleAccess } from "@hooks/useModulePermission";
+import { useSessionClaims } from "@hooks/usePermission";
 
 // Maps a route's path prefix to the `module_name` returned in the login
 // response's `role_access` list. Only routes modelled as permission modules
@@ -34,6 +36,7 @@ export default function RouteAccessGuard({ children }: Props) {
   const location = useLocation();
   const roleAccess = useAppSelector(RoleAccess);
   const businessType = useAppSelector(BusinessType);
+  const { role } = useSessionClaims();
 
   const isRetailOnly = RETAIL_ONLY_PREFIXES.some(
     (prefix) => location.pathname === prefix || location.pathname.startsWith(prefix + "/"),
@@ -46,11 +49,11 @@ export default function RouteAccessGuard({ children }: Props) {
     location.pathname === entry.prefix || location.pathname.startsWith(entry.prefix + "/")
   );
 
-  if (match) {
-    const access = roleAccess.find((r) => r.module_name === match.module);
-    if (access && !access.can_read) {
-      return <Navigate to="/dashboard" replace />;
-    }
+  // Admin: every route. Other roles: only modules their role-access rows let
+  // them read (no row: no access). The dashboard is where refused routes land,
+  // so it is never refused itself.
+  if (match && match.module !== "Dashboard" && !resolveModuleAccess(roleAccess, match.module, role).canRead) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;

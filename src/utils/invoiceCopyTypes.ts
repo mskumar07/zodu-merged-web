@@ -25,3 +25,13 @@ export function normalizeInvoiceCopyTypes(raw: unknown): InvoiceCopyTypeLabel[] 
 export function invoiceCopyTypesForSale(raw: unknown, saleType: unknown): InvoiceCopyTypeLabel[] {
   return isQuotationSaleType(saleType) ? [] : normalizeInvoiceCopyTypes(raw);
 }
+
+/**
+ * The marking to print on the copy being rendered. With only "Original"
+ * configured there is a single copy and nothing to tell apart, so the invoice
+ * prints unmarked; once another type is configured every copy carries its label.
+ */
+export function invoiceCopyMark(copyType: string | null | undefined, copyTypes: readonly string[]): string | null {
+  if (!copyType) return null;
+  return copyTypes.length === 1 && copyTypes[0] === "Original" ? null : copyType;
+}

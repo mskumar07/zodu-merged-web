@@ -17,7 +17,7 @@
  *  - salesQueryKeys.history key includes filters for proper cache invalidation
  */
 
-import axios from "axios";
+import http from "@store/services/axiosInstance";
 import { toast } from "react-toastify";
 import { getTenantContext } from "@store/tenantContext";
 
@@ -449,7 +449,7 @@ export async function fetchHistory(page: number, filters: Filters): Promise<Hist
   if (filters.search)         params.search   = filters.search;
   if (filters.cancelled_order !== undefined) params.cancelled_order = String(filters.cancelled_order);
 
-  const { data } = await axios.get<Omit<HistoryPage, "data"> & { data: Array<Sale | ReturnHistoryEntry> }>(
+  const { data } = await http.get<Omit<HistoryPage, "data"> & { data: Array<Sale | ReturnHistoryEntry> }>(
     `${API_BASE}/retail/api/sales/history`,
     { params }
   );
@@ -464,7 +464,7 @@ export async function fetchHistory(page: number, filters: Filters): Promise<Hist
  */
 export async function fetchSaleDetail(sale_uuid: string): Promise<SaleDetail> {
   const { zoduId, branchId } = getTenantContext();
-  const { data } = await axios.get<{ success: boolean; data: SaleDetail }>(
+  const { data } = await http.get<{ success: boolean; data: SaleDetail }>(
     `${API_BASE}/retail/api/sales/${sale_uuid}`,
     { params: { zodu_id: zoduId, branch_id: branchId } }
   );
@@ -476,7 +476,7 @@ export async function fetchSaleDetail(sale_uuid: string): Promise<SaleDetail> {
  */
 export async function fetchRestaurantSaleDetail(sale_id: string): Promise<SaleDetail> {
   const { zoduId, branchId } = getTenantContext();
-  const { data } = await axios.get<{ success: boolean; data: SaleDetail }>(
+  const { data } = await http.get<{ success: boolean; data: SaleDetail }>(
     `${API_BASE}/restaurant/api/sales/data/get/${sale_id}`,
     { params: { zodu_id: zoduId, branch_id: branchId } }
   );
@@ -491,7 +491,7 @@ export async function postMarkPayment(
   payload: MarkPaymentPayload
 ): Promise<MarkPaymentResponse> {
   const { sale_uuid, ...body } = payload;
-  const { data } = await axios.post<MarkPaymentResponse>(
+  const { data } = await http.post<MarkPaymentResponse>(
     `${API_BASE}/retail/api/sales/${sale_uuid}/payment`,
     body
   );
@@ -504,7 +504,7 @@ export async function postMarkPayment(
 export async function createSaleReturn(
   payload: CreateSaleReturnPayload
 ): Promise<CreateSaleReturnResponse> {
-  const { data } = await axios.post<CreateSaleReturnResponse>(
+  const { data } = await http.post<CreateSaleReturnResponse>(
     `${API_BASE}/retail/api/sale-returns`,
     payload
   );
@@ -519,7 +519,7 @@ export async function updateSaleReturn(
   return_uuid: string,
   payload: UpdateSaleReturnPayload
 ): Promise<{ success: boolean; message?: string }> {
-  const { data } = await axios.put<{ success: boolean; message?: string }>(
+  const { data } = await http.put<{ success: boolean; message?: string }>(
     `${API_BASE}/retail/api/sale-returns/${return_uuid}`,
     payload
   );
@@ -532,7 +532,7 @@ export async function updateSaleReturn(
 export async function postMarkReturnRefund(
   { return_uuid, ...body }: MarkRefundPayload
 ): Promise<MarkRefundResponse> {
-  const { data } = await axios.post<MarkRefundResponse>(
+  const { data } = await http.post<MarkRefundResponse>(
     `${API_BASE}/retail/api/sale-returns/${return_uuid}/refund`,
     body
   );
@@ -558,7 +558,7 @@ export interface DeleteSaleReturnResponse {
  */
 export async function deleteSaleReturn(return_uuid: string): Promise<DeleteSaleReturnResponse> {
   const { zoduId, branchId } = getTenantContext();
-  const { data } = await axios.delete<DeleteSaleReturnResponse>(
+  const { data } = await http.delete<DeleteSaleReturnResponse>(
     `${API_BASE}/retail/api/sale-returns/${return_uuid}`,
     { params: { zodu_id: zoduId, branch_id: branchId } }
   );
@@ -617,7 +617,7 @@ export interface SaleReturnDetail {
 
 export async function fetchSaleReturnDetail(return_uuid: string): Promise<SaleReturnDetail> {
   const { zoduId, branchId } = getTenantContext();
-  const { data } = await axios.get<{ success: boolean; data: SaleReturnDetail }>(
+  const { data } = await http.get<{ success: boolean; data: SaleReturnDetail }>(
     `${API_BASE}/retail/api/sale-returns/${return_uuid}`,
     { params: { zodu_id: zoduId, branch_id: branchId } }
   );
@@ -668,7 +668,7 @@ export async function fetchSummary(filters: Filters): Promise<SalesSummary> {
   if (filters.search)         params.search          = filters.search;
   if (filters.cancelled_order !== undefined) params.cancelled_order = String(filters.cancelled_order);
 
-  const { data } = await axios.get<SalesSummary>(
+  const { data } = await http.get<SalesSummary>(
     `${API_BASE}/retail/api/sales/history/summary`,
     { params }
   );
@@ -693,7 +693,7 @@ export async function fetchRestaurantHistory(page: number, filters: Filters): Pr
   if (filters.order_type)                  params.order_type       = filters.order_type;
   if (filters.cancelled_order !== undefined) params.cancelled_order = String(filters.cancelled_order);
 
-  const { data } = await axios.get<HistoryPage>(
+  const { data } = await http.get<HistoryPage>(
     `${API_BASE}/restaurant/api/sales/history`,
     { params }
   );
@@ -716,7 +716,7 @@ export async function fetchRestaurantSummary(filters: Filters): Promise<Restaura
   if (filters.order_type)                    params.order_type       = filters.order_type;
   if (filters.cancelled_order !== undefined) params.cancelled_order  = String(filters.cancelled_order);
 
-  const { data } = await axios.get<RestaurantSalesSummary>(
+  const { data } = await http.get<RestaurantSalesSummary>(
     `${API_BASE}/restaurant/api/sales/history/summary`,
     { params }
   );
@@ -756,7 +756,7 @@ export async function deleteSale(
 
   const body = isRestaurant && items && items.length > 0 ? { items } : undefined;
 
-  const { data } = await axios.delete(
+  const { data } = await http.delete(
     `${API_BASE}/${base}/api/sales/${id}`,
     { params, data: body },
   );

@@ -3,12 +3,19 @@ import {
   useInfiniteQuery,
   type UseInfiniteQueryOptions,
 } from "@tanstack/react-query";
+import axios from "axios";
+import axiosInstance from "@store/services/axiosInstance";
 
-
+// Through axiosInstance, so the request carries the session (token, refresh on
+// 401, branch switch) like every other call. A bare fetch() sends no token.
 async function fetchJSON(url: string) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error((await res.json()).error ?? "Request failed");
-  return res.json();
+  try {
+    const res = await axiosInstance.get(url);
+    return res.data;
+  } catch (err) {
+    const message = axios.isAxiosError(err) ? err.response?.data?.error ?? err.response?.data?.message : null;
+    throw new Error(message ?? "Request failed");
+  }
 }
 
 // ── Query key factory ─────────────────────────────────────────

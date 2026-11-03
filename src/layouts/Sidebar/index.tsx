@@ -36,6 +36,8 @@ import { useAppSelector } from "@store/store";
 import { BusinessType, RoleAccess } from "@store/slices/userSlice";
 import { RestaurantBillingView } from "@store/slices/POSslice";
 import { useSignOut } from "@hooks/useSignOut";
+import { resolveModuleAccess } from "@hooks/useModulePermission";
+import { useSessionClaims } from "@hooks/usePermission";
 import { useLocation } from "react-router-dom";
 
 // Two overlapping bills with a rupee mark, drawn as strokes so it follows the icon colour
@@ -133,6 +135,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
   const handleLogout = useSignOut();
   const businessType = useAppSelector(BusinessType);
   const roleAccess = useAppSelector(RoleAccess);
+  const { role } = useSessionClaims();
   // Below `md` the sidebar can't rely on hover (touch devices) or afford to
   // permanently reserve drawer width, so it becomes a hamburger-triggered
   // overlay instead of the desktop's always-visible rail.
@@ -140,13 +143,11 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
 
   const allNavItems = businessType === "Restaurant" ? restaurantNavItems : retailNavItems;
 
-  // A module with no matching role_access entry (e.g. old sessions before this
-  // was wired up, or modules not modelled as permissions) stays visible —
-  // only an explicit can_read: false hides the menu item.
+  // Admin sees every entry; any other role only the modules its role-access
+  // rows let it read (no row: hidden). Dashboard is the landing page.
   const navItems = allNavItems.filter((item) => {
-    if (!item.module) return true;
-    const access = roleAccess.find((r) => r.module_name === item.module);
-    return access ? access.can_read : true;
+    if (!item.module || item.module === "Dashboard") return true;
+    return resolveModuleAccess(roleAccess, item.module, role).canRead;
   });
 
   const activeIndex = navItems.findIndex(

@@ -39,7 +39,7 @@ import {
 import { ThermalInvoiceTemplate, type ThermalPaperSize } from "../SalesHistory/ThermalInvoiceTemplate";
 import { THERMAL_TEMPLATE_OPTIONS, toThermalTemplate } from "@utils/thermalTemplate";
 import { numberToWords } from "@utils/numberToWords";
-import { normalizeInvoiceCopyTypes } from "@utils/invoiceCopyTypes";
+import { invoiceCopyMark, normalizeInvoiceCopyTypes } from "@utils/invoiceCopyTypes";
 
 // ── Sample data for the live receipt preview — never sent anywhere, just
 // rendered locally so toggling an element shows its effect immediately.
@@ -1034,7 +1034,7 @@ export default function RestaurantInvoiceSetting() {
                 theme={theme}
                 logoUrl={companyLogoUrl}
                 signatureUrl={signatureUrl}
-                copyType={settings.invoiceCopyTypes[0] ?? null}
+                copyType={invoiceCopyMark(settings.invoiceCopyTypes[0], settings.invoiceCopyTypes)}
                 inkPictures
               />
             </Box>

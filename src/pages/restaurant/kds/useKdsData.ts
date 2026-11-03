@@ -20,17 +20,12 @@
  * from tickets that may already be paginated/filtered.
  */
 import { useMemo, useState } from "react";
-import axios from "axios";
+import http from "@store/services/axiosInstance";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiConfig } from "@config/api";
-import { getAccessToken } from "@store/tenantContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
-function authHeaders() {
-  const token = getAccessToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
 
 /** tbl_kot_list.status: "P" = Pending, "C" = Completed (marked ready from the item modal). */
 export const KOT_ITEM_COMPLETED = "C";
@@ -71,10 +66,10 @@ interface KdsKotListResponse {
 }
 
 async function fetchKotList(zoduId: string, branchId: string): Promise<KdsKotListResponse> {
-  const { data } = await axios.get(
+  const { data } = await http.get(
     `${API_BASE}${apiConfig.menu.getKdsKotList(zoduId, branchId)}`,
     // `_t` keeps the browser from answering a poll with a cached / 304 copy that predates an item being marked ready.
-    { headers: authHeaders(), params: { _t: Date.now() } }
+    { params: { _t: Date.now() } }
   );
   return {
     data: (data?.data ?? []) as KdsKotTicket[],
@@ -84,18 +79,16 @@ async function fetchKotList(zoduId: string, branchId: string): Promise<KdsKotLis
 }
 
 async function markOrderReady(zoduId: string, branchId: string, apiOrderId: string): Promise<void> {
-  await axios.put(
+  await http.put(
     `${API_BASE}${apiConfig.menu.markKdsOrderReady()}`,
-    { zodu_id: zoduId, branch_id: branchId, api_order_id: apiOrderId },
-    { headers: authHeaders() }
+    { zodu_id: zoduId, branch_id: branchId, api_order_id: apiOrderId }
   );
 }
 
 async function markItemReady(zoduId: string, branchId: string, apiOrderId: string, itemName: string): Promise<void> {
-  await axios.put(
+  await http.put(
     `${API_BASE}${apiConfig.menu.markKdsItemReady()}`,
-    { zodu_id: zoduId, branch_id: branchId, api_order_id: apiOrderId, item_name: itemName },
-    { headers: authHeaders() }
+    { zodu_id: zoduId, branch_id: branchId, api_order_id: apiOrderId, item_name: itemName }
   );
 }
 

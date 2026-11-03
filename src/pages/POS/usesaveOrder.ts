@@ -125,7 +125,7 @@
 //         })),
 //       };
 
-//       const { data } = await axios.post<SaveOrderResult>(
+//       const { data } = await http.post<SaveOrderResult>(
 //         `${API_BASE}/retail/api/add/orders`,
 //         payload
 //       );
@@ -159,6 +159,7 @@
 
 import { useState, useCallback } from "react";
 import axios from "axios";
+import http from "@store/services/axiosInstance";
 import { number } from "yup";
 import { getTenantContext } from "@store/tenantContext";
 
@@ -325,7 +326,7 @@ export function useSaveOrder() {
         })),
       };
 
-      const { data } = await axios.post<SaveOrderResult>(
+      const { data } = await http.post<SaveOrderResult>(
         `${API_BASE}/retail/api/add/orders`,
         payload
       );
@@ -413,7 +414,7 @@ const updateOrder = useCallback(async (
       })),
     };
 
-    const { data } = await axios.put<SaveOrderResult>(
+    const { data } = await http.put<SaveOrderResult>(
       `${API_BASE}/retail/api/update/orders`,
       payload
     );

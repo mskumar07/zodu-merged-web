@@ -476,6 +476,7 @@ import {
   Alert, CircularProgress, InputAdornment, IconButton,
 } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Visibility, VisibilityOff,
   EmailOutlined, LockOutlined,
@@ -489,6 +490,21 @@ import { loadBranchSession } from './loadBranchSession';
 import { notifyIfBranchExpired } from '@utils/subscriptionGuard';
 import { consumePendingSignup } from '@utils/pendingSignup';
 import AuthLayout from './AuthLayout';
+
+// The server answers every bad-credential case with the same message on purpose;
+// show it as given. Too many attempts (429) says how long to wait.
+function loginErrorMessage(err: unknown): string {
+  const res = (err as { response?: { status?: number; data?: any; headers?: Record<string, string> } })?.response;
+  if (res?.status === 429) {
+    const seconds = Number(res.headers?.['retry-after']);
+    const wait = seconds > 0 ? ` in ${Math.ceil(seconds / 60)} minute${seconds > 60 ? 's' : ''}` : ' later';
+    return `Too many sign-in attempts. Try again${wait}.`;
+  }
+  const message = res?.data?.data?.error ?? res?.data?.message;
+  if (typeof message === 'string' && message) return message;
+  if (!res) return 'Can’t reach the server. Check your connection and try again.';
+  return 'Login failed. Please check your credentials and try again.';
+}
 
 // ─── Theme ────────────────────────────────────────────────────
 const theme = createTheme({
@@ -543,6 +559,7 @@ const theme = createTheme({
 const ZoduLoginPage: React.FC = () => {
   const navigate        = useNavigate();
   const dispatch        = useAppDispatch();
+  const queryClient     = useQueryClient();
   const isAuthenticated = useAppSelector(IsAuthenticated);
   const { mutateAsync: login, isPending } = useLoginMutation();
   const [identity,     setIdentity]     = useState('');
@@ -584,16 +601,19 @@ const ZoduLoginPage: React.FC = () => {
         response && typeof response === 'object' && 'data' in response
           ? (response.data as LoginResponse)
           : response;
-          console.log("login detail",data)
-      if (!data?.user || !data?.access_token || !data?.refresh_token)
+      // The refresh token is an HttpOnly cookie now, never in the body.
+      if (!data?.user || !data?.access_token)
         throw new Error('Invalid login response');
-      console.log("login response",data)
       const companies = data.companies ?? [];
+
+      // Whatever the previous user left in memory (menu, customers, reports)
+      // must not show for this one. The POS IndexedDB cache checks its owner
+      // itself on the next load (claimCatalogue).
+      queryClient.clear();
 
       dispatch(
         setAuthData({
           accessToken: data.access_token,
-          refreshToken: data.refresh_token,
           profile: data.user,
           company: data.company ?? null,
           companies,
@@ -699,8 +719,8 @@ const ZoduLoginPage: React.FC = () => {
       }
 
       navigate('/select-branch', { replace: true, state: { companies } });
-    } catch {
-      setError('Login failed. Please check your credentials and try again.');
+    } catch (err) {
+      setError(loginErrorMessage(err));
     }
   };
 

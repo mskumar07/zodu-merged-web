@@ -3,13 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAppDispatch } from "@store/store";
 import { clearAuthData } from "@store/slices/userSlice";
-import { tokenStore } from "@pages/auth/Authapi";
-import { db } from "@pages/POS/db";
+import { authApis } from "@pages/auth/Authapi";
+import { clearCatalogue } from "@pages/POS/db";
 import { resetSessionReconciliation } from "@hooks/useReconcilePersistedSession";
 
 /**
- * Clears every local trace of the session — POS cache, query cache, tokens and
- * the persisted user slice — and sends the user to the login page.
+ * Ends the session on the server (revoked, refresh cookie cleared), clears every
+ * local trace of it — POS cache, query cache, the in-memory token and the
+ * persisted user slice — and sends the user to the login page.
  */
 export function useSignOut() {
   const dispatch = useAppDispatch();
@@ -18,14 +19,14 @@ export function useSignOut() {
 
   return useCallback(async () => {
     try {
-      await db.products.clear();
-      await db.meta.clear();
+      await clearCatalogue();
     } catch (err) {
       // A failed IndexedDB clear must not leave the user stuck signed in.
       console.warn("[session] failed to clear the POS cache", err);
     }
     queryClient.clear();
-    tokenStore.clear();
+    // Never throws: an offline sign-out still clears everything locally.
+    await authApis.logout();
     dispatch(clearAuthData());
     // The next sign-in in this same page load has to reconcile its session
     // again — the guard is module scoped, not component scoped.
