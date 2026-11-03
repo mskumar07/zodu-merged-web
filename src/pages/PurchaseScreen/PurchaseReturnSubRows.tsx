@@ -8,7 +8,9 @@
  */
 import { memo } from "react";
 import { Box, Button, Typography, TableRow, TableCell } from "@mui/material";
+import { Circle } from "@mui/icons-material";
 import TableActionButton from "@components/Common/TableActionButton";
+import { TABLE_COLORS, useTableBodyCellSx } from "@utils/tableDensity";
 import type { PurchaseRefundStatus, PurchaseReturnListRow, PurchaseRow } from "./usePuchaseapi";
 
 interface Props {
@@ -28,28 +30,29 @@ const INR = (v: number) =>
 const num = (v: unknown) => Number(v ?? 0) || 0;
 
 const TYPE_BADGE = {
-  PURCHASE_RETURN: { label: "Purchase Return", bg: "#FEF2F2", color: "#B91C1C", border: "#FECACA" },
+  PURCHASE_RETURN: { label: "Return", bg: "#FEF2F2", color: "#B91C1C", border: "#FECACA" },
   DEBIT_NOTE:      { label: "Debit Note",      bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE" },
 } as const;
 
+// A return's refund shows the same three payment states as an invoice: Paid / Partial / Not Paid.
+// NA = settled against the invoice balance, so nothing is left to pay out.
 const REFUND_LABEL: Record<PurchaseRefundStatus, { label: string; color: string }> = {
-  PENDING:  { label: "Refund pending",      color: "#B45309" },
-  PARTIAL:  { label: "Partially refunded",  color: "#C2410C" },
-  REFUNDED: { label: "Refunded",            color: "#15803D" },
-  NA:       { label: "Adjusted to balance", color: "#0369A1" },
+  PENDING:  { label: "Not Paid", color: "#C62828" },
+  PARTIAL:  { label: "Partial",  color: "#F57C00" },
+  REFUNDED: { label: "Paid",     color: "#2E7D32" },
+  NA:       { label: "Paid",     color: "#2E7D32" },
 };
 
-// Mirrors the DataTable body cell so a return row reads exactly like a purchase row
-// Same padding and clipping as the table's fitWidth cells, so return rows line up and never push the table wider.
-const cellSx   = { height: 40, padding: "5px 8px", overflow: "hidden", fontSize: "13px", color: "#374151", verticalAlign: "middle", bgcolor: "#fff" } as const;
 const RIGHT_KEYS = new Set(["total_amount", "paid_amount", "balance_amount"]);
 
 function PurchaseReturnSubRows({ purchase, returns, columnKeys, canEdit, onView, onViewPurchase, onMarkRefund, onEdit, onDelete }: Props) {
+  // Same height, padding and borders as the table's own rows at the current density
+  const { rowHeight, cellSx } = useTableBodyCellSx();
   return (
     <>
       {returns.map((r) => {
         const badge   = TYPE_BADGE[r.return_type] ?? TYPE_BADGE.PURCHASE_RETURN;
-        const refund  = REFUND_LABEL[r.refund_status];
+        const refund  = REFUND_LABEL[r.refund_status] ?? REFUND_LABEL[num(r.pending_refund) > 0 ? "PENDING" : "REFUNDED"];
         const pending = num(r.pending_refund);
         const paid    = num(r.paid_amount ?? r.refunded_amount);
         const canPay  = (r.refund_status === "PENDING" || r.refund_status === "PARTIAL") && pending > 0;
@@ -90,8 +93,8 @@ function PurchaseReturnSubRows({ purchase, returns, columnKeys, canEdit, onView,
               return (
                 <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0.5 }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "nowrap" }}>
-                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: refund.color, display: "inline-flex", alignItems: "center", gap: 0.6 }}>
-                      <Box component="span" sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: refund.color }} />
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: refund.color, display: "inline-flex", alignItems: "center", gap: 0.5, minWidth: 70 }}>
+                      <Circle sx={{ fontSize: 8 }} />
                       {refund.label}
                     </Typography>
                     {canPay && (
@@ -125,10 +128,10 @@ function PurchaseReturnSubRows({ purchase, returns, columnKeys, canEdit, onView,
         };
 
         return (
-          <TableRow key={r.return_uuid} hover sx={{ height: 40 }}>
+          <TableRow key={r.return_uuid} hover sx={{ height: rowHeight, "&:hover > td": { backgroundColor: TABLE_COLORS.rowHover } }}>
             {columnKeys.map((key) => (
-              <TableCell key={key} align={RIGHT_KEYS.has(key) ? "right" : key === "actions" ? "center" : "left"}
-                sx={cellSx}>
+              <TableCell key={key} align={RIGHT_KEYS.has(key) || key === "actions" ? "right" : "left"}
+                sx={RIGHT_KEYS.has(key) ? { ...cellSx, fontVariantNumeric: "tabular-nums" } : cellSx}>
                 {cell(key)}
               </TableCell>
             ))}

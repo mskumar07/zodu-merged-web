@@ -8,12 +8,14 @@
  */
 import { memo } from "react";
 import { Avatar, Box, Button, Stack, Typography, TableRow, TableCell, alpha } from "@mui/material";
+import { Circle } from "@mui/icons-material";
 
 // Returns show their exact amount (₹76.95, not ₹77); whole rupees show without decimals (₹299, not ₹299.00).
 const INR_FMT = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 0, maximumFractionDigits: 2 });
 const INR = (v: number) => INR_FMT.format(v);
 import type { RefundStatus, Sale, SaleListReturn } from "./useSaleshistory";
 import TableActionButton from "@components/Common/TableActionButton";
+import { TABLE_COLORS, useTableBodyCellSx } from "@utils/tableDensity";
 
 interface Props {
   sale:        Sale;
@@ -27,30 +29,34 @@ interface Props {
 }
 
 const TYPE_BADGE = {
-  SALES_RETURN: { label: "Sales Return", bg: "#FEF2F2", color: "#B91C1C", border: "#FECACA" },
+  SALES_RETURN: { label: "Return", bg: "#FEF2F2", color: "#B91C1C", border: "#FECACA" },
   CREDIT_NOTE:  { label: "Credit Note",  bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE" },
 } as const;
 
+// A return's refund shows the same three payment states as an invoice: Paid / Partial / Not Paid.
+// NA = settled against the invoice balance, so nothing is left to pay out.
 const REFUND_LABEL: Record<RefundStatus, { label: string; color: string }> = {
-  PENDING:  { label: "Refund pending",     color: "#B45309" },
-  PARTIAL:  { label: "Partially refunded", color: "#C2410C" },
-  REFUNDED: { label: "Refunded",           color: "#15803D" },
-  NA:       { label: "Adjusted to balance", color: "#0369A1" },
+  PENDING:  { label: "Not Paid", color: "#C62828" },
+  PARTIAL:  { label: "Partial",  color: "#F57C00" },
+  REFUNDED: { label: "Paid",     color: "#2E7D32" },
+  NA:       { label: "Paid",     color: "#2E7D32" },
 };
 
 
-// Mirrors the DataTable body cell so a return row reads exactly like a sale row
-// Same padding and clipping as the table's fitWidth cells, so return rows line up and never push the table wider.
-const cellSx = { height: 40, padding: "5px 8px", overflow: "hidden", fontSize: "13px", color: "#374151", verticalAlign: "middle", bgcolor: "#fff" } as const;
+// Right-aligned money columns, matching the parent table
+const NUMERIC_KEYS = new Set(["total", "paid_amount", "balance_amount"]);
 
 function SaleReturnSubRows({ sale, columnKeys, canEdit, onViewReturn, onViewInvoice, onMarkRefund, onEditReturn, onDeleteReturn }: Props) {
+  // Same height, padding and borders as the table's own rows at the current density
+  const { rowHeight, cellSx } = useTableBodyCellSx();
   const returns = sale.returns ?? [];
 
   return (
     <>
-      {returns.map((r, i) => {
+      {returns.map((r) => {
         const badge   = TYPE_BADGE[r.return_type ?? "SALES_RETURN"] ?? TYPE_BADGE.SALES_RETURN;
-        const refund  = r.refund_status ? REFUND_LABEL[r.refund_status] : null;
+        // No refund status from the API yet → work it out from what is still owed
+        const refund  = r.refund_status ? REFUND_LABEL[r.refund_status] : REFUND_LABEL[Number(r.pending_refund ?? 0) > 0 ? "PENDING" : "REFUNDED"];
         const pending = Number(r.pending_refund ?? 0);
         const paid    = Number(r.paid_amount ?? r.refunded_amount ?? 0);
         const canPay  = r.refund_status === "PENDING" || r.refund_status === "PARTIAL";
@@ -110,8 +116,8 @@ function SaleReturnSubRows({ sale, columnKeys, canEdit, onViewReturn, onViewInvo
                   {/* Status + the Mark Payment action; paid / still owed have their own columns */}
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "nowrap" }}>
                     {refund && (
-                      <Typography sx={{ fontSize: 13, fontWeight: 600, color: refund.color, display: "inline-flex", alignItems: "center", gap: 0.6 }}>
-                        <Box component="span" sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: refund.color }} />
+                      <Typography sx={{ fontSize: 13, fontWeight: 600, color: refund.color, display: "inline-flex", alignItems: "center", gap: 0.5, minWidth: 70 }}>
+                        <Circle sx={{ fontSize: 8 }} />
                         {refund.label}
                       </Typography>
                     )}
@@ -156,12 +162,12 @@ function SaleReturnSubRows({ sale, columnKeys, canEdit, onViewReturn, onViewInvo
         };
 
         return (
-          <TableRow key={r.return_uuid} hover sx={{ height: 40 }}>
+          <TableRow key={r.return_uuid} hover sx={{ height: rowHeight, "&:hover > td": { backgroundColor: TABLE_COLORS.rowHover } }}>
             {columnKeys.map((key) => (
               <TableCell
                 key={key}
-                align={key === "total" || key === "paid_amount" || key === "balance_amount" || key === "actions" ? "right" : "left"}
-                sx={cellSx}
+                align={NUMERIC_KEYS.has(key) || key === "actions" ? "right" : "left"}
+                sx={NUMERIC_KEYS.has(key) ? { ...cellSx, fontVariantNumeric: "tabular-nums" } : cellSx}
               >
                 {cell(key)}
               </TableCell>
