@@ -14,15 +14,17 @@ import {
   Typography,
 } from "@mui/material";
 import InfiniteScrollStatus from "@components/Common/InfiniteScrollStatus";
+import {
+  TABLE_COLORS, TABLE_DENSITIES, CELL_PX, FIT_CELL_PX,
+  TableDensityProvider, bodyCellSx, useTableDensityPreference,
+  type TableDensity,
+} from "./tableDensity";
+
+export type { TableDensity } from "./tableDensity";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const HEAD_BG = "#F5F5F5";
-const HEAD_BORDER = "#CBD5E1";
-const ROW_HEIGHT = 40;
-const HEADER_HEIGHT = 34; // a notch shorter than a body row so the header reads as a label strip
-const CELL_PX    = "5px 12px";
-const FIT_CELL_PX = "5px 8px";
-const FIT_HEAD_PX = "1px 8px";
+const HEAD_BG     = TABLE_COLORS.headBg;
+const HEAD_BORDER = TABLE_COLORS.headBorder;
 // Approximate width of one header character (12.5px bold) — used to keep fitWidth headers on one line.
 const HEAD_CHAR_PX = 7.5;
 
@@ -58,7 +60,9 @@ export interface DataTableProps<T> {
   maxHeight?: string | number;
   onRowClick?: (row: T) => void;
   emptyMessage?: string;
-  /** Height of each table header row. */
+  /** Row height: compact 40px, default 48px, comfortable 56px. Omit to follow the viewer's saved choice. */
+  density?: TableDensity;
+  /** Height of each table header row. Defaults to the density's header height. */
   headerHeight?: number;
   /** A pinned row (e.g. totals) under the scrolling body, aligned to the same columns. */
   footerRow?: T;
@@ -75,14 +79,10 @@ export interface DataTableProps<T> {
   renderRow?: (row: T) => React.ReactNode;
 }
 
-// ─── Shared cell sx ───────────────────────────────────────────────────────────
-const bodyCellSx = {
-  height: ROW_HEIGHT,
-  padding: CELL_PX,
-  fontSize: "13px",
-  color: "#374151",
-  verticalAlign: "middle",
-  backgroundColor: "#ffffff",
+// Plain white rows (no zebra stripes) with a faint hover so the eye can track a row.
+// The hover tints the cells because each cell paints its own white background.
+const rowHoverSx = {
+  "&:hover > td": { backgroundColor: TABLE_COLORS.rowHover },
 } as const;
 
 // Resolve a column's effective width (number → px, string → as-is, undefined → auto)
@@ -105,13 +105,20 @@ function DataTable<T>({
   maxHeight = "68vh",
   onRowClick,
   emptyMessage = "No records found.",
-  headerHeight = HEADER_HEIGHT,
+  density: densityProp,
+  headerHeight: headerHeightProp,
   footerRow,
   hideEndNote = false,
   fitWidth = false,
   renderSubRows,
   renderRow,
 }: DataTableProps<T>) {
+  const [savedDensity] = useTableDensityPreference();
+  const density      = densityProp ?? savedDensity;
+  const spec         = TABLE_DENSITIES[density];
+  const ROW_HEIGHT   = spec.rowHeight;
+  const headerHeight = headerHeightProp ?? spec.headerHeight;
+
   const headerContainerRef = useRef<HTMLDivElement>(null);
   const footerContainerRef = useRef<HTMLDivElement>(null);
 
@@ -131,18 +138,21 @@ function DataTable<T>({
   const tableHeight = typeof maxHeight === "number" ? `${maxHeight}px` : maxHeight;
   const headCellSx = {
     height: headerHeight,
-    padding: headerHeight < ROW_HEIGHT ? "1px 12px" : CELL_PX,
-    lineHeight: `${headerHeight < ROW_HEIGHT ? Math.max(headerHeight - 4, 18) : headerHeight}px`,
+    padding: `1px ${fitWidth ? FIT_CELL_PX : CELL_PX}px`,
+    lineHeight: `${Math.max(headerHeight - 4, 18)}px`,
     whiteSpace: "nowrap" as const,
     fontSize: "12.5px",
     fontWeight: 700,
-    color: "#6B7280",
+    color: TABLE_COLORS.headText,
     backgroundColor: HEAD_BG,
     borderBottom: `1px solid ${HEAD_BORDER}`,
     letterSpacing: "0.02em",
-    ...(fitWidth && { padding: FIT_HEAD_PX, overflow: "hidden", textOverflow: "ellipsis" }),
+    ...(fitWidth && { overflow: "hidden", textOverflow: "ellipsis" }),
   };
-  const cellSx = fitWidth ? { ...bodyCellSx, padding: FIT_CELL_PX, overflow: "hidden" } : bodyCellSx;
+  const cellSx = bodyCellSx(spec, fitWidth);
+  // Numbers line up digit-for-digit when right-aligned
+  const alignedCellSx = (align: ColumnDef<T>["align"]) =>
+    align === "right" ? { ...cellSx, fontVariantNumeric: "tabular-nums" } : cellSx;
 
   // Min width ensures horizontal scroll triggers at the same point for header + body
   const tableMinWidth = columns.reduce((sum, col) => {
@@ -261,6 +271,7 @@ function DataTable<T>({
   };
 
   return (
+    <TableDensityProvider value={density}>
     <Card
       elevation={3}
       sx={{
@@ -381,10 +392,10 @@ function DataTable<T>({
                   <TableRow
                     hover
                     onClick={onRowClick ? () => onRowClick(row) : undefined}
-                    sx={{ height: ROW_HEIGHT, cursor: onRowClick ? "pointer" : "default" }}
+                    sx={{ height: ROW_HEIGHT, cursor: onRowClick ? "pointer" : "default", ...rowHoverSx }}
                   >
                     {columns.map((col) => (
-                      <TableCell key={col.key} align={col.align ?? "left"} sx={cellSx}>
+                      <TableCell key={col.key} align={col.align ?? "left"} sx={alignedCellSx(col.align)}>
                         {col.render(row)}
                       </TableCell>
                     ))}
@@ -404,7 +415,7 @@ function DataTable<T>({
             {/* Next page loading / end-of-list footer */}
             {!isLoading && rows.length > 0 && (isFetchingNextPage || (!hideEndNote && !hasNextPage)) && (
               <TableRow sx={{ height: ROW_HEIGHT }}>
-                <TableCell colSpan={colSpan} align="center" sx={{ ...bodyCellSx, py: 0 }}>
+                <TableCell colSpan={colSpan} align="center" sx={{ ...cellSx, py: 0, borderBottom: 0 }}>
                   <InfiniteScrollStatus loading={isFetchingNextPage} done={!hasNextPage} />
                 </TableCell>
               </TableRow>
@@ -418,7 +429,7 @@ function DataTable<T>({
       {footerRow && !isLoading && rows.length > 0 && (
         <Box
           ref={footerContainerRef}
-          sx={{ overflowX: "hidden", overflowY: "hidden", flexShrink: 0, borderTop: "1px solid #CBD5E1", backgroundColor: "#F5F5F5" }}
+          sx={{ overflowX: "hidden", overflowY: "hidden", flexShrink: 0, borderTop: `1px solid ${HEAD_BORDER}`, backgroundColor: HEAD_BG }}
         >
           <Table size="small" sx={tableSx}>
             {colgroup}
@@ -428,7 +439,7 @@ function DataTable<T>({
                   <TableCell
                     key={col.key}
                     align={col.align ?? "left"}
-                    sx={{ ...cellSx, backgroundColor: "#F5F5F5", borderBottom: 0 }}
+                    sx={{ ...alignedCellSx(col.align), backgroundColor: HEAD_BG, borderBottom: 0, fontWeight: 700 }}
                   >
                     {col.render(footerRow)}
                   </TableCell>
@@ -441,6 +452,7 @@ function DataTable<T>({
 
       <Divider />
     </Card>
+    </TableDensityProvider>
   );
 }
 

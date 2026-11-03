@@ -36,6 +36,7 @@ import ReturnDetailDialog  from "./ReturnDetailDialog";
 import DeleteReturnDialog  from "./DeleteReturnDialog";
 import SaleReturnSubRows   from "./SaleReturnSubRows";
 import DataTable           from "@utils/DataTable";
+import DensityToggle        from "@components/Common/DensityToggle";
 import StatCard            from "@components/StatCard";
 import SuccessToast        from "@components/Common/SuccessToast";
 import TableActionButton   from "@components/Common/TableActionButton";
@@ -80,34 +81,36 @@ const BODY_FONT_SIZE = "13px";
 const TABLE_TEXT_COLOR = "#374151";
 
 /**
- * Map every possible backend payment_status to a UI label.
- * ✅ "returned" and "partial_return" were unhandled → fell through to "Unpaid"
+ * Payment status shown in the table is always one of Paid / Partial / Not Paid.
+ * A return never replaces it — the return itself is listed as its own row.
  */
-type UIStatus = "Paid" | "Partial" | "Unpaid" | "Returned" | "Partial Return" | "Quotation" | "Proforma";
+type UIStatus = "Paid" | "Partial" | "Not Paid" | "Quotation" | "Proforma";
 
 const STATUS_CONFIG: Record<
   UIStatus,
   { color: string; bg: string; dot: string }
 > = {
-  "Paid":           { color: "#2E7D32", bg: "#E8F5E9", dot: "#2E7D32" },
-  "Partial":        { color: "#F57C00", bg: "#FFF3E0", dot: "#F57C00" },
-  "Unpaid":         { color: "#C62828", bg: "#FFEBEE", dot: "#C62828" },
-  "Returned":       { color: "#6B21A8", bg: "#F3E8FF", dot: "#7C3AED" },
-  "Partial Return": { color: "#0369A1", bg: "#E0F2FE", dot: "#0284C7" },
-  "Quotation":      { color: "#475569", bg: "#F1F5F9", dot: "#64748B" },
-  "Proforma":       { color: "#0F766E", bg: "#CCFBF1", dot: "#14B8A6" },
+  "Paid":      { color: "#2E7D32", bg: "#E8F5E9", dot: "#2E7D32" },
+  "Partial":   { color: "#F57C00", bg: "#FFF3E0", dot: "#F57C00" },
+  "Not Paid":  { color: "#C62828", bg: "#FFEBEE", dot: "#C62828" },
+  "Quotation": { color: "#475569", bg: "#F1F5F9", dot: "#64748B" },
+  "Proforma":  { color: "#0F766E", bg: "#CCFBF1", dot: "#14B8A6" },
 };
 
-// The API sends fully_paid / partially_paid / unpaid, and the list also derives the two return states.
+// The API sends fully_paid / partially_paid / unpaid, and the list may also derive the two return states.
 type PaymentStatus = Sale["payment_status"] | "returned" | "partial_return";
 
-function mapStatus(s: PaymentStatus): UIStatus {
-  switch (s) {
+function mapStatus(sale: Sale): UIStatus {
+  switch (sale.payment_status as PaymentStatus) {
     case "fully_paid":     return "Paid";
     case "partially_paid": return "Partial";
-    case "returned":       return "Returned";        // ✅ was falling through to "Unpaid"
-    case "partial_return": return "Partial Return";  // ✅ was falling through to "Unpaid"
-    default:               return "Unpaid";
+    case "unpaid":         return "Not Paid";
+    default: {
+      // "returned" / "partial_return": work the payment status out from the amounts
+      const balance = isFullyReturnedSale(sale) ? 0 : Number(sale.balance_amount ?? 0);
+      if (balance <= 0.01) return "Paid";
+      return Number(sale.paid_amount ?? 0) > 0 ? "Partial" : "Not Paid";
+    }
   }
 }
 
@@ -306,8 +309,8 @@ export default function SalesHistoryPage() {
       key: "sale_id",
       label: isRestaurant ? "Order ID" : "Invoice ID",
       width: 210,
-      // Room for a full "Sales Return - RET-…" line, so return ids never wrap
-      fitMin: isRestaurant ? undefined : 270,
+      // Room for a full "Credit Note - RET-…" line, so return ids never wrap
+      fitMin: isRestaurant ? undefined : 250,
       render: (sale: Sale) => {
         const returns = !isRestaurant ? sale.returns ?? [] : [];
         return (
@@ -322,7 +325,7 @@ export default function SalesHistoryPage() {
             {/* Cross-reference: the return / credit note ids raised against this invoice */}
             {returns.map((r) => (
               <Typography key={r.return_uuid} sx={{ fontSize: BODY_FONT_SIZE, fontWeight: 500, color: "#475569", lineHeight: 1.4, whiteSpace: "nowrap" }}>
-                {r.return_type === "CREDIT_NOTE" ? "Credit Note" : "Sales Return"} -{" "}
+                {r.return_type === "CREDIT_NOTE" ? "Credit Note" : "Return"} -{" "}
                 <Box component="span" onClick={() => setViewReturn({ sale, ret: r })} sx={{ color: "#B91C1C", fontWeight: 600, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}>
                   {r.return_id}
                 </Box>
@@ -482,8 +485,7 @@ export default function SalesHistoryPage() {
         }
         const fullyReturned = isFullyReturnedSale(sale);
         const nonBinding = nonBindingStatus(sale);
-        const status = fullyReturned ? "Returned" : (nonBinding ?? mapStatus(sale.payment_status));
-        const isReturned = status === "Returned" || status === "Partial Return";
+        const status = nonBinding ?? mapStatus(sale);
         const returnCount = Number(sale.return_count ?? 0);
         return (
           <Stack direction="column" alignItems="flex-start" gap={0.3}>
@@ -493,7 +495,7 @@ export default function SalesHistoryPage() {
                 <StatusBadge status={status} />
               </Box>
               <Box sx={{ width: isQuotationSale(sale) ? 128 : 104 }}>
-                {status !== "Paid" && !isReturned && !nonBinding && !isCancelledTab && (
+                {status !== "Paid" && !fullyReturned && !nonBinding && !isCancelledTab && (
                   <Button
                     size="small" variant="contained" color="primary" disableElevation
                     disabled={!canEdit}
@@ -566,8 +568,7 @@ export default function SalesHistoryPage() {
       render: (sale: Sale) => {
         const fullyReturned = isFullyReturnedSale(sale);
         const isNonBinding = nonBindingStatus(sale) !== null;
-        const status = fullyReturned ? "Returned" : mapStatus(sale.payment_status);
-        const isReturned = status === "Returned";
+        const isReturned = fullyReturned;
         // One return / credit note per invoice: once it exists, the invoice itself can no
         // longer be edited, deleted or returned again — those actions move to the return row.
         const hasReturns = !isRestaurant && (Number(sale.return_count ?? 0) > 0 || (sale.returns?.length ?? 0) > 0);
@@ -576,7 +577,7 @@ export default function SalesHistoryPage() {
             {!isNonBinding && !isRestaurant && !hasReturns && (
               <TableActionButton
                 kind="return"
-                title={isReturned ? "Fully Returned" : !canEdit ? "You don't have permission to edit" : "Sales Return"}
+                title={isReturned ? "Fully Returned" : !canEdit ? "You don't have permission to edit" : "Return"}
                 disabled={isReturned || !canEdit}
                 onClick={guard(() => setReturnDialog({ sale }))}
               />
@@ -790,9 +791,7 @@ export default function SalesHistoryPage() {
                   if (!selected) return <Box component="span" sx={{ color: "text.disabled", fontSize: 13 }}>All Status</Box>;
                   if (selected === "fully_paid")     return "Paid";
                   if (selected === "partially_paid") return "Partial";
-                  if (selected === "unpaid")         return "Unpaid";
-                  if (selected === "returned")       return "Returned";
-                  if (selected === "partial_return") return "Partial Return";
+                  if (selected === "unpaid")         return "Not Paid";
                   return selected;
                 }}
                 onChange={e => setAppliedFilters(f => ({ ...f, payment_status: e.target.value }))}
@@ -801,9 +800,7 @@ export default function SalesHistoryPage() {
                 <MenuItem value="">All Status</MenuItem>
                 <MenuItem value="fully_paid">Paid</MenuItem>
                 <MenuItem value="partially_paid">Partial</MenuItem>
-                <MenuItem value="unpaid">Unpaid</MenuItem>
-                <MenuItem value="returned">Returned</MenuItem>
-                <MenuItem value="partial_return">Partial Return</MenuItem>
+                <MenuItem value="unpaid">Not Paid</MenuItem>
               </Select>
             )}
           </FormControl>
@@ -823,6 +820,8 @@ export default function SalesHistoryPage() {
               <FilterListOffIcon sx={{ fontSize: 20 }} />
             </Box>
           )}
+
+          <DensityToggle height={36} />
         </Box>
       </Box>
 

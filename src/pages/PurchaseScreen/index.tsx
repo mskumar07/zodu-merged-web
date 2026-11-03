@@ -22,6 +22,7 @@ import {
 import { toDateInputValue } from "@utils/localDate";
 import SuccessToast from "@components/Common/SuccessToast";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
+import DensityToggle from "@components/Common/DensityToggle";
 import {
   usePurchases,
   usePurchaseSummary,
@@ -64,7 +65,7 @@ const STATUS_STYLES: Record<PurchaseStatus, {
 }> = {
   paid:    { label: "Paid",    color: "#2E7D32" },
   partial: { label: "Partial", color: "#F57C00" },
-  pending: { label: "Pending", color: "#C62828" },
+  pending: { label: "Not Paid", color: "#C62828" },
 };
 
 // Status Badge Component (like SalesHistory)
@@ -182,7 +183,7 @@ export default function PurchaseScreen() {
               {/* Cross-reference: the return / debit note ids raised against this purchase */}
               {(p.returns ?? []).map((r) => (
                 <Typography key={r.return_uuid} noWrap sx={{ fontSize: 13, fontWeight: 500, color: "#475569", lineHeight: 1.4 }}>
-                  {r.return_type === "DEBIT_NOTE" ? "Debit Note" : "Purchase Return"} -{" "}
+                  {r.return_type === "DEBIT_NOTE" ? "Debit Note" : "Return"} -{" "}
                   <Box component="span" onClick={() => setViewReturnId(r.return_uuid)} sx={{ color: "#B91C1C", fontWeight: 600, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}>
                     {r.return_id}
                   </Box>
@@ -345,7 +346,7 @@ export default function PurchaseScreen() {
           <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.3 }}>
             <TableActionButton
               kind="return"
-              title={canEdit ? "Purchase Return / Debit Note" : "You don't have permission to edit"}
+              title={canEdit ? "Return / Debit Note" : "You don't have permission to edit"}
               disabled={!canEdit}
               onClick={guard(() => setReturnTarget({ purchaseId: p.purchase_id }))}
             />
@@ -425,9 +426,10 @@ export default function PurchaseScreen() {
                   <MenuItem value="">All Status</MenuItem>
                   <MenuItem value="paid">Paid</MenuItem>
                   <MenuItem value="partial">Partial</MenuItem>
-                  <MenuItem value="pending">Pending</MenuItem>
+                  <MenuItem value="pending">Not Paid</MenuItem>
                 </Select>
               </FormControl>
+              <DensityToggle />
               <Button
                 variant="contained" size="small"
                 startIcon={<AddIcon sx={{ fontSize: 16 }} />}
