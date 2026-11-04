@@ -32,6 +32,54 @@ export const TABLE_DENSITIES: Record<TableDensity, DensitySpec> = {
 export const CELL_PX     = 12;
 export const FIT_CELL_PX = 8;
 
+// ─── Money columns ────────────────────────────────────────────────────────────
+// Amount columns are a fixed width that fits the largest amount we support, 10 crore,
+// on one line: "₹10,00,00,000.00", and "−₹…" on a return row. Every row then lines up
+// digit-for-digit, and the text never wraps or clips.
+
+/** The widest amount a money column must show, as printed (en-IN, 2 decimals, negative). */
+export const MONEY_LIMIT_TEXT = "−₹10,00,00,000.00";
+
+/** Body text of a money cell: 13px, bold for the main figure (the widest case). */
+export const MONEY_FONT = "700 13px";
+/** Secondary lines under an amount ("Ret −₹…", "Net ₹…"): 12px regular. */
+export const MONEY_NOTE_FONT = "400 12px";
+
+const widthCache = new Map<string, number>();
+let measureCtx: CanvasRenderingContext2D | null | undefined;
+
+/** Rendered width of `text` in the page's font, in px (an estimate where canvas is unavailable). */
+export function measureTextPx(text: string, font: string): number {
+  const key = `${font}|${text}`;
+  const hit = widthCache.get(key);
+  if (hit !== undefined) return hit;
+  if (measureCtx === undefined) {
+    try { measureCtx = document.createElement("canvas").getContext("2d"); } catch { measureCtx = null; }
+  }
+  let width = text.length * 7.8;   // ~bold 13px digit
+  if (measureCtx) {
+    const family = getComputedStyle(document.body).fontFamily || "Roboto, Helvetica, Arial, sans-serif";
+    measureCtx.font = `${font} ${family}`;
+    width = measureCtx.measureText(text).width;
+  }
+  widthCache.set(key, width);
+  return width;
+}
+
+/**
+ * Width of a money column, in px: the widest of `lines` (each [text, font]) plus the
+ * cell's side padding, with a little headroom for a web font that loads after measuring.
+ */
+export function moneyColumnWidth(
+  lines: Array<[text: string, font: string]> = [[MONEY_LIMIT_TEXT, MONEY_FONT]],
+): number {
+  const widest = Math.max(...lines.map(([text, font]) => measureTextPx(text, font)));
+  return Math.ceil(widest * 1.06) + FIT_CELL_PX * 2;
+}
+
+/** Cell text style for an amount: one line, digits of equal width. */
+export const MONEY_TEXT_SX = { whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" } as const;
+
 // ─── Table colours (no zebra stripes: borders, whitespace and the header carry the structure) ───
 export const TABLE_COLORS = {
   headBg:     "#F5F5F5",

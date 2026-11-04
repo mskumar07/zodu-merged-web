@@ -21,6 +21,7 @@ import InventoryManagement from "../pages/InventoryScreen/InventoryManagement";
 import ZoduLoginPage from "@pages/auth/Login";
 import ZoduSignupPage from "@pages/auth/Signup";
 import SelectBranch from "@pages/auth/SelectBranch";
+import MyApps from "@pages/auth/MyApps";
 import ProtectedRoute from "./ProtectedRoute";
 import ZoduLandingPage from "@pages/landingPage/ZodulandingPage";
 import Setting from "@pages/Settings/Setting";
@@ -114,6 +115,15 @@ export const routes = [
   },
   { path: "/login", element: <ZoduLoginPage /> },
   { path: "/signup", element: <ZoduSignupPage /> },
+  // After signing in: zodu POS (this app) or zodu Attendance (its own subdomain).
+  {
+    path: "/apps",
+    element: (
+      <ProtectedRoute>
+        <MyApps />
+      </ProtectedRoute>
+    ),
+  },
   {
     path: "/select-branch",
     element: (

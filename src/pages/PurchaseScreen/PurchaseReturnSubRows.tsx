@@ -10,7 +10,7 @@ import { memo } from "react";
 import { Box, Button, Typography, TableRow, TableCell } from "@mui/material";
 import { Circle } from "@mui/icons-material";
 import TableActionButton from "@components/Common/TableActionButton";
-import { TABLE_COLORS, useTableBodyCellSx } from "@utils/tableDensity";
+import { MONEY_TEXT_SX, TABLE_COLORS, useTableBodyCellSx } from "@utils/tableDensity";
 import type { PurchaseRefundStatus, PurchaseReturnListRow, PurchaseRow } from "./usePuchaseapi";
 
 interface Props {
@@ -131,7 +131,7 @@ function PurchaseReturnSubRows({ purchase, returns, columnKeys, canEdit, onView,
           <TableRow key={r.return_uuid} hover sx={{ height: rowHeight, "&:hover > td": { backgroundColor: TABLE_COLORS.rowHover } }}>
             {columnKeys.map((key) => (
               <TableCell key={key} align={RIGHT_KEYS.has(key) || key === "actions" ? "right" : "left"}
-                sx={RIGHT_KEYS.has(key) ? { ...cellSx, fontVariantNumeric: "tabular-nums" } : cellSx}>
+                sx={RIGHT_KEYS.has(key) ? { ...cellSx, ...MONEY_TEXT_SX } : cellSx}>
                 {cell(key)}
               </TableCell>
             ))}

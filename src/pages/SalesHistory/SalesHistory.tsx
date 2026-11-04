@@ -1,7 +1,7 @@
 /**
  * SalesHistoryPage.tsx
  */
-import React, { useRef, useCallback, useEffect, useState } from "react";
+import React, { useRef, useCallback, useEffect, useMemo, useState } from "react";
 import Lottie from "lottie-react";
 import loadingAnimation from "@assets/loading.json";
 import { useInfiniteQuery, useQuery, QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -36,6 +36,7 @@ import ReturnDetailDialog  from "./ReturnDetailDialog";
 import DeleteReturnDialog  from "./DeleteReturnDialog";
 import SaleReturnSubRows   from "./SaleReturnSubRows";
 import DataTable           from "@utils/DataTable";
+import { MONEY_FONT, MONEY_LIMIT_TEXT, MONEY_NOTE_FONT, MONEY_TEXT_SX, moneyColumnWidth } from "@utils/tableDensity";
 import DensityToggle        from "@components/Common/DensityToggle";
 import StatCard            from "@components/StatCard";
 import SuccessToast        from "@components/Common/SuccessToast";
@@ -303,6 +304,19 @@ export default function SalesHistoryPage() {
   const hasLoadedOnceRef = useRef(false);
   if (!isLoading) hasLoadedOnceRef.current = true;
 
+  // ── Money column widths: fixed, sized for the 10 crore limit ──
+  const moneyW = useMemo(() => ({
+    // Total also carries "Return −₹…" / "Net ₹…" under an invoice that has returns
+    total: moneyColumnWidth([
+      [MONEY_LIMIT_TEXT, MONEY_FONT],
+      [`Return ${MONEY_LIMIT_TEXT}`, MONEY_NOTE_FONT],
+      [`Net ${MONEY_LIMIT_TEXT.slice(1)}`, MONEY_NOTE_FONT],
+    ]),
+    amount: moneyColumnWidth(),
+    // Balance also shows the due date under an outstanding amount
+    balance: moneyColumnWidth([[MONEY_LIMIT_TEXT, MONEY_FONT], ["Due: 30 Sep 2026", "600 13px"]]),
+  }), []);
+
   // ── Column definitions ────────────────────────────────────────
   const columns = [
     {
@@ -380,12 +394,13 @@ export default function SalesHistoryPage() {
       key: "total",
       label: "Total",
       align: "right" as const,
-      width: 125,
+      width: moneyW.total,
+      fixed: true,
       render: (sale: Sale) => {
         if (isRestaurant) {
           return (
             <Box textAlign="right">
-              <Typography variant="body2" fontWeight={700} sx={{ fontSize: BODY_FONT_SIZE, color: "#1976d2" }}>
+              <Typography variant="body2" fontWeight={700} sx={{ fontSize: BODY_FONT_SIZE, color: "#1976d2", ...MONEY_TEXT_SX }}>
                 {INR(Number(sale.total_amt ?? 0))}
               </Typography>
             </Box>
@@ -396,16 +411,16 @@ export default function SalesHistoryPage() {
         const adjustedTotal = totalAmount - totalReturned;
         return (
           <Box textAlign="right">
-            <Typography variant="body2" fontWeight={700} sx={{ fontSize: BODY_FONT_SIZE, color: "#1976d2" }}>
+            <Typography variant="body2" fontWeight={700} sx={{ fontSize: BODY_FONT_SIZE, color: "#1976d2", ...MONEY_TEXT_SX }}>
               {INR(totalAmount)}
             </Typography>
             {totalReturned > 0 && (
               <>
-                <Typography variant="caption" display="block" sx={{ fontSize: BODY_FONT_SIZE, color: "#C62828" }}>
-                  Returned: −{INR(totalReturned)}
+                <Typography variant="caption" display="block" title="Returned amount" sx={{ fontSize: 12, lineHeight: 1.35, color: "#C62828", ...MONEY_TEXT_SX }}>
+                  Return −{INR(totalReturned)}
                 </Typography>
-                <Typography variant="caption" display="block" sx={{ fontSize: BODY_FONT_SIZE, color: "#64748B", fontWeight: 600 }}>
-                  Net: {INR(adjustedTotal)}
+                <Typography variant="caption" display="block" title="Total after returns" sx={{ fontSize: 12, lineHeight: 1.35, color: "#64748B", fontWeight: 600, ...MONEY_TEXT_SX }}>
+                  Net {INR(adjustedTotal)}
                 </Typography>
               </>
             )}
@@ -428,12 +443,13 @@ export default function SalesHistoryPage() {
       key: "paid_amount",
       label: "Paid",
       align: "right" as const,
-      width: 110,
+      width: moneyW.amount,
+      fixed: true,
       render: (sale: Sale) => (
         <Typography
           variant="body2"
           sx={{
-            fontSize: BODY_FONT_SIZE, fontWeight: 600,
+            fontSize: BODY_FONT_SIZE, fontWeight: 600, ...MONEY_TEXT_SX,
             color: Number(sale.paid_amount) > 0 ? "#16A34A" : TABLE_TEXT_COLOR,
           }}
         >
@@ -445,7 +461,8 @@ export default function SalesHistoryPage() {
       key: "balance_amount",
       label: "Balance",
       align: "right" as const,
-      width: 120,
+      width: moneyW.balance,
+      fixed: true,
       render: (sale: Sale) => {
         const fullyReturned = isFullyReturnedSale(sale);
         const isNonBinding  = nonBindingStatus(sale) !== null;
@@ -456,12 +473,12 @@ export default function SalesHistoryPage() {
           <Box>
             <Typography
               variant="body2"
-              sx={{ fontSize: BODY_FONT_SIZE, fontWeight: 700, color: hasBalance ? "#D32F2F" : TABLE_TEXT_COLOR }}
+              sx={{ fontSize: BODY_FONT_SIZE, fontWeight: 700, color: hasBalance ? "#D32F2F" : TABLE_TEXT_COLOR, ...MONEY_TEXT_SX }}
             >
               {INR(hasBalance ? balance : 0)}
             </Typography>
             {hasBalance && dueDate && (
-              <Typography sx={{ fontSize: BODY_FONT_SIZE, fontWeight: 600, color: TABLE_TEXT_COLOR, mt: 0.3 }}>
+              <Typography sx={{ fontSize: BODY_FONT_SIZE, fontWeight: 600, color: TABLE_TEXT_COLOR, mt: 0.3, whiteSpace: "nowrap" }}>
                 Due: {dueDate}
               </Typography>
             )}

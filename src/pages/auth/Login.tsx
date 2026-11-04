@@ -470,12 +470,12 @@
 // };
 
 // export default ZoduLoginPage;
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Box, TextField, Button, Typography, Link, Stack,
   Alert, CircularProgress, InputAdornment, IconButton,
 } from '@mui/material';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Visibility, VisibilityOff,
@@ -490,6 +490,8 @@ import { loadBranchSession } from './loadBranchSession';
 import { notifyIfBranchExpired } from '@utils/subscriptionGuard';
 import { consumePendingSignup } from '@utils/pendingSignup';
 import AuthLayout from './AuthLayout';
+import { returnTarget } from '@config/apps';
+import { refreshSession } from '@utils/authSession';
 
 // The server answers every bad-credential case with the same message on purpose;
 // show it as given. Too many attempts (429) says how long to wait.
@@ -568,9 +570,31 @@ const ZoduLoginPage: React.FC = () => {
   const [error,        setError]        = useState('');
   const [fieldErrors,  setFieldErrors]  = useState<{ identity?: string; password?: string }>({});
 
-  // If already authenticated (e.g. user visits /login while logged in), send to dashboard.
+  // Another Zodu app sent the user here to sign in (?app=attendance&next=…):
+  // once signed in they go back to it, not to My Apps.
+  const location = useLocation();
+  const returnTo = useMemo(() => returnTarget(location.search), [location.search]);
+  const goOn = () => {
+    if (returnTo) window.location.assign(returnTo.url);
+    else navigate('/apps', { replace: true });
+  };
+
+  // Already signed in (e.g. /login opened while logged in): My Apps, or back to the app that asked.
   useEffect(() => {
-    if (isAuthenticated) navigate('/dashboard', { replace: true });
+    if (!isAuthenticated) return;
+    if (!returnTo) {
+      navigate('/apps', { replace: true });
+      return;
+    }
+    // Only with a live session: a stale one stored here would send the user back
+    // to an app that can't open it, which would send them here again. A refused
+    // refresh signs this tab out, and the form shows.
+    let active = true;
+    refreshSession().then(
+      () => { if (active) window.location.replace(returnTo.url); },
+      () => {},
+    );
+    return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -692,8 +716,8 @@ const ZoduLoginPage: React.FC = () => {
           })
         );
         await loadSession(employeeZoduId, employeeBranchId);
-        navigate('/dashboard', { replace: true });
         notifyIfBranchExpired(employeeBranch);
+        goOn();
         return;
       }
 
@@ -713,12 +737,14 @@ const ZoduLoginPage: React.FC = () => {
           })
         );
         await loadSession(singleCompany.zodu_id, onlyBranch.branch_id);
-        navigate('/dashboard', { replace: true });
         notifyIfBranchExpired(onlyBranch);
+        goOn();
         return;
       }
 
-      navigate('/select-branch', { replace: true, state: { companies } });
+      // My Apps first: zodu POS goes on to the branch picker from there, and
+      // Attendance (and a return to it) picks the branch itself.
+      goOn();
     } catch (err) {
       setError(loginErrorMessage(err));
     }

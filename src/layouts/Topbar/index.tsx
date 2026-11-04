@@ -9,6 +9,7 @@ import Badge from "@mui/material/Badge";
 import Tooltip from "@mui/material/Tooltip";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import SwitchAccountIcon from "@mui/icons-material/SwitchAccount";
+import AppsIcon from "@mui/icons-material/Apps";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import MenuIcon from "@mui/icons-material/Menu";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
@@ -213,6 +214,24 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
                 <SwitchAccountIcon sx={{ fontSize: 18 }} />
               </IconButton>
             </span>
+          </Tooltip>
+          {/* My Apps: zodu POS / zodu Attendance */}
+          <Tooltip title="My Apps">
+            <IconButton
+              size="small"
+              aria-label="My Apps"
+              onClick={() => navigate("/apps")}
+              sx={{
+                color: "#c8101f",
+                bgcolor: "rgba(200,16,31,0.07)",
+                borderRadius: "8px",
+                p: 0.6,
+                flexShrink: 0,
+                "&:hover": { bgcolor: "rgba(200,16,31,0.14)" },
+              }}
+            >
+              <AppsIcon sx={{ fontSize: 18 }} />
+            </IconButton>
           </Tooltip>
         </Box>
 

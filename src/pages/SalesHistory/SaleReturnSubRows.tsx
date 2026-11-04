@@ -15,7 +15,7 @@ const INR_FMT = new Intl.NumberFormat("en-IN", { style: "currency", currency: "I
 const INR = (v: number) => INR_FMT.format(v);
 import type { RefundStatus, Sale, SaleListReturn } from "./useSaleshistory";
 import TableActionButton from "@components/Common/TableActionButton";
-import { TABLE_COLORS, useTableBodyCellSx } from "@utils/tableDensity";
+import { MONEY_TEXT_SX, TABLE_COLORS, useTableBodyCellSx } from "@utils/tableDensity";
 
 interface Props {
   sale:        Sale;
@@ -167,7 +167,7 @@ function SaleReturnSubRows({ sale, columnKeys, canEdit, onViewReturn, onViewInvo
               <TableCell
                 key={key}
                 align={NUMERIC_KEYS.has(key) || key === "actions" ? "right" : "left"}
-                sx={NUMERIC_KEYS.has(key) ? { ...cellSx, fontVariantNumeric: "tabular-nums" } : cellSx}
+                sx={NUMERIC_KEYS.has(key) ? { ...cellSx, ...MONEY_TEXT_SX } : cellSx}
               >
                 {cell(key)}
               </TableCell>

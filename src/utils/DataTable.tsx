@@ -42,6 +42,11 @@ export interface ColumnDef<T> {
    * columns share what is left; below that the table scrolls sideways.
    */
   fitMin?: number;
+  /**
+   * Exactly `width` px, never more or less — e.g. money columns sized for the largest
+   * amount, so figures line up. In a fitWidth table the other columns share the rest.
+   */
+  fixed?: boolean;
   /** Adjacent columns sharing a group get one spanning heading above their own labels. */
   group?: string;
   render: (row: T) => React.ReactNode;
@@ -160,6 +165,9 @@ function DataTable<T>({
     return sum + (typeof w === "number" ? w : 100);
   }, 0);
 
+  // A fixed column's exact width, in px (only numeric widths can be fixed)
+  const fixedPx = (col: ColumnDef<T>) => (col.fixed && typeof col.width === "number" ? col.width : undefined);
+
   // fitWidth: a column never gets narrower than its one-line header…
   const headerMinWidth = (col: ColumnDef<T>) =>
     typeof col.label === "string" ? Math.ceil(col.label.length * HEAD_CHAR_PX) + 18 : 0;
@@ -170,7 +178,7 @@ function DataTable<T>({
   }, 0);
   // The table scrolls sideways only below its fitMin columns plus every other header.
   const fitMinWidth = Math.ceil(
-    columns.reduce((sum, col) => sum + Math.max(col.fitMin ?? 0, headerMinWidth(col)), 0),
+    columns.reduce((sum, col) => sum + (fixedPx(col) ?? Math.max(col.fitMin ?? 0, headerMinWidth(col))), 0),
   );
 
   // …and each column is its share of the table, except that a column whose share would
@@ -181,14 +189,16 @@ function DataTable<T>({
       const w = resolveColWidth(col);
       return typeof w === "number" ? fitWeight(col, w) : 0;
     });
+    // Fixed columns take their exact width up front; the rest share what is left.
     const held = new Map<number, number>();
+    columns.forEach((col, i) => { const px = fixedPx(col); if (px !== undefined) held.set(i, px); });
     for (;;) {
       const free = tableWidth - [...held.values()].reduce((a, b) => a + b, 0);
       const freeWeight = weights.reduce((sum, w, i) => (held.has(i) ? sum : sum + w), 0);
       const next = columns.findIndex((col, i) =>
         !held.has(i) && !!col.fitMin && (free * weights[i]) / freeWeight < col.fitMin);
       if (next === -1) {
-        return weights.map((w, i) => (held.has(i) ? held.get(i)! : (free * w) / freeWeight) / tableWidth);
+        return weights.map((w, i) => (held.has(i) ? held.get(i)! : freeWeight ? (free * w) / freeWeight : 0) / tableWidth);
       }
       held.set(next, columns[next].fitMin!);
     }
@@ -196,7 +206,7 @@ function DataTable<T>({
 
   const colWidth = (col: ColumnDef<T>, w: string | number) => {
     if (typeof w !== "number") return w;
-    if (!fitWidth) return `${w}px`;
+    if (!fitWidth || col.fixed) return `${w}px`;
     // Before the first measurement, plain proportional shares
     if (!availWidth) return `${(fitWeight(col, w) / fitTotal) * 100}%`;
     return `${fitShares[columns.indexOf(col)] * 100}%`;

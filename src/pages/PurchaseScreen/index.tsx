@@ -24,6 +24,7 @@ import { toDateInputValue } from "@utils/localDate";
 import SuccessToast from "@components/Common/SuccessToast";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
 import DensityToggle from "@components/Common/DensityToggle";
+import { MONEY_FONT, MONEY_LIMIT_TEXT, MONEY_NOTE_FONT, MONEY_TEXT_SX, moneyColumnWidth } from "@utils/tableDensity";
 import {
   usePurchases,
   usePurchaseSummary,
@@ -163,6 +164,15 @@ export default function PurchaseScreen() {
   };
 
 
+  // Money columns: fixed, sized for the 10 crore limit
+  const moneyW = useMemo(() => ({
+    // Total also carries "Return −₹…" under a purchase that has returns
+    total: moneyColumnWidth([[MONEY_LIMIT_TEXT, MONEY_FONT], [`Return ${MONEY_LIMIT_TEXT}`, MONEY_NOTE_FONT]]),
+    amount: moneyColumnWidth(),
+    // Balance also shows the due date under an outstanding amount
+    balance: moneyColumnWidth([[MONEY_LIMIT_TEXT, MONEY_FONT], ["Due: 30 Sep 2026", "600 13px"]]),
+  }), []);
+
   const columns = useMemo<ColumnDef<PurchaseRow>[]>(
     () => [
       {
@@ -230,17 +240,18 @@ export default function PurchaseScreen() {
         key: "total_amount",
         label: "Total (INR)",
         align: "right",
-        width: 120,
+        width: moneyW.total,
+        fixed: true,
         render: (p) => {
           const returned = Number(p.total_returned ?? 0);
           return (
             <Box>
-              <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#1976d2", whiteSpace: "nowrap" }}>
+              <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#1976d2", ...MONEY_TEXT_SX }}>
                 {INR(p.total_amount)}
               </Typography>
               {returned > 0 && (
-                <Typography sx={{ fontSize: 13, color: "#C62828" }}>
-                  Returned: −{INR(returned)}
+                <Typography title="Returned amount" sx={{ fontSize: 12, lineHeight: 1.35, color: "#C62828", ...MONEY_TEXT_SX }}>
+                  Return −{INR(returned)}
                 </Typography>
               )}
             </Box>
@@ -251,10 +262,11 @@ export default function PurchaseScreen() {
         key: "paid_amount",
         label: "Paid (INR)",
         align: "right",
-        width: 110,
+        width: moneyW.amount,
+        fixed: true,
         render: (p) => (
           <Typography sx={{
-            fontSize: 13, fontWeight: 600, whiteSpace: "nowrap",
+            fontSize: 13, fontWeight: 600, ...MONEY_TEXT_SX,
             color: Number(p.paid_amount) > 0 ? "#16A34A" : TABLE_TEXT_COLOR,
           }}>
             {INR(p.paid_amount)}
@@ -265,7 +277,8 @@ export default function PurchaseScreen() {
   key: "balance_amount",
   label: "Balance (INR)",
   align: "right",
-  width: 120,
+  width: moneyW.balance,
+  fixed: true,
   render: (p) => {
     const hasBalance = Number(p.balance_amount) > 0;
     const dueDate = p.due_date_formatted;
@@ -276,7 +289,7 @@ export default function PurchaseScreen() {
           sx={{
             fontSize: 13,
             fontWeight: 700,
-            whiteSpace: "nowrap",
+            ...MONEY_TEXT_SX,
             color: hasBalance ? "#D32F2F" : TABLE_TEXT_COLOR,
           }}
         >
@@ -290,6 +303,7 @@ export default function PurchaseScreen() {
               fontWeight: 600,
               color: TABLE_TEXT_COLOR,
               mt: 0.3,
+              whiteSpace: "nowrap",
             }}
           >
             Due: {dueDate}
@@ -372,7 +386,7 @@ export default function PurchaseScreen() {
         )),
       }] as ColumnDef<PurchaseRow>[]),
     ],
-    [isDeleting, tab, canEdit, canDelete]
+    [isDeleting, tab, canEdit, canDelete, moneyW]
   );
 
   if (listLoading && statsLoading) return <LottieLoader />;
