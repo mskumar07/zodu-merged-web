@@ -13,7 +13,12 @@
 const trimUrl = (v: unknown, fallback: string) => String(v ?? fallback).trim().replace(/\/+$/, "");
 
 /** zodu Attendance (separate deployment, on a subdomain). */
-export const ATTENDANCE_URL: string = trimUrl(import.meta.env.VITE_ATTENDANCE_URL, "https://attendance.myzodu.com");
+// Set per mode in .env.development / .env.uat / .env.production. The fallback
+// never sends a local run to a deployed site.
+export const ATTENDANCE_URL: string = trimUrl(
+  import.meta.env.VITE_ATTENDANCE_URL,
+  import.meta.env.DEV ? "http://localhost:5174" : "https://attendance.zodu.in",
+);
 
 const ATTENDANCE_ORIGIN = (() => {
   try {

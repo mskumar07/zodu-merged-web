@@ -48,7 +48,10 @@ export default defineConfig({
   define: {
     __BUILD_ID__: JSON.stringify(BUILD_ID),
   },
+  // Fixed ports: the other Zodu app's .env.development points at this one.
   server: {
+    port: 5173,
+    strictPort: true,
     proxy: {
       '/auth':       { target: 'http://localhost:5001', changeOrigin: true },
       '/retail':     { target: 'http://localhost:5001', changeOrigin: true },
@@ -58,6 +61,7 @@ export default defineConfig({
       '^/employee/': { target: 'http://localhost:5001', changeOrigin: true },
     },
   },
+  preview: { port: 5173, strictPort: true },
   resolve: {
     alias: {
       "@components": "/src/components",

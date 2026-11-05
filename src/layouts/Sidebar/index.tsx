@@ -13,12 +13,16 @@ import ChecklistIcon from "@mui/icons-material/Checklist";
 import SoupKitchenIcon from "@mui/icons-material/SoupKitchen";
 import GroupsIcon from '@mui/icons-material/Groups';
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
+import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
+import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
+import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 import Logo from "@components/Common/Logo";
 import zlogo from "../../assets/zlogo.png";
 import zIcon from "../../assets/image.png";
 import {
   Box,
   Divider,
+  Typography,
   Drawer,
   List,
   ListItem,
@@ -33,12 +37,14 @@ import React, { useState, useEffect } from "react";
 import { History, Settings } from "@mui/icons-material";
 import SupervisorAccountOutlinedIcon from "@mui/icons-material/SupervisorAccountOutlined";
 import { useAppSelector } from "@store/store";
-import { BusinessType, RoleAccess } from "@store/slices/userSlice";
+import { BranchId, BusinessType, RoleAccess, ZoduId } from "@store/slices/userSlice";
 import { RestaurantBillingView } from "@store/slices/POSslice";
 import { useSignOut } from "@hooks/useSignOut";
 import { resolveModuleAccess } from "@hooks/useModulePermission";
 import { useSessionClaims } from "@hooks/usePermission";
 import { useLocation } from "react-router-dom";
+import { toast } from "react-toastify";
+import { attendanceUrl } from "@config/apps";
 
 // Two overlapping bills with a rupee mark, drawn as strokes so it follows the icon colour
 const BillingIcon = () => (
@@ -121,6 +127,14 @@ const restaurantNavItems = [
   { label: "Settings", icon: <Settings />, path: "/settings", module: "Settings" },
 ];
 
+// Other Zodu apps, listed under MY APPS. Apps with a `url` open it (on the
+// current company/branch); the rest are not built yet and show a "coming soon" notice.
+const myApps: { accent: string; icon: React.ReactElement; url?: (zoduId?: string | null, branchId?: string | null) => string }[] = [
+  { accent: "Attendance", icon: <CalendarMonthOutlinedIcon />, url: attendanceUrl },
+  { accent: "Task", icon: <AssignmentTurnedInOutlinedIcon /> },
+  { accent: "Payroll", icon: <PaymentsOutlinedIcon /> },
+];
+
 interface SidebarProps {
   /** Controlled open state for the temporary (mobile/tablet) drawer. */
   mobileOpen?: boolean;
@@ -135,6 +149,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
   const handleLogout = useSignOut();
   const businessType = useAppSelector(BusinessType);
   const roleAccess = useAppSelector(RoleAccess);
+  const zoduId = useAppSelector(ZoduId);
+  const branchId = useAppSelector(BranchId);
   const { role } = useSessionClaims();
   // Below `md` the sidebar can't rely on hover (touch devices) or afford to
   // permanently reserve drawer width, so it becomes a hamburger-triggered
@@ -261,7 +277,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
           mt: 1,
           px: 1.25,
           py: 0.5,
-          flexGrow: 1,
+          flexGrow: 0,
         }}
       >
         {navItems.map((item, i) => (
@@ -333,6 +349,33 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
           </ListItem>
         ))}
       </List>
+
+      {/* MY APPS */}
+      <Box sx={{ flexGrow: 1, px: 1.25, mt: 1.5, display: expanded ? "block" : "none" }}>
+        <Divider sx={{ mb: 1.5 }} />
+        <Typography sx={{ px: 1.25, mb: 0.5, fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", color: "rgb(17, 24, 39)" }}>
+          MY APPS
+        </Typography>
+        {myApps.map((app) => (
+          <ListItemButton
+            key={app.accent}
+            disableRipple
+            onClick={() => {
+              if (app.url) window.location.assign(app.url(zoduId, branchId));
+              else toast.success(`zodu ${app.accent} is coming soon.`);
+            }}
+            sx={{ borderRadius: 1, minHeight: 40, px: 1.25, gap: 1.5, "&:hover": { bgcolor: theme.palette.action.hover } }}
+          >
+            <Box sx={{ display: "flex", color: "rgb(17, 24, 39)", "& svg": { fontSize: 24 } }}>{app.icon}</Box>
+            <Typography sx={{ fontSize: 15, fontWeight: 800, color: "rgb(17, 24, 39)", letterSpacing: "-0.01em" }}>
+              zodu <Box component="span" sx={{ color: "#E8002D" }}>{app.accent}</Box>
+            </Typography>
+          </ListItemButton>
+        ))}
+      </Box>
+      {/* Collapsed billing rail: keep the logout pinned to the bottom. */}
+      {!expanded && <Box sx={{ flexGrow: 1 }} />}
+
       <Box sx={{ px: expanded ? 2 : 1, pb: 1, pt: 1 }}>
         <Divider sx={{ mb: 1 }} />
         <ListItem disablePadding disableGutters>
