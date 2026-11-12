@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ATTENDANCE_URL, attendanceUrl, returnTarget } from "./apps";
+import { ATTENDANCE_URL, CHECKLIST_URL, attendanceUrl, checklistUrl, returnTarget } from "./apps";
 
 const q = (params: Record<string, string>) => `?${new URLSearchParams(params).toString()}`;
 
@@ -15,10 +15,23 @@ describe("returnTarget: where the login sends a user another app sent here", () 
     }
   });
 
+  it("goes back to the Checklist page that asked", () => {
+    const next = `${CHECKLIST_URL}/dashboard`;
+    expect(returnTarget(q({ app: "checklist", next }))).toEqual({ app: "checklist", url: next });
+  });
+
+  it("an app's next must be a page of that app, not another Zodu app", () => {
+    expect(returnTarget(q({ app: "checklist", next: "https://evil.test/x" }))).toEqual({ app: "checklist", url: checklistUrl() });
+    if (new URL(ATTENDANCE_URL).origin !== new URL(CHECKLIST_URL).origin) {
+      expect(returnTarget(q({ app: "checklist", next: `${ATTENDANCE_URL}/dashboard` }))).toEqual({ app: "checklist", url: checklistUrl() });
+    }
+  });
+
   it("nothing without a known app", () => {
     expect(returnTarget("")).toBeNull();
     expect(returnTarget(q({ next: `${ATTENDANCE_URL}/dashboard` }))).toBeNull();
     expect(returnTarget(q({ app: "payroll", next: `${ATTENDANCE_URL}/dashboard` }))).toBeNull();
+    expect(returnTarget(q({ app: "toString", next: `${ATTENDANCE_URL}/dashboard` }))).toBeNull();
   });
 });
 
@@ -32,5 +45,15 @@ describe("attendanceUrl", () => {
 
   it("a branch only with its company", () => {
     expect(new URL(attendanceUrl(null, "B2")).search).toBe("");
+  });
+});
+
+describe("checklistUrl", () => {
+  it("names the company and branch for Checklist to open", () => {
+    const url = new URL(checklistUrl("Z1", "B2"));
+    expect(url.origin).toBe(new URL(CHECKLIST_URL).origin);
+    expect(url.pathname).toBe("/dashboard");
+    expect(url.searchParams.get("zodu_id")).toBe("Z1");
+    expect(url.searchParams.get("branch_id")).toBe("B2");
   });
 });

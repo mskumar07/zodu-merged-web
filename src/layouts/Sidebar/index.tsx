@@ -17,7 +17,10 @@ import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined
 import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 import Logo from "@components/Common/Logo";
-import zlogo from "../../assets/zlogo.png";
+import posBrandLogo from "../../assets/pos-logo-brand.svg";
+import attendanceSideLogo from "../../assets/attendance-logo-side.svg";
+import checklistSideLogo from "../../assets/checklist-logo-side.svg";
+import payrollSideLogo from "../../assets/payroll-logo-side.svg";
 import zIcon from "../../assets/image.png";
 import {
   Box,
@@ -44,7 +47,7 @@ import { resolveModuleAccess } from "@hooks/useModulePermission";
 import { useSessionClaims } from "@hooks/usePermission";
 import { useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
-import { attendanceUrl } from "@config/apps";
+import { attendanceUrl, checklistUrl } from "@config/apps";
 
 // Two overlapping bills with a rupee mark, drawn as strokes so it follows the icon colour
 const BillingIcon = () => (
@@ -127,12 +130,14 @@ const restaurantNavItems = [
   { label: "Settings", icon: <Settings />, path: "/settings", module: "Settings" },
 ];
 
-// Other Zodu apps, listed under MY APPS. Apps with a `url` open it (on the
-// current company/branch); the rest are not built yet and show a "coming soon" notice.
-const myApps: { accent: string; icon: React.ReactElement; url?: (zoduId?: string | null, branchId?: string | null) => string }[] = [
-  { accent: "Attendance", icon: <CalendarMonthOutlinedIcon />, url: attendanceUrl },
-  { accent: "Task", icon: <AssignmentTurnedInOutlinedIcon /> },
-  { accent: "Payroll", icon: <PaymentsOutlinedIcon /> },
+// Zodu apps, listed under MY APPS. `logo` is the app's wordmark SVG (icon +
+// "zodu <App>"), shown as-is in place of the icon/text pair. Apps with a `path`
+// navigate in this app, a `url` opens another app (on the current
+// company/branch); the rest show a "coming soon" notice.
+const myApps: { accent: string; icon: React.ReactElement; logo?: string; /** Logo height in px (default 24); taller for a logo with a descender, so the text matches the others. */ logoHeight?: number; path?: string; url?: (zoduId?: string | null, branchId?: string | null) => string }[] = [
+  { accent: "Attendance", icon: <CalendarMonthOutlinedIcon />, logo: attendanceSideLogo, url: attendanceUrl },
+  { accent: "Task", icon: <AssignmentTurnedInOutlinedIcon />, logo: checklistSideLogo, url: checklistUrl },
+  { accent: "Payroll", icon: <PaymentsOutlinedIcon />, logo: payrollSideLogo, logoHeight: 28 },
 ];
 
 interface SidebarProps {
@@ -238,6 +243,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
       <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
    <Toolbar
         sx={{
+          flexShrink: 0,
           bgcolor: "#ffffff",
           display: "flex",
           alignItems: "center",
@@ -250,7 +256,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
           onClick={() => navigate("/")}
           sx={{
             cursor: "pointer",
-            height: expanded ? 40 : 50,
+            height: expanded ? 46 : 50,
             width: expanded ? "auto" : 50,
             display: "flex",
             alignItems: "center",
@@ -259,8 +265,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
           }}
         >
           <img
-            src={expanded ? zlogo : zIcon}
-            alt="Zodu"
+            src={expanded ? posBrandLogo : zIcon}
+            alt="zodu POS"
             style={
               expanded
                 ? { height: "100%", width: "auto", objectFit: "contain" }
@@ -270,8 +276,10 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
         </Box>
       </Toolbar>
 
-<Divider />
+<Divider sx={{ flexShrink: 0 }} />
 
+      {/* Only the menu and MY APPS scroll; the logo above and Logout below stay put. */}
+      <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden", display: "flex", flexDirection: "column" }}>
       <List
         sx={{
           mt: 1,
@@ -361,22 +369,33 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
             key={app.accent}
             disableRipple
             onClick={() => {
-              if (app.url) window.location.assign(app.url(zoduId, branchId));
+              if (app.path) {
+                navigate(app.path);
+                if (isMobile) onMobileClose?.();
+              } else if (app.url) window.location.assign(app.url(zoduId, branchId));
               else toast.success(`zodu ${app.accent} is coming soon.`);
             }}
             sx={{ borderRadius: 1, minHeight: 40, px: 1.25, gap: 1.5, "&:hover": { bgcolor: theme.palette.action.hover } }}
           >
-            <Box sx={{ display: "flex", color: "rgb(17, 24, 39)", "& svg": { fontSize: 24 } }}>{app.icon}</Box>
-            <Typography sx={{ fontSize: 15, fontWeight: 800, color: "rgb(17, 24, 39)", letterSpacing: "-0.01em" }}>
-              zodu <Box component="span" sx={{ color: "#E8002D" }}>{app.accent}</Box>
-            </Typography>
+            {/* Apps with a logo show the full SVG wordmark; the rest an icon + "zodu <App>". */}
+            {app.logo ? (
+              <Box component="img" src={app.logo} alt={`zodu ${app.accent}`} sx={{ height: app.logoHeight ?? 24, width: "auto", maxWidth: "100%", display: "block" }} />
+            ) : (
+              <>
+                <Box sx={{ display: "flex", flexShrink: 0, color: "rgb(17, 24, 39)", "& svg": { fontSize: 24 } }}>{app.icon}</Box>
+                <Typography sx={{ fontSize: 15, fontWeight: 800, color: "rgb(17, 24, 39)", letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>
+                  zodu <Box component="span" sx={{ color: "#E8002D" }}>{app.accent}</Box>
+                </Typography>
+              </>
+            )}
           </ListItemButton>
         ))}
       </Box>
       {/* Collapsed billing rail: keep the logout pinned to the bottom. */}
       {!expanded && <Box sx={{ flexGrow: 1 }} />}
+      </Box>
 
-      <Box sx={{ px: expanded ? 2 : 1, pb: 1, pt: 1 }}>
+      <Box sx={{ px: expanded ? 2 : 1, pb: 1, pt: 1, flexShrink: 0 }}>
         <Divider sx={{ mb: 1 }} />
         <ListItem disablePadding disableGutters>
           <ListItemButton
