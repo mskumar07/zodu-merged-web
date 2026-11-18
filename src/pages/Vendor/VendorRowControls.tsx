@@ -44,7 +44,11 @@ export function VendorEditDeleteDialogs({ actions, vendorType }: VendorEditDelet
 
   return (
     <>
-      <AddVendorModal open={editOpen} onClose={closeEdit} vendorType={vendorType} vendor={vendorToEdit} onSave={closeEdit} />
+      <AddVendorModal open={editOpen} onClose={closeEdit} vendorType={vendorType} vendor={vendorToEdit} onSave={(_form, result) => {
+          const created = !vendorToEdit ? (result?.data?.vendor_id ?? result?.vendor_id) : undefined;
+          closeEdit();
+          if (created) actions.onCreated?.(created);
+        }} />
 
       <Dialog open={!!vendorToDelete} onClose={() => !isDeleting && cancelDelete()} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
         <DialogTitle sx={{ px: 3, py: 2.5, display: "flex", alignItems: "center", gap: 1.5 }}>

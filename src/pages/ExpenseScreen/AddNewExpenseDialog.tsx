@@ -756,6 +756,7 @@ export default function AddNewExpenseDialog({ open, onClose, onSuccess, editExpe
   const vendorActions = useVendorRowActions({
     selectedVendorId: form.supplier,
     onSelectedVendorCleared: () => setField("supplier", ""),
+    onCreated: (id) => setField("supplier", id),
     onDeleted: () => setSuccessMsg("Vendor deleted successfully!"),
     onError: setSaveError,
   });

@@ -23,7 +23,6 @@ import {
 import { toDateInputValue } from "@utils/localDate";
 import SuccessToast from "@components/Common/SuccessToast";
 import DataTable, { type ColumnDef } from "@utils/DataTable";
-import DensityToggle from "@components/Common/DensityToggle";
 import { MONEY_FONT, MONEY_LIMIT_TEXT, MONEY_NOTE_FONT, MONEY_TEXT_SX, moneyColumnWidth } from "@utils/tableDensity";
 import {
   usePurchases,
@@ -222,17 +221,12 @@ export default function PurchaseScreen() {
       {
         key: "vendor_id",
         label: "Vendor",
-        width: 220,
+        width: 300,
         render: (p) => (
           <Box sx={{ minWidth: 0 }}>
             <Typography sx={{ fontSize: 13, fontWeight: 600, color: TABLE_TEXT_COLOR, lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {p.vendor_name ?? "—"}
+              {p.company_name || "—"}
             </Typography>
-            {p.company_name && (
-              <Typography sx={{ fontSize: 13, color: TABLE_TEXT_COLOR, lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {p.company_name}
-              </Typography>
-            )}
           </Box>
         ),
       },
@@ -450,7 +444,6 @@ export default function PurchaseScreen() {
                   <MenuItem value="pending">Not Paid</MenuItem>
                 </Select>
               </FormControl>
-              <DensityToggle />
               {(search || paymentStatusFilter || fromDate || toDate) && (
                 <Box
                   onClick={() => { setSearch(""); setPaymentStatusFilter(""); setFromDate(""); setToDate(""); }}

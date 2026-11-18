@@ -80,9 +80,8 @@ function PurchaseReturnSubRows({ purchase, returns, columnKeys, canEdit, onView,
               );
             case "vendor_id":
               return (
-                <Box sx={{ maxWidth: 200 }}>
-                  <Typography noWrap sx={{ fontSize: 13, fontWeight: 600, color: "#374151", lineHeight: 1.3 }}>{purchase.vendor_name ?? "—"}</Typography>
-                  {purchase.company_name && <Typography noWrap sx={{ fontSize: 13, color: "#374151", lineHeight: 1.3 }}>{purchase.company_name}</Typography>}
+                <Box sx={{ maxWidth: 280 }}>
+                  <Typography noWrap sx={{ fontSize: 13, fontWeight: 600, color: "#374151", lineHeight: 1.3 }}>{purchase.company_name || "—"}</Typography>
                 </Box>
               );
             case "purchase_date":

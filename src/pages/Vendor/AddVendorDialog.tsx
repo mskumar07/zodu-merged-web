@@ -653,7 +653,6 @@ const theme = createTheme({
 
 interface VendorFormState {
   vendorName: string;
-  contactPerson: string;
   mobileNumber: string;
   email: string;
   gstin: string;
@@ -667,7 +666,7 @@ interface VendorFormState {
 interface AddVendorModalProps {
   open: boolean;
   onClose: () => void;
-  onSave?: (data: VendorFormState) => void;
+  onSave?: (data: VendorFormState, result?: any) => void;
   vendorType?: "Expense" | "Purchase";
   vendor?: VendorRecord | null;
 }
@@ -721,7 +720,6 @@ const INDIAN_STATES = [
 
 const emptyForm = (): VendorFormState => ({
   vendorName: "",
-  contactPerson: "",
   mobileNumber: "",
   email: "",
   gstin: "",
@@ -740,7 +738,7 @@ const AddVendorModal: React.FC<AddVendorModalProps> = ({ open, onClose, onSave, 
   const [saveError, setSaveError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   
-  const [errors, setErrors] = useState<{ vendorName?: string; contactPerson?: string }>({});
+  const [errors, setErrors] = useState<{ vendorName?: string }>({});
 
   const createVendor = useCreateVendor();
   const updateVendor = useUpdateVendor();
@@ -750,8 +748,7 @@ const AddVendorModal: React.FC<AddVendorModalProps> = ({ open, onClose, onSave, 
     if (!open) return;
     if (vendor) {
       setForm({
-        vendorName: vendor.company_name ?? "",
-        contactPerson: vendor.vendor_name ?? "",
+        vendorName: vendor.company_name || vendor.vendor_name || "",
         mobileNumber: vendor.vendor_phone ?? "",
         email: vendor.vendor_email ?? "",
         gstin: vendor.gst ?? "",
@@ -801,12 +798,9 @@ const AddVendorModal: React.FC<AddVendorModalProps> = ({ open, onClose, onSave, 
       setSaveError("");
       setErrors({});
 
-      const newErrors: { vendorName?: string; contactPerson?: string } = {};
+      const newErrors: { vendorName?: string } = {};
       if (!form.vendorName.trim()) {
-        newErrors.vendorName = "Company Name is required.";
-      }
-      if (!form.contactPerson.trim()) {
-        newErrors.contactPerson = "Contact Person is required.";
+        newErrors.vendorName = "Company / Contact Name is required.";
       }
 
       if (Object.keys(newErrors).length > 0) {
@@ -820,7 +814,7 @@ const AddVendorModal: React.FC<AddVendorModalProps> = ({ open, onClose, onSave, 
         result = await updateVendor.mutateAsync({
           id: vendor.id ?? vendor.vendor_id,
           data: {
-            vendor_name: form.contactPerson,
+            vendor_name: form.vendorName,
             company_name: form.vendorName || null,
             gst: form.gstin || null,
             vendor_phone: form.mobileNumber || null,
@@ -838,7 +832,7 @@ const AddVendorModal: React.FC<AddVendorModalProps> = ({ open, onClose, onSave, 
         result = await createVendor.mutateAsync({
           zodu_id: zoduId,
           branch_id: branchId,
-          vendor_name: form.contactPerson,
+          vendor_name: form.vendorName,
           company_name: form.vendorName || null,
           gst: form.gstin || null,
           vendor_phone: form.mobileNumber || null,
@@ -853,7 +847,7 @@ const AddVendorModal: React.FC<AddVendorModalProps> = ({ open, onClose, onSave, 
         setSuccessMsg("Vendor added successfully!");
       }
 
-      onSave?.(form);
+      onSave?.(form, result);
       setForm(emptyForm());
       setStateSearch("");
       onClose();
@@ -941,7 +935,7 @@ const AddVendorModal: React.FC<AddVendorModalProps> = ({ open, onClose, onSave, 
           <DialogContent sx={{ px: 3, py: 3, bgcolor: "#fff" }}>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
               <Box>
-                <FieldLabel>Company Name <span style={{ color: "#D21F3C" }}>*</span></FieldLabel>
+                <FieldLabel>Company / Contact Name <span style={{ color: "#D21F3C" }}>*</span></FieldLabel>
                 <TextField
                   id="vendor_name"
                   placeholder="Enter company or individual name"
@@ -955,20 +949,6 @@ const AddVendorModal: React.FC<AddVendorModalProps> = ({ open, onClose, onSave, 
               </Box>
 
               <Grid container spacing={2.5}>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <FieldLabel>Contact Person <span style={{ color: "#D21F3C" }}>*</span></FieldLabel>
-                  <TextField
-                    id="contact_person"
-                    placeholder="Full name"
-                    value={form.contactPerson}
-                    onChange={handleChange("contactPerson")}
-                    error={Boolean(errors.contactPerson)}
-                    helperText={errors.contactPerson}
-                    fullWidth
-                    sx={inputSx}
-                  />
-                </Grid>
-
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <FieldLabel>Mobile Number</FieldLabel>
                   <TextField
