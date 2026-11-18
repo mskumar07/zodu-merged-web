@@ -45,6 +45,10 @@ import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlin
 import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
 import LocationOnRoundedIcon from "@mui/icons-material/LocationOnRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
+import PointOfSaleOutlinedIcon from "@mui/icons-material/PointOfSaleOutlined";
+import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
+import DevicesOutlinedIcon from "@mui/icons-material/DevicesOutlined";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   authApis,
@@ -98,6 +102,20 @@ const cardBorder = "#ececf2";
 const subtleText = "#8e95a3";
 const headingText = "#1d2533";
 const redTint = "#ca0022";
+const settingsTabSx = {
+  minHeight: 48,
+  px: 2,
+  textTransform: "none",
+  fontSize: 14,
+  fontWeight: 700,
+  color: "#374151",
+  border: "1px solid #f1f1f5",
+  borderRadius: "10px",
+  bgcolor: "#fff",
+  boxShadow: "0 1px 3px rgba(15,23,42,0.08)",
+  "&.Mui-selected": { color: redTint, bgcolor: "rgba(202,0,34,0.06)" },
+  "& .MuiTab-iconWrapper": { mr: 1, fontSize: 20 },
+} as const;
 
 type SettingsTab = "company" | "invoice" | "pos" | "kot" | "user" | "role" | "devices";
 
@@ -825,8 +843,6 @@ export default function Setting() {
               top: 0,
               zIndex: 10,
               bgcolor: "#fff",
-              borderBottom: "1px solid",
-              borderColor: cardBorder,
             }}
           >
             <Tabs
@@ -834,95 +850,25 @@ export default function Setting() {
               onChange={(_, value: SettingsTab) => setActiveTab(value)}
               variant="scrollable"
               scrollButtons="auto"
+              TabIndicatorProps={{ sx: { height: 3, borderRadius: 999, bgcolor: redTint, bottom: 0 } }}
               sx={{
-                minHeight: 48,
-                "& .MuiTabs-indicator": {
-                  height: 3,
-                  borderRadius: 999,
-                  bgcolor: redTint,
-                },
+                minHeight: 56,
+                py: 0.5,
+                px: 0.5,
+                "& .MuiTabs-flexContainer": { gap: 1 },
               }}
             >
-              <Tab
-                label="Company"
-                value="company"
-                sx={{
-                  minHeight: 48,
-                  textTransform: "none",
-                  fontSize: 14,
-                  fontWeight: 700,
-                }}
-              />
+              <Tab icon={<BusinessRoundedIcon />} iconPosition="start" label="Company" value="company" sx={settingsTabSx} />
               {canEditSettings && (
-              <Tab
-                label="Invoice settings"
-                value="invoice"
-                sx={{
-                  minHeight: 48,
-                  textTransform: "none",
-                  fontSize: 14,
-                  fontWeight: 700,
-                }}
-              />
+                <Tab icon={<ReceiptLongOutlinedIcon />} iconPosition="start" label="Invoice settings" value="invoice" sx={settingsTabSx} />
               )}
               {canEditSettings && (
-              <Tab
-                label="POS settings"
-                value="pos"
-                sx={{
-                  minHeight: 48,
-                  textTransform: "none",
-                  fontSize: 14,
-                  fontWeight: 700,
-                }}
-              />
+                <Tab icon={<PointOfSaleOutlinedIcon />} iconPosition="start" label="POS settings" value="pos" sx={settingsTabSx} />
               )}
-              {/* Printer settings is switched off for now: bills and KOTs print on the
-                  printer connected to the billing PC (see @utils/kot/localPrinter).
-              {businessType === "Restaurant" && (
-                <Tab
-                  label="Printer settings"
-                  value="kot"
-                  sx={{
-                    minHeight: 48,
-                    textTransform: "none",
-                    fontSize: 14,
-                    fontWeight: 700,
-                  }}
-                />
-              )} */}
-              {/* <Tab
-                label="User settings"
-                value="user"
-                sx={{
-                  minHeight: 48,
-                  textTransform: "none",
-                  fontSize: 14,
-                  fontWeight: 700,
-                }}
-              /> */}
               {canManageRoles && (
-              <Tab
-                label="Role Management"
-                value="role"
-                sx={{
-                  minHeight: 48,
-                  textTransform: "none",
-                  fontSize: 14,
-                  fontWeight: 700,
-                }}
-              />
+                <Tab icon={<AdminPanelSettingsOutlinedIcon />} iconPosition="start" label="Role Management" value="role" sx={settingsTabSx} />
               )}
-              <Tab
-                label="Logged-in devices"
-                value="devices"
-                sx={{
-                  minHeight: 48,
-                  textTransform: "none",
-                  fontSize: 14,
-                  fontWeight: 700,
-                }}
-              />
+              <Tab icon={<DevicesOutlinedIcon />} iconPosition="start" label="Logged-in devices" value="devices" sx={settingsTabSx} />
             </Tabs>
           </Box>
 

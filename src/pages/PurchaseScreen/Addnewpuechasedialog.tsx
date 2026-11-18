@@ -615,6 +615,7 @@ export default function AddNewPurchaseDialog({
   const vendorActions = useVendorRowActions({
     selectedVendorId: form.supplier,
     onSelectedVendorCleared: () => setField("supplier", ""),
+    onCreated: (id) => setField("supplier", id),
     onDeleted: () => setSuccessMsg("Vendor deleted successfully!"),
     onError: setSaveError,
   });

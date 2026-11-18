@@ -103,7 +103,6 @@ function CustomerStatusDialog({ open, isDelete, isPending, onConfirm, onCancel }
 interface Customer {
   id: string;
   custUuid: string;
-  businessName: string;
   contactName: string;
   mobile: string;
   email: string;
@@ -230,7 +229,6 @@ export default function CustomerManagement({
     return (apiCustomers as unknown as ApiCustomer[]).map((c: ApiCustomer) => ({
       id: c.cust_id,
       custUuid: c.cust_uuid,
-      businessName: c.cpy_name || "—",
       contactName: c.cust_name || "—",
       mobile: c.mobile_no?.[0] || "",
       email: c.email_id?.[0] || "",
@@ -280,16 +278,13 @@ export default function CustomerManagement({
         ),
       },
       {
-        key: "businessName",
+        key: "contactName",
         label: "Customer / Business Name",
         width: 210,
         render: (customer) => (
-          <Box sx={{ overflow: "hidden" }} title={[customer.contactName, customer.businessName].filter(Boolean).join(" · ")}>
+          <Box sx={{ overflow: "hidden" }} title={customer.contactName}>
             <Typography sx={{ fontSize: 13, fontWeight: 500, color: TABLE_TEXT_COLOR, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {customer.contactName}
-            </Typography>
-            <Typography sx={{ fontSize: 13, fontWeight: 600, color: TABLE_TEXT_COLOR, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {customer.businessName}
             </Typography>
           </Box>
         ),
@@ -719,14 +714,14 @@ export default function CustomerManagement({
           open={customerLedgerOpen}
           onClose={() => setCustomerLedgerOpen(false)}
           custUuid={selectedCustomer?.custUuid}
-          customerName={selectedCustomer?.businessName || selectedCustomer?.contactName || "Customer"}
+          customerName={selectedCustomer?.contactName || "Customer"}
         />
 
         {paymentTarget && (
           <MarkPaymentDialog
             customer={{
               custUuid:           paymentTarget.custUuid,
-              displayName:        paymentTarget.businessName || paymentTarget.contactName,
+              displayName:        paymentTarget.contactName,
               mobile:             paymentTarget.mobile,
               outstandingBalance: paymentTarget.outstandingBalance,
             }}
