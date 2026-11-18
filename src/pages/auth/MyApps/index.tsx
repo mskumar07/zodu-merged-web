@@ -9,7 +9,7 @@ import MenuItem from "@mui/material/MenuItem";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
-import CurrencyRupeeIcon from "@mui/icons-material/CurrencyRupee";
+import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import { useNavigate } from "react-router-dom";
@@ -19,11 +19,12 @@ import { AllCompanies, BranchId, UserProfile, ZoduId } from "@store/slices/userS
 import type { CompanyWithBranches } from "@pages/auth/Authapi";
 import { useEnterBranch } from "@hooks/useEnterBranch";
 import { useSignOut } from "@hooks/useSignOut";
-import { attendanceUrl, checklistUrl } from "@config/apps";
+import { attendanceUrl, checklistUrl, crmUrl } from "@config/apps";
 import zlogo from "../../../assets/zlogo.png";
 import posSideLogo from "../../../assets/pos-logo-side.svg";
 import attendanceSideLogo from "../../../assets/attendance-logo-side.svg";
 import checklistSideLogo from "../../../assets/checklist-logo-side.svg";
+import crmSideLogo from "../../../assets/crm-logo-side.svg";
 
 /**
  * My Apps: the first screen after signing in. zodu POS is this app (its
@@ -36,7 +37,7 @@ const INK = "#111827";
 const MUTED = "#6B7280";
 const BORDER = "#EBEDF0";
 
-type AppKey = "pos" | "attendance" | "task" | "payroll";
+type AppKey = "pos" | "attendance" | "task" | "crm";
 
 type AppItem = {
   key: AppKey;
@@ -53,7 +54,7 @@ const APPS: AppItem[] = [
   { key: "pos", name: "zodu", accent: "POS", desc: "Billing, invoicing and point of sale for retail and restaurants.", Icon: ReceiptLongOutlinedIcon, logo: posSideLogo, enabled: true },
   { key: "attendance", name: "zodu", accent: "Attendance", desc: "Track employee attendance, leaves and work hours.", Icon: CalendarMonthOutlinedIcon, logo: attendanceSideLogo, enabled: true },
   { key: "task", name: "zodu", accent: "Task", desc: "Create, assign and track tasks with your team.", Icon: AssignmentTurnedInOutlinedIcon, logo: checklistSideLogo, enabled: true },
-  { key: "payroll", name: "zodu", accent: "Payroll", desc: "Manage payroll, salaries and compliance with ease.", Icon: CurrencyRupeeIcon, enabled: false },
+  { key: "crm", name: "zodu", accent: "CRM", desc: "Manage leads, customers and follow-ups in one place.", Icon: PeopleAltOutlinedIcon, logo: crmSideLogo, enabled: true },
 ];
 
 const cardSx = {
@@ -143,11 +144,11 @@ export default function MyApps() {
       if (opening) return;
       const target = defaultBranch(companies, zoduId, branchId);
 
-      if (app.key === "attendance" || app.key === "task") {
-        // Attendance and Task (zodu Checklist) open this same session and switch
-        // to the branch named here.
+      if (app.key === "attendance" || app.key === "task" || app.key === "crm") {
+        // Attendance, Task (zodu Checklist) and CRM open this same session and
+        // switch to the branch named here.
         setOpening(app.key);
-        const open = app.key === "attendance" ? attendanceUrl : checklistUrl;
+        const open = app.key === "attendance" ? attendanceUrl : app.key === "task" ? checklistUrl : crmUrl;
         window.location.assign(open(target?.company.zodu_id, target?.branch.branch_id));
         return;
       }

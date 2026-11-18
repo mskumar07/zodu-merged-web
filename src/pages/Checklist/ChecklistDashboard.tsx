@@ -208,7 +208,7 @@ function buildTaskColumns(onView: (id: string) => void, canEdit: boolean): Colum
         <Typography
           onClick={() => onView(task.id)}
           sx={{
-            fontSize: 13, fontWeight: 700, color: "#1976d2", whiteSpace: "nowrap",
+            fontSize: 13, fontWeight: 600, color: "#1976d2", whiteSpace: "nowrap",
             cursor: "pointer", textDecoration: "none",
             "&:hover": { textDecoration: "underline" },
           }}

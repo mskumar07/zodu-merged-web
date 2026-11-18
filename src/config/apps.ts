@@ -26,6 +26,12 @@ export const CHECKLIST_URL: string = trimUrl(
   import.meta.env.DEV ? "http://localhost:5175" : "https://checklist.zodu.in",
 );
 
+/** zodu CRM (separate deployment, on a subdomain). */
+export const CRM_URL: string = trimUrl(
+  import.meta.env.VITE_CRM_URL,
+  import.meta.env.DEV ? "http://localhost:5176" : "https://crm.zodu.in",
+);
+
 const originOf = (url: string) => {
   try {
     return new URL(url).origin;
@@ -35,11 +41,12 @@ const originOf = (url: string) => {
 };
 
 /** Apps another app may ask the login to return to (`/login?app=…&next=…`). */
-export type ReturnApp = "attendance" | "checklist";
+export type ReturnApp = "attendance" | "checklist" | "crm";
 
 const RETURN_APPS: Record<ReturnApp, string> = {
   attendance: ATTENDANCE_URL,
   checklist: CHECKLIST_URL,
+  crm: CRM_URL,
 };
 
 /**
@@ -62,6 +69,11 @@ export function attendanceUrl(zoduId?: string | null, branchId?: string | null):
 /** zodu Checklist's dashboard on a company/branch. */
 export function checklistUrl(zoduId?: string | null, branchId?: string | null): string {
   return appDashboardUrl(CHECKLIST_URL, zoduId, branchId);
+}
+
+/** zodu CRM's dashboard on a company/branch. */
+export function crmUrl(zoduId?: string | null, branchId?: string | null): string {
+  return appDashboardUrl(CRM_URL, zoduId, branchId);
 }
 
 const isReturnApp = (v: string | null): v is ReturnApp => v !== null && Object.prototype.hasOwnProperty.call(RETURN_APPS, v);

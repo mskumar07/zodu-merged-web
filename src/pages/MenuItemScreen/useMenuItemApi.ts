@@ -599,11 +599,12 @@ export function useCategories(
   serviceType: "product" | "service" | "expense",
   enabled = true
 ): UseQueryResult<Category[]> {
-  useTenantContext();
+  const { zoduId, branchId } = useTenantContext();
   return useQuery({
     queryKey:             menuQueryKeys.categories(serviceType),
     queryFn:              () => fetchCategories(serviceType),
-    enabled,
+    // Without both ids the URL has an empty segment (/get/category/S//Z042).
+    enabled:              enabled && Boolean(zoduId && branchId),
     staleTime:            5 * 60 * 1000,
     gcTime:               10 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -621,6 +622,7 @@ export function useInfiniteCategories(serviceType: "product" | "service" | "expe
     queryKey:         ["menu", "categories-filter", zoduId, branchId, serviceType],
     queryFn:          ({ pageParam = 1 }) =>
                         fetchCategoriesPage(serviceType, pageParam as number, 15),
+    enabled:          Boolean(zoduId && branchId),
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
       lastPage.currentPage < lastPage.totalPages ? lastPage.currentPage + 1 : undefined,
@@ -847,7 +849,7 @@ export function useInfiniteCategoryList(enabled = true, type = "S,M", activeOnly
       const { current_page, total_pages } = lastPage.pagination;
       return current_page < total_pages ? current_page + 1 : undefined;
     },
-    enabled,
+    enabled:          enabled && Boolean(zoduId && branchId),
     staleTime:            2 * 60 * 1000,
     gcTime:               5 * 60 * 1000,
     refetchOnWindowFocus: false,

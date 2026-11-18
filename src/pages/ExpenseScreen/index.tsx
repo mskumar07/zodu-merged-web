@@ -147,8 +147,8 @@ export default function ExpenseScreen() {
           <Typography
             onClick={() => setDetailExpenseId(e.expense_id)}
             sx={{
-              fontSize: 13, fontWeight: 700, color: "#1976d2",
-              letterSpacing: "0.02em", whiteSpace: "nowrap",
+              fontSize: 13, fontWeight: 600, color: "#1976d2",
+              whiteSpace: "nowrap",
               overflow: "hidden", textOverflow: "ellipsis",
               cursor: "pointer",
               "&:hover": { textDecoration: "underline", color: "#1565C0" },

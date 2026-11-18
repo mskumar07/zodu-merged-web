@@ -15,13 +15,13 @@ import GroupsIcon from '@mui/icons-material/Groups';
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
-import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
+import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import Logo from "@components/Common/Logo";
 import posBrandLogo from "../../assets/pos-logo-brand.svg";
 import attendanceSideLogo from "../../assets/attendance-logo-side.svg";
 import checklistSideLogo from "../../assets/checklist-logo-side.svg";
-import payrollSideLogo from "../../assets/payroll-logo-side.svg";
-import zIcon from "../../assets/image.png";
+import crmSideLogo from "../../assets/crm-logo-side.svg";
+import posIconLogo from "../../assets/pos-logo-icon.svg";
 import {
   Box,
   Divider,
@@ -47,7 +47,7 @@ import { resolveModuleAccess } from "@hooks/useModulePermission";
 import { useSessionClaims } from "@hooks/usePermission";
 import { useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
-import { attendanceUrl, checklistUrl } from "@config/apps";
+import { attendanceUrl, checklistUrl, crmUrl } from "@config/apps";
 
 // Two overlapping bills with a rupee mark, drawn as strokes so it follows the icon colour
 const BillingIcon = () => (
@@ -137,7 +137,7 @@ const restaurantNavItems = [
 const myApps: { accent: string; icon: React.ReactElement; logo?: string; /** Logo height in px (default 24); taller for a logo with a descender, so the text matches the others. */ logoHeight?: number; path?: string; url?: (zoduId?: string | null, branchId?: string | null) => string }[] = [
   { accent: "Attendance", icon: <CalendarMonthOutlinedIcon />, logo: attendanceSideLogo, url: attendanceUrl },
   { accent: "Task", icon: <AssignmentTurnedInOutlinedIcon />, logo: checklistSideLogo, url: checklistUrl },
-  { accent: "Payroll", icon: <PaymentsOutlinedIcon />, logo: payrollSideLogo, logoHeight: 28 },
+  { accent: "CRM", icon: <PeopleAltOutlinedIcon />, logo: crmSideLogo, url: crmUrl },
 ];
 
 interface SidebarProps {
@@ -265,8 +265,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
           }}
         >
           <img
-            src={expanded ? posBrandLogo : zIcon}
-            alt="zodu POS"
+            src={expanded ? posBrandLogo : posIconLogo}
+            alt="zodu Billing"
             style={
               expanded
                 ? { height: "100%", width: "auto", objectFit: "contain" }
@@ -379,7 +379,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
           >
             {/* Apps with a logo show the full SVG wordmark; the rest an icon + "zodu <App>". */}
             {app.logo ? (
-              <Box component="img" src={app.logo} alt={`zodu ${app.accent}`} sx={{ height: app.logoHeight ?? 24, width: "auto", maxWidth: "100%", display: "block" }} />
+              <Box component="img" src={app.logo} alt={`zodu ${app.accent}`} sx={{ height: app.logoHeight ?? 36, width: "auto", maxWidth: "100%", display: "block" }} />
             ) : (
               <>
                 <Box sx={{ display: "flex", flexShrink: 0, color: "rgb(17, 24, 39)", "& svg": { fontSize: 24 } }}>{app.icon}</Box>
