@@ -175,17 +175,12 @@ export default function ExpenseScreen() {
       {
         key: "vendor_id",
         label: "Vendor",
-        width: 200,
+        width: 260,
         render: (e) => (
-          <Box sx={{ minWidth: 0 }} title={e.vendor_name ?? undefined}>
+          <Box sx={{ minWidth: 0 }} title={e.company_name ?? undefined}>
             <Typography sx={{ fontSize: 13, fontWeight: 600, color: TABLE_TEXT_COLOR, lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {e.vendor_name ?? "—"}
+              {e.company_name || "—"}
             </Typography>
-            {e.company_name && (
-              <Typography sx={{ fontSize: 13, color: TABLE_TEXT_COLOR, lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {e.company_name}
-              </Typography>
-            )}
           </Box>
         ),
       },

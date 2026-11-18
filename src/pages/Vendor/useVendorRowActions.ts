@@ -8,7 +8,7 @@ export function vendorRowId(v: Vendor): string {
 
 export function vendorDisplayName(v?: Vendor | null): string {
   if (!v) return "";
-  return v.company_name ? `${v.vendor_name} (${v.company_name})` : v.vendor_name;
+  return v.company_name || v.vendor_name;
 }
 
 interface UseVendorRowActionsOptions {
@@ -16,6 +16,8 @@ interface UseVendorRowActionsOptions {
   selectedVendorId?: string;
   onSelectedVendorCleared?: () => void;
   onDeleted?: (vendor: Vendor) => void;
+  /** Called with the new vendor_id after a vendor is created from the picker. */
+  onCreated?: (vendorId: string) => void;
   onError?: (message: string) => void;
 }
 
@@ -28,6 +30,7 @@ export function useVendorRowActions({
   selectedVendorId,
   onSelectedVendorCleared,
   onDeleted,
+  onCreated,
   onError,
 }: UseVendorRowActionsOptions = {}) {
   const [editOpen, setEditOpen]         = useState(false);
@@ -57,7 +60,7 @@ export function useVendorRowActions({
   }, [vendorToDelete, deleteVendor, selectedVendorId, onSelectedVendorCleared, onDeleted, onError]);
 
   return {
-    editOpen, vendorToEdit, openCreate, openEdit, closeEdit,
+    onCreated, editOpen, vendorToEdit, openCreate, openEdit, closeEdit,
     vendorToDelete, requestDelete, cancelDelete, confirmDelete,
     isDeleting: deleteVendor.isPending,
   };
