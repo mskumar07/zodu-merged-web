@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { closeFromControlsOnly } from "@utils/dialog";
 import {
   Box, Button, CircularProgress, Dialog, DialogActions,
-  DialogContent, DialogTitle, IconButton, Tooltip, TextField, Typography,
+  DialogContent, DialogTitle, IconButton, Tooltip, TextField, Typography, Chip,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
@@ -132,6 +132,33 @@ function StatusToggle({ value, onChange }: { value: MarkStatus; onChange: (s: Ma
   );
 }
 
+function BulkStatusBar({ onSelect }: { onSelect: (s: MarkStatus) => void }) {
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1, mb: 2 }}>
+      <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>Mark all employees as</Typography>
+      {STATUS_OPTIONS.map((opt) => {
+        const Icon = opt.icon;
+        return (
+          <Chip
+            key={opt.status}
+            clickable
+            variant="outlined"
+            size="small"
+            label={opt.label}
+            icon={<Icon sx={{ fontSize: 16 }} />}
+            onClick={() => onSelect(opt.status)}
+            sx={{
+              fontSize: 12.5, fontWeight: 600, color: "#374151", borderColor: "#E2E8F0", bgcolor: "#fff",
+              "& .MuiChip-icon": { color: "#64748B" },
+              "&:hover": { bgcolor: opt.activeBg, borderColor: opt.color, "& .MuiChip-icon": { color: opt.color } },
+            }}
+          />
+        );
+      })}
+    </Box>
+  );
+}
+
 // ─── Main ────────────────────────────────────────────────────
 
 export default function MarkAttendanceModal({
@@ -165,10 +192,16 @@ export default function MarkAttendanceModal({
   const isFetchingNextPage = isFetching && page > 1;
 
   const [overrides, setOverrides] = useState<Record<string, Partial<MarkAttendanceEmployee>>>({});
+  // "Mark all" applies to every row, including pages loaded later by infinite scroll.
+  const [bulkStatus, setBulkStatus] = useState<MarkStatus | null>(null);
 
   const rows = useMemo<MarkAttendanceEmployee[]>(
-    () => employees.map((emp) => ({ ...emp, ...overrides[emp.employee_id] })),
-    [employees, overrides]
+    () => employees.map((emp) => ({
+      ...emp,
+      ...(bulkStatus && { status: bulkStatus }),
+      ...overrides[emp.employee_id],
+    })),
+    [employees, overrides, bulkStatus]
   );
 
   const sentinelRef = useRef<HTMLTableRowElement>(null) as React.RefObject<HTMLTableRowElement>;
@@ -179,6 +212,7 @@ export default function MarkAttendanceModal({
       setDate(today);
       setPage(1);
       setOverrides({});
+      setBulkStatus(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -193,15 +227,34 @@ export default function MarkAttendanceModal({
     const el = sentinelRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting && hasNextPage && !isFetching) setPage((p) => p + 1); },
+      ([entry]) => { if (entry.isIntersecting && hasNextPage && !isFetching && !bulkStatus) setPage((p) => p + 1); },
       { root: listContainerRef.current }
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [open, hasNextPage, isFetching]);
+  }, [open, hasNextPage, isFetching, bulkStatus]);
+
+  // "Mark all" must cover every employee, so load the remaining pages before saving.
+  const isLoadingAllForBulk = !!bulkStatus && hasNextPage;
+  useEffect(() => {
+    if (open && isLoadingAllForBulk && !isFetching) setPage((p) => p + 1);
+  }, [open, isLoadingAllForBulk, isFetching]);
 
   const updateRow = (employeeId: string, patch: Partial<MarkAttendanceEmployee>) => {
     setOverrides((prev) => ({ ...prev, [employeeId]: { ...prev[employeeId], ...patch } }));
+  };
+
+  const handleMarkAll = (status: MarkStatus) => {
+    setBulkStatus(status);
+    // Drop per-row status choices so the bulk selection wins; keep edited times.
+    setOverrides((prev) => {
+      const next: typeof prev = {};
+      for (const [id, patch] of Object.entries(prev)) {
+        const { status: _omit, ...rest } = patch;
+        next[id] = rest;
+      }
+      return next;
+    });
   };
 
   const handleSave = async () => {
@@ -279,6 +332,9 @@ export default function MarkAttendanceModal({
             <InfoOutlinedIcon sx={{ fontSize: 16, color: "#2563EB" }} />
             <Typography sx={{ fontSize: 12, color: "#1D4ED8" }}>All times are in Asia/Kolkata (IST)</Typography>
           </Box>
+
+          {/* Bulk status */}
+          <BulkStatusBar onSelect={handleMarkAll} />
 
           {/* Employee table */}
           <Box sx={{ border: "1px solid #F1F5F9", borderRadius: 2, overflow: "hidden" }}>
@@ -382,7 +438,7 @@ export default function MarkAttendanceModal({
             sx={{ color: "#6B7280", fontWeight: 600, "&:hover": { bgcolor: "#F3F4F6" } }}>
             Cancel
           </Button>
-          <Button variant="contained" onClick={handleSave} disabled={isSaving || rows.length === 0} disableElevation
+          <Button variant="contained" onClick={handleSave} disabled={isSaving || rows.length === 0 || isLoadingAllForBulk} disableElevation
             sx={{ bgcolor: "#E11D48", color: "#fff", px: 3, "&:hover": { bgcolor: "#BE123C" } }}>
             {isSaving ? <CircularProgress size={16} sx={{ color: "#fff" }} /> : "Save Attendance"}
           </Button>
