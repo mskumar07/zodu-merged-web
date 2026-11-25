@@ -200,13 +200,13 @@ export default function RoleManagement() {
     <ThemeProvider theme={theme}>
       <Box sx={{
         display: "flex", height: "100%", bgcolor: "#ffffff",
-        overflow: "hidden", gap: 2, p: 2,
+        overflow: "hidden", gap: 0, p: 0,
       }}>
 
         {/* ════ LEFT PANEL ════ */}
         <Box sx={{
           width: { xs: "100%", sm: 340, md: 360 }, flexShrink: 0,
-          bgcolor: "#fff", borderRadius: 2.5, border: "1px solid #E5E7EB",
+          bgcolor: "#fff", borderRadius: 0, borderRight: "1px solid #E5E7EB",
           display: "flex", flexDirection: "column", overflow: "hidden",
         }}>
           {/* Header */}
@@ -328,7 +328,7 @@ export default function RoleManagement() {
         {/* ════ RIGHT PANEL ════ */}
         <Box sx={{
           flex: 1, overflow: "hidden", display: "flex", flexDirection: "column",
-          bgcolor: "#fff", borderRadius: 2.5, border: "1px solid #E5E7EB", minWidth: 0,
+          bgcolor: "#fff", borderRadius: 0, border: "none", minWidth: 0,
         }}>
           {pageMode === "add" ? (
             <RoleEditPage

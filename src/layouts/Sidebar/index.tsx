@@ -44,7 +44,14 @@ import { BranchId, BusinessType, RoleAccess, ZoduId } from "@store/slices/userSl
 import { RestaurantBillingView } from "@store/slices/POSslice";
 import { useSignOut } from "@hooks/useSignOut";
 import { resolveModuleAccess } from "@hooks/useModulePermission";
-import { useSessionClaims } from "@hooks/usePermission";
+import { useCan, useSessionClaims } from "@hooks/usePermission";
+import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
+import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
+import PointOfSaleOutlinedIcon from "@mui/icons-material/PointOfSaleOutlined";
+import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
+import DevicesOutlinedIcon from "@mui/icons-material/DevicesOutlined";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import { useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { attendanceUrl, checklistUrl, crmUrl } from "@config/apps";
@@ -130,6 +137,16 @@ const restaurantNavItems = [
   { label: "Settings", icon: <Settings />, path: "/settings", module: "Settings" },
 ];
 
+// Sub-menu shown under Settings; each entry opens /settings?tab=<tab>.
+// `perm` (if any) is checked against the access token's permissions.
+const settingsSubItems: { label: string; tab: string; icon: React.ReactElement; perm?: "settings" | "roles" }[] = [
+  { label: "Company", tab: "company", icon: <BusinessOutlinedIcon /> },
+  { label: "Invoice settings", tab: "invoice", icon: <ReceiptLongOutlinedIcon />, perm: "settings" },
+  { label: "POS settings", tab: "pos", icon: <PointOfSaleOutlinedIcon />, perm: "settings" },
+  { label: "Role Management", tab: "role", icon: <AdminPanelSettingsOutlinedIcon />, perm: "roles" },
+  { label: "Logged-in devices", tab: "devices", icon: <DevicesOutlinedIcon /> },
+];
+
 // Zodu apps, listed under MY APPS. `logo` is the app's wordmark SVG (icon +
 // "zodu <App>"), shown as-is in place of the icon/text pair. Apps with a `path`
 // navigate in this app, a `url` opens another app (on the current
@@ -157,6 +174,13 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
   const zoduId = useAppSelector(ZoduId);
   const branchId = useAppSelector(BranchId);
   const { role } = useSessionClaims();
+  const can = useCan();
+  const canEditSettings = can("settings:edit");
+  const canManageRoles = can("role:read") || can("role:edit");
+  const visibleSettingsSubItems = settingsSubItems.filter(
+    (s) => !s.perm || (s.perm === "settings" ? canEditSettings : canManageRoles)
+  );
+  const [settingsOpen, setSettingsOpen] = useState(true);
   // Below `md` the sidebar can't rely on hover (touch devices) or afford to
   // permanently reserve drawer width, so it becomes a hamburger-triggered
   // overlay instead of the desktop's always-visible rail.
@@ -293,8 +317,19 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
             key={item.label}
             disablePadding
             disableGutters={true}
-            sx={{ mb: 0.35 }}
+            sx={{ mb: 0.35, flexDirection: "column", alignItems: "stretch" }}
+          >
+            <Box
             onClick={() => {
+              if (item.path === "/settings") {
+                // Settings toggles its sub-menu; first open lands on Company.
+                if (i === activeIndex) setSettingsOpen((o) => !o);
+                else {
+                  setSettingsOpen(true);
+                  navigate("/settings?tab=company");
+                }
+                return;
+              }
               navigate(item.path);
               if (isMobile) onMobileClose?.();
             }}
@@ -353,7 +388,60 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
                   },
                 }}
               />
+              {item.path === "/settings" && expanded && visibleSettingsSubItems.length > 0 && (
+                <Box sx={{ display: "flex", color: i === activeIndex ? "#fff" : theme.palette.text.secondary }}>
+                  {i === activeIndex && settingsOpen ? <KeyboardArrowUpIcon fontSize="small" /> : <KeyboardArrowDownIcon fontSize="small" />}
+                </Box>
+              )}
             </ListItemButton>
+            </Box>
+
+            {/* Settings sub-menu */}
+            {item.path === "/settings" && i === activeIndex && settingsOpen && expanded && (
+              <Box sx={{ ml: 2.25, mt: 0.5, pl: 1, borderLeft: "1px solid", borderColor: theme.palette.divider }}>
+                {visibleSettingsSubItems.map((sub) => {
+                  const currentTab = new URLSearchParams(location.search).get("tab") ?? "company";
+                  const subActive = currentTab === sub.tab;
+                  return (
+                    <ListItemButton
+                      key={sub.tab}
+                      disableRipple
+                      onClick={() => {
+                        navigate(`/settings?tab=${sub.tab}`);
+                        if (isMobile) onMobileClose?.();
+                      }}
+                      sx={{
+                        borderRadius: 1,
+                        minHeight: 34,
+                        py: 0.5,
+                        px: 1.25,
+                        mb: 0.25,
+                        bgcolor: subActive ? "rgba(202,0,34,0.08)" : "transparent",
+                        "&:hover": { bgcolor: subActive ? "rgba(202,0,34,0.08)" : theme.palette.action.hover },
+                      }}
+                    >
+                      <ListItemIcon
+                        sx={{ minWidth: 28, color: subActive ? theme.palette.primary.main : theme.palette.text.secondary, "& svg": { fontSize: 20 } }}
+                      >
+                        {sub.icon}
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={sub.label}
+                        sx={{
+                          ml: 0.5,
+                          "& .MuiTypography-root": {
+                            fontWeight: subActive ? 600 : 500,
+                            fontSize: "13px",
+                            color: subActive ? theme.palette.primary.main : "rgb(71, 85, 105)",
+                            whiteSpace: "nowrap",
+                          },
+                        }}
+                      />
+                    </ListItemButton>
+                  );
+                })}
+              </Box>
+            )}
           </ListItem>
         ))}
       </List>

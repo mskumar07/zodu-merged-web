@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import LottieLoader from "@components/LottieLoader";
 import SuccessToast from "@components/Common/SuccessToast";
 import {
@@ -14,8 +14,6 @@ import {
   IconButton,
   Paper,
   Stack,
-  Tab,
-  Tabs,
   Table,
   TableBody,
   TableCell,
@@ -45,10 +43,6 @@ import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlin
 import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
 import LocationOnRoundedIcon from "@mui/icons-material/LocationOnRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
-import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
-import PointOfSaleOutlinedIcon from "@mui/icons-material/PointOfSaleOutlined";
-import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
-import DevicesOutlinedIcon from "@mui/icons-material/DevicesOutlined";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   authApis,
@@ -102,22 +96,8 @@ const cardBorder = "#ececf2";
 const subtleText = "#8e95a3";
 const headingText = "#1d2533";
 const redTint = "#ca0022";
-const settingsTabSx = {
-  minHeight: 48,
-  px: 2,
-  textTransform: "none",
-  fontSize: 14,
-  fontWeight: 700,
-  color: "#374151",
-  border: "1px solid #f1f1f5",
-  borderRadius: "10px",
-  bgcolor: "#fff",
-  boxShadow: "0 1px 3px rgba(15,23,42,0.08)",
-  "&.Mui-selected": { color: redTint, bgcolor: "rgba(202,0,34,0.06)" },
-  "& .MuiTab-iconWrapper": { mr: 1, fontSize: 20 },
-} as const;
-
-type SettingsTab = "company" | "invoice" | "pos" | "kot" | "user" | "role" | "devices";
+const SETTINGS_TABS = ["company", "invoice", "pos", "role", "devices"] as const;
+type SettingsTab = (typeof SETTINGS_TABS)[number];
 
 const getCompanyAddressLine1 = (company?: CompanyWithBranches | null) => {
   if (!company) return "";
@@ -353,7 +333,11 @@ export default function Setting() {
   // whether to send the user back to branch selection.
   const activeBranchId = useAppSelector(BranchId);
   const activeZoduId = useAppSelector(ZoduId);
-  const [activeTab, setActiveTab] = useState<SettingsTab>("company");
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const activeTab: SettingsTab = (SETTINGS_TABS as readonly string[]).includes(tabParam ?? "")
+    ? (tabParam as SettingsTab)
+    : "company";
   const [expandedCompanyIds, setExpandedCompanyIds] = useState<string[]>([]);
   const [companySearch, setCompanySearch] = useState("");
   const [branchModalOpen, setBranchModalOpen] = useState(false);
@@ -831,47 +815,16 @@ export default function Setting() {
       sx={{
         minHeight: "100%",
         bgcolor: "#fff",
-        px: { xs: 2, md: 3 },
-        py: { xs: 2, md: 1 },
+        // Invoice / POS settings sit almost flush to the top-left (2px / 1px);
+        // the other tabs keep the normal page padding.
+        ...(activeTab === "invoice" || activeTab === "pos" || activeTab === "role"
+          ? { pl: { md: "2px" }, pr: { md: 3 }, pt: { md: activeTab === "role" ? "2px" : "1px" }, pb: { md: 0 }, px: { xs: 2 }, py: { xs: 2 } }
+          : { px: { xs: 2, md: 3 }, py: { xs: 2, md: 1 } }),
       }}
     >
       <Box>
         <Stack spacing={2}>
-          <Box
-            sx={{
-              position: "sticky",
-              top: 0,
-              zIndex: 10,
-              bgcolor: "#fff",
-            }}
-          >
-            <Tabs
-              value={activeTab}
-              onChange={(_, value: SettingsTab) => setActiveTab(value)}
-              variant="scrollable"
-              scrollButtons="auto"
-              TabIndicatorProps={{ sx: { height: 3, borderRadius: 999, bgcolor: redTint, bottom: 0 } }}
-              sx={{
-                minHeight: 56,
-                py: 0.5,
-                px: 0.5,
-                "& .MuiTabs-flexContainer": { gap: 1 },
-              }}
-            >
-              <Tab icon={<BusinessRoundedIcon />} iconPosition="start" label="Company" value="company" sx={settingsTabSx} />
-              {canEditSettings && (
-                <Tab icon={<ReceiptLongOutlinedIcon />} iconPosition="start" label="Invoice settings" value="invoice" sx={settingsTabSx} />
-              )}
-              {canEditSettings && (
-                <Tab icon={<PointOfSaleOutlinedIcon />} iconPosition="start" label="POS settings" value="pos" sx={settingsTabSx} />
-              )}
-              {canManageRoles && (
-                <Tab icon={<AdminPanelSettingsOutlinedIcon />} iconPosition="start" label="Role Management" value="role" sx={settingsTabSx} />
-              )}
-              <Tab icon={<DevicesOutlinedIcon />} iconPosition="start" label="Logged-in devices" value="devices" sx={settingsTabSx} />
-            </Tabs>
-          </Box>
-
+          {/* Section switching lives in the sidebar (Settings > sub-menu), driven by ?tab= */}
           {activeTab === "company" && (
           <Stack
             direction={{ xs: "column", md: "row" }}
@@ -1328,16 +1281,22 @@ export default function Setting() {
             </Stack>
           ))}
 
+          {/* Invoice / POS settings fill the content area edge to edge (like Role Management):
+              the wrapper has a fixed height and the screens scroll inside it. */}
           {activeTab === "invoice" && canEditSettings && (
-            <ReadOnlyClickGuard>
-              {businessType === "Restaurant" ? <RestaurantInvoiceSetting /> : <InvoiceSetting />}
-            </ReadOnlyClickGuard>
+            <Box sx={{ height: { lg: "calc(100vh - 74px)" } }}>
+              <ReadOnlyClickGuard>
+                {businessType === "Restaurant" ? <RestaurantInvoiceSetting /> : <InvoiceSetting />}
+              </ReadOnlyClickGuard>
+            </Box>
           )}
 
           {activeTab === "pos" && canEditSettings && (
-            <ReadOnlyClickGuard>
-              {businessType === "Restaurant" ? <RestaurantPosSetting /> : <PosSetting />}
-            </ReadOnlyClickGuard>
+            <Box sx={{ height: { lg: "calc(100vh - 74px)" } }}>
+              <ReadOnlyClickGuard>
+                {businessType === "Restaurant" ? <RestaurantPosSetting /> : <PosSetting />}
+              </ReadOnlyClickGuard>
+            </Box>
           )}
 
           {/* {activeTab === "kot" && businessType === "Restaurant" && <PrinterSettings />} */}
@@ -1370,7 +1329,7 @@ export default function Setting() {
           )} */}
 
           {activeTab === "role" && canManageRoles && (
-            <Box sx={{ height: "calc(100vh - 220px)", minHeight: 550, mx: -3 }}>
+            <Box sx={{ height: "calc(100vh - 84px)", minHeight: 550 }}>
               <RoleManagement />
             </Box>
           )}
