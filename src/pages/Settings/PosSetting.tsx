@@ -344,11 +344,14 @@ function Section({ title, subtitle, children }: SectionProps) {
     <Paper
       elevation={0}
       sx={{
-        borderRadius: 1,
-        border: "1px solid",
+        borderRadius: 0,
+        border: "none",
+        borderBottom: "1px solid",
         borderColor: cardBorder,
         bgcolor: "#fff",
         overflow: "hidden",
+        pb: 1,
+        "&:last-of-type": { borderBottom: "none" },
       }}
     >
       <Box sx={{ px: { xs: 2, md: 2.5 }, pt: 2, pb: 1 }}>
@@ -761,7 +764,9 @@ export default function PosSetting() {
   }
 
   return (
-    <Box>
+    <Box sx={{ display: "flex", flexDirection: "column", height: { lg: "100%" } }}>
+      {/* Scrolling body; the save bar below stays pinned flush to the bottom. */}
+      <Box sx={{ flex: 1, minHeight: 0, overflowY: { lg: "auto" }, p: 0 }}>
       {/* Two independent column stacks, not grid cells: these sections have
           very different heights, and fixed cell placement left a visible hole
           beside the shorter column. */}
@@ -769,8 +774,10 @@ export default function PosSetting() {
         sx={{
           display: "grid",
           gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-          gap: 2,
+          columnGap: 0,
+          rowGap: 0,
           alignItems: "start",
+          "& > .MuiStack-root:first-of-type": { borderRight: { md: "1px solid" }, borderColor: cardBorder },
         }}
       >
         <Stack spacing={2}>
@@ -1238,20 +1245,19 @@ export default function PosSetting() {
           </Section>
         </Stack>
       </Box>
+      </Box>
 
-      {/* Bottom Save Bar — pinned to the bottom of the scroll area, so Save is
+      {/* Bottom Save Bar — flush to the bottom of the screen, so Save is
           always in reach however far down the settings the user is. */}
       <Box
         sx={{
-          position: "sticky",
-          bottom: 0,
+          flexShrink: 0,
           zIndex: 5,
-          boxShadow: "0 -6px 16px rgba(15, 23, 42, 0.06)",
-          mt: 3,
-          py: 2,
+          py: 1,
           px: { xs: 2, md: 2.5 },
-          borderRadius: 1,
-          border: "1px solid",
+          borderRadius: 0,
+          border: "none",
+          borderTop: "1px solid",
           borderColor: cardBorder,
           bgcolor: "#fff",
           display: "flex",
@@ -1271,7 +1277,7 @@ export default function PosSetting() {
           disabled={isSaving || isSavingPosTypes}
           sx={{
             px: 3,
-            py: 1,
+            py: 0.5,
             borderRadius: 1,
             bgcolor: saved ? "#1a7a3c" : redTint,
             fontWeight: 700,

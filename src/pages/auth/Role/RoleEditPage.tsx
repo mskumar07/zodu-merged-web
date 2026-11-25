@@ -764,7 +764,7 @@ export default function RoleEditPage({
       {/* ── Footer ── */}
       <Box sx={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        px: 3, py: 1.75, bgcolor: "#fff", borderTop: "1px solid #E5E7EB", flexShrink: 0,
+        px: 3, pt: 1.5, pb: 0.5, bgcolor: "#fff", borderTop: "1px solid #E5E7EB", flexShrink: 0,
         gap: 2, flexWrap: "wrap",
       }}>
         {/* Total permissions */}

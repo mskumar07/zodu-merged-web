@@ -221,9 +221,12 @@ function Section({ title, subtitle, action, stickyHeader, children }: SectionPro
     <Paper
       elevation={0}
       sx={{
-        borderRadius: 1,
-        border: "1px solid",
+        borderRadius: 0,
+        border: "none",
+        borderBottom: "1px solid",
         borderColor: cardBorder,
+        pb: 1,
+        "&:last-of-type": { borderBottom: "none" },
         bgcolor: "#fff",
         // "clip" rounds the corners like "hidden" but doesn't make this a scroll
         // container, which would stop the sticky header from pinning.
@@ -947,26 +950,27 @@ export default function InvoiceSetting() {
   }
 
   return (
-    <Box >
-     
-
+    <Box sx={{ height: { lg: "100%" } }}>
       <Box
         sx={{
           display: "grid",
           gridTemplateColumns: { xs: "1fr", lg: "1.1fr 1fr" },
-          gap: 2,
-          alignItems: "start",
+          gap: 0,
+          alignItems: "stretch",
+          height: { lg: "100%" },
         }}
       >
         {/* Left Column — scrolls independently of the page; the Save bar
             sticks to the bottom of this scroll area only. */}
         <Box
           sx={{
-            minHeight: 0, height: { lg: "calc(100vh - 150px)" }, overflowY: { lg: "auto" }, pr: { lg: 0.5 },
+            minHeight: 0, height: { lg: "100%" }, display: "flex", flexDirection: "column", overflow: { lg: "hidden" },
+            borderRight: { lg: "1px solid" }, borderColor: cardBorder,
             // Tab switch still fetching: keep the layout, block edits to stale values.
             opacity: isLoading ? 0.5 : 1, pointerEvents: isLoading ? "none" : "auto", transition: "opacity 0.15s",
           }}
         >
+        <Box sx={{ flex: 1, minHeight: 0, overflowY: { lg: "auto" }, p: 0 }}>
         <Stack spacing={2}>
            {/* <Box sx={{ mb: 2.5 }}>
         <Typography sx={{ fontSize: { xs: 22, md: 26 }, fontWeight: 800, color: headingText, lineHeight: 1.2 }}>
@@ -1566,18 +1570,17 @@ export default function InvoiceSetting() {
           )}
 
         </Stack>
+        </Box>
 
-          {/* Save bar — sticks to the bottom of this scroll area only
-              (not the full width under the preview), reduced padding. */}
+          {/* Save bar — flush to the bottom of the settings column. */}
           <Box
             sx={{
-              position: { lg: "sticky" },
-              bottom: { lg: 0 },
-              mt: 1.5,
+              flexShrink: 0,
               py: 1,
-              px: 2,
-              borderRadius: 1,
-              border: "1px solid",
+              px: { xs: 2, md: 2.5 },
+              borderRadius: 0,
+              border: "none",
+              borderTop: "1px solid",
               borderColor: cardBorder,
               bgcolor: "#fff",
               display: "flex",
@@ -1597,7 +1600,7 @@ export default function InvoiceSetting() {
               disabled={isSaving}
               sx={{
                 px: 3,
-                py: 1,
+                py: 0.5,
                 borderRadius: 1,
                 bgcolor: saved ? "#1a7a3c" : redTint,
                 fontWeight: 700,
@@ -1618,13 +1621,13 @@ export default function InvoiceSetting() {
         <Paper
           elevation={0}
           sx={{
-            borderRadius: 1,
-            border: "1px solid",
-            borderColor: cardBorder,
+            borderRadius: 0,
+            border: "none",
             bgcolor: "#fff",
             overflow: "hidden",
-            position: { lg: "sticky" },
-            top: { lg: 16 },
+            height: { lg: "100%" },
+            display: "flex",
+            flexDirection: "column",
             // A grid item's min width is its content's by default, which let the
             // zoomed receipt resize its own column.
             minWidth: 0,
@@ -1679,8 +1682,8 @@ export default function InvoiceSetting() {
               justifyContent: "center",
               overflowX: "hidden",
               overflowY: "auto",
-              height: { xs: "auto", lg: "calc(100vh - 220px)" },
-              minHeight: { xs: 320, lg: 500 },
+              flex: 1,
+              minHeight: { xs: 320, lg: 0 },
               // App-wide CSS hides all scrollbars (index.css `::-webkit-scrollbar { display: none }`) —
               // this panel needs its own visible one so users can tell there's more to scroll to.
               "&::-webkit-scrollbar": { display: "block", width: 8 },
